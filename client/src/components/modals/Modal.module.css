@@ -1,0 +1,50 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--color-overlay);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 50;
+}
+
+.card {
+  background: var(--color-surface);
+  border-radius: var(--radius-container);
+  padding: var(--space-5);
+  width: min(960px, 92vw);
+  max-height: 80vh;
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.close {
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 8px 14px;
+  color: var(--color-text);
+  font-weight: 600;
+  transition: transform var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.close:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-xs);
+}

@@ -1,0 +1,349 @@
+@import url("https://fonts.cdnfonts.com/css/montreal-neue");
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap");
+
+:root {
+  color-scheme: light;
+  /* Neutral palette */
+  --ink-1000: #050505;
+  --ink-900: #111111;
+  --ink-700: #1c1c1c;
+  --ink-500: #3c3c3c;
+  --fog-100: #fdfdfc;
+  --fog-150: #f6f6f4;
+  --fog-200: #efefed;
+  --fog-300: #dededb;
+  --fog-400: #c2c2be;
+  --fog-500: #9a9a96;
+
+  /* Semantic tokens */
+  --bg: var(--fog-100);
+  --fg: var(--ink-1000);
+  --muted: var(--fog-500);
+  --muted-strong: var(--ink-500);
+  --border: var(--ink-900);
+  --border-subtle: var(--fog-300);
+  --card-bg: var(--fog-100);
+  --card-hover-bg: var(--fog-150);
+  --surface: var(--fog-150);
+  --surface-strong: var(--fog-200);
+  --surface-soft: var(--fog-100);
+  --accent: var(--ink-1000);
+  --accent-orange-soft: var(--fog-300);
+  --accent-ring: rgba(5, 5, 5, 0.2);
+  --accent-muted: var(--fog-400);
+  --color-canvas: var(--fog-100);
+  --canvas-grid-size: 84px;
+  --canvas-grid-dot: rgba(5, 5, 5, 0.4);
+  --canvas-grid-dot-soft: rgba(5, 5, 5, 0.08);
+
+  /* Typography */
+  --font-body: "Space Grotesk", "Montreal Neue";
+  --font-title: "Montreal Neue", "Space Grotesk";
+  --font-title-weight: 600;
+  --font-mono: "Space Grotesk", "Montreal Neue";
+
+  /* Layout */
+  --max-w: 1600px;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --radius-lg: 16px;
+  --radius-node: 8px;
+  --gap: clamp(12px, 2vw, 24px);
+  --pad: clamp(12px, 2vw, 24px);
+
+  /* Motion */
+  --easing: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --fast: 120ms;
+  --norm: 200ms;
+  --slow: 360ms;
+
+  --font-sans: var(--font-body);
+  --font-serif: var(--font-title);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-soft);
+  --color-border: var(--border);
+  --color-text: var(--fg);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-orange-soft);
+  --color-on-accent: var(--fog-100);
+  --color-topbar-bg: var(--surface-strong);
+  --color-topbar-dot-strong: rgba(5, 5, 5, 0.45);
+  --color-topbar-dot-soft: rgba(5, 5, 5, 0.25);
+  --color-topbar-border: var(--border);
+  --color-glass: color-mix(in srgb, var(--surface) 85%, transparent);
+  --color-glass-strong: color-mix(
+    in srgb,
+    var(--surface-strong) 90%,
+    transparent
+  );
+  --color-overlay: color-mix(in srgb, var(--bg) 92%, transparent);
+  --color-workspace-gradient-start: var(--fog-100);
+  --color-workspace-gradient-end: var(--fog-200);
+  --color-grid-dot: rgba(5, 5, 5, 0.12);
+  --color-grid-dot-soft: rgba(5, 5, 5, 0.04);
+  --color-footer-bg: color-mix(in srgb, var(--fog-150) 90%, transparent);
+  --color-footer-border: rgba(5, 5, 5, 0.12);
+  --color-footer-grid-strong: rgba(5, 5, 5, 0.12);
+  --color-footer-grid-soft: rgba(5, 5, 5, 0.04);
+  --color-footer-highlight: rgba(5, 5, 5, 0.6);
+  --color-accent-ring: rgba(5, 5, 5, 0.25);
+  --color-accent-ring-strong: rgba(5, 5, 5, 0.35);
+  --color-accent-spot: rgba(5, 5, 5, 0.5);
+  --color-edge: rgba(5, 5, 5, 0.6);
+  --color-handle-dot-strong: rgba(5, 5, 5, 0.9);
+  --color-handle-dot-soft: rgba(5, 5, 5, 0.6);
+  --color-handle-stroke: rgba(5, 5, 5, 0.7);
+  --radius-container: var(--radius-lg);
+  --radius-panel: calc(var(--radius-lg) + 8px);
+  --radius-card: var(--radius);
+  --radius-input: var(--radius-sm);
+  --shadow-xs: 0 1px 0 rgba(5, 5, 5, 0.4);
+  --shadow-sm: 0 6px 0 rgba(5, 5, 5, 0.6);
+  --shadow-panel: 0 16px 0 rgba(5, 5, 5, 0.8);
+  --shadow-panel-active: 0 20px 0 rgba(5, 5, 5, 0.85);
+  --shadow-panel-outline: 0 0 0 2px rgba(5, 5, 5, 0.15);
+  --shadow-node: 0 12px 0 #050505;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --transition-fast: var(--fast) var(--easing);
+  --transition-base: var(--norm) var(--easing);
+  --topbar-height: 96px;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: var(--ink-1000);
+  --fg: var(--fog-100);
+  --muted: var(--fog-400);
+  --muted-strong: var(--fog-300);
+  --border: var(--ink-700);
+  --border-subtle: var(--ink-900);
+  --card-bg: var(--ink-900);
+  --card-hover-bg: var(--ink-700);
+  --surface: var(--ink-900);
+  --surface-strong: var(--ink-700);
+  --surface-soft: var(--ink-700);
+  --color-topbar-bg: var(--ink-900);
+  --color-topbar-border: var(--ink-700);
+  --color-grid-dot: rgba(253, 253, 252, 0.2);
+  --color-grid-dot-soft: rgba(253, 253, 252, 0.08);
+  --color-footer-bg: color-mix(in srgb, var(--ink-900) 92%, transparent);
+  --color-footer-border: rgba(253, 253, 252, 0.12);
+  --color-footer-grid-strong: rgba(253, 253, 252, 0.15);
+  --color-footer-grid-soft: rgba(253, 253, 252, 0.05);
+  --color-footer-highlight: rgba(253, 253, 252, 0.65);
+  --color-accent-ring: rgba(253, 253, 252, 0.3);
+  --color-accent-ring-strong: rgba(253, 253, 252, 0.4);
+  --color-accent-spot: rgba(253, 253, 252, 0.5);
+  --color-edge: rgba(253, 253, 252, 0.7);
+  --color-handle-dot-strong: rgba(253, 253, 252, 0.9);
+  --color-handle-dot-soft: rgba(253, 253, 252, 0.7);
+  --color-handle-stroke: rgba(253, 253, 252, 0.6);
+  --shadow-xs: 0 1px 0 rgba(0, 0, 0, 0.6);
+  --shadow-sm: 0 6px 0 rgba(0, 0, 0, 0.8);
+  --shadow-panel: 0 16px 0 rgba(0, 0, 0, 0.85);
+  --shadow-panel-active: 0 20px 0 rgba(0, 0, 0, 0.92);
+  --shadow-panel-outline: 0 0 0 2px rgba(253, 253, 252, 0.15);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.4;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  color: inherit;
+}
+
+input,
+select,
+textarea {
+  border-radius: var(--radius-input);
+  border: 1px solid var(--color-border);
+  padding: 8px 12px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  transition: border-color var(--transition-fast),
+    box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-muted);
+}
+
+button {
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: transparent;
+  transition: transform var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-accent-ring);
+}
+
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.react-flow__controls {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-xs);
+}
+
+.react-flow__controls button {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  padding: 6px;
+}
+
+.react-flow__controls button:hover {
+  background: var(--color-surface-muted);
+}
+
+.react-flow__controls button:focus-visible {
+  box-shadow: 0 0 0 2px var(--color-accent-ring-strong);
+}
+
+.react-flow__minimap {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-input);
+  box-shadow: var(--shadow-xs);
+}
+
+.react-flow__minimap-mask {
+  fill: var(--color-accent-soft);
+}
+
+.react-flow__minimap-node {
+  fill: var(--color-border);
+  stroke: var(--color-border);
+}
+
+.dashboard-canvas {
+  background-color: var(--color-canvas);
+  background-image: radial-gradient(var(--canvas-grid-dot) 1px, transparent 1px),
+    radial-gradient(var(--canvas-grid-dot-soft) 1px, transparent 1px);
+  background-size: var(--canvas-grid-size) var(--canvas-grid-size),
+    calc(var(--canvas-grid-size) / 2) calc(var(--canvas-grid-size) / 2);
+  background-position: 0 0,
+    calc(var(--canvas-grid-size) / 2) calc(var(--canvas-grid-size) / 2);
+}
+
+.canvas-top-bar {
+  --node-library-bg: var(--fog-150);
+  --node-library-border: var(--fog-300);
+  --node-library-border-strong: var(--ink-900);
+  --node-library-border-highlight: var(--fog-200);
+  --canvas-topbar-graphite: var(--ink-1000);
+  --canvas-topbar-charcoal: var(--ink-700);
+  --canvas-topbar-light: var(--fog-100);
+}
+
+.node-library {
+  --node-keycap-size: 36px;
+}
+
+.top-control-bar,
+.component-hub {
+  --ui-surface: var(--fog-150);
+  --ui-surface-2: var(--fog-200);
+  --ui-stroke: var(--border-subtle);
+  --ui-ink: var(--ink-1000);
+  --ui-ink-2: var(--ink-500);
+  --ui-accent: var(--ink-1000);
+}
+
+.component-hub {
+  --ui-texture-bg: var(--fog-150);
+  --ui-texture-dot: rgba(5, 5, 5, 0.08);
+  --ui-texture-size: 14px;
+}
+
+.sticky-note {
+  --note-body: var(--fog-150);
+  --note-header: var(--fog-200);
+  --note-panel: var(--fog-100);
+  --note-border: var(--ink-900);
+  --note-border-inner: var(--fog-300);
+  --note-shadow: #050505;
+  --note-text: var(--ink-1000);
+  --note-muted: var(--ink-500);
+  --note-muted-strong: var(--ink-700);
+  --note-accent: var(--ink-1000);
+  --surface: var(--note-body);
+  --surface-strong: var(--note-header);
+  --surface-soft: var(--note-panel);
+  --border: var(--note-border);
+  --border-subtle: var(--note-border-inner);
+  --fg: var(--note-text);
+  --muted: var(--note-muted);
+  --muted-strong: var(--note-muted-strong);
+  --accent: var(--note-accent);
+  --accent-orange: var(--note-accent);
+  --accent-orange-soft: rgba(5, 5, 5, 0.2);
+  --accent-muted: var(--note-muted);
+  --bg: var(--note-body);
+}
+
+.canvas-title__logo {
+  color: var(--ink-1000);
+}
+
+.canvas-title__logo-text {
+  font-family: "Montreal Neue", "Space Grotesk";
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.32em;
+}
+
+.sort-logo text {
+  font-family: "Montreal Neue", "Space Grotesk";
+  font-weight: 700;
+  font-size: 72px;
+  letter-spacing: -0.04em;
+  fill: var(--ink-1000);
+}

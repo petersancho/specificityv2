@@ -1,0 +1,51 @@
+.searchRow {
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.searchRow input {
+  width: min(320px, 100%);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table th,
+.table td {
+  padding: 10px;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+}
+
+.table th {
+  cursor: pointer;
+  color: var(--color-muted);
+  font-weight: 600;
+}
+
+.table tbody tr:hover {
+  background: var(--color-surface-muted);
+}
+
+.formulas {
+  margin-top: 16px;
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding: 12px;
+}
+
+.formulas h3 {
+  margin: 0 0 8px;
+}
+
+.formulas ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--color-muted);
+  font-size: 13px;
+}

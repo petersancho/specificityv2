@@ -1,0 +1,497 @@
+{
+  "id": "1769077864713-17a63066ab004",
+  "name": "002",
+  "savedAt": "2026-01-22T10:31:04.713Z",
+  "project": {
+    "geometry": [
+      {
+        "id": "vertex-1",
+        "type": "vertex",
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "layerId": "layer-default",
+        "area_m2": 1,
+        "thickness_m": 0.1
+      },
+      {
+        "id": "vertex-1769077428121-0",
+        "type": "vertex",
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "layerId": "layer-default",
+        "area_m2": 1,
+        "thickness_m": 0.1
+      },
+      {
+        "id": "vertex-1769077429733-1",
+        "type": "vertex",
+        "position": {
+          "x": 1.25,
+          "y": 0,
+          "z": -1.75
+        },
+        "layerId": "layer-default",
+        "area_m2": 1,
+        "thickness_m": 0.1
+      },
+      {
+        "id": "vertex-1769077430560-2",
+        "type": "vertex",
+        "position": {
+          "x": 2.25,
+          "y": 0,
+          "z": -1.5
+        },
+        "layerId": "layer-default",
+        "area_m2": 1,
+        "thickness_m": 0.1
+      },
+      {
+        "id": "vertex-1769077431894-3",
+        "type": "vertex",
+        "position": {
+          "x": 3.5,
+          "y": 0,
+          "z": -0.5
+        },
+        "layerId": "layer-default",
+        "area_m2": 1,
+        "thickness_m": 0.1
+      },
+      {
+        "id": "vertex-1769077528049-4",
+        "type": "vertex",
+        "position": {
+          "x": 0.75,
+          "y": 0,
+          "z": 1
+        },
+        "layerId": "layer-default",
+        "area_m2": 1,
+        "thickness_m": 0.1
+      },
+      {
+        "id": "vertex-1769077529770-5",
+        "type": "vertex",
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 2.75
+        },
+        "layerId": "layer-default",
+        "area_m2": 1,
+        "thickness_m": 0.1
+      },
+      {
+        "id": "vertex-1769077530330-6",
+        "type": "vertex",
+        "position": {
+          "x": -0.5,
+          "y": -4.440892098500626e-16,
+          "z": 3.5
+        },
+        "layerId": "layer-default",
+        "area_m2": 1,
+        "thickness_m": 0.1
+      },
+      {
+        "id": "vertex-1769077530823-7",
+        "type": "vertex",
+        "position": {
+          "x": -0.5,
+          "y": 0,
+          "z": 4.5
+        },
+        "layerId": "layer-default",
+        "area_m2": 1,
+        "thickness_m": 0.1
+      },
+      {
+        "id": "vertex-1769077531437-8",
+        "type": "vertex",
+        "position": {
+          "x": -0.75,
+          "y": 0,
+          "z": 5.25
+        },
+        "layerId": "layer-default",
+        "area_m2": 1,
+        "thickness_m": 0.1
+      },
+      {
+        "id": "vertex-1769077550399-9",
+        "type": "vertex",
+        "position": {
+          "x": 4,
+          "y": 1.7763568394002505e-15,
+          "z": 3.25
+        },
+        "layerId": "layer-default",
+        "area_m2": 1,
+        "thickness_m": 0.1
+      },
+      {
+        "id": "vertex-1769077551014-10",
+        "type": "vertex",
+        "position": {
+          "x": 2,
+          "y": -1.7763568394002505e-15,
+          "z": 4.5
+        },
+        "layerId": "layer-default",
+        "area_m2": 1,
+        "thickness_m": 0.1
+      },
+      {
+        "id": "vertex-1769077551696-11",
+        "type": "vertex",
+        "position": {
+          "x": -0.75,
+          "y": 0,
+          "z": 2
+        },
+        "layerId": "layer-default",
+        "area_m2": 1,
+        "thickness_m": 0.1
+      },
+      {
+        "id": "vertex-1769077552271-12",
+        "type": "vertex",
+        "position": {
+          "x": -3.75,
+          "y": 0,
+          "z": -3.5
+        },
+        "layerId": "layer-default",
+        "area_m2": 1,
+        "thickness_m": 0.1
+      },
+      {
+        "id": "vertex-1769077552872-13",
+        "type": "vertex",
+        "position": {
+          "x": 0.5,
+          "y": 0,
+          "z": -3.75
+        },
+        "layerId": "layer-default",
+        "area_m2": 1,
+        "thickness_m": 0.1
+      }
+    ],
+    "layers": [
+      {
+        "id": "layer-default",
+        "name": "Default Layer",
+        "geometryIds": [
+          "vertex-1",
+          "vertex-1769077428121-0",
+          "vertex-1769077429733-1",
+          "vertex-1769077430560-2",
+          "vertex-1769077431894-3",
+          "vertex-1769077528049-4",
+          "vertex-1769077529770-5",
+          "vertex-1769077530330-6",
+          "vertex-1769077530823-7",
+          "vertex-1769077531437-8",
+          "vertex-1769077550399-9",
+          "vertex-1769077551014-10",
+          "vertex-1769077551696-11",
+          "vertex-1769077552271-12",
+          "vertex-1769077552872-13"
+        ]
+      }
+    ],
+    "assignments": [
+      {
+        "layerId": "layer-default",
+        "materialId": "concrete"
+      }
+    ],
+    "workflow": {
+      "nodes": [
+        {
+          "id": "node-geometry",
+          "type": "geometryReference",
+          "position": {
+            "x": 20,
+            "y": 40
+          },
+          "data": {
+            "label": "Geometry Reference",
+            "geometryId": "vertex-1",
+            "outputs": {}
+          },
+          "width": 150,
+          "height": 96
+        },
+        {
+          "id": "node-area",
+          "type": "areaCalculator",
+          "position": {
+            "x": 240,
+            "y": 40
+          },
+          "data": {
+            "label": "Area",
+            "assumedArea_m2": 1,
+            "assumedThickness_m": 0.1,
+            "outputs": {}
+          },
+          "width": 150,
+          "height": 96
+        },
+        {
+          "id": "node-material",
+          "type": "materialSelector",
+          "position": {
+            "x": 240,
+            "y": 200
+          },
+          "data": {
+            "label": "Material Selector",
+            "materialId": "concrete",
+            "outputs": {}
+          },
+          "width": 150,
+          "height": 96
+        },
+        {
+          "id": "node-density",
+          "type": "densityLookup",
+          "position": {
+            "x": 460,
+            "y": 200
+          },
+          "data": {
+            "label": "Density",
+            "materialId": "concrete",
+            "assumedDensity_kg_m3": 2400,
+            "outputs": {}
+          },
+          "width": 150,
+          "height": 96
+        },
+        {
+          "id": "node-mass",
+          "type": "massCalculator",
+          "position": {
+            "x": 460,
+            "y": 40
+          },
+          "data": {
+            "label": "Mass Calculator",
+            "outputs": {}
+          },
+          "width": 150,
+          "height": 96
+        },
+        {
+          "id": "node-ecc",
+          "type": "eccLookup",
+          "position": {
+            "x": 680,
+            "y": 200
+          },
+          "data": {
+            "label": "ECC Lookup",
+            "outputs": {}
+          },
+          "width": 150,
+          "height": 96
+        },
+        {
+          "id": "node-gwp-material",
+          "type": "gwpMaterial",
+          "position": {
+            "x": 680,
+            "y": 40
+          },
+          "data": {
+            "label": "GWP Material",
+            "outputs": {
+              "mass_kg": 0,
+              "materialGWP_kgCO2e": 0
+            }
+          },
+          "width": 150,
+          "height": 96
+        },
+        {
+          "id": "node-gwp-assembly",
+          "type": "gwpAssembly",
+          "position": {
+            "x": 900,
+            "y": 10
+          },
+          "data": {
+            "label": "GWP Assembly",
+            "assemblyFactor": 0.12,
+            "outputs": {
+              "assemblyGWP_kgCO2e": 0
+            }
+          },
+          "width": 150,
+          "height": 96
+        },
+        {
+          "id": "node-gwp-composite",
+          "type": "gwpComposite",
+          "position": {
+            "x": 900,
+            "y": 120
+          },
+          "data": {
+            "label": "GWP Composite",
+            "outputs": {
+              "compositeGWP_kgCO2e": 0
+            }
+          },
+          "width": 150,
+          "height": 96
+        },
+        {
+          "id": "node-gwp-intensity",
+          "type": "gwpIntensity",
+          "position": {
+            "x": 1120,
+            "y": 40
+          },
+          "data": {
+            "label": "GWP Intensity",
+            "outputs": {
+              "gwpIntensity_kgCO2e_per_kg": 0
+            }
+          },
+          "width": 150,
+          "height": 96
+        },
+        {
+          "id": "node-results",
+          "type": "results",
+          "position": {
+            "x": 1340,
+            "y": 40
+          },
+          "data": {
+            "label": "Results",
+            "outputs": {
+              "result": [
+                0,
+                0
+              ]
+            }
+          },
+          "width": 150,
+          "height": 96
+        }
+      ],
+      "edges": [
+        {
+          "id": "edge-geometry-area",
+          "source": "node-geometry",
+          "target": "node-area",
+          "sourceHandle": "geometryId",
+          "targetHandle": "geometryId"
+        },
+        {
+          "id": "edge-area-mass",
+          "source": "node-area",
+          "target": "node-mass",
+          "sourceHandle": "volume_m3",
+          "targetHandle": "volume_m3"
+        },
+        {
+          "id": "edge-material-density",
+          "source": "node-material",
+          "target": "node-density",
+          "sourceHandle": "materialId",
+          "targetHandle": "materialId"
+        },
+        {
+          "id": "edge-density-mass",
+          "source": "node-density",
+          "target": "node-mass",
+          "sourceHandle": "density_kg_m3",
+          "targetHandle": "density_kg_m3"
+        },
+        {
+          "id": "edge-material-ecc",
+          "source": "node-material",
+          "target": "node-ecc",
+          "sourceHandle": "materialId",
+          "targetHandle": "materialId"
+        },
+        {
+          "id": "edge-mass-gwp-material",
+          "source": "node-mass",
+          "target": "node-gwp-material",
+          "sourceHandle": "mass_kg",
+          "targetHandle": "mass_kg"
+        },
+        {
+          "id": "edge-ecc-gwp-material",
+          "source": "node-ecc",
+          "target": "node-gwp-material",
+          "sourceHandle": "ecc_kgco2e_per_kg",
+          "targetHandle": "ecc_kgco2e_per_kg"
+        },
+        {
+          "id": "edge-gwp-material-assembly",
+          "source": "node-gwp-material",
+          "target": "node-gwp-assembly",
+          "sourceHandle": "materialGWP_kgCO2e",
+          "targetHandle": "materialGWP_kgCO2e"
+        },
+        {
+          "id": "edge-gwp-material-composite",
+          "source": "node-gwp-material",
+          "target": "node-gwp-composite",
+          "sourceHandle": "materialGWP_kgCO2e",
+          "targetHandle": "materialGWP_kgCO2e"
+        },
+        {
+          "id": "edge-gwp-assembly-composite",
+          "source": "node-gwp-assembly",
+          "target": "node-gwp-composite",
+          "sourceHandle": "assemblyGWP_kgCO2e",
+          "targetHandle": "assemblyGWP_kgCO2e"
+        },
+        {
+          "id": "edge-gwp-material-intensity",
+          "source": "node-gwp-material",
+          "target": "node-gwp-intensity",
+          "sourceHandle": "materialGWP_kgCO2e",
+          "targetHandle": "materialGWP_kgCO2e"
+        },
+        {
+          "id": "edge-mass-intensity",
+          "source": "node-mass",
+          "target": "node-gwp-intensity",
+          "sourceHandle": "mass_kg",
+          "targetHandle": "mass_kg"
+        },
+        {
+          "id": "edge-gwp-composite-results",
+          "source": "node-gwp-composite",
+          "target": "node-results",
+          "sourceHandle": "compositeGWP_kgCO2e",
+          "targetHandle": "result"
+        },
+        {
+          "id": "edge-gwp-intensity-results",
+          "source": "node-gwp-intensity",
+          "target": "node-results",
+          "sourceHandle": "gwpIntensity_kgCO2e_per_kg",
+          "targetHandle": "result"
+        }
+      ]
+    }
+  }
+}

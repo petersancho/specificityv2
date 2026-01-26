@@ -1,0 +1,93 @@
+[
+  {
+    "id": "concrete",
+    "name": "Concrete (30 MPa)",
+    "density_kg_m3": 2400,
+    "category": "Mineral",
+    "source": "Generic LCA dataset"
+  },
+  {
+    "id": "steel",
+    "name": "Structural Steel",
+    "density_kg_m3": 7850,
+    "category": "Metal",
+    "source": "Generic LCA dataset"
+  },
+  {
+    "id": "glulam",
+    "name": "Glulam Timber",
+    "density_kg_m3": 550,
+    "category": "Timber",
+    "source": "Generic LCA dataset"
+  },
+  {
+    "id": "glass",
+    "name": "Float Glass",
+    "density_kg_m3": 2500,
+    "category": "Glass",
+    "source": "Generic LCA dataset"
+  },
+  {
+    "id": "gypsum",
+    "name": "Gypsum Board",
+    "density_kg_m3": 950,
+    "category": "Interior",
+    "source": "Generic LCA dataset"
+  },
+  {
+    "id": "aluminum",
+    "name": "Aluminum",
+    "density_kg_m3": 2700,
+    "category": "Metal",
+    "source": "Generic LCA dataset"
+  },
+  {
+    "id": "brick",
+    "name": "Clay Brick",
+    "density_kg_m3": 1800,
+    "category": "Masonry",
+    "source": "Generic LCA dataset"
+  },
+  {
+    "id": "mineral-wool",
+    "name": "Mineral Wool Insulation",
+    "density_kg_m3": 120,
+    "category": "Insulation",
+    "source": "Generic LCA dataset"
+  },
+  {
+    "id": "flax-insulation",
+    "name": "Flax Fiber Insulation",
+    "density_kg_m3": 40,
+    "category": "Insulation",
+    "source": "Placeholder value"
+  },
+  {
+    "id": "plywood",
+    "name": "Structural Plywood",
+    "density_kg_m3": 600,
+    "category": "Timber",
+    "source": "Generic LCA dataset"
+  },
+  {
+    "id": "copper",
+    "name": "Copper",
+    "density_kg_m3": 8960,
+    "category": "Metal",
+    "source": "Generic LCA dataset"
+  },
+  {
+    "id": "asphalt",
+    "name": "Asphalt",
+    "density_kg_m3": 2350,
+    "category": "Surface",
+    "source": "Generic LCA dataset"
+  },
+  {
+    "id": "clt",
+    "name": "Cross-Laminated Timber",
+    "density_kg_m3": 480,
+    "category": "Timber",
+    "source": "Generic LCA dataset"
+  }
+]

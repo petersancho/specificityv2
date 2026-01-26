@@ -1,0 +1,10 @@
+node_modules
+.DS_Store
+._*
+Thumbs.db
+*.log
+*.tsbuildinfo
+client/.vite
+client/dist
+server/dist
+*.zip
