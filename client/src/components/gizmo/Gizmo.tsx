@@ -34,17 +34,17 @@ type GizmoProps = {
 };
 
 const AXIS_COLORS: Record<"x" | "y" | "z", string> = {
-  x: "#ef4444",
-  y: "#22c55e",
-  z: "#3b82f6",
+  x: "#fdfdfc",
+  y: "#c2c2be",
+  z: "#9a9a96",
 };
 
-const planeColor = "#facc15";
-const screenColor = "#f97316";
-const extrudeColor = "#f97316";
+const planeColor = "#dededb";
+const screenColor = "#fdfdfc";
+const extrudeColor = "#fdfdfc";
 
-const HOVER_AXIS_COLOR = "#fde047";
-const HOVER_ROTATE_COLOR = "#fbbf24";
+const HOVER_AXIS_COLOR = "#efefed";
+const HOVER_ROTATE_COLOR = "#f6f6f4";
 
 const AXIS_HIT_RADIUS_MULTIPLIER = 1.4;
 const MIN_AXIS_HIT_RADIUS = 0.05;
@@ -54,6 +54,12 @@ const CAP_HIT_SCALE_SCALE_MODE = 0.95;
 const PLANE_HIT_SCALE = 0.85;
 const SCREEN_HIT_SCALE = 0.25;
 const ROTATE_HIT_THICKNESS = 0.08;
+const ROTATE_RING_BASE_RADIUS = 0.9;
+const ROTATE_RING_RADII: Record<"x" | "y" | "z", number> = {
+  x: 0.86,
+  y: 0.94,
+  z: 1.02,
+};
 
 const AxisLine = ({
   axis,
@@ -348,7 +354,7 @@ const RotateHandle = ({
       : axis === "y"
         ? [Math.PI / 2, 0, 0]
         : [0, 0, 0];
-  const scale = radius / 0.9;
+  const scale = radius / ROTATE_RING_BASE_RADIUS;
   return (
     <group rotation={rotation as [number, number, number]} scale={[scale, scale, scale]}>
       <mesh>
@@ -464,11 +470,17 @@ export const Gizmo = ({
   const planeGeometry = useMemo(() => new PlaneGeometry(1, 1), []);
   const axisCapGeometry = useMemo(() => new BoxGeometry(1, 1, 1), []);
   const scaleCenterGeometry = useMemo(() => new BoxGeometry(1, 1, 1), []);
-  const rotateGeometry = useMemo(() => new TorusGeometry(0.9, 0.07, 32, 96), []);
+  const rotateGeometry = useMemo(
+    () => new TorusGeometry(ROTATE_RING_BASE_RADIUS, 0.07, 32, 96),
+    []
+  );
   const hitAxisGeometry = useMemo(() => new CylinderGeometry(1, 1, 1, 14), []);
   const hitPlaneGeometry = useMemo(() => new PlaneGeometry(1, 1), []);
   const hitBoxGeometry = useMemo(() => new BoxGeometry(1, 1, 1), []);
-  const hitRotateGeometry = useMemo(() => new TorusGeometry(0.9, ROTATE_HIT_THICKNESS, 24, 72), []);
+  const hitRotateGeometry = useMemo(
+    () => new TorusGeometry(ROTATE_RING_BASE_RADIUS, ROTATE_HIT_THICKNESS, 24, 72),
+    []
+  );
 
   useEffect(() => {
     return () => {
@@ -613,7 +625,7 @@ export const Gizmo = ({
             <RotateHandle
               key={`rotate-${axis}`}
               axis={axis}
-              radius={0.9}
+              radius={ROTATE_RING_RADII[axis]}
               geometry={rotateGeometry}
               material={rotateMaterial[axis]}
               hitGeometry={hitRotateGeometry}
@@ -635,7 +647,7 @@ export const Gizmo = ({
               axis={axis}
               length={1.1}
               size={0.26}
-              color={hovered === `scale-${axis}` ? "#fbbf24" : AXIS_COLORS[axis]}
+              color={hovered === `scale-${axis}` ? HOVER_AXIS_COLOR : AXIS_COLORS[axis]}
               boxGeometry={axisCapGeometry}
               hitGeometry={hitBoxGeometry}
               hitMaterial={hitMaterial}
@@ -672,7 +684,7 @@ export const Gizmo = ({
             scale={[0.26, 0.26, 0.26]}
           >
             <primitive object={scaleCenterGeometry} attach="geometry" />
-            <meshBasicMaterial color="#fbbf24" />
+            <meshBasicMaterial color={HOVER_AXIS_COLOR} />
           </mesh>
         </>
       )}
@@ -683,7 +695,7 @@ export const Gizmo = ({
             axis="z"
             length={1.4}
             size={0.3}
-            color={hovered === "extrude" ? "#fb923c" : extrudeColor}
+            color={hovered === "extrude" ? HOVER_ROTATE_COLOR : extrudeColor}
             boxGeometry={axisCapGeometry}
             hitGeometry={hitBoxGeometry}
             hitMaterial={hitMaterial}

@@ -1,16 +1,70 @@
 import { create } from "zustand";
-import {
-  addEdge,
-  applyEdgeChanges,
-  applyNodeChanges,
-  type Connection,
-  type Edge,
-  type EdgeChange,
-  type Node,
-  type NodeChange,
-} from "reactflow";
+
+type Connection = {
+  source: string;
+  target: string;
+  sourceHandle?: string | null;
+  targetHandle?: string | null;
+};
+
+type NodeChange =
+  | { id: string; type: "position"; position: { x: number; y: number } }
+  | { id: string; type: "remove" }
+  | { id: string; type: "select"; selected: boolean };
+
+type EdgeChange =
+  | { id: string; type: "remove" }
+  | { id: string; type: "select"; selected: boolean };
+
+function applyNodeChanges(changes: NodeChange[], nodes: any[]): any[] {
+  let result = [...nodes];
+  for (const change of changes) {
+    if (change.type === "position") {
+      result = result.map((node) =>
+        node.id === change.id
+          ? { ...node, position: change.position }
+          : node
+      );
+    } else if (change.type === "remove") {
+      result = result.filter((node) => node.id !== change.id);
+    } else if (change.type === "select") {
+      result = result.map((node) =>
+        node.id === change.id
+          ? { ...node, selected: change.selected }
+          : node
+      );
+    }
+  }
+  return result;
+}
+
+function applyEdgeChanges(changes: EdgeChange[], edges: any[]): any[] {
+  let result = [...edges];
+  for (const change of changes) {
+    if (change.type === "remove") {
+      result = result.filter((edge) => edge.id !== change.id);
+    } else if (change.type === "select") {
+      result = result.map((edge) =>
+        edge.id === change.id
+          ? { ...edge, selected: change.selected }
+          : edge
+      );
+    }
+  }
+  return result;
+}
+
+function addEdge(connection: Connection, edges: any[]): any[] {
+  const newEdge = {
+    id: `${connection.source}-${connection.target}-${Date.now()}`,
+    source: connection.source,
+    target: connection.target,
+    sourceHandle: connection.sourceHandle,
+    targetHandle: connection.targetHandle,
+  };
+  return [...edges, newEdge];
+}
 import type {
-  ECCRecord,
   CPlane,
   CameraPreset,
   CameraState,
@@ -42,6 +96,8 @@ import type {
   Vec3,
   WorkflowNodeData,
   WorkflowState,
+  WorkflowNode,
+  WorkflowEdge,
 } from "../types";
 import {
   generateSurfaceMesh,
@@ -54,14 +110,6 @@ type SaveEntry = {
   id: string;
   name: string;
   savedAt: string;
-};
-
-type ComputedMetrics = {
-  mass_kg: number;
-  materialGWP_kgCO2e: number;
-  gwpIntensity_kgCO2e_per_kg: number;
-  compositeGWP_kgCO2e: number;
-  assemblyGWP_kgCO2e: number;
 };
 
 const MAX_WORKFLOW_HISTORY = 40;
@@ -80,18 +128,16 @@ const appendWorkflowHistory = (
 
 const shouldTrackNodeChange = (changes: NodeChange[]) =>
   changes.some((change) => {
-    if (change.type === "add" || change.type === "remove") return true;
-    if (change.type === "position") return !change.dragging;
-    if (change.type === "reset") return true;
+    if (change.type === "remove") return true;
+    if (change.type === "position") return true;
     return false;
   });
 
 const shouldTrackEdgeChange = (changes: EdgeChange[]) =>
-  changes.some((change) => change.type === "remove" || change.type === "reset");
+  changes.some((change) => change.type === "remove");
 
 type ProjectStore = {
   materials: Material[];
-  ecc: ECCRecord[];
   geometry: Geometry[];
   layers: Layer[];
   assignments: MaterialAssignment[];
@@ -114,13 +160,10 @@ type ProjectStore = {
   modelerHistoryFuture: ModelerSnapshot[];
   workflow: WorkflowState;
   workflowHistory: WorkflowState[];
-  dataValues: Record<string, number>;
-  computed: ComputedMetrics;
   saves: SaveEntry[];
   currentSaveId: string | null;
   projectName: string;
   setMaterials: (materials: Material[]) => void;
-  setEcc: (records: ECCRecord[]) => void;
   setSaves: (saves: SaveEntry[]) => void;
   selectGeometry: (id: string | null, isMultiSelect?: boolean) => void;
   setSelectedGeometryIds: (ids: string[]) => void;
@@ -367,7 +410,7 @@ const buildSceneNodesFromGeometry = (geometry: Geometry[]): SceneNode[] =>
     )
   );
 
-const defaultNodes: Node<WorkflowNodeData>[] = [
+const defaultNodes: WorkflowNode[] = [
   {
     id: "node-geometry-ref",
     type: "geometryReference",
@@ -378,30 +421,26 @@ const defaultNodes: Node<WorkflowNodeData>[] = [
     id: "node-point",
     type: "point",
     position: { x: 220, y: 40 },
-    data: { label: "Point", geometryId: "vertex-1", point: { x: 0, y: 0, z: 0 } },
+    data: {
+      label: "Point Generator",
+      geometryId: "vertex-1",
+      geometryType: "vertex",
+      isLinked: true,
+      point: { x: 0, y: 0, z: 0 },
+    },
   },
 ];
 
-const defaultEdges: Edge[] = [];
+const defaultEdges: WorkflowEdge[] = [];
 
 const defaultWorkflow: WorkflowState = {
   nodes: defaultNodes,
   edges: defaultEdges,
 };
 
-const emptyMetrics: ComputedMetrics = {
-  mass_kg: 0,
-  materialGWP_kgCO2e: 0,
-  gwpIntensity_kgCO2e_per_kg: 0,
-  compositeGWP_kgCO2e: 0,
-  assemblyGWP_kgCO2e: 0,
-};
-
 const computeWorkflowOutputs = (
-  nodes: Node<WorkflowNodeData>[],
-  edges: Edge[],
-  materials: Material[],
-  eccRecords: ECCRecord[],
+  nodes: WorkflowNode[],
+  edges: WorkflowEdge[],
   geometry: Geometry[]
 ) => {
   const outputMap: Record<
@@ -460,7 +499,7 @@ const computeWorkflowOutputs = (
     },
   }));
 
-  return { nodes: nextNodes, dataValues: {}, metrics: emptyMetrics };
+  return { nodes: nextNodes };
 };
 
 type MeshInsertOptions = {
@@ -606,7 +645,6 @@ const parsePointsText = (input?: string): Vec3[] => {
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
   materials: [],
-  ecc: [],
   geometry: [defaultGeometry],
   layers: defaultLayers,
   assignments: defaultAssignments,
@@ -629,8 +667,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   modelerHistoryFuture: [],
   workflow: defaultWorkflow,
   workflowHistory: [],
-  dataValues: {},
-  computed: emptyMetrics,
   saves: [],
   currentSaveId: null,
   projectName: "Untitled Project",
@@ -730,10 +766,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         nodes: [...state.workflow.nodes, { id, type: "geometryReference", position, data }],
       },
     }));
-    get().recalculateWorkflow();
-  },
-  setEcc: (records) => {
-    set({ ecc: records });
     get().recalculateWorkflow();
   },
   setSaves: (saves) => set({ saves }),
@@ -1619,10 +1651,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const position = { x: 120, y: 120 + Math.random() * 120 };
     const labels: Record<NodeType, string> = {
       geometryReference: "Geometry Reference",
-      point: "Point",
+      point: "Point Generator",
       polyline: "Polyline",
       surface: "Surface",
-      box: "Box",
+      box: "Box Builder",
       sphere: "Sphere",
     };
     const data: WorkflowNodeData = {
@@ -1635,6 +1667,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       data.point = { x: 0, y: 0, z: 0 };
       const geometryId = createGeometryId("vertex");
       data.geometryId = geometryId;
+      data.geometryType = "vertex";
+      data.isLinked = true;
       get().addGeometryItems(
         [
           {
@@ -1657,6 +1691,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       data.vertexIds = vertexIds;
       const polylineId = createGeometryId("polyline");
       data.geometryId = polylineId;
+      data.geometryType = "polyline";
+      data.isLinked = true;
       const vertexItems: Geometry[] = points.map((point, index) => ({
         id: vertexIds[index],
         type: "vertex",
@@ -1686,6 +1722,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       data.vertexIds = vertexIds;
       const surfaceId = createGeometryId("surface");
       data.geometryId = surfaceId;
+      data.geometryType = "surface";
+      data.isLinked = true;
       const vertexItems: Geometry[] = points.map((point, index) => ({
         id: vertexIds[index],
         type: "vertex",
@@ -1709,6 +1747,38 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       });
     }
 
+    if (type === "box") {
+      data.boxOrigin = { x: 0, y: 0, z: 0 };
+      data.boxDimensions = { width: 1, height: 1, depth: 1 };
+      const geometryId = get().addGeometryBox({
+        origin: data.boxOrigin,
+        size: data.boxDimensions,
+        sourceNodeId: id,
+        recordHistory: true,
+        selectIds: get().selectedGeometryIds,
+        metadata: { label: labels[type] },
+      });
+      data.geometryId = geometryId;
+      data.geometryType = "mesh";
+      data.isLinked = true;
+    }
+
+    if (type === "sphere") {
+      data.sphereOrigin = { x: 0, y: 0, z: 0 };
+      data.sphereRadius = 0.5;
+      const geometryId = get().addGeometrySphere({
+        origin: data.sphereOrigin,
+        radius: data.sphereRadius,
+        sourceNodeId: id,
+        recordHistory: true,
+        selectIds: get().selectedGeometryIds,
+        metadata: { label: labels[type] },
+      });
+      data.geometryId = geometryId;
+      data.geometryType = "mesh";
+      data.isLinked = true;
+    }
+
     set((state) => ({
       workflowHistory: appendWorkflowHistory(
         state.workflowHistory,
@@ -1729,7 +1799,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const removedNodes = changes
       .filter((change) => change.type === "remove")
       .map((change) => previousNodes.find((node) => node.id === change.id))
-      .filter(Boolean) as Node<WorkflowNodeData>[];
+      .filter(Boolean) as WorkflowNode[];
     set((state) => ({
       workflowHistory: shouldTrackNodeChange(changes)
         ? appendWorkflowHistory(state.workflowHistory, state.workflow)
@@ -1870,14 +1940,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const outputs = computeWorkflowOutputs(
       prunedWorkflow.nodes,
       prunedWorkflow.edges,
-      state.materials,
-      state.ecc,
       state.geometry
     );
     set({
       workflow: { ...prunedWorkflow, nodes: outputs.nodes },
-      dataValues: outputs.dataValues,
-      computed: outputs.metrics,
     });
   },
   pruneWorkflow: () =>

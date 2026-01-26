@@ -153,14 +153,34 @@ const MATERIAL_COLOR_PALETTE = [
   "#6b7280",
 ];
 const SNAP_COLORS: Record<string, string> = {
-  grid: "#facc15",
-  vertex: "#f97316",
-  endpoint: "#f97316",
-  midpoint: "#38bdf8",
-  intersection: "#a855f7",
-  perpendicular: "#22c55e",
-  tangent: "#eab308",
+  grid: "#9a9a96",
+  vertex: "#fdfdfc",
+  endpoint: "#fdfdfc",
+  midpoint: "#c2c2be",
+  intersection: "#f6f6f4",
+  perpendicular: "#dededb",
+  tangent: "#efefed",
 };
+
+const VIEWER_HOVER_COLOR = "#f5f5f7";
+const VIEWER_SELECTED_COLOR = "#fdfdfc";
+const VIEWER_EMISSIVE_IDLE = "#050505";
+const VIEWER_EDGE_COLOR = "#9a9a96";
+const VIEWER_EDGE_HOVER_COLOR = "#c2c2be";
+const VIEWER_EDGE_SELECTED_COLOR = "#fdfdfc";
+const VIEWER_NORMALS_COLOR = "#c2c2be";
+const VIEWER_GRID_COLOR = "#111111";
+const VIEWER_AXIS_PRIMARY_COLOR = "#fdfdfc";
+const VIEWER_AXIS_SECONDARY_COLOR = "#c2c2be";
+const VIEWER_AXIS_TERTIARY_COLOR = "#9a9a96";
+const VIEWER_DRAFT_COLOR = "#c2c2be";
+const VIEWER_PREVIEW_COLOR = "#dededb";
+const VIEWER_PREVIEW_EMISSIVE = "#fdfdfc";
+const VIEWER_ATMOSPHERE_TOP = "#111111";
+const VIEWER_ATMOSPHERE_BOTTOM = "#050505";
+const VIEWER_FOG_COLOR = "#050505";
+const VIEWER_BACKGROUND_COLOR = "#050505";
+const VIEWER_GROUND_COLOR = "#080808";
 const MATERIAL_SURFACE_BY_CATEGORY: Record<string, MaterialSurface> = {
   Mineral: { roughness: 0.9, metalness: 0.05 },
   Metal: { roughness: 0.3, metalness: 0.8 },
@@ -279,7 +299,7 @@ const DEFAULT_RECTANGLE_SETTINGS: RectangleSettings = { width: 1.6, height: 1 };
 const DEFAULT_CIRCLE_SETTINGS: CircleSettings = { radius: 0.8, segments: 32 };
 
 const MESH_SILHOUETTE_MATERIAL = new MeshBasicMaterial({
-  color: "#01050b",
+  color: VIEWER_BACKGROUND_COLOR,
   side: BackSide,
   transparent: true,
   opacity: 0.68,
@@ -294,8 +314,8 @@ const SceneAtmosphere = () => {
     () =>
       new ShaderMaterial({
         uniforms: {
-          topColor: { value: new Color("#010818") },
-          bottomColor: { value: new Color("#04142b") },
+          topColor: { value: new Color(VIEWER_ATMOSPHERE_TOP) },
+          bottomColor: { value: new Color(VIEWER_ATMOSPHERE_BOTTOM) },
           offset: { value: 600 },
           exponent: { value: 0.9 },
         },
@@ -339,9 +359,9 @@ const SceneAtmosphere = () => {
   useEffect(() => {
     const previousFog = scene.fog;
     const previousBackground = scene.background;
-    const fog = new FogExp2("#010713", 0.012);
+    const fog = new FogExp2(VIEWER_FOG_COLOR, 0.012);
     scene.fog = fog;
-    scene.background = new Color("#01030a");
+    scene.background = new Color(VIEWER_BACKGROUND_COLOR);
     return () => {
       scene.fog = previousFog ?? null;
       scene.background = previousBackground ?? null;
@@ -365,7 +385,12 @@ const SceneAtmosphere = () => {
         raycast={noopRaycast}
       >
         <primitive object={groundGeometry} attach="geometry" />
-        <meshBasicMaterial color="#040a14" transparent opacity={0.6} depthWrite={false} />
+        <meshBasicMaterial
+          color={VIEWER_GROUND_COLOR}
+          transparent
+          opacity={0.6}
+          depthWrite={false}
+        />
       </mesh>
     </group>
   );
@@ -420,8 +445,8 @@ const VertexMarker = ({
     >
       <sphereGeometry args={[DEFAULT_MARKER_SCALE, 16, 16]} />
       <meshStandardMaterial
-        color={isHovered ? "#38bdf8" : color}
-        emissive={isSelected ? "#f97316" : "#111827"}
+        color={isHovered ? VIEWER_HOVER_COLOR : color}
+        emissive={isSelected ? VIEWER_SELECTED_COLOR : VIEWER_EMISSIVE_IDLE}
         emissiveIntensity={isSelected ? 0.65 : isHovered ? 0.45 : 0.2}
         roughness={surface.roughness}
         metalness={surface.metalness}
@@ -537,8 +562,8 @@ const MeshSurface = ({
         }}
       >
         <meshStandardMaterial
-          color={isHovered ? "#38bdf8" : color}
-          emissive={isSelected ? "#f97316" : "#111827"}
+          color={isHovered ? VIEWER_HOVER_COLOR : color}
+          emissive={isSelected ? VIEWER_SELECTED_COLOR : VIEWER_EMISSIVE_IDLE}
           emissiveIntensity={isSelected ? 0.5 : isHovered ? 0.3 : 0.15}
           roughness={surface.roughness}
           metalness={surface.metalness}
@@ -549,11 +574,11 @@ const MeshSurface = ({
         />
         {viewSettings.showNormals && normalGeometry && (
           <lineSegments geometry={normalGeometry}>
-            <lineBasicMaterial color="#facc15" />
+            <lineBasicMaterial color={VIEWER_NORMALS_COLOR} />
           </lineSegments>
         )}
         {showEdges && (
-          <Edges scale={1.002} color="#94a3b8" threshold={15} />
+          <Edges scale={1.002} color={VIEWER_EDGE_COLOR} threshold={15} />
         )}
       </mesh>
       {!isWireframe && (
@@ -594,8 +619,8 @@ const PreviewMesh = ({ mesh }: { mesh: RenderMesh }) => {
     <mesh geometry={geometry}>
       <meshStandardMaterial
         ref={materialRef}
-        color="#38bdf8"
-        emissive="#0ea5e9"
+        color={VIEWER_PREVIEW_COLOR}
+        emissive={VIEWER_PREVIEW_EMISSIVE}
         emissiveIntensity={0.6}
         transparent
         opacity={0.4}
@@ -712,7 +737,7 @@ const CPlaneGrid = ({
   return (
     <>
       <lineSegments geometry={gridGeometry}>
-        <lineBasicMaterial color="#0f172a" transparent opacity={0.45} />
+        <lineBasicMaterial color={VIEWER_GRID_COLOR} transparent opacity={0.45} />
       </lineSegments>
       <Line
         points={[
@@ -723,7 +748,7 @@ const CPlaneGrid = ({
             plane.origin.z + plane.xAxis.z * axisLength,
           ],
         ]}
-        color="#ef4444"
+        color={VIEWER_AXIS_PRIMARY_COLOR}
         lineWidth={2}
       />
       <Line
@@ -735,7 +760,7 @@ const CPlaneGrid = ({
             plane.origin.z + plane.yAxis.z * axisLength,
           ],
         ]}
-        color="#22c55e"
+        color={VIEWER_AXIS_SECONDARY_COLOR}
         lineWidth={2}
       />
       <Line
@@ -747,7 +772,7 @@ const CPlaneGrid = ({
             plane.origin.z + plane.normal.z * axisLength,
           ],
         ]}
-        color="#38bdf8"
+        color={VIEWER_AXIS_TERTIARY_COLOR}
         lineWidth={2}
       />
     </>
@@ -1030,12 +1055,12 @@ const ViewerCanvas = ({
   const hasSelection =
     selectedGeometryIds.length > 0 || componentSelection.length > 0;
   const isCommandActive = Boolean(activeCommandId);
-  const isVertexCommand = activeCommandId === "verticee";
+  const isVertexCommand = activeCommandId === "point";
   const isPolylineCommand = activeCommandId === "polyline";
   const isRectangleCommand = activeCommandId === "rectangle";
   const isCircleCommand = activeCommandId === "circle";
   const isPrimitiveCommand = activeCommandId === "primitive";
-  const autoGumballActive = (!activeCommandId || activeCommandId === "verticee") && hasSelection;
+  const autoGumballActive = (!activeCommandId || activeCommandId === "point") && hasSelection;
   const activeTransformMode = (() => {
     if (activeCommandId === "move" || activeCommandId === "transform") return "move" as const;
     if (activeCommandId === "rotate") return "rotate" as const;
@@ -1060,7 +1085,7 @@ const ViewerCanvas = ({
     }
     return {
       LEFT: undefined as unknown as typeof MOUSE.ROTATE,
-      MIDDLE: MOUSE.PAN,
+      MIDDLE: MOUSE.DOLLY,
       RIGHT: MOUSE.ROTATE,
     };
   }, [isPanModifier]);
@@ -2859,7 +2884,7 @@ const ViewerCanvas = ({
 
   const handleCommandInput = (commandId: string, input: string) => {
     const lower = input.toLowerCase();
-    if (commandId === "verticee") {
+    if (commandId === "point") {
       // Allow empty input - vertex placement works via clicking, not typing
       if (input.trim()) {
         const points = parsePointsInput(input);
@@ -3717,8 +3742,10 @@ const ViewerCanvas = ({
               top: Math.min(boxSelectState.start.y, boxSelectState.end.y),
               width: Math.abs(boxSelectState.end.x - boxSelectState.start.x),
               height: Math.abs(boxSelectState.end.y - boxSelectState.start.y),
-              border: "1px solid rgba(56, 189, 248, 0.9)",
-              background: "rgba(56, 189, 248, 0.12)",
+              border:
+                "1px solid color-mix(in srgb, var(--color-accent) 85%, transparent)",
+              background:
+                "color-mix(in srgb, var(--color-accent) 18%, transparent)",
               pointerEvents: "none",
             }}
           />
@@ -3733,8 +3760,8 @@ const ViewerCanvas = ({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              background: "rgba(15, 23, 42, 0.65)",
-              color: "#e2e8f0",
+              background: "color-mix(in srgb, var(--color-bg) 75%, transparent)",
+              color: "var(--color-text)",
               fontSize: "14px",
               fontWeight: 600,
               letterSpacing: "0.02em",
@@ -3752,8 +3779,8 @@ const ViewerCanvas = ({
               position: "absolute",
               left: 16,
               top: 16,
-              background: "rgba(15, 23, 42, 0.8)",
-              color: "#e2e8f0",
+              background: "var(--color-glass-strong)",
+              color: "var(--color-text)",
               padding: "6px 8px",
               borderRadius: "6px",
               fontSize: "11px",
@@ -3823,7 +3850,7 @@ const ViewerCanvas = ({
         >
           <sphereGeometry args={[0.025, 8, 8]} />
           <meshBasicMaterial
-            color={SNAP_COLORS[snapIndicator.type] ?? "#facc15"}
+            color={SNAP_COLORS[snapIndicator.type] ?? VIEWER_AXIS_PRIMARY_COLOR}
           />
         </mesh>
       )}
@@ -4028,7 +4055,13 @@ const ViewerCanvas = ({
               </mesh>
               <Line
                 points={linePoints}
-                color={isSelected ? "#f97316" : isHovered ? "#38bdf8" : "#93c5fd"}
+                color={
+                  isSelected
+                    ? VIEWER_EDGE_SELECTED_COLOR
+                    : isHovered
+                      ? VIEWER_EDGE_HOVER_COLOR
+                      : VIEWER_EDGE_COLOR
+                }
                 lineWidth={isSelected ? 3 : 2}
                 transparent
                 opacity={isSelected ? 1 : 0.8}
@@ -4158,13 +4191,13 @@ const ViewerCanvas = ({
       {componentOverlay.vertices.map((point, index) => (
         <mesh key={`component-vertex-${index}`} position={[point.x, point.y, point.z]}>
           <sphereGeometry args={[0.04, 10, 10]} />
-          <meshBasicMaterial color="#f97316" />
+          <meshBasicMaterial color={VIEWER_SELECTED_COLOR} />
         </mesh>
       ))}
       {hoverOverlay.points.map((point, index) => (
         <mesh key={`hover-point-${index}`} position={[point.x, point.y, point.z]}>
           <sphereGeometry args={[0.03, 8, 8]} />
-          <meshBasicMaterial color="#38bdf8" />
+          <meshBasicMaterial color={VIEWER_HOVER_COLOR} />
         </mesh>
       ))}
       {componentOverlay.edges.map((edge, index) => (
@@ -4174,13 +4207,18 @@ const ViewerCanvas = ({
             [edge[0].x, edge[0].y, edge[0].z],
             [edge[1].x, edge[1].y, edge[1].z],
           ]}
-          color="#f97316"
+          color={VIEWER_SELECTED_COLOR}
           lineWidth={3}
         />
       ))}
       {componentOverlay.faces.length > 0 && (
         <mesh geometry={componentFaceGeometry}>
-          <meshBasicMaterial color="#f97316" transparent opacity={0.25} side={DoubleSide} />
+          <meshBasicMaterial
+            color={VIEWER_SELECTED_COLOR}
+            transparent
+            opacity={0.25}
+            side={DoubleSide}
+          />
         </mesh>
       )}
       <CameraAnimator
@@ -4191,7 +4229,7 @@ const ViewerCanvas = ({
       {polylineDraftPoints.length > 1 && (
         <Line
           points={polylineDraftPoints.map((point) => [point.x, point.y, point.z])}
-          color="#22c55e"
+          color={VIEWER_DRAFT_COLOR}
           lineWidth={2}
           dashed
           dashScale={2}
@@ -4205,7 +4243,7 @@ const ViewerCanvas = ({
       {(selectionPoints.length > 0 || pivot.mode !== "selection") && (
         <mesh position={[resolvedPivot.x, resolvedPivot.y, resolvedPivot.z]}>
           <sphereGeometry args={[0.05, 12, 12]} />
-          <meshBasicMaterial color="#f97316" />
+          <meshBasicMaterial color={VIEWER_SELECTED_COLOR} />
         </mesh>
       )}
       {transformReadout && (
@@ -4215,8 +4253,8 @@ const ViewerCanvas = ({
         >
           <div
             style={{
-              background: "rgba(15, 23, 42, 0.75)",
-              color: "#f8fafc",
+              background: "var(--color-glass-strong)",
+              color: "var(--color-text)",
               padding: "4px 8px",
               borderRadius: "6px",
               fontSize: "11px",
@@ -4242,6 +4280,7 @@ const ViewerCanvas = ({
       )}
       <OrbitControls
         ref={controlsRef}
+        enableDamping={false}
         enablePan
         enableZoom
         enableRotate={!isCommandActive}

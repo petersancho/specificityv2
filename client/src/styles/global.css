@@ -3,44 +3,93 @@
 
 :root {
   color-scheme: light;
-  /* Neutral palette */
+  /* Roslyn palette */
+  --roslyn-industrial-warm-grey: #8e8a84;
+  --roslyn-instrument-cream: #f6f2eb;
+  --roslyn-soft-porcelain: #fbfaf8;
+  --roslyn-calibration-grey: #e2e0dc;
+  --roslyn-machined-grey: #b7b4ae;
+  --roslyn-graphite-ink: #2e2e2c;
+  --roslyn-signal-orange: #d28b5c;
+
+  /* Ink scale */
   --ink-1000: #050505;
   --ink-900: #111111;
   --ink-700: #1c1c1c;
   --ink-500: #3c3c3c;
-  --fog-100: #fdfdfc;
-  --fog-150: #f6f6f4;
-  --fog-200: #efefed;
-  --fog-300: #dededb;
-  --fog-400: #c2c2be;
-  --fog-500: #9a9a96;
+
+  /* Fog scale */
+  --fog-100: var(--roslyn-soft-porcelain);
+  --fog-150: var(--roslyn-instrument-cream);
+  --fog-200: var(--roslyn-calibration-grey);
+  --fog-300: var(--roslyn-machined-grey);
+  --fog-400: var(--roslyn-industrial-warm-grey);
+  --fog-500: color-mix(
+    in srgb,
+    var(--roslyn-industrial-warm-grey) 85%,
+    var(--roslyn-graphite-ink)
+  );
+
+  /* Functional colors */
+  --state-error: #dc3545;
+  --state-warning: #e6a23c;
+  --state-success: #67c23a;
+  --state-info: #909399;
+
+  --accent-primary: var(--ink-1000);
+  --accent-signal: var(--roslyn-signal-orange);
 
   /* Semantic tokens */
-  --bg: var(--fog-100);
-  --fg: var(--ink-1000);
-  --muted: var(--fog-500);
-  --muted-strong: var(--ink-500);
-  --border: var(--ink-900);
-  --border-subtle: var(--fog-300);
-  --card-bg: var(--fog-100);
-  --card-hover-bg: var(--fog-150);
-  --surface: var(--fog-150);
-  --surface-strong: var(--fog-200);
-  --surface-soft: var(--fog-100);
-  --accent: var(--ink-1000);
-  --accent-orange-soft: var(--fog-300);
-  --accent-ring: rgba(5, 5, 5, 0.2);
-  --accent-muted: var(--fog-400);
-  --color-canvas: var(--fog-100);
+  --bg: var(--roslyn-soft-porcelain);
+  --fg: var(--roslyn-graphite-ink);
+  --muted: var(--roslyn-machined-grey);
+  --muted-strong: var(--roslyn-industrial-warm-grey);
+  --border: var(--roslyn-calibration-grey);
+  --border-subtle: var(--roslyn-calibration-grey);
+  --card-bg: var(--roslyn-instrument-cream);
+  --card-hover-bg: var(--roslyn-soft-porcelain);
+  --surface: var(--roslyn-instrument-cream);
+  --surface-strong: var(--roslyn-calibration-grey);
+  --surface-soft: var(--roslyn-soft-porcelain);
+  --accent: var(--roslyn-graphite-ink);
+  --accent-highlight: var(--roslyn-signal-orange);
+  --accent-orange-soft: color-mix(
+    in srgb,
+    var(--roslyn-signal-orange) 25%,
+    transparent
+  );
+  --accent-ring: color-mix(in srgb, var(--roslyn-graphite-ink) 25%, transparent);
+  --accent-muted: var(--roslyn-machined-grey);
+  --color-canvas: var(--roslyn-soft-porcelain);
+  --color-grid-line: var(--roslyn-calibration-grey);
+  --color-grid-dot: rgba(46, 46, 44, 0.12);
+  --color-grid-dot-soft: rgba(46, 46, 44, 0.06);
   --canvas-grid-size: 84px;
-  --canvas-grid-dot: rgba(5, 5, 5, 0.4);
-  --canvas-grid-dot-soft: rgba(5, 5, 5, 0.08);
+  --canvas-grid-dot: var(--color-grid-dot);
+  --canvas-grid-dot-soft: var(--color-grid-dot-soft);
 
   /* Typography */
-  --font-body: "Space Grotesk", "Montreal Neue";
-  --font-title: "Montreal Neue", "Space Grotesk";
+  --font-primary: "Space Grotesk", "SF Pro Text", -apple-system, sans-serif;
+  --font-display: "Montreal Neue", "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", "Consolas", monospace;
+  --font-body: var(--font-primary);
+  --font-title: var(--font-display);
   --font-title-weight: 600;
-  --font-mono: "Space Grotesk", "Montreal Neue";
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --text-2xs: 9px;
+  --text-xs: 10px;
+  --text-sm: 11px;
+  --text-base: 13px;
+  --text-md: 14px;
+  --text-lg: 16px;
+  --text-xl: 20px;
+  --letter-spacing-tight: -0.01em;
+  --letter-spacing-normal: 0;
+  --letter-spacing-wide: 0.04em;
+  --letter-spacing-caps: 0.12em;
 
   /* Layout */
   --max-w: 1600px;
@@ -57,6 +106,41 @@
   --norm: 200ms;
   --slow: 360ms;
 
+  /* Borders */
+  --border-section: 3px solid var(--ink-900);
+  --border-panel: 2px solid var(--ink-900);
+  --border-input: 1px solid var(--fog-300);
+  --border-focus: 2px solid var(--ink-1000);
+
+  /* Shadows */
+  --shadow-2xs: 0 2px 0 #000000;
+  --shadow-xs: 0 3px 0 #000000;
+  --shadow-sm: 0 4px 0 #000000;
+  --shadow-md: 0 6px 0 #000000;
+  --shadow-node: 0 8px 0 #000000;
+  --shadow-lg: 0 12px 0 #000000;
+  --shadow-xl: 0 16px 0 #000000;
+  --shadow-sm-hover: 0 6px 0 #000000;
+  --shadow-md-hover: 0 8px 0 #000000;
+  --shadow-node-hover: 0 12px 0 #000000;
+  --shadow-sm-pressed: 0 1px 0 #000000;
+  --shadow-md-pressed: 0 2px 0 #000000;
+  --shadow-node-pressed: 0 4px 0 #000000;
+
+  /* Node validation */
+  --node-error-bg: rgba(220, 53, 69, 0.15);
+  --node-error-border: var(--state-error);
+  --node-error-overlay: rgba(128, 128, 128, 0.3);
+
+  /* Eto icon colors */
+  --eto-icon-primary: var(--roslyn-graphite-ink);
+  --eto-icon-secondary: var(--roslyn-industrial-warm-grey);
+  --eto-icon-accent: var(--roslyn-signal-orange);
+  --eto-icon-success: #4caf50;
+  --eto-icon-warning: #ff9800;
+  --eto-icon-error: var(--state-error);
+  --eto-icon-info: #2196f3;
+
   --font-sans: var(--font-body);
   --font-serif: var(--font-title);
   --color-bg: var(--bg);
@@ -67,10 +151,19 @@
   --color-muted: var(--muted);
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-orange-soft);
+  --color-accent-muted: var(--accent-muted);
   --color-on-accent: var(--fog-100);
   --color-topbar-bg: var(--surface-strong);
-  --color-topbar-dot-strong: rgba(5, 5, 5, 0.45);
-  --color-topbar-dot-soft: rgba(5, 5, 5, 0.25);
+  --color-topbar-dot-strong: color-mix(
+    in srgb,
+    var(--roslyn-graphite-ink) 45%,
+    transparent
+  );
+  --color-topbar-dot-soft: color-mix(
+    in srgb,
+    var(--roslyn-graphite-ink) 25%,
+    transparent
+  );
   --color-topbar-border: var(--border);
   --color-glass: color-mix(in srgb, var(--surface) 85%, transparent);
   --color-glass-strong: color-mix(
@@ -79,32 +172,59 @@
     transparent
   );
   --color-overlay: color-mix(in srgb, var(--bg) 92%, transparent);
-  --color-workspace-gradient-start: var(--fog-100);
-  --color-workspace-gradient-end: var(--fog-200);
-  --color-grid-dot: rgba(5, 5, 5, 0.12);
-  --color-grid-dot-soft: rgba(5, 5, 5, 0.04);
-  --color-footer-bg: color-mix(in srgb, var(--fog-150) 90%, transparent);
-  --color-footer-border: rgba(5, 5, 5, 0.12);
-  --color-footer-grid-strong: rgba(5, 5, 5, 0.12);
-  --color-footer-grid-soft: rgba(5, 5, 5, 0.04);
-  --color-footer-highlight: rgba(5, 5, 5, 0.6);
-  --color-accent-ring: rgba(5, 5, 5, 0.25);
-  --color-accent-ring-strong: rgba(5, 5, 5, 0.35);
-  --color-accent-spot: rgba(5, 5, 5, 0.5);
-  --color-edge: rgba(5, 5, 5, 0.6);
-  --color-handle-dot-strong: rgba(5, 5, 5, 0.9);
-  --color-handle-dot-soft: rgba(5, 5, 5, 0.6);
-  --color-handle-stroke: rgba(5, 5, 5, 0.7);
+  --color-workspace-gradient-start: var(--roslyn-soft-porcelain);
+  --color-workspace-gradient-end: var(--roslyn-calibration-grey);
+  --color-footer-bg: color-mix(in srgb, var(--surface) 92%, transparent);
+  --color-footer-border: color-mix(
+    in srgb,
+    var(--roslyn-graphite-ink) 15%,
+    transparent
+  );
+  --color-footer-grid-strong: var(--color-grid-dot);
+  --color-footer-grid-soft: var(--color-grid-dot-soft);
+  --color-footer-highlight: color-mix(
+    in srgb,
+    var(--roslyn-graphite-ink) 60%,
+    transparent
+  );
+  --color-accent-ring: color-mix(
+    in srgb,
+    var(--roslyn-graphite-ink) 35%,
+    transparent
+  );
+  --color-accent-ring-strong: color-mix(
+    in srgb,
+    var(--roslyn-graphite-ink) 45%,
+    transparent
+  );
+  --color-accent-spot: color-mix(
+    in srgb,
+    var(--roslyn-graphite-ink) 55%,
+    transparent
+  );
+  --color-edge: color-mix(in srgb, var(--roslyn-graphite-ink) 60%, transparent);
+  --color-handle-dot-strong: color-mix(
+    in srgb,
+    var(--roslyn-graphite-ink) 90%,
+    transparent
+  );
+  --color-handle-dot-soft: color-mix(
+    in srgb,
+    var(--roslyn-graphite-ink) 60%,
+    transparent
+  );
+  --color-handle-stroke: color-mix(
+    in srgb,
+    var(--roslyn-graphite-ink) 70%,
+    transparent
+  );
   --radius-container: var(--radius-lg);
   --radius-panel: calc(var(--radius-lg) + 8px);
   --radius-card: var(--radius);
   --radius-input: var(--radius-sm);
-  --shadow-xs: 0 1px 0 rgba(5, 5, 5, 0.4);
-  --shadow-sm: 0 6px 0 rgba(5, 5, 5, 0.6);
-  --shadow-panel: 0 16px 0 rgba(5, 5, 5, 0.8);
-  --shadow-panel-active: 0 20px 0 rgba(5, 5, 5, 0.85);
-  --shadow-panel-outline: 0 0 0 2px rgba(5, 5, 5, 0.15);
-  --shadow-node: 0 12px 0 #050505;
+  --shadow-panel: var(--shadow-xl);
+  --shadow-panel-active: 0 20px 0 #000000;
+  --shadow-panel-outline: 0 0 0 2px rgba(0, 0, 0, 0.15);
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -222,45 +342,6 @@ select:disabled,
 textarea:disabled {
   cursor: not-allowed;
   opacity: 0.6;
-}
-
-.react-flow__controls {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-xs);
-}
-
-.react-flow__controls button {
-  background: var(--color-surface);
-  color: var(--color-text);
-  border-bottom: 1px solid var(--color-border);
-  border-radius: 0;
-  padding: 6px;
-}
-
-.react-flow__controls button:hover {
-  background: var(--color-surface-muted);
-}
-
-.react-flow__controls button:focus-visible {
-  box-shadow: 0 0 0 2px var(--color-accent-ring-strong);
-}
-
-.react-flow__minimap {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-input);
-  box-shadow: var(--shadow-xs);
-}
-
-.react-flow__minimap-mask {
-  fill: var(--color-accent-soft);
-}
-
-.react-flow__minimap-node {
-  fill: var(--color-border);
-  stroke: var(--color-border);
 }
 
 .dashboard-canvas {

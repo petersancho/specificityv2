@@ -62,23 +62,33 @@
 
 .body {
   display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
+  flex-direction: column;
+  gap: var(--space-4);
   align-items: stretch;
   flex: 1;
   min-height: 0;
 }
 
-.viewer {
-  flex: 1 1 640px;
-  min-width: min(100%, 640px);
+.commandBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  padding: var(--space-3);
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  border: var(--border-panel);
+  box-shadow: var(--shadow-sm);
+}
+
+.viewer {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  background: var(--color-surface);
+  border: var(--border-panel);
   border-radius: var(--radius-card);
   padding: var(--space-3);
   display: flex;
   flex-direction: column;
-  min-height: 0;
 }
 
 .viewerInner {
@@ -100,21 +110,6 @@
   background: var(--color-surface) !important;
 }
 
-.commandRail {
-  flex: 0 0 320px;
-  min-width: 320px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  padding: var(--space-3);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  box-shadow: var(--shadow-xs);
-  max-height: 75vh;
-  overflow-y: auto;
-}
-
 .commandGroup {
   display: flex;
   flex-direction: column;
@@ -122,46 +117,53 @@
 }
 
 .commandGroupTitle {
-  font-size: 11px;
+  font-size: var(--text-2xs);
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: var(--letter-spacing-caps);
   color: var(--color-muted);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .commandGrid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .commandIconButton {
   border-radius: 12px;
-  padding: 8px 6px;
-  border: 1px solid var(--color-border);
-  background: var(--color-bg);
+  padding: 8px 10px;
+  border: none;
+  background: var(--color-surface-muted);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  font-size: 10px;
-  font-weight: 600;
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text);
   text-align: center;
+  text-transform: uppercase;
+  letter-spacing: var(--letter-spacing-wide);
+  box-shadow: var(--shadow-sm);
   transition: transform var(--transition-fast),
     box-shadow var(--transition-fast), border-color var(--transition-fast),
     color var(--transition-fast), background var(--transition-fast);
 }
 
 .commandIconButton:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-xs);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm-hover);
+}
+
+.commandIconButton:active {
+  transform: translateY(2px);
+  box-shadow: var(--shadow-sm-pressed);
 }
 
 .commandIconActive {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-  color: var(--color-on-accent);
+  background: var(--ink-1000);
+  color: var(--fog-100);
 }
 
 .commandIcon {
@@ -169,6 +171,11 @@
   height: 20px;
   display: grid;
   place-items: center;
+  color: var(--eto-icon-primary);
+}
+
+.commandIconActive .commandIcon {
+  color: var(--roslyn-instrument-cream);
 }
 
 .commandIcon svg {
@@ -177,7 +184,7 @@
 }
 
 .commandLabel {
-  line-height: 1.2;
+  line-height: 1.1;
 }
 
 .railSection {
@@ -186,12 +193,17 @@
   gap: 8px;
 }
 
+.railSection + .railSection {
+  border-left: var(--border-panel);
+  padding-left: var(--space-4);
+}
+
 .railTitle {
-  font-size: 11px;
+  font-size: var(--text-2xs);
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: var(--letter-spacing-caps);
   color: var(--color-muted);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .viewer {
@@ -218,10 +230,10 @@
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.4px;
-  --calc-display-bg: #143320;
-  --calc-display-border: #2e6c3c;
-  --calc-display-text: #a7ff83;
-  --calc-display-shadow: 0 6px 14px rgba(10, 24, 14, 0.45);
+  --calc-display-bg: var(--color-glass-strong);
+  --calc-display-border: color-mix(in srgb, var(--color-border) 55%, transparent);
+  --calc-display-text: var(--color-text);
+  --calc-display-shadow: 0 10px 22px rgba(5, 5, 5, 0.22);
 }
 
 .viewerActions {
@@ -255,9 +267,9 @@
 
 .viewerActionButtonSecondary {
   pointer-events: auto;
-  border: 1px solid color-mix(in srgb, #64748b 55%, transparent);
-  background: color-mix(in srgb, #0f172a 65%, transparent);
-  color: #94a3b8;
+  border: 1px solid color-mix(in srgb, var(--color-border) 35%, transparent);
+  background: var(--color-glass-strong);
+  color: var(--color-text);
   padding: 6px 12px;
   border-radius: 999px;
   font-size: 11px;
@@ -281,8 +293,8 @@
 }
 
 .selectionItem {
-  background: rgba(5, 12, 24, 0.78);
-  border: 1px solid rgba(59, 130, 246, 0.25);
+  background: var(--color-glass-strong);
+  border: 1px solid color-mix(in srgb, var(--color-border) 45%, transparent);
   border-radius: 8px;
   padding: 6px 10px;
   display: flex;
@@ -306,24 +318,24 @@
   text-transform: uppercase;
   font-size: 9px;
   letter-spacing: 0.08em;
-  color: #93c5fd;
+  color: var(--color-muted);
 }
 
 .selectionLinked {
   font-size: 9px;
-  color: #34d399;
+  color: var(--color-accent);
   letter-spacing: 0.08em;
 }
 
 .selectionAction {
-  border: 1px solid rgba(52, 211, 153, 0.4);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 35%, transparent);
   border-radius: 999px;
   padding: 4px 10px;
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   background: transparent;
-  color: #34d399;
+  color: var(--color-accent);
   pointer-events: auto;
 }
 
@@ -350,7 +362,7 @@
   border: 1px solid var(--calc-display-border);
   box-shadow: var(--calc-display-shadow);
   line-height: 1.3;
-  text-shadow: 0 0 6px rgba(167, 255, 131, 0.35);
+  text-shadow: 0 0 6px rgba(5, 5, 5, 0.18);
 }
 
 .viewerChipMuted {
@@ -380,6 +392,55 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.footerBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  height: 36px;
+  padding: 0 var(--space-3);
+  background: var(--color-surface);
+  border-top: var(--border-panel);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-muted);
+}
+
+.footerGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.footerCenter {
+  flex: 1;
+  justify-content: center;
+}
+
+.footerChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--color-surface-muted);
+  border-radius: 4px;
+  box-shadow: var(--shadow-2xs);
+  color: var(--color-text);
+}
+
+.footerKey {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  background: var(--color-surface-muted);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  box-shadow: var(--shadow-2xs);
+  color: var(--color-text);
 }
 
 .commandAction,

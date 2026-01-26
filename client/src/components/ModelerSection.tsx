@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import ViewerCanvas from "./ViewerCanvas";
+import WebGLViewerCanvas from "./WebGLViewerCanvas";
+import Tooltip from "./ui/Tooltip";
 import { useProjectStore } from "../store/useProjectStore";
 import styles from "./ModelerSection.module.css";
 import {
@@ -8,6 +9,7 @@ import {
   parseCommandInput,
   type CommandDefinition,
 } from "../commands/registry";
+import { COMMAND_DESCRIPTIONS } from "../data/commandDescriptions";
 import type { Geometry, PolylineGeometry, Vec3 } from "../types";
 import { centroid, sub, add, computeBestFitPlane } from "../geometry/math";
 
@@ -57,7 +59,7 @@ const iconProps = {
 
 const renderCommandIcon = (commandId: string) => {
   switch (commandId) {
-    case "verticee":
+    case "point":
       return (
         <svg {...iconProps} aria-hidden="true">
           <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
@@ -1360,18 +1362,6 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
     addGeometryReferenceNode(primarySelectedGeometryId);
   };
 
-  const selectionDetails = useMemo(() => {
-    return selectedGeometryIds.map((id) => {
-      const item = geometry.find((entry) => entry.id === id);
-      return {
-        id,
-        label: item?.id ?? id,
-        type: item?.type ?? "geometry",
-        referenced: referencedGeometryIds.has(id),
-      };
-    });
-  }, [selectedGeometryIds, geometry, referencedGeometryIds]);
-
   const formatGeometryType = (type?: Geometry["type"]) => {
     switch (type) {
       case "vertex":
@@ -1401,110 +1391,29 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
   ];
 
   const footerContent = (
-    <footer className={styles.siteFooter}>
-      <div className={styles.footerShell}>
-        <div className={styles.footerMain}>
-          <div className={styles.footerGrid}>
-            {statusBlocks.map((entry) => (
-              <div key={entry.label} className={styles.footerBlock}>
-                <span className={styles.footerBlockLabel}>{entry.label}</span>
-                <span className={styles.footerBlockValue}>{entry.value}</span>
-              </div>
-            ))}
-          </div>
-          <div className={styles.footerActions}>
-            <div className={styles.footerMeta}>
-              <div className={styles.footerHint}>
-                <p className={styles.footerHintTitle}>Workspace guidance</p>
-                <p className={styles.footerHintDetail}>
-                  Preset {cameraState.preset} · Esc to cancel · Enter to accept
-                </p>
-              </div>
-              <div className={styles.footerHotkeys}>
-                {[
-                  { key: "Esc", label: "Cancel" },
-                  { key: "Enter", label: "Commit" },
-                  { key: "⌘ S", label: "Save snapshot" },
-                ].map((shortcut) => (
-                  <span key={shortcut.key} className={styles.footerKey}>
-                    <strong>{shortcut.key}</strong>
-                    <small>{shortcut.label}</small>
-                  </span>
-                ))}
-              </div>
-            </div>
-            <div className={styles.actionButtons}>
-              <button
-                type="button"
-                className={styles.primaryAction}
-                onClick={handleSendSelectionToWorkflow}
-                disabled={!primarySelectedGeometryId || selectionAlreadyLinked}
-              >
-                Reference Active
-              </button>
-              <button
-                type="button"
-                className={styles.secondaryAction}
-                onClick={() => {
-                  selectedGeometryIds.forEach((id) => {
-                    if (!referencedGeometryIds.has(id)) {
-                      addGeometryReferenceNode(id);
-                    }
-                  });
-                }}
-                disabled={selectedGeometryIds.every((id) => referencedGeometryIds.has(id))}
-              >
-                Reference All
-              </button>
-            </div>
-          </div>
-          <div className={styles.snapGrid}>
-            {([
-              { label: "Grid", key: "grid" },
-              { label: "Verts", key: "vertices" },
-              { label: "Mids", key: "midpoints" },
-              { label: "Ends", key: "endpoints" },
-              { label: "Inter", key: "intersections" },
-              { label: "Perp", key: "perpendicular" },
-              { label: "Tang", key: "tangent" },
-            ] as const).map((snap) => (
-              <label key={snap.key} className={styles.snapToggle}>
-                <input
-                  type="checkbox"
-                  className={styles.snapToggleInput}
-                  checked={snapSettings[snap.key]}
-                  onChange={(event) =>
-                    setSnapSettings({ [snap.key]: event.target.checked })
-                  }
-                />
-                <span className={styles.snapToggleLabel}>{snap.label}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-        {selectionDetails.length > 0 && (
-          <div className={styles.selectionList}>
-            {selectionDetails.map((detail) => (
-              <div key={detail.id} className={styles.selectionItem}>
-                <div className={styles.selectionInfo}>
-                  <span className={styles.selectionLabel}>{detail.label}</span>
-                  <span className={styles.selectionBadge}>{detail.type}</span>
-                  {detail.referenced && (
-                    <span className={styles.selectionLinked}>linked</span>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  className={styles.selectionAction}
-                  onClick={() => addGeometryReferenceNode(detail.id)}
-                  disabled={detail.referenced}
-                >
-                  {detail.referenced ? "Referenced" : "Link"}
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
+    <footer className={styles.footerBar}>
+      <div className={styles.footerGroup}>
+        {[
+          { key: "⌘Z", label: "Undo" },
+          { key: "⌘⇧Z", label: "Redo" },
+        ].map((shortcut) => (
+          <span key={shortcut.key} className={styles.footerKey}>
+            <strong>{shortcut.key}</strong>
+            <small>{shortcut.label}</small>
+          </span>
+        ))}
+      </div>
+      <div className={`${styles.footerGroup} ${styles.footerCenter}`}>
+        <span className={styles.footerChip}>
+          Grid: {gridSettings.spacing}
+          {gridSettings.units}
+        </span>
+        <span className={styles.footerChip}>Snaps: {activeSnapsLabel}</span>
+      </div>
+      <div className={styles.footerGroup}>
+        <span className={styles.footerChip}>Selected: {selectedGeometryLabel}</span>
+        <span className={styles.footerChip}>Mode: {activeCommand?.label ?? "Idle"}</span>
+        <span className={styles.footerChip}>Filter: {selectionMode}</span>
       </div>
     </footer>
   );
@@ -1530,24 +1439,7 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
           </div>
         </div>
         <div className={styles.body}>
-          <div className={styles.viewer} data-panel-drag="true" ref={viewerRef}>
-            <div
-              className={styles.viewerInner}
-              onContextMenu={(event) => event.preventDefault()}
-              data-no-workspace-pan
-              data-panel-drag="true"
-            >
-              <ViewerCanvas
-                activeCommandId={activeCommand?.id ?? null}
-                commandRequest={commandRequest}
-                primitiveSettings={primitiveSettings}
-                rectangleSettings={rectangleSettings}
-                circleSettings={circleSettings}
-              />
-            </div>
-          </div>
-
-          <aside className={styles.commandRail}>
+          <div className={styles.commandBar}>
           <div className={styles.railSection}>
             <span className={styles.railTitle}>Command Line</span>
             <div className={styles.commandInputRow}>
@@ -1902,49 +1794,92 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
           <div className={styles.commandGroup}>
             <span className={styles.commandGroupTitle}>Geometry</span>
             <div className={styles.commandGrid}>
-              {geometryCommands.map((command) => (
-                <button
-                  key={command.id}
-                  type="button"
-                  className={`${styles.commandIconButton} ${
-                    activeCommand?.id === command.id
-                      ? styles.commandIconActive
-                      : ""
-                  }`}
-                  onClick={() => handleCommandClick(command)}
-                  title={command.label}
-                  aria-label={command.label}
-                >
-                  <span className={styles.commandIcon}>
-                    {renderCommandIcon(command.id)}
-                  </span>
-                  <span className={styles.commandLabel}>{command.label}</span>
-                </button>
-              ))}
+              {geometryCommands.map((command) => {
+                const meta = COMMAND_DESCRIPTIONS[command.id];
+                return (
+                  <Tooltip
+                    key={command.id}
+                    content={meta?.description ?? command.prompt}
+                    shortcut={meta?.shortcut}
+                    position="bottom"
+                  >
+                    <button
+                      type="button"
+                      className={`${styles.commandIconButton} ${
+                        activeCommand?.id === command.id
+                          ? styles.commandIconActive
+                          : ""
+                      }`}
+                      onClick={() => handleCommandClick(command)}
+                      aria-label={command.label}
+                    >
+                      <span className={styles.commandIcon}>
+                        {renderCommandIcon(command.id)}
+                      </span>
+                      <span className={styles.commandLabel}>{command.label}</span>
+                    </button>
+                  </Tooltip>
+                );
+              })}
             </div>
           </div>
           <div className={styles.commandGroup}>
             <span className={styles.commandGroupTitle}>Performs</span>
             <div className={styles.commandGrid}>
-              {performCommands.map((command) => (
-                <button
-                  key={command.id}
-                  type="button"
-                  className={`${styles.commandIconButton} ${
-                    activeCommand?.id === command.id
-                      ? styles.commandIconActive
-                      : ""
-                  }`}
-                  onClick={() => handleCommandClick(command)}
-                  title={command.label}
-                  aria-label={command.label}
-                >
-                  <span className={styles.commandIcon}>
-                    {renderCommandIcon(command.id)}
-                  </span>
-                  <span className={styles.commandLabel}>{command.label}</span>
-                </button>
-              ))}
+              {performCommands.map((command) => {
+                const meta = COMMAND_DESCRIPTIONS[command.id];
+                return (
+                  <Tooltip
+                    key={command.id}
+                    content={meta?.description ?? command.prompt}
+                    shortcut={meta?.shortcut}
+                    position="bottom"
+                  >
+                    <button
+                      type="button"
+                      className={`${styles.commandIconButton} ${
+                        activeCommand?.id === command.id
+                          ? styles.commandIconActive
+                          : ""
+                      }`}
+                      onClick={() => handleCommandClick(command)}
+                      aria-label={command.label}
+                    >
+                      <span className={styles.commandIcon}>
+                        {renderCommandIcon(command.id)}
+                      </span>
+                      <span className={styles.commandLabel}>{command.label}</span>
+                    </button>
+                  </Tooltip>
+                );
+              })}
+            </div>
+          </div>
+          <div className={styles.railSection}>
+            <span className={styles.railTitle}>Workflow</span>
+            <div className={styles.commandActions}>
+              <button
+                type="button"
+                className={styles.commandActionPrimary}
+                onClick={handleSendSelectionToWorkflow}
+                disabled={!primarySelectedGeometryId || selectionAlreadyLinked}
+              >
+                Reference Active
+              </button>
+              <button
+                type="button"
+                className={styles.commandAction}
+                onClick={() => {
+                  selectedGeometryIds.forEach((id) => {
+                    if (!referencedGeometryIds.has(id)) {
+                      addGeometryReferenceNode(id);
+                    }
+                  });
+                }}
+                disabled={selectedGeometryIds.every((id) => referencedGeometryIds.has(id))}
+              >
+                Reference All
+              </button>
             </div>
           </div>
           <div className={styles.railSection}>
@@ -2249,7 +2184,23 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
               ))}
             </div>
           </div>
-          </aside>
+          </div>
+          <div className={styles.viewer} data-panel-drag="true" ref={viewerRef}>
+            <div
+              className={styles.viewerInner}
+              onContextMenu={(event) => event.preventDefault()}
+              data-no-workspace-pan
+              data-panel-drag="true"
+            >
+              <WebGLViewerCanvas
+                activeCommandId={activeCommand?.id ?? null}
+                commandRequest={commandRequest}
+                primitiveSettings={primitiveSettings}
+                rectangleSettings={rectangleSettings}
+                circleSettings={circleSettings}
+              />
+            </div>
+          </div>
         </div>
       </section>
       {footerRoot && showStatusBar && createPortal(footerContent, footerRoot)}

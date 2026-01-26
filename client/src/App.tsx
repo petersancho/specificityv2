@@ -567,99 +567,18 @@ const App = () => {
       />
 
       <main className={styles.workspace}>
-        <div className={styles.canvasToolbar}>
-          <div className={styles.toolbarGroup}>
-            <span className={styles.toolbarTitle}>Workspace</span>
-            <span className={styles.toolbarHint}>
-              Scroll to zoom, drag background to pan, drag panels to reposition.
-            </span>
+        <div className={styles.stackLayout}>
+          <div className={`${styles.fullPanel} ${styles.roslynPanel}`}>
+            <ModelerSection
+              onCaptureRequest={(element) => captureElement(element, "Roslyn")}
+              captureDisabled={isCapturing}
+            />
           </div>
-          <div className={styles.zoomGroup}>
-            <button
-              type="button"
-              className={`${styles.lockButton} ${workspaceLocked ? styles.lockButtonActive : ""}`}
-              onClick={() => setWorkspaceLocked((prev) => !prev)}
-            >
-              {workspaceLocked ? "Unlock Canvas" : "Lock Canvas"}
-            </button>
-            <button
-              type="button"
-              className={styles.zoomButton}
-              onClick={() => handleZoomButton("out")}
-            >
-              −
-            </button>
-            <span className={styles.zoomValue}>{Math.round(workspaceScale * 100)}%</span>
-            <button
-              type="button"
-              className={styles.zoomButton}
-              onClick={() => handleZoomButton("in")}
-            >
-              +
-            </button>
-          </div>
-        </div>
-
-        <div
-          ref={workspaceRef}
-          className={styles.canvas}
-          onWheel={handleWorkspaceWheel}
-          onPointerDown={handleWorkspacePointerDown}
-          onContextMenu={handleWorkspaceContextMenu}
-        >
-          <div
-            ref={panelStageRef}
-            className={styles.panelStage}
-            style={{
-              transform: `translate(-50%, -50%) translate(${workspaceOffset.x}px, ${workspaceOffset.y}px) scale(${workspaceScale})`,
-            }}
-          >
-            {Object.entries(panels).map(([panelId, panelState]) => (
-              <div
-                key={panelId}
-                data-panel-id={panelId}
-                className={styles.panel}
-                onPointerDown={(event) =>
-                  handlePanelSurfacePointerDown(event, panelId as PanelId)
-                }
-                style={{
-                  width: `${panelState.width}px`,
-                  height: `${panelState.height}px`,
-                  left: `${panelState.x}px`,
-                  top: `${panelState.y}px`,
-                }}
-              >
-                <div
-                  className={styles.panelHandle}
-                  onPointerDown={(event) =>
-                    handlePanelPointerDown(event, panelId as PanelId)
-                  }
-                >
-                  {panelTitles[panelId as PanelId]}
-                </div>
-                <div className={styles.panelContent}>
-                  {panelId === "roslyn" ? (
-                    <ModelerSection
-                      onCaptureRequest={(element) => captureElement(element, "Roslyn")}
-                      captureDisabled={isCapturing}
-                    />
-                  ) : (
-                    <WorkflowSection
-                      onCaptureRequest={(element) => captureElement(element, "Numerica")}
-                      captureDisabled={isCapturing}
-                    />
-                  )}
-                </div>
-                <button
-                  type="button"
-                  aria-label="Resize panel"
-                  className={styles.resizeHandle}
-                  onPointerDown={(event) =>
-                    handlePanelResizePointerDown(event, panelId as PanelId)
-                  }
-                />
-              </div>
-            ))}
+          <div className={`${styles.fullPanel} ${styles.numericaPanel}`}>
+            <WorkflowSection
+              onCaptureRequest={(element) => captureElement(element, "Numerica")}
+              captureDisabled={isCapturing}
+            />
           </div>
         </div>
       </main>

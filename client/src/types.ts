@@ -1,18 +1,25 @@
-import type { Edge, Node } from "reactflow";
+export type WorkflowNode = {
+  id: string;
+  type?: string;
+  position: { x: number; y: number };
+  data: WorkflowNodeData;
+  selected?: boolean;
+};
+
+export type WorkflowEdge = {
+  id: string;
+  source: string;
+  target: string;
+  sourceHandle?: string | null;
+  targetHandle?: string | null;
+  selected?: boolean;
+};
 
 export type Material = {
   id: string;
   name: string;
   density_kg_m3: number;
   category: string;
-  source: string;
-};
-
-export type ECCRecord = {
-  id: string;
-  materialId: string;
-  ecc_kgco2e_per_kg: number;
-  stage: string;
   source: string;
 };
 
@@ -274,8 +281,8 @@ export type WorkflowNodeData = {
 };
 
 export type WorkflowState = {
-  nodes: Node<WorkflowNodeData>[];
-  edges: Edge[];
+  nodes: WorkflowNode[];
+  edges: WorkflowEdge[];
 };
 
 export type ProjectSavePayload = {

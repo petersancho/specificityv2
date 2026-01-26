@@ -1,0 +1,91 @@
+.trigger {
+  display: inline-flex;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 10000;
+  pointer-events: none;
+  animation: tooltipEnter 100ms ease-out;
+}
+
+.content {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--ink-1000);
+  color: var(--fog-100);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-family: var(--font-primary);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: var(--letter-spacing-wide);
+  white-space: nowrap;
+  box-shadow: var(--shadow-md);
+}
+
+.text {
+  max-width: 240px;
+  white-space: normal;
+  line-height: 1.4;
+}
+
+.shortcut {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  background: var(--ink-700);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--fog-400);
+}
+
+.tooltip::after {
+  content: "";
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--ink-1000);
+  transform: rotate(45deg);
+}
+
+.top::after {
+  bottom: -4px;
+  left: 50%;
+  margin-left: -4px;
+}
+
+.bottom::after {
+  top: -4px;
+  left: 50%;
+  margin-left: -4px;
+}
+
+.left::after {
+  right: -4px;
+  top: 50%;
+  margin-top: -4px;
+}
+
+.right::after {
+  left: -4px;
+  top: 50%;
+  margin-top: -4px;
+}
+
+@keyframes tooltipEnter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

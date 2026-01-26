@@ -1,64 +1,33 @@
-import { type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { Handle, Position, type HandleProps, type NodeProps } from "reactflow";
+import { type ReactNode } from "react";
 import { useProjectStore } from "../../store/useProjectStore";
 import type { WorkflowNodeData } from "../../types";
+import { isWorkflowNodeInvalid } from "./workflowValidation";
 import styles from "./WorkflowNodes.module.css";
+
+type NodeProps<T> = {
+  id: string;
+  data: T;
+};
 
 type NodeShellProps = {
   label: string;
   icon: ReactNode;
   children?: ReactNode;
   variant?: string;
+  isInvalid?: boolean;
 };
 
-const NodeShell = ({ label, icon, children, variant }: NodeShellProps) => (
-  <div className={styles.nodeCard} data-variant={variant} aria-label={label}>
+const NodeShell = ({ label, icon, children, variant, isInvalid }: NodeShellProps) => (
+  <div
+    className={styles.nodeCard}
+    data-variant={variant}
+    data-invalid={isInvalid ? "true" : undefined}
+    aria-label={label}
+  >
     <div className={styles.nodeLabel}>{label}</div>
     <div className={styles.nodeIcon}>{icon}</div>
     {children}
   </div>
-);
-
-const triggerRightClickConnect = (event: ReactPointerEvent<HTMLDivElement>) => {
-  if (event.button !== 2) return;
-  event.preventDefault();
-  event.stopPropagation();
-  const eventInit = {
-    bubbles: true,
-    cancelable: true,
-    clientX: event.clientX,
-    clientY: event.clientY,
-    screenX: event.screenX,
-    screenY: event.screenY,
-    button: 0,
-    buttons: 1,
-  };
-  try {
-    event.currentTarget.dispatchEvent(
-      new PointerEvent("pointerdown", {
-        ...eventInit,
-        pointerId: event.pointerId,
-        pointerType: event.pointerType,
-        isPrimary: event.isPrimary,
-      })
-    );
-  } catch {
-    event.currentTarget.dispatchEvent(new MouseEvent("mousedown", eventInit));
-  }
-};
-
-type CustomHandleProps = HandleProps & { className?: string };
-
-const RightClickHandle = ({ type, className, ...props }: CustomHandleProps) => (
-  <Handle
-    {...props}
-    type={type}
-    className={`${styles.handle} ${
-      type === "target" ? styles.handleTarget : styles.handleSource
-    } ${className ?? ""}`}
-    onPointerDown={triggerRightClickConnect}
-    onContextMenu={(event) => event.preventDefault()}
-  />
 );
 
 const icons = {
@@ -100,11 +69,13 @@ export const GeometryReferenceNode = ({
 }: NodeProps<WorkflowNodeData>) => {
   const geometry = useProjectStore((state) => state.geometry);
   const updateNodeData = useProjectStore((state) => state.updateNodeData);
+  const isInvalid = isWorkflowNodeInvalid("geometryReference", data, geometry);
   return (
     <NodeShell
       label={data.label ?? "Geometry Reference"}
       icon={icons.geometryReference}
       variant="source"
+      isInvalid={isInvalid}
     >
       <label className={styles.nodeField}>
         <span>Geometry</span>
@@ -121,11 +92,6 @@ export const GeometryReferenceNode = ({
           ))}
         </select>
       </label>
-      <RightClickHandle
-        type="source"
-        id="geometryId"
-        position={Position.Right}
-      />
     </NodeShell>
   );
 };
@@ -133,8 +99,14 @@ export const GeometryReferenceNode = ({
 export const PointNode = ({ id, data }: NodeProps<WorkflowNodeData>) => {
   const updateNodeData = useProjectStore((state) => state.updateNodeData);
   const point = data.point ?? { x: 0, y: 0, z: 0 };
+  const isInvalid = isWorkflowNodeInvalid("point", data);
   return (
-    <NodeShell label={data.label ?? "Point"} icon={icons.point} variant="source">
+    <NodeShell
+      label={data.label ?? "Point"}
+      icon={icons.point}
+      variant="source"
+      isInvalid={isInvalid}
+    >
       <div className={styles.nodeRow}>
         <label className={styles.nodeFieldInline}>
           X
@@ -173,15 +145,20 @@ export const PointNode = ({ id, data }: NodeProps<WorkflowNodeData>) => {
           />
         </label>
       </div>
-      <RightClickHandle type="source" id="geometryId" position={Position.Right} />
     </NodeShell>
   );
 };
 
 export const PolylineNode = ({ id, data }: NodeProps<WorkflowNodeData>) => {
   const updateNodeData = useProjectStore((state) => state.updateNodeData);
+  const isInvalid = isWorkflowNodeInvalid("polyline", data);
   return (
-    <NodeShell label={data.label ?? "Polyline"} icon={icons.polyline} variant="source">
+    <NodeShell
+      label={data.label ?? "Polyline"}
+      icon={icons.polyline}
+      variant="source"
+      isInvalid={isInvalid}
+    >
       <label className={styles.nodeField}>
         <span>Points</span>
         <textarea
@@ -203,15 +180,20 @@ export const PolylineNode = ({ id, data }: NodeProps<WorkflowNodeData>) => {
         />
         Closed
       </label>
-      <RightClickHandle type="source" id="geometryId" position={Position.Right} />
     </NodeShell>
   );
 };
 
 export const SurfaceNode = ({ id, data }: NodeProps<WorkflowNodeData>) => {
   const updateNodeData = useProjectStore((state) => state.updateNodeData);
+  const isInvalid = isWorkflowNodeInvalid("surface", data);
   return (
-    <NodeShell label={data.label ?? "Surface"} icon={icons.surface} variant="source">
+    <NodeShell
+      label={data.label ?? "Surface"}
+      icon={icons.surface}
+      variant="source"
+      isInvalid={isInvalid}
+    >
       <label className={styles.nodeField}>
         <span>Loop Points</span>
         <textarea
@@ -223,7 +205,6 @@ export const SurfaceNode = ({ id, data }: NodeProps<WorkflowNodeData>) => {
           placeholder="0 0 0  1 0 0  1 0 1  0 0 1"
         />
       </label>
-      <RightClickHandle type="source" id="geometryId" position={Position.Right} />
     </NodeShell>
   );
 };

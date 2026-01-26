@@ -1,24 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import ReactFlow, {
-  ConnectionLineType,
-  Controls,
-  MarkerType,
-  type ReactFlowInstance,
-} from "reactflow";
 import { useProjectStore, type NodeType } from "../../store/useProjectStore";
-import {
-  GeometryReferenceNode,
-  PointNode,
-  PolylineNode,
-  SurfaceNode,
-} from "./WorkflowNodes";
+import { NumericalCanvas } from "./NumericalCanvas";
 import styles from "./WorkflowSection.module.css";
 
 const nodeOptions: { label: string; value: NodeType }[] = [
   { label: "Geometry Reference", value: "geometryReference" },
-  { label: "Point", value: "point" },
+  { label: "Point Generator", value: "point" },
   { label: "Polyline", value: "polyline" },
   { label: "Surface", value: "surface" },
+  { label: "Box Builder", value: "box" },
+  { label: "Sphere", value: "sphere" },
 ];
 
 type WorkflowSectionProps = {
@@ -37,15 +28,6 @@ const WorkflowSection = ({ onCaptureRequest, captureDisabled }: WorkflowSectionP
   const pruneWorkflow = useProjectStore((state) => state.pruneWorkflow);
   const undoWorkflow = useProjectStore((state) => state.undoWorkflow);
 
-  const nodeTypes = useMemo(
-    () => ({
-      geometryReference: GeometryReferenceNode,
-      point: PointNode,
-      polyline: PolylineNode,
-      surface: SurfaceNode,
-    }),
-    []
-  );
   const supportedTypes = useMemo(
     () => new Set(nodeOptions.map((option) => option.value)),
     []
@@ -65,39 +47,26 @@ const WorkflowSection = ({ onCaptureRequest, captureDisabled }: WorkflowSectionP
   }, [edges, filteredNodes]);
 
   const canvasRef = useRef<HTMLDivElement>(null);
-  const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
+  const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
 
   const handleCapture = async () => {
-    if (!canvasRef.current || !onCaptureRequest || !reactFlowInstance) return;
+    if (!canvasRef.current || !onCaptureRequest) return;
     const container = canvasRef.current;
-    const prevStyles = {
-      width: container.style.width,
-      height: container.style.height,
-      position: container.style.position,
-      left: container.style.left,
-      top: container.style.top,
-      zIndex: container.style.zIndex,
-    };
-    container.classList.add(styles.captureActive);
-    container.style.width = "1600px";
-    container.style.height = "900px";
-    container.style.position = "absolute";
-    container.style.left = "-9999px";
-    container.style.top = "0";
-    container.style.zIndex = "-1";
-    try {
-      reactFlowInstance.fitView({ padding: 0.16, duration: 0, includeHiddenNodes: true });
-      await onCaptureRequest(container);
-    } finally {
-      container.classList.remove(styles.captureActive);
-      container.style.width = prevStyles.width;
-      container.style.height = prevStyles.height;
-      container.style.position = prevStyles.position;
-      container.style.left = prevStyles.left;
-      container.style.top = prevStyles.top;
-      container.style.zIndex = prevStyles.zIndex;
-    }
+    await onCaptureRequest(container);
   };
+
+  useEffect(() => {
+    const updateSize = () => {
+      if (canvasRef.current) {
+        const rect = canvasRef.current.getBoundingClientRect();
+        setCanvasSize({ width: rect.width, height: rect.height });
+      }
+    };
+
+    updateSize();
+    window.addEventListener("resize", updateSize);
+    return () => window.removeEventListener("resize", updateSize);
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -134,7 +103,7 @@ const WorkflowSection = ({ onCaptureRequest, captureDisabled }: WorkflowSectionP
       <div className={styles.header}>
         <div>
           <h2>Numerica</h2>
-          <p>Drop nodes to convert geometry layers into LCA metrics.</p>
+          <p>Drop nodes to build parametric geometry workflows.</p>
         </div>
         <div className={styles.controls}>
           <label>
@@ -182,32 +151,7 @@ const WorkflowSection = ({ onCaptureRequest, captureDisabled }: WorkflowSectionP
         </aside>
         <div className={styles.canvas} data-panel-drag="true">
           <div className={styles.canvasViewport} ref={canvasRef}>
-            <ReactFlow
-              nodes={filteredNodes}
-              edges={filteredEdges}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onConnect={onConnect}
-              nodeTypes={nodeTypes}
-              minZoom={0.2}
-              defaultEdgeOptions={{
-                animated: true,
-                style: { stroke: "rgba(107, 114, 128, 0.6)", strokeWidth: 2 },
-                markerEnd: { type: MarkerType.ArrowClosed, color: "#6b7280" },
-              }}
-              connectionLineStyle={{ stroke: "#f97316", strokeWidth: 2 }}
-              connectionLineType={ConnectionLineType.SmoothStep}
-              zoomOnScroll
-              zoomOnPinch
-              panOnDrag={[2]}
-              panOnScroll={false}
-              onPaneContextMenu={(event) => event.preventDefault()}
-              deleteKeyCode={["Backspace", "Delete"]}
-              fitView
-              onInit={(instance) => setReactFlowInstance(instance)}
-            >
-              <Controls showInteractive={false} />
-            </ReactFlow>
+            <NumericalCanvas width={canvasSize.width} height={canvasSize.height} />
           </div>
         </div>
       </div>
