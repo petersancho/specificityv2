@@ -46,6 +46,15 @@ const extrudeColor = "#f97316";
 const HOVER_AXIS_COLOR = "#fde047";
 const HOVER_ROTATE_COLOR = "#fbbf24";
 
+const AXIS_HIT_RADIUS_MULTIPLIER = 1.4;
+const MIN_AXIS_HIT_RADIUS = 0.05;
+const AXIS_HIT_CLEARANCE = 0.35;
+const CAP_HIT_SCALE_DEFAULT = 0.65;
+const CAP_HIT_SCALE_SCALE_MODE = 0.95;
+const PLANE_HIT_SCALE = 0.85;
+const SCREEN_HIT_SCALE = 0.25;
+const ROTATE_HIT_THICKNESS = 0.08;
+
 const AxisLine = ({
   axis,
   length,
@@ -117,7 +126,8 @@ const AxisHandle = ({
   const headLength = radius * 5.5;
   const shaftLength = Math.max(length - headLength, radius * 2.5);
   const hitLength = shaftLength + headLength;
-  const hitRadius = Math.max(radius * 5.5, 0.18);
+  const effectiveHitLength = Math.max(hitLength - AXIS_HIT_CLEARANCE, radius * 3);
+  const hitRadius = Math.max(radius * AXIS_HIT_RADIUS_MULTIPLIER, MIN_AXIS_HIT_RADIUS);
   return (
     <group rotation={rotation as [number, number, number]}>
       <mesh
@@ -135,8 +145,8 @@ const AxisHandle = ({
       <mesh
         geometry={hitGeometry}
         material={hitMaterial}
-        position={[0, hitLength / 2, 0]}
-        scale={[hitRadius, hitLength, hitRadius]}
+        position={[0, effectiveHitLength / 2, 0]}
+        scale={[hitRadius, effectiveHitLength, hitRadius]}
         onPointerDown={(event) => {
           event.stopPropagation();
           event.nativeEvent?.preventDefault?.();
@@ -171,7 +181,7 @@ const AxisCap = ({
   boxGeometry,
   hitGeometry,
   hitMaterial,
-  hitScale = 1.8,
+  hitScale = CAP_HIT_SCALE_DEFAULT,
   onPointerDown,
   onPointerMove,
   onPointerUp,
@@ -282,7 +292,7 @@ const PlaneHandle = ({
       <mesh
         geometry={hitGeometry}
         material={hitMaterial}
-        scale={[2.3, 2.3, 2.3]}
+        scale={[PLANE_HIT_SCALE, PLANE_HIT_SCALE, PLANE_HIT_SCALE]}
         onPointerDown={(event) => {
           event.stopPropagation();
           event.nativeEvent?.preventDefault?.();
@@ -449,8 +459,8 @@ export const Gizmo = ({
     () => new MeshBasicMaterial({ color: extrudeColor }),
     []
   );
-  const shaftGeometry = useMemo(() => new CylinderGeometry(0.06, 0.06, 1, 36, 1, true), []);
-  const headGeometry = useMemo(() => new ConeGeometry(0.12, 1, 48), []);
+  const shaftGeometry = useMemo(() => new CylinderGeometry(0.05, 0.05, 1, 36, 1, true), []);
+  const headGeometry = useMemo(() => new ConeGeometry(0.11, 1, 48), []);
   const planeGeometry = useMemo(() => new PlaneGeometry(1, 1), []);
   const axisCapGeometry = useMemo(() => new BoxGeometry(1, 1, 1), []);
   const scaleCenterGeometry = useMemo(() => new BoxGeometry(1, 1, 1), []);
@@ -458,7 +468,7 @@ export const Gizmo = ({
   const hitAxisGeometry = useMemo(() => new CylinderGeometry(1, 1, 1, 14), []);
   const hitPlaneGeometry = useMemo(() => new PlaneGeometry(1, 1), []);
   const hitBoxGeometry = useMemo(() => new BoxGeometry(1, 1, 1), []);
-  const hitRotateGeometry = useMemo(() => new TorusGeometry(0.9, 0.24, 24, 72), []);
+  const hitRotateGeometry = useMemo(() => new TorusGeometry(0.9, ROTATE_HIT_THICKNESS, 24, 72), []);
 
   useEffect(() => {
     return () => {
@@ -586,7 +596,7 @@ export const Gizmo = ({
               <mesh
                 geometry={hitPlaneGeometry}
                 material={hitMaterial}
-                scale={[0.6, 0.6, 0.6]}
+                scale={[SCREEN_HIT_SCALE, SCREEN_HIT_SCALE, SCREEN_HIT_SCALE]}
                 onPointerDown={(event) => handlePointerDown({ kind: "screen" }, event)}
                 onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerUp}
@@ -629,7 +639,7 @@ export const Gizmo = ({
               boxGeometry={axisCapGeometry}
               hitGeometry={hitBoxGeometry}
               hitMaterial={hitMaterial}
-              hitScale={2.6}
+              hitScale={CAP_HIT_SCALE_SCALE_MODE}
               onPointerDown={(event) => handlePointerDown({ kind: "scale", axis }, event)}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
@@ -668,7 +678,7 @@ export const Gizmo = ({
       )}
       {showExtrudeHandle && (
         <group>
-          <Line points={[[0, 0, 0], [0, 0, 1.4]]} color={extrudeColor} lineWidth={3} />
+          <Line points={[[0, 0, 0], [0, 0, 1.4]]} color={extrudeColor} lineWidth={2} />
           <AxisCap
             axis="z"
             length={1.4}
@@ -677,7 +687,7 @@ export const Gizmo = ({
             boxGeometry={axisCapGeometry}
             hitGeometry={hitBoxGeometry}
             hitMaterial={hitMaterial}
-            hitScale={3}
+            hitScale={1.4}
             onPointerDown={(event) => handlePointerDown({ kind: "extrude", axis: "z" }, event)}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
@@ -689,3 +699,5 @@ export const Gizmo = ({
     </group>
   );
 };
+
+export default Gizmo;

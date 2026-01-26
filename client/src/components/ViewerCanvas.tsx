@@ -1058,29 +1058,12 @@ const ViewerCanvas = ({
         RIGHT: MOUSE.PAN,
       };
     }
-    switch (cameraState.preset) {
-      case "maya":
-        return {
-          LEFT: MOUSE.ROTATE,
-          MIDDLE: MOUSE.PAN,
-          RIGHT: MOUSE.DOLLY,
-        };
-      case "rhino":
-        return {
-          LEFT: MOUSE.PAN,
-          MIDDLE: MOUSE.PAN,
-          RIGHT: MOUSE.ROTATE,
-        };
-      case "blender":
-      case "custom":
-      default:
-        return {
-          LEFT: MOUSE.ROTATE,
-          MIDDLE: MOUSE.PAN,
-          RIGHT: MOUSE.PAN,
-        };
-    }
-  }, [cameraState.preset, isPanModifier]);
+    return {
+      LEFT: undefined as unknown as typeof MOUSE.ROTATE,
+      MIDDLE: MOUSE.PAN,
+      RIGHT: MOUSE.ROTATE,
+    };
+  }, [isPanModifier]);
   const gridStep = Math.max(
     1e-6,
     snapSettings.gridStep || gridSettings.spacing || 1
@@ -3557,13 +3540,33 @@ const ViewerCanvas = ({
       }}
       onPointerDown={(event) => {
         if (event.button !== 0) {
-          setIsPanDragging(true);
+          if ((event.button === 2 && isPanModifier) || event.button === 1) {
+            setIsPanDragging(true);
+          }
           return;
         }
-        if (isPanModifier || isPanDragging || isControlsActive) return;
-        if (activeCommandId !== "boxselect") return;
+        if (
+          isPanModifier ||
+          isPanDragging ||
+          isControlsActive ||
+          gizmoDragRef.current ||
+          isGizmoDragging ||
+          isGumballExtruding ||
+          extrudeSessionRef.current
+        ) {
+          return;
+        }
         const threeEvent = toThreePointerEvent(event);
         if (!threeEvent.ray) return;
+        if (event.nativeEvent?.stopImmediatePropagation) {
+          event.nativeEvent.stopImmediatePropagation();
+        }
+        if (event.nativeEvent?.preventDefault) {
+          event.nativeEvent.preventDefault();
+        }
+        if (event.nativeEvent?.stopPropagation) {
+          event.nativeEvent.stopPropagation();
+        }
         threeEvent.stopPropagation();
         const plane = getPlacementPlane(cPlane);
         const intersection = new Vector3();

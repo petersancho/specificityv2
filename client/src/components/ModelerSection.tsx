@@ -32,7 +32,6 @@ const SUPPORTED_PERFORM_COMMANDS = new Set([
   "loft",
   "surface",
   "extrude",
-  "boxselect",
 ]);
 const performCommands = COMMAND_DEFINITIONS.filter(
   (command) =>

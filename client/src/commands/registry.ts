@@ -204,12 +204,6 @@ export const COMMAND_DEFINITIONS: CommandDefinition[] = [
     prompt: "Zoom: toggle zoom mode.",
   },
   {
-    id: "boxselect",
-    label: "Box Select",
-    category: "performs",
-    prompt: "Box Select: drag to select.",
-  },
-  {
     id: "selectionfilter",
     label: "Selection Filter",
     category: "performs",
@@ -314,8 +308,6 @@ const COMMAND_ALIASES: Record<string, string> = {
   orbit: "orbit",
   pan: "pan",
   zoom: "zoom",
-  "box-select": "boxselect",
-  boxselect: "boxselect",
   filter: "selectionfilter",
   select: "selectionfilter",
   snap: "snapping",
