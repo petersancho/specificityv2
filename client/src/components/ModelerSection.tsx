@@ -1776,7 +1776,6 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
       }
       if (commandId === "camera") {
         if (lower.includes("maya")) setCameraPreset("maya");
-        else if (lower.includes("rhino")) setCameraPreset("rhino");
         else if (lower.includes("custom")) setCameraPreset("custom");
         else setCameraPreset("blender");
         setCommandInput("");
@@ -2892,7 +2891,6 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
               >
                 <option value="blender">Blender</option>
                 <option value="maya">Maya</option>
-                <option value="rhino">Rhino</option>
                 <option value="custom">Custom</option>
               </select>
             </label>

@@ -102,6 +102,6 @@ Command and node alignment:
 
 Rendering and geometry specs:
 
-- Rendering style: `docs/GH2_RENDERING_STYLE.md`
+- Rendering style: `docs/webgl_rendering_style.md`
 - Geometry math: `docs/geometry_mathematics_spec.md`
 - NURBS workflow: `docs/nurbs_workflow_spec.md`

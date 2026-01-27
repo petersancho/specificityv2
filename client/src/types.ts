@@ -186,7 +186,7 @@ export type GridSettings = {
   majorLinesEvery: number;
 };
 
-export type CameraPreset = "blender" | "maya" | "rhino" | "custom";
+export type CameraPreset = "blender" | "maya" | "custom";
 
 export type CameraState = {
   position: Vec3;

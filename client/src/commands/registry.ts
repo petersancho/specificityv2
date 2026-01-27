@@ -235,7 +235,7 @@ export const COMMAND_DEFINITIONS: CommandDefinition[] = [
     id: "camera",
     label: "Camera",
     category: "performs",
-    prompt: "Camera: presets blender|maya|rhino, custom.",
+    prompt: "Camera: presets blender|maya, custom.",
   },
   {
     id: "pivot",
