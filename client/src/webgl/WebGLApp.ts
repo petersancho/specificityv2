@@ -1,26 +1,8 @@
 import { WebGLUIRenderer, type RGBA } from "./ui/WebGLUIRenderer";
 import { WebGLTextRenderer } from "./ui/WebGLTextRenderer";
+import { WebGLIconRenderer, type IconId } from "./ui/WebGLIconRenderer";
 
 type Rect = { x: number; y: number; width: number; height: number };
-
-type IconId =
-  | "point"
-  | "line"
-  | "polyline"
-  | "rectangle"
-  | "circle"
-  | "box"
-  | "sphere"
-  | "move"
-  | "rotate"
-  | "scale"
-  | "geometryReference"
-  | "pointGenerator"
-  | "lineBuilder"
-  | "circleGenerator"
-  | "boxBuilder"
-  | "transform"
-  | "extrude";
 
 type UIButton = {
   id: string;
@@ -62,6 +44,8 @@ const PALETTE = {
   tooltipBg: rgb(20, 20, 20, 0.94),
 };
 
+const ICON_INSET = 8;
+
 const LEFT_TOOLS: Array<{ id: string; icon: IconId; tooltip: string }> = [
   { id: "point", icon: "point", tooltip: "Point" },
   { id: "line", icon: "line", tooltip: "Line" },
@@ -90,6 +74,7 @@ export class WebGLApp {
   private gl: WebGLRenderingContext;
   private ui: WebGLUIRenderer;
   private text: WebGLTextRenderer;
+  private iconRenderer: WebGLIconRenderer;
   private dpr = 1;
   private size = { width: 1, height: 1 };
   private panels: UIPanels = {
@@ -113,6 +98,7 @@ export class WebGLApp {
     this.gl = gl;
     this.ui = new WebGLUIRenderer(gl);
     this.text = new WebGLTextRenderer(gl);
+    this.iconRenderer = new WebGLIconRenderer(gl);
 
     this.configureCanvas();
     this.configureGL();
@@ -291,6 +277,10 @@ export class WebGLApp {
 
     this.ui.flush();
 
+    this.iconRenderer.begin(this.canvas.width, this.canvas.height);
+    this.buttons.forEach((button) => this.drawButtonIcon(button));
+    this.iconRenderer.flush();
+
     this.drawTooltip();
   }
 
@@ -338,12 +328,22 @@ export class WebGLApp {
         PALETTE.accent
       );
     }
+  }
 
-    const center = {
-      x: button.rect.x + button.rect.width / 2,
-      y: button.rect.y + button.rect.height / 2,
+  private drawButtonIcon(button: UIButton): void {
+    const isHovered = this.hoveredId === button.id;
+    const isActive = this.activeId === button.id;
+    const inset = ICON_INSET;
+
+    const rect = {
+      x: (button.rect.x + inset) * this.dpr,
+      y: (button.rect.y + inset) * this.dpr,
+      width: (button.rect.width - inset * 2) * this.dpr,
+      height: (button.rect.height - inset * 2) * this.dpr,
     };
-    this.drawIcon(button.icon, center.x, center.y, button.rect.width * 0.46, PALETTE.icon);
+
+    const tint = isActive || isHovered ? rgb(255, 255, 255, 1) : rgb(235, 235, 235, 0.98);
+    this.iconRenderer.drawIcon(rect, button.icon, tint);
   }
 
   private drawTooltip(): void {
@@ -434,40 +434,6 @@ export class WebGLApp {
     );
   }
 
-  private drawLine(
-    x1: number,
-    y1: number,
-    x2: number,
-    y2: number,
-    thickness: number,
-    color: RGBA
-  ): void {
-    this.ui.drawLine(
-      x1 * this.dpr,
-      y1 * this.dpr,
-      x2 * this.dpr,
-      y2 * this.dpr,
-      thickness * this.dpr,
-      color
-    );
-  }
-
-  private drawCircle(
-    cx: number,
-    cy: number,
-    radius: number,
-    thickness: number,
-    color: RGBA
-  ): void {
-    this.ui.drawCircle(
-      cx * this.dpr,
-      cy * this.dpr,
-      radius * this.dpr,
-      thickness * this.dpr,
-      color
-    );
-  }
-
   private drawText(text: string, x: number, y: number, size: number, color: RGBA): void {
     this.text.setText(text, {
       fontSize: size * this.dpr,
@@ -481,92 +447,5 @@ export class WebGLApp {
       { width: this.canvas.width, height: this.canvas.height },
       color
     );
-  }
-
-  private drawIcon(icon: IconId, cx: number, cy: number, size: number, color: RGBA): void {
-    switch (icon) {
-      case "point":
-      case "pointGenerator":
-        this.drawCircle(cx, cy, size * 0.18, 2, color);
-        this.drawLine(cx - size * 0.32, cy, cx + size * 0.32, cy, 2, color);
-        this.drawLine(cx, cy - size * 0.32, cx, cy + size * 0.32, 2, color);
-        break;
-      case "line":
-      case "lineBuilder":
-        this.drawLine(cx - size * 0.4, cy + size * 0.2, cx + size * 0.4, cy - size * 0.2, 2, color);
-        this.drawCircle(cx - size * 0.4, cy + size * 0.2, size * 0.08, 2, color);
-        this.drawCircle(cx + size * 0.4, cy - size * 0.2, size * 0.08, 2, color);
-        break;
-      case "polyline":
-        this.drawLine(cx - size * 0.4, cy + size * 0.2, cx - size * 0.05, cy - size * 0.2, 2, color);
-        this.drawLine(cx - size * 0.05, cy - size * 0.2, cx + size * 0.4, cy + size * 0.15, 2, color);
-        this.drawCircle(cx - size * 0.4, cy + size * 0.2, size * 0.07, 2, color);
-        this.drawCircle(cx - size * 0.05, cy - size * 0.2, size * 0.07, 2, color);
-        this.drawCircle(cx + size * 0.4, cy + size * 0.15, size * 0.07, 2, color);
-        break;
-      case "rectangle":
-        this.drawRectStroke(
-          { x: cx - size * 0.32, y: cy - size * 0.22, width: size * 0.64, height: size * 0.44 },
-          2,
-          color
-        );
-        break;
-      case "circle":
-      case "circleGenerator":
-        this.drawCircle(cx, cy, size * 0.32, 2, color);
-        break;
-      case "box":
-      case "boxBuilder":
-        this.drawRectStroke(
-          { x: cx - size * 0.3, y: cy - size * 0.25, width: size * 0.6, height: size * 0.5 },
-          2,
-          color
-        );
-        this.drawLine(cx - size * 0.3, cy - size * 0.05, cx + size * 0.3, cy - size * 0.05, 2, color);
-        break;
-      case "sphere":
-        this.drawCircle(cx, cy, size * 0.32, 2, color);
-        this.drawLine(cx - size * 0.32, cy, cx + size * 0.32, cy, 2, color);
-        break;
-      case "move":
-        this.drawLine(cx - size * 0.35, cy, cx + size * 0.35, cy, 2, color);
-        this.drawLine(cx, cy - size * 0.35, cx, cy + size * 0.35, 2, color);
-        break;
-      case "rotate":
-        this.drawCircle(cx, cy, size * 0.3, 2, color);
-        this.drawLine(cx + size * 0.3, cy, cx + size * 0.45, cy - size * 0.15, 2, color);
-        break;
-      case "scale":
-        this.drawRectStroke(
-          { x: cx - size * 0.25, y: cy - size * 0.25, width: size * 0.5, height: size * 0.5 },
-          2,
-          color
-        );
-        this.drawLine(cx + size * 0.2, cy - size * 0.2, cx + size * 0.35, cy - size * 0.35, 2, color);
-        break;
-      case "geometryReference":
-        this.drawCircle(cx, cy, size * 0.3, 2, color);
-        this.drawLine(cx - size * 0.3, cy, cx + size * 0.3, cy, 2, color);
-        this.drawLine(cx, cy - size * 0.3, cx, cy + size * 0.3, 2, color);
-        break;
-      case "transform":
-        this.drawLine(cx - size * 0.3, cy, cx + size * 0.3, cy, 2, color);
-        this.drawLine(cx, cy - size * 0.3, cx, cy + size * 0.3, 2, color);
-        this.drawCircle(cx, cy, size * 0.22, 2, color);
-        break;
-      case "extrude":
-        this.drawRectStroke(
-          { x: cx - size * 0.2, y: cy - size * 0.2, width: size * 0.4, height: size * 0.4 },
-          2,
-          color
-        );
-        this.drawLine(cx, cy - size * 0.35, cx, cy - size * 0.2, 2, color);
-        this.drawLine(cx - size * 0.1, cy - size * 0.32, cx, cy - size * 0.42, 2, color);
-        this.drawLine(cx + size * 0.1, cy - size * 0.32, cx, cy - size * 0.42, 2, color);
-        break;
-      default:
-        this.drawCircle(cx, cy, size * 0.3, 2, color);
-        break;
-    }
   }
 }

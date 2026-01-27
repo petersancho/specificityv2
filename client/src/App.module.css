@@ -70,7 +70,7 @@
 .workspace {
   flex: 1;
   position: relative;
-  overflow: auto;
+  overflow: hidden;
   background: linear-gradient(
     180deg,
     var(--color-workspace-gradient-start) 0%,
@@ -80,18 +80,21 @@
 
 .stackLayout {
   display: flex;
-  flex-direction: column;
-  min-height: 100%;
-  gap: var(--space-6);
-  padding-bottom: var(--space-6);
-  overflow-y: auto;
+  flex-direction: row;
+  min-height: calc(100vh - var(--topbar-height));
+  height: calc(100vh - var(--topbar-height));
+  gap: var(--space-4);
+  padding: var(--space-6);
+  overflow: hidden;
 }
 
 .fullPanel {
   width: 100%;
   display: flex;
   flex-direction: column;
-  height: calc(100vh - var(--topbar-height));
+  height: 100%;
+  flex: 1;
+  min-width: 0;
 }
 
 .fullPanel > * {
@@ -100,11 +103,31 @@
 }
 
 .roslynPanel {
-  padding: var(--space-6) var(--space-6) 0;
+  padding: 0;
 }
 
 .numericaPanel {
-  padding: 0 var(--space-6) var(--space-6);
+  padding: 0;
+  border-left: 1px solid var(--color-border);
+}
+
+@media (max-width: 1200px) {
+  .workspace {
+    overflow: auto;
+  }
+
+  .stackLayout {
+    flex-direction: column;
+    height: auto;
+    min-height: 100%;
+    overflow-y: auto;
+  }
+
+  .numericaPanel {
+    border-left: none;
+    border-top: 1px solid var(--color-border);
+    padding-top: var(--space-4);
+  }
 }
 
 .splitLayout {
@@ -234,13 +257,16 @@
 }
 
 .captureButton {
-  border: 1px solid var(--color-border);
-  background: var(--color-accent);
-  color: var(--color-on-accent);
-  border-radius: 999px;
-  padding: 6px 14px;
-  font-size: 11px;
-  font-weight: 600;
+  --webgl-button-padding-x: 16px;
+  --webgl-button-padding-y: 8px;
+  --webgl-button-min-height: 42px;
+  --webgl-button-icon-size: 20px;
+  --webgl-button-gap: 8px;
+  --webgl-button-font-size: 12px;
+
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
 }
 
 .captureButton[disabled] {
@@ -249,13 +275,16 @@
 }
 
 .captureSecondaryButton {
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-text);
-  border-radius: 999px;
-  padding: 6px 14px;
-  font-size: 11px;
-  font-weight: 600;
+  --webgl-button-padding-x: 14px;
+  --webgl-button-padding-y: 7px;
+  --webgl-button-min-height: 40px;
+  --webgl-button-icon-size: 18px;
+  --webgl-button-gap: 7px;
+  --webgl-button-font-size: 12px;
+
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
 }
 
 .lockButton {
@@ -427,11 +456,15 @@
 }
 
 .captureModalClose {
-  border: none;
+  --webgl-button-padding-x: 10px;
+  --webgl-button-padding-y: 6px;
+  --webgl-button-min-height: 36px;
+  --webgl-button-icon-size: 18px;
+  --webgl-button-gap: 6px;
+
+  border-color: transparent;
   background: transparent;
-  font-size: 18px;
-  cursor: pointer;
-  color: var(--color-text);
+  box-shadow: none;
 }
 
 .captureModalForm {

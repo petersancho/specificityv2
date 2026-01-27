@@ -1,0 +1,22 @@
+.root {
+  position: sticky;
+  top: 0;
+  z-index: 24;
+  height: var(--topbar-height);
+  min-height: var(--topbar-height);
+  width: 100%;
+  display: block;
+  overflow: hidden;
+  background: var(--roslyn-instrument-cream, #f6f2eb);
+  border-bottom: 1px solid rgba(18, 16, 12, 0.18);
+  box-shadow: 2px 4px 10px rgba(0, 0, 0, 0.18);
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+}

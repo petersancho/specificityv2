@@ -82,6 +82,8 @@ import type {
   PivotState,
   ProjectSavePayload,
   RenderMesh,
+  TopologyOptimizationProgress,
+  TopologyOptimizationSettings,
   VertexGeometry,
   PolylineGeometry,
   SurfaceGeometry,
@@ -105,6 +107,22 @@ import {
   generateSphereMesh,
   computeMeshArea,
 } from "../geometry/mesh";
+import { computeArcPolyline } from "../geometry/arc";
+import { interpolatePolyline } from "../geometry/curves";
+import { evaluateWorkflow } from "../workflow/workflowEngine";
+import {
+  getDefaultParameters,
+  getNodeDefinition,
+  isPortTypeCompatible,
+  resolveNodeParameters,
+  resolveNodePorts,
+  resolvePortByKey,
+} from "../workflow/nodeRegistry";
+import {
+  SUPPORTED_WORKFLOW_NODE_TYPES,
+  type NodeType,
+} from "../workflow/nodeTypes";
+export type { NodeType } from "../workflow/nodeTypes";
 
 type SaveEntry = {
   id: string;
@@ -270,28 +288,15 @@ type ProjectStore = {
   resetCPlane: (origin?: Vec3, options?: { recordHistory?: boolean }) => void;
 };
 
-export type NodeType =
-  | "geometryReference"
-  | "point"
-  | "polyline"
-  | "surface"
-  | "box"
-  | "sphere";
-
-const supportedWorkflowNodeTypes: NodeType[] = [
-  "geometryReference",
-  "point",
-  "polyline",
-  "surface",
-  "box",
-  "sphere",
-];
+const supportedWorkflowNodeTypes = new Set<string>(
+  SUPPORTED_WORKFLOW_NODE_TYPES as string[]
+);
 
 const pruneWorkflowState = (workflow: WorkflowState): WorkflowState => {
   const nodes = workflow.nodes.filter(
     (node) =>
       !node.type ||
-      supportedWorkflowNodeTypes.includes(node.type as NodeType)
+      supportedWorkflowNodeTypes.has(node.type)
   );
   if (nodes.length === workflow.nodes.length) {
     return workflow;
@@ -353,6 +358,21 @@ const defaultGridSettings: GridSettings = {
 const defaultViewSettings: ViewSettings = {
   backfaceCulling: false,
   showNormals: false,
+};
+
+const defaultTopologySettings: TopologyOptimizationSettings = {
+  volumeFraction: 0.4,
+  penaltyExponent: 3,
+  filterRadius: 1.5,
+  maxIterations: 80,
+  convergenceTolerance: 0.001,
+};
+
+const defaultTopologyProgress: TopologyOptimizationProgress = {
+  iteration: 0,
+  objective: 0,
+  constraint: 0,
+  status: "idle",
 };
 
 const defaultCamera: CameraState = {
@@ -469,6 +489,9 @@ const computeWorkflowOutputs = (
 
     if (
       node.type === "point" ||
+      node.type === "line" ||
+      node.type === "arc" ||
+      node.type === "curve" ||
       node.type === "polyline" ||
       node.type === "surface" ||
       node.type === "box" ||
@@ -476,7 +499,11 @@ const computeWorkflowOutputs = (
     ) {
       if (data.geometryId) {
         outputs.geometryId = data.geometryId;
-        outputs.geometryType = data.geometryType ?? node.type;
+        outputs.geometryType =
+          data.geometryType ??
+          (node.type === "line" || node.type === "arc" || node.type === "curve"
+            ? "polyline"
+            : node.type);
         outputs.isLinked = true;
       }
       if (node.type === "box" && data.boxDimensions) {
@@ -486,6 +513,20 @@ const computeWorkflowOutputs = (
       if (node.type === "sphere" && data.sphereRadius != null) {
         outputs.volume_m3 = (4 / 3) * Math.PI * Math.pow(data.sphereRadius, 3);
       }
+    }
+
+    if (node.type === "topologyOptimize") {
+      const settings = data.topologySettings ?? defaultTopologySettings;
+      const progress = data.topologyProgress ?? defaultTopologyProgress;
+      outputs.volumeFraction = settings.volumeFraction;
+      outputs.penaltyExponent = settings.penaltyExponent;
+      outputs.filterRadius = settings.filterRadius;
+      outputs.maxIterations = settings.maxIterations;
+      outputs.convergenceTolerance = settings.convergenceTolerance;
+      outputs.iteration = progress.iteration;
+      outputs.objective = progress.objective;
+      outputs.constraint = progress.constraint;
+      outputs.status = progress.status;
     }
 
     outputMap[node.id] = outputs;
@@ -677,6 +718,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   syncWorkflowGeometryToRoslyn: (nodeId) => {
     const node = get().workflow.nodes.find((entry) => entry.id === nodeId);
     if (!node) return;
+    const selectIfExists = (geometryId: string | null | undefined) => {
+      if (!geometryId) return false;
+      const exists = get().geometry.some((item) => item.id === geometryId);
+      if (!exists) return false;
+      get().setSelectedGeometryIds([geometryId]);
+      return true;
+    };
     if (node.type === "box") {
       const dims = node.data?.boxDimensions;
       if (!dims) return;
@@ -707,6 +755,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           ),
         },
       }));
+      selectIfExists(geometryId);
+      get().recalculateWorkflow();
       return;
     }
     if (node.type === "sphere") {
@@ -739,6 +789,31 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           ),
         },
       }));
+      selectIfExists(geometryId);
+      get().recalculateWorkflow();
+      return;
+    }
+
+    const definition = getNodeDefinition(node.type);
+    const parameters = resolveNodeParameters(node);
+    const ports = resolveNodePorts(node, parameters);
+    const geometryOutputKey =
+      definition?.primaryOutputKey &&
+      ports.outputs.some(
+        (port) => port.key === definition.primaryOutputKey && port.type === "geometry"
+      )
+        ? definition.primaryOutputKey
+        : ports.outputs.find((port) => port.type === "geometry")?.key;
+
+    const outputValue =
+      geometryOutputKey && node.data?.outputs ? node.data.outputs[geometryOutputKey] : null;
+
+    if (typeof outputValue === "string" && selectIfExists(outputValue)) {
+      return;
+    }
+
+    if (typeof node.data?.geometryId === "string") {
+      selectIfExists(node.data.geometryId);
     }
   },
   addGeometryReferenceNode: (geometryId) => {
@@ -1474,11 +1549,104 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     set((state) => ({
       workflow: {
         ...state.workflow,
-        nodes: state.workflow.nodes.map((node) =>
-          node.id === nodeId
-            ? { ...node, data: { ...node.data, ...data } }
-            : node
-        ),
+        nodes: state.workflow.nodes.map((node) => {
+          if (node.id !== nodeId) return node;
+          const mergedParameters = data.parameters
+            ? { ...(node.data?.parameters ?? {}), ...data.parameters }
+            : node.data?.parameters;
+          let nextParameters = mergedParameters;
+          let nextTopologySettings = data.topologySettings ?? node.data?.topologySettings;
+
+          if (node.type === "topologyOptimize") {
+            const coerceNumber = (value: unknown, fallback: number) => {
+              if (typeof value === "number" && Number.isFinite(value)) return value;
+              if (typeof value === "boolean") return value ? 1 : 0;
+              if (typeof value === "string" && value.trim().length > 0) {
+                const parsed = Number(value);
+                if (Number.isFinite(parsed)) return parsed;
+              }
+              return fallback;
+            };
+
+            const settingsPatch = data.topologySettings;
+            if (settingsPatch && !data.parameters) {
+              const resolvedSettings = {
+                volumeFraction: coerceNumber(
+                  settingsPatch.volumeFraction,
+                  defaultTopologySettings.volumeFraction
+                ),
+                penaltyExponent: coerceNumber(
+                  settingsPatch.penaltyExponent,
+                  defaultTopologySettings.penaltyExponent
+                ),
+                filterRadius: coerceNumber(
+                  settingsPatch.filterRadius,
+                  defaultTopologySettings.filterRadius
+                ),
+                maxIterations: coerceNumber(
+                  settingsPatch.maxIterations,
+                  defaultTopologySettings.maxIterations
+                ),
+                convergenceTolerance: coerceNumber(
+                  settingsPatch.convergenceTolerance,
+                  defaultTopologySettings.convergenceTolerance
+                ),
+              };
+              nextTopologySettings = resolvedSettings;
+              nextParameters = {
+                ...(mergedParameters ?? {}),
+                volumeFraction: resolvedSettings.volumeFraction,
+                penaltyExponent: resolvedSettings.penaltyExponent,
+                filterRadius: resolvedSettings.filterRadius,
+                maxIterations: resolvedSettings.maxIterations,
+                convergenceTolerance: resolvedSettings.convergenceTolerance,
+              };
+            } else {
+              const baseSettings = nextTopologySettings ?? defaultTopologySettings;
+              const resolvedSettings = {
+                volumeFraction: coerceNumber(
+                  mergedParameters?.volumeFraction,
+                  baseSettings.volumeFraction
+                ),
+                penaltyExponent: coerceNumber(
+                  mergedParameters?.penaltyExponent,
+                  baseSettings.penaltyExponent
+                ),
+                filterRadius: coerceNumber(
+                  mergedParameters?.filterRadius,
+                  baseSettings.filterRadius
+                ),
+                maxIterations: coerceNumber(
+                  mergedParameters?.maxIterations,
+                  baseSettings.maxIterations
+                ),
+                convergenceTolerance: coerceNumber(
+                  mergedParameters?.convergenceTolerance,
+                  baseSettings.convergenceTolerance
+                ),
+              };
+
+              nextTopologySettings = resolvedSettings;
+              nextParameters = {
+                ...(mergedParameters ?? {}),
+                volumeFraction: resolvedSettings.volumeFraction,
+                penaltyExponent: resolvedSettings.penaltyExponent,
+                filterRadius: resolvedSettings.filterRadius,
+                maxIterations: resolvedSettings.maxIterations,
+                convergenceTolerance: resolvedSettings.convergenceTolerance,
+              };
+            }
+          }
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              ...data,
+              topologySettings: nextTopologySettings,
+              parameters: nextParameters,
+            },
+          };
+        }),
       },
     }));
     const node = get().workflow.nodes.find((entry) => entry.id === nodeId);
@@ -1512,6 +1680,230 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
               ),
             },
           }));
+        }
+      }
+      if (node.type === "line") {
+        const parsed = parsePointsText(node.data.pointsText);
+        const points = parsed.length >= 2 ? parsed.slice(0, 2) : [];
+        if (points.length === 2) {
+          const reuse =
+            node.data.geometryId &&
+            node.data.vertexIds &&
+            node.data.vertexIds.length === 2;
+          if (reuse && node.data.geometryId && node.data.vertexIds) {
+            node.data.vertexIds.forEach((vertexId, index) => {
+              const point = points[index];
+              if (!point) return;
+              get().updateGeometry(vertexId, { position: point });
+            });
+            get().updateGeometry(node.data.geometryId, {
+              vertexIds: node.data.vertexIds,
+              closed: false,
+            });
+          } else {
+            if (node.data.vertexIds?.length) {
+              get().deleteGeometry(node.data.vertexIds, { recordHistory: true });
+            }
+            const vertexIds = points.map(() => createGeometryId("vertex"));
+            const lineId = node.data.geometryId ?? createGeometryId("polyline");
+            const vertexItems: Geometry[] = points.map((point, index) => ({
+              id: vertexIds[index],
+              type: "vertex",
+              position: point,
+              layerId: "layer-default",
+              area_m2: 1,
+              thickness_m: 0.1,
+            }));
+            const lineItem: Geometry = {
+              id: lineId,
+              type: "polyline",
+              vertexIds,
+              closed: false,
+              degree: 1,
+              layerId: "layer-default",
+            };
+            get().addGeometryItems([...vertexItems, lineItem], {
+              selectIds: get().selectedGeometryIds,
+              recordHistory: true,
+            });
+            set((state) => ({
+              workflow: {
+                ...state.workflow,
+                nodes: state.workflow.nodes.map((entry) =>
+                  entry.id === nodeId
+                    ? {
+                        ...entry,
+                        data: {
+                          ...entry.data,
+                          geometryId: lineId,
+                          geometryType: "polyline",
+                          vertexIds,
+                          closed: false,
+                        },
+                      }
+                    : entry
+                ),
+              },
+            }));
+          }
+        }
+      }
+      if (node.type === "arc") {
+        const parsed = parsePointsText(node.data.pointsText);
+        const controlPoints = parsed.length >= 3 ? parsed.slice(0, 3) : [];
+        if (controlPoints.length === 3) {
+          const [start, end, through] = controlPoints;
+          const arcPoints =
+            computeArcPolyline(get().cPlane, start, end, through, 48) ?? [start, end];
+          const reuse =
+            node.data.geometryId &&
+            node.data.vertexIds &&
+            node.data.vertexIds.length === arcPoints.length;
+          if (reuse && node.data.geometryId && node.data.vertexIds) {
+            node.data.vertexIds.forEach((vertexId, index) => {
+              const point = arcPoints[index];
+              if (!point) return;
+              get().updateGeometry(vertexId, { position: point });
+            });
+            get().updateGeometry(node.data.geometryId, {
+              vertexIds: node.data.vertexIds,
+              closed: false,
+            });
+          } else {
+            if (node.data.vertexIds?.length) {
+              get().deleteGeometry(node.data.vertexIds, { recordHistory: true });
+            }
+            const vertexIds = arcPoints.map(() => createGeometryId("vertex"));
+            const arcId = node.data.geometryId ?? createGeometryId("polyline");
+            const vertexItems: Geometry[] = arcPoints.map((point, index) => ({
+              id: vertexIds[index],
+              type: "vertex",
+              position: point,
+              layerId: "layer-default",
+              area_m2: 1,
+              thickness_m: 0.1,
+            }));
+            const arcItem: Geometry = {
+              id: arcId,
+              type: "polyline",
+              vertexIds,
+              closed: false,
+              degree: 1,
+              layerId: "layer-default",
+            };
+            get().addGeometryItems([...vertexItems, arcItem], {
+              selectIds: get().selectedGeometryIds,
+              recordHistory: true,
+            });
+            set((state) => ({
+              workflow: {
+                ...state.workflow,
+                nodes: state.workflow.nodes.map((entry) =>
+                  entry.id === nodeId
+                    ? {
+                        ...entry,
+                        data: {
+                          ...entry.data,
+                          geometryId: arcId,
+                          geometryType: "polyline",
+                          vertexIds,
+                          closed: false,
+                        },
+                      }
+                    : entry
+                ),
+              },
+            }));
+          }
+        }
+      }
+      if (node.type === "curve") {
+        const controlPoints = parsePointsText(node.data.pointsText);
+        if (controlPoints.length >= 2) {
+          const parameters = node.data.parameters ?? {};
+          const coerceNumber = (value: unknown, fallback: number) => {
+            if (typeof value === "number" && Number.isFinite(value)) return value;
+            if (typeof value === "string" && value.trim().length > 0) {
+              const parsed = Number(value);
+              if (Number.isFinite(parsed)) return parsed;
+            }
+            return fallback;
+          };
+          const coerceBoolean = (value: unknown, fallback: boolean) => {
+            if (typeof value === "boolean") return value;
+            if (typeof value === "string") {
+              const lower = value.trim().toLowerCase();
+              if (lower === "true") return true;
+              if (lower === "false") return false;
+            }
+            return fallback;
+          };
+          const degreeRaw = coerceNumber(parameters.degree, 3);
+          const degree = Math.min(3, Math.max(1, Math.round(degreeRaw))) as 1 | 2 | 3;
+          const resolutionRaw = coerceNumber(parameters.resolution, 64);
+          const resolution = Math.min(256, Math.max(16, Math.round(resolutionRaw)));
+          const closed = coerceBoolean(parameters.closed, false);
+          const curvePoints = interpolatePolyline(controlPoints, degree, closed, resolution);
+          const reuse =
+            node.data.geometryId &&
+            node.data.vertexIds &&
+            node.data.vertexIds.length === curvePoints.length;
+          if (reuse && node.data.geometryId && node.data.vertexIds) {
+            node.data.vertexIds.forEach((vertexId, index) => {
+              const point = curvePoints[index];
+              if (!point) return;
+              get().updateGeometry(vertexId, { position: point });
+            });
+            get().updateGeometry(node.data.geometryId, {
+              vertexIds: node.data.vertexIds,
+              closed,
+            });
+          } else {
+            if (node.data.vertexIds?.length) {
+              get().deleteGeometry(node.data.vertexIds, { recordHistory: true });
+            }
+            const vertexIds = curvePoints.map(() => createGeometryId("vertex"));
+            const curveId = node.data.geometryId ?? createGeometryId("polyline");
+            const vertexItems: Geometry[] = curvePoints.map((point, index) => ({
+              id: vertexIds[index],
+              type: "vertex",
+              position: point,
+              layerId: "layer-default",
+              area_m2: 1,
+              thickness_m: 0.1,
+            }));
+            const curveItem: Geometry = {
+              id: curveId,
+              type: "polyline",
+              vertexIds,
+              closed,
+              degree,
+              layerId: "layer-default",
+            };
+            get().addGeometryItems([...vertexItems, curveItem], {
+              selectIds: get().selectedGeometryIds,
+              recordHistory: true,
+            });
+            set((state) => ({
+              workflow: {
+                ...state.workflow,
+                nodes: state.workflow.nodes.map((entry) =>
+                  entry.id === nodeId
+                    ? {
+                        ...entry,
+                        data: {
+                          ...entry.data,
+                          geometryId: curveId,
+                          geometryType: "polyline",
+                          vertexIds,
+                          closed,
+                        },
+                      }
+                    : entry
+                ),
+              },
+            }));
+          }
         }
       }
       if (node.type === "polyline") {
@@ -1649,16 +2041,59 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   addNode: (type) => {
     const id = `node-${type}-${Date.now()}`;
     const position = { x: 120, y: 120 + Math.random() * 120 };
-    const labels: Record<NodeType, string> = {
+    const labels: Partial<Record<NodeType, string>> = {
       geometryReference: "Geometry Reference",
       point: "Point Generator",
+      line: "Line",
+      arc: "Arc",
+      curve: "Curve",
       polyline: "Polyline",
       surface: "Surface",
       box: "Box Builder",
       sphere: "Sphere",
+      topologyOptimize: "Topology Optimize",
+      topologySolver: "Topology Solver",
+      biologicalSolver: "Biological Solver",
+      number: "Number",
+      add: "Add",
+      subtract: "Subtract",
+      multiply: "Multiply",
+      divide: "Divide",
+      clamp: "Clamp",
+      min: "Min",
+      max: "Max",
+      expression: "Expression",
+      conditional: "Conditional",
+      vectorConstruct: "Vector Compose",
+      vectorDeconstruct: "Vector Decompose",
+      vectorAdd: "Vector Add",
+      vectorSubtract: "Vector Subtract",
+      vectorScale: "Vector Scale",
+      vectorLength: "Vector Length",
+      vectorNormalize: "Vector Normalize",
+      vectorDot: "Vector Dot",
+      vectorCross: "Vector Cross",
+      distance: "Distance",
+      vectorFromPoints: "Vector From Points",
+      vectorAngle: "Vector Angle",
+      vectorLerp: "Vector Lerp",
+      vectorProject: "Vector Project",
+      movePoint: "Move Point",
+      movePointByVector: "Move Point By Vector",
+      rotateVectorAxis: "Rotate Vector",
+      listCreate: "List Create",
+      listLength: "List Length",
+      listItem: "List Item",
+      listIndexOf: "List Index Of",
+      listPartition: "List Partition",
+      listFlatten: "List Flatten",
+      listSlice: "List Slice",
+      listReverse: "List Reverse",
     };
+    const parameters = getDefaultParameters(type);
     const data: WorkflowNodeData = {
-      label: labels[type],
+      label: labels[type] ?? type,
+      parameters: Object.keys(parameters).length > 0 ? parameters : undefined,
     };
     if (type === "geometryReference") {
       data.geometryId = get().geometry[0]?.id ?? "vertex-1";
@@ -1682,6 +2117,111 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         ],
         { selectIds: get().selectedGeometryIds, recordHistory: true }
       );
+    }
+    if (type === "line") {
+      data.pointsText = "0 0 0  1 0 0";
+      data.closed = false;
+      const points = parsePointsText(data.pointsText).slice(0, 2);
+      const vertexIds = points.map(() => createGeometryId("vertex"));
+      data.vertexIds = vertexIds;
+      const lineId = createGeometryId("polyline");
+      data.geometryId = lineId;
+      data.geometryType = "polyline";
+      data.isLinked = true;
+      const vertexItems: Geometry[] = points.map((point, index) => ({
+        id: vertexIds[index],
+        type: "vertex",
+        position: point,
+        layerId: "layer-default",
+        area_m2: 1,
+        thickness_m: 0.1,
+      }));
+      const lineItem: Geometry = {
+        id: lineId,
+        type: "polyline",
+        vertexIds,
+        closed: false,
+        degree: 1,
+        layerId: "layer-default",
+      };
+      get().addGeometryItems([...vertexItems, lineItem], {
+        selectIds: get().selectedGeometryIds,
+        recordHistory: true,
+      });
+    }
+    if (type === "arc") {
+      data.pointsText = "0 0 0  1 0 0  0.5 0 0.6";
+      data.closed = false;
+      const controlPoints = parsePointsText(data.pointsText).slice(0, 3);
+      const [start, end, through] = controlPoints;
+      const arcPoints =
+        start && end && through
+          ? computeArcPolyline(get().cPlane, start, end, through, 48) ?? [start, end]
+          : controlPoints;
+      const vertexIds = arcPoints.map(() => createGeometryId("vertex"));
+      data.vertexIds = vertexIds;
+      const arcId = createGeometryId("polyline");
+      data.geometryId = arcId;
+      data.geometryType = "polyline";
+      data.isLinked = true;
+      const vertexItems: Geometry[] = arcPoints.map((point, index) => ({
+        id: vertexIds[index],
+        type: "vertex",
+        position: point,
+        layerId: "layer-default",
+        area_m2: 1,
+        thickness_m: 0.1,
+      }));
+      const arcItem: Geometry = {
+        id: arcId,
+        type: "polyline",
+        vertexIds,
+        closed: false,
+        degree: 1,
+        layerId: "layer-default",
+      };
+      get().addGeometryItems([...vertexItems, arcItem], {
+        selectIds: get().selectedGeometryIds,
+        recordHistory: true,
+      });
+    }
+    if (type === "curve") {
+      data.pointsText = "0 0 0  1 0 0  1 0 1  0 0 1";
+      const controlPoints = parsePointsText(data.pointsText);
+      const degreeRaw = typeof parameters.degree === "number" ? parameters.degree : 3;
+      const degree = Math.min(3, Math.max(1, Math.round(degreeRaw))) as 1 | 2 | 3;
+      const resolutionRaw =
+        typeof parameters.resolution === "number" ? parameters.resolution : 64;
+      const resolution = Math.min(256, Math.max(16, Math.round(resolutionRaw)));
+      const closed = Boolean(parameters.closed);
+      data.closed = closed;
+      const curvePoints = interpolatePolyline(controlPoints, degree, closed, resolution);
+      const vertexIds = curvePoints.map(() => createGeometryId("vertex"));
+      data.vertexIds = vertexIds;
+      const curveId = createGeometryId("polyline");
+      data.geometryId = curveId;
+      data.geometryType = "polyline";
+      data.isLinked = true;
+      const vertexItems: Geometry[] = curvePoints.map((point, index) => ({
+        id: vertexIds[index],
+        type: "vertex",
+        position: point,
+        layerId: "layer-default",
+        area_m2: 1,
+        thickness_m: 0.1,
+      }));
+      const curveItem: Geometry = {
+        id: curveId,
+        type: "polyline",
+        vertexIds,
+        closed,
+        degree,
+        layerId: "layer-default",
+      };
+      get().addGeometryItems([...vertexItems, curveItem], {
+        selectIds: get().selectedGeometryIds,
+        recordHistory: true,
+      });
     }
     if (type === "polyline") {
       data.pointsText = "0 0 0  1 0 0  1 0 1";
@@ -1763,6 +2303,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       data.isLinked = true;
     }
 
+    if (type === "topologyOptimize") {
+      data.topologySettings = { ...defaultTopologySettings };
+      data.topologyProgress = { ...defaultTopologyProgress };
+    }
+
     if (type === "sphere") {
       data.sphereOrigin = { x: 0, y: 0, z: 0 };
       data.sphereRadius = 0.5;
@@ -1836,16 +2381,49 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     get().recalculateWorkflow();
   },
   onConnect: (connection) => {
-    set((state) => ({
-      workflowHistory: appendWorkflowHistory(
-        state.workflowHistory,
-        state.workflow
-      ),
-      workflow: {
-        ...state.workflow,
-        edges: addEdge(connection, state.workflow.edges),
-      },
-    }));
+    const state = get();
+    const sourceNode = state.workflow.nodes.find((node) => node.id === connection.source);
+    const targetNode = state.workflow.nodes.find((node) => node.id === connection.target);
+    if (!sourceNode || !targetNode) return;
+    if (!sourceNode.type || !targetNode.type) return;
+
+    const sourceParameters = resolveNodeParameters(sourceNode);
+    const targetParameters = resolveNodeParameters(targetNode);
+    const sourcePorts = resolveNodePorts(sourceNode, sourceParameters);
+    const targetPorts = resolveNodePorts(targetNode, targetParameters);
+    const sourceDefinition = getNodeDefinition(sourceNode.type);
+
+    const defaultSourceKey = sourceDefinition?.primaryOutputKey ?? sourcePorts.outputs[0]?.key;
+    const defaultTargetKey = targetPorts.inputs[0]?.key;
+    const sourceKey = connection.sourceHandle ?? defaultSourceKey;
+    const targetKey = connection.targetHandle ?? defaultTargetKey;
+    if (!sourceKey || !targetKey) return;
+
+    const sourcePort = resolvePortByKey(sourcePorts.outputs, sourceKey);
+    const targetPort = resolvePortByKey(targetPorts.inputs, targetKey);
+    if (!sourcePort || !targetPort) return;
+    if (!isPortTypeCompatible(sourcePort.type, targetPort.type)) return;
+
+    const normalizedConnection = {
+      ...connection,
+      sourceHandle: sourceKey,
+      targetHandle: targetKey,
+    };
+
+    set((current) => {
+      const filteredEdges = targetPort.allowMultiple
+        ? current.workflow.edges
+        : current.workflow.edges.filter(
+            (edge) => !(edge.target === connection.target && edge.targetHandle === targetKey)
+          );
+      return {
+        workflowHistory: appendWorkflowHistory(current.workflowHistory, current.workflow),
+        workflow: {
+          ...current.workflow,
+          edges: addEdge(normalizedConnection, filteredEdges),
+        },
+      };
+    });
     get().recalculateWorkflow();
   },
   undoWorkflow: () => {
@@ -1937,21 +2515,26 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   recalculateWorkflow: () => {
     const state = get();
     const prunedWorkflow = pruneWorkflowState(state.workflow);
-    const outputs = computeWorkflowOutputs(
+    const evaluated = evaluateWorkflow(
       prunedWorkflow.nodes,
       prunedWorkflow.edges,
       state.geometry
     );
     set({
-      workflow: { ...prunedWorkflow, nodes: outputs.nodes },
+      workflow: {
+        nodes: evaluated.nodes,
+        edges: evaluated.edges,
+      },
     });
   },
-  pruneWorkflow: () =>
+  pruneWorkflow: () => {
     set((state) => {
       const prunedWorkflow = pruneWorkflowState(state.workflow);
       if (prunedWorkflow === state.workflow) return {};
       return { workflow: prunedWorkflow };
-    }),
+    });
+    get().recalculateWorkflow();
+  },
   setProjectName: (name) => set({ projectName: name }),
   setCurrentSaveId: (id) => set({ currentSaveId: id }),
   setCPlane: (plane, options) => {

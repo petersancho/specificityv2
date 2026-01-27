@@ -34,17 +34,18 @@
 }
 
 .close {
-  background: var(--color-surface-muted);
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  padding: 8px 14px;
-  color: var(--color-text);
-  font-weight: 600;
-  transition: transform var(--transition-fast),
-    box-shadow var(--transition-fast);
+  --webgl-button-padding-x: 10px;
+  --webgl-button-padding-y: 6px;
+  --webgl-button-min-height: 36px;
+  --webgl-button-icon-size: 18px;
+  --webgl-button-gap: 6px;
+
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .close:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-xs);
+  transform: none;
+  box-shadow: none;
 }

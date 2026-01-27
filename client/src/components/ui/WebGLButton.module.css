@@ -1,0 +1,111 @@
+.button {
+  --webgl-button-radius: 12px;
+  --webgl-button-padding-x: 14px;
+  --webgl-button-padding-y: 7px;
+  --webgl-button-gap: 8px;
+  --webgl-button-min-height: 40px;
+  --webgl-button-font-size: 13px;
+  --webgl-button-icon-size: 22px;
+  --webgl-button-text-color: var(--color-text);
+  --webgl-button-fallback-fill: var(--color-surface);
+  --webgl-button-fallback-border: var(--color-border);
+
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--webgl-button-gap);
+  min-height: var(--webgl-button-min-height);
+  padding: var(--webgl-button-padding-y) var(--webgl-button-padding-x);
+  border: 1px solid var(--webgl-button-fallback-border);
+  border-radius: var(--webgl-button-radius);
+  background-color: var(--webgl-button-fallback-fill);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+  color: var(--webgl-button-text-color);
+  font-size: var(--webgl-button-font-size);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 120ms ease, filter 120ms ease, box-shadow 120ms ease;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.14);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.18);
+  isolation: isolate;
+}
+
+.button[data-state="hover"]:not(:disabled) {
+  filter: brightness(1.02) saturate(1.03);
+}
+
+.button[data-state="pressed"]:not(:disabled) {
+  transform: translateY(1px);
+  filter: saturate(1.06);
+}
+
+.button[data-active="true"]:not(:disabled) {
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.18);
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+  box-shadow: none;
+  transform: none;
+}
+
+.button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-accent) 62%, transparent);
+  outline-offset: 2px;
+}
+
+.iconOnly {
+  padding-inline: var(--webgl-button-padding-y);
+  min-width: var(--webgl-button-min-height);
+}
+
+.square {
+  width: var(--webgl-button-min-height);
+  min-width: var(--webgl-button-min-height);
+  padding: 0;
+}
+
+.pill {
+  border-radius: 999px;
+}
+
+.icon {
+  width: var(--webgl-button-icon-size);
+  height: var(--webgl-button-icon-size);
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.24));
+}
+
+.label {
+  display: inline-flex;
+  align-items: center;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.shortLabel {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

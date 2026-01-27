@@ -1,4 +1,5 @@
 import logoSpecificitySymbol from "../assets/logo-specificity-symbol.svg";
+import WebGLButton from "./ui/WebGLButton";
 import styles from "./TopBar.module.css";
 
 type SaveEntry = {
@@ -45,9 +46,16 @@ const TopBar = ({
             aria-label="Script name"
           />
         </label>
-        <button className={styles.primary} onClick={onSave}>
-          Save Script
-        </button>
+        <WebGLButton
+          className={styles.primary}
+          onClick={onSave}
+          label="Save script"
+          shortLabel="Save"
+          iconId="save"
+          variant="primary"
+          shape="pill"
+          tooltip="Save script"
+        />
         <div className={styles.loadGroup}>
           <select
             value={selectedSaveId}
@@ -61,9 +69,16 @@ const TopBar = ({
               </option>
             ))}
           </select>
-          <button className={styles.ghost} onClick={onLoad}>
-            Load
-          </button>
+          <WebGLButton
+            className={styles.ghost}
+            onClick={onLoad}
+            label="Load selected script"
+            shortLabel="Load"
+            iconId="load"
+            variant="secondary"
+            shape="pill"
+            tooltip="Load selected script"
+          />
         </div>
         <div className={styles.scriptTray}>
           <span className={styles.scriptLabel}>Scripts</span>
@@ -72,28 +87,36 @@ const TopBar = ({
               <span className={styles.scriptEmpty}>No scripts yet</span>
             ) : (
               saves.map((save) => (
-                <button
+                <WebGLButton
                   key={save.id}
                   className={`${styles.scriptChip} ${
                     selectedSaveId === save.id ? styles.scriptChipActive : ""
                   }`}
                   onClick={() => onSelectSave(save.id)}
-                  title={`Saved ${new Date(save.savedAt).toLocaleString()}`}
-                  type="button"
-                >
-                  {save.name}
-                </button>
+                  label={`Select script ${save.name}`}
+                  shortLabel={save.name}
+                  iconId="script"
+                  variant={selectedSaveId === save.id ? "primary" : "chip"}
+                  active={selectedSaveId === save.id}
+                  shape="pill"
+                  tooltip={`Saved ${new Date(save.savedAt).toLocaleString()}`}
+                  tooltipPosition="bottom"
+                />
               ))
             )}
           </div>
         </div>
-        <button
+        <WebGLButton
           className={styles.ghost}
           onClick={onToggleTheme}
           aria-pressed={theme === "dark"}
-        >
-          {theme === "dark" ? "Light mode" : "Dark mode"}
-        </button>
+          label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          shortLabel={theme === "dark" ? "Light" : "Dark"}
+          iconId={theme === "dark" ? "themeLight" : "themeDark"}
+          variant="ghost"
+          shape="pill"
+          tooltip={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+        />
         <span className={styles.status}>{status}</span>
       </div>
       <div className={styles.brand}>

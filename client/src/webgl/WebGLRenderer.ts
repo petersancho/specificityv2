@@ -6,6 +6,8 @@ import { lineVertexShader } from "./shaders/line.vert";
 import { lineFragmentShader } from "./shaders/line.frag";
 import { atmosphereVertexShader } from "./shaders/atmosphere.vert";
 import { atmosphereFragmentShader } from "./shaders/atmosphere.frag";
+import { edgeVertexShader } from "./shaders/edge.vert";
+import { edgeFragmentShader } from "./shaders/edge.frag";
 
 export type Camera = {
   position: [number, number, number];
@@ -17,6 +19,8 @@ export type Camera = {
   far: number;
 };
 
+type DepthFuncMode = "lequal" | "greater" | "always";
+
 export class WebGLRenderer {
   private gl: WebGLRenderingContext;
   private shaderManager: ShaderManager;
@@ -24,6 +28,11 @@ export class WebGLRenderer {
   private geometryBuffers: Map<string, GeometryBuffer> = new Map();
   private width: number;
   private height: number;
+  private blendingEnabled = false;
+  private depthMaskEnabled = true;
+  private cullingEnabled = true;
+  private depthFunc: GLenum;
+  private clearColor: [number, number, number, number];
 
   constructor(canvas: HTMLCanvasElement) {
     const gl = canvas.getContext("webgl");
@@ -33,6 +42,8 @@ export class WebGLRenderer {
     this.gl = gl;
     this.width = canvas.width;
     this.height = canvas.height;
+    this.depthFunc = gl.LEQUAL;
+    this.clearColor = [0.96, 0.97, 0.96, 1];
 
     this.shaderManager = new ShaderManager(gl);
     this.bufferManager = new BufferManager(gl);
@@ -45,15 +56,24 @@ export class WebGLRenderer {
     this.shaderManager.createProgram("geometry", geometryVertexShader, geometryFragmentShader);
     this.shaderManager.createProgram("line", lineVertexShader, lineFragmentShader);
     this.shaderManager.createProgram("atmosphere", atmosphereVertexShader, atmosphereFragmentShader);
+    this.shaderManager.createProgram("edge", edgeVertexShader, edgeFragmentShader);
   }
 
   private initializeGL(): void {
     const gl = this.gl;
     gl.enable(gl.DEPTH_TEST);
-    gl.depthFunc(gl.LEQUAL);
+    gl.depthFunc(this.depthFunc);
     gl.enable(gl.CULL_FACE);
     gl.cullFace(gl.BACK);
-    gl.clearColor(0.039, 0.039, 0.039, 1.0);
+    this.cullingEnabled = true;
+    gl.disable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.clearColor(
+      this.clearColor[0],
+      this.clearColor[1],
+      this.clearColor[2],
+      this.clearColor[3]
+    );
   }
 
   setSize(width: number, height: number): void {
@@ -63,12 +83,28 @@ export class WebGLRenderer {
   }
 
   setBackfaceCulling(enabled: boolean): void {
+    if (this.cullingEnabled === enabled) return;
+    this.cullingEnabled = enabled;
     if (enabled) {
       this.gl.enable(this.gl.CULL_FACE);
       this.gl.cullFace(this.gl.BACK);
     } else {
       this.gl.disable(this.gl.CULL_FACE);
     }
+  }
+
+  setClearColor(color: [number, number, number, number]): void {
+    const [r, g, b, a] = color;
+    if (
+      this.clearColor[0] === r &&
+      this.clearColor[1] === g &&
+      this.clearColor[2] === b &&
+      this.clearColor[3] === a
+    ) {
+      return;
+    }
+    this.clearColor = color;
+    this.gl.clearColor(r, g, b, a);
   }
 
   clear(): void {
@@ -101,6 +137,11 @@ export class WebGLRenderer {
     const program = this.shaderManager.getProgram("geometry");
     if (!program) return;
 
+    const opacity = uniforms.opacity ?? 1.0;
+    const isTransparent = opacity < 0.999;
+    this.setBlending(isTransparent);
+    this.setDepthMask(!isTransparent);
+
     this.gl.useProgram(program);
 
     const viewMatrix = this.computeViewMatrix(camera);
@@ -119,7 +160,7 @@ export class WebGLRenderer {
       materialColor: uniforms.materialColor || [0.5, 0.5, 0.5],
       selectionHighlight: uniforms.selectionHighlight || [0, 0, 0],
       isSelected: uniforms.isSelected || 0,
-      opacity: uniforms.opacity || 1.0,
+      opacity,
     });
 
     buffer.bind(program);
@@ -133,6 +174,9 @@ export class WebGLRenderer {
   ): void {
     const program = this.shaderManager.getProgram("line");
     if (!program) return;
+
+    this.setBlending(true);
+    this.setDepthMask(true);
 
     this.gl.useProgram(program);
 
@@ -155,23 +199,152 @@ export class WebGLRenderer {
     buffer.draw(this.gl.TRIANGLE_STRIP);
   }
 
+  renderEdges(
+    buffer: GeometryBuffer,
+    camera: Camera,
+    uniforms: Record<string, any>,
+    options?: { depthFunc?: DepthFuncMode }
+  ): void {
+    const program = this.shaderManager.getProgram("edge");
+    if (!program) return;
+
+    const previousBlending = this.blendingEnabled;
+    const previousDepthMask = this.depthMaskEnabled;
+    const previousDepthFunc = this.depthFunc;
+
+    const nextDepthFunc = this.mapDepthFunc(options?.depthFunc);
+    this.setDepthFunc(nextDepthFunc);
+    this.setBlending(true);
+    this.setDepthMask(false);
+
+    this.gl.useProgram(program);
+
+    const viewMatrix = this.computeViewMatrix(camera);
+    const projectionMatrix = this.computeProjectionMatrix(camera);
+    const modelMatrix = uniforms.modelMatrix || this.identityMatrix();
+
+    this.shaderManager.setUniforms(program, {
+      modelMatrix,
+      viewMatrix,
+      projectionMatrix,
+      edgeColor: uniforms.edgeColor ?? [0.05, 0.05, 0.05],
+      opacity: uniforms.opacity ?? 1.0,
+      dashEnabled: uniforms.dashEnabled ?? 0,
+      dashScale: uniforms.dashScale ?? 0.04,
+    });
+
+    buffer.bind(program);
+    buffer.draw(this.gl.LINES);
+
+    this.setDepthFunc(previousDepthFunc);
+    this.setDepthMask(previousDepthMask);
+    this.setBlending(previousBlending);
+  }
+
+  renderAtmosphere(
+    buffer: GeometryBuffer,
+    camera: Camera,
+    uniforms: Record<string, any>
+  ): void {
+    const program = this.shaderManager.getProgram("atmosphere");
+    if (!program) return;
+
+    const previousBlending = this.blendingEnabled;
+    const previousDepthMask = this.depthMaskEnabled;
+    const previousCulling = this.cullingEnabled;
+
+    this.setBlending(false);
+    this.setDepthMask(false);
+    this.setBackfaceCulling(false);
+
+    this.gl.useProgram(program);
+
+    const viewMatrix = this.computeViewMatrix(camera);
+    const projectionMatrix = this.computeProjectionMatrix(camera);
+    const modelMatrix = uniforms.modelMatrix || this.identityMatrix();
+
+    this.shaderManager.setUniforms(program, {
+      modelMatrix,
+      viewMatrix,
+      projectionMatrix,
+      topColor: uniforms.topColor ?? [0.07, 0.07, 0.07],
+      bottomColor: uniforms.bottomColor ?? [0.02, 0.02, 0.02],
+      offset: uniforms.offset ?? 600,
+      exponent: uniforms.exponent ?? 0.9,
+    });
+
+    buffer.bind(program);
+    buffer.draw(this.gl.TRIANGLES);
+
+    this.setBackfaceCulling(previousCulling);
+    this.setDepthMask(previousDepthMask);
+    this.setBlending(previousBlending);
+  }
+
+  private setBlending(enabled: boolean): void {
+    if (this.blendingEnabled === enabled) return;
+    this.blendingEnabled = enabled;
+    if (enabled) {
+      this.gl.enable(this.gl.BLEND);
+    } else {
+      this.gl.disable(this.gl.BLEND);
+    }
+  }
+
+  private setDepthMask(enabled: boolean): void {
+    if (this.depthMaskEnabled === enabled) return;
+    this.depthMaskEnabled = enabled;
+    this.gl.depthMask(enabled);
+  }
+
+  private setDepthFunc(depthFunc: GLenum): void {
+    if (this.depthFunc === depthFunc) return;
+    this.depthFunc = depthFunc;
+    this.gl.depthFunc(depthFunc);
+  }
+
+  private mapDepthFunc(mode?: DepthFuncMode): GLenum {
+    const gl = this.gl;
+    if (mode === "greater") return gl.GREATER;
+    if (mode === "always") return gl.ALWAYS;
+    return gl.LEQUAL;
+  }
+
   private computeViewMatrix(camera: Camera): Float32Array {
+    const EPS = 1e-6;
     const [ex, ey, ez] = camera.position;
     const [cx, cy, cz] = camera.target;
     const [ux, uy, uz] = camera.up;
 
-    const zx = ex - cx;
-    const zy = ey - cy;
-    const zz = ez - cz;
-    const zlen = Math.sqrt(zx * zx + zy * zy + zz * zz);
+    // View direction (camera backward / +Z in view space).
+    let zx = ex - cx;
+    let zy = ey - cy;
+    let zz = ez - cz;
+    let zlen = Math.sqrt(zx * zx + zy * zy + zz * zz);
+    if (zlen < EPS) {
+      zx = 0;
+      zy = 0;
+      zz = 1;
+      zlen = 1;
+    }
     const znx = zx / zlen;
     const zny = zy / zlen;
     const znz = zz / zlen;
 
-    const xx = uy * znz - uz * zny;
-    const xy = uz * znx - ux * znz;
-    const xz = ux * zny - uy * znx;
-    const xlen = Math.sqrt(xx * xx + xy * xy + xz * xz);
+    // Right vector from up x forward; fall back if up is parallel to view.
+    let xx = uy * znz - uz * zny;
+    let xy = uz * znx - ux * znz;
+    let xz = ux * zny - uy * znx;
+    let xlen = Math.sqrt(xx * xx + xy * xy + xz * xz);
+    if (xlen < EPS) {
+      const fallbackUp =
+        Math.abs(zny) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+      const [fux, fuy, fuz] = fallbackUp;
+      xx = fuy * znz - fuz * zny;
+      xy = fuz * znx - fux * znz;
+      xz = fux * zny - fuy * znx;
+      xlen = Math.sqrt(xx * xx + xy * xy + xz * xz) || 1;
+    }
     const xnx = xx / xlen;
     const xny = xy / xlen;
     const xnz = xz / xlen;
@@ -192,14 +365,22 @@ export class WebGLRenderer {
   }
 
   private computeProjectionMatrix(camera: Camera): Float32Array {
-    const f = 1.0 / Math.tan(camera.fov / 2);
-    const rangeInv = 1.0 / (camera.near - camera.far);
+    const EPS = 1e-6;
+    const clamp = (value: number, min: number, max: number) =>
+      Math.min(max, Math.max(min, value));
+    const safeAspect = camera.aspect > EPS ? camera.aspect : 1;
+    const safeNear = Math.max(camera.near, EPS);
+    const safeFar = Math.max(camera.far, safeNear + 1);
+    const safeFov = clamp(camera.fov, 0.05, Math.PI - 0.05);
+
+    const f = 1.0 / Math.tan(safeFov / 2);
+    const rangeInv = 1.0 / (safeNear - safeFar);
 
     return new Float32Array([
-      f / camera.aspect, 0, 0, 0,
+      f / safeAspect, 0, 0, 0,
       0, f, 0, 0,
-      0, 0, (camera.near + camera.far) * rangeInv, -1,
-      0, 0, camera.near * camera.far * rangeInv * 2, 0,
+      0, 0, (safeNear + safeFar) * rangeInv, -1,
+      0, 0, safeNear * safeFar * rangeInv * 2, 0,
     ]);
   }
 

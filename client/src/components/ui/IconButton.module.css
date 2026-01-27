@@ -1,0 +1,83 @@
+.button {
+  --icon-button-size: 44px;
+  --icon-button-radius: 12px;
+  --icon-button-bg: var(--roslyn-cream, #f7f3ea);
+  --icon-button-fg: var(--ink-1000, #0d0d0d);
+  --icon-button-border: color-mix(in srgb, var(--icon-button-fg) 92%, transparent);
+  --icon-button-shadow: 2px 4px 8px rgba(0, 0, 0, 0.4);
+  --icon-button-shadow-hover: 2px 6px 12px rgba(0, 0, 0, 0.45);
+  --icon-button-shadow-pressed: 1px 2px 4px rgba(0, 0, 0, 0.35);
+  width: var(--icon-button-size);
+  height: var(--icon-button-size);
+  border-radius: var(--icon-button-radius);
+  border: 1px solid var(--icon-button-border);
+  background: var(--icon-button-bg);
+  color: var(--icon-button-fg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--icon-button-shadow);
+  transition: transform 120ms ease, box-shadow 120ms ease,
+    background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--icon-button-shadow-hover);
+}
+
+.button:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: var(--icon-button-shadow-pressed);
+}
+
+.button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--icon-button-fg) 35%, transparent);
+  outline-offset: 2px;
+}
+
+.button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: var(--icon-button-shadow-pressed);
+}
+
+.active {
+  --icon-button-bg: var(--ink-1000, #0d0d0d);
+  --icon-button-fg: var(--roslyn-cream, #f7f3ea);
+  --icon-button-border: color-mix(
+    in srgb,
+    var(--icon-button-fg) 65%,
+    var(--icon-button-bg)
+  );
+  box-shadow: 2px 5px 10px rgba(0, 0, 0, 0.55);
+}
+
+.sizeSm {
+  --icon-button-size: 40px;
+  --icon-button-radius: 10px;
+}
+
+.sizeLg {
+  --icon-button-size: 48px;
+  --icon-button-radius: 14px;
+}
+
+.icon {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sizeSm .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.sizeLg .icon {
+  width: 24px;
+  height: 24px;
+}
+

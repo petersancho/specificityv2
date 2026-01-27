@@ -140,7 +140,7 @@ ZOOM_SPEED = 0.001
 ## Testing Checklist
 
 ### ✅ Completed
-- [x] Canvas renders with monochrome aesthetic
+- [x] Canvas renders with monochrome aesthetic (toolbar icons may use color)
 - [x] Pan with middle-drag or Shift+Left-drag
 - [x] Zoom with mouse wheel (zoom-to-cursor)
 - [x] Node hover states
@@ -162,7 +162,7 @@ ZOOM_SPEED = 0.001
 - [ ] Test workflow evaluation with canvas-rendered nodes
 
 ### 🔄 Future Enhancements (Not Blocking)
-- [ ] Edge hit testing for selection/deletion
+- [ ] Edge hit testing for selection/deletion (hover detection now implemented)
 - [ ] Multi-select with box selection
 - [ ] Node parameter editing inline on canvas
 - [ ] Connection validation feedback (invalid port types)
@@ -200,19 +200,17 @@ ZOOM_SPEED = 0.001
 
 ### Remove ReactFlow Dependency
 
-**Files to Update:**
-1. `package.json` - Remove `reactflow` and `reactflow` CSS imports
-2. `client/src/components/workflow/WorkflowNodes.tsx` - Can be deleted (no longer used)
-3. Any remaining ReactFlow imports in other files
+**Status:** `reactflow` removed from `client/package.json` and workflow rendering now uses `NumericalCanvas`.
+
+**Remaining Cleanup:**
+1. Delete legacy files: `client/src/components/workflow/WorkflowNodes.tsx` and `WorkflowNodes.module.css`
+2. Regenerate `package-lock.json` by running `npm install` from the repo root
 
 **Verification:**
 ```bash
 # Search for remaining ReactFlow usage
 grep -r "from ['\"]reactflow['\"]" client/src/
 grep -r "import.*reactflow" client/src/
-
-# Remove dependency
-npm uninstall reactflow
 ```
 
 ### Update Documentation
@@ -227,7 +225,7 @@ npm uninstall reactflow
 - Implementation follows `docs/specificity_conventions.md:70-80` (ETO.forms patterns)
 - Architecture per `docs/subsystems_guide.md:185-194` (Custom node editor)
 - Immediate-mode rendering per `docs/ai_agent_guide.md` (Canvas-based workflow)
-- Monochrome aesthetic per user requirements (grayscale palette)
+- Monochrome aesthetic per user requirements, with a deliberate exception for colorful WebGL toolbar icons
 
 ## Success Criteria
 

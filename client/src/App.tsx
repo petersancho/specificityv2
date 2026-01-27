@@ -1,14 +1,13 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
-import TopBar from "./components/TopBar";
+import WebGLAppTopBar from "./components/WebGLAppTopBar";
 import ModelerSection from "./components/ModelerSection";
 import WorkflowSection from "./components/workflow/WorkflowSection";
+import WebGLButton from "./components/ui/WebGLButton";
 import { useProjectStore } from "./store/useProjectStore";
 import { buildApiUrl, SOCKET_URL } from "./config/runtime";
 import logoSpecificitySymbol from "./assets/logo-specificity-symbol.svg";
 import styles from "./App.module.css";
-
-type Theme = "light" | "dark";
 
 type PanelId = "roslyn" | "numerica";
 
@@ -146,34 +145,8 @@ const shouldIgnoreWorkspaceInput = (target: EventTarget | null) => {
 
 const PANEL_DRAG_SELECTOR = "[data-panel-drag='true']";
 
-const THEME_STORAGE_KEY = "specificity-theme";
-
-const getStoredTheme = (): Theme | null => {
-  if (typeof window === "undefined") return null;
-  try {
-    const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
-    return stored === "light" || stored === "dark" ? stored : null;
-  } catch (error) {
-    return null;
-  }
-};
-
-const getPreferredTheme = (): Theme => {
-  const stored = getStoredTheme();
-  if (stored) return stored;
-  if (
-    typeof window !== "undefined" &&
-    window.matchMedia?.("(prefers-color-scheme: dark)").matches
-  ) {
-    return "dark";
-  }
-  return "light";
-};
-
-
 const App = () => {
   const [status, setStatus] = useState("Ready");
-  const [theme, setTheme] = useState<Theme>(() => getPreferredTheme());
   const [workspaceScale, setWorkspaceScale] = useState(1);
   const [workspaceOffset, setWorkspaceOffset] = useState(getInitialWorkspaceOffset);
   const [panels, setPanels] = useState<Record<PanelId, PanelState>>(INITIAL_PANELS);
@@ -183,13 +156,7 @@ const App = () => {
   const [capturePreview, setCapturePreview] = useState<{ url: string; label: string } | null>(null);
 
   const setMaterials = useProjectStore((state) => state.setMaterials);
-  const setSaves = useProjectStore((state) => state.setSaves);
   const loadProject = useProjectStore((state) => state.loadProject);
-  const projectName = useProjectStore((state) => state.projectName);
-  const setProjectName = useProjectStore((state) => state.setProjectName);
-  const saves = useProjectStore((state) => state.saves);
-  const currentSaveId = useProjectStore((state) => state.currentSaveId);
-  const setCurrentSaveId = useProjectStore((state) => state.setCurrentSaveId);
 
   const projectPayload = useProjectStore((state) => ({
     geometry: state.geometry,
@@ -230,90 +197,13 @@ const App = () => {
     }
   };
 
-
-  const fetchSaves = async () => {
-    try {
-      const response = await fetch(buildApiUrl("/saves"));
-      if (!response.ok) {
-        setStatus("Failed to load saves");
-        return;
-      }
-      const data = await response.json();
-      if (!Array.isArray(data)) {
-        setStatus("Failed to load saves");
-        return;
-      }
-      setSaves(data);
-    } catch (error) {
-      setStatus("Failed to load saves");
-    }
-  };
-
-  const saveProject = async () => {
-    setStatus("Saving...");
-    try {
-      const response = await fetch(buildApiUrl("/saves"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: currentSaveId,
-          name: projectName,
-          project: projectPayload,
-        }),
-      });
-      if (!response.ok) {
-        setStatus("Save failed");
-        return;
-      }
-      const data = await response.json();
-      if (data.id) {
-        setCurrentSaveId(data.id);
-        setStatus(`Saved ${new Date().toLocaleTimeString()}`);
-        fetchSaves();
-      } else {
-        setStatus("Save failed");
-      }
-    } catch (error) {
-      setStatus("Save failed");
-    }
-  };
-
-  const loadSelected = async () => {
-    if (!currentSaveId) return;
-    setStatus("Loading...");
-    const response = await fetch(buildApiUrl(`/saves/${currentSaveId}`));
-    if (!response.ok) {
-      setStatus("Load failed");
-      return;
-    }
-    const data = await response.json();
-    if (data?.project) {
-      isRemoteUpdate.current = true;
-      loadProject(data.project);
-      setProjectName(data.name ?? projectName);
-      setTimeout(() => {
-        isRemoteUpdate.current = false;
-      }, 0);
-      setStatus("Loaded");
-    }
-  };
-
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
-  };
-
   useEffect(() => {
     fetchMaterials();
-    fetchSaves();
+    if (typeof document !== "undefined") {
+      const root = document.documentElement;
+      root.dataset.theme = "light";
+    }
   }, []);
-
-  useLayoutEffect(() => {
-    const root = document.documentElement;
-    root.dataset.theme = theme;
-    try {
-      window.localStorage.setItem(THEME_STORAGE_KEY, theme);
-    } catch {}
-  }, [theme]);
 
   useEffect(() => {
     const socket = SOCKET_URL
@@ -553,18 +443,7 @@ const App = () => {
           />
         </div>
       )}
-      <TopBar
-        saves={saves}
-        selectedSaveId={currentSaveId ?? ""}
-        status={status}
-        projectName={projectName}
-        onProjectNameChange={setProjectName}
-        onSave={saveProject}
-        onLoad={loadSelected}
-        onSelectSave={(value) => setCurrentSaveId(value)}
-        theme={theme}
-        onToggleTheme={toggleTheme}
-      />
+      <WebGLAppTopBar status={status} />
 
       <main className={styles.workspace}>
         <div className={styles.stackLayout}>
@@ -587,32 +466,38 @@ const App = () => {
           <div className={styles.captureModalContent}>
             <div className={styles.captureModalHeader}>
               <span>Preview · {capturePreview.label}</span>
-              <button
-                type="button"
+              <WebGLButton
                 className={styles.captureModalClose}
                 onClick={() => setCapturePreview(null)}
-              >
-                ×
-              </button>
+                label="Close capture preview"
+                iconId="close"
+                hideLabel
+                variant="ghost"
+                shape="pill"
+                tooltip="Close preview"
+              />
             </div>
             <div className={styles.captureModalBody}>
               <img src={capturePreview.url} alt="Screenshot preview" />
             </div>
             <div className={styles.captureModalActions}>
-              <button
-                type="button"
+              <WebGLButton
                 className={styles.captureButton}
                 onClick={handleDownloadCapture}
-              >
-                Download PNG
-              </button>
-              <button
-                type="button"
+                label="Download PNG"
+                shortLabel="PNG"
+                iconId="download"
+                variant="primary"
+                tooltip="Download PNG"
+              />
+              <WebGLButton
                 className={styles.captureSecondaryButton}
                 onClick={() => setCapturePreview(null)}
-              >
-                Close
-              </button>
+                label="Close preview"
+                iconId="close"
+                variant="secondary"
+                tooltip="Close preview"
+              />
             </div>
           </div>
         </div>

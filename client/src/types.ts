@@ -264,6 +264,25 @@ export type MaterialAssignment = {
   materialId: string;
 };
 
+export type TopologyOptimizationSettings = {
+  volumeFraction: number;
+  penaltyExponent: number;
+  filterRadius: number;
+  maxIterations: number;
+  convergenceTolerance: number;
+};
+
+export type TopologyOptimizationProgress = {
+  iteration: number;
+  objective: number;
+  constraint: number;
+  status: "idle" | "running" | "complete";
+};
+
+type WorkflowPrimitive = number | string | boolean | Vec3;
+
+export type WorkflowValue = WorkflowPrimitive | WorkflowValue[] | null | undefined;
+
 export type WorkflowNodeData = {
   label: string;
   geometryId?: string;
@@ -277,7 +296,11 @@ export type WorkflowNodeData = {
   boxDimensions?: { width: number; height: number; depth: number };
   sphereOrigin?: Vec3;
   sphereRadius?: number;
-  outputs?: Record<string, number | string | boolean | Array<number | string | boolean>>;
+  topologySettings?: TopologyOptimizationSettings;
+  topologyProgress?: TopologyOptimizationProgress;
+  parameters?: Record<string, unknown>;
+  evaluationError?: string;
+  outputs?: Record<string, WorkflowValue>;
 };
 
 export type WorkflowState = {

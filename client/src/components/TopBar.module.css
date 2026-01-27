@@ -62,36 +62,39 @@
 }
 
 .primary {
-  background: var(--color-accent);
-  color: var(--color-on-accent);
-  border: 1px solid transparent;
-  border-radius: 999px;
-  padding: 8px 16px;
-  font-weight: 600;
-  box-shadow: var(--shadow-xs);
-  transition: transform var(--transition-fast),
-    box-shadow var(--transition-fast);
+  --webgl-button-padding-x: 18px;
+  --webgl-button-padding-y: 9px;
+  --webgl-button-min-height: 44px;
+  --webgl-button-icon-size: 20px;
+  --webgl-button-gap: 8px;
+  --webgl-button-font-size: 13px;
+
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
 }
 
 .primary:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
+  transform: none;
+  box-shadow: none;
 }
 
 .ghost {
-  background: var(--color-surface-muted);
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  padding: 8px 14px;
-  font-weight: 600;
-  transition: transform var(--transition-fast),
-    box-shadow var(--transition-fast);
+  --webgl-button-padding-x: 16px;
+  --webgl-button-padding-y: 9px;
+  --webgl-button-min-height: 42px;
+  --webgl-button-icon-size: 18px;
+  --webgl-button-gap: 8px;
+  --webgl-button-font-size: 13px;
+
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
 }
 
 .ghost:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-xs);
+  transform: none;
+  box-shadow: none;
 }
 
 .loadGroup {
@@ -132,28 +135,28 @@
 }
 
 .scriptChip {
-  border: 1px solid var(--color-border);
-  background: var(--color-bg);
-  color: var(--color-text);
-  border-radius: 999px;
-  padding: 6px 12px;
-  font-size: 11px;
-  font-weight: 600;
-  box-shadow: var(--shadow-xs);
-  transition: transform var(--transition-fast),
-    box-shadow var(--transition-fast);
+  --webgl-button-padding-x: 14px;
+  --webgl-button-padding-y: 7px;
+  --webgl-button-min-height: 38px;
+  --webgl-button-icon-size: 18px;
+  --webgl-button-gap: 7px;
+  --webgl-button-font-size: 12px;
+
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
   white-space: nowrap;
 }
 
 .scriptChip:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
+  transform: none;
+  box-shadow: none;
 }
 
 .scriptChipActive {
-  background: var(--color-accent);
-  color: var(--color-on-accent);
-  border-color: var(--color-accent);
+  border-color: transparent;
+  background: transparent;
+  color: inherit;
 }
 
 .scriptEmpty {

@@ -1,16 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useProjectStore, type NodeType } from "../../store/useProjectStore";
 import { NumericalCanvas } from "./NumericalCanvas";
+import IconButton from "../ui/IconButton";
+import WebGLButton from "../ui/WebGLButton";
+import {
+  NODE_CATEGORIES,
+  NODE_CATEGORY_BY_ID,
+  NODE_DEFINITIONS,
+  getNodeDefinition,
+  resolveNodeParameters,
+  resolveNodePorts,
+} from "./nodeCatalog";
 import styles from "./WorkflowSection.module.css";
 
-const nodeOptions: { label: string; value: NodeType }[] = [
-  { label: "Geometry Reference", value: "geometryReference" },
-  { label: "Point Generator", value: "point" },
-  { label: "Polyline", value: "polyline" },
-  { label: "Surface", value: "surface" },
-  { label: "Box Builder", value: "box" },
-  { label: "Sphere", value: "sphere" },
-];
+const nodeOptions = NODE_DEFINITIONS;
 
 type WorkflowSectionProps = {
   onCaptureRequest?: (element: HTMLElement) => Promise<void> | void;
@@ -18,18 +21,16 @@ type WorkflowSectionProps = {
 };
 
 const WorkflowSection = ({ onCaptureRequest, captureDisabled }: WorkflowSectionProps) => {
-  const [selectedType, setSelectedType] = useState<NodeType>("point");
+  const [selectedType, setSelectedType] = useState<NodeType>("number");
   const nodes = useProjectStore((state) => state.workflow.nodes);
   const edges = useProjectStore((state) => state.workflow.edges);
-  const onNodesChange = useProjectStore((state) => state.onNodesChange);
-  const onEdgesChange = useProjectStore((state) => state.onEdgesChange);
-  const onConnect = useProjectStore((state) => state.onConnect);
   const addNode = useProjectStore((state) => state.addNode);
   const pruneWorkflow = useProjectStore((state) => state.pruneWorkflow);
   const undoWorkflow = useProjectStore((state) => state.undoWorkflow);
+  const updateNodeData = useProjectStore((state) => state.updateNodeData);
 
   const supportedTypes = useMemo(
-    () => new Set(nodeOptions.map((option) => option.value)),
+    () => new Set(nodeOptions.map((option) => option.type)),
     []
   );
   const filteredNodes = useMemo(
@@ -45,6 +46,105 @@ const WorkflowSection = ({ onCaptureRequest, captureDisabled }: WorkflowSectionP
       (edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target)
     );
   }, [edges, filteredNodes]);
+
+  const paletteGroups = useMemo(() => {
+    const groupMap = new Map<string, typeof nodeOptions>();
+    nodeOptions.forEach((definition) => {
+      const list = groupMap.get(definition.category);
+      if (list) {
+        list.push(definition);
+      } else {
+        groupMap.set(definition.category, [definition]);
+      }
+    });
+    return NODE_CATEGORIES.map((category) => ({
+      category,
+      nodes: groupMap.get(category.id) ?? [],
+    })).filter((group) => group.nodes.length > 0);
+  }, []);
+
+  const selectedNode = useMemo(
+    () => nodes.filter((node) => node.selected).at(-1) ?? null,
+    [nodes]
+  );
+
+  const selectedNodeContext = useMemo(() => {
+    if (!selectedNode || !selectedNode.type) return null;
+    const definition = getNodeDefinition(selectedNode.type);
+    const parameters = resolveNodeParameters(selectedNode);
+    const ports = resolveNodePorts(selectedNode, parameters);
+    return { node: selectedNode, definition, parameters, ports };
+  }, [selectedNode]);
+
+  const connectedInputs = useMemo(() => {
+    if (!selectedNodeContext) return new Set<string>();
+    const defaultInputKey = selectedNodeContext.ports.inputs[0]?.key;
+    const connected = new Set<string>();
+    edges.forEach((edge) => {
+      if (edge.target !== selectedNodeContext.node.id) return;
+      const handle = edge.targetHandle ?? defaultInputKey;
+      if (handle) connected.add(handle);
+    });
+    return connected;
+  }, [edges, selectedNodeContext]);
+
+  const specKeys = useMemo(
+    () => new Set(selectedNodeContext?.definition?.parameters.map((parameter) => parameter.key) ?? []),
+    [selectedNodeContext]
+  );
+
+  const inputParameterPorts = useMemo(
+    () =>
+      selectedNodeContext?.ports.inputs.filter(
+        (port) => port.parameterKey && !specKeys.has(port.parameterKey)
+      ) ?? [],
+    [selectedNodeContext, specKeys]
+  );
+
+  const readNumber = (value: unknown, fallback: number) => {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (typeof value === "string") {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+    return fallback;
+  };
+
+  const readBoolean = (value: unknown, fallback: boolean) => {
+    if (typeof value === "boolean") return value;
+    if (typeof value === "string") {
+      const lower = value.trim().toLowerCase();
+      if (lower === "true") return true;
+      if (lower === "false") return false;
+    }
+    return fallback;
+  };
+
+  const readString = (value: unknown, fallback: string) => {
+    if (typeof value === "string") return value;
+    if (value === null || value === undefined) return fallback;
+    return String(value);
+  };
+
+  const parseLooseValue = (raw: string) => {
+    const trimmed = raw.trim();
+    if (trimmed.length === 0) return "";
+    const lower = trimmed.toLowerCase();
+    if (lower === "true") return true;
+    if (lower === "false") return false;
+    const numeric = Number(trimmed);
+    if (Number.isFinite(numeric)) return numeric;
+    return raw;
+  };
+
+  const setParameter = (key: string, value: unknown) => {
+    if (!selectedNodeContext) return;
+    updateNodeData(selectedNodeContext.node.id, {
+      parameters: {
+        [key]: value,
+      },
+    });
+  };
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
@@ -101,52 +201,278 @@ const WorkflowSection = ({ onCaptureRequest, captureDisabled }: WorkflowSectionP
   return (
     <section className={styles.section}>
       <div className={styles.header}>
-        <div>
-          <h2>Numerica</h2>
-          <p>Drop nodes to build parametric geometry workflows.</p>
-        </div>
-        <div className={styles.controls}>
-          <label>
-            Component
+        <div className={styles.headerCluster}>
+          <IconButton
+            size="sm"
+            label="Numerica workflow panel"
+            iconId="brandNumerica"
+            variant="ghost"
+            tooltip="Numerica workflow panel"
+            tooltipPosition="bottom"
+          />
+          <div className={styles.headerSelect}>
+            <span className={styles.srOnly}>Component type</span>
             <select
               value={selectedType}
               onChange={(event) => setSelectedType(event.target.value as NodeType)}
+              aria-label="Component type"
             >
               {nodeOptions.map((option) => (
-                <option key={option.value} value={option.value}>
+                <option key={option.type} value={option.type}>
                   {option.label}
                 </option>
               ))}
             </select>
-          </label>
-          <button className={styles.primary} onClick={() => addNode(selectedType)}>
-            Add Node
-          </button>
-          <button
-            type="button"
-            className={styles.capture}
+          </div>
+        </div>
+        <div className={styles.headerCluster}>
+          <IconButton
+            size="sm"
+            label="Add selected node type"
+            iconId="add"
+            variant="primary"
+            tooltip="Add selected node type"
+            tooltipPosition="bottom"
+            onClick={() => addNode(selectedType)}
+          />
+          <IconButton
+            size="sm"
+            label="Undo workflow action"
+            iconId="undo"
+            tooltip="Undo workflow action"
+            tooltipPosition="bottom"
+            onClick={undoWorkflow}
+          />
+          <IconButton
+            size="sm"
+            label="Prune unsupported nodes"
+            iconId="prune"
+            variant="ghost"
+            accentColor="#ef4444"
+            tooltip="Prune unsupported nodes"
+            tooltipPosition="bottom"
+            onClick={pruneWorkflow}
+          />
+          <IconButton
+            size="sm"
+            label="Capture workflow canvas"
+            iconId="capture"
+            tooltip="Capture workflow canvas"
+            tooltipPosition="bottom"
             onClick={handleCapture}
             disabled={captureDisabled}
-          >
-            {captureDisabled ? "Capturing…" : "Screenshot Canvas"}
-          </button>
+          />
         </div>
       </div>
 
       <div className={styles.body}>
         <aside className={styles.palette}>
-          <h3>Geometry Palette</h3>
-          {nodeOptions.map((option) => (
-            <button
-              key={option.value}
-              className={styles.paletteItem}
-              onClick={() => addNode(option.value)}
-            >
-              {option.label}
-            </button>
-          ))}
+          {paletteGroups.map((group) => {
+            const accent = NODE_CATEGORY_BY_ID.get(group.category.id)?.accent;
+            return (
+              <div key={group.category.id} className={styles.paletteGroup}>
+                <div className={styles.paletteGroupHeader}>
+                  <span
+                    className={styles.paletteGroupDot}
+                    style={{ backgroundColor: accent }}
+                    aria-hidden="true"
+                  />
+                  <span className={styles.paletteGroupTitle}>{group.category.label}</span>
+                </div>
+                <div className={styles.paletteGroupGrid}>
+                  {group.nodes.map((option) => {
+                    const iconId = option.iconId ?? "primitive";
+                    return (
+                      <WebGLButton
+                        key={option.type}
+                        type="button"
+                        className={styles.paletteItem}
+                        label={option.label}
+                        shortLabel={option.shortLabel}
+                        iconId={iconId}
+                        variant="palette"
+                        shape="square"
+                        accentColor={accent}
+                        tooltip={option.description}
+                        tooltipPosition="bottom"
+                        onClick={() => addNode(option.type)}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+          <div className={styles.parameterPanel}>
+            {selectedNodeContext ? (
+              <>
+                <div className={styles.parameterHeader}>
+                  <span className={styles.parameterTitle}>
+                    {selectedNodeContext.definition?.label ??
+                      selectedNodeContext.node.data?.label ??
+                      "Node"}
+                  </span>
+                  <span className={styles.parameterSubtitle}>Parameters</span>
+                </div>
+
+                {selectedNodeContext.definition?.parameters.length === 0 &&
+                inputParameterPorts.length === 0 ? (
+                  <p className={styles.parameterEmpty}>No editable parameters for this node.</p>
+                ) : (
+                  <div className={styles.parameterGrid}>
+                    {selectedNodeContext.definition?.parameters.map((parameter) => {
+                      const value =
+                        selectedNodeContext.parameters[parameter.key] ?? parameter.defaultValue;
+
+                      if (parameter.type === "select") {
+                        const selectedValue = String(value ?? parameter.defaultValue);
+                        return (
+                          <label key={parameter.key} className={styles.parameterRow}>
+                            <span className={styles.parameterLabel}>{parameter.label}</span>
+                            <select
+                              className={styles.parameterControl}
+                              value={selectedValue}
+                              onChange={(event) => setParameter(parameter.key, event.target.value)}
+                            >
+                              {parameter.options?.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        );
+                      }
+
+                      if (parameter.type === "boolean") {
+                        const checked = readBoolean(value, Boolean(parameter.defaultValue));
+                        return (
+                          <label key={parameter.key} className={styles.parameterRowCheckbox}>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(event) => setParameter(parameter.key, event.target.checked)}
+                            />
+                            <span className={styles.parameterLabel}>{parameter.label}</span>
+                          </label>
+                        );
+                      }
+
+                      if (parameter.type === "number") {
+                        const numericValue = readNumber(value, Number(parameter.defaultValue) || 0);
+                        return (
+                          <label key={parameter.key} className={styles.parameterRow}>
+                            <span className={styles.parameterLabel}>{parameter.label}</span>
+                            <input
+                              className={styles.parameterControl}
+                              type="number"
+                              value={numericValue}
+                              min={parameter.min}
+                              max={parameter.max}
+                              step={parameter.step ?? 0.1}
+                              onChange={(event) => {
+                                const nextValue = Number(event.target.value);
+                                if (Number.isFinite(nextValue)) {
+                                  setParameter(parameter.key, nextValue);
+                                }
+                              }}
+                            />
+                          </label>
+                        );
+                      }
+
+                      const stringValue = readString(value, String(parameter.defaultValue ?? ""));
+                      return (
+                        <label key={parameter.key} className={styles.parameterRow}>
+                          <span className={styles.parameterLabel}>{parameter.label}</span>
+                          <input
+                            className={styles.parameterControl}
+                            type="text"
+                            value={stringValue}
+                            onChange={(event) => setParameter(parameter.key, event.target.value)}
+                          />
+                        </label>
+                      );
+                    })}
+
+                    {inputParameterPorts.map((port) => {
+                      const paramKey = port.parameterKey!;
+                      const rawValue =
+                        selectedNodeContext.parameters[paramKey] ?? port.defaultValue ?? "";
+                      const isConnected = connectedInputs.has(port.key);
+                      const rowKey = `${selectedNodeContext.node.id}-${port.key}`;
+
+                      if (port.type === "boolean") {
+                        const checked = readBoolean(rawValue, false);
+                        return (
+                          <label key={rowKey} className={styles.parameterRowCheckbox}>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              disabled={isConnected}
+                              onChange={(event) => setParameter(paramKey, event.target.checked)}
+                            />
+                            <span className={styles.parameterLabel}>
+                              {port.label}
+                              {isConnected ? " (connected)" : ""}
+                            </span>
+                          </label>
+                        );
+                      }
+
+                      if (port.type === "number") {
+                        const numericValue = readNumber(rawValue, Number(port.defaultValue) || 0);
+                        return (
+                          <label key={rowKey} className={styles.parameterRow}>
+                            <span className={styles.parameterLabel}>
+                              {port.label}
+                              {isConnected ? " (connected)" : ""}
+                            </span>
+                            <input
+                              className={styles.parameterControl}
+                              type="number"
+                              value={numericValue}
+                              disabled={isConnected}
+                              step={0.1}
+                              onChange={(event) => {
+                                const nextValue = Number(event.target.value);
+                                if (Number.isFinite(nextValue)) {
+                                  setParameter(paramKey, nextValue);
+                                }
+                              }}
+                            />
+                          </label>
+                        );
+                      }
+
+                      const stringValue = String(rawValue ?? "");
+                      return (
+                        <label key={rowKey} className={styles.parameterRow}>
+                          <span className={styles.parameterLabel}>
+                            {port.label}
+                            {isConnected ? " (connected)" : ""}
+                          </span>
+                          <input
+                            className={styles.parameterControl}
+                            type="text"
+                            value={stringValue}
+                            disabled={isConnected}
+                            onChange={(event) =>
+                              setParameter(paramKey, parseLooseValue(event.target.value))
+                            }
+                          />
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className={styles.parameterEmpty}>Select a node to edit its parameters.</p>
+            )}
+          </div>
           <p className={styles.paletteHint}>
-            Connect nodes to build geometry and semantic relationships.
+            Categories stay stable as we add more nodes.
           </p>
         </aside>
         <div className={styles.canvas} data-panel-drag="true">

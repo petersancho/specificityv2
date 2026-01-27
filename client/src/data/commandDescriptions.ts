@@ -7,6 +7,10 @@ export const COMMAND_DESCRIPTIONS: Record<
     shortcut: "V",
     category: "geometry",
   },
+  line: {
+    description: "Draw a single straight line segment between two points.",
+    category: "geometry",
+  },
   polyline: {
     description: "Draw connected line segments. Click points, Enter to finish.",
     shortcut: "P",
@@ -22,9 +26,29 @@ export const COMMAND_DESCRIPTIONS: Record<
     shortcut: "C",
     category: "geometry",
   },
+  arc: {
+    description: "Create a circular arc through start, end, and a third point.",
+    category: "geometry",
+  },
+  curve: {
+    description: "Draw a smooth interpolated curve through control points.",
+    category: "geometry",
+  },
   primitive: {
     description: "Create 3D primitives: Box, Sphere, Cylinder, Torus.",
     shortcut: "B",
+    category: "geometry",
+  },
+  box: {
+    description: "Shortcut to place a box primitive on the construction plane.",
+    category: "geometry",
+  },
+  sphere: {
+    description: "Shortcut to place a sphere primitive on the construction plane.",
+    category: "geometry",
+  },
+  cylinder: {
+    description: "Shortcut to place a cylinder primitive on the construction plane.",
     category: "geometry",
   },
   interpolate: {
@@ -60,6 +84,18 @@ export const COMMAND_DESCRIPTIONS: Record<
   scale: {
     description: "Scale geometry uniformly or per-axis from a reference point.",
     shortcut: "⌘S",
+    category: "transform",
+  },
+  offset: {
+    description: "Create offset copies of selected polylines in the C-plane.",
+    category: "transform",
+  },
+  mirror: {
+    description: "Mirror the selection across a pivot plane aligned to an axis.",
+    category: "transform",
+  },
+  array: {
+    description: "Duplicate the selection multiple times along an axis.",
     category: "transform",
   },
   gumball: {

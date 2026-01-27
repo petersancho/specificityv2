@@ -1,5 +1,7 @@
 export type TextStyle = {
   fontSize: number;
+  fontWeight?: number | string;
+  fontStyle?: string;
   fontFamily: string;
   color: string;
   paddingX?: number;
@@ -17,6 +19,8 @@ type ShaderHandles = {
 
 const DEFAULT_STYLE: TextStyle = {
   fontSize: 13,
+  fontWeight: 400,
+  fontStyle: "normal",
   fontFamily: "'Space Grotesk', 'SF Pro Text', sans-serif",
   color: "#ffffff",
   paddingX: 8,
@@ -146,8 +150,11 @@ export class WebGLTextRenderer {
     const resolved: TextStyle = { ...DEFAULT_STYLE, ...style };
     const paddingX = resolved.paddingX ?? 0;
     const paddingY = resolved.paddingY ?? 0;
+    const fontWeight = resolved.fontWeight ?? 400;
+    const fontStyle = resolved.fontStyle ?? "normal";
+    const fontSpec = `${fontStyle} ${fontWeight} ${resolved.fontSize}px ${resolved.fontFamily}`;
 
-    this.ctx.font = `${resolved.fontSize}px ${resolved.fontFamily}`;
+    this.ctx.font = fontSpec;
     const metrics = this.ctx.measureText(text);
     const textWidth = Math.ceil(metrics.width);
     const textHeight = Math.ceil(resolved.fontSize * 1.3);
@@ -159,7 +166,7 @@ export class WebGLTextRenderer {
     this.canvas.height = this.height;
 
     this.ctx.clearRect(0, 0, this.width, this.height);
-    this.ctx.font = `${resolved.fontSize}px ${resolved.fontFamily}`;
+    this.ctx.font = fontSpec;
     this.ctx.fillStyle = resolved.color;
     this.ctx.textBaseline = "top";
     this.ctx.fillText(text, paddingX, paddingY);

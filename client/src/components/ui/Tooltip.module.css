@@ -15,14 +15,15 @@
   gap: 8px;
   background: var(--ink-1000);
   color: var(--fog-100);
-  padding: 6px 10px;
-  border-radius: 6px;
+  padding: 7px 11px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--fog-100) 12%, transparent);
   font-family: var(--font-primary);
   font-size: var(--text-xs);
   font-weight: var(--font-weight-medium);
   letter-spacing: var(--letter-spacing-wide);
   white-space: nowrap;
-  box-shadow: var(--shadow-md);
+  box-shadow: 2px 4px 8px rgba(0, 0, 0, 0.45);
 }
 
 .text {

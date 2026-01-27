@@ -167,6 +167,56 @@ export class WebGLUIRenderer {
     }
   }
 
+  drawFilledCircle(
+    cx: number,
+    cy: number,
+    radius: number,
+    color: RGBA,
+    segments = 28
+  ): void {
+    const step = (Math.PI * 2) / segments;
+    for (let i = 0; i < segments; i += 1) {
+      const theta1 = i * step;
+      const theta2 = (i + 1) * step;
+      const x1 = cx + Math.cos(theta1) * radius;
+      const y1 = cy + Math.sin(theta1) * radius;
+      const x2 = cx + Math.cos(theta2) * radius;
+      const y2 = cy + Math.sin(theta2) * radius;
+      this.pushTriangle(
+        { x: cx, y: cy },
+        { x: x1, y: y1 },
+        { x: x2, y: y2 },
+        color
+      );
+    }
+  }
+
+  drawRoundedRect(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    radius: number,
+    color: RGBA
+  ): void {
+    const r = Math.max(0, Math.min(radius, width / 2, height / 2));
+    if (r === 0) {
+      this.drawRect(x, y, width, height, color);
+      return;
+    }
+
+    // Center band.
+    this.drawRect(x + r, y, width - r * 2, height, color);
+    // Side bands.
+    this.drawRect(x, y + r, r, height - r * 2, color);
+    this.drawRect(x + width - r, y + r, r, height - r * 2, color);
+    // Corners.
+    this.drawFilledCircle(x + r, y + r, r, color);
+    this.drawFilledCircle(x + width - r, y + r, r, color);
+    this.drawFilledCircle(x + r, y + height - r, r, color);
+    this.drawFilledCircle(x + width - r, y + height - r, r, color);
+  }
+
   flush(): void {
     if (this.data.length === 0) return;
     const gl = this.gl;
@@ -207,6 +257,12 @@ export class WebGLUIRenderer {
     this.pushVertex(p1.x, p1.y, color);
     this.pushVertex(p3.x, p3.y, color);
     this.pushVertex(p4.x, p4.y, color);
+  }
+
+  private pushTriangle(p1: Vec2, p2: Vec2, p3: Vec2, color: RGBA): void {
+    this.pushVertex(p1.x, p1.y, color);
+    this.pushVertex(p2.x, p2.y, color);
+    this.pushVertex(p3.x, p3.y, color);
   }
 
   private pushVertex(x: number, y: number, color: RGBA): void {

@@ -79,21 +79,34 @@ export class ShaderManager {
 
   setUniform(program: WebGLProgram, name: string, value: any): void {
     const gl = this.gl;
+    if (value === undefined || value === null) return;
     const location = gl.getUniformLocation(program, name);
     if (!location) return;
 
     if (typeof value === "number") {
       gl.uniform1f(location, value);
-    } else if (Array.isArray(value)) {
-      if (value.length === 2) {
-        gl.uniform2fv(location, value);
-      } else if (value.length === 3) {
-        gl.uniform3fv(location, value);
-      } else if (value.length === 4) {
-        gl.uniform4fv(location, value);
-      } else if (value.length === 16) {
-        gl.uniformMatrix4fv(location, false, value);
-      }
+      return;
+    }
+    if (typeof value === "boolean") {
+      gl.uniform1i(location, value ? 1 : 0);
+      return;
+    }
+
+    const isArray = Array.isArray(value);
+    const isTypedArray = ArrayBuffer.isView(value) && !(value instanceof DataView);
+    if (!isArray && !isTypedArray) return;
+
+    const data = value as number[] | Float32Array;
+    if (data.length === 2) {
+      gl.uniform2fv(location, data);
+    } else if (data.length === 3) {
+      gl.uniform3fv(location, data);
+    } else if (data.length === 4) {
+      gl.uniform4fv(location, data);
+    } else if (data.length === 9) {
+      gl.uniformMatrix3fv(location, false, data);
+    } else if (data.length === 16) {
+      gl.uniformMatrix4fv(location, false, data);
     }
   }
 

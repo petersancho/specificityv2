@@ -8,8 +8,8 @@ analytics.
 - Frontend: Vite + React + TypeScript
 - Backend: Node.js + Express + TypeScript
 - Realtime: Socket.IO
-- 3D Viewer: react-three-fiber + drei
-- Workflow Canvas: React Flow
+- 3D Viewer: custom WebGL renderer (Three.js math utilities)
+- Workflow Canvas: HTML5 canvas (ETO.forms)
 - State: Zustand
 - Charts: Recharts
 - Styling: CSS Modules

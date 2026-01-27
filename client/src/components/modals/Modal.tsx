@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import WebGLButton from "../ui/WebGLButton";
 import styles from "./Modal.module.css";
 
 type ModalProps = {
@@ -30,9 +31,16 @@ const Modal = ({ isOpen, title, onClose, children }: ModalProps) => {
       >
         <div className={styles.header}>
           <h2>{title}</h2>
-          <button className={styles.close} onClick={onClose}>
-            Close
-          </button>
+          <WebGLButton
+            className={styles.close}
+            onClick={onClose}
+            label="Close dialog"
+            iconId="close"
+            hideLabel
+            variant="ghost"
+            shape="pill"
+            tooltip="Close dialog"
+          />
         </div>
         {children}
       </div>

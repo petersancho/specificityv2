@@ -466,6 +466,18 @@ Boolean operations require robust geometric algorithms that handle edge cases li
 
 **Parameters:** Operation (Union/Intersection/Difference dropdown), Tolerance (default 0.001)
 
+### Topology Optimization Node
+
+The Topology Optimization node configures a density-based voxel optimization run for a given design domain. The node captures optimization settings such as volume fraction, penalization exponent, and filter radius while exposing live progress metadata (iteration, objective, constraint, status). The actual solver integration is staged: the node currently stores settings and progress values in its node data and outputs them for downstream inspection until the voxel solver pipeline is wired in.
+
+When voxelization and solver services are available, the node will accept a voxel grid or geometry domain reference on its input port and emit the optimized voxel density field on its output port. For now, it serves as the authoritative settings container that can be referenced by other nodes and UI overlays.
+
+**Input Ports:** Domain (geometry reference or voxel grid placeholder)
+
+**Output Ports:** Optimization Settings + Progress (stored in `outputs` map)
+
+**Parameters:** Volume Fraction (default 0.4), Penalty Exponent (default 3), Filter Radius (default 1.5), Max Iterations (default 80), Convergence Tolerance (default 0.001)
+
 ### Offset Node
 
 The Offset node creates parallel copies of curves or surfaces at specified distances. The node exposes Geometry input accepting curve or surface references, Distance input accepting the offset amount, and optional Direction input for 3D curve offsets. The output port labeled Offset emits the offset geometry reference.
