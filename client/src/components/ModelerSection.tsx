@@ -1775,9 +1775,7 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
         return;
       }
       if (commandId === "camera") {
-        if (lower.includes("maya")) setCameraPreset("maya");
-        else if (lower.includes("custom")) setCameraPreset("custom");
-        else setCameraPreset("blender");
+        setCameraPreset("standard");
         setCommandInput("");
         setCommandError("");
         return;
@@ -2881,19 +2879,10 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
           </div>
                 <div className={styles.railSection}>
             <span className={styles.railTitle}>Camera</span>
-            <label className={styles.field}>
-              <span>Preset</span>
-              <select
-                value={cameraState.preset}
-                onChange={(event) =>
-                  setCameraPreset(event.target.value as typeof cameraState.preset)
-                }
-              >
-                <option value="blender">Blender</option>
-                <option value="maya">Maya</option>
-                <option value="custom">Custom</option>
-              </select>
-            </label>
+            <div className={styles.field}>
+              <span>Viewport</span>
+              <span className={styles.fieldValue}>Standard</span>
+            </div>
             <label className={styles.snapOption}>
               <input
                 type="checkbox"

@@ -681,6 +681,15 @@
   color: var(--color-text);
 }
 
+.fieldValue {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-input);
+  padding: 6px 8px;
+  font-size: 12px;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
 .outlinerControls {
   display: flex;
   gap: 8px;

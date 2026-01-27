@@ -186,7 +186,7 @@ export type GridSettings = {
   majorLinesEvery: number;
 };
 
-export type CameraPreset = "blender" | "maya" | "custom";
+export type CameraPreset = "standard";
 
 export type CameraState = {
   position: Vec3;
