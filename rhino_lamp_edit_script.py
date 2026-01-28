@@ -4,7 +4,7 @@
 #
 # This script builds:
 # - A base (cube, triangle prism, or vase-like loft)
-# - A parametric shade with vertical slots
+# - A parametric shade with a lattice or slot pattern
 # - A tolerance-fit sleeve so the shade attaches to the base
 # - A central port for lamp cord and LED bulb
 #
@@ -34,6 +34,7 @@ PARAMS = {
     "shade_outer_radius": 58.0,
     "shade_wall": 2.4,
     "sleeve_height": 14.0,  # must be >= neck_height
+    "shade_pattern": "lattice",  # "lattice", "slots", or "none"
     # Assembly tolerance (clearance) for the sleeve fit
     "tolerance": 0.4,
     # Slot pattern
@@ -43,6 +44,15 @@ PARAMS = {
     "slot_margin": 12.0,
     "slot_variation": 0.25,
     "slot_wave_frequency": 2.0,
+    # Lattice pattern (subdivision effect)
+    "lattice_rows": 6,
+    "lattice_columns": 30,
+    "lattice_window_width": 8.0,
+    "lattice_window_height": 18.0,
+    "lattice_window_depth": 12.0,
+    "lattice_margin": 12.0,
+    "lattice_offset_ratio": 0.5,
+    "lattice_twist_degrees": 8.0,
     # Central port
     "cord_diameter": 7.0,
     "bulb_diameter": 28.0,
@@ -184,6 +194,160 @@ def create_base(p, port_radius):
     return base_with_neck, base_height
 
 
+def add_slot_pattern(
+    shade,
+    p,
+    base_height,
+    sleeve_height,
+    shade_outer_radius,
+    shade_inner_radius,
+):
+    shade_wall = p["shade_wall"]
+    shade_height = p["shade_height"]
+    slot_count = int(p["slot_count"])
+    if slot_count <= 0:
+        return shade
+
+    slot_depth = clamp_min(p["slot_depth"], shade_wall + 1.0)
+    slot_width = p["slot_width"]
+    slot_margin = p["slot_margin"]
+    slot_body_height = shade_height - sleeve_height - 2.0 * slot_margin
+    if slot_body_height <= shade_wall:
+        return shade
+
+    slot_inner = min(shade_inner_radius - 1.0, shade_outer_radius - slot_depth)
+    slot_inner = max(0.5, slot_inner)
+    slot_outer = shade_outer_radius + 1.0
+    slot_min_y = -slot_width / 2.0
+    slot_max_y = slot_width / 2.0
+
+    slots = []
+    for i in range(slot_count):
+        angle = (360.0 / slot_count) * i
+        angle_rad = math.radians(angle)
+        wave = 0.5 + 0.5 * math.sin(angle_rad * p["slot_wave_frequency"])
+        height_scale = 1.0 - p["slot_variation"] * wave
+        slot_h = clamp_min(slot_body_height * height_scale, shade_wall * 2.0)
+        slot_z0 = base_height + sleeve_height + slot_margin
+        slot_top_limit = base_height + shade_height - slot_margin
+        slot_h = min(slot_h, slot_top_limit - slot_z0)
+        if slot_h <= shade_wall:
+            continue
+        slot_z1 = slot_z0 + slot_h
+
+        pts = [
+            (slot_inner, slot_min_y, slot_z0),
+            (slot_outer, slot_min_y, slot_z0),
+            (slot_outer, slot_max_y, slot_z0),
+            (slot_inner, slot_max_y, slot_z0),
+            (slot_inner, slot_min_y, slot_z1),
+            (slot_outer, slot_min_y, slot_z1),
+            (slot_outer, slot_max_y, slot_z1),
+            (slot_inner, slot_max_y, slot_z1),
+        ]
+        slot = rs.AddBox(pts)
+        rs.RotateObject(slot, (0.0, 0.0, 0.0), angle, axis=(0.0, 0.0, 1.0))
+        slots.append(slot)
+
+    return safe_boolean_diff(shade, slots)
+
+
+def add_lattice_pattern(
+    shade,
+    p,
+    base_height,
+    sleeve_height,
+    shade_outer_radius,
+    shade_inner_radius,
+):
+    shade_wall = p["shade_wall"]
+    shade_height = p["shade_height"]
+    rows = int(p["lattice_rows"])
+    columns = int(p["lattice_columns"])
+    if rows <= 0 or columns <= 0:
+        return shade
+
+    margin = p["lattice_margin"]
+    available_height = shade_height - sleeve_height - 2.0 * margin
+    if available_height <= shade_wall:
+        return shade
+
+    row_step = available_height / float(rows)
+    window_height = min(p["lattice_window_height"], row_step * 0.85)
+    if window_height <= shade_wall:
+        return shade
+
+    window_depth = clamp_min(p["lattice_window_depth"], shade_wall + 1.0)
+    window_width = p["lattice_window_width"]
+    angle_step = 360.0 / float(columns)
+
+    slot_inner = min(shade_inner_radius - 1.0, shade_outer_radius - window_depth)
+    slot_inner = max(0.5, slot_inner)
+    slot_outer = shade_outer_radius + 1.0
+    slot_min_y = -window_width / 2.0
+    slot_max_y = window_width / 2.0
+
+    slots = []
+    for row in range(rows):
+        row_center = base_height + sleeve_height + margin + row_step * (row + 0.5)
+        z0 = row_center - window_height / 2.0
+        z1 = row_center + window_height / 2.0
+        z0 = max(z0, base_height + sleeve_height + margin)
+        z1 = min(z1, base_height + shade_height - margin)
+        if z1 - z0 <= shade_wall:
+            continue
+
+        row_twist = row * p["lattice_twist_degrees"]
+        row_offset = (row % 2) * p["lattice_offset_ratio"] * angle_step
+        for col in range(columns):
+            angle = col * angle_step + row_offset + row_twist
+            pts = [
+                (slot_inner, slot_min_y, z0),
+                (slot_outer, slot_min_y, z0),
+                (slot_outer, slot_max_y, z0),
+                (slot_inner, slot_max_y, z0),
+                (slot_inner, slot_min_y, z1),
+                (slot_outer, slot_min_y, z1),
+                (slot_outer, slot_max_y, z1),
+                (slot_inner, slot_max_y, z1),
+            ]
+            slot = rs.AddBox(pts)
+            rs.RotateObject(slot, (0.0, 0.0, 0.0), angle, axis=(0.0, 0.0, 1.0))
+            slots.append(slot)
+
+    return safe_boolean_diff(shade, slots)
+
+
+def apply_shade_pattern(
+    shade,
+    p,
+    base_height,
+    sleeve_height,
+    shade_outer_radius,
+    shade_inner_radius,
+):
+    pattern = p.get("shade_pattern", "slots").lower()
+    if not shade or pattern == "none":
+        return shade
+    if pattern == "lattice":
+        return add_lattice_pattern(
+            shade,
+            p,
+            base_height,
+            sleeve_height,
+            shade_outer_radius,
+            shade_inner_radius,
+        )
+    return add_slot_pattern(
+        shade,
+        p,
+        base_height,
+        sleeve_height,
+        shade_outer_radius,
+        shade_inner_radius,
+    )
+
+
 def create_shade(p, base_height):
     shade_outer_radius = p["shade_outer_radius"]
     shade_wall = p["shade_wall"]
@@ -215,51 +379,14 @@ def create_shade(p, base_height):
 
     shade = safe_boolean_diff(outer, [inner_upper, inner_sleeve])
 
-    # Slot pattern (only in the upper body)
-    slot_count = int(p["slot_count"])
-    if slot_count > 0 and shade:
-        slot_depth = clamp_min(p["slot_depth"], shade_wall + 1.0)
-        slot_width = p["slot_width"]
-        slot_margin = p["slot_margin"]
-        slot_body_height = shade_height - sleeve_height - 2.0 * slot_margin
-        if slot_body_height <= shade_wall:
-            rs.ObjectName(shade, "Lamp_Shade")
-            return shade
-
-        slot_inner = min(shade_inner_radius - 1.0, shade_outer_radius - slot_depth)
-        slot_outer = shade_outer_radius + 1.0
-        slot_min_y = -slot_width / 2.0
-        slot_max_y = slot_width / 2.0
-
-        slots = []
-        for i in range(slot_count):
-            angle = (360.0 / slot_count) * i
-            angle_rad = math.radians(angle)
-            wave = 0.5 + 0.5 * math.sin(angle_rad * p["slot_wave_frequency"])
-            height_scale = 1.0 - p["slot_variation"] * wave
-            slot_h = clamp_min(slot_body_height * height_scale, shade_wall * 2.0)
-            slot_z0 = base_height + sleeve_height + slot_margin
-            slot_top_limit = base_height + shade_height - slot_margin
-            slot_h = min(slot_h, slot_top_limit - slot_z0)
-            if slot_h <= shade_wall:
-                continue
-            slot_z1 = slot_z0 + slot_h
-
-            pts = [
-                (slot_inner, slot_min_y, slot_z0),
-                (slot_outer, slot_min_y, slot_z0),
-                (slot_outer, slot_max_y, slot_z0),
-                (slot_inner, slot_max_y, slot_z0),
-                (slot_inner, slot_min_y, slot_z1),
-                (slot_outer, slot_min_y, slot_z1),
-                (slot_outer, slot_max_y, slot_z1),
-                (slot_inner, slot_max_y, slot_z1),
-            ]
-            slot = rs.AddBox(pts)
-            rs.RotateObject(slot, (0.0, 0.0, 0.0), angle, axis=(0.0, 0.0, 1.0))
-            slots.append(slot)
-
-        shade = safe_boolean_diff(shade, slots)
+    shade = apply_shade_pattern(
+        shade,
+        p,
+        base_height,
+        sleeve_height,
+        shade_outer_radius,
+        shade_inner_radius,
+    )
 
     rs.ObjectName(shade, "Lamp_Shade")
     return shade
