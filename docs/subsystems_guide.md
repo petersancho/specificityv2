@@ -82,13 +82,13 @@ Edge records contain source node identifier, source port key, target node identi
 
 ## Viewport Implementation
 
-The ViewerCanvas component integrates direct WebGL rendering through Three.js, custom interaction logic, and geometry visualization into the Roslyn modeling environment. The component maintains explicit control over the WebGL rendering context, vertex buffers, index buffers, shader programs, and rendering state. The architecture separates geometry data management in the Zustand store from GPU resource management in the viewport, ensuring clean boundaries between business logic and rendering implementation.
+The WebGLViewerCanvas component integrates the custom WebGL renderer, interaction logic, and geometry visualization into the Roslyn modeling environment. The component maintains explicit control over the WebGL rendering context, vertex buffers, index buffers, shader programs, and rendering state. The architecture separates geometry data management in the Zustand store from GPU resource management in the viewport, ensuring clean boundaries between business logic and rendering implementation.
 
 ### Rendering Pipeline
 
 The rendering pipeline subscribes to geometry state from the store and maintains a mapping from geometry identifiers to WebGL buffer geometry and shader program references. When geometry is added, updated, or removed in the store, the rendering pipeline creates, updates, or disposes corresponding GPU resources. This reactive rendering ensures the viewport always reflects current geometry state while efficiently managing GPU memory.
 
-Each geometry type has dedicated rendering logic that constructs appropriate WebGL buffer representations. Vertices render using instanced sphere geometry where a single sphere mesh is instantiated at each vertex position through shader uniforms. This instancing approach minimizes draw calls and vertex buffer memory compared to creating separate sphere meshes. Polylines render using line geometry with custom vertex and fragment shaders that provide anti-aliased rendering and proper depth testing. The line shader supports variable width and can render selection highlighting through additive color blending.
+Each geometry type has dedicated rendering logic that constructs appropriate WebGL buffer representations. Vertices render as small sphere meshes using a shared template to keep buffer generation consistent. Polylines render using line geometry with custom vertex and fragment shaders that provide anti-aliased rendering and proper depth testing. The line shader supports variable width and can render selection highlighting through additive color blending.
 
 NURBS curves require tessellation before rendering, evaluating the curve at parameter samples to approximate its shape within screen-space tolerance. The tessellation routine computes an adaptive sample density based on viewport zoom level and curve curvature, using finer samples in regions of high curvature and coarser samples in nearly linear regions. The resulting position samples populate a vertex buffer that renders using the line shader. The tessellation result is cached and only recomputed when the curve geometry changes or when zoom level crosses tessellation thresholds.
 
@@ -98,7 +98,7 @@ Materials applied to geometry use custom shader programs rather than Three.js's 
 
 ### Selection System
 
-The selection system operates through continuous raycasting from pointer position into world space combined with WebGL-based picking for precise component identification. The viewport subscribes to pointer move events and computes a ray from screen space through the camera's view frustum using the inverse view-projection matrix. This ray is tested against all rendered geometry using Three.js's built-in raycaster, which performs bounding volume tests followed by triangle intersection tests for meshes.
+The selection system operates through continuous raycasting from pointer position into world space combined with custom hit testing for precise component identification. The viewport subscribes to pointer move events and computes a ray from screen space through the camera's view frustum using the inverse view-projection matrix. This ray is tested against rendered geometry using the hit-testing routines in `client/src/geometry/hitTest.ts`, which combine ray/triangle tests with screen-space tolerances.
 
 Object intersection returns an array of intersection results sorted by distance from the camera, where each result includes the intersected object, intersection point in world space, and distance along the ray. The selection logic filters these results to find the nearest selectable object, considering visibility flags and layer settings that may hide geometry from selection. The filtering ensures that hidden or locked geometry does not interfere with selection of visible objects.
 
@@ -124,7 +124,7 @@ Session completion applies the final transformation to the original geometry thr
 
 Box selection enables selecting multiple objects or components by dragging a marquee rectangle across the viewport. The selection begins when the user presses the left mouse button with no gizmo handle active and no modifier keys held. The viewport captures the initial screen position and enters box selection mode.
 
-During drag, the viewport renders a semi-transparent rectangle from the start position to the current pointer position using the Html overlay component from react-three-fiber. This overlay provides immediate visual feedback showing the selection region. The rectangle boundary is drawn using CSS borders and background color with reduced opacity.
+During drag, the viewport renders a semi-transparent rectangle from the start position to the current pointer position using a screen-space overlay in the panel. This overlay provides immediate visual feedback showing the selection region. The rectangle boundary is drawn using CSS borders and background color with reduced opacity.
 
 On release, the viewport projects the screen-space rectangle into 3D space by constructing rays from the four corners and intersecting those rays with the construction plane. These four intersection points define a 3D quadrilateral representing the selection region. The viewport then tests which geometry elements fall within or cross this quadrilateral.
 

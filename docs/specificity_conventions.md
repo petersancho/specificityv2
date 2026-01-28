@@ -10,7 +10,7 @@ Utility functions are extracted to dedicated files when they serve multiple comp
 
 ## Naming Conventions
 
-Naming follows patterns that make purpose and scope immediately clear. Component files use PascalCase matching the exported component name, such as ViewerCanvas.tsx or ModelerSection.tsx. Utility files and non-component modules use camelCase, such as registry.ts or vectorUtils.ts. Type definition files use camelCase with a descriptive suffix, such as types.ts or geometryTypes.ts.
+Naming follows patterns that make purpose and scope immediately clear. Component files use PascalCase matching the exported component name, such as WebGLViewerCanvas.tsx or ModelerSection.tsx. Utility files and non-component modules use camelCase, such as registry.ts or vectorUtils.ts. Type definition files use camelCase with a descriptive suffix, such as types.ts or geometryTypes.ts.
 
 Variables and functions use camelCase for local scope and for module exports. Constants use SCREAMING_SNAKE_CASE when they represent truly immutable configuration values, such as AXIS_HIT_RADIUS_MULTIPLIER or DEFAULT_GRID_SPACING. Constants that are merely initialized once but conceptually variable use camelCase, such as commandRegistry or defaultCameraState.
 
@@ -46,7 +46,7 @@ The store exposes selectors for common queries to avoid duplicating selection lo
 
 ## WebGL and Rendering Patterns
 
-The application uses WebGL through Three.js to maintain direct control over the rendering pipeline and GPU resource management. Rendering code maintains explicit control over vertex buffers, shader programs, and rendering state to ensure optimal performance and visual quality. Custom shaders are written in GLSL and loaded as string resources, with shader compilation and linking handled explicitly during initialization.
+The application uses a custom WebGL renderer to maintain direct control over the rendering pipeline and GPU resource management. Rendering code maintains explicit control over vertex buffers, shader programs, and rendering state to ensure optimal performance and visual quality. Custom shaders are written in GLSL and loaded as string resources, with shader compilation and linking handled explicitly during initialization. Three.js is used selectively for math helpers and primitive mesh generation.
 
 Vertex buffer management follows a pattern of creating buffer geometry objects, populating them with typed arrays for position, normal, and UV attributes, and maintaining references to these buffers for efficient updates. When geometry changes, the rendering system updates buffer contents rather than recreating buffers when possible, reducing GPU memory allocation overhead. Index buffers are used for triangle meshes to reduce vertex duplication and improve cache performance.
 
@@ -54,19 +54,19 @@ Shader programs are organized by geometry type and rendering mode. Selection hig
 
 Material systems manage shader uniforms for lighting parameters, camera matrices, and geometry-specific data. The rendering pipeline maintains a material cache that reuses shader programs across multiple geometry instances, reducing state changes and draw call overhead. Uniform updates are batched when possible to minimize CPU-GPU synchronization points.
 
-Component props are defined through TypeScript interfaces that appear immediately before the component implementation. Prop interfaces use descriptive names that combine the component name with Props, such as ViewerCanvasProps or GizmoProps. Required props appear first in the interface, followed by optional props. Callback props use on-prefix naming like onClick or onDragStart.
+Component props are defined through TypeScript interfaces that appear immediately before the component implementation. Prop interfaces use descriptive names that combine the component name with Props, such as WebGLViewerCanvasProps or GizmoProps. Required props appear first in the interface, followed by optional props. Callback props use on-prefix naming like onClick or onDragStart.
 
 Components that subscribe to Zustand store state do so directly within the component body using the useProjectStore hook with selectors. Components avoid passing store state down through props when child components can subscribe directly. This pattern reduces prop drilling and ensures components only re-render when their specific state slice changes.
 
 Local component state uses the useState hook for simple values and useReducer for complex state machines. Local state is preferred over store state when the state is truly component-local and does not need to persist beyond component unmount or affect other parts of the application. Examples include animation state, hover indicators, and local form inputs before submission.
 
-Effects are used sparingly and primarily for synchronizing with external systems like DOM APIs, Three.js objects, or browser events. Effects that add event listeners clean up those listeners in the cleanup function. Effects avoid unnecessary dependencies by using functional updates for state setters and by extracting stable references for callback functions.
+Effects are used sparingly and primarily for synchronizing with external systems like DOM APIs, WebGL resources, or browser events. Effects that add event listeners clean up those listeners in the cleanup function. Effects avoid unnecessary dependencies by using functional updates for state setters and by extracting stable references for callback functions.
 
-Refs are used to hold mutable values that do not trigger re-renders, such as Three.js objects, timeout handles, or previous props for comparison. Refs are also used for accessing DOM elements when imperative operations are necessary, such as focusing inputs or measuring dimensions. The pattern of using refs for session data during interactions is preferred over storing that data in state.
+Refs are used to hold mutable values that do not trigger re-renders, such as WebGL handles, timeout handles, or previous props for comparison. Refs are also used for accessing DOM elements when imperative operations are necessary, such as focusing inputs or measuring dimensions. The pattern of using refs for session data during interactions is preferred over storing that data in state.
 
-## ETO.forms Canvas Editor Patterns
+## Numerica Canvas Editor Patterns
 
-The ETO.forms node editor uses canvas-based immediate-mode rendering where the entire graph is redrawn each frame based on current state. This rendering model differs fundamentally from retained-mode DOM approaches and requires careful management of rendering state and interaction handling. The canvas rendering loop runs at 60 frames per second when the graph is animating and drops to lower frame rates or pauses entirely when the graph is static to conserve resources.
+The Numerica node editor uses canvas-based immediate-mode rendering where the entire graph is redrawn each frame based on current state. This rendering model differs fundamentally from retained-mode DOM approaches and requires careful management of rendering state and interaction handling. The canvas rendering loop runs at 60 frames per second when the graph is animating and drops to lower frame rates or pauses entirely when the graph is static to conserve resources.
 
 The rendering pipeline organizes drawing operations into layers that execute in a specific order. The background layer draws the grid pattern and workspace background. The connection layer draws bezier curves representing edges between nodes. The node layer draws node backgrounds, borders, labels, and parameter controls. The overlay layer draws selection indicators, drag previews, and interaction feedback. This layered approach ensures proper visual ordering without requiring explicit z-index management.
 

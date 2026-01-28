@@ -66,9 +66,9 @@ Implementation outline:
 
 ## Click Interaction Workflow Architecture
 
-The ViewerCanvas is the interaction orchestrator. It routes pointer events into raycasts, hit testing, and command or selection actions without mutating geometry directly.
+The WebGLViewerCanvas is the interaction orchestrator. It routes pointer events into raycasts, hit testing, and command or selection actions without mutating geometry directly.
 
-### Pointer Event Flow in ViewerCanvas
+### Pointer Event Flow in WebGLViewerCanvas
 
 Implementation outline:
 - Register `pointerdown`, `pointermove`, `pointerup`, and `contextmenu` listeners on the canvas.
@@ -161,4 +161,3 @@ Implementation outline:
 - Polylines become line buffers, NURBS curves and surfaces are tessellated.
 - Meshes generate edge lists for outline rendering.
 - Display modes orchestrate shaded, edges, ghosted, and wireframe passes.
-

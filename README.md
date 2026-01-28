@@ -1,41 +1,29 @@
 # Specificity
 
-Specificity is a custom parametric design environment that combines direct 3D
-modeling with visual programming in a dual-panel workspace:
+Specificity is a custom parametric design environment that pairs direct 3D
+modeling (Roslyn) with a visual programming canvas (Numerica). Both panels share
+one Zustand store so geometry, selection, and workflows stay in sync.
 
-- Roslyn: the WebGL 3D modeling panel.
-- Numerica: the canvas-based node graph panel.
+## Highlights
 
-Both panels share a single Zustand store so geometry, selection, and workflows
-stay in sync.
-
-## What Roslyn and Numerica Do
-
-Roslyn focuses on direct interaction: command-driven geometry creation,
-selection (object and component), and transform workflows through a custom
-gizmo and WebGL renderer.
-
-Numerica provides the same modeling power through nodes and edges. The workflow
-engine uses pull-based lazy evaluation with caching, and node types mirror the
-command system so direct and parametric workflows align.
-
-## Architecture Highlights
-
+- Dual-panel workspace: WebGL modeler + canvas-based workflow editor.
 - Custom geometry kernel in TypeScript (no external CAD library).
-- WebGL-first rendering pipeline for viewport and UI surfaces.
-- Canvas-based node editor with immediate-mode rendering patterns.
-- Centralized state model in Zustand, with history/undo integration.
-- Command registry + node registry designed to stay in lockstep.
+- Raw WebGL renderer with custom GLSL shaders; Three.js used for math and
+  primitive mesh generation.
+- Command system and node system designed to stay aligned.
+- Unified state management with history/undo across modeling and workflow.
 
 ## Repository Structure
 
 - `client/`: Vite + React + TypeScript application (Roslyn + Numerica).
 - `server/`: Express + Socket.IO backend for persistence and project I/O.
-- `docs/`: architecture, conventions, command/node references, and specs.
+- `docs/`: architecture, conventions, specs, and references.
 
-Key entry points include `client/src/App.tsx`, `client/src/components/ModelerSection.tsx`,
-`client/src/components/WebGLViewerCanvas.tsx`, `client/src/components/workflow/WorkflowSection.tsx`,
-and `client/src/store/useProjectStore.ts`.
+Key entry points include `client/src/App.tsx`,
+`client/src/components/ModelerSection.tsx`,
+`client/src/components/WebGLViewerCanvas.tsx`,
+`client/src/components/workflow/WorkflowSection.tsx`, and
+`client/src/store/useProjectStore.ts`.
 
 ## Getting Started
 
@@ -85,23 +73,11 @@ CLIENT_PORT=5173
 - `CLIENT_PORT` sets the Vite dev server port.
 - Optional overrides: `VITE_API_BASE_URL` and `VITE_SOCKET_URL`.
 
-## Documentation Map
+## Documentation
 
-Start here:
+Start with `docs/README.md` for the full documentation map. Core references:
 
 - Overview: `docs/specificity_readme.md`
 - Architecture: `docs/specificity_architecture.md`
 - Conventions: `docs/specificity_conventions.md`
-- Subsystems: `docs/subsystems_guide.md`
-
-Command and node alignment:
-
-- Commands + nodes reference: `docs/commands_nodes_reference.md`
-- Numerica spec: `docs/numerica_technical_spec.md`
-- Panel UI spec: `docs/panel_ui_specification.md`
-
-Rendering and geometry specs:
-
-- Rendering style: `docs/webgl_rendering_style.md`
-- Geometry math: `docs/geometry_mathematics_spec.md`
-- NURBS workflow: `docs/nurbs_workflow_spec.md`
+- AI agent notes: `docs/ai_agent_guide.md`

@@ -4,7 +4,9 @@
 
 The Specificity modeling environment provides two complementary interaction paradigms for creating and manipulating geometry. The Roslyn panel offers direct manipulation through geometry commands that create primitives, curves, and surfaces, plus perform commands that execute transformations and modifications on selected geometry. The Numerica panel provides equivalent functionality through computational nodes that can be wired into parametric graphs for procedural modeling workflows.
 
-Every geometry creation and modification operation in Roslyn has a corresponding node type in Numerica, ensuring that users can choose between direct interactive modeling and parametric procedural approaches based on their workflow requirements. The command system integrates with ETO.forms-style input prompts that appear when commands require coordinate input, enabling precise numeric entry while maintaining the fluidity of interactive modeling. All geometry created through either commands or nodes renders through the WebGL pipeline using custom shaders that provide consistent visual quality and selection highlighting.
+Every geometry creation and modification operation in Roslyn has a corresponding node type in Numerica, ensuring that users can choose between direct interactive modeling and parametric procedural approaches based on their workflow requirements. The command system integrates with command bar input prompts that appear when commands require coordinate input, enabling precise numeric entry while maintaining the fluidity of interactive modeling. All geometry created through either commands or nodes renders through the WebGL pipeline using custom shaders that provide consistent visual quality and selection highlighting.
+
+In this reference, "command prompt" refers to the Roslyn command bar input area and any associated parameter controls that appear for an active command.
 
 The transform gumball serves as the primary direct manipulation tool for geometry modification, providing intuitive visual handles for translation, rotation, and scaling operations. The gumball appears automatically when geometry is selected and adapts its appearance based on the current selection mode and active manipulation. Understanding how to leverage the gumball effectively accelerates modeling workflows by reducing the need for explicit transform commands while maintaining precision through snap behavior and numeric input during manipulation.
 
@@ -14,7 +16,7 @@ The transform gumball serves as the primary direct manipulation tool for geometr
 
 The Point command creates isolated vertex geometry at specified locations in 3D space. When invoked, the command enters point placement mode where the viewport captures pointer clicks on the construction plane to define point positions. Each click creates a new vertex at the intersection of the pointer ray with the construction plane, with snapping active to enable precise alignment with grid intersections, existing geometry vertices, or computed snap points like midpoints and intersections.
 
-The command accepts numeric coordinate input through the ETO.forms prompt that appears at the bottom of the Roslyn panel. The prompt displays three input fields labeled X, Y, and Z that accept floating-point values. As the user types coordinates, the preview rendering updates to show a semi-transparent vertex at the specified position. Pressing Enter commits the point at the typed coordinates, while pressing Escape cancels the command and returns to normal selection mode.
+The command accepts numeric coordinate input through the command prompt that appears at the bottom of the Roslyn panel. The prompt displays three input fields labeled X, Y, and Z that accept floating-point values. As the user types coordinates, the preview rendering updates to show a semi-transparent vertex at the specified position. Pressing Enter commits the point at the typed coordinates, while pressing Escape cancels the command and returns to normal selection mode.
 
 Multiple points can be created in a single command invocation by continuing to click after the first point is created. The command remains active until the user explicitly exits by pressing Escape or by switching to a different command. Each created point becomes a separate geometry record in the store with its own unique identifier, enabling independent selection and manipulation.
 
@@ -28,7 +30,7 @@ The WebGL rendering pipeline displays points as small sphere instances using a c
 
 ### Line Command
 
-The Line command creates polyline geometry consisting of two vertices connected by a single straight edge. The command requires two point inputs that define the line's endpoints. When invoked, the command prompts for the first point through the standard ETO.forms coordinate prompt. After the first point is established, the viewport renders a preview line from the first point to the current pointer position, updating in real time as the pointer moves.
+The Line command creates polyline geometry consisting of two vertices connected by a single straight edge. The command requires two point inputs that define the line's endpoints. When invoked, the command prompts for the first point through the standard command coordinate prompt. After the first point is established, the viewport renders a preview line from the first point to the current pointer position, updating in real time as the pointer moves.
 
 The preview line renders using the WebGL line shader with reduced opacity to distinguish it from committed geometry. The shader implements screen-space anti-aliasing to ensure smooth line appearance regardless of line orientation or zoom level. When the user confirms the second point by clicking or typing coordinates, the command creates a polyline geometry record with two vertices and one edge, then commits this record to the store.
 
@@ -48,7 +50,7 @@ The Polyline command creates connected sequences of line segments by collecting 
 
 The polyline geometry can be closed into a loop by clicking on the first vertex or by pressing the C key while the command is active. Closing the polyline sets the closed flag in the geometry record and renders a final edge connecting the last vertex back to the first vertex. Closed polylines serve as profiles for extrusion operations and as boundary definitions for surface creation commands.
 
-The ETO.forms prompt displays the current vertex count and provides a toggle checkbox for the closed state. Users can type coordinates for precise vertex placement or rely on pointer interaction for freeform sketching. The Tab key cycles through recent snap suggestions when multiple snap candidates exist at similar distances from the pointer.
+The command prompt displays the current vertex count and provides a toggle checkbox for the closed state. Users can type coordinates for precise vertex placement or rely on pointer interaction for freeform sketching. The Tab key cycles through recent snap suggestions when multiple snap candidates exist at similar distances from the pointer.
 
 Polyline geometry renders through the WebGL pipeline using the line shader with vertex buffer updates occurring as new vertices are added during command execution. The rendering system maintains an efficient update strategy that appends new vertex data to existing buffers rather than recreating the entire buffer for each vertex addition. This incremental update approach ensures smooth interactive performance even when creating polylines with hundreds of vertices.
 
@@ -64,7 +66,7 @@ The Rectangle command creates a closed rectangular polyline aligned with the con
 
 The rectangle preview renders using semi-transparent fills to show the enclosed area plus edge lines that highlight the rectangle boundary. The WebGL rendering uses a simple fragment shader that applies transparency to the fill color while maintaining full opacity for the edge strokes. This dual rendering approach helps users understand the rectangle's extent and orientation before committing.
 
-The rectangle creation supports dimension constraints through the ETO.forms prompt. After establishing the first corner, the prompt displays Width and Height input fields that accept numeric values. Typing a width value constrains the rectangle's horizontal dimension while the pointer continues to control vertical dimension. Once both width and height are specified, the rectangle dimensions become fixed and the pointer only controls the rectangle's orientation and whether it extends in positive or negative directions from the first corner.
+The rectangle creation supports dimension constraints through the command prompt. After establishing the first corner, the prompt displays Width and Height input fields that accept numeric values. Typing a width value constrains the rectangle's horizontal dimension while the pointer continues to control vertical dimension. Once both width and height are specified, the rectangle dimensions become fixed and the pointer only controls the rectangle's orientation and whether it extends in positive or negative directions from the first corner.
 
 The committed rectangle geometry is stored as a closed polyline with four vertices corresponding to the rectangle corners. The vertex order follows a consistent winding pattern that proceeds counterclockwise when viewed from the construction plane's normal direction. This consistent winding enables downstream operations like extrusion to reliably determine inside and outside faces.
 
@@ -80,7 +82,7 @@ The Circle command creates a NURBS curve geometry representing a perfect circle 
 
 The circle preview uses the WebGL line shader to render a tessellated approximation of the circle curve. The tessellation uses enough segments to appear smooth at the current zoom level, with automatic detail adjustment as the camera zooms in or out. The tessellation system monitors viewport changes and regenerates the preview geometry when screen-space curvature error exceeds the threshold.
 
-The ETO.forms prompt provides a Radius input field for numeric entry of the circle size. The radius value updates in real time as the user moves the pointer, displaying the current distance from the center point. Users can type a specific radius value to create circles of exact dimensions, or can rely on visual feedback for approximate sizing. The prompt also includes a Diameter field that shows twice the radius value and accepts input as an alternative to radius specification.
+The command prompt provides a Radius input field for numeric entry of the circle size. The radius value updates in real time as the user moves the pointer, displaying the current distance from the center point. Users can type a specific radius value to create circles of exact dimensions, or can rely on visual feedback for approximate sizing. The prompt also includes a Diameter field that shows twice the radius value and accepts input as an alternative to radius specification.
 
 The committed circle geometry is stored as a rational NURBS curve with control points and weights configured to represent a mathematically exact circular arc. The NURBS representation uses nine control points with specific weight values that ensure the curve evaluates to perfect circular positions at all parameter values. This exact representation enables precise Boolean operations, offsetting, and intersection calculations that would be compromised by polygonal approximations.
 
@@ -98,7 +100,7 @@ After the start point is established, the preview shows a straight line from sta
 
 The WebGL rendering tessellates the preview arc using adaptive sampling based on the arc's radius and sweep angle. Small-radius arcs with large sweep angles require more tessellation segments than large-radius arcs with small sweeps. The tessellation system computes segment count based on screen-space deviation to ensure smooth appearance without excessive vertex counts.
 
-The ETO.forms prompt displays the computed arc radius, sweep angle in degrees, and arc length in model units. These derived parameters update as the third point moves, providing feedback about the arc's geometric properties. Users can switch to numeric input mode where the prompt accepts radius and angle specifications instead of requiring a third point, enabling precise arc creation from known parameters.
+The command prompt displays the computed arc radius, sweep angle in degrees, and arc length in model units. These derived parameters update as the third point moves, providing feedback about the arc's geometric properties. Users can switch to numeric input mode where the prompt accepts radius and angle specifications instead of requiring a third point, enabling precise arc creation from known parameters.
 
 **Command Aliases:** arc, a
 
@@ -112,7 +114,7 @@ The Curve command creates NURBS curve geometry through an arbitrary collection o
 
 The command begins by prompting for the first point, then enters collection mode where subsequent clicks add more points to the curve definition. The preview rendering shows the curve shape updating in real time as points are added. For interpolated curves, the preview passes through all collected points. For approximated curves, the preview shows a smooth curve influenced by the control points but not necessarily passing through them.
 
-The ETO.forms prompt includes a Degree dropdown that controls the polynomial degree of the resulting NURBS curve. Degree three provides smooth cubic curves appropriate for most modeling tasks. Higher degrees enable more complex curve shapes with fewer control points, while degree one creates polylines. The prompt also includes an Interpolate checkbox that toggles between interpolation and approximation modes.
+The command prompt includes a Degree dropdown that controls the polynomial degree of the resulting NURBS curve. Degree three provides smooth cubic curves appropriate for most modeling tasks. Higher degrees enable more complex curve shapes with fewer control points, while degree one creates polylines. The prompt also includes an Interpolate checkbox that toggles between interpolation and approximation modes.
 
 The curve geometry is stored as a NURBS curve record with control points, knot vector, degree specification, and optional weights for rational curves. The knot vector is computed automatically based on the chosen curve type and degree, using uniform knots for approximated curves and chord-length parameterization for interpolated curves. This automatic knot vector computation relieves users from managing low-level NURBS mathematics while ensuring valid curve definitions.
 
@@ -130,7 +132,7 @@ The Box command creates a six-faced solid by defining two opposite corners of a 
 
 When invoked, the command prompts for the first corner point that anchors one corner of the base rectangle. The preview shows a rectangular outline updating as the pointer moves. After the second corner is confirmed, the base rectangle becomes fixed and the preview transitions to showing a three-dimensional box extruding from the base toward the pointer position. The box height adjusts in real time as the pointer moves perpendicular to the construction plane.
 
-The ETO.forms prompt displays dimension fields for Length, Width, and Height that correspond to the box's extents along the construction plane's U and V axes and its normal direction. Users can type specific dimension values to create boxes of exact proportions, or can rely on visual feedback for approximate sizing. The prompt includes a Center toggle that changes the creation mode from corner-to-corner to center-outward, where the first point defines the box center rather than a corner.
+The command prompt displays dimension fields for Length, Width, and Height that correspond to the box's extents along the construction plane's U and V axes and its normal direction. Users can type specific dimension values to create boxes of exact proportions, or can rely on visual feedback for approximate sizing. The prompt includes a Center toggle that changes the creation mode from corner-to-corner to center-outward, where the first point defines the box center rather than a corner.
 
 The box geometry is stored as a mesh record containing vertex positions, face definitions referencing vertex indices, and normal vectors for lighting calculations. The mesh uses indexed triangle representation where each face is decomposed into two triangles sharing a diagonal edge. This triangulation is consistent across all faces to ensure proper backface culling and lighting behavior during WebGL rendering.
 
@@ -148,7 +150,7 @@ The Sphere command creates a NURBS surface geometry representing a perfect spher
 
 The preview rendering shows a tessellated mesh approximation of the sphere that updates as the radius changes. The tessellation uses a latitude-longitude parameterization with adaptive resolution based on the sphere radius and viewport zoom level. Small spheres or distant views use coarser tessellation to conserve vertex processing, while large spheres or close views use finer tessellation to maintain smooth appearance.
 
-The ETO.forms prompt provides Radius and Diameter input fields for numeric size specification. The prompt also includes UV Resolution fields that control the tessellation density for the final committed geometry. Higher resolution values produce smoother appearance at the cost of increased vertex count and rendering overhead. The default resolution provides good balance between quality and performance for typical modeling tasks.
+The command prompt provides Radius and Diameter input fields for numeric size specification. The prompt also includes UV Resolution fields that control the tessellation density for the final committed geometry. Higher resolution values produce smoother appearance at the cost of increased vertex count and rendering overhead. The default resolution provides good balance between quality and performance for typical modeling tasks.
 
 The sphere NURBS surface uses a specific control point layout with nine control points in the U direction and seven in the V direction, with rational weights configured to ensure exact spherical evaluation. This standard NURBS sphere representation enables precise Boolean operations, intersection calculations, and surface analysis that would be compromised by tessellated mesh approximations. The parametric nature also supports texture mapping with predictable UV coordinates that wrap around the sphere without distortion.
 
@@ -162,7 +164,7 @@ The sphere NURBS surface uses a specific control point layout with nine control 
 
 The Cylinder command creates a NURBS surface geometry representing a cylindrical surface defined by a base circle and a height. The command requires a center point for the base circle, a radius specification, and a height value that determines how far the cylinder extends perpendicular to the construction plane. The resulting surface is a ruled surface generated by sweeping the circular profile along a straight path.
 
-The command flow begins with center point placement, transitions to radius definition with a circular preview, and concludes with height specification showing a three-dimensional cylindrical preview. Each step provides ETO.forms prompts for numeric input while maintaining interactive visual feedback. The preview uses semi-transparent rendering to show both the cylindrical surface and the circular profiles at top and bottom.
+The command flow begins with center point placement, transitions to radius definition with a circular preview, and concludes with height specification showing a three-dimensional cylindrical preview. Each step provides command prompts for numeric input while maintaining interactive visual feedback. The preview uses semi-transparent rendering to show both the cylindrical surface and the circular profiles at top and bottom.
 
 The committed cylinder geometry is stored as an extrusion record that references a circular NURBS curve as the profile and a linear path representing the height vector. This extrusion representation maintains the parametric definition rather than converting to an explicit NURBS surface, preserving the ability to edit the profile curve or path independently. The WebGL rendering evaluates the extrusion on demand, generating tessellated mesh geometry for display while keeping the parametric definition intact in the store.
 
@@ -178,9 +180,9 @@ The tessellation system for cylinders uses a special case optimization that reco
 
 The Extrude command creates surface geometry by sweeping a profile curve along a path, or by projecting a planar profile a specified distance perpendicular to its plane. The command operates on selected curve geometry, requiring at least one curve to be selected before invocation. When invoked with a single selected curve, the command enters linear extrusion mode where the curve projects perpendicular to its plane. When invoked with two selected curves, the command uses the first as profile and the second as path.
 
-For linear extrusion, the ETO.forms prompt displays a Distance field that accepts the extrusion length. The preview renders a semi-transparent surface showing how the profile sweeps along the extrusion direction. The extrusion direction is determined by the construction plane normal at the profile curve's location, ensuring predictable extrusion behavior aligned with the modeling plane.
+For linear extrusion, the command prompt displays a Distance field that accepts the extrusion length. The preview renders a semi-transparent surface showing how the profile sweeps along the extrusion direction. The extrusion direction is determined by the construction plane normal at the profile curve's location, ensuring predictable extrusion behavior aligned with the modeling plane.
 
-For path-based extrusion, the preview shows the profile sweeping along the path curve with orientation controlled by a framing algorithm that minimizes twisting. The ETO.forms prompt includes a Twist field that adds rotational variation along the path, specified in degrees per unit length. The prompt also includes a Scale field that controls how the profile size varies along the path, with values less than one creating tapered extrusions.
+For path-based extrusion, the preview shows the profile sweeping along the path curve with orientation controlled by a framing algorithm that minimizes twisting. The command prompt includes a Twist field that adds rotational variation along the path, specified in degrees per unit length. The prompt also includes a Scale field that controls how the profile size varies along the path, with values less than one creating tapered extrusions.
 
 The extrusion geometry is stored as an extrusion record containing references to the profile curve identifier and optionally the path curve identifier, plus extrusion parameters like distance, twist, and scale. The WebGL rendering evaluates extrusions by sampling both profile and path at corresponding parameters, constructing transformation matrices that position and orient the profile at each path location, and generating triangle mesh geometry that approximates the swept surface.
 
@@ -198,7 +200,7 @@ The Move command translates selected geometry by a specified displacement vector
 
 The preview rendering shows the selected geometry at its new position with semi-transparent rendering to distinguish preview from committed geometry. The original geometry remains visible at its current position until the move is confirmed, providing clear visual feedback about the transformation being applied. The WebGL rendering maintains separate vertex buffers for original and preview geometry to enable efficient updates as the target point changes during interactive movement.
 
-The ETO.forms prompt displays the computed displacement vector in X, Y, and Z components. Users can type specific displacement values directly rather than clicking base and target points, enabling precise movements by known distances. The prompt includes a Copy checkbox that changes the move operation to copy-and-move, leaving the original geometry in place while creating a new copy at the target position.
+The command prompt displays the computed displacement vector in X, Y, and Z components. Users can type specific displacement values directly rather than clicking base and target points, enabling precise movements by known distances. The prompt includes a Copy checkbox that changes the move operation to copy-and-move, leaving the original geometry in place while creating a new copy at the target position.
 
 The move operation updates geometry records by applying the displacement vector to all vertex positions, control points, or other positional data within each selected geometry element. For simple geometry like vertices and polylines, this update modifies position arrays directly. For NURBS curves and surfaces, the update modifies control point positions. For extrusions and other compound geometry, the update may modify transformation matrices or profile curves depending on the extrusion definition.
 
@@ -214,7 +216,7 @@ The Rotate command applies rotational transformation to selected geometry around
 
 The preview rendering shows selected geometry rotated to the current angle with the rotation axis visualized as a line through the scene. The geometry updates continuously as the angle changes, with the WebGL rendering applying rotation matrices to vertex positions during each frame. The rotation computation uses quaternion mathematics internally to avoid gimbal lock and ensure smooth interpolation, though the user interface presents rotation angles in familiar degree measurements.
 
-The ETO.forms prompt displays the rotation angle with increment controls that allow adjusting the angle by fixed amounts like fifteen or forty-five degrees. The prompt includes a Reference option that changes angle specification from absolute to relative, where the angle is measured from a reference direction defined by an additional point input. This reference-based rotation enables aligning geometry to match existing orientations.
+The command prompt displays the rotation angle with increment controls that allow adjusting the angle by fixed amounts like fifteen or forty-five degrees. The prompt includes a Reference option that changes angle specification from absolute to relative, where the angle is measured from a reference direction defined by an additional point input. This reference-based rotation enables aligning geometry to match existing orientations.
 
 The rotation operation constructs a transformation matrix from the axis and angle, then applies this matrix to geometry positions. For vertices and polylines, the operation transforms position arrays directly. For NURBS curves and surfaces, the operation transforms control points. The rotation preserves geometric properties like distances between points and angles between edges, ensuring that rotated geometry maintains its shape while changing its orientation.
 
@@ -230,7 +232,7 @@ The Scale command applies uniform or non-uniform scaling to selected geometry re
 
 The preview rendering shows selected geometry at its scaled size with visual feedback showing both the original and transformed positions. The WebGL rendering computes scaled positions by multiplying displacement vectors from the scale origin by the scale factors, ensuring that the origin point remains fixed while other points move radially outward for scale factors greater than one or inward for factors less than one.
 
-The ETO.forms prompt provides a Uniform Scale field for single-factor scaling and separate X Scale, Y Scale, and Z Scale fields for non-uniform scaling. The prompt toggles between uniform and non-uniform modes based on which fields receive input. When uniform scaling is active, the separate fields are disabled to prevent confusion. When non-uniform scaling is active, the uniform field is disabled and the three separate fields become active.
+The command prompt provides a Uniform Scale field for single-factor scaling and separate X Scale, Y Scale, and Z Scale fields for non-uniform scaling. The prompt toggles between uniform and non-uniform modes based on which fields receive input. When uniform scaling is active, the separate fields are disabled to prevent confusion. When non-uniform scaling is active, the uniform field is disabled and the three separate fields become active.
 
 The scaling operation constructs a transformation matrix from the scale origin and scale factors, then applies this matrix to geometry positions. The matrix includes both the scaling transformation and the translations needed to ensure scaling occurs relative to the specified origin rather than the world origin. For NURBS geometry, scaling affects control points while preserving the knot vector and degree, maintaining the parametric structure of the curves and surfaces.
 
@@ -246,7 +248,7 @@ The Mirror command creates mirrored copies of selected geometry across a specifi
 
 The preview rendering shows the mirrored geometry on the opposite side of the mirror plane, with the original geometry remaining visible. The WebGL rendering computes mirrored positions by reflecting points across the plane using the standard reflection formula that involves projecting points onto the plane then continuing an equal distance on the opposite side.
 
-The ETO.forms prompt displays the plane origin and normal vector components. The prompt includes shortcuts for common mirror planes like XY, YZ, and ZX planes aligned with the world coordinate system. Selecting one of these shortcuts automatically sets the plane origin to the world origin and the normal to the appropriate axis direction, simplifying the workflow for symmetrical modeling tasks.
+The command prompt displays the plane origin and normal vector components. The prompt includes shortcuts for common mirror planes like XY, YZ, and ZX planes aligned with the world coordinate system. Selecting one of these shortcuts automatically sets the plane origin to the world origin and the normal to the appropriate axis direction, simplifying the workflow for symmetrical modeling tasks.
 
 The mirror operation constructs a reflection matrix from the plane definition, applies this matrix to generate mirrored geometry, and creates new geometry records for the mirrored copies. The original geometry remains unchanged, with the mirrored copies receiving new unique identifiers. For closed curves and surfaces, the mirror operation reverses winding order to maintain proper inside-outside orientation after reflection.
 
@@ -258,13 +260,13 @@ The mirror operation constructs a reflection matrix from the plane definition, a
 
 ### Array Command
 
-The Array command creates multiple copies of selected geometry arranged in linear, rectangular, or polar patterns. The command supports three array types selectable through the ETO.forms prompt. Linear arrays distribute copies along a direction vector with specified spacing and count. Rectangular arrays distribute copies in a grid pattern with independent spacing and counts for two perpendicular directions. Polar arrays distribute copies around a circular arc with specified angle increment and count.
+The Array command creates multiple copies of selected geometry arranged in linear, rectangular, or polar patterns. The command supports three array types selectable through the command prompt. Linear arrays distribute copies along a direction vector with specified spacing and count. Rectangular arrays distribute copies in a grid pattern with independent spacing and counts for two perpendicular directions. Polar arrays distribute copies around a circular arc with specified angle increment and count.
 
-For linear arrays, the command prompts for a direction vector and spacing distance. The preview shows copies positioned at integer multiples of the spacing vector. The ETO.forms prompt displays Count and Spacing fields plus direction vector components. The spacing can be specified as distance along the direction vector or as the total extent divided by count, with the prompt toggling between these modes.
+For linear arrays, the command prompts for a direction vector and spacing distance. The preview shows copies positioned at integer multiples of the spacing vector. The command prompt displays Count and Spacing fields plus direction vector components. The spacing can be specified as distance along the direction vector or as the total extent divided by count, with the prompt toggling between these modes.
 
-For rectangular arrays, the command prompts for two direction vectors defining the array axes and spacing values for each direction. The preview shows a grid of copies. The ETO.forms prompt displays X Count, X Spacing, Y Count, and Y Spacing fields. The directions default to the construction plane U and V axes but can be customized through vector input.
+For rectangular arrays, the command prompts for two direction vectors defining the array axes and spacing values for each direction. The preview shows a grid of copies. The command prompt displays X Count, X Spacing, Y Count, and Y Spacing fields. The directions default to the construction plane U and V axes but can be customized through vector input.
 
-For polar arrays, the command prompts for a center point, rotation axis direction, and angle increment. The preview shows copies distributed around the arc. The ETO.forms prompt displays Center, Axis, Count, and Angle fields. The total rotation angle is computed as count times angle increment, with the prompt showing both the increment and total angle for reference.
+For polar arrays, the command prompts for a center point, rotation axis direction, and angle increment. The preview shows copies distributed around the arc. The command prompt displays Center, Axis, Count, and Angle fields. The total rotation angle is computed as count times angle increment, with the prompt showing both the increment and total angle for reference.
 
 **Command Aliases:** array, arr
 
@@ -276,9 +278,9 @@ For polar arrays, the command prompts for a center point, rotation axis directio
 
 The Offset command creates parallel copies of curves or surfaces at a specified distance from the original geometry. For planar curves, the offset direction is determined by the curve's plane normal and whether the offset is inward or outward. For 3D curves, the offset requires a direction vector specification. For surfaces, the offset occurs along surface normal directions.
 
-When invoked with selected curve geometry, the command prompts for an offset distance. The preview shows the offset curve updating as the distance changes. For closed curves, the offset can occur inward or outward, with the direction determined by the sign of the distance value. Positive distances offset outward while negative distances offset inward. The ETO.forms prompt includes directional buttons that flip the offset direction by negating the distance value.
+When invoked with selected curve geometry, the command prompts for an offset distance. The preview shows the offset curve updating as the distance changes. For closed curves, the offset can occur inward or outward, with the direction determined by the sign of the distance value. Positive distances offset outward while negative distances offset inward. The command prompt includes directional buttons that flip the offset direction by negating the distance value.
 
-The offset operation uses geometric algorithms that compute parallel curves or surfaces while handling corner treatment for polylines and trim boundaries for surfaces. For polylines, sharp corners can result in offset segments that extend beyond adjacent segments, requiring fillet or chamfer operations to close gaps. The ETO.forms prompt includes a Corner Treatment dropdown with options for Sharp, Filleted, and Chamfered corners.
+The offset operation uses geometric algorithms that compute parallel curves or surfaces while handling corner treatment for polylines and trim boundaries for surfaces. For polylines, sharp corners can result in offset segments that extend beyond adjacent segments, requiring fillet or chamfer operations to close gaps. The command prompt includes a Corner Treatment dropdown with options for Sharp, Filleted, and Chamfered corners.
 
 The WebGL rendering displays offset curves and surfaces alongside original geometry, with preview rendering showing the offset result in semi-transparent form during command execution. For NURBS curves, the offset operation generates new NURBS curves with modified control points computed to approximate the offset shape within tolerance. The tolerance value controls how closely the offset curve matches the ideal parallel curve, with tighter tolerances requiring more control points.
 
@@ -292,7 +294,7 @@ The WebGL rendering displays offset curves and surfaces alongside original geome
 
 The Trim command removes portions of curves or surfaces based on intersection with other geometry. The command requires two selections - cutting objects that define trim boundaries and objects to be trimmed. When invoked, the command first prompts to select cutting objects, then prompts to select objects to trim. The intersections between cutting and trimmed objects define the trim boundaries.
 
-After selections are made, the command displays the trimmed objects with portions to be removed highlighted. Clicking on a portion toggles whether it will be kept or removed, enabling interactive selection of which pieces to retain. The ETO.forms prompt shows the number of trim regions detected and provides Keep and Remove buttons that apply to the currently highlighted region.
+After selections are made, the command displays the trimmed objects with portions to be removed highlighted. Clicking on a portion toggles whether it will be kept or removed, enabling interactive selection of which pieces to retain. The command prompt shows the number of trim regions detected and provides Keep and Remove buttons that apply to the currently highlighted region.
 
 For curve trimming, the operation splits curves at intersection points and removes curve segments based on user selection. For surface trimming, the operation creates trim curves in the surface parameter space and marks regions of the surface as inactive, rendering them invisible without actually deleting the underlying parametric surface. This trim curve approach preserves the original surface definition while controlling which portions display.
 
@@ -308,9 +310,9 @@ The WebGL rendering handles trimmed surfaces by testing fragment positions again
 
 The Split command divides curves or surfaces into separate pieces at specified locations without removing any geometry. For curves, split locations can be parameter values or intersection points with other geometry. For surfaces, split locations are typically curves on the surface or isoparametric lines at constant U or V values.
 
-When invoked with selected curve geometry, the command prompts for split points through pointer clicks on the curve or through parameter value entry in the ETO.forms prompt. Each split point is marked with a visual indicator on the preview curve. After all split points are specified, confirming the command divides the curve into separate curve segments at each split location, creating new geometry records for each segment.
+When invoked with selected curve geometry, the command prompts for split points through pointer clicks on the curve or through parameter value entry in the command prompt. Each split point is marked with a visual indicator on the preview curve. After all split points are specified, confirming the command divides the curve into separate curve segments at each split location, creating new geometry records for each segment.
 
-For surface splitting, the command requires definition of split curves either through selecting existing curves that lie on the surface or through specification of isoparametric values. The preview shows the surface with split curves highlighted and indicates which surface regions will become separate objects after splitting. The ETO.forms prompt displays the split curve count and provides options for splitting along U or V isoparametric directions.
+For surface splitting, the command requires definition of split curves either through selecting existing curves that lie on the surface or through specification of isoparametric values. The preview shows the surface with split curves highlighted and indicates which surface regions will become separate objects after splitting. The command prompt displays the split curve count and provides options for splitting along U or V isoparametric directions.
 
 The split operation creates new geometry records for each resulting piece while preserving geometric continuity at split locations. Split curves share endpoint vertices to ensure no gaps appear at split boundaries. Split surfaces share edge curves to maintain surface continuity. The WebGL rendering treats split pieces as independent geometry that can be selected, transformed, and manipulated separately.
 
@@ -324,7 +326,7 @@ The split operation creates new geometry records for each resulting piece while 
 
 The Join command combines multiple curves or surfaces into single compound geometry when the pieces share common boundaries. For curves, joining requires that curve endpoints coincide within tolerance. For surfaces, joining requires that surface edges align within tolerance. The command analyzes selected geometry to identify connectivity and proposes joining compatible pieces.
 
-When invoked with selected geometry, the command analyzes the selection to detect which pieces can join. The ETO.forms prompt displays the number of joinable groups detected and shows a list of groups with vertex or edge coincidence information. Users can accept all proposed joins, selectively join specific groups, or adjust the tolerance value to detect additional join candidates.
+When invoked with selected geometry, the command analyzes the selection to detect which pieces can join. The command prompt displays the number of joinable groups detected and shows a list of groups with vertex or edge coincidence information. Users can accept all proposed joins, selectively join specific groups, or adjust the tolerance value to detect additional join candidates.
 
 The join operation creates new geometry records that reference the joined pieces while maintaining their individual definitions. For curve joining, the result is a polyline or multi-segment curve that traverses the connected pieces in sequence. For surface joining, the result is a polysurface that maintains the individual surface patches while treating them as a single object for selection and transformation.
 
@@ -566,7 +568,7 @@ Translation operations begin by grabbing an axis arrow or planar handle. When th
 
 During dragging, the viewport renders a semi-transparent preview of the geometry at its transformed position while maintaining visibility of the original position. This dual rendering provides clear feedback about the transformation being applied. The WebGL rendering uses separate vertex buffers for original and preview geometry, enabling efficient updates without rebuilding the entire scene.
 
-The ETO.forms prompt activates during translation, displaying numeric fields for the displacement in X, Y, and Z components. As the pointer drags, these fields update in real time to show the current displacement vector. Users can type values directly into these fields to specify exact displacements, with the preview geometry snapping to match the typed values.
+The command prompt activates during translation, displaying numeric fields for the displacement in X, Y, and Z components. As the pointer drags, these fields update in real time to show the current displacement vector. Users can type values directly into these fields to specify exact displacements, with the preview geometry snapping to match the typed values.
 
 Snapping operates during translation to align the transformed geometry with grid intersections, existing geometry vertices, or geometric features like midpoints and intersections. The snap indicators appear as small colored markers at snap locations, with the preview geometry jumping to snap positions when the pointer approaches them within snap tolerance. The Tab key cycles through multiple snap candidates when several exist at similar distances.
 
@@ -578,7 +580,7 @@ Rotation operations begin by grabbing one of the rotation rings. The ring highli
 
 As the pointer drags around the ring, the rotation angle increases or decreases based on the angular displacement from the click position. The viewport renders a preview of the rotated geometry with the rotation axis visualized as a thin line extending through the scene. The WebGL rendering applies rotation matrices to preview geometry during each frame, providing smooth interactive feedback.
 
-The ETO.forms prompt displays the current rotation angle in degrees, updating in real time as the pointer moves. Users can type a specific angle value to achieve precise rotation by known amounts. The prompt includes increment buttons that adjust the angle by fixed amounts like fifteen or forty-five degrees, enabling quick alignment to common angular relationships.
+The command prompt displays the current rotation angle in degrees, updating in real time as the pointer moves. Users can type a specific angle value to achieve precise rotation by known amounts. The prompt includes increment buttons that adjust the angle by fixed amounts like fifteen or forty-five degrees, enabling quick alignment to common angular relationships.
 
 Snapping operates during rotation to align the transformed geometry with notable angles. The snap system detects when the current angle approaches multiples of fifteen or forty-five degrees and snaps the rotation to those values within a tolerance threshold. Holding Shift temporarily disables angle snapping to allow free rotation at arbitrary angles.
 
@@ -590,7 +592,7 @@ Scaling operations begin by grabbing one of the scale handles. The individual ax
 
 Clicking and dragging a scale handle initiates a scaling session that captures the initial geometry size and establishes the scale origin at the gumball pivot point. As the pointer moves away from the origin, the scale factor increases. As the pointer moves toward the origin, the scale factor decreases. The viewport renders a preview of the scaled geometry with visual feedback showing both original and transformed sizes.
 
-The ETO.forms prompt displays the current scale factor as a numeric value, with separate fields for X, Y, and Z factors when using non-uniform scaling. For uniform scaling, a single Scale field displays the common factor applied in all directions. Users can type specific scale factors to achieve precise sizing.
+The command prompt displays the current scale factor as a numeric value, with separate fields for X, Y, and Z factors when using non-uniform scaling. For uniform scaling, a single Scale field displays the common factor applied in all directions. Users can type specific scale factors to achieve precise sizing.
 
 The scaling operation maintains the gumball pivot point as the fixed reference location, ensuring that the pivot remains stationary while other points move radially. This behavior differs from scaling about the world origin and provides more intuitive control over where scaling occurs. The preview rendering clearly shows which point remains fixed and how other points displace.
 
@@ -602,7 +604,7 @@ When face components are selected, the gumball displays an extrude handle positi
 
 Clicking and dragging the extrude handle initiates an extrusion session specific to the selected face. As the pointer moves along the extrusion direction, the face displaces perpendicular to its original plane while remaining connected to adjacent faces through newly created side faces. The preview rendering shows the extruded geometry with semi-transparent materials.
 
-The ETO.forms prompt displays the extrusion distance as a numeric value that updates during dragging. Users can type a specific distance to achieve precise extrusion depths. Positive distances extrude outward from the original surface, while negative distances extrude inward, creating indentations or pockets.
+The command prompt displays the extrusion distance as a numeric value that updates during dragging. Users can type a specific distance to achieve precise extrusion depths. Positive distances extrude outward from the original surface, while negative distances extrude inward, creating indentations or pockets.
 
 The extrusion operation creates new geometry that extends the selected face while maintaining connection to the surrounding geometry. For mesh faces, the operation inserts new vertices at the extruded positions and creates new faces connecting the original and extruded boundaries. For NURBS surfaces, the operation may create edge curves and construct new surface patches that extend from the original surface.
 
@@ -614,7 +616,7 @@ The gumball pivot point determines the center of rotation and scaling operations
 
 The pivot can be repositioned by holding the Alt key and clicking a new location in the viewport. The gumball relocates to the clicked position, with subsequent transformations occurring relative to this new pivot. Common pivot locations include geometry vertices for rotation around specific points, face centers for scaling relative to faces, or grid intersections for alignment with the construction plane.
 
-The ETO.forms prompt includes a Pivot section with coordinate fields showing the current pivot position. Users can type specific coordinates to position the pivot numerically. The prompt also includes preset buttons for common pivot locations like Centroid (the default), Origin (the world coordinate system origin), and BoundingCenter (the center of the selection's bounding box).
+The command prompt includes a Pivot section with coordinate fields showing the current pivot position. Users can type specific coordinates to position the pivot numerically. The prompt also includes preset buttons for common pivot locations like Centroid (the default), Origin (the world coordinate system origin), and BoundingCenter (the center of the selection's bounding box).
 
 The pivot point persists across multiple transform operations until the selection changes or the pivot is explicitly repositioned. This persistence enables performing several transformations relative to the same reference point without re-establishing the pivot each time. The pivot visualization includes a small sphere at its location plus coordinate axis indicators showing the pivot's local coordinate frame.
 
@@ -640,7 +642,7 @@ Snapping can be temporarily disabled by holding the Ctrl key during transformati
 
 ### Numeric Input During Transformation
 
-The ETO.forms prompt remains active throughout gumball transformations, providing numeric fields that display current transformation parameters and accept typed input for precise control. As transformations occur through pointer dragging, the prompt fields update in real time to show displacement vectors, rotation angles, or scale factors.
+The command prompt remains active throughout gumball transformations, providing numeric fields that display current transformation parameters and accept typed input for precise control. As transformations occur through pointer dragging, the prompt fields update in real time to show displacement vectors, rotation angles, or scale factors.
 
 Users can click in any prompt field and type a new value while a transformation is in progress. Typing a value updates the transformation to match the typed parameter, with the preview geometry snapping to the specified state. This hybrid interaction model combines visual manipulation for approximate positioning with numeric input for exact specification.
 

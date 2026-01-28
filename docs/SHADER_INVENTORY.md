@@ -1,6 +1,9 @@
 # Shader Inventory - Phase 1 Audit
 
-## Current Shader Implementations in ViewerCanvas.tsx
+> Status: legacy audit. Current shader sources live in `client/src/webgl/shaders`
+> and `client/src/webgl/ui`.
+
+## Legacy Shader Implementations in ViewerCanvas.tsx
 
 ### 1. Atmosphere Gradient Shader (Scene Background)
 

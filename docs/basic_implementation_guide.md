@@ -1,8 +1,14 @@
 # Basic Implementation Guide - WebGL Only
 
+> Status: legacy reference. The current viewport lives in
+> `client/src/components/WebGLViewerCanvas.tsx` with rendering in
+> `client/src/webgl`. Use this guide for conceptual grounding rather than a
+> drop-in implementation.
+
 ## Setup: Pure WebGL Context
 
-First, initialize WebGL without any libraries. This goes in `client/src/components/ViewerCanvas.tsx`.
+First, initialize WebGL without any libraries. This goes in a minimal
+`ViewerCanvas` example (the current implementation is `WebGLViewerCanvas`).
 
 ```typescript
 // ViewerCanvas.tsx

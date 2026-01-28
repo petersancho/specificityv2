@@ -6,7 +6,7 @@ When you are asked to work on Specificity, you are working on a custom-built par
 
 The system consists of two major interaction surfaces that share unified state. Roslyn is the direct manipulation 3D modeling environment where users create and edit geometry through viewport interactions and command-driven workflows. Numerica is the visual programming interface where users construct parametric definitions and computational graphs. Both panels operate on the same Zustand store, enabling bidirectional workflows where models inform graphs and graphs generate geometry.
 
-Before implementing any feature, you must understand which subsystems it touches and how those subsystems integrate. A new geometry type affects `client/src/types.ts`, store actions in `useProjectStore`, mesh/tessellation helpers in `client/src/geometry`, and buffer creation in `client/src/geometry/renderAdapter.ts` (plus legacy selection logic in `ViewerCanvas.tsx` if you touch picking). A new workflow node type affects the `NodeType` union, `WorkflowSection` palette entries, validation in `workflowValidation.ts`, and output computation in `computeWorkflowOutputs`. Understanding these integration points prevents incomplete implementations that work in isolation but fail when composed with existing features.
+Before implementing any feature, you must understand which subsystems it touches and how those subsystems integrate. A new geometry type affects `client/src/types.ts`, store actions in `useProjectStore`, mesh/tessellation helpers in `client/src/geometry`, buffer creation in `client/src/geometry/renderAdapter.ts`, and hit testing in `client/src/geometry/hitTest.ts`. A new workflow node type affects the `NodeType` union, `WorkflowSection` palette entries, validation in `workflowValidation.ts`, and output computation in `computeWorkflowOutputs`. Understanding these integration points prevents incomplete implementations that work in isolation but fail when composed with existing features.
 
 ## Working with the Geometry Kernel
 
@@ -34,13 +34,13 @@ Selectors are used to derive values from store state without duplicating computa
 
 The render adapter maps geometry records to GPU buffers: mesh geometry uses `RenderMesh` attributes, and polylines use `createLineBufferData` for screen-space line rendering. When adding new renderables, extend the adapter to emit the correct attributes and ensure the renderer sets the right uniforms (line width, resolution, selection highlight, opacity).
 
-Interaction logic is mid-migration. `WebGLViewerCanvas` currently handles camera orbit/pan/zoom and rendering, while the legacy `ViewerCanvas.tsx` (react-three-fiber) still contains selection, gizmo, and box-selection behavior. If you change interaction or picking logic, decide whether to port it into the WebGL canvas or keep it consistent in the legacy component.
+Interaction logic lives in `WebGLViewerCanvas` with supporting math and hit testing in `client/src/geometry`. If you change interaction or picking logic, ensure the viewport code and geometry hit tests stay consistent with each other.
 
 ## Working with Commands
 
 The command system provides text-driven invocation of modeling operations through a registry of command definitions (`client/src/commands/registry.ts`). Commands may operate immediately on selected geometry or may enter modal interaction modes that capture pointer input. When implementing new commands, register the command with appropriate metadata, implement validation logic to verify selection requirements, and handle both immediate and modal execution patterns. Command UI and state live in `ModelerSection.tsx` and are passed into the viewport component.
 
-Modal commands change viewport interaction behavior until the command completes or is cancelled. For example, the rectangle command captures two corner points through pointer clicks, renders preview geometry as the second point moves, and creates final geometry when the user confirms. Modal interaction logic currently lives in the legacy `ViewerCanvas.tsx`; if you move it into `WebGLViewerCanvas`, preserve the same session patterns and store update flow.
+Modal commands change viewport interaction behavior until the command completes or is cancelled. For example, the rectangle command captures two corner points through pointer clicks, renders preview geometry as the second point moves, and creates final geometry when the user confirms. Preserve the existing session patterns and store update flow in `WebGLViewerCanvas`.
 
 Commands that create geometry typically require construction plane specification to determine the plane in which new geometry is created. The command system supports automatic C-plane determination from selected geometry or explicit plane specification through point collection. When implementing geometry creation commands, follow the established pattern of plane acquisition, point snapping, preview rendering, and final creation.
 
@@ -58,7 +58,7 @@ The canvas implementation requires explicit hit testing for mouse interactions. 
 
 ## Common Implementation Patterns
 
-When implementing features that span multiple subsystems, follow established integration patterns. For example, adding a new geometry type requires changes to `client/src/types.ts`, store actions in `useProjectStore`, mesh/tessellation helpers, and the render adapter/shader pipeline (plus selection logic if it still lives in `ViewerCanvas.tsx`). Work through these integration points systematically to ensure the feature works end-to-end.
+When implementing features that span multiple subsystems, follow established integration patterns. For example, adding a new geometry type requires changes to `client/src/types.ts`, store actions in `useProjectStore`, mesh/tessellation helpers, and the render adapter/shader pipeline (plus hit testing in `client/src/geometry/hitTest.ts`). Work through these integration points systematically to ensure the feature works end-to-end.
 
 Start implementations with the data model before building UI. Define TypeScript types for new entities, add them to the store state, implement store actions for CRUD operations, and verify the data model through simple tests or console experiments. Only after the data model is solid should you implement UI that displays and manipulates that data.
 
