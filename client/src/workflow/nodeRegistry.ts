@@ -42,12 +42,15 @@ export type WorkflowParameterSpec = {
 
 export type NodeCategoryId =
   | "data"
+  | "basics"
   | "lists"
   | "primitives"
   | "curves"
   | "surfaces"
   | "transforms"
   | "euclidean"
+  | "ranges"
+  | "signals"
   | "analysis"
   | "optimization"
   | "math"
@@ -321,10 +324,283 @@ const resolveVectorInput = (
 const ZERO_VEC3: Vec3Value = { x: 0, y: 0, z: 0 };
 const UNIT_X_VEC3: Vec3Value = { x: 1, y: 0, z: 0 };
 const UNIT_Y_VEC3: Vec3Value = { x: 0, y: 1, z: 0 };
+const UNIT_Z_VEC3: Vec3Value = { x: 0, y: 0, z: 1 };
+const UNIT_XYZ_VEC3: Vec3Value = { x: 1, y: 1, z: 1 };
 
 const toList = (value: WorkflowValue): WorkflowValue[] => {
   if (value == null) return [];
   return Array.isArray(value) ? value : [value];
+};
+
+const toFiniteNumber = (value: WorkflowValue): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "boolean") return value ? 1 : 0;
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+};
+
+const toNumericList = (value: WorkflowValue): number[] => {
+  const list = toList(value);
+  const numbers: number[] = [];
+  list.forEach((entry) => {
+    const numeric = toFiniteNumber(entry as WorkflowValue);
+    if (numeric != null) {
+      numbers.push(numeric);
+    }
+  });
+  return numbers;
+};
+
+const resolveGeometryInput = (
+  inputs: Record<string, WorkflowValue>,
+  context: WorkflowComputeContext,
+  options?: { allowMissing?: boolean }
+) => {
+  const geometryId = typeof inputs.geometry === "string" ? inputs.geometry : null;
+  if (!geometryId) {
+    if (options?.allowMissing) {
+      return null;
+    }
+    throw new Error("Geometry input is required.");
+  }
+  const geometry = context.geometryById.get(geometryId);
+  if (!geometry) {
+    throw new Error("Referenced geometry could not be found.");
+  }
+  return geometry;
+};
+
+const vec3FromPositions = (positions: number[], index: number): Vec3Value => {
+  const i = index * 3;
+  return {
+    x: positions[i] ?? 0,
+    y: positions[i + 1] ?? 0,
+    z: positions[i + 2] ?? 0,
+  };
+};
+
+const collectMeshEdges = (indices: number[], maxEdges: number) => {
+  const edges: Array<[number, number]> = [];
+  const seen = new Set<string>();
+  for (let i = 0; i + 2 < indices.length && edges.length < maxEdges; i += 3) {
+    const a = indices[i];
+    const b = indices[i + 1];
+    const c = indices[i + 2];
+    const pairs: Array<[number, number]> = [
+      [a, b],
+      [b, c],
+      [c, a],
+    ];
+    pairs.forEach(([u, v]) => {
+      if (edges.length >= maxEdges) return;
+      const min = Math.min(u, v);
+      const max = Math.max(u, v);
+      const key = `${min}-${max}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      edges.push([min, max]);
+    });
+  }
+  return edges;
+};
+
+const collectGeometryVertices = (
+  geometry: Geometry,
+  context: WorkflowComputeContext,
+  maxItems: number
+) => {
+  if (geometry.type === "vertex") {
+    return [geometry.position];
+  }
+
+  if (geometry.type === "polyline") {
+    const positions: Vec3Value[] = [];
+    geometry.vertexIds.forEach((vertexId) => {
+      if (positions.length >= maxItems) return;
+      const vertex = context.vertexById.get(vertexId);
+      if (vertex) {
+        positions.push(vertex.position);
+      }
+    });
+    return positions;
+  }
+
+  if ("mesh" in geometry && geometry.mesh?.positions) {
+    const positions: Vec3Value[] = [];
+    const count = Math.floor(geometry.mesh.positions.length / 3);
+    for (let i = 0; i < count && positions.length < maxItems; i += 1) {
+      positions.push(vec3FromPositions(geometry.mesh.positions, i));
+    }
+    return positions;
+  }
+
+  return [];
+};
+
+const collectGeometryEdges = (
+  geometry: Geometry,
+  context: WorkflowComputeContext,
+  maxItems: number
+) => {
+  const edges: Array<[Vec3Value, Vec3Value]> = [];
+  if (geometry.type === "polyline") {
+    const vertexIds = geometry.vertexIds;
+    for (let i = 0; i + 1 < vertexIds.length && edges.length < maxItems; i += 1) {
+      const start = context.vertexById.get(vertexIds[i]);
+      const end = context.vertexById.get(vertexIds[i + 1]);
+      if (start && end) {
+        edges.push([start.position, end.position]);
+      }
+    }
+    if (geometry.closed && vertexIds.length > 2 && edges.length < maxItems) {
+      const start = context.vertexById.get(vertexIds[vertexIds.length - 1]);
+      const end = context.vertexById.get(vertexIds[0]);
+      if (start && end) {
+        edges.push([start.position, end.position]);
+      }
+    }
+    return edges;
+  }
+
+  if ("mesh" in geometry && geometry.mesh?.indices && geometry.mesh?.positions) {
+    const edgeIndices = collectMeshEdges(geometry.mesh.indices, maxItems);
+    edgeIndices.forEach(([a, b]) => {
+      if (edges.length >= maxItems) return;
+      edges.push([
+        vec3FromPositions(geometry.mesh.positions, a),
+        vec3FromPositions(geometry.mesh.positions, b),
+      ]);
+    });
+    return edges;
+  }
+
+  return edges;
+};
+
+const collectGeometryFaceCentroids = (geometry: Geometry, maxItems: number) => {
+  if (!("mesh" in geometry) || !geometry.mesh?.indices || !geometry.mesh?.positions) {
+    return [];
+  }
+  const centroids: Vec3Value[] = [];
+  const indices = geometry.mesh.indices;
+  const positions = geometry.mesh.positions;
+  for (let i = 0; i + 2 < indices.length && centroids.length < maxItems; i += 3) {
+    const a = vec3FromPositions(positions, indices[i]);
+    const b = vec3FromPositions(positions, indices[i + 1]);
+    const c = vec3FromPositions(positions, indices[i + 2]);
+    centroids.push({
+      x: (a.x + b.x + c.x) / 3,
+      y: (a.y + b.y + c.y) / 3,
+      z: (a.z + b.z + c.z) / 3,
+    });
+  }
+  return centroids;
+};
+
+const collectGeometryNormals = (geometry: Geometry, maxItems: number) => {
+  if (!("mesh" in geometry) || !geometry.mesh?.normals) return [];
+  const normals: Vec3Value[] = [];
+  const count = Math.floor(geometry.mesh.normals.length / 3);
+  for (let i = 0; i < count && normals.length < maxItems; i += 1) {
+    normals.push(vec3FromPositions(geometry.mesh.normals, i));
+  }
+  return normals;
+};
+
+const collectGeometryControlPoints = (
+  geometry: Geometry,
+  context: WorkflowComputeContext,
+  maxItems: number
+) => {
+  if (geometry.type === "surface" && geometry.nurbs?.controlPoints) {
+    const points: Vec3Value[] = [];
+    geometry.nurbs.controlPoints.forEach((row) => {
+      row.forEach((point) => {
+        if (points.length >= maxItems) return;
+        points.push(point);
+      });
+    });
+    return points;
+  }
+
+  if (geometry.type === "loft") {
+    const points: Vec3Value[] = [];
+    geometry.sectionIds.forEach((sectionId) => {
+      if (points.length >= maxItems) return;
+      const section = context.geometryById.get(sectionId);
+      if (section) {
+        points.push(...collectGeometryVertices(section, context, maxItems - points.length));
+      }
+    });
+    return points;
+  }
+
+  if (geometry.type === "extrude") {
+    const points: Vec3Value[] = [];
+    geometry.profileIds.forEach((profileId) => {
+      if (points.length >= maxItems) return;
+      const profile = context.geometryById.get(profileId);
+      if (profile) {
+        points.push(...collectGeometryVertices(profile, context, maxItems - points.length));
+      }
+    });
+    return points;
+  }
+
+  return collectGeometryVertices(geometry, context, maxItems);
+};
+
+const countGeometryVertices = (geometry: Geometry, context: WorkflowComputeContext) => {
+  if (geometry.type === "vertex") return 1;
+  if (geometry.type === "polyline") return geometry.vertexIds.length;
+  if ("mesh" in geometry && geometry.mesh?.positions) {
+    return Math.floor(geometry.mesh.positions.length / 3);
+  }
+  return 0;
+};
+
+const countGeometryFaces = (geometry: Geometry) => {
+  if (!("mesh" in geometry) || !geometry.mesh?.indices) return 0;
+  return Math.floor(geometry.mesh.indices.length / 3);
+};
+
+const countGeometryEdges = (geometry: Geometry, context: WorkflowComputeContext) => {
+  if (geometry.type === "polyline") {
+    const base = Math.max(0, geometry.vertexIds.length - 1);
+    return geometry.closed && geometry.vertexIds.length > 2 ? base + 1 : base;
+  }
+  if ("mesh" in geometry && geometry.mesh?.indices) {
+    const edges = collectMeshEdges(geometry.mesh.indices, Number.POSITIVE_INFINITY);
+    return edges.length;
+  }
+  return 0;
+};
+
+const countGeometryNormals = (geometry: Geometry) => {
+  if (!("mesh" in geometry) || !geometry.mesh?.normals) return 0;
+  return Math.floor(geometry.mesh.normals.length / 3);
+};
+
+const countGeometryControlPoints = (geometry: Geometry, context: WorkflowComputeContext) => {
+  if (geometry.type === "surface" && geometry.nurbs?.controlPoints) {
+    return geometry.nurbs.controlPoints.reduce((acc, row) => acc + row.length, 0);
+  }
+  if (geometry.type === "loft") {
+    return geometry.sectionIds.reduce((acc, id) => {
+      const section = context.geometryById.get(id);
+      return acc + (section ? countGeometryVertices(section, context) : 0);
+    }, 0);
+  }
+  if (geometry.type === "extrude") {
+    return geometry.profileIds.reduce((acc, id) => {
+      const profile = context.geometryById.get(id);
+      return acc + (profile ? countGeometryVertices(profile, context) : 0);
+    }, 0);
+  }
+  return countGeometryVertices(geometry, context);
 };
 
 const stripWrappingChars = (token: string) =>
@@ -432,6 +708,8 @@ const clampInt = (value: number, min: number, max: number, fallback: number) => 
   const rounded = Math.floor(numeric);
   return Math.min(max, Math.max(min, rounded));
 };
+
+const MAX_LIST_ITEMS = 2048;
 
 const lerpNumber = (a: number, b: number, t: number) => a + (b - a) * t;
 
@@ -697,89 +975,113 @@ export const NODE_CATEGORIES: NodeCategory[] = [
     id: "data",
     label: "Data",
     description: "References and parameters",
-    accent: "#3d3d3d",
-    band: "#e7e4de",
-    port: "#5a5a5a",
+    accent: "#1f1f22",
+    band: "#e9e6e2",
+    port: "#c9c5c0",
+  },
+  {
+    id: "basics",
+    label: "Basics",
+    description: "Core constants and helpers",
+    accent: "#1f1f22",
+    band: "#e9e6e2",
+    port: "#c9c5c0",
   },
   {
     id: "lists",
     label: "Lists",
     description: "List and data management",
-    accent: "#4f46e5",
-    band: "#e8e7ff",
-    port: "#5b4dee",
+    accent: "#1f1f22",
+    band: "#e9e6e2",
+    port: "#c9c5c0",
   },
   {
     id: "primitives",
     label: "Primitives",
     description: "Base geometry generators",
-    accent: "#0b7a80",
-    band: "#dcefee",
-    port: "#0f8b92",
+    accent: "#00c2d1",
+    band: "#e9e6e2",
+    port: "#c9c5c0",
   },
   {
     id: "curves",
     label: "Curves",
     description: "Curve builders and edits",
-    accent: "#2f6fa1",
-    band: "#dfeaf4",
-    port: "#3a81ba",
+    accent: "#ff4fb6",
+    band: "#e9e6e2",
+    port: "#c9c5c0",
   },
   {
     id: "surfaces",
     label: "Surfaces",
     description: "Surface and solid operations",
-    accent: "#2f8f4e",
-    band: "#e1f1e6",
-    port: "#3aa85e",
+    accent: "#7a5cff",
+    band: "#e9e6e2",
+    port: "#c9c5c0",
   },
   {
     id: "transforms",
     label: "Transforms",
     description: "Move, rotate, scale, align",
-    accent: "#b26a2e",
-    band: "#f3e6da",
-    port: "#c77733",
+    accent: "#1f1f22",
+    band: "#e9e6e2",
+    port: "#c9c5c0",
   },
   {
     id: "euclidean",
     label: "Euclidean",
     description: "Vectors, points, and spatial transforms",
-    accent: "#1f7a8c",
-    band: "#e0f2f7",
-    port: "#2a9bb2",
+    accent: "#1f1f22",
+    band: "#e9e6e2",
+    port: "#c9c5c0",
+  },
+  {
+    id: "ranges",
+    label: "Ranges",
+    description: "Sequences, remaps, and generators",
+    accent: "#1f1f22",
+    band: "#e9e6e2",
+    port: "#c9c5c0",
+  },
+  {
+    id: "signals",
+    label: "Signals",
+    description: "Waveforms and oscillators",
+    accent: "#1f1f22",
+    band: "#e9e6e2",
+    port: "#c9c5c0",
   },
   {
     id: "analysis",
     label: "Analysis",
     description: "Measure and inspect",
-    accent: "#555555",
-    band: "#ece8e2",
-    port: "#6b6b6b",
+    accent: "#1f1f22",
+    band: "#e9e6e2",
+    port: "#c9c5c0",
   },
   {
     id: "optimization",
     label: "Optimization",
     description: "Topology and evolutionary tools",
-    accent: "#8d7a1a",
-    band: "#f2edcf",
-    port: "#a38b20",
+    accent: "#1f1f22",
+    band: "#e9e6e2",
+    port: "#c9c5c0",
   },
   {
     id: "math",
     label: "Math",
     description: "Scalar computation and expressions",
-    accent: "#6f42c1",
-    band: "#efe7fb",
-    port: "#7d55d8",
+    accent: "#ffc533",
+    band: "#e9e6e2",
+    port: "#c9c5c0",
   },
   {
     id: "logic",
     label: "Logic",
     description: "Conditions and branching",
-    accent: "#b33951",
-    band: "#f7e4e8",
-    port: "#cc4b66",
+    accent: "#1f1f22",
+    band: "#e9e6e2",
+    port: "#c9c5c0",
   },
 ];
 
@@ -839,6 +1141,83 @@ const conditionalModeOptions: WorkflowParameterOption[] = [
   { value: "notEqual", label: "Not Equal" },
 ];
 
+const baseWaveInputPorts = (): WorkflowPortSpec[] => [
+  {
+    key: "t",
+    label: "T",
+    type: "number",
+    parameterKey: "t",
+    defaultValue: 0,
+  },
+  {
+    key: "amplitude",
+    label: "Amplitude",
+    type: "number",
+    parameterKey: "amplitude",
+    defaultValue: 1,
+  },
+  {
+    key: "frequency",
+    label: "Frequency",
+    type: "number",
+    parameterKey: "frequency",
+    defaultValue: 1,
+  },
+  {
+    key: "phaseDeg",
+    label: "Phase",
+    type: "number",
+    parameterKey: "phaseDeg",
+    defaultValue: 0,
+  },
+  {
+    key: "offset",
+    label: "Offset",
+    type: "number",
+    parameterKey: "offset",
+    defaultValue: 0,
+  },
+];
+
+const baseWaveParameterSpecs = (): WorkflowParameterSpec[] => [
+  { key: "t", label: "T", type: "number", defaultValue: 0, step: 0.1 },
+  { key: "amplitude", label: "Amplitude", type: "number", defaultValue: 1, step: 0.1 },
+  { key: "frequency", label: "Frequency", type: "number", defaultValue: 1, step: 0.1 },
+  { key: "phaseDeg", label: "Phase (deg)", type: "number", defaultValue: 0, step: 1 },
+  { key: "offset", label: "Offset", type: "number", defaultValue: 0, step: 0.1 },
+];
+
+const resolveWaveInputs = (
+  inputs: Record<string, WorkflowValue>,
+  parameters: Record<string, unknown>
+) => {
+  const t = toNumber(inputs.t, readNumberParameter(parameters, "t", 0));
+  const amplitude = toNumber(
+    inputs.amplitude,
+    readNumberParameter(parameters, "amplitude", 1)
+  );
+  const frequency = toNumber(
+    inputs.frequency,
+    readNumberParameter(parameters, "frequency", 1)
+  );
+  const phaseDeg = toNumber(
+    inputs.phaseDeg,
+    readNumberParameter(parameters, "phaseDeg", 0)
+  );
+  const offset = toNumber(inputs.offset, readNumberParameter(parameters, "offset", 0));
+  const cycle = t * frequency + phaseDeg / 360;
+  const angle = cycle * Math.PI * 2;
+  return {
+    t,
+    amplitude,
+    frequency,
+    phaseDeg,
+    offset,
+    cycle,
+    angle,
+  };
+};
+
 export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "geometryReference",
@@ -861,6 +1240,160 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     compute: ({ parameters }) => ({
       geometry: typeof parameters.geometryId === "string" ? parameters.geometryId : null,
     }),
+  },
+  {
+    type: "geometryViewer",
+    label: "Geometry Viewer",
+    shortLabel: "VIEW",
+    description: "Preview geometry in a mini viewport.",
+    category: "analysis",
+    iconId: "geometryInfo",
+    inputs: [
+      {
+        key: "geometry",
+        label: "Geometry",
+        type: "geometry",
+        required: false,
+      },
+    ],
+    outputs: [],
+    parameters: [],
+    compute: () => ({}),
+  },
+  {
+    type: "origin",
+    label: "Origin",
+    shortLabel: "ORG",
+    description: "Emit the world origin vector (0, 0, 0).",
+    category: "basics",
+    iconId: "origin",
+    inputs: [],
+    outputs: [{ key: "vector", label: "Origin", type: "vector" }],
+    parameters: [],
+    primaryOutputKey: "vector",
+    compute: () => ({ vector: ZERO_VEC3 }),
+  },
+  {
+    type: "unitX",
+    label: "Unit X",
+    shortLabel: "X",
+    description: "Emit the unit X axis vector.",
+    category: "basics",
+    iconId: "unitX",
+    inputs: [],
+    outputs: [{ key: "vector", label: "X", type: "vector" }],
+    parameters: [],
+    primaryOutputKey: "vector",
+    compute: () => ({ vector: UNIT_X_VEC3 }),
+  },
+  {
+    type: "unitY",
+    label: "Unit Y",
+    shortLabel: "Y",
+    description: "Emit the unit Y axis vector.",
+    category: "basics",
+    iconId: "unitY",
+    inputs: [],
+    outputs: [{ key: "vector", label: "Y", type: "vector" }],
+    parameters: [],
+    primaryOutputKey: "vector",
+    compute: () => ({ vector: UNIT_Y_VEC3 }),
+  },
+  {
+    type: "unitZ",
+    label: "Unit Z",
+    shortLabel: "Z",
+    description: "Emit the unit Z axis vector.",
+    category: "basics",
+    iconId: "unitZ",
+    inputs: [],
+    outputs: [{ key: "vector", label: "Z", type: "vector" }],
+    parameters: [],
+    primaryOutputKey: "vector",
+    compute: () => ({ vector: UNIT_Z_VEC3 }),
+  },
+  {
+    type: "unitXYZ",
+    label: "Unit XYZ",
+    shortLabel: "XYZ",
+    description: "Emit a unit vector with all components equal to one.",
+    category: "basics",
+    iconId: "unitXYZ",
+    inputs: [],
+    outputs: [{ key: "vector", label: "XYZ", type: "vector" }],
+    parameters: [],
+    primaryOutputKey: "vector",
+    compute: () => ({ vector: UNIT_XYZ_VEC3 }),
+  },
+  {
+    type: "moveVector",
+    label: "Move Vector",
+    shortLabel: "MOVE",
+    description: "Move a vector by an offset vector.",
+    category: "basics",
+    iconId: "movePoint",
+    inputs: [
+      { key: "vector", label: "Vector", type: "vector", required: true },
+      { key: "offset", label: "Offset", type: "vector", required: true },
+    ],
+    outputs: [
+      { key: "vector", label: "Vector", type: "vector" },
+      { key: "offset", label: "Offset", type: "vector" },
+    ],
+    parameters: [
+      ...vectorParameterSpecs("vector", "Vector", ZERO_VEC3),
+      ...vectorParameterSpecs("offset", "Offset", UNIT_X_VEC3),
+    ],
+    primaryOutputKey: "vector",
+    compute: ({ inputs, parameters }) => {
+      const vector = resolveVectorInput(inputs, parameters, "vector", "vector", ZERO_VEC3);
+      const offset = resolveVectorInput(inputs, parameters, "offset", "offset", UNIT_X_VEC3);
+      return {
+        vector: addVec3(vector, offset),
+        offset,
+      };
+    },
+  },
+  {
+    type: "scaleVector",
+    label: "Scale Vector",
+    shortLabel: "SCL",
+    description: "Scale a vector by a scalar multiplier.",
+    category: "basics",
+    iconId: "vectorScale",
+    inputs: [
+      { key: "vector", label: "Vector", type: "vector", required: true },
+      {
+        key: "scale",
+        label: "Scale",
+        type: "number",
+        parameterKey: "scale",
+        defaultValue: 1,
+      },
+    ],
+    outputs: [
+      { key: "vector", label: "Vector", type: "vector" },
+      { key: "scale", label: "Scale", type: "number" },
+    ],
+    parameters: [
+      ...vectorParameterSpecs("vector", "Vector", UNIT_X_VEC3),
+      {
+        key: "scale",
+        label: "Scale",
+        type: "number",
+        defaultValue: 1,
+        step: 0.1,
+      },
+    ],
+    primaryOutputKey: "vector",
+    compute: ({ inputs, parameters }) => {
+      const vector = resolveVectorInput(inputs, parameters, "vector", "vector", UNIT_X_VEC3);
+      const scale = toNumber(inputs.scale, readNumberParameter(parameters, "scale", 1));
+      return {
+        vector: scaleVec3(vector, scale),
+        scale,
+      };
+    },
   },
   {
     type: "listCreate",
@@ -1263,6 +1796,821 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       return {
         list,
         length: list.length,
+      };
+    },
+  },
+  {
+    type: "range",
+    label: "Range",
+    shortLabel: "RNG",
+    description: "Generate a numeric sequence from Start to End using Step.",
+    category: "ranges",
+    iconId: "range",
+    inputs: [
+      {
+        key: "start",
+        label: "Start",
+        type: "number",
+        parameterKey: "start",
+        defaultValue: 0,
+      },
+      {
+        key: "end",
+        label: "End",
+        type: "number",
+        parameterKey: "end",
+        defaultValue: 10,
+      },
+      {
+        key: "step",
+        label: "Step",
+        type: "number",
+        parameterKey: "step",
+        defaultValue: 1,
+      },
+    ],
+    outputs: [
+      { key: "list", label: "List", type: "any" },
+      { key: "count", label: "Count", type: "number" },
+      { key: "step", label: "Step", type: "number" },
+    ],
+    parameters: [
+      { key: "start", label: "Start", type: "number", defaultValue: 0, step: 1 },
+      { key: "end", label: "End", type: "number", defaultValue: 10, step: 1 },
+      { key: "step", label: "Step", type: "number", defaultValue: 1, step: 0.5 },
+    ],
+    primaryOutputKey: "list",
+    compute: ({ inputs, parameters }) => {
+      const start = toNumber(inputs.start, readNumberParameter(parameters, "start", 0));
+      const end = toNumber(inputs.end, readNumberParameter(parameters, "end", 10));
+      const step = toNumber(inputs.step, readNumberParameter(parameters, "step", 1));
+      if (Math.abs(step) <= EPSILON) {
+        throw new Error("Range step cannot be zero.");
+      }
+
+      const list: WorkflowValue[] = [];
+      const forward = step > 0;
+      let value = start;
+      while (
+        list.length < MAX_LIST_ITEMS &&
+        (forward ? value <= end + EPSILON : value >= end - EPSILON)
+      ) {
+        list.push(value);
+        value += step;
+      }
+
+      return {
+        list,
+        count: list.length,
+        step,
+      };
+    },
+  },
+  {
+    type: "linspace",
+    label: "Linspace",
+    shortLabel: "LIN",
+    description: "Generate evenly spaced values between Start and End.",
+    category: "ranges",
+    iconId: "linspace",
+    inputs: [
+      {
+        key: "start",
+        label: "Start",
+        type: "number",
+        parameterKey: "start",
+        defaultValue: 0,
+      },
+      {
+        key: "end",
+        label: "End",
+        type: "number",
+        parameterKey: "end",
+        defaultValue: 1,
+      },
+      {
+        key: "count",
+        label: "Count",
+        type: "number",
+        parameterKey: "count",
+        defaultValue: 5,
+      },
+    ],
+    outputs: [
+      { key: "list", label: "List", type: "any" },
+      { key: "count", label: "Count", type: "number" },
+      { key: "step", label: "Step", type: "number" },
+    ],
+    parameters: [
+      { key: "start", label: "Start", type: "number", defaultValue: 0, step: 0.5 },
+      { key: "end", label: "End", type: "number", defaultValue: 1, step: 0.5 },
+      { key: "count", label: "Count", type: "number", defaultValue: 5, step: 1, min: 1 },
+    ],
+    primaryOutputKey: "list",
+    compute: ({ inputs, parameters }) => {
+      const start = toNumber(inputs.start, readNumberParameter(parameters, "start", 0));
+      const end = toNumber(inputs.end, readNumberParameter(parameters, "end", 1));
+      const count = clampInt(
+        toNumber(inputs.count, readNumberParameter(parameters, "count", 5)),
+        1,
+        MAX_LIST_ITEMS,
+        5
+      );
+      if (count <= 1) {
+        return { list: [start], count: 1, step: 0 };
+      }
+      const step = (end - start) / (count - 1);
+      const list: WorkflowValue[] = [];
+      for (let i = 0; i < count; i += 1) {
+        list.push(start + step * i);
+      }
+      return {
+        list,
+        count,
+        step,
+      };
+    },
+  },
+  {
+    type: "remap",
+    label: "Remap",
+    shortLabel: "MAP",
+    description: "Remap a value from one range to another.",
+    category: "ranges",
+    iconId: "remap",
+    inputs: [
+      {
+        key: "value",
+        label: "Value",
+        type: "number",
+        parameterKey: "value",
+        defaultValue: 0,
+      },
+      {
+        key: "sourceMin",
+        label: "From Min",
+        type: "number",
+        parameterKey: "sourceMin",
+        defaultValue: 0,
+      },
+      {
+        key: "sourceMax",
+        label: "From Max",
+        type: "number",
+        parameterKey: "sourceMax",
+        defaultValue: 1,
+      },
+      {
+        key: "targetMin",
+        label: "To Min",
+        type: "number",
+        parameterKey: "targetMin",
+        defaultValue: 0,
+      },
+      {
+        key: "targetMax",
+        label: "To Max",
+        type: "number",
+        parameterKey: "targetMax",
+        defaultValue: 10,
+      },
+    ],
+    outputs: [
+      { key: "value", label: "Value", type: "number" },
+      { key: "t", label: "T", type: "number" },
+    ],
+    parameters: [
+      { key: "value", label: "Value", type: "number", defaultValue: 0, step: 0.1 },
+      { key: "sourceMin", label: "From Min", type: "number", defaultValue: 0, step: 0.1 },
+      { key: "sourceMax", label: "From Max", type: "number", defaultValue: 1, step: 0.1 },
+      { key: "targetMin", label: "To Min", type: "number", defaultValue: 0, step: 0.1 },
+      { key: "targetMax", label: "To Max", type: "number", defaultValue: 10, step: 0.1 },
+      {
+        key: "clamp",
+        label: "Clamp",
+        type: "boolean",
+        defaultValue: true,
+      },
+    ],
+    primaryOutputKey: "value",
+    compute: ({ inputs, parameters }) => {
+      const value = toNumber(inputs.value, readNumberParameter(parameters, "value", 0));
+      const sourceMin = toNumber(
+        inputs.sourceMin,
+        readNumberParameter(parameters, "sourceMin", 0)
+      );
+      const sourceMax = toNumber(
+        inputs.sourceMax,
+        readNumberParameter(parameters, "sourceMax", 1)
+      );
+      const targetMin = toNumber(
+        inputs.targetMin,
+        readNumberParameter(parameters, "targetMin", 0)
+      );
+      const targetMax = toNumber(
+        inputs.targetMax,
+        readNumberParameter(parameters, "targetMax", 10)
+      );
+      if (Math.abs(sourceMax - sourceMin) <= EPSILON) {
+        throw new Error("Remap source range cannot be zero.");
+      }
+      let t = (value - sourceMin) / (sourceMax - sourceMin);
+      const clamp = readBooleanParameter(parameters, "clamp", true);
+      if (clamp) {
+        t = clampNumber(t, 0, 1);
+      }
+      const mapped = targetMin + (targetMax - targetMin) * t;
+      return {
+        value: mapped,
+        t,
+      };
+    },
+  },
+  {
+    type: "random",
+    label: "Random",
+    shortLabel: "RAND",
+    description: "Emit a deterministic random number from a seed.",
+    category: "ranges",
+    iconId: "random",
+    inputs: [
+      {
+        key: "seed",
+        label: "Seed",
+        type: "number",
+        parameterKey: "seed",
+        defaultValue: 1,
+      },
+      {
+        key: "min",
+        label: "Min",
+        type: "number",
+        parameterKey: "min",
+        defaultValue: 0,
+      },
+      {
+        key: "max",
+        label: "Max",
+        type: "number",
+        parameterKey: "max",
+        defaultValue: 1,
+      },
+    ],
+    outputs: [
+      { key: "value", label: "Value", type: "number" },
+      { key: "raw", label: "Raw", type: "number" },
+    ],
+    parameters: [
+      { key: "seed", label: "Seed", type: "number", defaultValue: 1, step: 1 },
+      { key: "min", label: "Min", type: "number", defaultValue: 0, step: 0.1 },
+      { key: "max", label: "Max", type: "number", defaultValue: 1, step: 0.1 },
+    ],
+    primaryOutputKey: "value",
+    compute: ({ inputs, parameters, context }) => {
+      const seedValue = toNumber(inputs.seed, readNumberParameter(parameters, "seed", 1));
+      const min = toNumber(inputs.min, readNumberParameter(parameters, "min", 0));
+      const max = toNumber(inputs.max, readNumberParameter(parameters, "max", 1));
+      const seedKey = `${context.nodeId}:${seedValue}`;
+      const random = createSeededRandom(hashStringToSeed(seedKey));
+      const raw = random();
+      const value = min + raw * (max - min);
+      return {
+        value,
+        raw,
+      };
+    },
+  },
+  {
+    type: "repeat",
+    label: "Repeat",
+    shortLabel: "REP",
+    description: "Repeat a value a specified number of times.",
+    category: "ranges",
+    iconId: "repeat",
+    inputs: [
+      {
+        key: "value",
+        label: "Value",
+        type: "any",
+        parameterKey: "valueText",
+        defaultValue: 0,
+      },
+      {
+        key: "count",
+        label: "Count",
+        type: "number",
+        parameterKey: "count",
+        defaultValue: 5,
+      },
+    ],
+    outputs: [
+      { key: "list", label: "List", type: "any" },
+      { key: "count", label: "Count", type: "number" },
+    ],
+    parameters: [
+      {
+        key: "valueText",
+        label: "Value",
+        type: "string",
+        defaultValue: "0",
+      },
+      {
+        key: "count",
+        label: "Count",
+        type: "number",
+        defaultValue: 5,
+        min: 1,
+        max: MAX_LIST_ITEMS,
+        step: 1,
+      },
+    ],
+    primaryOutputKey: "list",
+    compute: ({ inputs, parameters }) => {
+      const count = clampInt(
+        toNumber(inputs.count, readNumberParameter(parameters, "count", 5)),
+        1,
+        MAX_LIST_ITEMS,
+        5
+      );
+      const fallback = parseListToken(
+        typeof parameters.valueText === "string" ? parameters.valueText : ""
+      );
+      const value = inputs.value ?? fallback;
+      const list = Array.from({ length: count }, () => value);
+      return {
+        list,
+        count,
+      };
+    },
+  },
+  {
+    type: "listSum",
+    label: "List Sum",
+    shortLabel: "SUM",
+    description: "Sum numeric values from a list.",
+    category: "analysis",
+    iconId: "listSum",
+    inputs: [{ key: "list", label: "List", type: "any", required: true }],
+    outputs: [
+      { key: "sum", label: "Sum", type: "number" },
+      { key: "count", label: "Count", type: "number" },
+    ],
+    parameters: [],
+    primaryOutputKey: "sum",
+    compute: ({ inputs }) => {
+      const values = toNumericList(inputs.list);
+      const sum = values.reduce((acc, value) => acc + value, 0);
+      return { sum, count: values.length };
+    },
+  },
+  {
+    type: "listAverage",
+    label: "List Average",
+    shortLabel: "AVG",
+    description: "Average numeric values from a list.",
+    category: "analysis",
+    iconId: "listAverage",
+    inputs: [{ key: "list", label: "List", type: "any", required: true }],
+    outputs: [
+      { key: "average", label: "Average", type: "number" },
+      { key: "sum", label: "Sum", type: "number" },
+      { key: "count", label: "Count", type: "number" },
+    ],
+    parameters: [],
+    primaryOutputKey: "average",
+    compute: ({ inputs }) => {
+      const values = toNumericList(inputs.list);
+      const sum = values.reduce((acc, value) => acc + value, 0);
+      const count = values.length;
+      return {
+        average: count > 0 ? sum / count : 0,
+        sum,
+        count,
+      };
+    },
+  },
+  {
+    type: "listMin",
+    label: "List Min",
+    shortLabel: "MIN",
+    description: "Find the minimum numeric value in a list.",
+    category: "analysis",
+    iconId: "listMin",
+    inputs: [{ key: "list", label: "List", type: "any", required: true }],
+    outputs: [
+      { key: "min", label: "Min", type: "number" },
+      { key: "count", label: "Count", type: "number" },
+    ],
+    parameters: [],
+    primaryOutputKey: "min",
+    compute: ({ inputs }) => {
+      const values = toNumericList(inputs.list);
+      if (values.length === 0) {
+        return { min: 0, count: 0 };
+      }
+      return { min: Math.min(...values), count: values.length };
+    },
+  },
+  {
+    type: "listMax",
+    label: "List Max",
+    shortLabel: "MAX",
+    description: "Find the maximum numeric value in a list.",
+    category: "analysis",
+    iconId: "listMax",
+    inputs: [{ key: "list", label: "List", type: "any", required: true }],
+    outputs: [
+      { key: "max", label: "Max", type: "number" },
+      { key: "count", label: "Count", type: "number" },
+    ],
+    parameters: [],
+    primaryOutputKey: "max",
+    compute: ({ inputs }) => {
+      const values = toNumericList(inputs.list);
+      if (values.length === 0) {
+        return { max: 0, count: 0 };
+      }
+      return { max: Math.max(...values), count: values.length };
+    },
+  },
+  {
+    type: "listMedian",
+    label: "List Median",
+    shortLabel: "MED",
+    description: "Find the median numeric value in a list.",
+    category: "analysis",
+    iconId: "listMedian",
+    inputs: [{ key: "list", label: "List", type: "any", required: true }],
+    outputs: [
+      { key: "median", label: "Median", type: "number" },
+      { key: "count", label: "Count", type: "number" },
+    ],
+    parameters: [],
+    primaryOutputKey: "median",
+    compute: ({ inputs }) => {
+      const values = toNumericList(inputs.list);
+      const count = values.length;
+      if (count === 0) {
+        return { median: 0, count: 0 };
+      }
+      const sorted = [...values].sort((a, b) => a - b);
+      const mid = Math.floor(count / 2);
+      const median =
+        count % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+      return { median, count };
+    },
+  },
+  {
+    type: "listStdDev",
+    label: "List Std Dev",
+    shortLabel: "STD",
+    description: "Compute the population standard deviation of a list.",
+    category: "analysis",
+    iconId: "listStdDev",
+    inputs: [{ key: "list", label: "List", type: "any", required: true }],
+    outputs: [
+      { key: "stdDev", label: "Std Dev", type: "number" },
+      { key: "variance", label: "Variance", type: "number" },
+      { key: "count", label: "Count", type: "number" },
+    ],
+    parameters: [],
+    primaryOutputKey: "stdDev",
+    compute: ({ inputs }) => {
+      const values = toNumericList(inputs.list);
+      const count = values.length;
+      if (count === 0) {
+        return { stdDev: 0, variance: 0, count: 0 };
+      }
+      const mean = values.reduce((acc, value) => acc + value, 0) / count;
+      const variance =
+        values.reduce((acc, value) => acc + Math.pow(value - mean, 2), 0) / count;
+      return {
+        stdDev: Math.sqrt(variance),
+        variance,
+        count,
+      };
+    },
+  },
+  {
+    type: "geometryInfo",
+    label: "Geometry Info",
+    shortLabel: "INFO",
+    description: "Summarize geometry type and core element counts.",
+    category: "analysis",
+    iconId: "geometryInfo",
+    inputs: [{ key: "geometry", label: "Geometry", type: "geometry", required: true }],
+    outputs: [
+      { key: "type", label: "Type", type: "string" },
+      { key: "vertexCount", label: "Vertices", type: "number" },
+      { key: "edgeCount", label: "Edges", type: "number" },
+      { key: "faceCount", label: "Faces", type: "number" },
+      { key: "controlPointCount", label: "Control Pts", type: "number" },
+      { key: "normalCount", label: "Normals", type: "number" },
+    ],
+    parameters: [],
+    primaryOutputKey: "vertexCount",
+    compute: ({ inputs, context }) => {
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      if (!geometry) {
+        return {
+          type: "None",
+          vertexCount: 0,
+          edgeCount: 0,
+          faceCount: 0,
+          controlPointCount: 0,
+          normalCount: 0,
+        };
+      }
+      const vertexCount = countGeometryVertices(geometry, context);
+      const edgeCount = countGeometryEdges(geometry, context);
+      const faceCount = countGeometryFaces(geometry);
+      const normalCount = countGeometryNormals(geometry);
+      const controlPointCount = countGeometryControlPoints(geometry, context);
+      return {
+        type: geometry.type,
+        vertexCount,
+        edgeCount,
+        faceCount,
+        controlPointCount,
+        normalCount,
+      };
+    },
+  },
+  {
+    type: "geometryVertices",
+    label: "Geometry Vertices",
+    shortLabel: "VERT",
+    description: "Extract vertex positions from geometry as a list.",
+    category: "analysis",
+    iconId: "geometryVertices",
+    inputs: [{ key: "geometry", label: "Geometry", type: "geometry", required: true }],
+    outputs: [
+      { key: "vertices", label: "Vertices", type: "any" },
+      { key: "count", label: "Count", type: "number" },
+    ],
+    parameters: [],
+    primaryOutputKey: "vertices",
+    compute: ({ inputs, context }) => {
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      if (!geometry) {
+        return {
+          vertices: [],
+          count: 0,
+        };
+      }
+      const vertices = collectGeometryVertices(geometry, context, MAX_LIST_ITEMS);
+      return {
+        vertices,
+        count: vertices.length,
+      };
+    },
+  },
+  {
+    type: "geometryEdges",
+    label: "Geometry Edges",
+    shortLabel: "EDGE",
+    description: "Extract edge segments as vector pairs.",
+    category: "analysis",
+    iconId: "geometryEdges",
+    inputs: [{ key: "geometry", label: "Geometry", type: "geometry", required: true }],
+    outputs: [
+      { key: "edges", label: "Edges", type: "any" },
+      { key: "count", label: "Count", type: "number" },
+    ],
+    parameters: [],
+    primaryOutputKey: "edges",
+    compute: ({ inputs, context }) => {
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      if (!geometry) {
+        return {
+          edges: [],
+          count: 0,
+        };
+      }
+      const edges = collectGeometryEdges(geometry, context, MAX_LIST_ITEMS);
+      return {
+        edges,
+        count: edges.length,
+      };
+    },
+  },
+  {
+    type: "geometryFaces",
+    label: "Geometry Faces",
+    shortLabel: "FACE",
+    description: "Extract face centroids from mesh geometry.",
+    category: "analysis",
+    iconId: "geometryFaces",
+    inputs: [{ key: "geometry", label: "Geometry", type: "geometry", required: true }],
+    outputs: [
+      { key: "faces", label: "Faces", type: "any" },
+      { key: "count", label: "Count", type: "number" },
+    ],
+    parameters: [],
+    primaryOutputKey: "faces",
+    compute: ({ inputs, context }) => {
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      if (!geometry) {
+        return {
+          faces: [],
+          count: 0,
+        };
+      }
+      const faces = collectGeometryFaceCentroids(geometry, MAX_LIST_ITEMS);
+      return {
+        faces,
+        count: faces.length,
+      };
+    },
+  },
+  {
+    type: "geometryNormals",
+    label: "Geometry Normals",
+    shortLabel: "NORM",
+    description: "Extract normals from mesh geometry.",
+    category: "analysis",
+    iconId: "geometryNormals",
+    inputs: [{ key: "geometry", label: "Geometry", type: "geometry", required: true }],
+    outputs: [
+      { key: "normals", label: "Normals", type: "any" },
+      { key: "count", label: "Count", type: "number" },
+    ],
+    parameters: [],
+    primaryOutputKey: "normals",
+    compute: ({ inputs, context }) => {
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      if (!geometry) {
+        return {
+          normals: [],
+          count: 0,
+        };
+      }
+      const normals = collectGeometryNormals(geometry, MAX_LIST_ITEMS);
+      return {
+        normals,
+        count: normals.length,
+      };
+    },
+  },
+  {
+    type: "geometryControlPoints",
+    label: "Control Points",
+    shortLabel: "CTRL",
+    description: "Extract control points or defining points from geometry.",
+    category: "analysis",
+    iconId: "geometryControlPoints",
+    inputs: [{ key: "geometry", label: "Geometry", type: "geometry", required: true }],
+    outputs: [
+      { key: "points", label: "Points", type: "any" },
+      { key: "count", label: "Count", type: "number" },
+    ],
+    parameters: [],
+    primaryOutputKey: "points",
+    compute: ({ inputs, context }) => {
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      if (!geometry) {
+        return {
+          points: [],
+          count: 0,
+        };
+      }
+      const points = collectGeometryControlPoints(geometry, context, MAX_LIST_ITEMS);
+      return {
+        points,
+        count: points.length,
+      };
+    },
+  },
+  {
+    type: "sineWave",
+    label: "Sine Wave",
+    shortLabel: "SIN",
+    description: "Generate a sine wave signal.",
+    category: "signals",
+    iconId: "sineWave",
+    inputs: baseWaveInputPorts(),
+    outputs: [
+      { key: "value", label: "Value", type: "number" },
+      { key: "t", label: "T", type: "number" },
+    ],
+    parameters: baseWaveParameterSpecs(),
+    primaryOutputKey: "value",
+    compute: ({ inputs, parameters }) => {
+      const { t, amplitude, offset, angle } = resolveWaveInputs(inputs, parameters);
+      return {
+        value: offset + amplitude * Math.sin(angle),
+        t,
+      };
+    },
+  },
+  {
+    type: "cosineWave",
+    label: "Cosine Wave",
+    shortLabel: "COS",
+    description: "Generate a cosine wave signal.",
+    category: "signals",
+    iconId: "cosineWave",
+    inputs: baseWaveInputPorts(),
+    outputs: [
+      { key: "value", label: "Value", type: "number" },
+      { key: "t", label: "T", type: "number" },
+    ],
+    parameters: baseWaveParameterSpecs(),
+    primaryOutputKey: "value",
+    compute: ({ inputs, parameters }) => {
+      const { t, amplitude, offset, angle } = resolveWaveInputs(inputs, parameters);
+      return {
+        value: offset + amplitude * Math.cos(angle),
+        t,
+      };
+    },
+  },
+  {
+    type: "sawtoothWave",
+    label: "Sawtooth Wave",
+    shortLabel: "SAW",
+    description: "Generate a sawtooth wave signal in the -1 to 1 range.",
+    category: "signals",
+    iconId: "sawtoothWave",
+    inputs: baseWaveInputPorts(),
+    outputs: [
+      { key: "value", label: "Value", type: "number" },
+      { key: "t", label: "T", type: "number" },
+    ],
+    parameters: baseWaveParameterSpecs(),
+    primaryOutputKey: "value",
+    compute: ({ inputs, parameters }) => {
+      const { t, amplitude, offset, cycle } = resolveWaveInputs(inputs, parameters);
+      const frac = cycle - Math.floor(cycle);
+      const raw = frac * 2 - 1;
+      return {
+        value: offset + amplitude * raw,
+        t,
+      };
+    },
+  },
+  {
+    type: "triangleWave",
+    label: "Triangle Wave",
+    shortLabel: "TRI",
+    description: "Generate a triangle wave signal in the -1 to 1 range.",
+    category: "signals",
+    iconId: "triangleWave",
+    inputs: baseWaveInputPorts(),
+    outputs: [
+      { key: "value", label: "Value", type: "number" },
+      { key: "t", label: "T", type: "number" },
+    ],
+    parameters: baseWaveParameterSpecs(),
+    primaryOutputKey: "value",
+    compute: ({ inputs, parameters }) => {
+      const { t, amplitude, offset, cycle } = resolveWaveInputs(inputs, parameters);
+      const frac = cycle - Math.floor(cycle);
+      const raw = 1 - 4 * Math.abs(frac - 0.5);
+      return {
+        value: offset + amplitude * raw,
+        t,
+      };
+    },
+  },
+  {
+    type: "squareWave",
+    label: "Square Wave",
+    shortLabel: "SQR",
+    description: "Generate a square wave signal with adjustable duty cycle.",
+    category: "signals",
+    iconId: "squareWave",
+    inputs: [
+      ...baseWaveInputPorts(),
+      {
+        key: "duty",
+        label: "Duty",
+        type: "number",
+        parameterKey: "duty",
+        defaultValue: 0.5,
+      },
+    ],
+    outputs: [
+      { key: "value", label: "Value", type: "number" },
+      { key: "t", label: "T", type: "number" },
+    ],
+    parameters: [
+      ...baseWaveParameterSpecs(),
+      { key: "duty", label: "Duty", type: "number", defaultValue: 0.5, step: 0.05, min: 0, max: 1 },
+    ],
+    primaryOutputKey: "value",
+    compute: ({ inputs, parameters }) => {
+      const { t, amplitude, offset, cycle } = resolveWaveInputs(inputs, parameters);
+      const duty = clampNumber(
+        toNumber(inputs.duty, readNumberParameter(parameters, "duty", 0.5)),
+        0,
+        1
+      );
+      const frac = cycle - Math.floor(cycle);
+      const raw = frac <= duty ? 1 : -1;
+      return {
+        value: offset + amplitude * raw,
+        t,
       };
     },
   },
@@ -2282,7 +3630,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     label: "Vector Scale",
     shortLabel: "VS",
     description: "Scale a vector by a scalar multiplier.",
-    category: "euclidean",
+    category: "transforms",
     iconId: "vectorScale",
     inputs: [
       { key: "vector", label: "Vector", type: "vector", required: true },
@@ -2566,6 +3914,70 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     },
   },
   {
+    type: "move",
+    label: "Move",
+    shortLabel: "MOVE",
+    description: "Translate geometry by world-space XYZ offsets.",
+    category: "transforms",
+    iconId: "move",
+    inputs: [
+      {
+        key: "geometry",
+        label: "Geometry",
+        type: "geometry",
+        required: true,
+        parameterKey: "geometryId",
+      },
+      {
+        key: "worldX",
+        label: "World X",
+        type: "number",
+        parameterKey: "worldX",
+        defaultValue: 0,
+      },
+      {
+        key: "worldY",
+        label: "World Y",
+        type: "number",
+        parameterKey: "worldY",
+        defaultValue: 0,
+      },
+      {
+        key: "worldZ",
+        label: "World Z",
+        type: "number",
+        parameterKey: "worldZ",
+        defaultValue: 0,
+      },
+    ],
+    outputs: [
+      { key: "geometry", label: "Geometry", type: "geometry" },
+      { key: "offset", label: "Offset", type: "vector" },
+      { key: "worldX", label: "World X", type: "number" },
+      { key: "worldY", label: "World Y", type: "number" },
+      { key: "worldZ", label: "World Z", type: "number" },
+    ],
+    parameters: [
+      { key: "worldX", label: "World X", type: "number", defaultValue: 0, step: 0.1 },
+      { key: "worldY", label: "World Y", type: "number", defaultValue: 0, step: 0.1 },
+      { key: "worldZ", label: "World Z", type: "number", defaultValue: 0, step: 0.1 },
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, parameters }) => {
+      const geometry = typeof inputs.geometry === "string" ? inputs.geometry : null;
+      const worldX = toNumber(inputs.worldX, readNumberParameter(parameters, "worldX", 0));
+      const worldY = toNumber(inputs.worldY, readNumberParameter(parameters, "worldY", 0));
+      const worldZ = toNumber(inputs.worldZ, readNumberParameter(parameters, "worldZ", 0));
+      return {
+        geometry,
+        offset: { x: worldX, y: worldY, z: worldZ },
+        worldX,
+        worldY,
+        worldZ,
+      };
+    },
+  },
+  {
     type: "movePoint",
     label: "Move Point",
     shortLabel: "MOVE",
@@ -2706,6 +4118,39 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       return { vector: rotated, angleDeg };
     },
   },
+  {
+    type: "mirrorVector",
+    label: "Mirror Vector",
+    shortLabel: "MIR",
+    description: "Reflect a vector across a plane defined by a normal.",
+    category: "euclidean",
+    iconId: "mirrorVector",
+    inputs: [
+      { key: "vector", label: "Vector", type: "vector", required: true },
+      { key: "normal", label: "Normal", type: "vector", required: true },
+    ],
+    outputs: [
+      { key: "vector", label: "Vector", type: "vector" },
+      { key: "normal", label: "Normal", type: "vector" },
+    ],
+    parameters: [
+      ...vectorParameterSpecs("vector", "Vector", UNIT_X_VEC3),
+      ...vectorParameterSpecs("normal", "Normal", UNIT_Y_VEC3),
+    ],
+    primaryOutputKey: "vector",
+    compute: ({ inputs, parameters }) => {
+      const vector = resolveVectorInput(inputs, parameters, "vector", "vector", UNIT_X_VEC3);
+      const normal = resolveVectorInput(inputs, parameters, "normal", "normal", UNIT_Y_VEC3);
+      const normalLength = lengthVec3(normal);
+      if (normalLength <= EPSILON) {
+        return { vector, normal };
+      }
+      const unitNormal = scaleVec3(normal, 1 / normalLength);
+      const projection = 2 * dotVec3(vector, unitNormal);
+      const reflected = subtractVec3(vector, scaleVec3(unitNormal, projection));
+      return { vector: reflected, normal };
+    },
+  },
 ];
 
 export const NODE_DEFINITION_BY_TYPE = new Map<NodeType, WorkflowNodeDefinition>(
@@ -2717,12 +4162,12 @@ export const NODE_CATEGORY_BY_ID = new Map<NodeCategoryId, NodeCategory>(
 );
 
 export const PORT_TYPE_COLOR: Record<WorkflowPortType, string> = {
-  any: "#4a4a4a",
-  boolean: "#c052d6",
-  geometry: "#2f8f4e",
-  number: "#0f8b92",
-  string: "#3d3d3d",
-  vector: "#3a81ba",
+  any: "#c9c5c0",
+  boolean: "#c9c5c0",
+  geometry: "#c9c5c0",
+  number: "#c9c5c0",
+  string: "#c9c5c0",
+  vector: "#c9c5c0",
 };
 
 export const isPortTypeCompatible = (source: WorkflowPortType, target: WorkflowPortType) => {
@@ -2847,6 +4292,9 @@ export const resolveNodeParameters = (node: Pick<WorkflowNode, "type" | "data">)
     if (typeof node.data?.sphereRadius === "number") {
       parameters.sphereRadius = node.data.sphereRadius;
     }
+  }
+  if (type === "move") {
+    if (node.data?.geometryId) parameters.geometryId = node.data.geometryId;
   }
   if (type === "topologyOptimize") {
     const settings = node.data?.topologySettings;

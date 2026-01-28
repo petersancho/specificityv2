@@ -1,0 +1,10 @@
+.root {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.canvas {
+  display: block;
+  pointer-events: none;
+}

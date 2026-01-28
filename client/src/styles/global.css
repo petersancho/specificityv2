@@ -1,22 +1,33 @@
-@import url("https://fonts.cdnfonts.com/css/montreal-neue");
 @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap");
 
 :root {
   color-scheme: light;
   /* Roslyn palette */
+  --sp-porcelain: #f5f2ee;
+  --sp-uiGrey: #e9e6e2;
+  --sp-divider: #c9c5c0;
+  --sp-ink: #1f1f22;
+  --sp-muted: #6a6661;
+  --sp-cyan: #00c2d1;
+  --sp-pink: #ff4fb6;
+  --sp-yellow: #ffc533;
+  --sp-purple: #7a5cff;
+  --sp-orange: #ff8a3d;
+
   --roslyn-industrial-warm-grey: #8e8a84;
-  --roslyn-instrument-cream: #f6f2eb;
-  --roslyn-soft-porcelain: #fbfaf8;
-  --roslyn-calibration-grey: #e2e0dc;
-  --roslyn-machined-grey: #b7b4ae;
-  --roslyn-graphite-ink: #2e2e2c;
-  --roslyn-signal-orange: #d28b5c;
+  --roslyn-instrument-cream: var(--sp-porcelain);
+  --roslyn-soft-porcelain: var(--sp-porcelain);
+  --roslyn-calibration-grey: var(--sp-uiGrey);
+  --roslyn-machined-grey: var(--sp-divider);
+  --roslyn-graphite-ink: var(--sp-ink);
+  --roslyn-signal-orange: var(--sp-orange);
+  --roslyn-cream: var(--sp-porcelain);
 
   /* Ink scale */
-  --ink-1000: #050505;
-  --ink-900: #111111;
-  --ink-700: #1c1c1c;
-  --ink-500: #3c3c3c;
+  --ink-1000: var(--sp-ink);
+  --ink-900: #2a2a2e;
+  --ink-700: #3b3b40;
+  --ink-500: #57575e;
 
   /* Fog scale */
   --fog-100: var(--roslyn-soft-porcelain);
@@ -44,8 +55,8 @@
   --fg: var(--roslyn-graphite-ink);
   --muted: var(--roslyn-machined-grey);
   --muted-strong: var(--roslyn-industrial-warm-grey);
-  --border: var(--roslyn-calibration-grey);
-  --border-subtle: var(--roslyn-calibration-grey);
+  --border: var(--sp-divider);
+  --border-subtle: var(--sp-divider);
   --card-bg: var(--roslyn-instrument-cream);
   --card-hover-bg: var(--roslyn-soft-porcelain);
   --surface: var(--roslyn-instrument-cream);

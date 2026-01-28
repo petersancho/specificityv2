@@ -25,6 +25,22 @@ export type Material = {
 
 export type Vec3 = { x: number; y: number; z: number };
 
+export type NURBSCurve = {
+  controlPoints: Vec3[];
+  knots: number[];
+  degree: number;
+  weights?: number[];
+};
+
+export type NURBSSurface = {
+  controlPoints: Vec3[][];
+  knotsU: number[];
+  knotsV: number[];
+  degreeU: number;
+  degreeV: number;
+  weights?: number[][];
+};
+
 
 export type PlaneDefinition = {
   origin: Vec3;
@@ -59,6 +75,7 @@ export type PolylineGeometry = {
   vertexIds: string[];
   closed: boolean;
   degree: 1 | 2 | 3;
+  nurbs?: NURBSCurve;
   layerId: string;
   area_m2?: number;
   thickness_m?: number;
@@ -70,6 +87,7 @@ export type SurfaceGeometry = {
   id: string;
   type: "surface";
   mesh: RenderMesh;
+  nurbs?: NURBSSurface;
   loops: string[][];
   plane?: PlaneDefinition;
   layerId: string;
@@ -157,7 +175,8 @@ export type ComponentSelection =
     };
 
 export type TransformMode = "move" | "rotate" | "scale" | null;
-export type TransformOrientation = "world" | "local" | "cplane";
+export type TransformOrientation = "world" | "local" | "view" | "cplane";
+export type GumballAlignment = "boundingBox" | "cplane";
 export type PivotMode = "world" | "selection" | "cursor" | "picked" | "origin";
 
 export type DisplayMode = "shaded" | "wireframe" | "shaded_edges" | "ghosted";
@@ -239,7 +258,9 @@ export type ModelerSnapshot = {
   cPlane: CPlane;
   pivot: PivotState;
   transformOrientation: TransformOrientation;
+  gumballAlignment: GumballAlignment;
   displayMode: DisplayMode;
+  viewSolidity: number;
   viewSettings: ViewSettings;
   snapSettings: SnapSettings;
   gridSettings: GridSettings;
@@ -296,6 +317,8 @@ export type WorkflowNodeData = {
   boxDimensions?: { width: number; height: number; depth: number };
   sphereOrigin?: Vec3;
   sphereRadius?: number;
+  moveOffset?: Vec3;
+  moveGeometryId?: string;
   topologySettings?: TopologyOptimizationSettings;
   topologyProgress?: TopologyOptimizationProgress;
   parameters?: Record<string, unknown>;

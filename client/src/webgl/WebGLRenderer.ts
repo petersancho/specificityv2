@@ -35,7 +35,7 @@ export class WebGLRenderer {
   private clearColor: [number, number, number, number];
 
   constructor(canvas: HTMLCanvasElement) {
-    const gl = canvas.getContext("webgl");
+    const gl = canvas.getContext("webgl", { antialias: true, alpha: true });
     if (!gl) {
       throw new Error("WebGL not supported");
     }
@@ -170,7 +170,8 @@ export class WebGLRenderer {
   renderLine(
     buffer: GeometryBuffer,
     camera: Camera,
-    uniforms: Record<string, any>
+    uniforms: Record<string, any>,
+    options?: { drawMode?: "strip" | "triangles" }
   ): void {
     const program = this.shaderManager.getProgram("line");
     if (!program) return;
@@ -196,7 +197,11 @@ export class WebGLRenderer {
     });
 
     buffer.bind(program);
-    buffer.draw(this.gl.TRIANGLE_STRIP);
+    const mode =
+      options?.drawMode === "triangles"
+        ? this.gl.TRIANGLES
+        : this.gl.TRIANGLE_STRIP;
+    buffer.draw(mode);
   }
 
   renderEdges(
@@ -222,6 +227,11 @@ export class WebGLRenderer {
     const viewMatrix = this.computeViewMatrix(camera);
     const projectionMatrix = this.computeProjectionMatrix(camera);
     const modelMatrix = uniforms.modelMatrix || this.identityMatrix();
+
+    const lineWidth = uniforms.lineWidth ?? 1;
+    if (typeof lineWidth === "number" && Number.isFinite(lineWidth)) {
+      this.gl.lineWidth(lineWidth);
+    }
 
     this.shaderManager.setUniforms(program, {
       modelMatrix,

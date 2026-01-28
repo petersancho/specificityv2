@@ -109,6 +109,19 @@ export const isWorkflowNodeInvalid = (
       const radius = safeData.sphereRadius;
       return !isFiniteNumber(radius) || radius <= 0;
     }
+    case "move": {
+      const geometryId =
+        typeof safeData.outputs?.geometry === "string"
+          ? safeData.outputs.geometry
+          : safeData.geometryId;
+      if (!geometryId) return true;
+      const parameters = safeData.parameters;
+      return (
+        isInvalidNumberParameter(parameters, "worldX") ||
+        isInvalidNumberParameter(parameters, "worldY") ||
+        isInvalidNumberParameter(parameters, "worldZ")
+      );
+    }
     case "topologyOptimize": {
       const parameters = safeData.parameters;
       const volumeFraction =
@@ -215,6 +228,69 @@ export const isWorkflowNodeInvalid = (
       const depth = parseFiniteNumber(parameters.depth) ?? 1;
       return depth <= 0;
     }
+    case "range": {
+      const parameters = safeData.parameters;
+      if (!parameters) return false;
+      if (
+        isInvalidNumberParameter(parameters, "start") ||
+        isInvalidNumberParameter(parameters, "end") ||
+        isInvalidNumberParameter(parameters, "step")
+      ) {
+        return true;
+      }
+      const step = parseFiniteNumber(parameters.step) ?? 1;
+      return step === 0;
+    }
+    case "linspace": {
+      const parameters = safeData.parameters;
+      if (!parameters) return false;
+      if (
+        isInvalidNumberParameter(parameters, "start") ||
+        isInvalidNumberParameter(parameters, "end") ||
+        isInvalidNumberParameter(parameters, "count")
+      ) {
+        return true;
+      }
+      const count = parseFiniteNumber(parameters.count) ?? 2;
+      return count <= 0;
+    }
+    case "remap": {
+      const parameters = safeData.parameters;
+      if (!parameters) return false;
+      if (
+        isInvalidNumberParameter(parameters, "value") ||
+        isInvalidNumberParameter(parameters, "sourceMin") ||
+        isInvalidNumberParameter(parameters, "sourceMax") ||
+        isInvalidNumberParameter(parameters, "targetMin") ||
+        isInvalidNumberParameter(parameters, "targetMax")
+      ) {
+        return true;
+      }
+      const sourceMin = parseFiniteNumber(parameters.sourceMin) ?? 0;
+      const sourceMax = parseFiniteNumber(parameters.sourceMax) ?? 1;
+      return sourceMin === sourceMax;
+    }
+    case "random": {
+      const parameters = safeData.parameters;
+      if (!parameters) return false;
+      if (
+        isInvalidNumberParameter(parameters, "seed") ||
+        isInvalidNumberParameter(parameters, "min") ||
+        isInvalidNumberParameter(parameters, "max")
+      ) {
+        return true;
+      }
+      const min = parseFiniteNumber(parameters.min) ?? 0;
+      const max = parseFiniteNumber(parameters.max) ?? 1;
+      return min > max;
+    }
+    case "repeat": {
+      const parameters = safeData.parameters;
+      if (!parameters) return false;
+      if (isInvalidNumberParameter(parameters, "count")) return true;
+      const count = parseFiniteNumber(parameters.count) ?? 1;
+      return count <= 0;
+    }
     case "listSlice": {
       const parameters = safeData.parameters;
       if (!parameters) return false;
@@ -318,12 +394,57 @@ export const isWorkflowNodeInvalid = (
         isInvalidVectorParameters(safeData.parameters, "point") ||
         isInvalidVectorParameters(safeData.parameters, "offset")
       );
+    case "moveVector":
+      return (
+        isInvalidVectorParameters(safeData.parameters, "vector") ||
+        isInvalidVectorParameters(safeData.parameters, "offset")
+      );
+    case "scaleVector":
+      return (
+        isInvalidVectorParameters(safeData.parameters, "vector") ||
+        isInvalidNumberParameter(safeData.parameters, "scale")
+      );
     case "rotateVectorAxis":
       return (
         isInvalidVectorParameters(safeData.parameters, "vector") ||
         isInvalidVectorParameters(safeData.parameters, "axis") ||
         isInvalidNumberParameter(safeData.parameters, "angleDeg")
       );
+    case "mirrorVector":
+      return (
+        isInvalidVectorParameters(safeData.parameters, "vector") ||
+        isInvalidVectorParameters(safeData.parameters, "normal")
+      );
+    case "sineWave":
+    case "cosineWave":
+    case "sawtoothWave":
+    case "triangleWave": {
+      const parameters = safeData.parameters;
+      if (!parameters) return false;
+      return (
+        isInvalidNumberParameter(parameters, "t") ||
+        isInvalidNumberParameter(parameters, "amplitude") ||
+        isInvalidNumberParameter(parameters, "frequency") ||
+        isInvalidNumberParameter(parameters, "phaseDeg") ||
+        isInvalidNumberParameter(parameters, "offset")
+      );
+    }
+    case "squareWave": {
+      const parameters = safeData.parameters;
+      if (!parameters) return false;
+      if (
+        isInvalidNumberParameter(parameters, "t") ||
+        isInvalidNumberParameter(parameters, "amplitude") ||
+        isInvalidNumberParameter(parameters, "frequency") ||
+        isInvalidNumberParameter(parameters, "phaseDeg") ||
+        isInvalidNumberParameter(parameters, "offset") ||
+        isInvalidNumberParameter(parameters, "duty")
+      ) {
+        return true;
+      }
+      const duty = parseFiniteNumber(parameters.duty) ?? 0.5;
+      return duty < 0 || duty > 1;
+    }
     default:
       return false;
   }

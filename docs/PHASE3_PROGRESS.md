@@ -3,6 +3,8 @@
 ## Objective
 Replace React Three Fiber (R3F) abstractions with direct WebGL control while maintaining Three.js for math utilities only, per `docs/PHASE1_AUDIT.md` and `docs/SHADER_INVENTORY.md`.
 
+**Status:** ✅ Complete (WebGL pipeline fully replaces R3F in Roslyn; R3F dependencies removed.)
+
 ## Completed Infrastructure (Foundation Layer)
 
 ### 1. Shader Management System ✅
@@ -112,65 +114,48 @@ Per `docs/SHADER_INVENTORY.md`:
 - ✅ Uniform management system
 - ✅ Performance optimizations (caching, batching)
 
-## Remaining Phase 3 Work
+## Phase 3 Completion Notes
 
-### High Priority
+Phase 3 is complete. The legacy R3F `ViewerCanvas` has been removed, and Roslyn now renders exclusively through `WebGLViewerCanvas` and the custom WebGL renderer pipeline. Gizmo handling is provided by the WebGL gumball system, and all geometry rendering, selection, and viewport controls run on the custom WebGL stack.
 
-1. **Replace R3F Canvas in ViewerCanvas.tsx**
-   - Remove `<Canvas>` component from R3F
-   - Create raw `<canvas>` element
-   - Initialize WebGLRenderer
-   - Implement `requestAnimationFrame` loop
+### Completed Highlights
+
+1. **R3F Canvas Removed**
+   - Legacy `ViewerCanvas` removed from the client codebase
+   - Roslyn uses the raw `<canvas>` WebGL pipeline via `WebGLViewerCanvas`
 
 2. **Custom Camera Controller**
-   - Orbit controls (right-drag)
-   - Pan controls (middle-drag or Shift+left-drag)
-   - Zoom controls (wheel)
-   - Camera state integration with Zustand store
+   - Orbit, pan, and zoom handled directly in `WebGLViewerCanvas`
+   - Zustand camera state integration preserved
 
-3. **Port Geometry Rendering**
-   - Tessellate NURBS curves/surfaces to buffer geometry
-   - Render vertices as instanced spheres (or points)
-   - Render polylines with line shader
-   - Render surfaces with geometry shader
-   - Apply selection highlighting
+3. **Geometry Rendering Ported**
+   - NURBS tessellation to buffers
+   - Polyline line shader rendering
+   - Surface/mesh rendering with lighting and selection highlights
 
 4. **Gizmo Integration**
-   - Keep gizmo rendering (currently uses Three.js)
-   - Ensure gizmo works with custom camera
-   - Test transform sessions (translate/rotate/scale)
+   - WebGL gumball system now provides transform handles
+   - Transform sessions run in the WebGL viewer loop
 
 5. **Box Selection**
-   - Maintain left-drag marquee selection
-   - Integrate with custom camera/viewport
-   - Test containment vs crossing modes
+   - Marquee selection in the WebGL viewer
+   - Crossing vs containment logic retained
 
 ### Testing Checklist
 
-- [ ] WebGL context initializes correctly
-- [ ] Shaders compile without errors
-- [ ] Camera matrices compute correctly
-- [ ] Geometry buffers render visible objects
-- [ ] Selection highlighting works
-- [ ] Gizmo remains functional
-- [ ] Box selection works
-- [ ] Orbit/pan/zoom controls work
-- [ ] Performance matches or exceeds R3F
+- [x] WebGL context initializes correctly
+- [x] Shaders compile without errors
+- [x] Camera matrices compute correctly
+- [x] Geometry buffers render visible objects
+- [x] Selection highlighting works
+- [x] Gizmo remains functional (WebGL gumball)
+- [x] Box selection works
+- [x] Orbit/pan/zoom controls work
+- [x] Performance matches or exceeds R3F
 
 ## Migration Strategy
 
-**Incremental Approach:**
-1. Create parallel WebGL renderer alongside R3F (Phase 3a)
-2. Test rendering parity with simple geometry
-3. Swap R3F Canvas for custom canvas (Phase 3b)
-4. Remove R3F dependencies (Phase 3c)
-5. Verify all features functional (Phase 3d)
-
-**Risk Mitigation:**
-- Keep Three.js for math utilities (Vector3, Matrix4, raycasting)
-- Preserve existing geometry kernel unchanged
-- Maintain Zustand store integration
-- Test incrementally with each component
+Phase 3 migration is complete. R3F dependencies have been removed, and the WebGL renderer is the sole viewport implementation for Roslyn. Three.js remains for math utilities only.
 
 ## Performance Expectations
 
@@ -187,11 +172,7 @@ Per `docs/SHADER_INVENTORY.md`:
 
 ## Next Steps
 
-1. **Create CustomViewerCanvas component** with raw WebGL
-2. **Implement camera controller** with orbit/pan/zoom
-3. **Port geometry rendering** to custom shaders
-4. **Test gizmo integration** with custom camera
-5. **Remove R3F dependency** once feature-complete
+No additional Phase 3 work remaining. Proceed with Phase 4+ enhancements or UI polish per `docs/panel_ui_specification.md`.
 
 ## References
 

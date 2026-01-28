@@ -1,16 +1,17 @@
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
-  type KeyboardEvent as ReactKeyboardEvent,
-  type MouseEvent as ReactMouseEvent,
 } from "react";
 import { createPortal } from "react-dom";
 import WebGLViewerCanvas from "./WebGLViewerCanvas";
 import WebGLPanelTopBar, { type WebGLTopBarAction } from "./WebGLPanelTopBar";
 import WebGLStatusFooter from "./WebGLStatusFooter";
+import WebGLTitleLogo from "./WebGLTitleLogo";
 import WebGLButton from "./ui/WebGLButton";
+import WebGLSlider from "./ui/WebGLSlider";
 import { useProjectStore } from "../store/useProjectStore";
 import styles from "./ModelerSection.module.css";
 import {
@@ -19,7 +20,13 @@ import {
   type CommandDefinition,
 } from "../commands/registry";
 import { COMMAND_DESCRIPTIONS } from "../data/commandDescriptions";
-import type { CPlane, Geometry, PolylineGeometry, Vec3 } from "../types";
+import type {
+  CPlane,
+  Geometry,
+  GumballAlignment,
+  PolylineGeometry,
+  Vec3,
+} from "../types";
 import {
   add,
   centroid,
@@ -31,6 +38,10 @@ import {
 } from "../geometry/math";
 import { offsetPolyline2D } from "../geometry/booleans";
 import type { IconId } from "../webgl/ui/WebGLIconRenderer";
+import {
+  resolveDisplayModeFromSolidity,
+  resolveSolidityFromDisplayMode,
+} from "../view/solidity";
 
 const geometryCommands = COMMAND_DEFINITIONS.filter(
   (command) => command.category === "geometry"
@@ -62,38 +73,130 @@ const performCommands = COMMAND_DEFINITIONS.filter(
     command.category === "performs" && SUPPORTED_PERFORM_COMMANDS.has(command.id)
 );
 
-const PRIMARY_GEOMETRY_ORDER = [
-  "point",
-  "line",
-  "polyline",
-  "rectangle",
-  "circle",
-  "arc",
-  "curve",
-  "primitive",
+const selectionModeOptions = [
+  {
+    value: "object",
+    label: "Object",
+    iconId: "box",
+    tooltip: "Object selection mode. Picks whole geometry objects.",
+  },
+  {
+    value: "vertex",
+    label: "Vertex",
+    iconId: "point",
+    tooltip: "Vertex mode. Selects points using screen-space tolerance.",
+  },
+  {
+    value: "edge",
+    label: "Edge",
+    iconId: "line",
+    tooltip: "Edge mode. Selects edges using screen-space tolerance.",
+  },
+  {
+    value: "face",
+    label: "Face",
+    iconId: "rectangle",
+    tooltip: "Face mode. Selects faces directly.",
+  },
 ] as const;
 
-const PRIMARY_PERFORM_ORDER = [
-  "move",
-  "rotate",
-  "scale",
-  "transform",
-  "gumball",
-  "extrude",
-  "loft",
-  "surface",
-  "undo",
-  "redo",
-  "delete",
-  "focus",
-  "frameall",
+const transformOrientationOrder = ["world", "local", "view", "cplane"] as const;
+
+const transformOrientationOptions = [
+  {
+    value: "world",
+    label: "World",
+    iconId: "frameAll",
+    tooltip: "World orientation. Align transforms to global axes.",
+  },
+  {
+    value: "local",
+    label: "Local",
+    iconId: "gumball",
+    tooltip: "Local orientation. Align transforms to the object's axes.",
+  },
+  {
+    value: "view",
+    label: "View",
+    iconId: "displayMode",
+    tooltip: "View orientation. Align transforms to the camera view plane.",
+  },
+  {
+    value: "cplane",
+    label: "C-Plane",
+    iconId: "cplaneXY",
+    tooltip: "C-Plane orientation. Align transforms to the active construction plane.",
+  },
 ] as const;
 
-const SECONDARY_COMMAND_ORDER = ["interpolate", "copy", "paste", "duplicate"] as const;
+const gumballAlignmentOptions = [
+  {
+    value: "boundingBox",
+    label: "Bounding Box",
+    iconId: "gumball",
+    tooltip: "Align the gumball to the selection's bounding box.",
+  },
+  {
+    value: "cplane",
+    label: "C-Plane",
+    iconId: "cplaneXY",
+    tooltip: "Align the gumball to the active construction plane.",
+  },
+] as const;
 
-const PRIMARY_GEOMETRY_SET = new Set<string>(PRIMARY_GEOMETRY_ORDER);
-const PRIMARY_PERFORM_SET = new Set<string>(PRIMARY_PERFORM_ORDER);
-const SECONDARY_COMMAND_SET = new Set<string>(SECONDARY_COMMAND_ORDER);
+const pivotModeOptions = [
+  {
+    value: "selection",
+    label: "Selection",
+    iconId: "selectionFilter",
+    tooltip: "Selection pivot. Use the selection centroid as pivot.",
+  },
+  {
+    value: "world",
+    label: "World",
+    iconId: "frameAll",
+    tooltip: "World pivot. Use the global origin as pivot.",
+  },
+  {
+    value: "picked",
+    label: "Picked",
+    iconId: "pointGenerator",
+    tooltip: "Picked pivot. Use the last picked point as pivot.",
+  },
+  {
+    value: "cursor",
+    label: "Cursor",
+    iconId: "focus",
+    tooltip: "Cursor pivot. Use the current cursor position.",
+  },
+  {
+    value: "origin",
+    label: "Origin",
+    iconId: "point",
+    tooltip: "Origin pivot. Use the absolute world origin.",
+  },
+] as const;
+
+const displayModeOptions = [
+  {
+    value: "shaded",
+    label: "Solid",
+    iconId: "sphere",
+    tooltip: "Solid shading for surfaces and solids.",
+  },
+  {
+    value: "wireframe",
+    label: "Wireframe",
+    iconId: "rectangle",
+    tooltip: "Wireframe display showing edges only.",
+  },
+  {
+    value: "ghosted",
+    label: "Ghosted",
+    iconId: "circle",
+    tooltip: "Ghosted display with semi-transparent shading.",
+  },
+] as const;
 
 const sortByOrder = <T extends { id: string }>(items: T[], order: readonly string[]) => {
   const indexMap = new Map(order.map((id, index) => [id, index] as const));
@@ -102,6 +205,12 @@ const sortByOrder = <T extends { id: string }>(items: T[], order: readonly strin
     (a, b) => (indexMap.get(a.id) ?? fallbackIndex) - (indexMap.get(b.id) ?? fallbackIndex)
   );
 };
+
+const ROSLYN_PANEL_SCALE_KEY = "specificity.webglPanelScale";
+const ROSLYN_COMMAND_BAR_COLLAPSED_KEY = "specificity.roslynCommandBarCollapsed";
+const MIN_ROSLYN_PANEL_SCALE = 0.4;
+const MAX_ROSLYN_PANEL_SCALE = 1.05;
+const PANEL_SCALE_SPEED = 0.0015;
 
 type CommandRequest = {
   id: string;
@@ -147,6 +256,45 @@ const COMMAND_ICON_ID_MAP: Record<string, IconId> = {
 
 const resolveCommandIconId = (commandId: string): IconId =>
   COMMAND_ICON_ID_MAP[commandId] ?? (commandId as IconId);
+
+const COMMAND_CATEGORY_TINTS = {
+  primitive: "#00c2d1",
+  curve: "#ff4fb6",
+  mesh: "#7a5cff",
+  neutral: "#1f1f22",
+} as const;
+
+const PRIMITIVE_COMMANDS = new Set([
+  "point",
+  "primitive",
+  "box",
+  "sphere",
+  "cylinder",
+]);
+
+const CURVE_COMMANDS = new Set([
+  "line",
+  "polyline",
+  "rectangle",
+  "circle",
+  "arc",
+  "curve",
+  "interpolate",
+]);
+
+const MESH_COMMANDS = new Set(["surface", "loft", "extrude", "boolean"]);
+
+const resolveCommandCategory = (
+  commandId: string
+): keyof typeof COMMAND_CATEGORY_TINTS => {
+  if (PRIMITIVE_COMMANDS.has(commandId)) return "primitive";
+  if (CURVE_COMMANDS.has(commandId)) return "curve";
+  if (MESH_COMMANDS.has(commandId)) return "mesh";
+  return "neutral";
+};
+
+const resolveCommandIconTint = (commandId: string) =>
+  COMMAND_CATEGORY_TINTS[resolveCommandCategory(commandId)];
 
 const renderCommandIcon = (commandId: string) => {
   switch (commandId) {
@@ -394,12 +542,15 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
   const setTransformOrientation = useProjectStore(
     (state) => state.setTransformOrientation
   );
+  const gumballAlignment = useProjectStore((state) => state.gumballAlignment);
+  const setGumballAlignment = useProjectStore((state) => state.setGumballAlignment);
   const pivot = useProjectStore((state) => state.pivot);
   const setPivotMode = useProjectStore((state) => state.setPivotMode);
   const displayMode = useProjectStore((state) => state.displayMode);
   const setDisplayMode = useProjectStore((state) => state.setDisplayMode);
-  const displayModeForUI =
-    displayMode === "wireframe" || displayMode === "ghosted" ? displayMode : "shaded";
+  const viewSolidity = useProjectStore((state) => state.viewSolidity);
+  const setViewSolidity = useProjectStore((state) => state.setViewSolidity);
+  const displayModeForUI = resolveDisplayModeFromSolidity(viewSolidity);
   const viewSettings = useProjectStore((state) => state.viewSettings);
   const setViewSettings = useProjectStore((state) => state.setViewSettings);
   const snapSettings = useProjectStore((state) => state.snapSettings);
@@ -437,15 +588,28 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
   const setSelectedGeometryIds = useProjectStore(
     (state) => state.setSelectedGeometryIds
   );
-  const setMaterialAssignment = useProjectStore(
-    (state) => state.setMaterialAssignment
-  );
   const [activeCommand, setActiveCommand] = useState<CommandDefinition | null>(
     null
   );
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [showStatusBar, setShowStatusBar] = useState(true);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [panelScale, setPanelScale] = useState(() => {
+    if (typeof window === "undefined") return 0.85;
+    const stored = window.localStorage.getItem(ROSLYN_PANEL_SCALE_KEY);
+    const parsed = stored ? Number(stored) : 0.85;
+    if (!Number.isFinite(parsed)) return 0.85;
+    return Math.min(
+      MAX_ROSLYN_PANEL_SCALE,
+      Math.max(MIN_ROSLYN_PANEL_SCALE, parsed)
+    );
+  });
+  const [commandBarCollapsed, setCommandBarCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return (
+      window.localStorage.getItem(ROSLYN_COMMAND_BAR_COLLAPSED_KEY) === "true"
+    );
+  });
+  const [commandBarHeight, setCommandBarHeight] = useState(0);
   const [primitiveSettings, setPrimitiveSettings] = useState({
     kind: "box" as "box" | "sphere" | "cylinder" | "torus",
     size: 1,
@@ -472,6 +636,7 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
   const commandInputRef = useRef<HTMLInputElement>(null);
   const [footerRoot, setFooterRoot] = useState<HTMLElement | null>(null);
   const viewerRef = useRef<HTMLDivElement>(null);
+  const commandBarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (displayMode !== displayModeForUI) {
@@ -483,6 +648,74 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
     if (typeof window === "undefined") return;
     setFooterRoot(document.getElementById("workspace-footer-root"));
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(ROSLYN_PANEL_SCALE_KEY, panelScale.toFixed(3));
+  }, [panelScale]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(
+      ROSLYN_COMMAND_BAR_COLLAPSED_KEY,
+      commandBarCollapsed ? "true" : "false"
+    );
+  }, [commandBarCollapsed]);
+
+  useLayoutEffect(() => {
+    const node = commandBarRef.current;
+    if (!node) return;
+    const measure = () => {
+      setCommandBarHeight(node.offsetHeight);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [commandBarCollapsed]);
+
+  const clampPanelScale = (value: number) =>
+    Math.min(MAX_ROSLYN_PANEL_SCALE, Math.max(MIN_ROSLYN_PANEL_SCALE, value));
+
+  const handlePanelScaleChange = (nextScale: number) => {
+    setPanelScale(clampPanelScale(nextScale));
+  };
+
+  const handleCommandBarWheel = (
+    event: React.WheelEvent<HTMLDivElement>
+  ) => {
+    if (!(event.ctrlKey || event.metaKey || event.altKey)) return;
+    event.preventDefault();
+    const delta = -event.deltaY * PANEL_SCALE_SPEED;
+    setPanelScale((prev) => clampPanelScale(prev * Math.exp(delta)));
+  };
+
+  const scaledCommandBarHeight = commandBarHeight
+    ? Math.max(1, commandBarHeight * panelScale)
+    : 0;
+
+  const commandBarShellStyle = useMemo(() => {
+    const collapsedHeight = 52 * panelScale;
+    if (commandBarCollapsed) {
+      return {
+        height: `${collapsedHeight}px`,
+        minHeight: `${collapsedHeight}px`,
+      };
+    }
+    if (!scaledCommandBarHeight) return undefined;
+    return {
+      height: `${scaledCommandBarHeight}px`,
+      minHeight: `${scaledCommandBarHeight}px`,
+    };
+  }, [commandBarCollapsed, panelScale, scaledCommandBarHeight]);
+
+  const commandBarScaleStyle = useMemo(
+    () => ({
+      transform: `scale(${panelScale})`,
+      transformOrigin: "top left",
+    }),
+    [panelScale]
+  );
 
   const selectedPolylines = useMemo(
     () =>
@@ -1174,6 +1407,14 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
         duplicateSelection();
         return;
       }
+      if (key === "c" && !(event.ctrlKey || event.metaKey)) {
+        event.preventDefault();
+        const index = transformOrientationOrder.indexOf(transformOrientation);
+        const next =
+          transformOrientationOrder[(index + 1) % transformOrientationOrder.length];
+        setTransformOrientation(next);
+        return;
+      }
       if (key === "f") {
         event.preventDefault();
         if (event.shiftKey) {
@@ -1186,7 +1427,15 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [copySelection, pasteSelection, duplicateSelection, undoModeler, redoModeler]);
+  }, [
+    copySelection,
+    pasteSelection,
+    duplicateSelection,
+    undoModeler,
+    redoModeler,
+    transformOrientation,
+    setTransformOrientation,
+  ]);
 
   const sceneNodeMap = useMemo(
     () => new Map(sceneNodes.map((node) => [node.id, node])),
@@ -1947,6 +2196,10 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
     { label: "Filter", value: selectionMode },
     { label: "Pivot", value: pivot.mode },
     { label: "Orient", value: transformOrientation },
+    {
+      label: "Gumball",
+      value: gumballAlignment === "boundingBox" ? "BBox" : "C-Plane",
+    },
     { label: "Snaps", value: activeSnapsLabel },
   ];
 
@@ -1956,6 +2209,8 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
         { key: "⌘Z", label: "Undo" },
         { key: "⌘⇧Z", label: "Redo" },
       ]}
+      title="Roslyn"
+      titleTone="roslyn"
       centerChips={[
         `Grid: ${gridSettings.spacing}${gridSettings.units}`,
         `Snaps: ${activeSnapsLabel}`,
@@ -1968,16 +2223,6 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
     />
   );
 
-  const secondaryCommands = sortByOrder(
-    [...geometryCommands, ...performCommands].filter(
-      (command) =>
-        !PRIMARY_GEOMETRY_SET.has(command.id) &&
-        !PRIMARY_PERFORM_SET.has(command.id) &&
-        SECONDARY_COMMAND_SET.has(command.id)
-    ),
-    SECONDARY_COMMAND_ORDER
-  );
-
   const commandActions: WebGLTopBarAction[] = [...geometryCommands, ...performCommands].map(
     (command) => {
       const meta = COMMAND_DESCRIPTIONS[command.id];
@@ -1988,67 +2233,54 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
         tooltip: `${meta?.description ?? command.prompt}${shortcut}`,
         onClick: () => handleCommandClick(command),
         isActive: activeCommand?.id === command.id,
+        iconTint: resolveCommandIconTint(command.id),
       };
     }
   );
 
   const TOP_BAR_ORDER: string[] = [
     "point",
+    "primitive",
     "line",
     "polyline",
     "rectangle",
     "circle",
     "arc",
     "curve",
-    "primitive",
+    "interpolate",
+    "surface",
+    "loft",
+    "extrude",
     "move",
     "rotate",
     "scale",
     "gumball",
     "undo",
     "redo",
+    "copy",
+    "paste",
+    "duplicate",
     "delete",
     "focus",
     "frameall",
   ];
 
-  const COMMAND_BREAKS = new Set(["move", "undo"]);
+  const COMMAND_BREAKS = new Set(["line", "surface", "move", "undo"]);
+  const COMMAND_GROUP_LABELS: Record<string, string> = {
+    point: "Primitive",
+    line: "Curve",
+    surface: "Mesh",
+    move: "Transform",
+    undo: "Edit",
+  };
   const commandActionById = new Map(commandActions.map((action) => [action.id, action] as const));
   const orderedCommandActions = TOP_BAR_ORDER.map((id) => commandActionById.get(id))
     .filter((action): action is (typeof commandActions)[number] => Boolean(action))
     .map((action) => ({
       ...action,
       groupBreakBefore: COMMAND_BREAKS.has(action.id),
+      groupLabel: COMMAND_GROUP_LABELS[action.id],
     }));
-
-  const selectionModeOrder = ["object", "vertex", "edge", "face"] as const;
-  const displayModeOrder = ["shaded", "wireframe", "ghosted"] as const;
-  const transformOrientationOrder = ["world", "local", "cplane"] as const;
-  const pivotModeOrder = ["selection", "world", "cursor", "picked", "origin"] as const;
-
-  const cycleSelectionMode = () => {
-    const index = selectionModeOrder.indexOf(selectionMode);
-    const next = selectionModeOrder[(index + 1) % selectionModeOrder.length];
-    setSelectionMode(next);
-  };
-
-  const cycleDisplayMode = () => {
-    const index = displayModeOrder.indexOf(displayModeForUI);
-    const next = displayModeOrder[(index + 1) % displayModeOrder.length];
-    setDisplayMode(next);
-  };
-
-  const cycleTransformOrientation = () => {
-    const index = transformOrientationOrder.indexOf(transformOrientation);
-    const next = transformOrientationOrder[(index + 1) % transformOrientationOrder.length];
-    setTransformOrientation(next);
-  };
-
-  const cyclePivotMode = () => {
-    const index = pivotModeOrder.indexOf(pivot.mode);
-    const next = pivotModeOrder[(index + 1) % pivotModeOrder.length];
-    setPivotMode(next);
-  };
 
   const referenceAllDisabled =
     selectedGeometryIds.length === 0 ||
@@ -2108,127 +2340,196 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
     setCPlane(plane);
   };
 
-  const toggleAdvanced = () => setAdvancedOpen((open) => !open);
-  const handleAdvancedSummaryClick = (event: ReactMouseEvent<HTMLElement>) => {
-    event.preventDefault();
-    toggleAdvanced();
-  };
-  const handleAdvancedSummaryKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
-    if (event.key !== "Enter" && event.key !== " ") return;
-    event.preventDefault();
-    toggleAdvanced();
-  };
+  const selectionModeActions: WebGLTopBarAction[] = selectionModeOptions.map(
+    (option, index) => ({
+      id: `selection-${option.value}`,
+      label: option.label,
+      tooltip: option.tooltip,
+      onClick: () => setSelectionMode(option.value as typeof selectionMode),
+      isActive: selectionMode === option.value,
+      icon: option.iconId as IconId,
+      iconTint: COMMAND_CATEGORY_TINTS.neutral,
+      groupBreakBefore: index === 0,
+      groupLabel: index === 0 ? "Selection" : undefined,
+    })
+  );
 
-  const selectionFilterAction: WebGLTopBarAction = {
-    id: "selection-filter",
-    label: "Selection Filter",
-    tooltip: `Selection filter: ${selectionMode}. Click to cycle object → vertex → edge → face.`,
-    onClick: cycleSelectionMode,
-    isActive: selectionMode !== "object",
-    groupBreakBefore: true,
-  };
+  const displayModeActions: WebGLTopBarAction[] = displayModeOptions.map(
+    (option, index) => ({
+      id: `display-${option.value}`,
+      label: option.label,
+      tooltip: option.tooltip,
+      onClick: () =>
+        setViewSolidity(resolveSolidityFromDisplayMode(option.value as typeof displayMode)),
+      isActive: displayModeForUI === option.value,
+      icon: option.iconId as IconId,
+      iconTint: COMMAND_CATEGORY_TINTS.neutral,
+      groupBreakBefore: index === 0,
+      groupLabel: index === 0 ? "Display" : undefined,
+    })
+  );
 
-  const displayModeAction: WebGLTopBarAction = {
-    id: "display-mode",
-    label: "Display Mode",
-    tooltip: `Display mode: ${displayModeForUI}. Click to cycle solid → wireframe → ghosted.`,
-    onClick: cycleDisplayMode,
-    isActive: displayModeForUI !== "shaded",
-  };
+  const transformOrientationActions: WebGLTopBarAction[] = transformOrientationOptions.map(
+    (option, index) => ({
+      id: `orient-${option.value}`,
+      label: option.label,
+      tooltip: option.tooltip,
+      onClick: () =>
+        setTransformOrientation(option.value as typeof transformOrientation),
+      isActive: transformOrientation === option.value,
+      icon: option.iconId as IconId,
+      iconTint: COMMAND_CATEGORY_TINTS.neutral,
+      groupBreakBefore: index === 0,
+      groupLabel: index === 0 ? "Orientation" : undefined,
+    })
+  );
 
-  const transformOrientationAction: WebGLTopBarAction = {
-    id: "transform-orientation",
-    label: "Transform Orientation",
-    tooltip: `Transform orientation: ${transformOrientation}. Click to cycle world → local → c-plane.`,
-    onClick: cycleTransformOrientation,
-    isActive: transformOrientation !== "world",
-    groupBreakBefore: true,
-  };
+  const gumballAlignmentActions: WebGLTopBarAction[] = gumballAlignmentOptions.map(
+    (option, index) => ({
+      id: `gumball-align-${option.value}`,
+      label: option.label,
+      tooltip: option.tooltip,
+      onClick: () =>
+        setGumballAlignment(option.value as typeof gumballAlignment),
+      isActive: gumballAlignment === option.value,
+      icon: option.iconId as IconId,
+      iconTint: COMMAND_CATEGORY_TINTS.neutral,
+      groupBreakBefore: index === 0,
+      groupLabel: index === 0 ? "Gumball" : undefined,
+    })
+  );
 
-  const pivotModeAction: WebGLTopBarAction = {
-    id: "pivot-mode",
-    label: "Pivot Mode",
-    tooltip: `Pivot mode: ${pivot.mode}. Click to cycle selection → world → cursor → picked → origin.`,
-    onClick: cyclePivotMode,
-    isActive: pivot.mode !== "selection",
-  };
+  const pivotModeActions: WebGLTopBarAction[] = pivotModeOptions.map((option, index) => ({
+    id: `pivot-${option.value}`,
+    label: option.label,
+    tooltip: option.tooltip,
+    onClick: () => setPivotMode(option.value as typeof pivot.mode),
+    isActive: pivot.mode === option.value,
+    icon: option.iconId as IconId,
+    iconTint: COMMAND_CATEGORY_TINTS.neutral,
+    groupBreakBefore: index === 0,
+    groupLabel: index === 0 ? "Pivot" : undefined,
+  }));
 
-  const referenceActiveAction: WebGLTopBarAction = {
-    id: "reference-active",
-    label: "Reference Active",
-    tooltip: "Reference the active selection into Numerica.",
-    onClick: handleSendSelectionToWorkflow,
-    isDisabled: !primarySelectedGeometryId || selectionAlreadyLinked,
-    groupBreakBefore: true,
-  };
+  const workflowActions: WebGLTopBarAction[] = [
+    {
+      id: "reference-active",
+      label: "Reference Active",
+      tooltip: "Reference the active selection into Numerica.",
+      onClick: handleSendSelectionToWorkflow,
+      isDisabled: !primarySelectedGeometryId || selectionAlreadyLinked,
+      icon: "referenceActive",
+      iconTint: COMMAND_CATEGORY_TINTS.neutral,
+      groupBreakBefore: true,
+      groupLabel: "Workflow",
+    },
+    {
+      id: "reference-all",
+      label: "Reference All",
+      tooltip: "Reference all selected geometry into Numerica (skips linked).",
+      onClick: handleReferenceAll,
+      isDisabled: referenceAllDisabled,
+      icon: "referenceAll",
+      iconTint: COMMAND_CATEGORY_TINTS.neutral,
+    },
+  ];
 
-  const referenceAllAction: WebGLTopBarAction = {
-    id: "reference-all",
-    label: "Reference All",
-    tooltip: "Reference all selected geometry into Numerica (skips linked).",
-    onClick: handleReferenceAll,
-    isDisabled: referenceAllDisabled,
-  };
+  const groupActions: WebGLTopBarAction[] = [
+    {
+      id: "group",
+      label: "Group",
+      tooltip: "Group the selected geometry.",
+      onClick: handleGroupSelection,
+      isDisabled: groupDisabled,
+      icon: "group",
+      iconTint: COMMAND_CATEGORY_TINTS.neutral,
+      groupBreakBefore: true,
+      groupLabel: "Groups",
+    },
+    {
+      id: "ungroup",
+      label: "Ungroup",
+      tooltip: "Ungroup the currently selected group.",
+      onClick: handleUngroupSelection,
+      isDisabled: !selectedGroupId,
+      icon: "ungroup",
+      iconTint: COMMAND_CATEGORY_TINTS.neutral,
+    },
+  ];
 
-  const groupAction: WebGLTopBarAction = {
-    id: "group",
-    label: "Group",
-    tooltip: "Group the selected geometry.",
-    onClick: handleGroupSelection,
-    isDisabled: groupDisabled,
-    groupBreakBefore: true,
-  };
+  const cplaneActions: WebGLTopBarAction[] = [
+    {
+      id: "cplane-xy",
+      label: "World XY",
+      tooltip: "Set the construction plane to World XY.",
+      onClick: () => resetCPlane(),
+      isActive: isWorldXY,
+      icon: "cplaneXY",
+      iconTint: COMMAND_CATEGORY_TINTS.neutral,
+      groupBreakBefore: true,
+      groupLabel: "C-Plane",
+    },
+    {
+      id: "cplane-xz",
+      label: "World XZ",
+      tooltip: "Set the construction plane to World XZ.",
+      onClick: () => setCPlane(WORLD_XZ_PLANE),
+      isActive: isWorldXZ,
+      icon: "cplaneXZ",
+      iconTint: COMMAND_CATEGORY_TINTS.neutral,
+    },
+    {
+      id: "cplane-yz",
+      label: "World YZ",
+      tooltip: "Set the construction plane to World YZ.",
+      onClick: () => setCPlane(WORLD_YZ_PLANE),
+      isActive: isWorldYZ,
+      icon: "cplaneYZ",
+      iconTint: COMMAND_CATEGORY_TINTS.neutral,
+    },
+    {
+      id: "cplane-align",
+      label: "Align Selection",
+      tooltip: "Align the construction plane to the current selection.",
+      onClick: handleAlignSelectionPlane,
+      isDisabled: !canAlignSelectionPlane,
+      isActive: isAlignedPlane,
+      icon: "cplaneAlign",
+      iconTint: COMMAND_CATEGORY_TINTS.neutral,
+    },
+  ];
 
-  const ungroupAction: WebGLTopBarAction = {
-    id: "ungroup",
-    label: "Ungroup",
-    tooltip: "Ungroup the currently selected group.",
-    onClick: handleUngroupSelection,
-    isDisabled: !selectedGroupId,
-  };
-
-  const cplaneXYAction: WebGLTopBarAction = {
-    id: "cplane-xy",
-    label: "World XY",
-    tooltip: "Set the construction plane to World XY.",
-    onClick: () => resetCPlane(),
-    isActive: isWorldXY,
-    groupBreakBefore: true,
-  };
-
-  const cplaneXZAction: WebGLTopBarAction = {
-    id: "cplane-xz",
-    label: "World XZ",
-    tooltip: "Set the construction plane to World XZ.",
-    onClick: () => setCPlane(WORLD_XZ_PLANE),
-    isActive: isWorldXZ,
-  };
-
-  const cplaneYZAction: WebGLTopBarAction = {
-    id: "cplane-yz",
-    label: "World YZ",
-    tooltip: "Set the construction plane to World YZ.",
-    onClick: () => setCPlane(WORLD_YZ_PLANE),
-    isActive: isWorldYZ,
-  };
-
-  const cplaneAlignAction: WebGLTopBarAction = {
-    id: "cplane-align",
-    label: "Align Selection",
-    tooltip: "Align the construction plane to the current selection.",
-    onClick: handleAlignSelectionPlane,
-    isDisabled: !canAlignSelectionPlane,
-    isActive: isAlignedPlane,
-  };
-
-  const advancedToggleAction: WebGLTopBarAction = {
-    id: "advanced-toggle",
-    label: "Advanced",
-    tooltip: advancedOpen ? "Hide advanced panel." : "Show advanced panel.",
-    onClick: toggleAdvanced,
-    isActive: advancedOpen,
-    groupBreakBefore: true,
-  };
+  const cameraActions: WebGLTopBarAction[] = [
+    {
+      id: "camera-zoom-cursor",
+      label: "Zoom to Cursor",
+      tooltip: "Zoom around the cursor position.",
+      onClick: () => setCameraState({ zoomToCursor: !cameraState.zoomToCursor }),
+      isActive: cameraState.zoomToCursor,
+      icon: "zoomCursor",
+      iconTint: COMMAND_CATEGORY_TINTS.neutral,
+      groupBreakBefore: true,
+      groupLabel: "Camera",
+    },
+    {
+      id: "camera-invert-zoom",
+      label: "Invert Zoom",
+      tooltip: "Invert scroll direction for zoom.",
+      onClick: () => setCameraState({ invertZoom: !cameraState.invertZoom }),
+      isActive: cameraState.invertZoom,
+      icon: "invertZoom",
+      iconTint: COMMAND_CATEGORY_TINTS.neutral,
+    },
+    {
+      id: "camera-upright",
+      label: "Upright",
+      tooltip: "Keep the camera upright while orbiting.",
+      onClick: () => setCameraState({ upright: !cameraState.upright }),
+      isActive: cameraState.upright,
+      icon: "upright",
+      iconTint: COMMAND_CATEGORY_TINTS.neutral,
+    },
+  ];
 
   const captureAction: WebGLTopBarAction = {
     id: "capture",
@@ -2237,24 +2538,23 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
     shortLabel: "CAP",
     onClick: handleCapture,
     isDisabled: captureDisabled,
+    icon: "capture",
+    iconTint: COMMAND_CATEGORY_TINTS.neutral,
     groupBreakBefore: true,
+    groupLabel: "View",
   };
 
   const topBarActions: WebGLTopBarAction[] = [
     ...orderedCommandActions,
-    selectionFilterAction,
-    displayModeAction,
-    transformOrientationAction,
-    pivotModeAction,
-    referenceActiveAction,
-    referenceAllAction,
-    groupAction,
-    ungroupAction,
-    cplaneXYAction,
-    cplaneXZAction,
-    cplaneYZAction,
-    cplaneAlignAction,
-    advancedToggleAction,
+    ...selectionModeActions,
+    ...displayModeActions,
+    ...transformOrientationActions,
+    ...gumballAlignmentActions,
+    ...pivotModeActions,
+    ...cplaneActions,
+    ...workflowActions,
+    ...groupActions,
+    ...cameraActions,
     captureAction,
   ];
 
@@ -2262,174 +2562,346 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
     <>
       <section className={styles.section}>
         <div className={styles.body}>
-          <div className={styles.commandBar}>
-            <div className={styles.commandPrimary}>
-              <div className={styles.railSection}>
-                <span className={styles.railTitle}>Command Line</span>
-                <div className={styles.commandInputRow}>
-                  <input
-                    ref={commandInputRef}
-                    className={styles.commandInput}
-                    value={commandInput}
-                    onChange={(event) => {
-                      setCommandInput(event.target.value);
-                      if (commandError) setCommandError("");
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        handleCommandSubmit();
-                      }
-                    }}
-                    placeholder="Type a command (e.g. polyline, move, extrude distance=1)"
-                  />
-                  <WebGLButton
-                    type="button"
-                    className={styles.commandActionPrimary}
-                    onClick={handleCommandSubmit}
-                    label="Run command"
-                    shortLabel="Run"
-                    iconId="run"
-                    variant="primary"
-                    size="sm"
-                    tooltip="Run command"
-                  />
-                </div>
-                {commandError && (
-                  <span className={styles.commandErrorText}>{commandError}</span>
-                )}
-                <span className={styles.commandHint}>
-                  Mouse-first: click or drag in the viewport.
-                </span>
+          <div
+            className={styles.commandBarShell}
+            style={commandBarShellStyle}
+            onWheel={handleCommandBarWheel}
+            data-no-workspace-pan
+            data-collapsed={commandBarCollapsed ? "true" : "false"}
+          >
+            {commandBarCollapsed ? (
+              <div className={styles.commandBarCollapsed} style={commandBarScaleStyle}>
+                <WebGLButton
+                  type="button"
+                  className={styles.commandBarToggle}
+                  label="Expand command bar"
+                  iconId="brandRoslyn"
+                  hideLabel
+                  size="sm"
+                  variant="icon"
+                  shape="square"
+                  tooltip="Expand command bar"
+                  tooltipPosition="right"
+                  onClick={() => setCommandBarCollapsed(false)}
+                />
               </div>
-              {activeCommand && (
-                <div className={styles.railSection}>
-                  <span className={styles.railTitle}>Active Command</span>
-                  <div className={styles.activeCommandCard}>
-                    <span className={styles.activeCommandName}>
-                      {activeCommand.label}
-                    </span>
-                    <span className={styles.activeCommandPrompt}>
-                      Click or drag in the viewport.
-                    </span>
-                    <div className={styles.commandActions}>
-                      {activeCommand.id === "gumball" && extrudeCommand && hasExtrudeProfile && (
-                        <WebGLButton
-                          type="button"
-                          className={styles.commandActionPrimary}
-                          onClick={() => handleCommandClick(extrudeCommand)}
-                          label="Extrude"
-                          iconId="extrude"
-                          variant="primary"
-                          size="sm"
-                          tooltip="Extrude selection"
-                        />
-                      )}
-                      {componentSelection.length === 0 && loftSelectionState.ready && (
-                        <WebGLButton
-                          type="button"
-                          className={styles.commandActionPrimary}
-                          onClick={() => {
-                            const loftCommand = COMMAND_DEFINITIONS.find(
-                              (command) => command.id === "loft"
-                            );
-                            if (loftCommand) handleCommandClick(loftCommand);
-                          }}
-                          label="Loft selection"
-                          shortLabel="Loft"
-                          iconId="loft"
-                          variant="primary"
-                          size="sm"
-                          tooltip="Loft selection"
-                        />
-                      )}
-                      <WebGLButton
-                        type="button"
-                        className={styles.commandAction}
-                        onClick={() => setActiveCommand(null)}
-                        label="Exit command"
-                        shortLabel="Exit"
-                        iconId="close"
-                        variant="ghost"
-                        size="sm"
-                        tooltip="Exit active command"
-                      />
-                    </div>
-                    <span className={styles.commandHint}>Esc exits.</span>
+            ) : (
+              <div
+                className={styles.commandBar}
+                ref={commandBarRef}
+                style={commandBarScaleStyle}
+              >
+                <div className={styles.commandBarHeader}>
+                  <div className={styles.commandBarTitle}>
+                    <WebGLTitleLogo
+                      title="Roslyn"
+                      tone="roslyn"
+                      className={styles.commandBarLogo}
+                    />
+                    <span className={styles.commandBarLabel}>Command Bar</span>
+                  </div>
+                  <div className={styles.commandBarControls}>
+                    <WebGLButton
+                      type="button"
+                      className={styles.commandBarToggle}
+                      label="Collapse command bar"
+                      iconId="chevronDown"
+                      hideLabel
+                      size="xs"
+                      variant="icon"
+                      shape="square"
+                      tooltip="Collapse command bar"
+                      tooltipPosition="bottom"
+                      onClick={() => setCommandBarCollapsed(true)}
+                    />
                   </div>
                 </div>
-              )}
-              {activeCommand?.id === "primitive" && (
-                <div className={styles.railSection}>
-                  <span className={styles.railTitle}>Primitive Options</span>
-                  <label className={styles.field}>
-                    <span>Type</span>
-                    <select
-                      className={styles.fieldInput}
-                      value={primitiveSettings.kind}
-                      onChange={(event) =>
-                        setPrimitiveSettings((prev) => ({
-                          ...prev,
-                          kind: event.target.value as typeof prev.kind,
-                        }))
-                      }
-                    >
-                      <option value="box">Box</option>
-                      <option value="sphere">Sphere</option>
-                      <option value="cylinder">Cylinder</option>
-                      <option value="torus">Torus</option>
-                    </select>
-                  </label>
-                  {primitiveSettings.kind === "box" && (
-                    <label className={styles.field}>
-                      <span>Size</span>
+                <div className={styles.commandPrimary}>
+                  <div className={styles.railSection}>
+                    <span className={styles.railTitle}>Command Line</span>
+                    <div className={styles.commandInputRow}>
                       <input
-                        className={styles.fieldInput}
-                        type="number"
-                        min="0.01"
-                        step="0.1"
-                        value={primitiveSettings.size}
-                        onChange={(event) =>
-                          setPrimitiveSettings((prev) => ({
-                            ...prev,
-                            size: Number(event.target.value),
-                          }))
-                        }
+                        ref={commandInputRef}
+                        className={styles.commandInput}
+                        value={commandInput}
+                        onChange={(event) => {
+                          setCommandInput(event.target.value);
+                          if (commandError) setCommandError("");
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            handleCommandSubmit();
+                          }
+                        }}
+                        placeholder="Type a command (e.g. polyline, move, extrude distance=1)"
                       />
-                    </label>
-                  )}
-                  {primitiveSettings.kind === "sphere" && (
-                    <label className={styles.field}>
-                      <span>Radius</span>
-                      <input
-                        className={styles.fieldInput}
-                        type="number"
-                        min="0.01"
-                        step="0.1"
-                        value={primitiveSettings.radius}
-                        onChange={(event) =>
-                          setPrimitiveSettings((prev) => ({
-                            ...prev,
-                            radius: Number(event.target.value),
-                          }))
-                        }
+                      <WebGLButton
+                        type="button"
+                        className={styles.commandActionPrimary}
+                        onClick={handleCommandSubmit}
+                        label="Run command"
+                        shortLabel="Run"
+                        iconId="run"
+                        variant="primary"
+                        size="sm"
+                        tooltip="Run command"
                       />
-                    </label>
+                    </div>
+                    {commandError && (
+                      <span className={styles.commandErrorText}>{commandError}</span>
+                    )}
+                    <span className={styles.commandHint}>
+                      Mouse-first: click or drag in the viewport.
+                    </span>
+                  </div>
+                  {activeCommand && (
+                    <div className={styles.railSection}>
+                      <span className={styles.railTitle}>Active Command</span>
+                      <div className={styles.activeCommandCard}>
+                        <span className={styles.activeCommandName}>
+                          {activeCommand.label}
+                        </span>
+                        <span className={styles.activeCommandPrompt}>
+                          Click or drag in the viewport.
+                        </span>
+                        <div className={styles.commandActions}>
+                          {activeCommand.id === "gumball" &&
+                            extrudeCommand &&
+                            hasExtrudeProfile && (
+                              <WebGLButton
+                                type="button"
+                                className={styles.commandActionPrimary}
+                                onClick={() => handleCommandClick(extrudeCommand)}
+                                label="Extrude"
+                                iconId="extrude"
+                                iconTintOverride={resolveCommandIconTint("extrude")}
+                                variant="primary"
+                                size="sm"
+                                tooltip="Extrude selection"
+                              />
+                            )}
+                          {componentSelection.length === 0 && loftSelectionState.ready && (
+                            <WebGLButton
+                              type="button"
+                              className={styles.commandActionPrimary}
+                              onClick={() => {
+                                const loftCommand = COMMAND_DEFINITIONS.find(
+                                  (command) => command.id === "loft"
+                                );
+                                if (loftCommand) handleCommandClick(loftCommand);
+                              }}
+                              label="Loft selection"
+                              shortLabel="Loft"
+                              iconId="loft"
+                              iconTintOverride={resolveCommandIconTint("loft")}
+                              variant="primary"
+                              size="sm"
+                              tooltip="Loft selection"
+                            />
+                          )}
+                          <WebGLButton
+                            type="button"
+                            className={styles.commandAction}
+                            onClick={() => setActiveCommand(null)}
+                            label="Exit command"
+                            shortLabel="Exit"
+                            iconId="close"
+                            variant="ghost"
+                            size="sm"
+                            tooltip="Exit active command"
+                          />
+                        </div>
+                        <span className={styles.commandHint}>Esc exits.</span>
+                      </div>
+                    </div>
                   )}
-                  {primitiveSettings.kind === "cylinder" && (
-                    <>
+                  {activeCommand?.id === "primitive" && (
+                    <div className={styles.railSection}>
+                      <span className={styles.railTitle}>Primitive Options</span>
                       <label className={styles.field}>
-                        <span>Radius</span>
+                        <span>Type</span>
+                        <select
+                          className={styles.fieldInput}
+                          value={primitiveSettings.kind}
+                          onChange={(event) =>
+                            setPrimitiveSettings((prev) => ({
+                              ...prev,
+                              kind: event.target.value as typeof prev.kind,
+                            }))
+                          }
+                        >
+                          <option value="box">Box</option>
+                          <option value="sphere">Sphere</option>
+                          <option value="cylinder">Cylinder</option>
+                          <option value="torus">Torus</option>
+                        </select>
+                      </label>
+                      {primitiveSettings.kind === "box" && (
+                        <label className={styles.field}>
+                          <span>Size</span>
+                          <input
+                            className={styles.fieldInput}
+                            type="number"
+                            min="0.01"
+                            step="0.1"
+                            value={primitiveSettings.size}
+                            onChange={(event) =>
+                              setPrimitiveSettings((prev) => ({
+                                ...prev,
+                                size: Number(event.target.value),
+                              }))
+                            }
+                          />
+                        </label>
+                      )}
+                      {primitiveSettings.kind === "sphere" && (
+                        <label className={styles.field}>
+                          <span>Radius</span>
+                          <input
+                            className={styles.fieldInput}
+                            type="number"
+                            min="0.01"
+                            step="0.1"
+                            value={primitiveSettings.radius}
+                            onChange={(event) =>
+                              setPrimitiveSettings((prev) => ({
+                                ...prev,
+                                radius: Number(event.target.value),
+                              }))
+                            }
+                          />
+                        </label>
+                      )}
+                      {primitiveSettings.kind === "cylinder" && (
+                        <>
+                          <label className={styles.field}>
+                            <span>Radius</span>
+                            <input
+                              className={styles.fieldInput}
+                              type="number"
+                              min="0.01"
+                              step="0.1"
+                              value={primitiveSettings.radius}
+                              onChange={(event) =>
+                                setPrimitiveSettings((prev) => ({
+                                  ...prev,
+                                  radius: Number(event.target.value),
+                                }))
+                              }
+                            />
+                          </label>
+                          <label className={styles.field}>
+                            <span>Height</span>
+                            <input
+                              className={styles.fieldInput}
+                              type="number"
+                              min="0.01"
+                              step="0.1"
+                              value={primitiveSettings.height}
+                              onChange={(event) =>
+                                setPrimitiveSettings((prev) => ({
+                                  ...prev,
+                                  height: Number(event.target.value),
+                                }))
+                              }
+                            />
+                          </label>
+                        </>
+                      )}
+                      {primitiveSettings.kind === "torus" && (
+                        <>
+                          <label className={styles.field}>
+                            <span>Radius</span>
+                            <input
+                              className={styles.fieldInput}
+                              type="number"
+                              min="0.01"
+                              step="0.1"
+                              value={primitiveSettings.radius}
+                              onChange={(event) =>
+                                setPrimitiveSettings((prev) => ({
+                                  ...prev,
+                                  radius: Number(event.target.value),
+                                }))
+                              }
+                            />
+                          </label>
+                          <label className={styles.field}>
+                            <span>Tube</span>
+                            <input
+                              className={styles.fieldInput}
+                              type="number"
+                              min="0.01"
+                              step="0.05"
+                              value={primitiveSettings.tube}
+                              onChange={(event) =>
+                                setPrimitiveSettings((prev) => ({
+                                  ...prev,
+                                  tube: Number(event.target.value),
+                                }))
+                              }
+                            />
+                          </label>
+                        </>
+                      )}
+                      <label className={styles.field}>
+                        <span>Segments</span>
+                        <input
+                          className={styles.fieldInput}
+                          type="number"
+                          min="6"
+                          step="1"
+                          value={primitiveSettings.radialSegments}
+                          onChange={(event) =>
+                            setPrimitiveSettings((prev) => ({
+                              ...prev,
+                              radialSegments: Math.max(
+                                6,
+                                Math.round(Number(event.target.value))
+                              ),
+                            }))
+                          }
+                        />
+                      </label>
+                      {primitiveSettings.kind === "torus" && (
+                        <label className={styles.field}>
+                          <span>Tubular Segments</span>
+                          <input
+                            className={styles.fieldInput}
+                            type="number"
+                            min="8"
+                            step="1"
+                            value={primitiveSettings.tubularSegments}
+                            onChange={(event) =>
+                              setPrimitiveSettings((prev) => ({
+                                ...prev,
+                                tubularSegments: Math.max(
+                                  8,
+                                  Math.round(Number(event.target.value))
+                                ),
+                              }))
+                            }
+                          />
+                        </label>
+                      )}
+                    </div>
+                  )}
+                  {activeCommand?.id === "rectangle" && (
+                    <div className={styles.railSection}>
+                      <span className={styles.railTitle}>Rectangle Options</span>
+                      <label className={styles.field}>
+                        <span>Width</span>
                         <input
                           className={styles.fieldInput}
                           type="number"
                           min="0.01"
                           step="0.1"
-                          value={primitiveSettings.radius}
+                          value={rectangleSettings.width}
                           onChange={(event) =>
-                            setPrimitiveSettings((prev) => ({
+                            setRectangleSettings((prev) => ({
                               ...prev,
-                              radius: Number(event.target.value),
+                              width: Number(event.target.value),
                             }))
                           }
                         />
@@ -2441,19 +2913,20 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
                           type="number"
                           min="0.01"
                           step="0.1"
-                          value={primitiveSettings.height}
+                          value={rectangleSettings.height}
                           onChange={(event) =>
-                            setPrimitiveSettings((prev) => ({
+                            setRectangleSettings((prev) => ({
                               ...prev,
                               height: Number(event.target.value),
                             }))
                           }
                         />
                       </label>
-                    </>
+                    </div>
                   )}
-                  {primitiveSettings.kind === "torus" && (
-                    <>
+                  {activeCommand?.id === "circle" && (
+                    <div className={styles.railSection}>
+                      <span className={styles.railTitle}>Circle Options</span>
                       <label className={styles.field}>
                         <span>Radius</span>
                         <input
@@ -2461,9 +2934,9 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
                           type="number"
                           min="0.01"
                           step="0.1"
-                          value={primitiveSettings.radius}
+                          value={circleSettings.radius}
                           onChange={(event) =>
-                            setPrimitiveSettings((prev) => ({
+                            setCircleSettings((prev) => ({
                               ...prev,
                               radius: Number(event.target.value),
                             }))
@@ -2471,594 +2944,38 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
                         />
                       </label>
                       <label className={styles.field}>
-                        <span>Tube</span>
+                        <span>Segments</span>
                         <input
                           className={styles.fieldInput}
                           type="number"
-                          min="0.01"
-                          step="0.05"
-                          value={primitiveSettings.tube}
+                          min="8"
+                          step="1"
+                          value={circleSettings.segments}
                           onChange={(event) =>
-                            setPrimitiveSettings((prev) => ({
+                            setCircleSettings((prev) => ({
                               ...prev,
-                              tube: Number(event.target.value),
+                              segments: Math.max(
+                                8,
+                                Math.round(Number(event.target.value))
+                              ),
                             }))
                           }
                         />
                       </label>
-                    </>
-                  )}
-                  <label className={styles.field}>
-                    <span>Segments</span>
-                    <input
-                      className={styles.fieldInput}
-                      type="number"
-                      min="6"
-                      step="1"
-                      value={primitiveSettings.radialSegments}
-                      onChange={(event) =>
-                        setPrimitiveSettings((prev) => ({
-                          ...prev,
-                          radialSegments: Math.max(6, Math.round(Number(event.target.value))),
-                        }))
-                      }
-                    />
-                  </label>
-                  {primitiveSettings.kind === "torus" && (
-                    <label className={styles.field}>
-                      <span>Tubular Segments</span>
-                      <input
-                        className={styles.fieldInput}
-                        type="number"
-                        min="8"
-                        step="1"
-                        value={primitiveSettings.tubularSegments}
-                        onChange={(event) =>
-                          setPrimitiveSettings((prev) => ({
-                            ...prev,
-                            tubularSegments: Math.max(
-                              8,
-                              Math.round(Number(event.target.value))
-                            ),
-                          }))
-                        }
-                      />
-                    </label>
+                    </div>
                   )}
                 </div>
-              )}
-              {activeCommand?.id === "rectangle" && (
-                <div className={styles.railSection}>
-                  <span className={styles.railTitle}>Rectangle Options</span>
-                  <label className={styles.field}>
-                    <span>Width</span>
-                    <input
-                      className={styles.fieldInput}
-                      type="number"
-                      min="0.01"
-                      step="0.1"
-                      value={rectangleSettings.width}
-                      onChange={(event) =>
-                        setRectangleSettings((prev) => ({
-                          ...prev,
-                          width: Number(event.target.value),
-                        }))
-                      }
-                    />
-                  </label>
-                  <label className={styles.field}>
-                    <span>Height</span>
-                    <input
-                      className={styles.fieldInput}
-                      type="number"
-                      min="0.01"
-                      step="0.1"
-                      value={rectangleSettings.height}
-                      onChange={(event) =>
-                        setRectangleSettings((prev) => ({
-                          ...prev,
-                          height: Number(event.target.value),
-                        }))
-                      }
-                    />
-                  </label>
-                </div>
-              )}
-              {activeCommand?.id === "circle" && (
-                <div className={styles.railSection}>
-                  <span className={styles.railTitle}>Circle Options</span>
-                  <label className={styles.field}>
-                    <span>Radius</span>
-                    <input
-                      className={styles.fieldInput}
-                      type="number"
-                      min="0.01"
-                      step="0.1"
-                      value={circleSettings.radius}
-                      onChange={(event) =>
-                        setCircleSettings((prev) => ({
-                          ...prev,
-                          radius: Number(event.target.value),
-                        }))
-                      }
-                    />
-                  </label>
-                  <label className={styles.field}>
-                    <span>Segments</span>
-                    <input
-                      className={styles.fieldInput}
-                      type="number"
-                      min="8"
-                      step="1"
-                      value={circleSettings.segments}
-                      onChange={(event) =>
-                        setCircleSettings((prev) => ({
-                          ...prev,
-                          segments: Math.max(8, Math.round(Number(event.target.value))),
-                        }))
-                      }
-                    />
-                  </label>
-                </div>
-              )}
-            </div>
-            <WebGLPanelTopBar
-              actions={topBarActions}
-              label="ROS"
-              className={styles.commandWebglTopBar}
-            />
-            <details className={styles.advancedPanel} open={advancedOpen}>
-              <summary
-                className={styles.advancedSummary}
-                onClick={handleAdvancedSummaryClick}
-                onKeyDown={handleAdvancedSummaryKeyDown}
-                aria-expanded={advancedOpen}
-              >
-                Advanced
-              </summary>
-              <div className={styles.advancedContent}>
-                {secondaryCommands.length > 0 && (
-                  <div className={styles.railSection}>
-                    <span className={styles.railTitle}>More Commands</span>
-                    <div className={styles.commandGrid}>
-                      {secondaryCommands.map((command) => {
-                        const meta = COMMAND_DESCRIPTIONS[command.id];
-                        const isActive = activeCommand?.id === command.id;
-                        return (
-                          <WebGLButton
-                            key={command.id}
-                            type="button"
-                            className={`${styles.commandIconButton} ${
-                              isActive ? styles.commandIconActive : ""
-                            }`}
-                            onClick={() => handleCommandClick(command)}
-                            label={command.label}
-                            iconId={resolveCommandIconId(command.id)}
-                            variant="icon"
-                            shape="square"
-                            size="sm"
-                            active={isActive}
-                            tooltip={meta?.description ?? command.prompt}
-                            tooltipShortcut={meta?.shortcut}
-                            tooltipPosition="bottom"
-                          />
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-                <div className={styles.railSection}>
-                  <span className={styles.railTitle}>C-Plane</span>
-                  <div className={styles.commandActions}>
-                    <WebGLButton
-                      type="button"
-                      className={styles.commandAction}
-                      onClick={() => resetCPlane()}
-                      label="Set C-Plane to World XY"
-                      shortLabel="XY"
-                      iconId="cplaneXY"
-                      variant="command"
-                      shape="pill"
-                      size="sm"
-                      tooltip="World XY"
-                      tooltipPosition="bottom"
-                    />
-                    <WebGLButton
-                      type="button"
-                      className={styles.commandAction}
-                      onClick={() => setCPlane(WORLD_XZ_PLANE)}
-                      label="Set C-Plane to World XZ"
-                      shortLabel="XZ"
-                      iconId="cplaneXZ"
-                      variant="command"
-                      shape="pill"
-                      size="sm"
-                      tooltip="World XZ"
-                      tooltipPosition="bottom"
-                    />
-                    <WebGLButton
-                      type="button"
-                      className={styles.commandAction}
-                      onClick={() => setCPlane(WORLD_YZ_PLANE)}
-                      label="Set C-Plane to World YZ"
-                      shortLabel="YZ"
-                      iconId="cplaneYZ"
-                      variant="command"
-                      shape="pill"
-                      size="sm"
-                      tooltip="World YZ"
-                      tooltipPosition="bottom"
-                    />
-                    <WebGLButton
-                      type="button"
-                      className={styles.commandActionPrimary}
-                      disabled={!canAlignSelectionPlane}
-                      onClick={() => {
-                        if (!canAlignSelectionPlane) return;
-                        const plane = computeBestFitPlane(selectionPoints);
-                        setCPlane(plane);
-                      }}
-                      label="Align C-Plane to selection"
-                      shortLabel="Align"
-                      iconId="cplaneAlign"
-                      variant="primary"
-                      shape="pill"
-                      size="sm"
-                      tooltip="Align selection"
-                      tooltipPosition="bottom"
-                    />
-                  </div>
-                </div>
-                <div className={styles.railSection}>
-                  <span className={styles.railTitle}>Workflow</span>
-                  <div className={styles.commandActions}>
-                    <WebGLButton
-                      type="button"
-                      className={styles.commandActionPrimary}
-                      onClick={handleSendSelectionToWorkflow}
-                      disabled={!primarySelectedGeometryId || selectionAlreadyLinked}
-                      label="Reference active selection in workflow"
-                      shortLabel="Active"
-                      iconId="referenceActive"
-                      variant="primary"
-                      shape="pill"
-                      size="sm"
-                      tooltip="Reference active"
-                      tooltipPosition="bottom"
-                    />
-                    <WebGLButton
-                      type="button"
-                      className={styles.commandAction}
-                      onClick={handleReferenceAll}
-                      disabled={referenceAllDisabled}
-                      label="Reference all visible geometry in workflow"
-                      shortLabel="All"
-                      iconId="referenceAll"
-                      variant="command"
-                      shape="pill"
-                      size="sm"
-                      tooltip="Reference all"
-                      tooltipPosition="bottom"
-                    />
-                  </div>
-                </div>
-                <div className={styles.railSection}>
-            <span className={styles.railTitle}>Render</span>
-            <label className={styles.field}>
-              <span>Material</span>
-              <select
-                value={assignedMaterialId ?? ""}
-                onChange={(event) => {
-                  if (selectedGeometry) {
-                    setMaterialAssignment({
-                      geometryId: selectedGeometry.id,
-                      layerId: selectedLayer?.id,
-                      materialId: event.target.value,
-                    });
-                    return;
-                  }
-                  if (!selectedLayer) return;
-                  setMaterialAssignment({
-                    layerId: selectedLayer.id,
-                    materialId: event.target.value,
-                  });
-                }}
-              >
-                {materials.length === 0 && (
-                  <option value="">Loading materials...</option>
-                )}
-                {materials.map((material) => (
-                  <option key={material.id} value={material.id}>
-                    {material.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-                <div className={styles.railSection}>
-            <span className={styles.railTitle}>Selection</span>
-            <label className={styles.field}>
-              <span>Filter</span>
-              <select
-                value={selectionMode}
-                onChange={(event) =>
-                  setSelectionMode(event.target.value as typeof selectionMode)
-                }
-              >
-                <option value="object">Object</option>
-                <option value="vertex">Vertex</option>
-                <option value="edge">Edge</option>
-                <option value="face">Face</option>
-              </select>
-            </label>
-          </div>
-                <div className={styles.railSection}>
-            <span className={styles.railTitle}>Transform</span>
-            <label className={styles.field}>
-              <span>Orientation</span>
-              <select
-                value={transformOrientation}
-                onChange={(event) =>
-                  setTransformOrientation(
-                    event.target.value as typeof transformOrientation
-                  )
-                }
-              >
-                <option value="world">World</option>
-                <option value="local">Local</option>
-                <option value="cplane">C-Plane</option>
-              </select>
-            </label>
-            <label className={styles.field}>
-              <span>Pivot</span>
-              <select
-                value={pivot.mode}
-                onChange={(event) =>
-                  setPivotMode(event.target.value as typeof pivot.mode)
-                }
-              >
-                <option value="selection">Selection</option>
-                <option value="world">World</option>
-                <option value="picked">Picked</option>
-                <option value="cursor">Cursor</option>
-                <option value="origin">Origin</option>
-              </select>
-            </label>
-          </div>
-                <div className={styles.railSection}>
-            <span className={styles.railTitle}>Display</span>
-            <label className={styles.field}>
-              <span>Mode</span>
-              <select
-                value={displayModeForUI}
-                onChange={(event) =>
-                  setDisplayMode(event.target.value as typeof displayMode)
-                }
-              >
-                <option value="shaded">Solid</option>
-                <option value="wireframe">Wireframe</option>
-                <option value="ghosted">Ghosted</option>
-              </select>
-            </label>
-          </div>
-                <div className={styles.railSection}>
-            <span className={styles.railTitle}>Grid / Units</span>
-            <label className={styles.field}>
-              <span>Spacing</span>
-              <input
-                className={styles.fieldInput}
-                type="number"
-                step="0.1"
-                value={gridSettings.spacing}
-                onChange={(event) =>
-                  setGridSettings({ spacing: Number(event.target.value) })
-                }
-              />
-            </label>
-            <label className={styles.field}>
-              <span>Units</span>
-              <input
-                className={styles.fieldInput}
-                type="text"
-                value={gridSettings.units}
-                onChange={(event) =>
-                  setGridSettings({ units: event.target.value })
-                }
-              />
-            </label>
-            <label className={styles.snapOption}>
-              <input
-                type="checkbox"
-                checked={gridSettings.adaptive}
-                onChange={(event) =>
-                  setGridSettings({ adaptive: event.target.checked })
-                }
-              />
-              Adaptive Grid
-            </label>
-          </div>
-                <div className={styles.railSection}>
-            <span className={styles.railTitle}>Camera</span>
-            <div className={styles.field}>
-              <span>Viewport</span>
-              <span className={styles.fieldValue}>Standard</span>
-            </div>
-            <label className={styles.snapOption}>
-              <input
-                type="checkbox"
-                checked={cameraState.zoomToCursor}
-                onChange={(event) =>
-                  setCameraState({ zoomToCursor: event.target.checked })
-                }
-              />
-              Zoom to Cursor
-            </label>
-            <label className={styles.snapOption}>
-              <input
-                type="checkbox"
-                checked={cameraState.invertZoom}
-                onChange={(event) =>
-                  setCameraState({ invertZoom: event.target.checked })
-                }
-              />
-              Invert Zoom
-            </label>
-            <label className={styles.snapOption}>
-              <input
-                type="checkbox"
-                checked={cameraState.upright}
-                onChange={(event) =>
-                  setCameraState({ upright: event.target.checked })
-                }
-              />
-              Upright
-            </label>
-          </div>
-                <div className={styles.railSection}>
-            <span className={styles.railTitle}>Tolerance</span>
-            <label className={styles.field}>
-              <span>Grid Step</span>
-              <input
-                className={styles.fieldInput}
-                type="number"
-                step="0.01"
-                value={snapSettings.gridStep}
-                onChange={(event) =>
-                  setSnapSettings({ gridStep: Number(event.target.value) })
-                }
-              />
-            </label>
-            <label className={styles.field}>
-              <span>Angle Step</span>
-              <input
-                className={styles.fieldInput}
-                type="number"
-                step="1"
-                value={snapSettings.angleStep}
-                onChange={(event) =>
-                  setSnapSettings({ angleStep: Number(event.target.value) })
-                }
-              />
-            </label>
-          </div>
-                <div className={styles.railSection}>
-            <span className={styles.railTitle}>Outliner</span>
-            <div className={styles.outlinerControls}>
-              <WebGLButton
-                type="button"
-                className={styles.outlinerAction}
-                onClick={() => {
-                  if (selectedGeometryIds.length === 0) return;
-                  const name = `Group ${sceneNodes.length + 1}`;
-                  createGroup(name, selectedGeometryIds);
-                }}
-                label="Group selection"
-                shortLabel="Group"
-                iconId="group"
-                variant="outliner"
-                size="xs"
-                shape="pill"
-                tooltip="Group selection"
-                tooltipPosition="bottom"
-              />
-              <WebGLButton
-                type="button"
-                className={styles.outlinerAction}
-                onClick={() => {
-                  if (!selectedGroupId) return;
-                  ungroup(selectedGroupId);
-                  setSelectedGroupId(null);
-                }}
-                disabled={!selectedGroupId}
-                label="Ungroup selection"
-                shortLabel="Ungroup"
-                iconId="ungroup"
-                variant="outliner"
-                size="xs"
-                shape="pill"
-                tooltip="Ungroup selection"
-                tooltipPosition="bottom"
-              />
-            </div>
-            <div className={styles.outlinerList}>
-              {sceneNodes
-                .filter((node) => !node.parentId)
-                .map((node) => renderSceneNode(node.id, 0))}
-            </div>
-          </div>
-                <div className={styles.railSection}>
-            <span className={styles.railTitle}>Layers</span>
-            <div className={styles.outlinerList}>
-              {layers.map((layer) => {
-                const layerHidden = layer.geometryIds.every((id) =>
-                  hiddenGeometryIds.includes(id)
-                );
-                const layerLocked = layer.geometryIds.every((id) =>
-                  lockedGeometryIds.includes(id)
-                );
-                return (
-                  <div key={layer.id} className={styles.outlinerItem}>
-                    <WebGLButton
-                      type="button"
-                      className={styles.outlinerLabel}
-                      label={layer.name}
-                      iconId="script"
-                      variant="outliner"
-                      size="xs"
-                      shape="pill"
-                      tooltip="Double-click to rename layer"
-                      tooltipPosition="right"
-                      onDoubleClick={() => {
-                        const nextName = window.prompt("Rename layer", layer.name);
-                        if (nextName && nextName.trim()) {
-                          renameLayer(layer.id, nextName.trim());
-                        }
-                      }}
-                    />
-                    <div className={styles.outlinerActions}>
-                      <WebGLButton
-                        type="button"
-                        className={styles.outlinerAction}
-                        label={layerHidden ? `Show layer ${layer.name}` : `Hide layer ${layer.name}`}
-                        iconId={layerHidden ? "show" : "hide"}
-                        hideLabel
-                        variant="outliner"
-                        size="xs"
-                        shape="square"
-                        tooltip={layerHidden ? "Show" : "Hide"}
-                        tooltipPosition="right"
-                        onClick={() => {
-                          layer.geometryIds.forEach((id) =>
-                            toggleGeometryVisibility(id, layerHidden)
-                          );
-                        }}
-                      />
-                      <WebGLButton
-                        type="button"
-                        className={styles.outlinerAction}
-                        label={layerLocked ? `Unlock layer ${layer.name}` : `Lock layer ${layer.name}`}
-                        iconId={layerLocked ? "unlock" : "lock"}
-                        hideLabel
-                        variant="outliner"
-                        size="xs"
-                        shape="square"
-                        tooltip={layerLocked ? "Unlock" : "Lock"}
-                        tooltipPosition="right"
-                        onClick={() => {
-                          layer.geometryIds.forEach((id) =>
-                            toggleGeometryLock(id, !layerLocked)
-                          );
-                        }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
               </div>
-            </details>
+            )}
           </div>
+          <WebGLPanelTopBar
+            actions={topBarActions}
+            label="WEBGL"
+            logoTone="roslyn"
+            className={styles.commandWebglTopBar}
+            panelScale={panelScale}
+            onPanelScaleChange={handlePanelScaleChange}
+          />
           <div className={styles.viewer} data-panel-drag="true" ref={viewerRef}>
             <div
               className={styles.viewerInner}
@@ -3091,20 +3008,23 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
                     <option value="face">Face</option>
                   </select>
                 </label>
-                <label className={styles.overlayField}>
-                  <span>View</span>
-                  <select
-                    value={displayModeForUI}
-                    onChange={(event) =>
-                      setDisplayMode(event.target.value as typeof displayMode)
-                    }
-                    aria-label="Display mode"
-                  >
-                    <option value="shaded">Solid</option>
-                    <option value="wireframe">Wireframe</option>
-                    <option value="ghosted">Ghosted</option>
-                  </select>
-                </label>
+                <div className={styles.overlaySlider}>
+                  <WebGLSlider
+                    label="Solidity"
+                    tooltip="Scrub to fade solids into ghosted and wireframe views."
+                    iconId="displayMode"
+                    value={viewSolidity}
+                    min={0}
+                    max={1}
+                    step={0.01}
+                    onChange={setViewSolidity}
+                    variant="command"
+                    size="sm"
+                    shape="rounded"
+                    accentColor="#00c2d1"
+                    className={styles.overlaySliderControl}
+                  />
+                </div>
               </div>
             </div>
           </div>

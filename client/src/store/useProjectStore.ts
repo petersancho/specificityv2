@@ -90,10 +90,12 @@ import type {
   LoftGeometry,
   ExtrudeGeometry,
   MeshPrimitiveGeometry,
+  NURBSCurve,
   SceneNode,
   SelectionMode,
   SnapSettings,
   TransformOrientation,
+  GumballAlignment,
   ViewSettings,
   Vec3,
   WorkflowNodeData,
@@ -101,6 +103,12 @@ import type {
   WorkflowNode,
   WorkflowEdge,
 } from "../types";
+import {
+  SOLIDITY_PRESETS,
+  clamp01,
+  resolveDisplayModeFromSolidity,
+  resolveSolidityFromDisplayMode,
+} from "../view/solidity";
 import {
   generateSurfaceMesh,
   generateBoxMesh,
@@ -167,8 +175,10 @@ type ProjectStore = {
   lockedGeometryIds: string[];
   cPlane: CPlane;
   transformOrientation: TransformOrientation;
+  gumballAlignment: GumballAlignment;
   pivot: PivotState;
   displayMode: DisplayMode;
+  viewSolidity: number;
   viewSettings: ViewSettings;
   snapSettings: SnapSettings;
   gridSettings: GridSettings;
@@ -192,11 +202,13 @@ type ProjectStore = {
   renameLayer: (id: string, name: string) => void;
   renameSceneNode: (id: string, name: string) => void;
   setTransformOrientation: (orientation: TransformOrientation) => void;
+  setGumballAlignment: (alignment: GumballAlignment) => void;
   setPivotMode: (mode: PivotMode) => void;
   setPivotPosition: (position: Vec3) => void;
   setPivotCursorPosition: (position: Vec3 | null) => void;
   setPivotPickedPosition: (position: Vec3 | null) => void;
   setDisplayMode: (mode: DisplayMode) => void;
+  setViewSolidity: (value: number) => void;
   setViewSettings: (settings: Partial<ViewSettings>) => void;
   setSnapSettings: (settings: Partial<SnapSettings>) => void;
   setGridSettings: (settings: Partial<GridSettings>) => void;
@@ -214,6 +226,7 @@ type ProjectStore = {
   addGeometryPolyline: (vertexIds: string[], options?: {
     closed?: boolean;
     degree?: 1 | 2 | 3;
+    nurbs?: NURBSCurve;
     layerId?: string;
   }) => string | null;
   addGeometryPolylineFromPoints: (
@@ -221,6 +234,7 @@ type ProjectStore = {
     options?: {
       closed?: boolean;
       degree?: 1 | 2 | 3;
+      nurbs?: NURBSCurve;
       recordHistory?: boolean;
       selectIds?: string[];
       layerId?: string;
@@ -271,6 +285,7 @@ type ProjectStore = {
   setMaterialAssignment: (assignment: MaterialAssignment) => void;
   updateNodeData: (nodeId: string, data: Partial<WorkflowNodeData>) => void;
   addNode: (type: NodeType) => void;
+  addNodeAt: (type: NodeType, position: { x: number; y: number }) => void;
   addGeometryReferenceNode: (geometryId?: string) => void;
   syncWorkflowGeometryToRoslyn: (nodeId: string) => void;
   onNodesChange: (changes: NodeChange[]) => void;
@@ -291,6 +306,17 @@ type ProjectStore = {
 const supportedWorkflowNodeTypes = new Set<string>(
   SUPPORTED_WORKFLOW_NODE_TYPES as string[]
 );
+
+const GEOMETRY_OWNING_NODE_TYPES = new Set<NodeType>([
+  "point",
+  "line",
+  "arc",
+  "curve",
+  "polyline",
+  "surface",
+  "box",
+  "sphere",
+]);
 
 const pruneWorkflowState = (workflow: WorkflowState): WorkflowState => {
   const nodes = workflow.nodes.filter(
@@ -578,6 +604,170 @@ const translateMesh = (mesh: RenderMesh, offset: Vec3): RenderMesh => {
   return { ...mesh, positions };
 };
 
+const addVec3 = (a: Vec3, b: Vec3): Vec3 => ({
+  x: a.x + b.x,
+  y: a.y + b.y,
+  z: a.z + b.z,
+});
+
+const subtractVec3 = (a: Vec3, b: Vec3): Vec3 => ({
+  x: a.x - b.x,
+  y: a.y - b.y,
+  z: a.z - b.z,
+});
+
+const isNearlyZeroVec3 = (value: Vec3, epsilon = 1e-6) =>
+  Math.abs(value.x) + Math.abs(value.y) + Math.abs(value.z) <= epsilon;
+
+const applyMoveDeltaToGeometry = (
+  geometryById: Map<string, Geometry>,
+  updates: Map<string, Partial<Geometry>>,
+  geometryId: string,
+  delta: Vec3
+) => {
+  const geometry = geometryById.get(geometryId);
+  if (!geometry || isNearlyZeroVec3(delta)) return;
+
+  if (geometry.type === "vertex") {
+    const existing = updates.get(geometryId) as Partial<VertexGeometry> | undefined;
+    const basePosition = existing?.position ?? geometry.position;
+    updates.set(geometryId, {
+      ...(existing ?? {}),
+      position: addVec3(basePosition, delta),
+    });
+    return;
+  }
+
+  if (geometry.type === "polyline") {
+    geometry.vertexIds.forEach((vertexId) => {
+      const vertex = geometryById.get(vertexId);
+      if (!vertex || vertex.type !== "vertex") return;
+      const existing = updates.get(vertexId) as Partial<VertexGeometry> | undefined;
+      const basePosition = existing?.position ?? vertex.position;
+      updates.set(vertexId, {
+        ...(existing ?? {}),
+        position: addVec3(basePosition, delta),
+      });
+    });
+    return;
+  }
+
+  if ("mesh" in geometry && geometry.mesh) {
+    const existing = updates.get(geometryId) as Partial<
+      SurfaceGeometry | LoftGeometry | ExtrudeGeometry | MeshPrimitiveGeometry
+    > | undefined;
+    const baseMesh = (existing?.mesh ?? geometry.mesh) as RenderMesh;
+    const positions = baseMesh.positions.slice();
+    for (let i = 0; i < positions.length; i += 3) {
+      positions[i] += delta.x;
+      positions[i + 1] += delta.y;
+      positions[i + 2] += delta.z;
+    }
+    const nextMesh: RenderMesh = {
+      ...baseMesh,
+      positions,
+    };
+    const nextUpdate: Partial<Geometry> & {
+      primitive?: MeshPrimitiveGeometry["primitive"];
+      plane?: PlaneDefinition;
+    } = {
+      ...(existing ?? {}),
+      mesh: nextMesh,
+    };
+    if (geometry.type === "mesh" && geometry.primitive) {
+      const existingMesh = existing as Partial<MeshPrimitiveGeometry> | undefined;
+      const basePrimitive = (existingMesh?.primitive ?? geometry.primitive) as NonNullable<
+        MeshPrimitiveGeometry["primitive"]
+      >;
+      nextUpdate.primitive = {
+        ...basePrimitive,
+        origin: addVec3(basePrimitive.origin, delta),
+      };
+    }
+    if ("plane" in geometry && geometry.plane) {
+      const existingSurface = existing as Partial<SurfaceGeometry> | undefined;
+      const basePlane = (existingSurface?.plane ?? geometry.plane) as PlaneDefinition;
+      nextUpdate.plane = {
+        ...basePlane,
+        origin: addVec3(basePlane.origin, delta),
+      };
+    }
+    updates.set(geometryId, nextUpdate);
+  }
+};
+
+const asVec3 = (value: unknown): Vec3 | null => {
+  if (!value || typeof value !== "object") return null;
+  const candidate = value as { x?: unknown; y?: unknown; z?: unknown };
+  if (
+    typeof candidate.x === "number" &&
+    typeof candidate.y === "number" &&
+    typeof candidate.z === "number" &&
+    Number.isFinite(candidate.x) &&
+    Number.isFinite(candidate.y) &&
+    Number.isFinite(candidate.z)
+  ) {
+    return { x: candidate.x, y: candidate.y, z: candidate.z };
+  }
+  return null;
+};
+
+const applyMoveNodesToGeometry = (
+  nodes: WorkflowNode[],
+  geometry: Geometry[]
+) => {
+  const geometryById = new Map<string, Geometry>(
+    geometry.map((item) => [item.id, item])
+  );
+  const updates = new Map<string, Partial<Geometry>>();
+  let didApply = false;
+
+  const nextNodes = nodes.map((node) => {
+    if (node.type !== "move") return node;
+    const outputs = node.data?.outputs;
+    const geometryId =
+      typeof outputs?.geometry === "string"
+        ? outputs.geometry
+        : typeof node.data?.geometryId === "string"
+          ? node.data.geometryId
+          : null;
+    const offset = asVec3(outputs?.offset);
+    if (!geometryId || !offset) return node;
+
+    const previousGeometryId = node.data?.moveGeometryId ?? null;
+    const previousOffset = node.data?.moveOffset ?? { x: 0, y: 0, z: 0 };
+    const baseOffset =
+      previousGeometryId && previousGeometryId === geometryId
+        ? previousOffset
+        : { x: 0, y: 0, z: 0 };
+    const delta = subtractVec3(offset, baseOffset);
+    if (!isNearlyZeroVec3(delta)) {
+      applyMoveDeltaToGeometry(geometryById, updates, geometryId, delta);
+      didApply = true;
+    }
+
+    return {
+      ...node,
+      data: {
+        ...node.data,
+        moveGeometryId: geometryId,
+        moveOffset: offset,
+      },
+    };
+  });
+
+  if (!didApply) {
+    return { nodes: nextNodes, geometry, didApply };
+  }
+
+  const nextGeometry = geometry.map((item) => {
+    const update = updates.get(item.id);
+    return update ? ({ ...item, ...update } as Geometry) : item;
+  });
+
+  return { nodes: nextNodes, geometry: nextGeometry, didApply };
+};
+
 const normalizeGeometryLayer = (
   item: Geometry,
   defaultLayerId: string
@@ -603,6 +793,7 @@ const normalizeGeometryLayer = (
         vertexIds: item.vertexIds,
         closed: item.closed,
         degree: item.degree,
+        nurbs: item.nurbs,
         layerId,
         area_m2: item.area_m2,
         thickness_m: item.thickness_m,
@@ -614,6 +805,7 @@ const normalizeGeometryLayer = (
         id: item.id,
         type: "surface",
         mesh: item.mesh,
+        nurbs: item.nurbs,
         loops: item.loops,
         plane: item.plane,
         layerId,
@@ -697,8 +889,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   lockedGeometryIds: [],
   cPlane: defaultCPlane,
   transformOrientation: "world",
+  gumballAlignment: "boundingBox",
   pivot: defaultPivot,
   displayMode: "shaded",
+  viewSolidity: SOLIDITY_PRESETS.shaded,
   viewSettings: defaultViewSettings,
   snapSettings: defaultSnapSettings,
   gridSettings: defaultGridSettings,
@@ -894,6 +1088,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }));
   },
   setTransformOrientation: (orientation) => set({ transformOrientation: orientation }),
+  setGumballAlignment: (alignment) => set({ gumballAlignment: alignment }),
   setPivotMode: (mode) =>
     set((state) => ({
       pivot: { ...state.pivot, mode },
@@ -912,7 +1107,17 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     })),
   setDisplayMode: (mode) => {
     get().recordModelerHistory();
-    set({ displayMode: mode });
+    set({
+      displayMode: mode,
+      viewSolidity: resolveSolidityFromDisplayMode(mode),
+    });
+  },
+  setViewSolidity: (value) => {
+    const viewSolidity = clamp01(value);
+    set({
+      viewSolidity,
+      displayMode: resolveDisplayModeFromSolidity(viewSolidity),
+    });
   },
   setViewSettings: (settings) => {
     get().recordModelerHistory();
@@ -1025,13 +1230,15 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           layers: state.layers,
           assignments: state.assignments,
           selectedGeometryIds: state.selectedGeometryIds,
-          componentSelection: state.componentSelection,
-          selectionMode: state.selectionMode,
-          cPlane: state.cPlane,
-          pivot: state.pivot,
-          transformOrientation: state.transformOrientation,
-          displayMode: state.displayMode,
-          viewSettings: state.viewSettings,
+      componentSelection: state.componentSelection,
+      selectionMode: state.selectionMode,
+      cPlane: state.cPlane,
+      pivot: state.pivot,
+      transformOrientation: state.transformOrientation,
+      gumballAlignment: state.gumballAlignment,
+      displayMode: state.displayMode,
+      viewSolidity: state.viewSolidity,
+      viewSettings: state.viewSettings,
           snapSettings: state.snapSettings,
           gridSettings: state.gridSettings,
           camera: state.camera,
@@ -1058,7 +1265,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       cPlane: get().cPlane,
       pivot: get().pivot,
       transformOrientation: get().transformOrientation,
+      gumballAlignment: get().gumballAlignment,
       displayMode: get().displayMode,
+      viewSolidity: get().viewSolidity,
       viewSettings: get().viewSettings,
       snapSettings: get().snapSettings,
       gridSettings: get().gridSettings,
@@ -1077,7 +1286,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       cPlane: snapshot.cPlane,
       pivot: snapshot.pivot,
       transformOrientation: snapshot.transformOrientation,
+      gumballAlignment: snapshot.gumballAlignment,
       displayMode: snapshot.displayMode,
+      viewSolidity: snapshot.viewSolidity,
       viewSettings: snapshot.viewSettings,
       snapSettings: snapshot.snapSettings,
       gridSettings: snapshot.gridSettings,
@@ -1104,7 +1315,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       cPlane: get().cPlane,
       pivot: get().pivot,
       transformOrientation: get().transformOrientation,
+      gumballAlignment: get().gumballAlignment,
       displayMode: get().displayMode,
+      viewSolidity: get().viewSolidity,
       viewSettings: get().viewSettings,
       snapSettings: get().snapSettings,
       gridSettings: get().gridSettings,
@@ -1123,7 +1336,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       cPlane: snapshot.cPlane,
       pivot: snapshot.pivot,
       transformOrientation: snapshot.transformOrientation,
+      gumballAlignment: snapshot.gumballAlignment,
       displayMode: snapshot.displayMode,
+      viewSolidity: snapshot.viewSolidity,
       viewSettings: snapshot.viewSettings,
       snapSettings: snapshot.snapSettings,
       gridSettings: snapshot.gridSettings,
@@ -1184,6 +1399,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         vertexIds,
         closed: options?.closed ?? false,
         degree: options?.degree ?? 1,
+        nurbs: options?.nurbs,
         layerId,
       };
       const nextLayers = state.layers.map((layer) =>
@@ -1225,6 +1441,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       vertexIds,
       closed: options?.closed ?? false,
       degree: options?.degree ?? 1,
+      nurbs: options?.nurbs,
       layerId: defaultLayerId,
     };
     get().addGeometryItems([...vertexItems, polylineItem], {
@@ -2039,10 +2256,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     get().recalculateWorkflow();
   },
   addNode: (type) => {
-    const id = `node-${type}-${Date.now()}`;
     const position = { x: 120, y: 120 + Math.random() * 120 };
+    get().addNodeAt(type, position);
+  },
+  addNodeAt: (type, position) => {
+    const id = `node-${type}-${Date.now()}`;
     const labels: Partial<Record<NodeType, string>> = {
       geometryReference: "Geometry Reference",
+      geometryViewer: "Geometry Viewer",
       point: "Point Generator",
       line: "Line",
       arc: "Arc",
@@ -2054,6 +2275,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       topologyOptimize: "Topology Optimize",
       topologySolver: "Topology Solver",
       biologicalSolver: "Biological Solver",
+      origin: "Origin",
+      unitX: "Unit X",
+      unitY: "Unit Y",
+      unitZ: "Unit Z",
+      unitXYZ: "Unit XYZ",
+      moveVector: "Move Vector",
+      scaleVector: "Scale Vector",
       number: "Number",
       add: "Add",
       subtract: "Subtract",
@@ -2078,9 +2306,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       vectorAngle: "Vector Angle",
       vectorLerp: "Vector Lerp",
       vectorProject: "Vector Project",
+      move: "Move",
       movePoint: "Move Point",
       movePointByVector: "Move Point By Vector",
       rotateVectorAxis: "Rotate Vector",
+      mirrorVector: "Mirror Vector",
       listCreate: "List Create",
       listLength: "List Length",
       listItem: "List Item",
@@ -2089,6 +2319,28 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       listFlatten: "List Flatten",
       listSlice: "List Slice",
       listReverse: "List Reverse",
+      listSum: "List Sum",
+      listAverage: "List Average",
+      listMin: "List Min",
+      listMax: "List Max",
+      listMedian: "List Median",
+      listStdDev: "List Std Dev",
+      geometryInfo: "Geometry Info",
+      geometryVertices: "Geometry Vertices",
+      geometryEdges: "Geometry Edges",
+      geometryFaces: "Geometry Faces",
+      geometryNormals: "Geometry Normals",
+      geometryControlPoints: "Control Points",
+      range: "Range",
+      linspace: "Linspace",
+      remap: "Remap",
+      random: "Random",
+      repeat: "Repeat",
+      sineWave: "Sine Wave",
+      cosineWave: "Cosine Wave",
+      sawtoothWave: "Sawtooth Wave",
+      triangleWave: "Triangle Wave",
+      squareWave: "Square Wave",
     };
     const parameters = getDefaultParameters(type);
     const data: WorkflowNodeData = {
@@ -2097,6 +2349,15 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     };
     if (type === "geometryReference") {
       data.geometryId = get().geometry[0]?.id ?? "vertex-1";
+    }
+    if (type === "move") {
+      const geometryId =
+        get().selectedGeometryIds[0] ?? get().geometry[0]?.id ?? null;
+      if (geometryId) {
+        data.geometryId = geometryId;
+        data.moveGeometryId = geometryId;
+        data.moveOffset = { x: 0, y: 0, z: 0 };
+      }
     }
     if (type === "point") {
       data.point = { x: 0, y: 0, z: 0 };
@@ -2355,10 +2616,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       },
     }));
     if (removedNodes.length > 0) {
-      const geometryIds = removedNodes
+      const ownedNodes = removedNodes.filter(
+        (node) => node.type && GEOMETRY_OWNING_NODE_TYPES.has(node.type as NodeType)
+      );
+      const geometryIds = ownedNodes
         .map((node) => node.data?.geometryId)
         .filter(Boolean) as string[];
-      const vertexIds = removedNodes
+      const vertexIds = ownedNodes
         .flatMap((node) => node.data?.vertexIds ?? [])
         .filter(Boolean);
       const idsToDelete = Array.from(new Set([...geometryIds, ...vertexIds]));
@@ -2457,10 +2721,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         ),
       },
     }));
-    const geometryIds = removedNodes
+    const ownedNodes = removedNodes.filter(
+      (node) => node.type && GEOMETRY_OWNING_NODE_TYPES.has(node.type as NodeType)
+    );
+    const geometryIds = ownedNodes
       .map((node) => node.data?.geometryId)
       .filter(Boolean) as string[];
-    const vertexIds = removedNodes
+    const vertexIds = ownedNodes
       .flatMap((node) => node.data?.vertexIds ?? [])
       .filter(Boolean);
     const idsToDelete = Array.from(new Set([...geometryIds, ...vertexIds]));
@@ -2491,6 +2758,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       transformOrientation: "world",
       pivot: defaultPivot,
       displayMode: "shaded",
+      viewSolidity: SOLIDITY_PRESETS.shaded,
       viewSettings: defaultViewSettings,
       snapSettings: defaultSnapSettings,
       gridSettings: defaultGridSettings,
@@ -2520,9 +2788,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       prunedWorkflow.edges,
       state.geometry
     );
+    const moveApplied = applyMoveNodesToGeometry(evaluated.nodes, state.geometry);
+    if (moveApplied.didApply) {
+      get().recordModelerHistory();
+    }
     set({
+      geometry: moveApplied.geometry,
       workflow: {
-        nodes: evaluated.nodes,
+        nodes: moveApplied.nodes,
         edges: evaluated.edges,
       },
     });

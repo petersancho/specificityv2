@@ -124,7 +124,7 @@ const ensureParseContext = () => {
   parseCanvas = document.createElement("canvas");
   parseCanvas.width = 2;
   parseCanvas.height = 2;
-  parseCtx = parseCanvas.getContext("2d");
+  parseCtx = parseCanvas.getContext("2d", { willReadFrequently: true });
   return parseCtx;
 };
 
@@ -179,8 +179,11 @@ const getThemePalette = (): ThemePalette => {
     readCssVar("--color-on-accent", "#ffffff"),
     rgb(255, 255, 255, 1)
   );
-  const cream = parseCssColor(readCssVar("--roslyn-cream", "#f7f3ea"), rgb(247, 243, 234, 1));
-  const ink = parseCssColor(readCssVar("--ink-1000", "#0d0d0d"), rgb(13, 13, 13, 1));
+  const cream = parseCssColor(
+    readCssVar("--sp-uiGrey", readCssVar("--roslyn-cream", "#f7f3ea")),
+    rgb(233, 230, 226, 1)
+  );
+  const ink = parseCssColor(readCssVar("--sp-ink", readCssVar("--ink-1000", "#0d0d0d")), rgb(31, 31, 34, 1));
 
   cachedTheme = {
     themeKey,
@@ -239,7 +242,9 @@ const getVariantBasePalette = (
   accentOverride?: string
 ): VariantPalette => {
   const theme = getThemePalette();
-  const accent = parseCssColor(accentOverride, theme.accent);
+  const accent = accentOverride
+    ? parseCssColor(accentOverride, theme.accent)
+    : theme.ink;
   const cream = theme.cream;
   const ink = theme.ink;
   const border = theme.border;
@@ -248,33 +253,33 @@ const getVariantBasePalette = (
   switch (variant) {
     case "primary":
       return {
-        fill: accent,
-        border: darken(accent, 0.28),
-        shadow: withAlpha(darken(accent, 0.7), 0.55),
-        glow: withAlpha(lighten(accent, 0.22), 0.46),
-        gloss: withAlpha(WHITE, 0.28),
-        text: theme.onAccent,
-        icon: theme.onAccent,
+        fill: cream,
+        border: withAlpha(darken(border, 0.1), 0.9),
+        shadow: withAlpha(darken(ink, 0.6), 0.36),
+        glow: withAlpha(lighten(accent, 0.3), 0.32),
+        gloss: withAlpha(WHITE, 0.24),
+        text: ink,
+        icon: accent,
       };
     case "ghost":
       return {
-        fill: withAlpha(surfaceMuted, 0.9),
+        fill: withAlpha(cream, 0.95),
         border: withAlpha(darken(border, 0.15), 0.7),
         shadow: withAlpha(darken(ink, 0.35), 0.28),
         glow: withAlpha(lighten(accent, 0.35), 0.24),
         gloss: withAlpha(WHITE, 0.16),
         text: ink,
-        icon: mix(accent, ink, 0.35),
+        icon: accent,
       };
     case "chip":
       return {
-        fill: surfaceMuted,
+        fill: cream,
         border: withAlpha(darken(border, 0.1), 0.86),
         shadow: withAlpha(darken(ink, 0.45), 0.26),
         glow: withAlpha(lighten(accent, 0.4), 0.2),
         gloss: withAlpha(WHITE, 0.2),
         text: ink,
-        icon: mix(accent, ink, 0.28),
+        icon: accent,
       };
     case "icon":
       return {
@@ -284,29 +289,29 @@ const getVariantBasePalette = (
         glow: withAlpha(lighten(accent, 0.26), 0.3),
         gloss: withAlpha(WHITE, 0.24),
         text: ink,
-        icon: ink,
+        icon: accent,
       };
     case "palette": {
-      const tintedFill = mix(lighten(accent, 0.72), cream, 0.2);
+      const tintedFill = mix(cream, surfaceMuted, 0.32);
       return {
         fill: tintedFill,
-        border: withAlpha(darken(accent, 0.18), 0.92),
-        shadow: withAlpha(darken(accent, 0.7), 0.32),
-        glow: withAlpha(lighten(accent, 0.2), 0.35),
-        gloss: withAlpha(WHITE, 0.26),
-        text: darken(accent, 0.52),
-        icon: darken(accent, 0.58),
+        border: withAlpha(darken(border, 0.08), 0.86),
+        shadow: withAlpha(darken(ink, 0.6), 0.28),
+        glow: withAlpha(lighten(accent, 0.32), 0.3),
+        gloss: withAlpha(WHITE, 0.22),
+        text: ink,
+        icon: accent,
       };
     }
     case "outliner":
       return {
-        fill: mix(cream, surfaceMuted, 0.35),
+        fill: cream,
         border: withAlpha(darken(border, 0.12), 0.78),
         shadow: withAlpha(darken(ink, 0.6), 0.22),
         glow: withAlpha(lighten(accent, 0.5), 0.18),
         gloss: withAlpha(WHITE, 0.18),
         text: ink,
-        icon: ink,
+        icon: accent,
       };
     case "command":
       return {
@@ -316,7 +321,7 @@ const getVariantBasePalette = (
         glow: withAlpha(lighten(accent, 0.38), 0.28),
         gloss: withAlpha(WHITE, 0.24),
         text: ink,
-        icon: ink,
+        icon: accent,
       };
     case "secondary":
     default:
@@ -327,7 +332,7 @@ const getVariantBasePalette = (
         glow: withAlpha(lighten(accent, 0.32), 0.24),
         gloss: withAlpha(WHITE, 0.22),
         text: ink,
-        icon: ink,
+        icon: accent,
       };
   }
 };
@@ -523,6 +528,94 @@ const renderButtonBackground = (options: RenderOptions): string => {
   return url;
 };
 
+const sliderOverlayCache = new Map<string, string>();
+
+type SliderOverlayOptions = {
+  width: number;
+  height: number;
+  value: number;
+  variant: WebGLButtonVariant;
+  state: WebGLButtonState;
+  accentColor?: string;
+};
+
+export const renderSliderOverlay = ({
+  width,
+  height,
+  value,
+  variant,
+  state,
+  accentColor,
+}: SliderOverlayOptions): string => {
+  const theme = getThemePalette();
+  const basePalette = getVariantBasePalette(variant, accentColor);
+  const palette = applyStateToPalette(basePalette, state);
+  const accent = accentColor
+    ? parseCssColor(accentColor, theme.accent)
+    : theme.accent;
+
+  const clamped = clamp01(value);
+  const normalized = Math.round(clamped * 1000) / 1000;
+
+  const cacheKey = [
+    "slider",
+    theme.themeKey,
+    variant,
+    state,
+    accentColor ?? "",
+    Math.round(width),
+    Math.round(height),
+    normalized,
+  ].join("|");
+
+  const cached = sliderOverlayCache.get(cacheKey);
+  if (cached) return cached;
+
+  const dpr = typeof window === "undefined" ? 1 : Math.min(2, window.devicePixelRatio || 1);
+  const pixelWidth = Math.max(1, Math.round(width * dpr));
+  const pixelHeight = Math.max(1, Math.round(height * dpr));
+  const handles = ensureRenderer(pixelWidth, pixelHeight);
+  if (!handles) return "";
+
+  const { gl, ui, canvas } = handles;
+  gl.clearColor(0, 0, 0, 0);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+
+  const trackInset = Math.max(12, Math.round(pixelHeight * 0.9));
+  const trackWidth = Math.max(4, pixelWidth - trackInset * 2);
+  const trackHeight = Math.max(3, Math.round(pixelHeight * 0.2));
+  const trackY = Math.round(pixelHeight * 0.5 - trackHeight / 2);
+  const trackRadius = Math.max(2, Math.round(trackHeight / 2));
+  const trackX = Math.round((pixelWidth - trackWidth) / 2);
+  const knobRadius = Math.max(5, Math.round(pixelHeight * 0.32));
+  const knobX = Math.round(trackX + trackWidth * normalized);
+  const knobY = Math.round(pixelHeight * 0.5);
+
+  const trackBase = mix(palette.border, palette.fill, 0.5);
+  const trackFill = mix(accent, palette.glow, 0.1);
+  const knobFill = mix(accent, palette.fill, 0.2);
+  const knobHighlight = withAlpha(lighten(accent, 0.2), 0.9);
+  const knobStroke = withAlpha(darken(accent, 0.2), 0.85);
+
+  ui.begin(pixelWidth, pixelHeight);
+  ui.drawRoundedRect(trackX, trackY, trackWidth, trackHeight, trackRadius, trackBase);
+
+  const fillWidth = Math.max(2, Math.round(trackWidth * normalized));
+  if (fillWidth > 0) {
+    ui.drawRoundedRect(trackX, trackY, fillWidth, trackHeight, trackRadius, trackFill);
+  }
+
+  ui.drawFilledCircle(knobX, knobY, knobRadius, knobFill);
+  ui.drawCircle(knobX, knobY, knobRadius, Math.max(1, Math.round(dpr)), knobStroke);
+  ui.drawFilledCircle(knobX - knobRadius * 0.2, knobY - knobRadius * 0.2, knobRadius * 0.35, knobHighlight);
+
+  ui.flush();
+
+  const url = canvas.toDataURL("image/png");
+  sliderOverlayCache.set(cacheKey, url);
+  return url;
+};
+
 const renderIconImage = ({ iconId, size, tint }: IconRenderOptions): string => {
   const theme = getThemePalette();
   const themeKey = theme.themeKey;
@@ -590,6 +683,7 @@ export const resolveButtonVisuals = ({
   size,
   shape,
   accentColor,
+  iconTintOverride,
   iconOnly,
   elevated,
 }: {
@@ -600,6 +694,7 @@ export const resolveButtonVisuals = ({
   size: WebGLButtonSize;
   shape: WebGLButtonShape;
   accentColor?: string;
+  iconTintOverride?: string;
   iconOnly?: boolean;
   elevated?: boolean;
 }): ButtonVisuals => {
@@ -607,20 +702,24 @@ export const resolveButtonVisuals = ({
   const sizeSettings = SIZE_SETTINGS[size];
   const minHeight = sizeSettings.minHeight;
   const resolvedHeight = Math.max(minHeight, height || minHeight);
-  const radius = computeRadius(resolvedHeight, variant, shape);
+  const effectiveHeight = iconOnly ? minHeight : resolvedHeight;
+  const radius = computeRadius(effectiveHeight, variant, shape);
 
   const basePalette = getVariantBasePalette(variant, accentColor);
   const palette = applyStateToPalette(basePalette, state);
+  const resolvedIconTint = iconTintOverride
+    ? parseCssColor(iconTintOverride, palette.icon)
+    : palette.icon;
 
-  const paddingX = iconOnly ? resolvedHeight * 0.32 : sizeSettings.paddingX;
-  const paddingY = iconOnly ? resolvedHeight * 0.2 : sizeSettings.paddingY;
+  const paddingX = iconOnly ? effectiveHeight * 0.32 : sizeSettings.paddingX;
+  const paddingY = iconOnly ? effectiveHeight * 0.2 : sizeSettings.paddingY;
   const gap = iconOnly ? 0 : sizeSettings.gap;
-  const iconSizeBase = resolvedHeight * sizeSettings.iconScale;
-  const iconSize = iconOnly ? resolvedHeight * 0.62 : Math.max(16, iconSizeBase);
+  const iconSizeBase = effectiveHeight * sizeSettings.iconScale;
+  const iconSize = iconOnly ? effectiveHeight * 0.62 : Math.max(16, iconSizeBase);
 
   const backgroundUrl = renderButtonBackground({
-    width: Math.max(1, width || resolvedHeight),
-    height: resolvedHeight,
+    width: Math.max(1, width || effectiveHeight),
+    height: effectiveHeight,
     radius,
     variant,
     state,
@@ -631,12 +730,12 @@ export const resolveButtonVisuals = ({
   return {
     backgroundUrl,
     textColor: toCssColor(palette.text),
-    iconTint: palette.icon,
+    iconTint: resolvedIconTint,
     radius,
     paddingX,
     paddingY,
     gap,
-    minHeight: resolvedHeight,
+    minHeight: effectiveHeight,
     fontSize: sizeSettings.fontSize,
     iconSize,
     fallbackFill: toCssColor(palette.fill),

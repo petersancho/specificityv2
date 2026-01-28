@@ -14,9 +14,18 @@ type ChipLayout = { rect: Rect; text: string };
 
 type KeyLayout = { rect: Rect; key: string; label: string };
 
+type LogoTone = "roslyn" | "numerica" | "neutral";
+
+type TitleParts = {
+  base: string;
+  accent: string;
+};
+
 type LayoutState = {
   width: number;
   height: number;
+  titleRect: Rect | null;
+  titleParts: TitleParts | null;
   leftKeys: KeyLayout[];
   centerChips: ChipLayout[];
   rightChips: ChipLayout[];
@@ -26,6 +35,8 @@ type WebGLStatusFooterProps = {
   shortcuts: Shortcut[];
   centerChips: string[];
   rightChips: string[];
+  title?: string;
+  titleTone?: LogoTone;
   className?: string;
 };
 
@@ -48,6 +59,20 @@ const PALETTE = {
   keyLabel: rgb(18, 16, 12, 0.6),
 };
 
+const TITLE_PALETTE = {
+  fill: rgb(246, 243, 238, 1),
+  stroke: rgb(198, 193, 187, 1),
+  text: rgb(18, 16, 12, 0.95),
+  shadow: rgb(0, 0, 0, 0.28),
+  glow: rgb(255, 255, 255, 0.45),
+};
+
+const TITLE_ACCENTS: Record<LogoTone, RGBA> = {
+  roslyn: rgb(0, 194, 209, 1),
+  numerica: rgb(122, 92, 255, 1),
+  neutral: rgb(255, 138, 61, 1),
+};
+
 const FOOTER_HEIGHT = 54;
 const PADDING_X = 18;
 const ITEM_GAP = 8;
@@ -59,6 +84,18 @@ const KEY_PAD_X = 12;
 const DOT_SPACING = 26;
 const DOT_SIZE = 1.4;
 const DOT_STRONG_EVERY = 4;
+
+const TITLE_FONT_SIZE = 10;
+const TITLE_PAD_X = 8;
+const TITLE_PAD_Y = 4;
+const TITLE_BAR_WIDTH = 2.4;
+const TITLE_BAR_GAP = 6;
+const TITLE_GAP = 2;
+const TITLE_RADIUS = 8;
+const TITLE_STROKE = 1.2;
+const TITLE_SHADOW_OFFSET = 2;
+const TITLE_UNDERLINE_HEIGHT = 2;
+const TITLE_UNDERLINE_INSET = 3;
 
 const KEY_FONT_SIZE = 11;
 const LABEL_FONT_SIZE = 9;
@@ -78,6 +115,26 @@ const measureTextWidth = (text: string, fontSize: number, weight: number) => {
   if (!ctx) return text.length * fontSize * 0.6;
   ctx.font = `normal ${weight} ${fontSize}px "Helvetica Neue", Helvetica, Arial, sans-serif`;
   return ctx.measureText(text).width;
+};
+
+const resolveTitleParts = (title: string): TitleParts => {
+  const normalized = title.trim().toLowerCase();
+  if (normalized === "roslyn") return { base: "ROS", accent: "LYN" };
+  if (normalized === "numerica") return { base: "NUME", accent: "RICA" };
+  return { base: title.toUpperCase(), accent: "" };
+};
+
+const measureTitleBadge = (title: string) => {
+  const parts = resolveTitleParts(title);
+  const baseWidth = measureTextWidth(parts.base, TITLE_FONT_SIZE, 700);
+  const accentWidth = parts.accent
+    ? measureTextWidth(parts.accent, TITLE_FONT_SIZE, 800)
+    : 0;
+  const textWidth = baseWidth + (parts.accent ? TITLE_GAP + accentWidth : 0);
+  const textHeight = TITLE_FONT_SIZE * 1.35;
+  const width = textWidth + TITLE_PAD_X * 2 + TITLE_BAR_WIDTH + TITLE_BAR_GAP;
+  const height = textHeight + TITLE_PAD_Y * 2;
+  return { width, height, parts, baseWidth, accentWidth, textHeight };
 };
 
 const measureChipWidth = (text: string) =>
@@ -130,7 +187,14 @@ const buildKeyLayouts = (
 const getRowWidth = (widths: number[]) =>
   widths.reduce((sum, width) => sum + width, 0) + Math.max(0, widths.length - 1) * ITEM_GAP;
 
-const WebGLStatusFooter = ({ shortcuts, centerChips, rightChips, className }: WebGLStatusFooterProps) => {
+const WebGLStatusFooter = ({
+  shortcuts,
+  centerChips,
+  rightChips,
+  title,
+  titleTone = "neutral",
+  className,
+}: WebGLStatusFooterProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const glRef = useRef<WebGLRenderingContext | null>(null);
@@ -140,6 +204,8 @@ const WebGLStatusFooter = ({ shortcuts, centerChips, rightChips, className }: We
   const layoutRef = useRef<LayoutState>({
     width: 1,
     height: FOOTER_HEIGHT,
+    titleRect: null,
+    titleParts: null,
     leftKeys: [],
     centerChips: [],
     rightChips: [],
@@ -208,8 +274,107 @@ const WebGLStatusFooter = ({ shortcuts, centerChips, rightChips, className }: We
     );
   };
 
+  const drawTitleBadge = (rect: Rect, parts: TitleParts) => {
+    const ui = uiRef.current;
+    const textRenderer = textRef.current;
+    const canvas = canvasRef.current;
+    if (!ui || !textRenderer || !canvas) return;
+    const dpr = dprRef.current;
+    const accent = TITLE_ACCENTS[titleTone] ?? TITLE_ACCENTS.neutral;
+
+    ui.drawRoundedRect(
+      (rect.x + TITLE_SHADOW_OFFSET) * dpr,
+      (rect.y + TITLE_SHADOW_OFFSET) * dpr,
+      rect.width * dpr,
+      rect.height * dpr,
+      TITLE_RADIUS * dpr,
+      TITLE_PALETTE.shadow
+    );
+    ui.drawRoundedRect(
+      rect.x * dpr,
+      rect.y * dpr,
+      rect.width * dpr,
+      rect.height * dpr,
+      TITLE_RADIUS * dpr,
+      TITLE_PALETTE.fill
+    );
+    ui.drawRoundedRect(
+      (rect.x + TITLE_STROKE) * dpr,
+      (rect.y + TITLE_STROKE) * dpr,
+      rect.width * dpr,
+      rect.height * 0.5 * dpr,
+      Math.max(2, (TITLE_RADIUS - TITLE_STROKE)) * dpr,
+      TITLE_PALETTE.glow
+    );
+    ui.drawRectStroke(
+      rect.x * dpr,
+      rect.y * dpr,
+      rect.width * dpr,
+      rect.height * dpr,
+      TITLE_STROKE * dpr,
+      TITLE_PALETTE.stroke
+    );
+    ui.drawRoundedRect(
+      (rect.x + TITLE_STROKE) * dpr,
+      (rect.y + TITLE_STROKE) * dpr,
+      TITLE_BAR_WIDTH * dpr,
+      (rect.height - TITLE_STROKE * 2) * dpr,
+      3 * dpr,
+      accent
+    );
+
+    const baseSize = prepareText(parts.base, TITLE_FONT_SIZE, 700);
+    const baseWidth = baseSize.width / dpr;
+    const baseHeight = baseSize.height / dpr;
+    const accentSize = parts.accent
+      ? prepareText(parts.accent, TITLE_FONT_SIZE, 800)
+      : { width: 0, height: 0 };
+    const accentWidth = accentSize.width / dpr;
+    const accentHeight = accentSize.height / dpr;
+
+    const textHeight = Math.max(baseHeight, accentHeight);
+    const textX = rect.x + TITLE_PAD_X + TITLE_BAR_WIDTH + TITLE_BAR_GAP;
+    const textY = rect.y + rect.height * 0.5 - textHeight * 0.5;
+    const shadowOffset = 1.2;
+
+    prepareText(parts.base, TITLE_FONT_SIZE, 700);
+    drawPreparedText((textX + shadowOffset) * dpr, (textY + shadowOffset) * dpr, TITLE_PALETTE.shadow);
+    drawPreparedText(textX * dpr, textY * dpr, TITLE_PALETTE.text);
+
+    if (parts.accent) {
+      const accentX = textX + baseWidth + TITLE_GAP;
+      prepareText(parts.accent, TITLE_FONT_SIZE, 800);
+      drawPreparedText(
+        (accentX + shadowOffset * 0.6) * dpr,
+        (textY + shadowOffset * 0.6) * dpr,
+        TITLE_PALETTE.shadow
+      );
+      drawPreparedText(accentX * dpr, textY * dpr, accent);
+
+      const underlineY =
+        rect.y + rect.height - TITLE_UNDERLINE_HEIGHT - TITLE_UNDERLINE_INSET;
+      ui.drawRoundedRect(
+        accentX * dpr,
+        underlineY * dpr,
+        accentWidth * dpr,
+        TITLE_UNDERLINE_HEIGHT * dpr,
+        TITLE_UNDERLINE_HEIGHT * 0.6 * dpr,
+        accent
+      );
+    }
+  };
+
   const updateLayout = (width: number) => {
     const centerY = FOOTER_HEIGHT * 0.5;
+    const titleMetrics = title ? measureTitleBadge(title) : null;
+    const titleRect = titleMetrics
+      ? {
+          x: PADDING_X,
+          y: centerY - titleMetrics.height * 0.5,
+          width: titleMetrics.width,
+          height: titleMetrics.height,
+        }
+      : null;
     const leftWidths = shortcutLayouts.map((item) => item.width);
     const centerWidths = centerChipLayouts.map((item) => item.width);
     const rightWidths = rightChipLayouts.map((item) => item.width);
@@ -218,7 +383,7 @@ const WebGLStatusFooter = ({ shortcuts, centerChips, rightChips, className }: We
     const centerWidth = getRowWidth(centerWidths);
     const rightWidth = getRowWidth(rightWidths);
 
-    const leftStart = PADDING_X;
+    const leftStart = titleRect ? titleRect.x + titleRect.width + GROUP_GAP : PADDING_X;
     const leftEnd = leftStart + leftWidth;
     const rightStart = width - PADDING_X - rightWidth;
 
@@ -234,6 +399,8 @@ const WebGLStatusFooter = ({ shortcuts, centerChips, rightChips, className }: We
     layoutRef.current = {
       width,
       height: FOOTER_HEIGHT,
+      titleRect,
+      titleParts: titleMetrics?.parts ?? null,
       leftKeys,
       centerChips: centerChipsLayout,
       rightChips: rightChipsLayout,
@@ -249,7 +416,13 @@ const WebGLStatusFooter = ({ shortcuts, centerChips, rightChips, className }: We
     if (!canvas || !gl || !ui) return;
 
     const dpr = dprRef.current;
-    const { leftKeys, centerChips: centerLayout, rightChips: rightLayout } = layoutRef.current;
+    const {
+      leftKeys,
+      centerChips: centerLayout,
+      rightChips: rightLayout,
+      titleRect,
+      titleParts,
+    } = layoutRef.current;
 
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clearColor(0, 0, 0, 0);
@@ -273,6 +446,10 @@ const WebGLStatusFooter = ({ shortcuts, centerChips, rightChips, className }: We
     }
 
     ui.drawRect(0, 0, canvas.width, 2 * dpr, PALETTE.border);
+
+    if (titleRect && titleParts) {
+      drawTitleBadge(titleRect, titleParts);
+    }
 
     [...centerLayout, ...rightLayout].forEach((chip) => drawChip(chip.rect));
     leftKeys.forEach((key) => drawChip(key.rect));
@@ -343,11 +520,11 @@ const WebGLStatusFooter = ({ shortcuts, centerChips, rightChips, className }: We
     const observer = new ResizeObserver(updateSize);
     observer.observe(container);
     return () => observer.disconnect();
-  }, [centerChipLayouts, rightChipLayouts, shortcutLayouts]);
+  }, [centerChipLayouts, rightChipLayouts, shortcutLayouts, title]);
 
   useEffect(() => {
     draw();
-  }, [centerChipLayouts, rightChipLayouts, shortcutLayouts]);
+  }, [centerChipLayouts, rightChipLayouts, shortcutLayouts, title, titleTone]);
 
   const rootClassName = className ? `${styles.root} ${className}` : styles.root;
 

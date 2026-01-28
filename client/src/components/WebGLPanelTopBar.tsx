@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { WebGLUIRenderer, type RGBA } from "../webgl/ui/WebGLUIRenderer";
 import { WebGLTextRenderer } from "../webgl/ui/WebGLTextRenderer";
 import { WebGLIconRenderer, type IconId } from "../webgl/ui/WebGLIconRenderer";
@@ -12,6 +12,9 @@ export type WebGLTopBarAction = {
   onClick: () => void;
   shortLabel?: string;
   icon?: IconId;
+  iconTint?: string;
+  groupLabel?: string;
+  category?: "primitive" | "curve" | "mesh" | "math" | "neutral";
   isActive?: boolean;
   isDisabled?: boolean;
   groupBreakBefore?: boolean;
@@ -24,6 +27,7 @@ type LayoutButton = { id: string; rect: Rect; action: WebGLTopBarAction };
 type LayoutState = {
   buttons: LayoutButton[];
   separators: Rect[];
+  groups: Array<{ label: string; rect: Rect }>;
   labelOffset: number;
   height: number;
   totalWidth: number;
@@ -34,6 +38,22 @@ type WebGLPanelTopBarProps = {
   actions: WebGLTopBarAction[];
   label?: string;
   className?: string;
+  logoTone?: "roslyn" | "numerica" | "neutral";
+  panelScale?: number;
+  onPanelScaleChange?: (nextScale: number) => void;
+  allowWheelScale?: boolean;
+};
+
+type LogoLayout = {
+  rect: Rect;
+  textX: number;
+  textY: number;
+  baseText: string;
+  accentText: string;
+  baseSize: { width: number; height: number };
+  accentSize: { width: number; height: number };
+  accentX: number;
+  isWebgl: boolean;
 };
 
 const rgb = (r: number, g: number, b: number, a = 1): RGBA => [
@@ -44,14 +64,54 @@ const rgb = (r: number, g: number, b: number, a = 1): RGBA => [
 ];
 
 const PALETTE = {
-  button: rgb(249, 246, 241, 1),
-  buttonHover: rgb(255, 255, 255, 1),
-  buttonActive: rgb(236, 232, 225, 1),
-  border: rgb(0, 0, 0, 1),
-  shadow: rgb(0, 0, 0, 0.4),
-  icon: rgb(12, 12, 12, 1),
+  button: rgb(233, 230, 226, 1),
+  buttonHover: rgb(240, 238, 235, 1),
+  buttonActive: rgb(221, 218, 214, 1),
+  border: rgb(201, 197, 192, 1),
+  shadow: rgb(0, 0, 0, 0.18),
+  shadowDeep: rgb(0, 0, 0, 0.28),
+  glow: rgb(31, 31, 34, 0.12),
+  highlight: rgb(255, 255, 255, 0.24),
+  icon: rgb(31, 31, 34, 0.95),
+  iconActive: rgb(31, 31, 34, 1),
+  iconDisabled: rgb(120, 120, 120, 0.5),
+  logoFill: rgb(246, 243, 238, 1),
+  logoFillSoft: rgb(239, 235, 230, 1),
+  logoStroke: rgb(198, 193, 187, 1),
+  logoText: rgb(26, 26, 30, 0.96),
+  logoAccent: rgb(0, 194, 209, 1),
+  logoAccentDeep: rgb(122, 92, 255, 1),
+  logoGlow: rgb(255, 255, 255, 0.35),
   tooltipBg: rgb(15, 15, 15, 0.95),
+  tooltipBorder: rgb(0, 0, 0, 0.9),
 };
+
+type TopBarCategory = "primitive" | "curve" | "mesh" | "math" | "neutral";
+
+const CATEGORY_TINTS: Record<TopBarCategory, RGBA> = {
+  primitive: rgb(0, 194, 209, 1),
+  curve: rgb(255, 79, 182, 1),
+  mesh: rgb(122, 92, 255, 1),
+  math: rgb(255, 197, 51, 1),
+  neutral: PALETTE.icon,
+};
+
+const LOGO_FONT_FAMILY =
+  '"Helvetica Neue", "Montreal Neue", "Space Grotesk", Helvetica, Arial, sans-serif';
+const LOGO_BASE_WEIGHT = 700;
+const LOGO_ACCENT_WEIGHT = 800;
+
+const LOGO_ACCENTS: Record<
+  "roslyn" | "numerica" | "neutral",
+  { primary: RGBA; deep: RGBA }
+> = {
+  roslyn: { primary: rgb(0, 194, 209, 1), deep: rgb(255, 79, 182, 1) },
+  numerica: { primary: rgb(122, 92, 255, 1), deep: rgb(0, 194, 209, 1) },
+  neutral: { primary: PALETTE.logoAccent, deep: PALETTE.logoAccentDeep },
+};
+
+const resolveLogoAccent = (tone?: "roslyn" | "numerica" | "neutral") =>
+  LOGO_ACCENTS[tone ?? "neutral"] ?? LOGO_ACCENTS.neutral;
 
 const BUTTON_SIZE = 40;
 const BUTTON_GAP = 6;
@@ -60,12 +120,59 @@ const PADDING_Y = 8;
 const LABEL_HEIGHT = 10;
 const LABEL_GAP = 4;
 const SHADOW_OFFSET = 3;
+const BUTTON_RADIUS = 12;
+const BUTTON_STROKE = 2;
 const ICON_INSET = 5.5;
 const SEPARATOR_GAP = 10;
 const SEPARATOR_WIDTH = 2;
+const PANEL_SCALE_KEY = "specificity.webglPanelScale";
+const MIN_PANEL_SCALE = 0.4;
+const MAX_PANEL_SCALE = 1.05;
+const PANEL_SCALE_SPEED = 0.0015;
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
+
+const mix = (a: RGBA, b: RGBA, t: number): RGBA => [
+  a[0] + (b[0] - a[0]) * t,
+  a[1] + (b[1] - a[1]) * t,
+  a[2] + (b[2] - a[2]) * t,
+  a[3] + (b[3] - a[3]) * t,
+];
+
+const lighten = (color: RGBA, amount: number) => mix(color, rgb(255, 255, 255, 1), amount);
+const darken = (color: RGBA, amount: number) => mix(color, rgb(0, 0, 0, 1), amount);
+const withAlpha = (color: RGBA, alpha: number): RGBA => [
+  color[0],
+  color[1],
+  color[2],
+  alpha,
+];
+
+let parseCanvas: HTMLCanvasElement | null = null;
+let parseCtx: CanvasRenderingContext2D | null = null;
+
+const ensureParseContext = () => {
+  if (parseCtx) return parseCtx;
+  if (typeof document === "undefined") return null;
+  parseCanvas = document.createElement("canvas");
+  parseCanvas.width = 2;
+  parseCanvas.height = 2;
+  parseCtx = parseCanvas.getContext("2d");
+  return parseCtx;
+};
+
+const parseCssColor = (value: string | undefined, fallback: RGBA): RGBA => {
+  if (!value) return fallback;
+  const ctx = ensureParseContext();
+  if (!ctx) return fallback;
+  ctx.clearRect(0, 0, 2, 2);
+  ctx.fillStyle = "#000";
+  ctx.fillStyle = value;
+  ctx.fillRect(0, 0, 1, 1);
+  const data = ctx.getImageData(0, 0, 1, 1).data;
+  return [data[0] / 255, data[1] / 255, data[2] / 255, data[3] / 255];
+};
 
 const ACTION_ICON_MAP: Record<string, IconId> = {
   point: "point",
@@ -74,6 +181,7 @@ const ACTION_ICON_MAP: Record<string, IconId> = {
   rectangle: "rectangle",
   circle: "circle",
   primitive: "primitive",
+  curve: "arc",
   box: "box",
   sphere: "sphere",
   move: "move",
@@ -88,6 +196,7 @@ const ACTION_ICON_MAP: Record<string, IconId> = {
   paste: "paste",
   duplicate: "duplicate",
   gumball: "gumball",
+  interpolate: "interpolate",
   "geometry-reference": "geometryReference",
   "point-generator": "pointGenerator",
   "line-builder": "lineBuilder",
@@ -114,13 +223,54 @@ const ACTION_ICON_MAP: Record<string, IconId> = {
   capture: "capture",
 };
 
+const ACTION_CATEGORY_MAP: Record<string, TopBarCategory> = {
+  point: "primitive",
+  primitive: "primitive",
+  box: "primitive",
+  sphere: "primitive",
+  line: "curve",
+  polyline: "curve",
+  arc: "curve",
+  curve: "curve",
+  rectangle: "curve",
+  circle: "curve",
+  surface: "mesh",
+  loft: "mesh",
+  extrude: "mesh",
+};
+
 const getShortLabel = (action: WebGLTopBarAction) =>
   action.shortLabel ?? action.label.slice(0, 3).toUpperCase();
 
-const resolveIconId = (action: WebGLTopBarAction): IconId | null =>
-  action.icon ?? ACTION_ICON_MAP[action.id] ?? null;
+const resolveIconId = (action: WebGLTopBarAction): IconId =>
+  action.icon ?? ACTION_ICON_MAP[action.id] ?? "primitive";
 
-const WebGLPanelTopBar = ({ actions, label, className }: WebGLPanelTopBarProps) => {
+const resolveActionCategory = (action: WebGLTopBarAction): TopBarCategory =>
+  action.category ?? ACTION_CATEGORY_MAP[action.id] ?? "neutral";
+
+const resolveActionTint = (action: WebGLTopBarAction): RGBA => {
+  const categoryTint = CATEGORY_TINTS[resolveActionCategory(action)] ?? PALETTE.icon;
+  return parseCssColor(action.iconTint, categoryTint);
+};
+
+const resolveGroupLabelColor = (label: string): RGBA => {
+  const normalized = label.trim().toLowerCase();
+  if (normalized.includes("primitive")) return withAlpha(CATEGORY_TINTS.primitive, 0.82);
+  if (normalized.includes("curve")) return withAlpha(CATEGORY_TINTS.curve, 0.82);
+  if (normalized.includes("mesh")) return withAlpha(CATEGORY_TINTS.mesh, 0.82);
+  if (normalized.includes("math")) return withAlpha(CATEGORY_TINTS.math, 0.82);
+  return withAlpha(PALETTE.icon, 0.72);
+};
+
+const WebGLPanelTopBar = ({
+  actions,
+  label,
+  className,
+  logoTone,
+  panelScale,
+  onPanelScaleChange,
+  allowWheelScale = true,
+}: WebGLPanelTopBarProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const glRef = useRef<WebGLRenderingContext | null>(null);
@@ -129,24 +279,100 @@ const WebGLPanelTopBar = ({ actions, label, className }: WebGLPanelTopBarProps) 
   const iconRef = useRef<WebGLIconRenderer | null>(null);
   const dprRef = useRef(1);
   const hoveredIdRef = useRef<string | null>(null);
+  const focusRectRef = useRef<Rect | null>(null);
+  const keyboardModeRef = useRef(false);
   const pointerRef = useRef({ x: 0, y: 0 });
   const layoutRef = useRef<LayoutState>({
     buttons: [],
     separators: [],
+    groups: [],
     labelOffset: 0,
     height: 0,
     totalWidth: 0,
     visibleWidth: 0,
   });
+  const [internalScale, setInternalScale] = useState(() => {
+    if (typeof window === "undefined") return 0.85;
+    const stored = window.localStorage.getItem(PANEL_SCALE_KEY);
+    const parsed = stored ? Number(stored) : 0.85;
+    if (!Number.isFinite(parsed)) return 0.85;
+    return clamp(parsed, MIN_PANEL_SCALE, MAX_PANEL_SCALE);
+  });
+  const isControlled = typeof panelScale === "number";
+  const effectiveScale = clamp(
+    isControlled ? panelScale : internalScale,
+    MIN_PANEL_SCALE,
+    MAX_PANEL_SCALE
+  );
+  const metrics = useMemo(() => {
+    const logoFontSize = 12 * effectiveScale;
+    const logoPadX = 8 * effectiveScale;
+    const logoPadY = 3 * effectiveScale;
+    const logoHeight = logoFontSize * 1.35 + logoPadY * 2;
+
+    return {
+      buttonSize: BUTTON_SIZE * effectiveScale,
+      buttonGap: BUTTON_GAP * effectiveScale,
+      paddingX: PADDING_X * effectiveScale,
+      paddingY: PADDING_Y * effectiveScale,
+      labelHeight: Math.max(LABEL_HEIGHT * effectiveScale, logoHeight),
+      labelGap: LABEL_GAP * effectiveScale,
+      groupLabelHeight: 8 * effectiveScale,
+      groupLabelGap: 3 * effectiveScale,
+      groupLabelSize: 8 * effectiveScale,
+      shadowOffset: SHADOW_OFFSET * effectiveScale,
+      buttonRadius: BUTTON_RADIUS * effectiveScale,
+      buttonStroke: Math.max(1, BUTTON_STROKE * effectiveScale),
+      iconInset: ICON_INSET * effectiveScale,
+      separatorGap: SEPARATOR_GAP * effectiveScale,
+      separatorWidth: Math.max(1, SEPARATOR_WIDTH * effectiveScale),
+      shortLabelSize: 11 * effectiveScale,
+      labelSize: 10 * effectiveScale,
+      logoFontSize,
+      logoPadX,
+      logoPadY,
+      logoAccentGap: 4 * effectiveScale,
+      logoRadius: 10 * effectiveScale,
+      logoStroke: Math.max(1, effectiveScale),
+      logoShadowOffset: 1.6 * effectiveScale,
+      logoUnderlineHeight: Math.max(1, 2 * effectiveScale),
+      logoUnderlineInset: 3 * effectiveScale,
+      logoTracking: -0.35 * effectiveScale,
+      logoAccentTracking: -0.2 * effectiveScale,
+      tooltipFontSize: 12 * effectiveScale,
+      tooltipPaddingX: 10 * effectiveScale,
+      tooltipPaddingY: 6 * effectiveScale,
+    };
+  }, [effectiveScale]);
   const [barHeight, setBarHeight] = useState(70);
   const [scrollX, setScrollX] = useState(0);
   const scrollRef = useRef(0);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (isControlled) return;
+    window.localStorage.setItem(PANEL_SCALE_KEY, internalScale.toFixed(3));
+  }, [internalScale, isControlled]);
 
   const drawRect = (rect: Rect, color: RGBA) => {
     const ui = uiRef.current;
     if (!ui) return;
     const dpr = dprRef.current;
     ui.drawRect(rect.x * dpr, rect.y * dpr, rect.width * dpr, rect.height * dpr, color);
+  };
+
+  const drawRoundedRect = (rect: Rect, radius: number, color: RGBA) => {
+    const ui = uiRef.current;
+    if (!ui) return;
+    const dpr = dprRef.current;
+    ui.drawRoundedRect(
+      rect.x * dpr,
+      rect.y * dpr,
+      rect.width * dpr,
+      rect.height * dpr,
+      radius * dpr,
+      color
+    );
   };
 
   const drawLine = (
@@ -221,6 +447,19 @@ const WebGLPanelTopBar = ({ actions, label, className }: WebGLPanelTopBarProps) 
         width: rect.width,
         height: rect.height,
       },
+      color
+    );
+  };
+
+  const drawShadowRoundedRect = (rect: Rect, radius: number, offset: number, color: RGBA) => {
+    drawRoundedRect(
+      {
+        x: rect.x + offset,
+        y: rect.y + offset,
+        width: rect.width,
+        height: rect.height,
+      },
+      radius,
       color
     );
   };
@@ -374,34 +613,300 @@ const WebGLPanelTopBar = ({ actions, label, className }: WebGLPanelTopBarProps) 
     );
   };
 
+  const measureTrackedText = (
+    text: string,
+    fontSize: number,
+    fontWeight: number,
+    tracking: number
+  ) => {
+    const textRenderer = textRef.current;
+    if (!textRenderer) {
+      const width = text.length * fontSize * 0.6 + Math.max(0, text.length - 1) * tracking;
+      return { width, height: fontSize };
+    }
+    const dpr = dprRef.current;
+    let width = 0;
+    let height = 0;
+    for (let i = 0; i < text.length; i += 1) {
+      const char = text[i];
+      textRenderer.setText(char, {
+        fontSize: fontSize * dpr,
+        fontWeight,
+        fontFamily: LOGO_FONT_FAMILY,
+        paddingX: 0,
+        paddingY: 0,
+        color: "#ffffff",
+      });
+      const size = textRenderer.getSize();
+      width += size.width / dpr;
+      height = Math.max(height, size.height / dpr);
+      if (i < text.length - 1) {
+        width += tracking;
+      }
+    }
+    return { width, height };
+  };
+
+  const drawTrackedText = (
+    text: string,
+    startX: number,
+    startY: number,
+    fontSize: number,
+    fontWeight: number,
+    tracking: number,
+    color: RGBA
+  ) => {
+    const textRenderer = textRef.current;
+    const canvas = canvasRef.current;
+    if (!textRenderer || !canvas) return;
+    const dpr = dprRef.current;
+    const resolution = { width: canvas.width, height: canvas.height };
+    let x = startX;
+    for (let i = 0; i < text.length; i += 1) {
+      const char = text[i];
+      textRenderer.setText(char, {
+        fontSize: fontSize * dpr,
+        fontWeight,
+        fontFamily: LOGO_FONT_FAMILY,
+        paddingX: 0,
+        paddingY: 0,
+        color: "#ffffff",
+      });
+      const size = textRenderer.getSize();
+      textRenderer.draw(x * dpr, startY * dpr, resolution, color);
+      x += size.width / dpr;
+      if (i < text.length - 1) {
+        x += tracking;
+      }
+    }
+  };
+
+  const getLogoLayout = (labelText: string): LogoLayout | null => {
+    const normalized = labelText.trim();
+    if (!normalized) return null;
+
+    const upper = normalized.toUpperCase();
+    const compact = upper.replace(/\s+/g, "");
+    const isWebgl = compact === "WEBGL";
+    const baseText = isWebgl ? "WEB" : upper;
+    const accentText = isWebgl ? "GL" : "";
+
+    const baseSize = measureTrackedText(
+      baseText,
+      metrics.logoFontSize,
+      LOGO_BASE_WEIGHT,
+      metrics.logoTracking
+    );
+    const accentSize = accentText
+      ? measureTrackedText(
+          accentText,
+          metrics.logoFontSize,
+          LOGO_ACCENT_WEIGHT,
+          metrics.logoAccentTracking
+        )
+      : { width: 0, height: 0 };
+
+    const baseWidth = baseSize.width;
+    const accentWidth = accentSize.width;
+    const textWidth =
+      baseWidth + (accentText ? metrics.logoAccentGap + accentWidth : 0);
+    const textHeight = Math.max(baseSize.height, accentSize.height);
+
+    const rectHeight = Math.max(
+      metrics.labelHeight,
+      textHeight + metrics.logoPadY * 2
+    );
+    const rectWidth = textWidth + metrics.logoPadX * 2;
+    const rect: Rect = {
+      x: metrics.paddingX,
+      y: metrics.paddingY,
+      width: rectWidth,
+      height: rectHeight,
+    };
+    const textX = rect.x + metrics.logoPadX;
+    const textY = rect.y + rect.height * 0.5 - textHeight * 0.5;
+    const accentX = textX + baseWidth + (accentText ? metrics.logoAccentGap : 0);
+
+    return {
+      rect,
+      textX,
+      textY,
+      baseText,
+      accentText,
+      baseSize,
+      accentSize,
+      accentX,
+      isWebgl,
+    };
+  };
+
+  const drawLogoBackground = (logo: LogoLayout) => {
+    const rect = logo.rect;
+    const radius = Math.min(metrics.logoRadius, rect.height / 2);
+    const stroke = metrics.logoStroke;
+    const accents = resolveLogoAccent(logoTone);
+
+    drawShadowRoundedRect(rect, radius, metrics.logoShadowOffset, withAlpha(PALETTE.shadow, 0.38));
+    drawRoundedRect(rect, radius, PALETTE.logoFill);
+    drawRoundedRect(
+      {
+        x: rect.x + stroke,
+        y: rect.y + stroke,
+        width: rect.width - stroke * 2,
+        height: rect.height * 0.55,
+      },
+      Math.max(2, radius - stroke),
+      withAlpha(PALETTE.logoGlow, 0.35)
+    );
+    drawRoundedRect(
+      {
+        x: rect.x + stroke,
+        y: rect.y + rect.height * 0.5,
+        width: rect.width - stroke * 2,
+        height: rect.height * 0.5 - stroke,
+      },
+      Math.max(2, radius - stroke),
+      withAlpha(PALETTE.logoFillSoft, 0.55)
+    );
+    drawRectStroke(rect, stroke, PALETTE.logoStroke);
+
+    if (logo.accentText) {
+      const accentWidth = logo.accentSize.width;
+      const underlineHeight = metrics.logoUnderlineHeight;
+      const underlineY =
+        rect.y + rect.height - underlineHeight - metrics.logoUnderlineInset;
+      const underlineRect = {
+        x: logo.accentX,
+        y: underlineY,
+        width: accentWidth,
+        height: underlineHeight,
+      };
+      drawRoundedRect(
+        underlineRect,
+        underlineHeight * 0.6,
+        withAlpha(accents.primary, 0.95)
+      );
+      if (underlineRect.width > underlineHeight * 2) {
+        drawRoundedRect(
+          {
+            x: underlineRect.x + underlineRect.width * 0.55,
+            y: underlineRect.y,
+            width: underlineRect.width * 0.45,
+            height: underlineRect.height,
+          },
+          underlineRect.height * 0.6,
+          withAlpha(accents.deep, 0.95)
+        );
+      }
+    }
+  };
+
+  const drawLogoText = (logo: LogoLayout) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const shadowOffset = metrics.logoShadowOffset * 0.8;
+    const accents = resolveLogoAccent(logoTone);
+
+    drawTrackedText(
+      logo.baseText,
+      logo.textX + shadowOffset,
+      logo.textY + shadowOffset,
+      metrics.logoFontSize,
+      LOGO_BASE_WEIGHT,
+      metrics.logoTracking,
+      withAlpha(PALETTE.shadowDeep, 0.6)
+    );
+    drawTrackedText(
+      logo.baseText,
+      logo.textX,
+      logo.textY,
+      metrics.logoFontSize,
+      LOGO_BASE_WEIGHT,
+      metrics.logoTracking,
+      PALETTE.logoText
+    );
+
+    if (logo.accentText) {
+      drawTrackedText(
+        logo.accentText,
+        logo.accentX + shadowOffset * 0.6,
+        logo.textY + shadowOffset * 0.6,
+        metrics.logoFontSize,
+        LOGO_ACCENT_WEIGHT,
+        metrics.logoAccentTracking,
+        withAlpha(accents.primary, 0.35)
+      );
+      drawTrackedText(
+        logo.accentText,
+        logo.accentX,
+        logo.textY,
+        metrics.logoFontSize,
+        LOGO_ACCENT_WEIGHT,
+        metrics.logoAccentTracking,
+        accents.primary
+      );
+    }
+  };
+
   const layoutButtons = (width: number) => {
     const safeWidth = Math.max(1, width);
-    const labelOffset = label ? LABEL_HEIGHT + LABEL_GAP : 0;
-    const height = PADDING_Y * 2 + labelOffset + BUTTON_SIZE;
-    const y = PADDING_Y + labelOffset;
+    const hasGroupLabels = actions.some((action) => Boolean(action.groupLabel));
+    const labelOffset = label ? metrics.labelHeight + metrics.labelGap : 0;
+    const groupOffset = hasGroupLabels
+      ? metrics.groupLabelHeight + metrics.groupLabelGap
+      : 0;
+    const height = metrics.paddingY * 2 + labelOffset + groupOffset + metrics.buttonSize;
+    const y = metrics.paddingY + labelOffset + groupOffset;
     const separators: Rect[] = [];
-    let x = PADDING_X;
+    const groups: Array<{ label: string; rect: Rect }> = [];
+    let x = metrics.paddingX;
+    let currentGroup: { label: string; startX: number; endX: number } | null = null;
+
+    const closeGroup = () => {
+      if (!currentGroup) return;
+      const width = Math.max(metrics.buttonSize, currentGroup.endX - currentGroup.startX);
+      groups.push({
+        label: currentGroup.label,
+        rect: {
+          x: currentGroup.startX,
+          y: metrics.paddingY + labelOffset,
+          width,
+          height: metrics.groupLabelHeight,
+        },
+      });
+      currentGroup = null;
+    };
 
     const buttons = actions.map((action) => {
-      if (action.groupBreakBefore && x > PADDING_X) {
+      if (action.groupBreakBefore && x > metrics.paddingX) {
+        closeGroup();
         const separatorRect = {
-          x: x + SEPARATOR_GAP * 0.5,
-          y: y + 5,
-          width: SEPARATOR_WIDTH,
-          height: BUTTON_SIZE - 10,
+          x: x + metrics.separatorGap * 0.5,
+          y: y + 5 * effectiveScale,
+          width: metrics.separatorWidth,
+          height: metrics.buttonSize - 10 * effectiveScale,
         };
         separators.push(separatorRect);
-        x += SEPARATOR_GAP + SEPARATOR_WIDTH;
+        x += metrics.separatorGap + metrics.separatorWidth;
       }
-      const rect = { x, y, width: BUTTON_SIZE, height: BUTTON_SIZE };
-      x += BUTTON_SIZE + BUTTON_GAP;
+      if (action.groupLabel) {
+        closeGroup();
+        currentGroup = { label: action.groupLabel, startX: x, endX: x };
+      }
+      const rect = { x, y, width: metrics.buttonSize, height: metrics.buttonSize };
+      x += metrics.buttonSize + metrics.buttonGap;
+      if (currentGroup) {
+        currentGroup.endX = rect.x + rect.width;
+      }
       return { id: action.id, rect, action };
     });
+    closeGroup();
 
-    const totalWidth = Math.max(safeWidth, x - BUTTON_GAP + PADDING_X);
+    const totalWidth = Math.max(safeWidth, x - metrics.buttonGap + metrics.paddingX);
     layoutRef.current = {
       buttons,
       separators,
+      groups,
       labelOffset,
       height,
       totalWidth,
@@ -426,13 +931,18 @@ const WebGLPanelTopBar = ({ actions, label, className }: WebGLPanelTopBarProps) 
     const iconRenderer = iconRef.current;
     if (!canvas || !gl || !ui || !textRenderer) return;
 
+    gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
     const fallbackButtons: LayoutButton[] = [];
     const scrollOffset = scrollRef.current;
+    const logoLayout = label ? getLogoLayout(label) : null;
 
     ui.begin(canvas.width, canvas.height);
+    if (logoLayout) {
+      drawLogoBackground(logoLayout);
+    }
     layoutRef.current.separators.forEach((separator) => {
       const rect = {
         x: separator.x - scrollOffset,
@@ -440,7 +950,7 @@ const WebGLPanelTopBar = ({ actions, label, className }: WebGLPanelTopBarProps) 
         width: separator.width,
         height: separator.height,
       };
-      drawRect(rect, rgb(0, 0, 0, 0.38));
+      drawRoundedRect(rect, 1, withAlpha(PALETTE.border, 0.6));
     });
     layoutRef.current.buttons.forEach((button) => {
       const { action } = button;
@@ -452,19 +962,117 @@ const WebGLPanelTopBar = ({ actions, label, className }: WebGLPanelTopBarProps) 
       };
       const isDisabled = Boolean(action.isDisabled);
       const isHovered = hoveredIdRef.current === button.id && !isDisabled;
-      const fill = action.isActive
+      const isActive = Boolean(action.isActive);
+      const category = resolveActionCategory(action);
+      const categoryTint = resolveActionTint(action);
+      const baseFill = isActive
         ? PALETTE.buttonActive
         : isHovered
           ? PALETTE.buttonHover
           : PALETTE.button;
-      const disabledFill = rgb(236, 232, 225, 0.45);
-      const finalFill = isDisabled ? disabledFill : fill;
+      const disabledFill = withAlpha(mix(baseFill, rgb(210, 210, 210, 1), 0.35), 0.55);
+      const finalFill = isDisabled ? disabledFill : baseFill;
+      const border = isActive ? lighten(PALETTE.border, 0.18) : PALETTE.border;
+      const radius = Math.min(metrics.buttonRadius, rect.width / 2, rect.height / 2);
+      const stroke = metrics.buttonStroke;
 
-      drawShadowRect(rect, SHADOW_OFFSET, PALETTE.shadow);
-      drawRect(rect, finalFill);
-      drawRectStroke(rect, 2, PALETTE.border);
+      if (isHovered || isActive) {
+        const glowAlpha = isActive ? 0.55 : 0.35;
+        drawShadowRoundedRect(
+          {
+            x: rect.x - 1,
+            y: rect.y - 1,
+            width: rect.width + 2,
+            height: rect.height + 2,
+          },
+          radius + 1,
+          0,
+          withAlpha(PALETTE.glow, glowAlpha)
+        );
+      }
+
+      drawShadowRoundedRect(rect, radius, metrics.shadowOffset, PALETTE.shadow);
+      drawShadowRoundedRect(rect, radius, metrics.shadowOffset + 1, PALETTE.shadowDeep);
+
+      drawRoundedRect(rect, radius, border);
+
+      const innerRect = {
+        x: rect.x + stroke,
+        y: rect.y + stroke,
+        width: rect.width - stroke * 2,
+        height: rect.height - stroke * 2,
+      };
+      drawRoundedRect(innerRect, Math.max(2, radius - stroke), finalFill);
+
+      if (!isDisabled) {
+        const highlightHeight = rect.height * 0.56;
+        drawRoundedRect(
+          {
+            x: innerRect.x,
+            y: innerRect.y,
+            width: innerRect.width,
+            height: highlightHeight,
+          },
+          Math.max(2, radius - stroke),
+          withAlpha(PALETTE.highlight, isHovered ? 0.28 : 0.2)
+        );
+        const shadeHeight = rect.height * 0.2;
+        drawRoundedRect(
+          {
+            x: innerRect.x,
+            y: rect.y + rect.height - shadeHeight - stroke,
+            width: innerRect.width,
+            height: shadeHeight,
+          },
+          Math.max(2, radius - stroke),
+          withAlpha(darken(finalFill, 0.18), 0.18)
+        );
+      }
+
+      if (!isDisabled && category !== "neutral") {
+        const accentWidth = Math.max(2, Math.round(3 * effectiveScale));
+        const accentRect = {
+          x: innerRect.x + Math.max(1, stroke * 0.5),
+          y: innerRect.y + Math.max(1, stroke * 0.5),
+          width: accentWidth,
+          height: innerRect.height - Math.max(2, stroke),
+        };
+        drawRoundedRect(
+          accentRect,
+          Math.max(1, accentWidth * 0.4),
+          withAlpha(categoryTint, isHovered || isActive ? 0.75 : 0.6)
+        );
+      }
+
+      if (keyboardModeRef.current && hoveredIdRef.current === button.id && !isDisabled) {
+        drawRoundedRect(
+          {
+            x: rect.x - 2,
+            y: rect.y - 2,
+            width: rect.width + 4,
+            height: rect.height + 4,
+          },
+          radius + 2,
+          withAlpha(PALETTE.glow, 0.4)
+        );
+      }
     });
     ui.flush();
+
+    layoutRef.current.groups.forEach((group) => {
+      const rect = {
+        x: group.rect.x - scrollOffset,
+        y: group.rect.y,
+        width: group.rect.width,
+        height: group.rect.height,
+      };
+      drawCenteredLabel(
+        group.label.toUpperCase(),
+        rect,
+        metrics.groupLabelSize,
+        resolveGroupLabelColor(group.label)
+      );
+    });
 
     const dpr = dprRef.current;
 
@@ -484,17 +1092,19 @@ const WebGLPanelTopBar = ({ actions, label, className }: WebGLPanelTopBarProps) 
         };
 
         const iconRect = {
-          x: (renderRect.x + ICON_INSET) * dpr,
-          y: (renderRect.y + ICON_INSET) * dpr,
-          width: (renderRect.width - ICON_INSET * 2) * dpr,
-          height: (renderRect.height - ICON_INSET * 2) * dpr,
+          x: (renderRect.x + metrics.iconInset) * dpr,
+          y: (renderRect.y + metrics.iconInset) * dpr,
+          width: (renderRect.width - metrics.iconInset * 2) * dpr,
+          height: (renderRect.height - metrics.iconInset * 2) * dpr,
         };
 
+        const baseTint = resolveActionTint(button.action);
+        const highlightTint = lighten(baseTint, 0.18);
         const tint = button.action.isDisabled
-          ? rgb(190, 190, 190, 0.7)
+          ? withAlpha(mix(baseTint, PALETTE.iconDisabled, 0.6), 0.45)
           : hoveredIdRef.current === button.id || button.action.isActive
-            ? rgb(255, 255, 255, 1)
-            : rgb(235, 235, 235, 0.98);
+            ? highlightTint
+            : baseTint;
 
         iconRenderer.drawIcon(iconRect, iconId, tint);
       });
@@ -504,18 +1114,26 @@ const WebGLPanelTopBar = ({ actions, label, className }: WebGLPanelTopBarProps) 
     }
 
     fallbackButtons.forEach((button) => {
-      const labelColor = button.action.isDisabled ? rgb(12, 12, 12, 0.45) : PALETTE.icon;
+      const isHighlighted = hoveredIdRef.current === button.id || button.action.isActive;
+      const baseTint = resolveActionTint(button.action);
+      const labelColor = button.action.isDisabled
+        ? withAlpha(mix(baseTint, PALETTE.iconDisabled, 0.6), 0.45)
+        : isHighlighted
+          ? lighten(baseTint, 0.18)
+          : baseTint;
       const rect = {
         x: button.rect.x - scrollOffset,
         y: button.rect.y,
         width: button.rect.width,
         height: button.rect.height,
       };
-      drawCenteredLabel(getShortLabel(button.action), rect, 11, labelColor);
+      drawCenteredLabel(getShortLabel(button.action), rect, metrics.shortLabelSize, labelColor);
     });
 
-    if (label) {
-      drawText(label, PADDING_X, PADDING_Y, 10, PALETTE.icon);
+    if (logoLayout) {
+      drawLogoText(logoLayout);
+    } else if (label) {
+      drawText(label, metrics.paddingX, metrics.paddingY, metrics.labelSize, PALETTE.icon);
     }
 
     const hovered = layoutRef.current.buttons.find(
@@ -524,9 +1142,9 @@ const WebGLPanelTopBar = ({ actions, label, className }: WebGLPanelTopBarProps) 
     if (!hovered) return;
 
     const tooltipText = hovered.action.tooltip;
-    const paddingX = 10;
-    const paddingY = 6;
-    const fontSize = 12;
+    const paddingX = metrics.tooltipPaddingX;
+    const paddingY = metrics.tooltipPaddingY;
+    const fontSize = metrics.tooltipFontSize;
 
     textRenderer.setText(tooltipText, {
       fontSize: fontSize * dpr,
@@ -535,19 +1153,42 @@ const WebGLPanelTopBar = ({ actions, label, className }: WebGLPanelTopBarProps) 
       color: "#ffffff",
     });
     const textSize = textRenderer.getSize();
-    const tooltipX = pointerRef.current.x + 14;
-    const tooltipY = pointerRef.current.y + 16;
+    const tooltipWidth = textSize.width / dpr;
+    const tooltipHeight = textSize.height / dpr;
+    let tooltipX = pointerRef.current.x + 14;
+    let tooltipY = pointerRef.current.y + 16;
+
+    if (keyboardModeRef.current && focusRectRef.current) {
+      const focusRect = focusRectRef.current;
+      tooltipX = focusRect.x + focusRect.width + 12;
+      tooltipY = focusRect.y + focusRect.height / 2 - tooltipHeight / 2;
+    }
+
+    const canvasWidth = canvas.width / dpr;
+    const canvasHeight = canvas.height / dpr;
+    tooltipX = clamp(tooltipX, 6, Math.max(6, canvasWidth - tooltipWidth - 6));
+    tooltipY = clamp(tooltipY, 6, Math.max(6, canvasHeight - tooltipHeight - 6));
     const rect = {
       x: tooltipX,
       y: tooltipY,
-      width: textSize.width / dpr,
-      height: textSize.height / dpr,
+      width: tooltipWidth,
+      height: tooltipHeight,
     };
 
     ui.begin(canvas.width, canvas.height);
-    drawShadowRect(rect, 4, rgb(0, 0, 0, 0.9));
-    drawRect(rect, PALETTE.tooltipBg);
-    drawRectStroke(rect, 1, rgb(0, 0, 0, 0.9));
+    const tooltipRadius = 8;
+    drawShadowRoundedRect(rect, tooltipRadius, 4, rgb(0, 0, 0, 0.9));
+    drawRoundedRect(rect, tooltipRadius, PALETTE.tooltipBorder);
+    drawRoundedRect(
+      {
+        x: rect.x + 1,
+        y: rect.y + 1,
+        width: rect.width - 2,
+        height: rect.height - 2,
+      },
+      Math.max(2, tooltipRadius - 1),
+      PALETTE.tooltipBg
+    );
     ui.flush();
 
     textRenderer.draw(
@@ -592,16 +1233,62 @@ const WebGLPanelTopBar = ({ actions, label, className }: WebGLPanelTopBarProps) 
     const observer = new ResizeObserver(updateSize);
     observer.observe(container);
     return () => observer.disconnect();
-  }, [actions, label]);
+  }, [actions, label, effectiveScale, metrics]);
 
   useEffect(() => {
     draw();
-  }, [actions, label]);
+  }, [actions, label, effectiveScale]);
 
   useEffect(() => {
     scrollRef.current = scrollX;
     draw();
   }, [scrollX]);
+
+  const focusButton = (button: LayoutButton | null) => {
+    if (!button || button.action.isDisabled) return;
+    keyboardModeRef.current = true;
+    const maxScroll = Math.max(0, layoutRef.current.totalWidth - layoutRef.current.visibleWidth);
+    let nextScroll = scrollRef.current;
+    const leftEdge = button.rect.x;
+    const rightEdge = button.rect.x + button.rect.width;
+    const padding = 6;
+    if (leftEdge < nextScroll + padding) {
+      nextScroll = Math.max(0, leftEdge - padding);
+    } else if (rightEdge > nextScroll + layoutRef.current.visibleWidth - padding) {
+      nextScroll = Math.min(maxScroll, rightEdge - layoutRef.current.visibleWidth + padding);
+    }
+
+    if (nextScroll !== scrollRef.current) {
+      scrollRef.current = nextScroll;
+      setScrollX(nextScroll);
+    }
+
+    const rect = {
+      x: button.rect.x - nextScroll,
+      y: button.rect.y,
+      width: button.rect.width,
+      height: button.rect.height,
+    };
+    hoveredIdRef.current = button.id;
+    focusRectRef.current = rect;
+    pointerRef.current = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+    draw();
+  };
+
+  const focusNextButton = (direction: 1 | -1) => {
+    const buttons = layoutRef.current.buttons;
+    if (buttons.length === 0) return;
+    const currentIndex = buttons.findIndex((button) => button.id === hoveredIdRef.current);
+    let index = currentIndex >= 0 ? currentIndex : direction === 1 ? -1 : 0;
+
+    for (let i = 0; i < buttons.length; i += 1) {
+      index = (index + direction + buttons.length) % buttons.length;
+      if (!buttons[index].action.isDisabled) {
+        focusButton(buttons[index]);
+        return;
+      }
+    }
+  };
 
   const hitTest = (x: number, y: number) => {
     const layoutX = x + scrollRef.current;
@@ -622,6 +1309,8 @@ const WebGLPanelTopBar = ({ actions, label, className }: WebGLPanelTopBarProps) 
     const rect = canvas.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
+    keyboardModeRef.current = false;
+    focusRectRef.current = null;
     pointerRef.current = { x, y };
     const hit = hitTest(x, y);
     hoveredIdRef.current = hit?.id ?? null;
@@ -630,6 +1319,7 @@ const WebGLPanelTopBar = ({ actions, label, className }: WebGLPanelTopBarProps) 
   };
 
   const handlePointerLeave = () => {
+    if (keyboardModeRef.current) return;
     hoveredIdRef.current = null;
     draw();
   };
@@ -642,7 +1332,75 @@ const WebGLPanelTopBar = ({ actions, label, className }: WebGLPanelTopBarProps) 
     hit.action.onClick();
   };
 
+  const handleFocus = () => {
+    if (layoutRef.current.buttons.length === 0) return;
+    const current = layoutRef.current.buttons.find(
+      (button) => button.id === hoveredIdRef.current && !button.action.isDisabled
+    );
+    if (current) {
+      focusButton(current);
+      return;
+    }
+    focusNextButton(1);
+  };
+
+  const handleBlur = () => {
+    keyboardModeRef.current = false;
+    hoveredIdRef.current = null;
+    focusRectRef.current = null;
+    draw();
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLCanvasElement>) => {
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
+      focusNextButton(1);
+      return;
+    }
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      focusNextButton(-1);
+      return;
+    }
+    if (event.key === "Home") {
+      event.preventDefault();
+      focusButton(layoutRef.current.buttons.find((button) => !button.action.isDisabled) ?? null);
+      return;
+    }
+    if (event.key === "End") {
+      event.preventDefault();
+      const buttons = [...layoutRef.current.buttons].reverse();
+      focusButton(buttons.find((button) => !button.action.isDisabled) ?? null);
+      return;
+    }
+    if (event.key === " " || event.key === "Enter") {
+      event.preventDefault();
+      const hit = layoutRef.current.buttons.find(
+        (button) => button.id === hoveredIdRef.current
+      );
+      if (!hit || hit.action.isDisabled) return;
+      hit.action.onClick();
+    }
+  };
+
   const handleWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {
+    if (allowWheelScale && (event.ctrlKey || event.metaKey || event.altKey)) {
+      event.preventDefault();
+      const delta = -event.deltaY * PANEL_SCALE_SPEED;
+      const nextScale = clamp(
+        effectiveScale * Math.exp(delta),
+        MIN_PANEL_SCALE,
+        MAX_PANEL_SCALE
+      );
+      if (nextScale !== effectiveScale) {
+        if (isControlled) {
+          onPanelScaleChange?.(nextScale);
+        } else {
+          setInternalScale(nextScale);
+        }
+      }
+      return;
+    }
     const maxScroll = Math.max(0, layoutRef.current.totalWidth - layoutRef.current.visibleWidth);
     if (maxScroll <= 0) return;
     event.preventDefault();
@@ -655,13 +1413,24 @@ const WebGLPanelTopBar = ({ actions, label, className }: WebGLPanelTopBarProps) 
   };
 
   return (
-    <div ref={containerRef} className={className} style={{ width: "100%", height: barHeight }}>
+    <div
+      ref={containerRef}
+      className={className}
+      style={{ width: "100%", height: barHeight }}
+      data-no-workspace-pan
+    >
       <canvas
         ref={canvasRef}
         style={{ width: "100%", height: "100%", display: "block" }}
+        role="toolbar"
+        aria-label={label ? `${label} toolbar` : "Panel toolbar"}
+        tabIndex={0}
         onPointerMove={handlePointerMove}
         onPointerLeave={handlePointerLeave}
         onPointerUp={handlePointerUp}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
         onWheel={handleWheel}
       />
     </div>

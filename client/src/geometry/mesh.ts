@@ -239,6 +239,22 @@ export const generateCylinderMesh = (
   return bufferGeometryToRenderMesh(geometry);
 };
 
+export const generateConeMesh = (
+  radius: number,
+  height: number,
+  radialSegments = 24
+) => {
+  const geometry = new CylinderGeometry(
+    0,
+    radius,
+    height,
+    radialSegments,
+    1,
+    false
+  );
+  return bufferGeometryToRenderMesh(geometry);
+};
+
 export const generateTorusMesh = (
   radius: number,
   tube: number,

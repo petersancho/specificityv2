@@ -1,5 +1,5 @@
 export const edgeVertexShader = `
-precision mediump float;
+precision highp float;
 
 attribute vec3 position;
 
@@ -12,4 +12,3 @@ void main() {
   gl_Position = projectionMatrix * viewMatrix * worldPosition;
 }
 `;
-

@@ -1,6 +1,13 @@
 import type { Vec3 } from "../types";
 import type { NURBSCurve, NURBSSurface } from "./nurbs";
-import { evaluateCurvePoint, computeCurveCurvature, evaluateSurfacePoint } from "./nurbs";
+import {
+  computeCurveCurvature,
+  computeSurfaceCurvature,
+  evaluateCurvePoint,
+  evaluateSurfaceDerivatives,
+  evaluateSurfacePoint,
+} from "./nurbs";
+import { cross, normalize } from "./math";
 
 export type TessellatedCurve = {
   points: Vec3[];
@@ -149,63 +156,84 @@ export function tessellateSurfaceAdaptive(
   const vMin = knotsV[degreeV];
   const vMax = knotsV[knotsV.length - degreeV - 1];
 
-  const divisions = Math.min(opts.minSamples, 32);
-  const uStep = (uMax - uMin) / divisions;
-  const vStep = (vMax - vMin) / divisions;
+  const uMid = (uMin + uMax) * 0.5;
+  const vMid = (vMin + vMax) * 0.5;
+
+  const lengthU = computePolylineLength([
+    evaluateSurfacePoint(surface, uMin, vMid),
+    evaluateSurfacePoint(surface, uMax, vMid),
+  ]);
+  const lengthV = computePolylineLength([
+    evaluateSurfacePoint(surface, uMid, vMin),
+    evaluateSurfacePoint(surface, uMid, vMax),
+  ]);
+
+  const curvatureSamplesU = [uMin, uMid, uMax];
+  const curvatureSamplesV = [vMin, vMid, vMax];
+  let maxCurvature = 0;
+
+  for (const u of curvatureSamplesU) {
+    for (const v of curvatureSamplesV) {
+      const derivatives = evaluateSurfaceDerivatives(surface, u, v, 2);
+      if (!derivatives.duu || !derivatives.duv || !derivatives.dvv) continue;
+      const curvature = computeSurfaceCurvature(
+        derivatives.du,
+        derivatives.dv,
+        derivatives.duu,
+        derivatives.duv,
+        derivatives.dvv
+      );
+      const localMax = Math.max(Math.abs(curvature.k1), Math.abs(curvature.k2));
+      if (localMax > maxCurvature) {
+        maxCurvature = localMax;
+      }
+    }
+  }
+
+  const curvatureBound = maxCurvature > 1e-8 ? maxCurvature : 0;
+  const curvatureSegment =
+    curvatureBound > 0
+      ? Math.sqrt((8 * opts.curvatureTolerance) / curvatureBound)
+      : opts.maxSegmentLength;
+  const targetSegment = Math.min(opts.maxSegmentLength, curvatureSegment);
+
+  const divisionsU = Math.max(
+    opts.minSamples,
+    Math.min(opts.maxSamples, Math.ceil(lengthU / Math.max(targetSegment, 1e-6)))
+  );
+  const divisionsV = Math.max(
+    opts.minSamples,
+    Math.min(opts.maxSamples, Math.ceil(lengthV / Math.max(targetSegment, 1e-6)))
+  );
+
+  const uStep = (uMax - uMin) / divisionsU;
+  const vStep = (vMax - vMin) / divisionsV;
 
   const positions: number[] = [];
   const normals: number[] = [];
   const uvs: number[] = [];
   const indices: number[] = [];
 
-  const grid: Vec3[][] = [];
-  for (let i = 0; i <= divisions; i++) {
-    grid[i] = [];
+  for (let i = 0; i <= divisionsU; i++) {
     const u = uMin + i * uStep;
-    for (let j = 0; j <= divisions; j++) {
+    for (let j = 0; j <= divisionsV; j++) {
       const v = vMin + j * vStep;
-      grid[i][j] = evaluateSurfacePoint(surface, u, v);
-    }
-  }
-
-  for (let i = 0; i <= divisions; i++) {
-    for (let j = 0; j <= divisions; j++) {
-      const p = grid[i][j];
+      const p = evaluateSurfacePoint(surface, u, v);
       positions.push(p.x, p.y, p.z);
 
-      let normal = { x: 0, y: 1, z: 0 };
-      if (i < divisions && j < divisions) {
-        const p1 = grid[i + 1][j];
-        const p2 = grid[i][j + 1];
-
-        const u1x = p1.x - p.x;
-        const u1y = p1.y - p.y;
-        const u1z = p1.z - p.z;
-
-        const u2x = p2.x - p.x;
-        const u2y = p2.y - p.y;
-        const u2z = p2.z - p.z;
-
-        const nx = u1y * u2z - u1z * u2y;
-        const ny = u1z * u2x - u1x * u2z;
-        const nz = u1x * u2y - u1y * u2x;
-        const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
-
-        if (len > 1e-10) {
-          normal = { x: nx / len, y: ny / len, z: nz / len };
-        }
-      }
+      const { du, dv } = evaluateSurfaceDerivatives(surface, u, v, 1);
+      const normal = normalize(cross(du, dv));
 
       normals.push(normal.x, normal.y, normal.z);
-      uvs.push(i / divisions, j / divisions);
+      uvs.push(i / divisionsU, j / divisionsV);
     }
   }
 
-  for (let i = 0; i < divisions; i++) {
-    for (let j = 0; j < divisions; j++) {
-      const idx0 = i * (divisions + 1) + j;
+  for (let i = 0; i < divisionsU; i++) {
+    for (let j = 0; j < divisionsV; j++) {
+      const idx0 = i * (divisionsV + 1) + j;
       const idx1 = idx0 + 1;
-      const idx2 = (i + 1) * (divisions + 1) + j;
+      const idx2 = (i + 1) * (divisionsV + 1) + j;
       const idx3 = idx2 + 1;
 
       indices.push(idx0, idx2, idx1);
@@ -242,10 +270,10 @@ export function tessellateSurfaceUniform(
     const u = uMin + (i / divisionsU) * (uMax - uMin);
     for (let j = 0; j <= divisionsV; j++) {
       const v = vMin + (j / divisionsV) * (vMax - vMin);
-      const p = evaluateSurfacePoint(surface, u, v);
-
-      positions.push(p.x, p.y, p.z);
-      normals.push(0, 1, 0);
+      const { point, du, dv } = evaluateSurfaceDerivatives(surface, u, v);
+      positions.push(point.x, point.y, point.z);
+      const normal = normalize(cross(du, dv));
+      normals.push(normal.x, normal.y, normal.z);
       uvs.push(i / divisionsU, j / divisionsV);
     }
   }

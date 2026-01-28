@@ -42,6 +42,9 @@ export const IconButton = ({
   accentColor,
   variant = "icon",
   elevated,
+  tooltip,
+  tooltipPosition,
+  tooltipShortcut,
   style,
   ...buttonProps
 }: IconButtonProps) => {
@@ -63,6 +66,9 @@ export const IconButton = ({
       shape="square"
       accentColor={accentColor}
       elevated={elevated}
+      tooltip={tooltip}
+      tooltipPosition={tooltipPosition}
+      tooltipShortcut={tooltipShortcut}
     />
   );
 };

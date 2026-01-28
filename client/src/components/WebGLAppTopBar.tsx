@@ -65,6 +65,9 @@ const PALETTE = {
   dotSoft: rgb(18, 16, 12, 0.045),
   glow: rgb(210, 139, 92, 0.12),
   brandText: rgb(18, 16, 12, 0.98),
+  brandAccent: rgb(0, 194, 209, 0.98),
+  brandAccentDeep: rgb(122, 92, 255, 0.98),
+  brandAccentGlow: rgb(0, 194, 209, 0.25),
   brandShadow: rgb(0, 0, 0, 0.18),
   chipShadow: rgb(0, 0, 0, 0.16),
   chipText: rgb(18, 16, 12, 0.94),
@@ -95,13 +98,17 @@ const CHIP_TONES: Record<
 };
 
 const BAR_HEIGHT = 96;
-const BRAND_TEXT = "Specificity";
+const BRAND_TEXT_BASE = "SPECIFI";
+const BRAND_TEXT_ACCENT = "CITY";
 const CHIP_SPECS: ChipSpec[] = [];
 
 const PADDING_X = 24;
 const BRAND_SYMBOL_SIZE = 56;
 const BRAND_FONT_SIZE = 44;
 const BRAND_GAP = 12;
+const BRAND_ACCENT_GAP = 6;
+const BRAND_TRACKING = -0.6;
+const BRAND_ACCENT_TRACKING = -0.4;
 const BRAND_TO_CHIPS_GAP = 18;
 const CHIP_HEIGHT = 34;
 const CHIP_PAD_X = 12;
@@ -121,6 +128,11 @@ const DOT_STRONG_EVERY = 4;
 
 const GRADIENT_STEPS = 10;
 
+const UI_FONT_FAMILY = '"Helvetica Neue", Helvetica, Arial, sans-serif';
+const BRAND_FONT_FAMILY = '"Montreal Neue", "Helvetica Neue", Helvetica, Arial, sans-serif';
+const BRAND_WEIGHT = 700;
+const BRAND_ACCENT_WEIGHT = 800;
+
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
 
@@ -130,25 +142,57 @@ const createMeasureContext = () => {
   return canvas.getContext("2d");
 };
 
-const measureTextWidth = (text: string, fontSize: number, fontWeight: number) => {
+const measureTextWidth = (
+  text: string,
+  fontSize: number,
+  fontWeight: number,
+  fontFamily = UI_FONT_FAMILY
+) => {
   const ctx = createMeasureContext();
   if (!ctx) return text.length * fontSize * 0.6;
-  ctx.font = `normal ${fontWeight} ${fontSize}px "Helvetica Neue", Helvetica, Arial, sans-serif`;
+  ctx.font = `normal ${fontWeight} ${fontSize}px ${fontFamily}`;
   return ctx.measureText(text).width;
 };
 
-const BASE_BRAND_TEXT_WIDTH = measureTextWidth(BRAND_TEXT, BRAND_FONT_SIZE, 700);
+const measureTrackedWidth = (
+  text: string,
+  fontSize: number,
+  fontWeight: number,
+  tracking: number,
+  fontFamily = UI_FONT_FAMILY
+) => {
+  if (!text) return 0;
+  const base = measureTextWidth(text, fontSize, fontWeight, fontFamily);
+  return base + tracking * (text.length - 1);
+};
+
+const BASE_BRAND_TEXT_WIDTH =
+  measureTrackedWidth(
+    BRAND_TEXT_BASE,
+    BRAND_FONT_SIZE,
+    BRAND_WEIGHT,
+    BRAND_TRACKING,
+    BRAND_FONT_FAMILY
+  ) +
+  measureTrackedWidth(
+    BRAND_TEXT_ACCENT,
+    BRAND_FONT_SIZE,
+    BRAND_ACCENT_WEIGHT,
+    BRAND_ACCENT_TRACKING,
+    BRAND_FONT_FAMILY
+  ) +
+  BRAND_ACCENT_GAP;
 const BASE_BRAND_WIDTH = BASE_BRAND_TEXT_WIDTH + BRAND_SYMBOL_SIZE + BRAND_GAP;
 
 const measureChipWidth = (label: string, fontSize: number, padX: number, dotSize: number) => {
-  const textWidth = measureTextWidth(label, fontSize, 700);
+  const textWidth = measureTextWidth(label, fontSize, 700, UI_FONT_FAMILY);
   const dotGap = CHIP_DOT_GAP * (dotSize / CHIP_DOT_SIZE);
   return textWidth + padX * 2 + dotSize + dotGap;
 };
 
 const measureStatusWidth = (statusText: string, fontSize: number, padX: number, dotSize: number) => {
   if (!statusText) return 0;
-  const textWidth = measureTextWidth(statusText, fontSize, 700);
+  const textWidth = measureTextWidth(statusText, fontSize, 700, UI_FONT_FAMILY);
   const dotGap = CHIP_DOT_GAP * (dotSize / CHIP_DOT_SIZE);
   return textWidth + padX * 2 + dotSize + dotGap;
 };
@@ -194,7 +238,24 @@ const WebGLAppTopBar = ({ status, className }: WebGLAppTopBarProps) => {
     const brandSymbolSize = BRAND_SYMBOL_SIZE * scale;
     const brandGap = BRAND_GAP * scale;
     const brandFontSize = BRAND_FONT_SIZE * scale;
-    const brandTextWidth = measureTextWidth(BRAND_TEXT, brandFontSize, 700);
+    const brandAccentGap = BRAND_ACCENT_GAP * scale;
+    const brandTracking = BRAND_TRACKING * scale;
+    const brandAccentTracking = BRAND_ACCENT_TRACKING * scale;
+    const brandBaseWidth = measureTrackedWidth(
+      BRAND_TEXT_BASE,
+      brandFontSize,
+      BRAND_WEIGHT,
+      brandTracking,
+      BRAND_FONT_FAMILY
+    );
+    const brandAccentWidth = measureTrackedWidth(
+      BRAND_TEXT_ACCENT,
+      brandFontSize,
+      BRAND_ACCENT_WEIGHT,
+      brandAccentTracking,
+      BRAND_FONT_FAMILY
+    );
+    const brandTextWidth = brandBaseWidth + brandAccentWidth + brandAccentGap;
 
     const chipHeight = CHIP_HEIGHT * scale;
     const chipPadX = CHIP_PAD_X * scale;
@@ -429,7 +490,7 @@ const WebGLAppTopBar = ({ status, className }: WebGLAppTopBarProps) => {
     textRenderer.setText(chip.spec.label, {
       fontSize: chip.fontSize * dpr,
       fontWeight: 700,
-      fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+      fontFamily: UI_FONT_FAMILY,
       paddingX: 0,
       paddingY: 0,
       color: "#14120f",
@@ -441,6 +502,39 @@ const WebGLAppTopBar = ({ status, className }: WebGLAppTopBarProps) => {
     const textY = (chip.rect.y + chip.rect.height * 0.5 - textHeight * 0.5) * dpr;
 
     textRenderer.draw(textX, textY, resolution, PALETTE.chipText);
+  };
+
+  const drawTrackedText = (
+    text: string,
+    x: number,
+    y: number,
+    fontSize: number,
+    fontWeight: number,
+    fontFamily: string,
+    tracking: number,
+    color: RGBA,
+    textRenderer: WebGLTextRenderer,
+    dpr: number,
+    resolution: { width: number; height: number }
+  ) => {
+    let cursor = x;
+    for (let i = 0; i < text.length; i += 1) {
+      const char = text[i];
+      textRenderer.setText(char, {
+        fontSize: fontSize * dpr,
+        fontWeight,
+        fontFamily,
+        paddingX: 0,
+        paddingY: 0,
+        color: "#14120f",
+      });
+      const size = textRenderer.getSize();
+      textRenderer.draw(cursor * dpr, y * dpr, resolution, color);
+      cursor += size.width / dpr;
+      if (i < text.length - 1) {
+        cursor += tracking;
+      }
+    }
   };
 
   const draw = () => {
@@ -480,18 +574,38 @@ const WebGLAppTopBar = ({ status, className }: WebGLAppTopBarProps) => {
     ui.flush();
 
     // Measure brand text for the glow block.
-    textRenderer.setText(BRAND_TEXT, {
+    const brandAccentGap = BRAND_ACCENT_GAP * scale;
+    const brandTracking = BRAND_TRACKING * scale;
+    const brandAccentTracking = BRAND_ACCENT_TRACKING * scale;
+    textRenderer.setText(BRAND_TEXT_BASE, {
       fontSize: brandFontSize * dpr,
-      fontWeight: 700,
-      fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+      fontWeight: BRAND_WEIGHT,
+      fontFamily: BRAND_FONT_FAMILY,
       paddingX: 0,
       paddingY: 0,
       color: "#14120f",
     });
-    const brandTextSize = textRenderer.getSize();
-    const brandTextWidth = brandTextSize.width / dpr;
-    const brandTextHeight = brandTextSize.height / dpr;
+    const brandBaseSize = textRenderer.getSize();
+    textRenderer.setText(BRAND_TEXT_ACCENT, {
+      fontSize: brandFontSize * dpr,
+      fontWeight: BRAND_ACCENT_WEIGHT,
+      fontFamily: BRAND_FONT_FAMILY,
+      paddingX: 0,
+      paddingY: 0,
+      color: "#14120f",
+    });
+    const brandAccentSize = textRenderer.getSize();
+
+    const brandBaseWidth =
+      brandBaseSize.width / dpr + brandTracking * (BRAND_TEXT_BASE.length - 1);
+    const brandAccentWidth =
+      brandAccentSize.width / dpr +
+      brandAccentTracking * (BRAND_TEXT_ACCENT.length - 1);
+    const brandTextWidth = brandBaseWidth + brandAccentWidth + brandAccentGap;
+    const brandTextHeight = Math.max(brandBaseSize.height, brandAccentSize.height) / dpr;
     const brandRight = brandTextX + brandTextWidth;
+    const brandTextY = BAR_HEIGHT * 0.5 - brandTextHeight * 0.5;
+    const brandAccentX = brandTextX + brandBaseWidth + brandAccentGap;
 
     const brandGlowRect: Rect = {
       x: brandSymbolRect.x - 8 * scale,
@@ -503,6 +617,26 @@ const WebGLAppTopBar = ({ status, className }: WebGLAppTopBarProps) => {
     // Accent + chip shapes pass.
     ui.begin(canvas.width, canvas.height);
     drawGlowRect(ui, brandGlowRect, PALETTE.glow, dpr, scale);
+    const underlineHeight = Math.max(2, 2.2 * scale);
+    const underlineY = brandTextY + brandTextHeight - underlineHeight - 4 * scale;
+    ui.drawRoundedRect(
+      brandAccentX * dpr,
+      underlineY * dpr,
+      brandAccentWidth * dpr,
+      underlineHeight * dpr,
+      underlineHeight * 0.6 * dpr,
+      PALETTE.brandAccent
+    );
+    if (brandAccentWidth > underlineHeight * 2) {
+      ui.drawRoundedRect(
+        (brandAccentX + brandAccentWidth * 0.55) * dpr,
+        underlineY * dpr,
+        (brandAccentWidth * 0.45) * dpr,
+        underlineHeight * dpr,
+        underlineHeight * 0.6 * dpr,
+        PALETTE.brandAccentDeep
+      );
+    }
 
     chips.forEach((chip) => drawChipShapes(chip, ui, dpr, chipRadius));
 
@@ -521,6 +655,17 @@ const WebGLAppTopBar = ({ status, className }: WebGLAppTopBarProps) => {
     // Brand symbol pass.
     if (iconRenderer) {
       iconRenderer.begin(canvas.width, canvas.height);
+      const symbolPad = 2 * scale;
+      iconRenderer.drawIcon(
+        {
+          x: (brandSymbolRect.x - symbolPad) * dpr,
+          y: (brandSymbolRect.y - symbolPad) * dpr,
+          width: (brandSymbolRect.width + symbolPad * 2) * dpr,
+          height: (brandSymbolRect.height + symbolPad * 2) * dpr,
+        },
+        "specificitySymbol",
+        PALETTE.brandAccentGlow
+      );
       iconRenderer.drawIcon(
         {
           x: brandSymbolRect.x * dpr,
@@ -529,33 +674,66 @@ const WebGLAppTopBar = ({ status, className }: WebGLAppTopBarProps) => {
           height: brandSymbolRect.height * dpr,
         },
         "specificitySymbol",
-        [1, 1, 1, 1]
+        PALETTE.brandText
       );
       iconRenderer.flush();
     }
 
     // Text pass: brand then chips.
-    textRenderer.setText(BRAND_TEXT, {
-      fontSize: brandFontSize * dpr,
-      fontWeight: 700,
-      fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
-      paddingX: 0,
-      paddingY: 0,
-      color: "#14120f",
-    });
-    const brandTextSizeForDraw = textRenderer.getSize();
-    const brandTextY = (BAR_HEIGHT * 0.5 - brandTextSizeForDraw.height / dpr * 0.5) * dpr;
-    const brandTextXDraw = brandTextX * dpr;
-    const shadowOffsetX = 2 * dpr;
-    const shadowOffsetY = 4 * dpr;
-
-    textRenderer.draw(
-      brandTextXDraw + shadowOffsetX,
-      brandTextY + shadowOffsetY,
-      resolution,
-      PALETTE.brandShadow
+    const shadowOffset = 1.8 * scale;
+    drawTrackedText(
+      BRAND_TEXT_BASE,
+      brandTextX + shadowOffset,
+      brandTextY + shadowOffset,
+      brandFontSize,
+      BRAND_WEIGHT,
+      BRAND_FONT_FAMILY,
+      BRAND_TRACKING * scale,
+      PALETTE.brandShadow,
+      textRenderer,
+      dpr,
+      resolution
     );
-    textRenderer.draw(brandTextXDraw, brandTextY, resolution, PALETTE.brandText);
+    drawTrackedText(
+      BRAND_TEXT_BASE,
+      brandTextX,
+      brandTextY,
+      brandFontSize,
+      BRAND_WEIGHT,
+      BRAND_FONT_FAMILY,
+      BRAND_TRACKING * scale,
+      PALETTE.brandText,
+      textRenderer,
+      dpr,
+      resolution
+    );
+
+    drawTrackedText(
+      BRAND_TEXT_ACCENT,
+      brandAccentX + shadowOffset * 0.55,
+      brandTextY + shadowOffset * 0.35,
+      brandFontSize,
+      BRAND_ACCENT_WEIGHT,
+      BRAND_FONT_FAMILY,
+      BRAND_ACCENT_TRACKING * scale,
+      PALETTE.brandAccentGlow,
+      textRenderer,
+      dpr,
+      resolution
+    );
+    drawTrackedText(
+      BRAND_TEXT_ACCENT,
+      brandAccentX,
+      brandTextY,
+      brandFontSize,
+      BRAND_ACCENT_WEIGHT,
+      BRAND_FONT_FAMILY,
+      BRAND_ACCENT_TRACKING * scale,
+      PALETTE.brandAccent,
+      textRenderer,
+      dpr,
+      resolution
+    );
 
     chips.forEach((chip) => drawChipText(chip, textRenderer, dpr, resolution));
     if (statusChip) {

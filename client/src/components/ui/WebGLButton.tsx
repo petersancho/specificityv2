@@ -28,6 +28,7 @@ import { renderIconDataUrl, type IconId } from "../../webgl/ui/WebGLIconRenderer
 export type WebGLButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children"> & {
   label: string;
   iconId?: IconId;
+  iconTintOverride?: string;
   variant?: WebGLButtonVariant;
   size?: WebGLButtonSize;
   shape?: WebGLButtonShape;
@@ -79,6 +80,7 @@ const resolveState = ({
 export const WebGLButton = ({
   label,
   iconId,
+  iconTintOverride,
   variant = "secondary",
   size = "md",
   shape = "auto",
@@ -157,6 +159,7 @@ export const WebGLButton = ({
     size,
     shape,
     accentColor,
+    iconTintOverride,
     iconOnly,
     elevated,
   });
@@ -169,8 +172,8 @@ export const WebGLButton = ({
   const fallbackIconUrl = useMemo(() => {
     if (!iconId) return "";
     const fallbackSize = Math.max(48, Math.round(visuals.iconSize * 2));
-    return renderIconDataUrl(iconId, fallbackSize);
-  }, [iconId, visuals.iconSize]);
+    return renderIconDataUrl(iconId, fallbackSize, { tint: visuals.iconTint });
+  }, [iconId, visuals.iconSize, iconTintKey]);
   const iconSrc = iconUrl || fallbackIconUrl;
 
   const pillClass = shape === "pill" || variant === "chip" || variant === "outliner";

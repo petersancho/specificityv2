@@ -1,5 +1,5 @@
 export const edgeFragmentShader = `
-precision mediump float;
+precision highp float;
 
 uniform vec3 edgeColor;
 uniform float opacity;
@@ -17,4 +17,3 @@ void main() {
   gl_FragColor = vec4(edgeColor, opacity);
 }
 `;
-

@@ -10,13 +10,43 @@ import type { WebGLRenderer } from "../webgl/WebGLRenderer";
 import type { NURBSCurve, NURBSSurface } from "./nurbs";
 import { generateSphereMesh } from "./mesh";
 import { tessellateCurveAdaptive, tessellateSurfaceAdaptive } from "./tessellation";
+import { createNurbsCurveFromPoints } from "./nurbs";
 
 export type RenderableGeometry = {
   id: string;
   buffer: GeometryBuffer;
   edgeBuffer?: GeometryBuffer;
+  edgeLineBuffer?: GeometryBuffer;
   type: "vertex" | "polyline" | "surface" | "mesh";
   needsUpdate: boolean;
+};
+
+const resolvePolylineCurve = (
+  geometry: PolylineGeometry,
+  points: { x: number; y: number; z: number }[]
+): NURBSCurve | null => {
+  if (points.length < 2) return null;
+  if (geometry.degree <= 1 || points.length < geometry.degree + 1) return null;
+
+  if (geometry.nurbs) {
+    const knots = geometry.nurbs.knots;
+    const degree = geometry.nurbs.degree;
+    const weights =
+      geometry.nurbs.weights && geometry.nurbs.weights.length === points.length
+        ? geometry.nurbs.weights
+        : undefined;
+    const expectedLength = points.length + degree + 1;
+    if (knots.length === expectedLength) {
+      return {
+        controlPoints: points,
+        knots,
+        degree,
+        weights,
+      };
+    }
+  }
+
+  return createNurbsCurveFromPoints(points, geometry.degree, geometry.closed);
 };
 
 export class GeometryRenderAdapter {
@@ -88,7 +118,27 @@ export class GeometryRenderAdapter {
       .map((vertex) => vertex.position);
 
     if (points.length >= 2) {
-      const lineData = createLineBufferData(points);
+      const curve = resolvePolylineCurve(geometry, points);
+      const renderPoints = curve
+        ? (() => {
+            const tessellated = tessellateCurveAdaptive(curve);
+            const sampled = tessellated.points;
+            if (geometry.closed && sampled.length > 1) {
+              const first = sampled[0];
+              const last = sampled[sampled.length - 1];
+              const isClosed =
+                Math.abs(first.x - last.x) < 1e-6 &&
+                Math.abs(first.y - last.y) < 1e-6 &&
+                Math.abs(first.z - last.z) < 1e-6;
+              return isClosed ? sampled : [...sampled, { ...first }];
+            }
+            return sampled;
+          })()
+        : geometry.closed
+          ? [...points, points[0]]
+          : points;
+
+      const lineData = createLineBufferData(renderPoints);
       buffer.setData({
         positions: lineData.positions,
         nextPositions: lineData.nextPositions,
@@ -113,7 +163,9 @@ export class GeometryRenderAdapter {
   private updateMeshGeometry(geometry: SurfaceGeometry, existing?: RenderableGeometry): void {
     let buffer: GeometryBuffer;
     const edgeBufferId = `${geometry.id}__edges`;
+    const edgeLineBufferId = `${geometry.id}__edge_lines`;
     let edgeBuffer: GeometryBuffer | undefined = existing?.edgeBuffer;
+    let edgeLineBuffer: GeometryBuffer | undefined = existing?.edgeLineBuffer;
 
     if (existing) {
       buffer = existing.buffer;
@@ -122,27 +174,56 @@ export class GeometryRenderAdapter {
     }
 
     if (geometry.mesh) {
-      const flatMesh = createFlatShadedMesh(geometry.mesh);
+      const meshSource = geometry.nurbs
+        ? (() => {
+            const tessellated = tessellateSurfaceAdaptive(geometry.nurbs);
+            return {
+              positions: Array.from(tessellated.positions),
+              normals: Array.from(tessellated.normals),
+              indices: Array.from(tessellated.indices),
+              uvs: Array.from(tessellated.uvs),
+            } satisfies RenderMesh;
+          })()
+        : geometry.mesh;
+
+      const flatMesh = createFlatShadedMesh(meshSource);
       buffer.setData({
         positions: flatMesh.positions,
         normals: flatMesh.normals,
         indices: flatMesh.indices,
       });
 
-      const edgeIndices = buildEdgeIndexBuffer(geometry.mesh);
+      const edgeIndices = buildEdgeIndexBuffer(meshSource);
       if (!edgeBuffer) {
         edgeBuffer = this.renderer.createGeometryBuffer(edgeBufferId);
       }
       edgeBuffer.setData({
-        positions: new Float32Array(geometry.mesh.positions),
+        positions: new Float32Array(meshSource.positions),
         indices: edgeIndices,
       });
+
+      const edgeLineData = buildEdgeLineBufferData(meshSource, edgeIndices);
+      if (edgeLineData) {
+        if (!edgeLineBuffer) {
+          edgeLineBuffer = this.renderer.createGeometryBuffer(edgeLineBufferId);
+        }
+        edgeLineBuffer.setData({
+          positions: edgeLineData.positions,
+          nextPositions: edgeLineData.nextPositions,
+          sides: edgeLineData.sides,
+          indices: edgeLineData.indices,
+        });
+      } else if (edgeLineBuffer) {
+        this.renderer.deleteGeometryBuffer(edgeLineBufferId);
+        edgeLineBuffer = undefined;
+      }
     }
 
     this.renderables.set(geometry.id, {
       id: geometry.id,
       buffer,
       edgeBuffer,
+      edgeLineBuffer,
       type: "mesh",
       needsUpdate: false,
     });
@@ -154,6 +235,9 @@ export class GeometryRenderAdapter {
       this.renderer.deleteGeometryBuffer(id);
       if (renderable.edgeBuffer) {
         this.renderer.deleteGeometryBuffer(renderable.edgeBuffer.id);
+      }
+      if (renderable.edgeLineBuffer) {
+        this.renderer.deleteGeometryBuffer(renderable.edgeLineBuffer.id);
       }
       this.renderables.delete(id);
     }
@@ -180,6 +264,9 @@ export class GeometryRenderAdapter {
       if (renderable.edgeBuffer) {
         this.renderer.deleteGeometryBuffer(renderable.edgeBuffer.id);
       }
+      if (renderable.edgeLineBuffer) {
+        this.renderer.deleteGeometryBuffer(renderable.edgeLineBuffer.id);
+      }
     }
     this.renderables.clear();
   }
@@ -192,27 +279,11 @@ export class GeometryRenderAdapter {
   }
 }
 
-export function convertVertexArrayToNURBSCurve(vertices: { x: number; y: number; z: number }[]): NURBSCurve {
-  const degree = Math.min(3, vertices.length - 1);
-  const n = vertices.length;
-  const m = n + degree + 1;
-
-  const knots: number[] = [];
-  for (let i = 0; i <= degree; i++) {
-    knots.push(0);
-  }
-  for (let i = 1; i < n - degree; i++) {
-    knots.push(i / (n - degree));
-  }
-  for (let i = 0; i <= degree; i++) {
-    knots.push(1);
-  }
-
-  return {
-    controlPoints: vertices,
-    knots,
-    degree,
-  };
+export function convertVertexArrayToNURBSCurve(
+  vertices: { x: number; y: number; z: number }[],
+  degree = Math.min(3, vertices.length - 1)
+): NURBSCurve {
+  return createNurbsCurveFromPoints(vertices, degree, false);
 }
 
 export function createLineBufferData(
@@ -351,4 +422,54 @@ const buildEdgeIndexBuffer = (mesh: RenderMesh): Uint16Array => {
   });
 
   return new Uint16Array(edgeIndices);
+};
+
+const buildEdgeLineBufferData = (
+  mesh: RenderMesh,
+  edgeIndices: Uint16Array
+): {
+  positions: Float32Array;
+  nextPositions: Float32Array;
+  sides: Float32Array;
+  indices: Uint16Array;
+} | null => {
+  const segmentCount = Math.floor(edgeIndices.length / 2);
+  const vertexCount = segmentCount * 4;
+  if (vertexCount > 65535) {
+    return null;
+  }
+
+  const positions: number[] = [];
+  const nextPositions: number[] = [];
+  const sides: number[] = [];
+  const indices: number[] = [];
+  let cursor = 0;
+
+  for (let i = 0; i + 1 < edgeIndices.length; i += 2) {
+    const a = edgeIndices[i];
+    const b = edgeIndices[i + 1];
+    const ai = a * 3;
+    const bi = b * 3;
+    const ax = mesh.positions[ai];
+    const ay = mesh.positions[ai + 1];
+    const az = mesh.positions[ai + 2];
+    const bx = mesh.positions[bi];
+    const by = mesh.positions[bi + 1];
+    const bz = mesh.positions[bi + 2];
+
+    positions.push(ax, ay, az, ax, ay, az, bx, by, bz, bx, by, bz);
+    nextPositions.push(bx, by, bz, bx, by, bz, ax, ay, az, ax, ay, az);
+    sides.push(-1, 1, -1, 1);
+
+    indices.push(cursor, cursor + 1, cursor + 2);
+    indices.push(cursor + 1, cursor + 3, cursor + 2);
+    cursor += 4;
+  }
+
+  return {
+    positions: new Float32Array(positions),
+    nextPositions: new Float32Array(nextPositions),
+    sides: new Float32Array(sides),
+    indices: new Uint16Array(indices),
+  };
 };

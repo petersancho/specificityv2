@@ -109,6 +109,82 @@
   min-height: 0;
 }
 
+.commandBarShell {
+  position: relative;
+  width: 100%;
+  flex: 0 0 auto;
+  min-height: 0;
+  overflow: visible;
+  transform-origin: top left;
+}
+
+.commandBarHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: space-between;
+  padding: 4px 6px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--roslyn-cream, #f7f3ea) 82%, #ffffff);
+  border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
+.commandBarTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.commandBarControls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.commandBarLogo {
+  transform: scale(0.92);
+  transform-origin: left center;
+}
+
+.commandBarLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.commandBarCollapsed {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 6px 8px;
+  background: var(--roslyn-cream, #f7f3ea);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  box-shadow: 2px 4px 8px rgba(0, 0, 0, 0.16);
+  width: fit-content;
+}
+
+.commandBarToggle {
+  --webgl-button-padding-x: 0px;
+  --webgl-button-padding-y: 0px;
+  --webgl-button-min-height: 36px;
+  --webgl-button-icon-size: 18px;
+  --webgl-button-gap: 0px;
+  --webgl-button-font-size: 10px;
+
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  border-radius: 10px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
 .commandPrimary {
   display: flex;
   flex-wrap: wrap;
@@ -133,26 +209,19 @@
 }
 
 .advancedSummary {
-  cursor: pointer;
-  list-style: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 9px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--ink-1000) 35%, transparent);
-  background: color-mix(in srgb, var(--roslyn-cream, #f7f3ea) 85%, white);
-  color: var(--ink-1000);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  box-shadow: 2px 3px 6px rgba(0, 0, 0, 0.24);
-  user-select: none;
-}
+  --webgl-button-padding-x: 12px;
+  --webgl-button-padding-y: 6px;
+  --webgl-button-min-height: 32px;
+  --webgl-button-icon-size: 16px;
+  --webgl-button-gap: 6px;
+  --webgl-button-font-size: 11px;
 
-.advancedSummary::-webkit-details-marker {
-  display: none;
+  border-radius: 999px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .advancedContent {
@@ -182,6 +251,69 @@
 
 .advancedContent .outlinerList {
   padding-right: 2px;
+}
+
+.advancedControlStack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.advancedOptionGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(36px, 1fr));
+  gap: 6px;
+}
+
+.advancedOptionButton {
+  --webgl-button-padding-x: 0px;
+  --webgl-button-padding-y: 0px;
+  --webgl-button-gap: 0px;
+  --webgl-button-min-height: 36px;
+  --webgl-button-icon-size: 20px;
+  --webgl-button-font-size: 10px;
+
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  flex: 0 0 36px;
+  border-radius: 10px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.advancedField {
+  --webgl-button-padding-x: 10px;
+  --webgl-button-padding-y: 6px;
+  --webgl-button-min-height: 34px;
+  --webgl-button-icon-size: 18px;
+  --webgl-button-gap: 6px;
+  --webgl-button-font-size: 12px;
+
+  width: 100%;
+  border-radius: 12px;
+}
+
+.advancedToggleRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.advancedToggle {
+  --webgl-button-padding-x: 10px;
+  --webgl-button-padding-y: 5px;
+  --webgl-button-min-height: 30px;
+  --webgl-button-icon-size: 16px;
+  --webgl-button-gap: 4px;
+  --webgl-button-font-size: 10px;
+
+  border-radius: 999px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
 }
 
 .viewer {
@@ -403,6 +535,18 @@
 .overlayField select:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--ink-1000) 30%, transparent);
   outline-offset: 2px;
+}
+
+.overlaySlider {
+  min-width: 180px;
+}
+
+.overlaySliderControl {
+  width: 100%;
+  --webgl-button-min-height: 32px;
+  --webgl-button-padding-x: 12px;
+  --webgl-button-padding-y: 6px;
+  --webgl-button-icon-size: 18px;
 }
 
 .viewerActions {

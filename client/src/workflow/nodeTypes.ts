@@ -1,5 +1,6 @@
 export type NodeType =
   | "geometryReference"
+  | "geometryViewer"
   | "point"
   | "line"
   | "arc"
@@ -11,6 +12,13 @@ export type NodeType =
   | "topologyOptimize"
   | "topologySolver"
   | "biologicalSolver"
+  | "origin"
+  | "unitX"
+  | "unitY"
+  | "unitZ"
+  | "unitXYZ"
+  | "moveVector"
+  | "scaleVector"
   | "number"
   | "add"
   | "subtract"
@@ -35,9 +43,11 @@ export type NodeType =
   | "vectorAngle"
   | "vectorLerp"
   | "vectorProject"
+  | "move"
   | "movePoint"
   | "movePointByVector"
   | "rotateVectorAxis"
+  | "mirrorVector"
   | "listCreate"
   | "listLength"
   | "listItem"
@@ -45,10 +55,33 @@ export type NodeType =
   | "listPartition"
   | "listFlatten"
   | "listSlice"
-  | "listReverse";
+  | "listReverse"
+  | "listSum"
+  | "listAverage"
+  | "listMin"
+  | "listMax"
+  | "listMedian"
+  | "listStdDev"
+  | "geometryInfo"
+  | "geometryVertices"
+  | "geometryEdges"
+  | "geometryFaces"
+  | "geometryNormals"
+  | "geometryControlPoints"
+  | "range"
+  | "linspace"
+  | "remap"
+  | "random"
+  | "repeat"
+  | "sineWave"
+  | "cosineWave"
+  | "sawtoothWave"
+  | "triangleWave"
+  | "squareWave";
 
 export const SUPPORTED_WORKFLOW_NODE_TYPES: NodeType[] = [
   "geometryReference",
+  "geometryViewer",
   "point",
   "line",
   "arc",
@@ -60,6 +93,13 @@ export const SUPPORTED_WORKFLOW_NODE_TYPES: NodeType[] = [
   "topologyOptimize",
   "topologySolver",
   "biologicalSolver",
+  "origin",
+  "unitX",
+  "unitY",
+  "unitZ",
+  "unitXYZ",
+  "moveVector",
+  "scaleVector",
   "number",
   "add",
   "subtract",
@@ -84,9 +124,11 @@ export const SUPPORTED_WORKFLOW_NODE_TYPES: NodeType[] = [
   "vectorAngle",
   "vectorLerp",
   "vectorProject",
+  "move",
   "movePoint",
   "movePointByVector",
   "rotateVectorAxis",
+  "mirrorVector",
   "listCreate",
   "listLength",
   "listItem",
@@ -95,6 +137,28 @@ export const SUPPORTED_WORKFLOW_NODE_TYPES: NodeType[] = [
   "listFlatten",
   "listSlice",
   "listReverse",
+  "listSum",
+  "listAverage",
+  "listMin",
+  "listMax",
+  "listMedian",
+  "listStdDev",
+  "geometryInfo",
+  "geometryVertices",
+  "geometryEdges",
+  "geometryFaces",
+  "geometryNormals",
+  "geometryControlPoints",
+  "range",
+  "linspace",
+  "remap",
+  "random",
+  "repeat",
+  "sineWave",
+  "cosineWave",
+  "sawtoothWave",
+  "triangleWave",
+  "squareWave",
 ];
 
 export const isSupportedNodeType = (type: string | undefined): type is NodeType =>

@@ -1,13 +1,82 @@
-import { CatmullRomCurve3, Vector3 } from "three";
 import type { Vec3 } from "../types";
 import { distance, lerp } from "./math";
 
-const toVector3 = (point: Vec3) => new Vector3(point.x, point.y, point.z);
-const fromVector3 = (point: Vector3): Vec3 => ({
-  x: point.x,
-  y: point.y,
-  z: point.z,
+const EPSILON = 1e-6;
+
+const blend = (a: Vec3, b: Vec3, wa: number, wb: number): Vec3 => ({
+  x: a.x * wa + b.x * wb,
+  y: a.y * wa + b.y * wb,
+  z: a.z * wa + b.z * wb,
 });
+
+const parameterize = (t: number, p0: Vec3, p1: Vec3, alpha: number) => {
+  const d = distance(p0, p1);
+  const step = Math.pow(Math.max(d, EPSILON), alpha);
+  return t + step;
+};
+
+const catmullRomPoint = (
+  p0: Vec3,
+  p1: Vec3,
+  p2: Vec3,
+  p3: Vec3,
+  t: number,
+  alpha: number
+): Vec3 => {
+  const t0 = 0;
+  const t1 = parameterize(t0, p0, p1, alpha);
+  const t2 = parameterize(t1, p1, p2, alpha);
+  const t3 = parameterize(t2, p2, p3, alpha);
+
+  const tt = t1 + (t2 - t1) * t;
+
+  const denomA1 = t1 - t0;
+  const denomA2 = t2 - t1;
+  const denomA3 = t3 - t2;
+
+  const A1 = blend(
+    p0,
+    p1,
+    denomA1 !== 0 ? (t1 - tt) / denomA1 : 0,
+    denomA1 !== 0 ? (tt - t0) / denomA1 : 0
+  );
+  const A2 = blend(
+    p1,
+    p2,
+    denomA2 !== 0 ? (t2 - tt) / denomA2 : 0,
+    denomA2 !== 0 ? (tt - t1) / denomA2 : 0
+  );
+  const A3 = blend(
+    p2,
+    p3,
+    denomA3 !== 0 ? (t3 - tt) / denomA3 : 0,
+    denomA3 !== 0 ? (tt - t2) / denomA3 : 0
+  );
+
+  const denomB1 = t2 - t0;
+  const denomB2 = t3 - t1;
+
+  const B1 = blend(
+    A1,
+    A2,
+    denomB1 !== 0 ? (t2 - tt) / denomB1 : 0,
+    denomB1 !== 0 ? (tt - t0) / denomB1 : 0
+  );
+  const B2 = blend(
+    A2,
+    A3,
+    denomB2 !== 0 ? (t3 - tt) / denomB2 : 0,
+    denomB2 !== 0 ? (tt - t1) / denomB2 : 0
+  );
+
+  const denomC = t2 - t1;
+  return blend(
+    B1,
+    B2,
+    denomC !== 0 ? (t2 - tt) / denomC : 0,
+    denomC !== 0 ? (tt - t1) / denomC : 0
+  );
+};
 
 export const polylineLength = (points: Vec3[]) => {
   if (points.length < 2) return 0;
@@ -63,14 +132,35 @@ export const interpolatePolyline = (
 ): Vec3[] => {
   if (points.length < 2) return points;
   if (degree === 1) return points;
-  const curve = new CatmullRomCurve3(
-    points.map(toVector3),
-    closed,
-    degree === 2 ? "centripetal" : "catmullrom",
-    degree === 2 ? 0.5 : 0.0
-  );
-  const sampled = curve.getPoints(resolution);
-  return sampled.map(fromVector3);
+  const totalSegments = closed ? points.length : points.length - 1;
+  const samplesPerSegment = Math.max(1, Math.round(resolution / totalSegments));
+  const alpha = degree === 2 ? 0.5 : 0.0;
+
+  const samples: Vec3[] = [];
+
+  for (let i = 0; i < totalSegments; i += 1) {
+    const index = (value: number) =>
+      closed
+        ? (value + points.length) % points.length
+        : Math.max(0, Math.min(points.length - 1, value));
+
+    const p0 = points[index(i - 1)];
+    const p1 = points[index(i)];
+    const p2 = points[index(i + 1)];
+    const p3 = points[index(i + 2)];
+
+    for (let s = 0; s < samplesPerSegment; s += 1) {
+      if (!closed && i > 0 && s === 0) continue;
+      const t = s / samplesPerSegment;
+      samples.push(catmullRomPoint(p0, p1, p2, p3, t, alpha));
+    }
+  }
+
+  if (!closed) {
+    samples.push(points[points.length - 1]);
+  }
+
+  return samples;
 };
 
 export const ensureClosedLoop = (points: Vec3[]) => {

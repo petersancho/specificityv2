@@ -1,0 +1,151 @@
+.control {
+  --webgl-button-radius: 12px;
+  --webgl-button-padding-x: 12px;
+  --webgl-button-padding-y: 6px;
+  --webgl-button-gap: 8px;
+  --webgl-button-min-height: 36px;
+  --webgl-button-font-size: 12px;
+  --webgl-button-icon-size: 18px;
+  --webgl-control-right-icon-size: 14px;
+  --webgl-button-text-color: var(--color-text);
+  --webgl-button-fallback-fill: var(--color-surface);
+  --webgl-button-fallback-border: var(--color-border);
+
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--webgl-button-gap);
+  min-height: var(--webgl-button-min-height);
+  padding: var(--webgl-button-padding-y) var(--webgl-button-padding-x);
+  border: 1px solid var(--webgl-button-fallback-border);
+  border-radius: var(--webgl-button-radius);
+  background-color: var(--webgl-button-fallback-fill);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+  color: var(--webgl-button-text-color);
+  font-size: var(--webgl-button-font-size);
+  font-weight: 600;
+  line-height: 1.1;
+  cursor: text;
+  user-select: none;
+  transition: transform 120ms ease, filter 120ms ease, box-shadow 120ms ease;
+  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.16);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.18);
+  width: 100%;
+}
+
+.controlSelectWrapper {
+  cursor: pointer;
+}
+
+.control[data-state="hover"][data-disabled="false"] {
+  filter: brightness(1.02) saturate(1.02);
+}
+
+.control[data-state="pressed"][data-disabled="false"] {
+  transform: translateY(1px);
+  filter: saturate(1.04);
+}
+
+.control[data-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.68;
+  box-shadow: none;
+  transform: none;
+}
+
+.control:focus-within {
+  outline: 2px solid color-mix(in srgb, var(--color-accent) 62%, transparent);
+  outline-offset: 2px;
+}
+
+.controlIcon {
+  width: var(--webgl-button-icon-size);
+  height: var(--webgl-button-icon-size);
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.24));
+}
+
+.controlIconRight {
+  width: var(--webgl-control-right-icon-size);
+  height: var(--webgl-control-right-icon-size);
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.18));
+}
+
+.controlInput,
+.controlSelect {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  line-height: inherit;
+}
+
+.controlInput::placeholder {
+  color: color-mix(in srgb, var(--webgl-button-text-color) 60%, transparent);
+}
+
+.controlInput[type="number"] {
+  appearance: textfield;
+}
+
+.controlInput[type="number"]::-webkit-outer-spin-button,
+.controlInput[type="number"]::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.controlSelect {
+  appearance: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.controlSelect:disabled,
+.controlInput:disabled {
+  cursor: not-allowed;
+}
+
+.slider {
+  cursor: pointer;
+}
+
+.sliderInput {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.sliderInput:disabled {
+  cursor: not-allowed;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

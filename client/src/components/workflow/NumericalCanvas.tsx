@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { useProjectStore } from "../../store/useProjectStore";
+import { useProjectStore, type NodeType } from "../../store/useProjectStore";
 import { renderIconDataUrl, type IconId } from "../../webgl/ui/WebGLIconRenderer";
+import type { RGBA } from "../../webgl/ui/WebGLUIRenderer";
 import WebGLButton from "../ui/WebGLButton";
+import WorkflowGeometryViewer from "./WorkflowGeometryViewer";
 import { isWorkflowNodeInvalid } from "./workflowValidation";
 import {
   NODE_CATEGORY_BY_ID,
@@ -39,10 +41,26 @@ type ContextMenuAction = {
   danger?: boolean;
 };
 
+type TooltipData = {
+  title: string;
+  lines: string[];
+};
+
+type PendingReference =
+  | { kind: "node"; nodeId: string; world: Vec2 }
+  | { kind: "port"; nodeId: string; portKey: string; world: Vec2 }
+  | { kind: "canvas"; world: Vec2 };
+
 type DragState =
   | { type: "none" }
   | { type: "pan"; startPos: Vec2; startTransform: ViewTransform }
-  | { type: "node"; nodeId: string; startPos: Vec2; nodeStartPos: Vec2 }
+  | {
+      type: "node";
+      nodeId: string;
+      startPos: Vec2;
+      nodeStartPos: Vec2;
+      dragNodes: Array<{ id: string; startPos: Vec2 }>;
+    }
   | { type: "edge"; sourceNodeId: string; sourcePort: string; currentPos: Vec2 }
   | {
       type: "box";
@@ -56,6 +74,8 @@ type DragState =
 type NumericalCanvasProps = {
   width: number;
   height: number;
+  pendingNodeType?: NodeType | null;
+  onDropNode?: (type: NodeType, world: Vec2) => void;
 };
 
 type CanvasPalette = {
@@ -93,15 +113,41 @@ const PORT_RADIUS = 6;
 const PORT_ROW_HEIGHT = 18;
 const PORTS_START_OFFSET = 72;
 const PORTS_BOTTOM_PADDING = 18;
+const VIEWER_NODE_MIN_HEIGHT = 230;
+const VIEWER_INSET = 12;
+const VIEWER_TOP_OFFSET = PORTS_START_OFFSET + PORT_ROW_HEIGHT + 8;
+const VIEWER_BOTTOM_OFFSET = 14;
 const ICON_SIZE = 26;
 const ICON_PADDING = 10;
 const EDGE_HIT_RADIUS = 6;
 const EDGE_SAMPLE_COUNT = 24;
-const MIN_SCALE = 0.05;
-const MAX_SCALE = 8.0;
-const ZOOM_SPEED = 0.0014;
+const MIN_SCALE = 1.0;
+const MAX_SCALE = 1.0;
 const GRID_MINOR_BASE = 24;
 const GRID_MAJOR_FACTOR = 5;
+const GRID_SNAP_KEY = "specificity.numericaGridSnap";
+const SHORTCUT_OVERLAY_KEY = "specificity.numericaShortcutOverlay";
+
+const clampValue = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value));
+
+const isEditableTarget = (target: EventTarget | null) => {
+  const element = target as HTMLElement | null;
+  if (!element) return false;
+  return (
+    element.tagName === "INPUT" ||
+    element.tagName === "TEXTAREA" ||
+    element.isContentEditable
+  );
+};
+
+const resolveGridSteps = (zoom: number) => {
+  let minor = GRID_MINOR_BASE;
+  if (zoom > 2.5) minor = 18;
+  else if (zoom < 0.7) minor = 32;
+  const major = minor * GRID_MAJOR_FACTOR;
+  return { minor, major };
+};
 
 const readCssVar = (name: string, fallback: string) => {
   if (typeof window === "undefined") return fallback;
@@ -113,20 +159,20 @@ const readCssVar = (name: string, fallback: string) => {
 };
 
 const getPalette = (): CanvasPalette => {
-  const bg = readCssVar("--roslyn-cream", "#f3f5f2");
-  const surface = readCssVar("--roslyn-cream", "#f7f3ea");
-  const surfaceMuted = readCssVar("--roslyn-cream", "#fbf8f2");
-  const border = readCssVar("--ink-1000", "#0f0f0f");
-  const text = readCssVar("--ink-1000", "#141414");
-  const muted = readCssVar("--ink-700", "#4a4a4a");
-  const edge = readCssVar("--ink-1000", "#1d1d1d");
-  const edgeSoft = readCssVar("--ink-400", "rgba(0, 0, 0, 0.2)");
-  const accent = readCssVar("--ink-1000", "#000000");
+  const bg = readCssVar("--sp-porcelain", "#f5f2ee");
+  const surface = readCssVar("--sp-porcelain", "#f5f2ee");
+  const surfaceMuted = readCssVar("--sp-uiGrey", "#e9e6e2");
+  const border = readCssVar("--sp-divider", "#c9c5c0");
+  const text = readCssVar("--sp-ink", "#1f1f22");
+  const muted = readCssVar("--sp-muted", "#6a6661");
+  const edge = readCssVar("--sp-ink", "#1f1f22");
+  const edgeSoft = readCssVar("--canvas-edge-soft", "rgba(31, 31, 34, 0.2)");
+  const accent = readCssVar("--sp-ink", "#1f1f22");
   const gridMinor = readCssVar("--canvas-grid-minor", "rgba(20, 20, 20, 0.08)");
   const gridMajor = readCssVar("--canvas-grid-major", "rgba(20, 20, 20, 0.18)");
-  const portFill = readCssVar("--color-handle-dot-soft", "#0b7a80");
-  const portFillHover = readCssVar("--color-handle-dot-strong", "#0f8b92");
-  const portStroke = readCssVar("--ink-1000", "#0f0f0f");
+  const portFill = readCssVar("--sp-divider", "#c9c5c0");
+  const portFillHover = readCssVar("--sp-divider", "#c9c5c0");
+  const portStroke = readCssVar("--sp-ink", "#1f1f22");
   const nodeErrorBorder = readCssVar("--node-error-border", "#dc3545");
   const nodeErrorOverlay = readCssVar("--node-error-overlay", "rgba(128, 128, 128, 0.3)");
   const nodeErrorFill = readCssVar("--node-error-bg", "rgba(220, 53, 69, 0.15)");
@@ -217,17 +263,53 @@ type NodeLayout = {
 const ICON_DATA_URL_CACHE = new Map<string, string>();
 const ICON_IMAGE_CACHE = new Map<string, HTMLImageElement>();
 const ICON_RESOLUTION = 96;
+const COLOR_CACHE = new Map<string, RGBA>();
+let colorParseCtx: CanvasRenderingContext2D | null = null;
 
-const getIconImage = (iconId?: string) => {
+const ensureColorParseContext = () => {
+  if (colorParseCtx) return colorParseCtx;
+  if (typeof document === "undefined") return null;
+  const canvas = document.createElement("canvas");
+  canvas.width = 2;
+  canvas.height = 2;
+  colorParseCtx = canvas.getContext("2d");
+  return colorParseCtx;
+};
+
+const parseCssColor = (value: string | undefined, fallback: RGBA): RGBA => {
+  if (!value) return fallback;
+  const cached = COLOR_CACHE.get(value);
+  if (cached) return cached;
+  const ctx = ensureColorParseContext();
+  if (!ctx) return fallback;
+  ctx.clearRect(0, 0, 2, 2);
+  ctx.fillStyle = "#000";
+  ctx.fillStyle = value;
+  ctx.fillRect(0, 0, 1, 1);
+  const data = ctx.getImageData(0, 0, 1, 1).data;
+  const rgba: RGBA = [data[0] / 255, data[1] / 255, data[2] / 255, data[3] / 255];
+  COLOR_CACHE.set(value, rgba);
+  return rgba;
+};
+
+const getTintKey = (tint?: RGBA) =>
+  tint ? tint.map((value) => Math.round(value * 255)).join("-") : "default";
+
+const getIconImage = (iconId?: string, tint?: RGBA) => {
   if (!iconId || typeof document === "undefined") return null;
-  const cachedImage = ICON_IMAGE_CACHE.get(iconId);
+  const cacheKey = `${iconId}|${getTintKey(tint)}`;
+  const cachedImage = ICON_IMAGE_CACHE.get(cacheKey);
   if (cachedImage) return cachedImage;
-  const cachedUrl = ICON_DATA_URL_CACHE.get(iconId);
-  const url = cachedUrl ?? renderIconDataUrl(iconId as Parameters<typeof renderIconDataUrl>[0], ICON_RESOLUTION);
-  ICON_DATA_URL_CACHE.set(iconId, url);
+  const cachedUrl = ICON_DATA_URL_CACHE.get(cacheKey);
+  const url =
+    cachedUrl ??
+    renderIconDataUrl(iconId as Parameters<typeof renderIconDataUrl>[0], ICON_RESOLUTION, {
+      tint,
+    });
+  ICON_DATA_URL_CACHE.set(cacheKey, url);
   const image = new Image();
   image.src = url;
-  ICON_IMAGE_CACHE.set(iconId, image);
+  ICON_IMAGE_CACHE.set(cacheKey, image);
   return image;
 };
 
@@ -242,8 +324,9 @@ const computeNodeLayout = (node: any): NodeLayout => {
   const outputCount = ports.outputs.length;
   const rowCount = Math.max(inputCount, outputCount, 1);
   const portsHeight = rowCount * PORT_ROW_HEIGHT;
+  const minHeight = node.type === "geometryViewer" ? VIEWER_NODE_MIN_HEIGHT : NODE_MIN_HEIGHT;
   const height = Math.max(
-    NODE_MIN_HEIGHT,
+    minHeight,
     PORTS_START_OFFSET + portsHeight + PORTS_BOTTOM_PADDING
   );
   const portsStartY = node.position.y + PORTS_START_OFFSET;
@@ -320,6 +403,12 @@ const getMissingRequiredInputs = (
   const connected = connectedInputs ?? new Set<string>();
   return layout.inputs
     .filter((portLayout) => portLayout.port.required && !connected.has(portLayout.port.key))
+    .filter((portLayout) => {
+      const paramKey = portLayout.port.parameterKey;
+      if (!paramKey) return true;
+      const value = layout.parameters?.[paramKey];
+      return value == null;
+    })
     .map((portLayout) => portLayout.port.label);
 };
 
@@ -346,7 +435,12 @@ const resolveEdgeEndpoints = (edge: any, layouts: Map<string, NodeLayout>) => {
   return { sourceLayout, targetLayout, sourcePort, targetPort };
 };
 
-export const NumericalCanvas = ({ width, height }: NumericalCanvasProps) => {
+export const NumericalCanvas = ({
+  width,
+  height,
+  pendingNodeType,
+  onDropNode,
+}: NumericalCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const paletteRef = useRef<CanvasPalette>(getPalette());
   const layoutRef = useRef<Map<string, NodeLayout>>(new Map());
@@ -358,6 +452,20 @@ export const NumericalCanvas = ({ width, height }: NumericalCanvasProps) => {
   const [dragState, setDragState] = useState<DragState>({ type: "none" });
   const [hoveredTarget, setHoveredTarget] = useState<HitTarget>({ type: "none" });
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [gridSnapEnabled, setGridSnapEnabled] = useState(() => {
+    if (typeof window === "undefined") return true;
+    const stored = window.localStorage.getItem(GRID_SNAP_KEY);
+    if (stored === null) return true;
+    return stored === "true";
+  });
+  const [showShortcutOverlay, setShowShortcutOverlay] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem(SHORTCUT_OVERLAY_KEY) === "true";
+  });
+  const spacePanRef = useRef(false);
+  const [spacePan, setSpacePan] = useState(false);
+  const [pendingReference, setPendingReference] = useState<PendingReference | null>(null);
+  const pointerScreenRef = useRef<Vec2>({ x: 0, y: 0 });
 
   const nodes = useProjectStore((state) => state.workflow.nodes);
   const edges = useProjectStore((state) => state.workflow.edges);
@@ -371,6 +479,43 @@ export const NumericalCanvas = ({ width, height }: NumericalCanvasProps) => {
   const syncWorkflowGeometryToRoslyn = useProjectStore((state) => state.syncWorkflowGeometryToRoslyn);
   const setSelectedGeometryIds = useProjectStore((state) => state.setSelectedGeometryIds);
   const updateNodeData = useProjectStore((state) => state.updateNodeData);
+
+  const viewerNodes = useMemo(() => {
+    const targets = nodes.filter((node) => node.type === "geometryViewer");
+    if (targets.length === 0) return [];
+    const layouts = computeNodeLayouts(nodes);
+    const geometryIds = new Set(geometry.map((item) => item.id));
+    const nodeById = new Map(nodes.map((node) => [node.id, node]));
+    const fallbackId = selectedGeometryIds[0];
+    const fallbackGeometryId =
+      fallbackId && geometryIds.has(fallbackId) ? fallbackId : null;
+
+    return targets.map((node) => {
+      const layout = layouts.get(node.id) ?? computeNodeLayout(node);
+      const inputKey = layout.defaultInputKey ?? "geometry";
+      const edge = edges.find(
+        (entry) =>
+          entry.target === node.id &&
+          (entry.targetHandle ?? inputKey) === inputKey
+      );
+      let geometryId = fallbackGeometryId;
+
+      if (edge) {
+        const sourceLayout = layouts.get(edge.source);
+        const outputKey = edge.sourceHandle ?? sourceLayout?.defaultOutputKey;
+        const sourceNode = nodeById.get(edge.source);
+        const outputValue = outputKey
+          ? sourceNode?.data?.outputs?.[outputKey]
+          : undefined;
+        geometryId =
+          typeof outputValue === "string" && geometryIds.has(outputValue)
+            ? outputValue
+            : null;
+      }
+
+      return { nodeId: node.id, layout, geometryId };
+    });
+  }, [nodes, edges, geometry, selectedGeometryIds]);
 
   useEffect(() => {
     paletteRef.current = getPalette();
@@ -393,6 +538,16 @@ export const NumericalCanvas = ({ width, height }: NumericalCanvasProps) => {
     canvas.addEventListener("wheel", preventWheelScroll, { passive: false });
     return () => canvas.removeEventListener("wheel", preventWheelScroll);
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(GRID_SNAP_KEY, String(gridSnapEnabled));
+  }, [gridSnapEnabled]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(SHORTCUT_OVERLAY_KEY, String(showShortcutOverlay));
+  }, [showShortcutOverlay]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -422,9 +577,44 @@ export const NumericalCanvas = ({ width, height }: NumericalCanvasProps) => {
   }, [deleteSelectedNodes, edges, nodes, onEdgesChange]);
 
   useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== "Space") return;
+      if (isEditableTarget(event.target)) return;
+      if (!spacePanRef.current) {
+        spacePanRef.current = true;
+        setSpacePan(true);
+      }
+      event.preventDefault();
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.code !== "Space") return;
+      if (spacePanRef.current) {
+        spacePanRef.current = false;
+        setSpacePan(false);
+      }
+    };
+
+    const handleBlur = () => {
+      spacePanRef.current = false;
+      setSpacePan(false);
+    };
+
+    window.addEventListener("keydown", handleKeyDown, { passive: false });
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", handleBlur);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleBlur);
+    };
+  }, []);
+
+  useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setContextMenu(null);
+        setPendingReference(null);
       }
     };
     window.addEventListener("keydown", handleEscape);
@@ -455,6 +645,8 @@ export const NumericalCanvas = ({ width, height }: NumericalCanvasProps) => {
       layoutRef.current = layouts;
       const connectedInputs = buildConnectedInputSet(edges, layouts);
 
+      const tooltip = resolveHoverTooltip(hoveredTarget, layouts, connectedInputs);
+
       ctx.save();
       ctx.translate(viewTransform.x, viewTransform.y);
       ctx.scale(viewTransform.scale, viewTransform.scale);
@@ -473,6 +665,18 @@ export const NumericalCanvas = ({ width, height }: NumericalCanvasProps) => {
         drawSelectionBox(ctx, dragState, palette);
       }
 
+      if (tooltip) {
+        drawTooltip(ctx, tooltip, pointerScreenRef.current, width, height, palette);
+      }
+
+      if (pendingReference) {
+        drawPendingReferenceHint(ctx, width, height, palette);
+      }
+
+      if (showShortcutOverlay) {
+        drawShortcutOverlay(ctx, width, height, palette, gridSnapEnabled);
+      }
+
       animationFrameId = requestAnimationFrame(render);
     };
 
@@ -481,13 +685,99 @@ export const NumericalCanvas = ({ width, height }: NumericalCanvasProps) => {
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [width, height, viewTransform, nodes, edges, hoveredTarget, dragState]);
+  }, [
+    width,
+    height,
+    viewTransform,
+    nodes,
+    edges,
+    hoveredTarget,
+    dragState,
+    pendingReference,
+    showShortcutOverlay,
+    gridSnapEnabled,
+  ]);
 
   const screenToWorld = (screenX: number, screenY: number): Vec2 => {
     return {
       x: (screenX - viewTransform.x) / viewTransform.scale,
       y: (screenY - viewTransform.y) / viewTransform.scale,
     };
+  };
+
+  const isCanvasActive = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return false;
+    if (document.activeElement === canvas) return true;
+    try {
+      return canvas.matches(":hover");
+    } catch {
+      return false;
+    }
+  };
+
+  const panBy = (dx: number, dy: number) => {
+    setViewTransform((prev) => ({
+      ...prev,
+      x: prev.x + dx,
+      y: prev.y + dy,
+    }));
+  };
+
+  const resetView = () => {
+    setViewTransform({
+      x: width / 2,
+      y: height / 2,
+      scale: 1.0,
+    });
+  };
+
+  const frameNodes = (nodeIds?: Set<string>) => {
+    const targetNodes =
+      nodeIds && nodeIds.size > 0
+        ? nodes.filter((node) => nodeIds.has(node.id))
+        : nodes;
+    if (targetNodes.length === 0) return;
+    const layouts = getLayouts();
+    let minX = Number.POSITIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+
+    targetNodes.forEach((node) => {
+      const layout = layouts.get(node.id) ?? computeNodeLayout(node);
+      if (!layouts.has(node.id)) {
+        layouts.set(node.id, layout);
+      }
+      minX = Math.min(minX, layout.x);
+      minY = Math.min(minY, layout.y);
+      maxX = Math.max(maxX, layout.x + layout.width);
+      maxY = Math.max(maxY, layout.y + layout.height);
+    });
+
+    if (!Number.isFinite(minX) || !Number.isFinite(minY)) return;
+    const boundsWidth = Math.max(1, maxX - minX);
+    const boundsHeight = Math.max(1, maxY - minY);
+    const padding = Math.max(32, Math.min(width, height) * 0.1);
+    const availableWidth = Math.max(1, width - padding * 2);
+    const availableHeight = Math.max(1, height - padding * 2);
+    const scale = clampValue(
+      Math.min(availableWidth / boundsWidth, availableHeight / boundsHeight),
+      MIN_SCALE,
+      MAX_SCALE
+    );
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+    setViewTransform({
+      scale,
+      x: width / 2 - centerX * scale,
+      y: height / 2 - centerY * scale,
+    });
+  };
+
+  const snapToGrid = (value: number, step: number) => {
+    if (!Number.isFinite(step) || step <= 0) return value;
+    return Math.round(value / step) * step;
   };
 
   const clearNodeSelection = () => {
@@ -571,6 +861,75 @@ export const NumericalCanvas = ({ width, height }: NumericalCanvasProps) => {
     }
     clearNodeSelection();
   };
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (isEditableTarget(event.target)) return;
+      if (!isCanvasActive()) return;
+
+      const key = event.key;
+      if ((event.metaKey || event.ctrlKey) && key.toLowerCase() === "a") {
+        event.preventDefault();
+        const allNodes = new Set(nodes.map((node) => node.id));
+        applyNodeSelection(allNodes, false);
+        return;
+      }
+
+      if (key.toLowerCase() === "f") {
+        event.preventDefault();
+        const selectedIds = new Set(
+          nodes.filter((node) => node.selected).map((node) => node.id)
+        );
+        if (event.shiftKey || selectedIds.size === 0) {
+          frameNodes();
+        } else {
+          frameNodes(selectedIds);
+        }
+        return;
+      }
+
+      if (key === "0") {
+        event.preventDefault();
+        resetView();
+        return;
+      }
+
+      if (key === "?") {
+        event.preventDefault();
+        setShowShortcutOverlay((prev) => !prev);
+        return;
+      }
+
+      if (key.toLowerCase() === "g") {
+        event.preventDefault();
+        setGridSnapEnabled((prev) => !prev);
+        return;
+      }
+
+      if (key.startsWith("Arrow")) {
+        event.preventDefault();
+        const base = event.shiftKey ? 140 : 70;
+        switch (key) {
+          case "ArrowLeft":
+            panBy(-base, 0);
+            break;
+          case "ArrowRight":
+            panBy(base, 0);
+            break;
+          case "ArrowUp":
+            panBy(0, -base);
+            break;
+          case "ArrowDown":
+            panBy(0, base);
+            break;
+          default:
+            break;
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [applyNodeSelection, frameNodes, isCanvasActive, nodes, panBy, resetView, width, height]);
 
   const getLayouts = () => {
     if (layoutRef.current.size > 0) return layoutRef.current;
@@ -696,7 +1055,63 @@ export const NumericalCanvas = ({ width, height }: NumericalCanvasProps) => {
       target: targetNodeId,
       targetHandle: targetPortKey,
     });
+    setSelectedGeometryIds([geometryId]);
   };
+
+  const referenceGeometryToNode = (geometryId: string, world: Vec2, targetNodeId: string) => {
+    const geometryInputKey = getFirstGeometryInputKey(targetNodeId);
+    const node = nodes.find((entry) => entry.id === targetNodeId);
+    const isGeometryReference = node?.type === "geometryReference";
+
+    if (isGeometryReference) {
+      updateNodeData(targetNodeId, {
+        geometryId,
+        geometryType: geometry.find((item) => item.id === geometryId)?.type,
+        isLinked: true,
+        label: geometryId,
+      });
+      setSelectedGeometryIds([geometryId]);
+      return;
+    }
+
+    if (geometryInputKey) {
+      connectReferenceToPort(geometryId, world, targetNodeId, geometryInputKey);
+      return;
+    }
+
+    ensureGeometryReferenceAt(geometryId, world);
+    setSelectedGeometryIds([geometryId]);
+  };
+
+  useEffect(() => {
+    if (!pendingReference) return;
+    if (!selectedGeometryId) return;
+
+    if (pendingReference.kind === "port") {
+      connectReferenceToPort(
+        selectedGeometryId,
+        pendingReference.world,
+        pendingReference.nodeId,
+        pendingReference.portKey
+      );
+    } else if (pendingReference.kind === "node") {
+      referenceGeometryToNode(
+        selectedGeometryId,
+        pendingReference.world,
+        pendingReference.nodeId
+      );
+    } else {
+      ensureGeometryReferenceAt(selectedGeometryId, pendingReference.world);
+      setSelectedGeometryIds([selectedGeometryId]);
+    }
+
+    setPendingReference(null);
+  }, [
+    pendingReference,
+    selectedGeometryId,
+    geometry,
+    nodes,
+  ]);
 
   const ontologizeNode = (nodeId: string) => {
     syncWorkflowGeometryToRoslyn(nodeId);
@@ -734,6 +1149,7 @@ export const NumericalCanvas = ({ width, height }: NumericalCanvasProps) => {
     const geometryLabel = selectedGeometryId
       ? `Reference Selected Geometry (${selectedGeometryId})`
       : "Reference Selected Geometry";
+    const pickLabel = "Refer to Object";
 
     if (contextMenu.target.type === "edge") {
       const target = contextMenu.target;
@@ -763,6 +1179,17 @@ export const NumericalCanvas = ({ width, height }: NumericalCanvasProps) => {
       const port = getPortSpec(target.nodeId, target.portKey, target.isOutput);
       if (!target.isOutput && port?.type === "geometry") {
         actions.push({
+          label: pickLabel,
+          onSelect: closeMenu(() =>
+            setPendingReference({
+              kind: "port",
+              nodeId: target.nodeId,
+              portKey: target.portKey,
+              world,
+            })
+          ),
+        });
+        actions.push({
           label: geometryLabel,
           disabled: !selectedGeometryId,
           onSelect: closeMenu(() => {
@@ -782,6 +1209,8 @@ export const NumericalCanvas = ({ width, height }: NumericalCanvasProps) => {
     if (contextMenu.target.type === "node") {
       const target = contextMenu.target;
       const world = contextMenu.world;
+      const nodeInputEdges = edges.filter((edge) => edge.target === target.nodeId);
+      const nodeOutputEdges = edges.filter((edge) => edge.source === target.nodeId);
       const geometryOutputKey = getGeometryOutputKey(target.nodeId);
       if (geometryOutputKey) {
         actions.push({
@@ -790,9 +1219,45 @@ export const NumericalCanvas = ({ width, height }: NumericalCanvasProps) => {
         });
       }
 
+      actions.push({
+        label: "Frame Node",
+        onSelect: closeMenu(() => frameNodes(new Set([target.nodeId]))),
+      });
+
+      if (nodeInputEdges.length > 0) {
+        actions.push({
+          label: "Disconnect Inputs",
+          onSelect: closeMenu(() =>
+            removeEdgesByIds(nodeInputEdges.map((edge) => edge.id))
+          ),
+          danger: true,
+        });
+      }
+
+      if (nodeOutputEdges.length > 0) {
+        actions.push({
+          label: "Disconnect Outputs",
+          onSelect: closeMenu(() =>
+            removeEdgesByIds(nodeOutputEdges.map((edge) => edge.id))
+          ),
+          danger: true,
+        });
+      }
+
       const geometryInputKey = getFirstGeometryInputKey(target.nodeId);
       const node = nodes.find((entry) => entry.id === target.nodeId);
       const isGeometryReference = node?.type === "geometryReference";
+
+      actions.push({
+        label: pickLabel,
+        onSelect: closeMenu(() =>
+          setPendingReference({
+            kind: "node",
+            nodeId: target.nodeId,
+            world,
+          })
+        ),
+      });
 
       if (isGeometryReference) {
         actions.push({
@@ -832,10 +1297,58 @@ export const NumericalCanvas = ({ width, height }: NumericalCanvasProps) => {
           }),
         });
       }
+
+      actions.push({
+        label: "Delete Node",
+        onSelect: closeMenu(() => {
+          const edgeIds = new Set<string>();
+          nodeInputEdges.forEach((edge) => edgeIds.add(edge.id));
+          nodeOutputEdges.forEach((edge) => edgeIds.add(edge.id));
+          if (edgeIds.size > 0) {
+            removeEdgesByIds(Array.from(edgeIds));
+          }
+          onNodesChange([{ id: target.nodeId, type: "remove" as const }]);
+        }),
+        danger: true,
+      });
       return actions;
     }
 
     const world = contextMenu.world;
+    const selectedNodeIds = new Set(
+      nodes.filter((node) => node.selected).map((node) => node.id)
+    );
+    if (selectedNodeIds.size > 0) {
+      actions.push({
+        label: "Frame Selection",
+        onSelect: closeMenu(() => frameNodes(selectedNodeIds)),
+      });
+    }
+    actions.push({
+      label: "Frame All Nodes",
+      onSelect: closeMenu(() => frameNodes()),
+    });
+    actions.push({
+      label: "Reset View",
+      onSelect: closeMenu(() => resetView()),
+    });
+    actions.push({
+      label: gridSnapEnabled ? "Disable Grid Snap" : "Enable Grid Snap",
+      onSelect: closeMenu(() => setGridSnapEnabled((prev) => !prev)),
+    });
+    actions.push({
+      label: showShortcutOverlay ? "Hide Shortcuts" : "Show Shortcuts",
+      onSelect: closeMenu(() => setShowShortcutOverlay((prev) => !prev)),
+    });
+    actions.push({
+      label: pickLabel,
+      onSelect: closeMenu(() =>
+        setPendingReference({
+          kind: "canvas",
+          world,
+        })
+      ),
+    });
     actions.push({
       label: geometryLabel,
       disabled: !selectedGeometryId,
@@ -852,6 +1365,12 @@ export const NumericalCanvas = ({ width, height }: NumericalCanvasProps) => {
     selectedGeometryId,
     selectedGeometryType,
     updateNodeData,
+    frameNodes,
+    resetView,
+    gridSnapEnabled,
+    showShortcutOverlay,
+    width,
+    height,
   ]);
 
   const contextMenuButtonStyle = useMemo(() => {
@@ -872,7 +1391,15 @@ export const NumericalCanvas = ({ width, height }: NumericalCanvasProps) => {
 
   const resolveContextMenuIconId = (action: ContextMenuAction): IconId => {
     const label = action.label.toLowerCase();
+    if (label.includes("delete")) return "delete";
     if (label.includes("disconnect")) return "delete";
+    if (label.includes("frame all")) return "frameAll";
+    if (label.includes("frame")) return "focus";
+    if (label.includes("zoom")) return "zoomCursor";
+    if (label.includes("reset view")) return "focus";
+    if (label.includes("grid snap")) return "selectionFilter";
+    if (label.includes("shortcuts")) return "advanced";
+    if (label.includes("refer to object")) return "referenceActive";
     if (label.includes("reference")) return "geometryReference";
     if (label.includes("ontologize")) return "brandRoslyn";
     return "advanced";
@@ -880,14 +1407,99 @@ export const NumericalCanvas = ({ width, height }: NumericalCanvasProps) => {
 
   const resolveContextMenuShortLabel = (action: ContextMenuAction) => {
     const label = action.label;
+    if (label.startsWith("Refer to Object")) return "Refer";
     if (label.startsWith("Reference Selected Geometry")) {
       if (!selectedGeometryId) return "Reference";
       const shortId = selectedGeometryId.slice(0, 6);
       return `Ref ${shortId}`;
     }
+    if (label.startsWith("Delete")) return "Delete";
+    if (label.startsWith("Frame Selection")) return "Frame Sel";
+    if (label.startsWith("Frame All")) return "Frame All";
+    if (label.startsWith("Frame Node")) return "Frame Node";
+    if (label.startsWith("Reset View")) return "Reset";
+    if (label.startsWith("Zoom In")) return "Zoom +";
+    if (label.startsWith("Zoom Out")) return "Zoom -";
+    if (label.startsWith("Enable Grid Snap")) return "Snap On";
+    if (label.startsWith("Disable Grid Snap")) return "Snap Off";
+    if (label.startsWith("Show Shortcuts")) return "Help On";
+    if (label.startsWith("Hide Shortcuts")) return "Help Off";
     if (label.startsWith("Disconnect")) return "Disconnect";
     if (label.startsWith("Ontologize")) return "Ontologize";
     return label;
+  };
+
+  const resolveHoverTooltip = (
+    target: HitTarget,
+    layouts: Map<string, NodeLayout>,
+    connectedInputs: Map<string, Set<string>>
+  ): TooltipData | null => {
+    if (target.type === "none") return null;
+
+    if (target.type === "node") {
+      const context = getNodeContext(target.nodeId);
+      if (!context) return null;
+      const label =
+        context.definition?.label ?? context.node.data?.label ?? context.node.type ?? "Node";
+      const lines: string[] = [];
+      if (context.definition?.description) {
+        lines.push(context.definition.description);
+      }
+      const layout = layouts.get(target.nodeId);
+      if (layout) {
+        const missing = getMissingRequiredInputs(layout, connectedInputs.get(target.nodeId));
+        if (missing.length > 0) {
+          lines.push(`Needs: ${missing.join(", ")}`);
+        }
+      }
+      if (context.node.data?.evaluationError) {
+        lines.push(`Error: ${context.node.data.evaluationError}`);
+      }
+      return { title: label, lines };
+    }
+
+    if (target.type === "port") {
+      const port = getPortSpec(target.nodeId, target.portKey, target.isOutput);
+      const portLabel = port?.label ?? target.portKey;
+      const title = `${portLabel} ${target.isOutput ? "Output" : "Input"}`;
+      const lines: string[] = [];
+      if (port) {
+        lines.push(`Type: ${port.type}`);
+        if (!target.isOutput && port.required) {
+          lines.push("Required input");
+        }
+        if (port.description) {
+          lines.push(port.description);
+        }
+      }
+      return { title, lines };
+    }
+
+    if (target.type === "edge") {
+      const edge = edges.find((entry) => entry.id === target.edgeId);
+      if (!edge) return null;
+      const sourceNode = nodes.find((node) => node.id === edge.source);
+      const targetNode = nodes.find((node) => node.id === edge.target);
+      const sourceLayout = layouts.get(edge.source);
+      const targetLayout = layouts.get(edge.target);
+      const sourcePort = sourceLayout
+        ? resolvePortLayout(sourceLayout, edge.sourceHandle, true)?.port
+        : null;
+      const targetPort = targetLayout
+        ? resolvePortLayout(targetLayout, edge.targetHandle, false)?.port
+        : null;
+      const sourceLabel = sourcePort?.label ?? edge.sourceHandle ?? "Output";
+      const targetLabel = targetPort?.label ?? edge.targetHandle ?? "Input";
+      const title = "Connection";
+      const sourceNodeLabel =
+        sourceNode?.data?.label ?? sourceNode?.type ?? edge.source;
+      const targetNodeLabel =
+        targetNode?.data?.label ?? targetNode?.type ?? edge.target;
+      const lines = [`${sourceNodeLabel}:${sourceLabel} → ${targetNodeLabel}:${targetLabel}`];
+      return { title, lines };
+    }
+
+    return null;
   };
 
   const findEdgeHit = (
@@ -988,10 +1600,12 @@ export const NumericalCanvas = ({ width, height }: NumericalCanvasProps) => {
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    canvas.focus();
 
     const rect = canvas.getBoundingClientRect();
     const screenX = e.clientX - rect.left;
     const screenY = e.clientY - rect.top;
+    pointerScreenRef.current = { x: screenX, y: screenY };
     const world = screenToWorld(screenX, screenY);
     const target = hitTest(world.x, world.y);
     const isMultiSelect = e.metaKey || e.ctrlKey;
@@ -1015,7 +1629,7 @@ export const NumericalCanvas = ({ width, height }: NumericalCanvasProps) => {
       return;
     }
 
-    if (e.button === 1 || (e.button === 0 && e.shiftKey)) {
+    if (e.button === 1 || (e.button === 0 && (e.shiftKey || spacePanRef.current))) {
       setDragState({
         type: "pan",
         startPos: { x: screenX, y: screenY },
@@ -1045,14 +1659,32 @@ export const NumericalCanvas = ({ width, height }: NumericalCanvasProps) => {
     if (target.type === "node") {
       const node = nodes.find((n) => n.id === target.nodeId);
       if (node) {
+        const selectedNodes = nodes.filter((entry) => entry.selected);
+        const hasMultipleSelected = selectedNodes.length > 1;
+        const isAlreadySelected = Boolean(node.selected);
         if (e.button === 0) {
-          setNodeSelection(target.nodeId, isMultiSelect);
+          if (!(isAlreadySelected && hasMultipleSelected && !isMultiSelect)) {
+            setNodeSelection(target.nodeId, isMultiSelect);
+          }
         }
+        const dragNodes =
+          hasMultipleSelected && isAlreadySelected
+            ? selectedNodes.map((entry) => ({
+                id: entry.id,
+                startPos: { x: entry.position.x, y: entry.position.y },
+              }))
+            : [
+                {
+                  id: node.id,
+                  startPos: { x: node.position.x, y: node.position.y },
+                },
+              ];
         setDragState({
           type: "node",
           nodeId: target.nodeId,
           startPos: { x: screenX, y: screenY },
           nodeStartPos: { x: node.position.x, y: node.position.y },
+          dragNodes,
         });
         e.preventDefault();
       }
@@ -1080,6 +1712,7 @@ export const NumericalCanvas = ({ width, height }: NumericalCanvasProps) => {
     const rect = canvas.getBoundingClientRect();
     const screenX = e.clientX - rect.left;
     const screenY = e.clientY - rect.top;
+    pointerScreenRef.current = { x: screenX, y: screenY };
     const world = screenToWorld(screenX, screenY);
 
     if (dragState.type === "pan") {
@@ -1096,16 +1729,25 @@ export const NumericalCanvas = ({ width, height }: NumericalCanvasProps) => {
     if (dragState.type === "node") {
       const dx = (screenX - dragState.startPos.x) / viewTransform.scale;
       const dy = (screenY - dragState.startPos.y) / viewTransform.scale;
-      const newX = dragState.nodeStartPos.x + dx;
-      const newY = dragState.nodeStartPos.y + dy;
+      let nextDx = dx;
+      let nextDy = dy;
+      if (gridSnapEnabled && !e.altKey) {
+        const { minor } = resolveGridSteps(viewTransform.scale);
+        const snappedX = snapToGrid(dragState.nodeStartPos.x + dx, minor);
+        const snappedY = snapToGrid(dragState.nodeStartPos.y + dy, minor);
+        nextDx = snappedX - dragState.nodeStartPos.x;
+        nextDy = snappedY - dragState.nodeStartPos.y;
+      }
 
-      onNodesChange([
-        {
-          id: dragState.nodeId,
-          type: "position",
-          position: { x: newX, y: newY },
+      const changes = dragState.dragNodes.map((entry) => ({
+        id: entry.id,
+        type: "position" as const,
+        position: {
+          x: entry.startPos.x + nextDx,
+          y: entry.startPos.y + nextDy,
         },
-      ]);
+      }));
+      onNodesChange(changes);
       return;
     }
 
@@ -1143,6 +1785,13 @@ export const NumericalCanvas = ({ width, height }: NumericalCanvasProps) => {
     const screenX = e.clientX - rect.left;
     const screenY = e.clientY - rect.top;
     const world = screenToWorld(screenX, screenY);
+
+    if (pendingNodeType && onDropNode && dragState.type === "none" && e.button === 0) {
+      onDropNode(pendingNodeType, world);
+      setContextMenu(null);
+      setDragState({ type: "none" });
+      return;
+    }
 
     if (dragState.type === "edge") {
       const target = hitTest(world.x, world.y);
@@ -1201,30 +1850,6 @@ export const NumericalCanvas = ({ width, height }: NumericalCanvasProps) => {
     if (contextMenu) {
       setContextMenu(null);
     }
-
-    const rect = canvas.getBoundingClientRect();
-    const screenX = e.clientX - rect.left;
-    const screenY = e.clientY - rect.top;
-
-    const worldBefore = screenToWorld(screenX, screenY);
-
-    const delta = -e.deltaY * ZOOM_SPEED;
-    const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, viewTransform.scale * (1 + delta)));
-
-    const worldAfter = {
-      x: (screenX - viewTransform.x) / newScale,
-      y: (screenY - viewTransform.y) / newScale,
-    };
-
-    const offsetX = (worldAfter.x - worldBefore.x) * newScale;
-    const offsetY = (worldAfter.y - worldBefore.y) * newScale;
-
-    setViewTransform({
-      x: viewTransform.x + offsetX,
-      y: viewTransform.y + offsetY,
-      scale: newScale,
-    });
-
     e.preventDefault();
   };
 
@@ -1265,8 +1890,36 @@ export const NumericalCanvas = ({ width, height }: NumericalCanvasProps) => {
         height: "100%",
       }}
     >
+      <div
+        style={{
+          position: "absolute",
+          left: "12px",
+          top: "10px",
+          zIndex: 4,
+        }}
+      >
+        <WebGLButton
+          label="Shortcuts"
+          shortLabel="Help"
+          iconId="advanced"
+          variant="command"
+          size="sm"
+          shape="rounded"
+          active={showShortcutOverlay}
+          hideLabel
+          tooltip="Shortcuts"
+          tooltipShortcut="?"
+          tooltipPosition="right"
+          onClick={() => {
+            setContextMenu(null);
+            setShowShortcutOverlay((prev) => !prev);
+          }}
+        />
+      </div>
       <canvas
         ref={canvasRef}
+        tabIndex={0}
+        aria-label="Numerica canvas"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -1280,7 +1933,9 @@ export const NumericalCanvas = ({ width, height }: NumericalCanvasProps) => {
           cursor:
             dragState.type === "pan"
               ? "grabbing"
-              : dragState.type === "node"
+              : spacePan
+                ? "grab"
+                : dragState.type === "node"
                 ? "move"
                 : hoveredTarget.type === "node"
                   ? "grab"
@@ -1292,6 +1947,50 @@ export const NumericalCanvas = ({ width, height }: NumericalCanvasProps) => {
           touchAction: "none",
         }}
       />
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          pointerEvents: "none",
+          zIndex: 2,
+        }}
+      >
+        {viewerNodes.map((viewer) => {
+          const scale = viewTransform.scale;
+          const frameLeft =
+            viewer.layout.x * scale + viewTransform.x + VIEWER_INSET * scale;
+          const frameTop =
+            viewer.layout.y * scale + viewTransform.y + VIEWER_TOP_OFFSET * scale;
+          const frameWidth =
+            (viewer.layout.width - VIEWER_INSET * 2) * scale;
+          const frameHeight =
+            (viewer.layout.height - VIEWER_TOP_OFFSET - VIEWER_BOTTOM_OFFSET) * scale;
+          if (frameWidth < 4 || frameHeight < 4) return null;
+          if (
+            frameLeft > width ||
+            frameTop > height ||
+            frameLeft + frameWidth < 0 ||
+            frameTop + frameHeight < 0
+          ) {
+            return null;
+          }
+          return (
+            <div
+              key={viewer.nodeId}
+              style={{
+                position: "absolute",
+                left: `${frameLeft}px`,
+                top: `${frameTop}px`,
+                width: `${frameWidth}px`,
+                height: `${frameHeight}px`,
+                pointerEvents: "auto",
+              }}
+            >
+              <WorkflowGeometryViewer geometryId={viewer.geometryId} />
+            </div>
+          );
+        })}
+      </div>
       {contextMenu && contextMenuActions.length > 0 ? (
         <div
           role="menu"
@@ -1348,10 +2047,7 @@ function drawBackground(
   palette: CanvasPalette
 ) {
   const zoom = transform.scale;
-  let minorStep = GRID_MINOR_BASE;
-  if (zoom > 2.5) minorStep = 18;
-  else if (zoom < 0.7) minorStep = 32;
-  const majorStep = minorStep * GRID_MAJOR_FACTOR;
+  const { minor: minorStep, major: majorStep } = resolveGridSteps(zoom);
 
   const worldLeft = -transform.x / transform.scale;
   const worldTop = -transform.y / transform.scale;
@@ -1566,6 +2262,8 @@ function drawNodes(
     return trimmed.length > 1 ? `${trimmed}${ellipsis}` : ellipsis;
   };
 
+  const defaultIconTint = parseCssColor(palette.text, [0.12, 0.12, 0.13, 1]);
+
   nodes.forEach((node) => {
     const layout = layouts.get(node.id) ?? computeNodeLayout(node);
     if (!layouts.has(node.id)) {
@@ -1588,6 +2286,7 @@ function drawNodes(
     const categoryBand = category?.band ?? "#ece8e2";
     const categoryAccent = category?.accent ?? palette.nodeStroke;
     const fallbackPortColor = category?.port ?? palette.portFill;
+    const iconTint = parseCssColor(categoryAccent, defaultIconTint);
     const label = node.data?.label ?? definition?.label ?? node.type ?? "Node";
     const iconSpace = definition?.iconId ? ICON_SIZE + ICON_PADDING + 4 : 0;
     const labelMaxWidth = NODE_WIDTH - 24 - iconSpace;
@@ -1657,7 +2356,7 @@ function drawNodes(
       ctx.fillText(category.label.toUpperCase(), x + 10, y + 4);
     }
 
-    const iconImage = getIconImage(definition?.iconId);
+    const iconImage = getIconImage(definition?.iconId, iconTint);
     if (definition?.iconId && iconImage && iconImage.complete && iconImage.naturalWidth > 0) {
       const iconX = x + NODE_WIDTH - ICON_PADDING - ICON_SIZE;
       const iconY = y + NODE_BAND_HEIGHT + 6;
@@ -1680,12 +2379,12 @@ function drawNodes(
     const primaryOutputKey = definition?.primaryOutputKey ?? layout.defaultOutputKey;
     const primaryOutputValue = primaryOutputKey ? outputs[primaryOutputKey] : undefined;
 
-    if (evaluationError) {
+    if (evaluationError && isHovered) {
       ctx.fillStyle = palette.nodeErrorBorder;
       ctx.font = '600 10px "Proxima Nova", "Helvetica Neue", Arial, sans-serif';
       const errorText = truncateToWidth(`Error: ${evaluationError}`, detailMaxWidth);
       ctx.fillText(errorText, x + 12, detailY);
-    } else if (showWarning) {
+    } else if (showWarning && isHovered) {
       ctx.fillStyle = palette.nodeWarningBorder;
       ctx.font = '600 10px "Proxima Nova", "Helvetica Neue", Arial, sans-serif';
       const warningText = truncateToWidth(
@@ -1765,9 +2464,12 @@ function drawNodes(
         ctx.fill();
         ctx.restore();
       }
-      ctx.strokeStyle = palette.portStroke;
+      ctx.save();
+      ctx.strokeStyle = categoryAccent ?? palette.portStroke;
+      ctx.globalAlpha = isPortHovered ? 0.9 : 0.55;
       ctx.lineWidth = 1;
       ctx.stroke();
+      ctx.restore();
     };
 
     layout.inputs.forEach(drawPort);
@@ -1793,5 +2495,166 @@ function drawSelectionBox(
   ctx.globalAlpha = 0.6;
   ctx.lineWidth = 1;
   ctx.strokeRect(minX, minY, width, height);
+  ctx.restore();
+}
+
+const truncateTooltipLine = (
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number
+) => {
+  if (ctx.measureText(text).width <= maxWidth) return text;
+  const ellipsis = "…";
+  let trimmed = text;
+  while (trimmed.length > 1 && ctx.measureText(trimmed + ellipsis).width > maxWidth) {
+    trimmed = trimmed.slice(0, -1);
+  }
+  return trimmed.length > 1 ? `${trimmed}${ellipsis}` : ellipsis;
+};
+
+function drawTooltip(
+  ctx: CanvasRenderingContext2D,
+  tooltip: TooltipData,
+  pointer: Vec2,
+  width: number,
+  height: number,
+  palette: CanvasPalette
+) {
+  const paddingX = 10;
+  const paddingY = 8;
+  const lineHeight = 16;
+  const maxWidth = 280;
+
+  const lines = [tooltip.title, ...tooltip.lines].filter((line) => line.length > 0);
+  if (lines.length === 0) return;
+
+  ctx.save();
+  ctx.font = '600 12px "Proxima Nova", "Helvetica Neue", Arial, sans-serif';
+
+  const measured = lines.map((line) => ctx.measureText(line).width);
+  const contentWidth = Math.min(maxWidth, Math.max(...measured));
+  const totalWidth = contentWidth + paddingX * 2;
+  const totalHeight = lines.length * lineHeight + paddingY * 2;
+
+  let x = pointer.x + 14;
+  let y = pointer.y + 14;
+  if (x + totalWidth > width - 6) x = width - totalWidth - 6;
+  if (y + totalHeight > height - 6) y = height - totalHeight - 6;
+  x = Math.max(6, x);
+  y = Math.max(6, y);
+
+  ctx.fillStyle = "rgba(15, 15, 15, 0.92)";
+  ctx.strokeStyle = "rgba(0, 0, 0, 0.6)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(x, y, totalWidth, totalHeight, 8);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = palette.text;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+
+  lines.forEach((line, index) => {
+    const isTitle = index === 0;
+    ctx.font = isTitle
+      ? '600 12px "Proxima Nova", "Helvetica Neue", Arial, sans-serif'
+      : '500 11px "Proxima Nova", "Helvetica Neue", Arial, sans-serif';
+    const trimmed = truncateTooltipLine(ctx, line, contentWidth);
+    ctx.fillStyle = isTitle ? "#f8fafc" : "rgba(248, 250, 252, 0.85)";
+    ctx.fillText(trimmed, x + paddingX, y + paddingY + index * lineHeight);
+  });
+
+  ctx.restore();
+}
+
+function drawPendingReferenceHint(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  palette: CanvasPalette
+) {
+  const text = "Select geometry in Roslyn to complete reference.";
+  ctx.save();
+  ctx.font = '600 11px "Proxima Nova", "Helvetica Neue", Arial, sans-serif';
+  const paddingX = 10;
+  const paddingY = 6;
+  const textWidth = ctx.measureText(text).width;
+  const boxWidth = textWidth + paddingX * 2;
+  const boxHeight = 22;
+  const x = Math.max(8, width - boxWidth - 12);
+  const y = 10;
+
+  ctx.fillStyle = "rgba(217, 119, 6, 0.85)";
+  ctx.strokeStyle = "rgba(120, 53, 15, 0.8)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(x, y, boxWidth, boxHeight, 8);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = palette.text;
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, x + paddingX, y + boxHeight / 2);
+  ctx.restore();
+}
+
+function drawShortcutOverlay(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  palette: CanvasPalette,
+  gridSnapEnabled: boolean
+) {
+  const title = "Numerica Shortcuts";
+  const lines = [
+    "Space: Pan",
+    "F: Frame selection",
+    "Shift+F: Frame all",
+    "G: Grid snap " + (gridSnapEnabled ? "On" : "Off"),
+    "Alt: Free drag",
+    "?: Toggle help",
+    "Ctrl/Cmd+A: Select all",
+  ];
+
+  const paddingX = 12;
+  const paddingY = 10;
+  const lineHeight = 16;
+  const titleFont = '600 12px "Proxima Nova", "Helvetica Neue", Arial, sans-serif';
+  const lineFont = '500 11px "Proxima Nova", "Helvetica Neue", Arial, sans-serif';
+
+  ctx.save();
+  ctx.font = titleFont;
+  const widths = [ctx.measureText(title).width];
+  ctx.font = lineFont;
+  lines.forEach((line) => widths.push(ctx.measureText(line).width));
+  const contentWidth = Math.max(...widths);
+  const boxWidth = contentWidth + paddingX * 2;
+  const boxHeight = (lines.length + 1) * lineHeight + paddingY * 2;
+
+  const x = 12;
+  const y = Math.max(12, height - boxHeight - 12);
+
+  ctx.fillStyle = "rgba(15, 23, 42, 0.9)";
+  ctx.strokeStyle = "rgba(15, 23, 42, 0.6)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(x, y, boxWidth, boxHeight, 10);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+
+  ctx.font = titleFont;
+  ctx.fillStyle = "#f8fafc";
+  ctx.fillText(title, x + paddingX, y + paddingY);
+
+  ctx.font = lineFont;
+  ctx.fillStyle = "rgba(248, 250, 252, 0.86)";
+  lines.forEach((line, index) => {
+    ctx.fillText(line, x + paddingX, y + paddingY + lineHeight * (index + 1));
+  });
+
   ctx.restore();
 }
