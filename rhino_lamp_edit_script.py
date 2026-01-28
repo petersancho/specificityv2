@@ -4,7 +4,7 @@
 #
 # This script builds:
 # - A base (cube, triangle prism, vase loft, twisted, spiral, or ripple base)
-# - A parametric shade with slots, lattice, weave, moire, or bubble patterns
+# - A lofted shade subdivided and blobtruded along normals
 # - A tolerance-fit sleeve so the shade attaches to the base
 # - A central port for lamp cord and LED bulb
 #
@@ -16,62 +16,68 @@ import rhinoscriptsyntax as rs
 
 PARAMS = {
     # Base type: "cube", "triangle", "vase", "twisted", "spiral", or "ripple"
-    "base_type": "ripple",
-    "base_width": 82.0,
-    "base_depth": 82.0,
-    "base_height": 54.0,
-    "triangle_side": 98.0,
-    "vase_height": 88.0,
-    "vase_base_radius": 46.0,
-    "vase_mid_radius": 66.0,
-    "vase_neck_radius": 28.0,
+    "base_type": "triangle",
+    "base_width": 76.0,
+    "base_depth": 76.0,
+    "base_height": 52.0,
+    "triangle_side": 108.0,
+    "vase_height": 84.0,
+    "vase_base_radius": 44.0,
+    "vase_mid_radius": 62.0,
+    "vase_neck_radius": 26.0,
     # Twisted base (faceted loft)
-    "twist_height": 72.0,
-    "twist_radius": 44.0,
-    "twist_top_scale": 0.7,
-    "twist_sides": 7,
+    "twist_height": 70.0,
+    "twist_radius": 42.0,
+    "twist_top_scale": 0.72,
+    "twist_sides": 6,
     "twist_layers": 8,
-    "twist_rotation": 120.0,
+    "twist_rotation": 95.0,
     # Spiral wave base (smooth wave loft)
-    "spiral_height": 84.0,
-    "spiral_radius": 50.0,
-    "spiral_top_scale": 0.62,
-    "spiral_waves": 7,
-    "spiral_wave_amp": 0.22,
-    "spiral_layers": 12,
-    "spiral_twist": 180.0,
-    "spiral_points_per_wave": 14,
+    "spiral_height": 78.0,
+    "spiral_radius": 46.0,
+    "spiral_top_scale": 0.66,
+    "spiral_waves": 6,
+    "spiral_wave_amp": 0.2,
+    "spiral_layers": 10,
+    "spiral_twist": 150.0,
+    "spiral_points_per_wave": 12,
     # Ripple base (scalloped wave loft)
-    "ripple_height": 78.0,
-    "ripple_radius": 52.0,
-    "ripple_top_scale": 0.7,
-    "ripple_waves": 8,
-    "ripple_wave_amp": 0.24,
-    "ripple_layers": 12,
-    "ripple_twist": 40.0,
-    "ripple_points_per_wave": 14,
+    "ripple_height": 72.0,
+    "ripple_radius": 48.0,
+    "ripple_top_scale": 0.68,
+    "ripple_waves": 7,
+    "ripple_wave_amp": 0.21,
+    "ripple_layers": 10,
+    "ripple_twist": 30.0,
+    "ripple_points_per_wave": 12,
     # Base neck (attachment ring on top of the base)
-    "neck_outer_radius": 23.0,
+    "neck_outer_radius": 22.0,
     "neck_height": 14.0,
     "neck_wall_min": 2.6,
     # Shade
-    "shade_height": 145.0,
-    "shade_outer_radius": 68.0,
+    "shade_form": "lofted",  # "lofted" or "cylindrical"
+    "shade_height": 138.0,
+    "shade_outer_radius": 52.0,
     "shade_wall": 2.6,
-    "sleeve_height": 18.0,  # must be >= neck_height
-    "shade_pattern": "bubble",  # "bubble", "moire", "weave", "lattice", "slots", or "none"
+    "sleeve_height": 16.0,  # must be >= neck_height
+    "shade_pattern": "blobtrude",  # "blobtrude", "manglutified", "moire", "weave", "lattice", "slots", or "none"
+    # Lofted shade profile
+    "shade_loft_bottom_sides": 3,
+    "shade_loft_top_sides": 24,
+    "shade_loft_top_scale": 1.3,
+    "shade_loft_twist": 30.0,
     # Assembly tolerance (clearance) for the sleeve fit
     "tolerance": 0.45,
     # Slot pattern
-    "slot_count": 28,
-    "slot_width": 5.5,
+    "slot_count": 26,
+    "slot_width": 5.0,
     "slot_depth": 10.0,
-    "slot_margin": 14.0,
+    "slot_margin": 12.0,
     "slot_variation": 0.3,
     "slot_wave_frequency": 2.2,
     # Lattice pattern (subdivision effect)
-    "lattice_rows": 7,
-    "lattice_columns": 34,
+    "lattice_rows": 6,
+    "lattice_columns": 30,
     "lattice_window_width": 7.0,
     "lattice_window_height": 18.0,
     "lattice_window_depth": 11.0,
@@ -94,16 +100,27 @@ PARAMS = {
     "moire_ring_radius": 2.2,
     "moire_margin": 10.0,
     # Bubble pattern (organic perforations)
-    "bubble_rows": 8,
-    "bubble_columns": 26,
-    "bubble_radius": 6.0,
+    "bubble_rows": 7,
+    "bubble_columns": 24,
+    "bubble_radius": 5.5,
     "bubble_margin": 10.0,
     "bubble_offset_ratio": 0.5,
     "bubble_radius_variation": 0.25,
     "bubble_twist": 10.0,
     "bubble_wave_frequency": 1.6,
+    # Blobtrude pattern (subdivided loft + normal blobs)
+    "blob_rows": 9,
+    "blob_columns": 20,
+    "blob_radius": 5.0,
+    "blob_offset": 2.2,
+    "blob_margin": 10.0,
+    "blob_radius_variation": 0.35,
+    "blob_twist": 18.0,
+    "blob_mangle": 0.45,
+    "blob_jitter": 1.2,
+    "blob_wave_frequency": 1.7,
     # Central port
-    "cord_diameter": 7.2,
+    "cord_diameter": 7.0,
     "bulb_diameter": 30.0,
     "port_clearance": 2.6,
 }
@@ -111,6 +128,14 @@ PARAMS = {
 
 def clamp_min(value, minimum):
     return value if value >= minimum else minimum
+
+
+def clamp_range(value, min_value, max_value):
+    if value < min_value:
+        return min_value
+    if value > max_value:
+        return max_value
+    return value
 
 
 def to_single(obj):
@@ -311,6 +336,9 @@ def normalize_params(p):
     min_shade_height = p["neck_height"] + p["shade_wall"] * 2.0
     if p["shade_height"] < min_shade_height:
         p["shade_height"] = min_shade_height
+    p["shade_loft_bottom_sides"] = max(3, int(p.get("shade_loft_bottom_sides", 3)))
+    p["shade_loft_top_sides"] = max(3, int(p.get("shade_loft_top_sides", 12)))
+    p["shade_loft_top_scale"] = clamp_range(p.get("shade_loft_top_scale", 1.0), 0.5, 1.8)
     if p["sleeve_height"] < p["neck_height"]:
         p["sleeve_height"] = p["neck_height"] + 1.0
     max_sleeve = p["shade_height"] - p["shade_wall"] * 2.0
@@ -335,6 +363,14 @@ def normalize_params(p):
     p["bubble_columns"] = max(6, int(p.get("bubble_columns", 18)))
     p["bubble_offset_ratio"] = max(0.0, min(p.get("bubble_offset_ratio", 0.5), 1.0))
     p["bubble_radius_variation"] = max(0.0, min(p.get("bubble_radius_variation", 0.3), 0.8))
+    p["blob_rows"] = max(1, int(p.get("blob_rows", 6)))
+    p["blob_columns"] = max(6, int(p.get("blob_columns", 16)))
+    p["blob_radius"] = max(1.0, p.get("blob_radius", 5.0))
+    p["blob_offset"] = max(0.5, p.get("blob_offset", 2.0))
+    p["blob_margin"] = max(0.0, p.get("blob_margin", 8.0))
+    p["blob_radius_variation"] = max(0.0, min(p.get("blob_radius_variation", 0.25), 0.8))
+    p["blob_mangle"] = max(0.0, min(p.get("blob_mangle", 0.3), 1.0))
+    p["blob_jitter"] = max(0.0, p.get("blob_jitter", 0.8))
     return port_radius
 
 
@@ -401,6 +437,75 @@ def create_base(p, port_radius):
 
     rs.ObjectName(base_with_neck, "Lamp_Base")
     return base_with_neck, base_height
+
+
+def create_lofted_shade(p, base_height):
+    shade_outer_radius = p["shade_outer_radius"]
+    shade_height = p["shade_height"]
+    shade_wall = p["shade_wall"]
+    sleeve_height = p["sleeve_height"]
+    sleeve_inner_radius = p["neck_outer_radius"] + p["tolerance"]
+
+    bottom_z = base_height
+    top_z = base_height + shade_height
+    top_radius = shade_outer_radius * p["shade_loft_top_scale"]
+
+    bottom_curve = add_polygon_curve(
+        shade_outer_radius,
+        p["shade_loft_bottom_sides"],
+        bottom_z,
+        0.0,
+    )
+    top_curve = add_polygon_curve(
+        top_radius,
+        p["shade_loft_top_sides"],
+        top_z,
+        p["shade_loft_twist"],
+    )
+
+    outer_loft = to_single(rs.AddLoftSrf([bottom_curve, top_curve]))
+    outer_shell = None
+    if outer_loft:
+        outer_copy = rs.CopyObject(outer_loft)
+        if outer_copy:
+            outer_shell = cap_if_possible(outer_copy)
+        if not outer_shell:
+            outer_shell = cap_if_possible(outer_loft)
+
+    inner_bottom_radius = max(shade_outer_radius - shade_wall, shade_wall)
+    inner_top_radius = max(top_radius - shade_wall, shade_wall)
+    inner_bottom_curve = add_polygon_curve(
+        inner_bottom_radius,
+        p["shade_loft_bottom_sides"],
+        base_height + sleeve_height,
+        0.0,
+    )
+    inner_top_curve = add_polygon_curve(
+        inner_top_radius,
+        p["shade_loft_top_sides"],
+        top_z,
+        p["shade_loft_twist"],
+    )
+    inner_loft = to_single(rs.AddLoftSrf([inner_bottom_curve, inner_top_curve]))
+    inner_shell = cap_if_possible(inner_loft) if inner_loft else None
+
+    inner_sleeve = rs.AddCylinder(
+        (0.0, 0.0, base_height),
+        sleeve_height,
+        sleeve_inner_radius,
+        cap=True,
+    )
+
+    shade = safe_boolean_diff(outer_shell, [inner_shell, inner_sleeve])
+
+    for curve in [bottom_curve, top_curve, inner_bottom_curve, inner_top_curve]:
+        if curve:
+            rs.DeleteObject(curve)
+    if inner_loft and inner_loft != inner_shell:
+        rs.DeleteObject(inner_loft)
+
+    pattern_surface = outer_loft if rs.IsSurface(outer_loft) else None
+    return shade, pattern_surface
 
 
 def add_slot_pattern(
@@ -748,6 +853,77 @@ def add_bubble_pattern(
     return safe_boolean_diff(shade, bubbles)
 
 
+def add_blobtrude_pattern(
+    shade,
+    p,
+    pattern_surface,
+    base_height,
+    sleeve_height,
+):
+    if not shade or not pattern_surface:
+        return shade
+
+    rows = int(p["blob_rows"])
+    columns = int(p["blob_columns"])
+    if rows <= 0 or columns <= 0:
+        return shade
+
+    dom_u = rs.SurfaceDomain(pattern_surface, 0)
+    dom_v = rs.SurfaceDomain(pattern_surface, 1)
+    if not dom_u or not dom_v:
+        return shade
+
+    u_range = dom_u[1] - dom_u[0]
+    v_range = dom_v[1] - dom_v[0]
+    if u_range <= 0.0 or v_range <= 0.0:
+        return shade
+
+    margin = p["blob_margin"]
+    base_radius = max(p["blob_radius"], p["shade_wall"] * 0.7)
+    wave_freq = p["blob_wave_frequency"]
+    mangle = p["blob_mangle"]
+    jitter = p["blob_jitter"]
+    row_twist = p["blob_twist"]
+
+    blobs = []
+    for row in range(rows):
+        v = dom_v[0] + v_range * (row + 0.5) / float(rows)
+        u_twist = (row_twist * row / float(rows)) / 360.0 * u_range
+        for col in range(columns):
+            u = dom_u[0] + u_range * (col + 0.5) / float(columns) + u_twist
+            u_offset = math.sin((row + col) * wave_freq) * mangle * (u_range / columns)
+            u = clamp_range(u + u_offset, dom_u[0], dom_u[1])
+
+            pt = rs.EvaluateSurface(pattern_surface, u, v)
+            if not pt:
+                continue
+            if pt[2] < base_height + sleeve_height + margin:
+                continue
+            if pt[2] > base_height + p["shade_height"] - margin:
+                continue
+
+            normal = rs.SurfaceNormal(pattern_surface, (u, v))
+            normal = rs.VectorUnitize(normal)
+            if not normal:
+                continue
+
+            radial = rs.VectorUnitize((pt[0], pt[1], 0.0))
+            if radial:
+                pt = rs.PointAdd(pt, rs.VectorScale(radial, jitter))
+
+            wave = 0.5 + 0.5 * math.sin((row * 1.1 + col) * wave_freq)
+            radius = base_radius * (1.0 - p["blob_radius_variation"] * wave)
+            radius = max(radius, p["shade_wall"] * 0.6)
+
+            offset = p["blob_offset"] * (0.75 + 0.25 * math.cos((row + col) * 0.8))
+            center = rs.PointAdd(pt, rs.VectorScale(normal, offset))
+            sphere = rs.AddSphere(center, radius)
+            if sphere:
+                blobs.append(sphere)
+
+    return safe_boolean_diff(shade, blobs)
+
+
 def apply_shade_pattern(
     shade,
     p,
@@ -755,10 +931,19 @@ def apply_shade_pattern(
     sleeve_height,
     shade_outer_radius,
     shade_inner_radius,
+    pattern_surface=None,
 ):
     pattern = p.get("shade_pattern", "slots").lower()
     if not shade or pattern == "none":
         return shade
+    if pattern in ("blobtrude", "manglutified", "mangle", "blob"):
+        return add_blobtrude_pattern(
+            shade,
+            p,
+            pattern_surface,
+            base_height,
+            sleeve_height,
+        )
     if pattern == "bubble":
         return add_bubble_pattern(
             shade,
@@ -814,27 +999,32 @@ def create_shade(p, base_height):
     shade_inner_radius = shade_outer_radius - shade_wall
     sleeve_inner_radius = p["neck_outer_radius"] + p["tolerance"]
 
-    # Outer shell for the shade
-    outer = rs.AddCylinder((0.0, 0.0, base_height), shade_height, shade_outer_radius, cap=True)
+    pattern_surface = None
+    shade_form = p.get("shade_form", "cylindrical").lower()
+    if shade_form == "lofted":
+        shade, pattern_surface = create_lofted_shade(p, base_height)
+    else:
+        # Outer shell for the shade
+        outer = rs.AddCylinder((0.0, 0.0, base_height), shade_height, shade_outer_radius, cap=True)
 
-    # Inner cavity for the upper body (wider)
-    upper_height = clamp_min(shade_height - sleeve_height, shade_wall * 2.0)
-    inner_upper = rs.AddCylinder(
-        (0.0, 0.0, base_height + sleeve_height),
-        upper_height,
-        shade_inner_radius,
-        cap=True,
-    )
+        # Inner cavity for the upper body (wider)
+        upper_height = clamp_min(shade_height - sleeve_height, shade_wall * 2.0)
+        inner_upper = rs.AddCylinder(
+            (0.0, 0.0, base_height + sleeve_height),
+            upper_height,
+            shade_inner_radius,
+            cap=True,
+        )
 
-    # Inner cavity for the sleeve (narrower to fit the neck)
-    inner_sleeve = rs.AddCylinder(
-        (0.0, 0.0, base_height),
-        sleeve_height,
-        sleeve_inner_radius,
-        cap=True,
-    )
+        # Inner cavity for the sleeve (narrower to fit the neck)
+        inner_sleeve = rs.AddCylinder(
+            (0.0, 0.0, base_height),
+            sleeve_height,
+            sleeve_inner_radius,
+            cap=True,
+        )
 
-    shade = safe_boolean_diff(outer, [inner_upper, inner_sleeve])
+        shade = safe_boolean_diff(outer, [inner_upper, inner_sleeve])
 
     shade = apply_shade_pattern(
         shade,
@@ -843,7 +1033,10 @@ def create_shade(p, base_height):
         sleeve_height,
         shade_outer_radius,
         shade_inner_radius,
+        pattern_surface,
     )
+    if pattern_surface and pattern_surface != shade:
+        rs.DeleteObject(pattern_surface)
 
     rs.ObjectName(shade, "Lamp_Shade")
     return shade
