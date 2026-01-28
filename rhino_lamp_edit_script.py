@@ -3,8 +3,8 @@
 # Units are assumed to be millimeters.
 #
 # This script builds:
-# - A base (cube, triangle prism, vase loft, twisted, or spiral wave base)
-# - A parametric shade with slots, lattice, weave, or moire patterns
+# - A base (cube, triangle prism, vase loft, twisted, spiral, or ripple base)
+# - A parametric shade with slots, lattice, weave, moire, or bubble patterns
 # - A tolerance-fit sleeve so the shade attaches to the base
 # - A central port for lamp cord and LED bulb
 #
@@ -15,79 +15,97 @@ import rhinoscriptsyntax as rs
 
 
 PARAMS = {
-    # Base type: "cube", "triangle", "vase", "twisted", or "spiral"
-    "base_type": "spiral",
-    "base_width": 86.0,
-    "base_depth": 86.0,
-    "base_height": 58.0,
-    "triangle_side": 110.0,
-    "vase_height": 96.0,
-    "vase_base_radius": 50.0,
-    "vase_mid_radius": 72.0,
-    "vase_neck_radius": 26.0,
+    # Base type: "cube", "triangle", "vase", "twisted", "spiral", or "ripple"
+    "base_type": "ripple",
+    "base_width": 82.0,
+    "base_depth": 82.0,
+    "base_height": 54.0,
+    "triangle_side": 98.0,
+    "vase_height": 88.0,
+    "vase_base_radius": 46.0,
+    "vase_mid_radius": 66.0,
+    "vase_neck_radius": 28.0,
     # Twisted base (faceted loft)
-    "twist_height": 78.0,
+    "twist_height": 72.0,
     "twist_radius": 44.0,
-    "twist_top_scale": 0.6,
-    "twist_sides": 9,
-    "twist_layers": 11,
-    "twist_rotation": 140.0,
+    "twist_top_scale": 0.7,
+    "twist_sides": 7,
+    "twist_layers": 8,
+    "twist_rotation": 120.0,
     # Spiral wave base (smooth wave loft)
-    "spiral_height": 92.0,
-    "spiral_radius": 52.0,
-    "spiral_top_scale": 0.55,
-    "spiral_waves": 9,
-    "spiral_wave_amp": 0.28,
-    "spiral_layers": 14,
-    "spiral_twist": 260.0,
-    "spiral_points_per_wave": 16,
+    "spiral_height": 84.0,
+    "spiral_radius": 50.0,
+    "spiral_top_scale": 0.62,
+    "spiral_waves": 7,
+    "spiral_wave_amp": 0.22,
+    "spiral_layers": 12,
+    "spiral_twist": 180.0,
+    "spiral_points_per_wave": 14,
+    # Ripple base (scalloped wave loft)
+    "ripple_height": 78.0,
+    "ripple_radius": 52.0,
+    "ripple_top_scale": 0.7,
+    "ripple_waves": 8,
+    "ripple_wave_amp": 0.24,
+    "ripple_layers": 12,
+    "ripple_twist": 40.0,
+    "ripple_points_per_wave": 14,
     # Base neck (attachment ring on top of the base)
-    "neck_outer_radius": 24.0,
-    "neck_height": 16.0,
-    "neck_wall_min": 2.8,
+    "neck_outer_radius": 23.0,
+    "neck_height": 14.0,
+    "neck_wall_min": 2.6,
     # Shade
-    "shade_height": 150.0,
-    "shade_outer_radius": 70.0,
-    "shade_wall": 3.0,
-    "sleeve_height": 20.0,  # must be >= neck_height
-    "shade_pattern": "moire",  # "moire", "weave", "lattice", "slots", or "none"
+    "shade_height": 145.0,
+    "shade_outer_radius": 68.0,
+    "shade_wall": 2.6,
+    "sleeve_height": 18.0,  # must be >= neck_height
+    "shade_pattern": "bubble",  # "bubble", "moire", "weave", "lattice", "slots", or "none"
     # Assembly tolerance (clearance) for the sleeve fit
     "tolerance": 0.45,
     # Slot pattern
-    "slot_count": 36,
-    "slot_width": 4.5,
-    "slot_depth": 11.0,
-    "slot_margin": 16.0,
-    "slot_variation": 0.45,
-    "slot_wave_frequency": 3.0,
+    "slot_count": 28,
+    "slot_width": 5.5,
+    "slot_depth": 10.0,
+    "slot_margin": 14.0,
+    "slot_variation": 0.3,
+    "slot_wave_frequency": 2.2,
     # Lattice pattern (subdivision effect)
-    "lattice_rows": 9,
-    "lattice_columns": 42,
-    "lattice_window_width": 6.0,
-    "lattice_window_height": 14.0,
-    "lattice_window_depth": 9.0,
-    "lattice_margin": 16.0,
-    "lattice_offset_ratio": 0.6,
-    "lattice_twist_degrees": 16.0,
+    "lattice_rows": 7,
+    "lattice_columns": 34,
+    "lattice_window_width": 7.0,
+    "lattice_window_height": 18.0,
+    "lattice_window_depth": 11.0,
+    "lattice_margin": 12.0,
+    "lattice_offset_ratio": 0.5,
+    "lattice_twist_degrees": 10.0,
     # Helical weave pattern
-    "weave_strand_count": 11,
-    "weave_turns": 2.1,
-    "weave_pipe_radius": 2.6,
-    "weave_steps": 96,
-    "weave_margin": 14.0,
+    "weave_strand_count": 8,
+    "weave_turns": 1.4,
+    "weave_pipe_radius": 3.1,
+    "weave_steps": 70,
+    "weave_margin": 12.0,
     # Moire pattern (multi-helix + ring bands)
-    "moire_strand_count": 14,
-    "moire_turns_primary": 2.2,
-    "moire_turns_secondary": 3.4,
-    "moire_pipe_radius": 2.2,
-    "moire_steps": 110,
-    "moire_rings": 10,
-    "moire_ring_radius": 2.5,
-    "moire_margin": 12.0,
+    "moire_strand_count": 9,
+    "moire_turns_primary": 1.6,
+    "moire_turns_secondary": 2.4,
+    "moire_pipe_radius": 2.6,
+    "moire_steps": 85,
+    "moire_rings": 6,
+    "moire_ring_radius": 2.2,
+    "moire_margin": 10.0,
+    # Bubble pattern (organic perforations)
+    "bubble_rows": 8,
+    "bubble_columns": 26,
+    "bubble_radius": 6.0,
+    "bubble_margin": 10.0,
+    "bubble_offset_ratio": 0.5,
+    "bubble_radius_variation": 0.25,
+    "bubble_twist": 10.0,
+    "bubble_wave_frequency": 1.6,
     # Central port
-    "cord_diameter": 7.0,
-    "bulb_diameter": 32.0,
-    "port_clearance": 2.8,
+    "cord_diameter": 7.2,
+    "bulb_diameter": 30.0,
+    "port_clearance": 2.6,
 }
 
 
@@ -252,6 +270,36 @@ def add_spiral_base(
     return cap_if_possible(loft_id)
 
 
+def add_ripple_base(
+    height,
+    radius,
+    top_scale,
+    waves,
+    amplitude,
+    layers,
+    twist_degrees,
+    points_per_wave,
+):
+    layers = max(2, int(layers))
+    curves = []
+    for i in range(layers + 1):
+        t = float(i) / float(layers)
+        z = height * t
+        r = radius * (1.0 - (1.0 - top_scale) * t)
+        amp = amplitude * (0.85 + 0.25 * math.sin(t * math.pi))
+        rot = twist_degrees * t
+        curve = add_wave_curve(r, waves, amp, points_per_wave, z, rot)
+        if curve:
+            curves.append(curve)
+    if not curves:
+        return None
+    loft = rs.AddLoftSrf(curves)
+    for curve in curves:
+        rs.DeleteObject(curve)
+    loft_id = to_single(loft)
+    return cap_if_possible(loft_id)
+
+
 def normalize_params(p):
     port_radius = max(p["cord_diameter"], p["bulb_diameter"]) / 2.0 + p["port_clearance"]
     min_neck_outer = port_radius + p["neck_wall_min"]
@@ -274,11 +322,19 @@ def normalize_params(p):
     p["spiral_layers"] = max(3, int(p.get("spiral_layers", 8)))
     p["spiral_points_per_wave"] = max(6, int(p.get("spiral_points_per_wave", 10)))
     p["spiral_wave_amp"] = max(0.02, min(p.get("spiral_wave_amp", 0.15), 0.45))
+    p["ripple_waves"] = max(2, int(p.get("ripple_waves", 6)))
+    p["ripple_layers"] = max(3, int(p.get("ripple_layers", 8)))
+    p["ripple_points_per_wave"] = max(6, int(p.get("ripple_points_per_wave", 10)))
+    p["ripple_wave_amp"] = max(0.02, min(p.get("ripple_wave_amp", 0.18), 0.45))
     p["weave_strand_count"] = max(2, int(p.get("weave_strand_count", 6)))
     p["weave_steps"] = max(12, int(p.get("weave_steps", 48)))
     p["moire_strand_count"] = max(3, int(p.get("moire_strand_count", 8)))
     p["moire_steps"] = max(16, int(p.get("moire_steps", 64)))
     p["moire_rings"] = max(0, int(p.get("moire_rings", 4)))
+    p["bubble_rows"] = max(1, int(p.get("bubble_rows", 6)))
+    p["bubble_columns"] = max(6, int(p.get("bubble_columns", 18)))
+    p["bubble_offset_ratio"] = max(0.0, min(p.get("bubble_offset_ratio", 0.5), 1.0))
+    p["bubble_radius_variation"] = max(0.0, min(p.get("bubble_radius_variation", 0.3), 0.8))
     return port_radius
 
 
@@ -321,6 +377,18 @@ def create_base(p, port_radius):
             p["spiral_points_per_wave"],
         )
         base_height = p["spiral_height"]
+    elif base_type in ("ripple", "scallop", "scalloped"):
+        base_id = add_ripple_base(
+            p["ripple_height"],
+            p["ripple_radius"],
+            p["ripple_top_scale"],
+            p["ripple_waves"],
+            p["ripple_wave_amp"],
+            p["ripple_layers"],
+            p["ripple_twist"],
+            p["ripple_points_per_wave"],
+        )
+        base_height = p["ripple_height"]
     else:
         base_id = add_box_centered(p["base_width"], p["base_depth"], base_height, 0.0)
 
@@ -633,6 +701,53 @@ def add_moire_pattern(
     return safe_boolean_diff(shade, cutters)
 
 
+def add_bubble_pattern(
+    shade,
+    p,
+    base_height,
+    sleeve_height,
+    shade_outer_radius,
+    shade_inner_radius,
+):
+    shade_wall = p["shade_wall"]
+    shade_height = p["shade_height"]
+    rows = int(p["bubble_rows"])
+    columns = int(p["bubble_columns"])
+    if rows <= 0 or columns <= 0:
+        return shade
+
+    margin = p["bubble_margin"]
+    z0 = base_height + sleeve_height + margin
+    z1 = base_height + shade_height - margin
+    if z1 - z0 <= shade_wall:
+        return shade
+
+    row_step = (z1 - z0) / float(rows)
+    angle_step = 360.0 / float(columns)
+    center_radius = shade_outer_radius - shade_wall * 0.4
+    center_radius = max(center_radius, shade_inner_radius + p["bubble_radius"] * 0.6)
+    base_radius = max(p["bubble_radius"], shade_wall * 0.8)
+
+    bubbles = []
+    for row in range(rows):
+        row_phase = row * p["bubble_wave_frequency"]
+        wave = 0.5 + 0.5 * math.sin(row_phase)
+        radius_scale = 1.0 - p["bubble_radius_variation"] * wave
+        bubble_radius = max(base_radius * radius_scale, shade_wall * 0.8)
+        row_offset = (row % 2) * p["bubble_offset_ratio"] * angle_step
+        z = z0 + row_step * (row + 0.5)
+        for col in range(columns):
+            angle = col * angle_step + row_offset + row * p["bubble_twist"]
+            angle_rad = math.radians(angle)
+            x = center_radius * math.cos(angle_rad)
+            y = center_radius * math.sin(angle_rad)
+            sphere = rs.AddSphere((x, y, z), bubble_radius)
+            if sphere:
+                bubbles.append(sphere)
+
+    return safe_boolean_diff(shade, bubbles)
+
+
 def apply_shade_pattern(
     shade,
     p,
@@ -644,6 +759,15 @@ def apply_shade_pattern(
     pattern = p.get("shade_pattern", "slots").lower()
     if not shade or pattern == "none":
         return shade
+    if pattern == "bubble":
+        return add_bubble_pattern(
+            shade,
+            p,
+            base_height,
+            sleeve_height,
+            shade_outer_radius,
+            shade_inner_radius,
+        )
     if pattern == "moire":
         return add_moire_pattern(
             shade,
