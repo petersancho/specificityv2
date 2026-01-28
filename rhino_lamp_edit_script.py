@@ -3,8 +3,8 @@
 # Units are assumed to be millimeters.
 #
 # This script builds:
-# - A base (cube, triangle prism, vase loft, or twisted faceted base)
-# - A parametric shade with lattice, slots, or a helical weave pattern
+# - A base (cube, triangle prism, vase loft, twisted, or spiral wave base)
+# - A parametric shade with slots, lattice, weave, or moire patterns
 # - A tolerance-fit sleeve so the shade attaches to the base
 # - A central port for lamp cord and LED bulb
 #
@@ -15,8 +15,8 @@ import rhinoscriptsyntax as rs
 
 
 PARAMS = {
-    # Base type: "cube", "triangle", "vase", or "twisted"
-    "base_type": "twisted",
+    # Base type: "cube", "triangle", "vase", "twisted", or "spiral"
+    "base_type": "spiral",
     "base_width": 80.0,
     "base_depth": 80.0,
     "base_height": 60.0,
@@ -32,6 +32,15 @@ PARAMS = {
     "twist_sides": 7,
     "twist_layers": 7,
     "twist_rotation": 90.0,
+    # Spiral wave base (smooth wave loft)
+    "spiral_height": 80.0,
+    "spiral_radius": 48.0,
+    "spiral_top_scale": 0.65,
+    "spiral_waves": 6,
+    "spiral_wave_amp": 0.18,
+    "spiral_layers": 10,
+    "spiral_twist": 160.0,
+    "spiral_points_per_wave": 12,
     # Base neck (attachment ring on top of the base)
     "neck_outer_radius": 24.0,
     "neck_height": 12.0,
@@ -41,7 +50,7 @@ PARAMS = {
     "shade_outer_radius": 58.0,
     "shade_wall": 2.4,
     "sleeve_height": 14.0,  # must be >= neck_height
-    "shade_pattern": "weave",  # "weave", "lattice", "slots", or "none"
+    "shade_pattern": "moire",  # "moire", "weave", "lattice", "slots", or "none"
     # Assembly tolerance (clearance) for the sleeve fit
     "tolerance": 0.4,
     # Slot pattern
@@ -66,6 +75,15 @@ PARAMS = {
     "weave_pipe_radius": 3.2,
     "weave_steps": 60,
     "weave_margin": 10.0,
+    # Moire pattern (multi-helix + ring bands)
+    "moire_strand_count": 10,
+    "moire_turns_primary": 1.35,
+    "moire_turns_secondary": 2.2,
+    "moire_pipe_radius": 2.6,
+    "moire_steps": 80,
+    "moire_rings": 6,
+    "moire_ring_radius": 2.1,
+    "moire_margin": 8.0,
     # Central port
     "cord_diameter": 7.0,
     "bulb_diameter": 28.0,
@@ -187,6 +205,53 @@ def add_twisted_base(height, radius, top_scale, sides, layers, rotation_degrees)
     return cap_if_possible(loft_id)
 
 
+def add_wave_curve(radius, waves, amplitude, points_per_wave, z, rotation_degrees):
+    waves = max(1, int(waves))
+    points_per_wave = max(6, int(points_per_wave))
+    total_points = waves * points_per_wave
+    rot = math.radians(rotation_degrees)
+    pts = []
+    for i in range(total_points):
+        angle = (2.0 * math.pi) * (float(i) / float(total_points))
+        wave = 1.0 + amplitude * math.sin(waves * angle)
+        r = radius * wave
+        x = r * math.cos(angle + rot)
+        y = r * math.sin(angle + rot)
+        pts.append((x, y, z))
+    pts.append(pts[0])
+    return rs.AddPolyline(pts)
+
+
+def add_spiral_base(
+    height,
+    radius,
+    top_scale,
+    waves,
+    amplitude,
+    layers,
+    twist_degrees,
+    points_per_wave,
+):
+    layers = max(2, int(layers))
+    curves = []
+    for i in range(layers + 1):
+        t = float(i) / float(layers)
+        z = height * t
+        r = radius * (1.0 - (1.0 - top_scale) * t)
+        amp = amplitude * (1.0 - 0.3 * t)
+        rot = twist_degrees * t
+        curve = add_wave_curve(r, waves, amp, points_per_wave, z, rot)
+        if curve:
+            curves.append(curve)
+    if not curves:
+        return None
+    loft = rs.AddLoftSrf(curves)
+    for curve in curves:
+        rs.DeleteObject(curve)
+    loft_id = to_single(loft)
+    return cap_if_possible(loft_id)
+
+
 def normalize_params(p):
     port_radius = max(p["cord_diameter"], p["bulb_diameter"]) / 2.0 + p["port_clearance"]
     min_neck_outer = port_radius + p["neck_wall_min"]
@@ -205,8 +270,15 @@ def normalize_params(p):
         p["sleeve_height"] = max_sleeve
     p["twist_sides"] = max(3, int(p.get("twist_sides", 6)))
     p["twist_layers"] = max(2, int(p.get("twist_layers", 6)))
+    p["spiral_waves"] = max(2, int(p.get("spiral_waves", 5)))
+    p["spiral_layers"] = max(3, int(p.get("spiral_layers", 8)))
+    p["spiral_points_per_wave"] = max(6, int(p.get("spiral_points_per_wave", 10)))
+    p["spiral_wave_amp"] = max(0.02, min(p.get("spiral_wave_amp", 0.15), 0.45))
     p["weave_strand_count"] = max(2, int(p.get("weave_strand_count", 6)))
     p["weave_steps"] = max(12, int(p.get("weave_steps", 48)))
+    p["moire_strand_count"] = max(3, int(p.get("moire_strand_count", 8)))
+    p["moire_steps"] = max(16, int(p.get("moire_steps", 64)))
+    p["moire_rings"] = max(0, int(p.get("moire_rings", 4)))
     return port_radius
 
 
@@ -237,6 +309,18 @@ def create_base(p, port_radius):
             p["twist_rotation"],
         )
         base_height = p["twist_height"]
+    elif base_type in ("spiral", "wave", "ripples"):
+        base_id = add_spiral_base(
+            p["spiral_height"],
+            p["spiral_radius"],
+            p["spiral_top_scale"],
+            p["spiral_waves"],
+            p["spiral_wave_amp"],
+            p["spiral_layers"],
+            p["spiral_twist"],
+            p["spiral_points_per_wave"],
+        )
+        base_height = p["spiral_height"]
     else:
         base_id = add_box_centered(p["base_width"], p["base_depth"], base_height, 0.0)
 
@@ -388,6 +472,32 @@ def build_helix_curve(radius, z0, z1, start_angle, turns, steps):
     return rs.AddPolyline(pts)
 
 
+def build_helix_pipes(
+    strands,
+    turns,
+    radius,
+    z0,
+    z1,
+    steps,
+    pipe_radius,
+    angle_offset,
+):
+    strands = max(1, int(strands))
+    angle_step = 360.0 / float(strands)
+    pipes = []
+    for i in range(strands):
+        start_angle = i * angle_step + angle_offset
+        curve = build_helix_curve(radius, z0, z1, start_angle, turns, steps)
+        if not curve:
+            continue
+        domain = rs.CurveDomain(curve)
+        pipe = to_single(rs.AddPipe(curve, [domain[0], domain[1]], [pipe_radius, pipe_radius], cap=1))
+        rs.DeleteObject(curve)
+        if pipe:
+            pipes.append(pipe)
+    return pipes
+
+
 def add_weave_pattern(
     shade,
     p,
@@ -416,29 +526,111 @@ def add_weave_pattern(
     angle_step = 360.0 / float(strands)
 
     pipes = []
-    for i in range(strands):
-        start_angle = i * angle_step
-        curve = build_helix_curve(pipe_center_radius, z0, z1, start_angle, turns, steps)
-        if not curve:
-            continue
-        domain = rs.CurveDomain(curve)
-        pipe = to_single(rs.AddPipe(curve, [domain[0], domain[1]], [pipe_radius, pipe_radius], cap=1))
-        rs.DeleteObject(curve)
-        if pipe:
-            pipes.append(pipe)
-
-    for i in range(strands):
-        start_angle = i * angle_step + angle_step * 0.5
-        curve = build_helix_curve(pipe_center_radius, z0, z1, start_angle, -turns, steps)
-        if not curve:
-            continue
-        domain = rs.CurveDomain(curve)
-        pipe = to_single(rs.AddPipe(curve, [domain[0], domain[1]], [pipe_radius, pipe_radius], cap=1))
-        rs.DeleteObject(curve)
-        if pipe:
-            pipes.append(pipe)
+    pipes.extend(
+        build_helix_pipes(
+            strands,
+            turns,
+            pipe_center_radius,
+            z0,
+            z1,
+            steps,
+            pipe_radius,
+            0.0,
+        )
+    )
+    pipes.extend(
+        build_helix_pipes(
+            strands,
+            -turns,
+            pipe_center_radius,
+            z0,
+            z1,
+            steps,
+            pipe_radius,
+            angle_step * 0.5,
+        )
+    )
 
     return safe_boolean_diff(shade, pipes)
+
+
+def add_moire_pattern(
+    shade,
+    p,
+    base_height,
+    sleeve_height,
+    shade_outer_radius,
+    shade_inner_radius,
+):
+    shade_wall = p["shade_wall"]
+    shade_height = p["shade_height"]
+    strands = int(p["moire_strand_count"])
+    if strands <= 0:
+        return shade
+
+    margin = p["moire_margin"]
+    z0 = base_height + sleeve_height + margin
+    z1 = base_height + shade_height - margin
+    if z1 - z0 <= shade_wall:
+        return shade
+
+    turns_primary = p["moire_turns_primary"]
+    turns_secondary = p["moire_turns_secondary"]
+    steps = max(12, int(p["moire_steps"]))
+    pipe_center_radius = max(0.5, shade_outer_radius - shade_wall * 0.5)
+    min_pipe_radius = shade_wall * 0.45 + 0.15
+    pipe_radius = max(p["moire_pipe_radius"], min_pipe_radius)
+    angle_step = 360.0 / float(strands)
+
+    cutters = []
+    cutters.extend(
+        build_helix_pipes(
+            strands,
+            turns_primary,
+            pipe_center_radius,
+            z0,
+            z1,
+            steps,
+            pipe_radius,
+            0.0,
+        )
+    )
+    cutters.extend(
+        build_helix_pipes(
+            strands,
+            -turns_primary,
+            pipe_center_radius,
+            z0,
+            z1,
+            steps,
+            pipe_radius,
+            angle_step * 0.5,
+        )
+    )
+    cutters.extend(
+        build_helix_pipes(
+            strands,
+            turns_secondary,
+            pipe_center_radius,
+            z0,
+            z1,
+            steps,
+            pipe_radius * 0.75,
+            angle_step * 0.25,
+        )
+    )
+
+    ring_count = int(p["moire_rings"])
+    if ring_count > 0:
+        ring_radius = max(0.6, p["moire_ring_radius"])
+        step = (z1 - z0) / float(ring_count + 1)
+        for i in range(ring_count):
+            z = z0 + step * (i + 1)
+            torus = rs.AddTorus((0.0, 0.0, z), pipe_center_radius, ring_radius)
+            if torus:
+                cutters.append(torus)
+
+    return safe_boolean_diff(shade, cutters)
 
 
 def apply_shade_pattern(
@@ -452,6 +644,15 @@ def apply_shade_pattern(
     pattern = p.get("shade_pattern", "slots").lower()
     if not shade or pattern == "none":
         return shade
+    if pattern == "moire":
+        return add_moire_pattern(
+            shade,
+            p,
+            base_height,
+            sleeve_height,
+            shade_outer_radius,
+            shade_inner_radius,
+        )
     if pattern == "weave":
         return add_weave_pattern(
             shade,
