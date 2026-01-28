@@ -3,8 +3,8 @@
 # Units are assumed to be millimeters.
 #
 # This script builds:
-# - A base (cube, triangle prism, or vase-like loft)
-# - A parametric shade with a lattice or slot pattern
+# - A base (cube, triangle prism, vase loft, or twisted faceted base)
+# - A parametric shade with lattice, slots, or a helical weave pattern
 # - A tolerance-fit sleeve so the shade attaches to the base
 # - A central port for lamp cord and LED bulb
 #
@@ -15,8 +15,8 @@ import rhinoscriptsyntax as rs
 
 
 PARAMS = {
-    # Base type: "cube", "triangle", or "vase"
-    "base_type": "cube",
+    # Base type: "cube", "triangle", "vase", or "twisted"
+    "base_type": "twisted",
     "base_width": 80.0,
     "base_depth": 80.0,
     "base_height": 60.0,
@@ -25,6 +25,13 @@ PARAMS = {
     "vase_base_radius": 42.0,
     "vase_mid_radius": 55.0,
     "vase_neck_radius": 34.0,
+    # Twisted base (faceted loft)
+    "twist_height": 70.0,
+    "twist_radius": 46.0,
+    "twist_top_scale": 0.7,
+    "twist_sides": 7,
+    "twist_layers": 7,
+    "twist_rotation": 90.0,
     # Base neck (attachment ring on top of the base)
     "neck_outer_radius": 24.0,
     "neck_height": 12.0,
@@ -34,7 +41,7 @@ PARAMS = {
     "shade_outer_radius": 58.0,
     "shade_wall": 2.4,
     "sleeve_height": 14.0,  # must be >= neck_height
-    "shade_pattern": "lattice",  # "lattice", "slots", or "none"
+    "shade_pattern": "weave",  # "weave", "lattice", "slots", or "none"
     # Assembly tolerance (clearance) for the sleeve fit
     "tolerance": 0.4,
     # Slot pattern
@@ -53,6 +60,12 @@ PARAMS = {
     "lattice_margin": 12.0,
     "lattice_offset_ratio": 0.5,
     "lattice_twist_degrees": 8.0,
+    # Helical weave pattern
+    "weave_strand_count": 7,
+    "weave_turns": 1.25,
+    "weave_pipe_radius": 3.2,
+    "weave_steps": 60,
+    "weave_margin": 10.0,
     # Central port
     "cord_diameter": 7.0,
     "bulb_diameter": 28.0,
@@ -144,6 +157,36 @@ def add_vase(height, base_radius, mid_radius, neck_radius):
     return cap_if_possible(loft_id)
 
 
+def add_polygon_curve(radius, sides, z, rotation_degrees):
+    sides = max(3, int(sides))
+    pts = []
+    for i in range(sides):
+        angle = math.radians(rotation_degrees + i * (360.0 / sides))
+        pts.append((radius * math.cos(angle), radius * math.sin(angle), z))
+    pts.append(pts[0])
+    return rs.AddPolyline(pts)
+
+
+def add_twisted_base(height, radius, top_scale, sides, layers, rotation_degrees):
+    layers = max(2, int(layers))
+    curves = []
+    for i in range(layers + 1):
+        t = float(i) / float(layers)
+        z = height * t
+        r = radius * (1.0 - (1.0 - top_scale) * t)
+        rot = rotation_degrees * t
+        curve = add_polygon_curve(r, sides, z, rot)
+        if curve:
+            curves.append(curve)
+    if not curves:
+        return None
+    loft = rs.AddLoftSrf(curves)
+    for curve in curves:
+        rs.DeleteObject(curve)
+    loft_id = to_single(loft)
+    return cap_if_possible(loft_id)
+
+
 def normalize_params(p):
     port_radius = max(p["cord_diameter"], p["bulb_diameter"]) / 2.0 + p["port_clearance"]
     min_neck_outer = port_radius + p["neck_wall_min"]
@@ -160,6 +203,10 @@ def normalize_params(p):
     max_sleeve = p["shade_height"] - p["shade_wall"] * 2.0
     if p["sleeve_height"] > max_sleeve:
         p["sleeve_height"] = max_sleeve
+    p["twist_sides"] = max(3, int(p.get("twist_sides", 6)))
+    p["twist_layers"] = max(2, int(p.get("twist_layers", 6)))
+    p["weave_strand_count"] = max(2, int(p.get("weave_strand_count", 6)))
+    p["weave_steps"] = max(12, int(p.get("weave_steps", 48)))
     return port_radius
 
 
@@ -180,6 +227,16 @@ def create_base(p, port_radius):
             p["vase_neck_radius"],
         )
         base_height = p["vase_height"]
+    elif base_type in ("twisted", "twist", "faceted"):
+        base_id = add_twisted_base(
+            p["twist_height"],
+            p["twist_radius"],
+            p["twist_top_scale"],
+            p["twist_sides"],
+            p["twist_layers"],
+            p["twist_rotation"],
+        )
+        base_height = p["twist_height"]
     else:
         base_id = add_box_centered(p["base_width"], p["base_depth"], base_height, 0.0)
 
@@ -318,6 +375,72 @@ def add_lattice_pattern(
     return safe_boolean_diff(shade, slots)
 
 
+def build_helix_curve(radius, z0, z1, start_angle, turns, steps):
+    steps = max(8, int(steps))
+    pts = []
+    for i in range(steps + 1):
+        t = float(i) / float(steps)
+        angle = math.radians(start_angle + turns * 360.0 * t)
+        x = radius * math.cos(angle)
+        y = radius * math.sin(angle)
+        z = z0 + (z1 - z0) * t
+        pts.append((x, y, z))
+    return rs.AddPolyline(pts)
+
+
+def add_weave_pattern(
+    shade,
+    p,
+    base_height,
+    sleeve_height,
+    shade_outer_radius,
+    shade_inner_radius,
+):
+    shade_wall = p["shade_wall"]
+    shade_height = p["shade_height"]
+    strands = int(p["weave_strand_count"])
+    if strands <= 0:
+        return shade
+
+    margin = p["weave_margin"]
+    z0 = base_height + sleeve_height + margin
+    z1 = base_height + shade_height - margin
+    if z1 - z0 <= shade_wall:
+        return shade
+
+    turns = p["weave_turns"]
+    steps = max(8, int(p["weave_steps"]))
+    pipe_center_radius = max(0.5, shade_outer_radius - shade_wall * 0.5)
+    min_pipe_radius = shade_wall * 0.5 + 0.2
+    pipe_radius = max(p["weave_pipe_radius"], min_pipe_radius)
+    angle_step = 360.0 / float(strands)
+
+    pipes = []
+    for i in range(strands):
+        start_angle = i * angle_step
+        curve = build_helix_curve(pipe_center_radius, z0, z1, start_angle, turns, steps)
+        if not curve:
+            continue
+        domain = rs.CurveDomain(curve)
+        pipe = to_single(rs.AddPipe(curve, [domain[0], domain[1]], [pipe_radius, pipe_radius], cap=1))
+        rs.DeleteObject(curve)
+        if pipe:
+            pipes.append(pipe)
+
+    for i in range(strands):
+        start_angle = i * angle_step + angle_step * 0.5
+        curve = build_helix_curve(pipe_center_radius, z0, z1, start_angle, -turns, steps)
+        if not curve:
+            continue
+        domain = rs.CurveDomain(curve)
+        pipe = to_single(rs.AddPipe(curve, [domain[0], domain[1]], [pipe_radius, pipe_radius], cap=1))
+        rs.DeleteObject(curve)
+        if pipe:
+            pipes.append(pipe)
+
+    return safe_boolean_diff(shade, pipes)
+
+
 def apply_shade_pattern(
     shade,
     p,
@@ -329,6 +452,15 @@ def apply_shade_pattern(
     pattern = p.get("shade_pattern", "slots").lower()
     if not shade or pattern == "none":
         return shade
+    if pattern == "weave":
+        return add_weave_pattern(
+            shade,
+            p,
+            base_height,
+            sleeve_height,
+            shade_outer_radius,
+            shade_inner_radius,
+        )
     if pattern == "lattice":
         return add_lattice_pattern(
             shade,
