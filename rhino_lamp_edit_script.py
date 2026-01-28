@@ -4,7 +4,7 @@
 #
 # This script builds:
 # - A base (cube, triangle prism, vase loft, twisted, spiral, or ripple base)
-# - A lofted shade subdivided and blobtruded along normals
+# - A lofted shade subdivided with soft wavy diagonal scratches
 # - A tolerance-fit sleeve so the shade attaches to the base
 # - A central port for lamp cord and LED bulb
 #
@@ -60,7 +60,7 @@ PARAMS = {
     "shade_outer_radius": 52.0,
     "shade_wall": 2.6,
     "sleeve_height": 16.0,  # must be >= neck_height
-    "shade_pattern": "blobtrude",  # "blobtrude", "manglutified", "moire", "weave", "lattice", "slots", or "none"
+    "shade_pattern": "vector",  # "vector", "blobtrude", "manglutified", "moire", "weave", "lattice", "slots", or "none"
     # Lofted shade profile
     "shade_loft_bottom_sides": 3,
     "shade_loft_top_sides": 24,
@@ -119,6 +119,23 @@ PARAMS = {
     "blob_mangle": 0.45,
     "blob_jitter": 1.2,
     "blob_wave_frequency": 1.7,
+    # Vector scratch pattern (subdivided UV grid + wavy diagonal scratches)
+    "vector_rows": 10,
+    "vector_columns": 22,
+    "vector_subdivisions": 2,
+    "vector_scratches_per_cell": 2,
+    "vector_length": 18.0,
+    "vector_radius": 1.2,
+    "vector_spacing": 2.2,
+    "vector_margin": 10.0,
+    "vector_angle": 35.0,
+    "vector_secondary_angle": -35.0,
+    "vector_cross_ratio": 0.6,
+    "vector_wave_amplitude": 10.0,
+    "vector_wave_frequency": 1.6,
+    "vector_jitter": 0.9,
+    "vector_relief": 0.6,
+    "vector_mangle": 0.4,
     # Central port
     "cord_diameter": 7.0,
     "bulb_diameter": 30.0,
@@ -371,6 +388,20 @@ def normalize_params(p):
     p["blob_radius_variation"] = max(0.0, min(p.get("blob_radius_variation", 0.25), 0.8))
     p["blob_mangle"] = max(0.0, min(p.get("blob_mangle", 0.3), 1.0))
     p["blob_jitter"] = max(0.0, p.get("blob_jitter", 0.8))
+    p["vector_rows"] = max(1, int(p.get("vector_rows", 8)))
+    p["vector_columns"] = max(6, int(p.get("vector_columns", 18)))
+    p["vector_subdivisions"] = max(1, int(p.get("vector_subdivisions", 1)))
+    p["vector_scratches_per_cell"] = max(1, int(p.get("vector_scratches_per_cell", 1)))
+    p["vector_length"] = max(4.0, p.get("vector_length", 12.0))
+    p["vector_radius"] = max(0.4, p.get("vector_radius", 1.0))
+    p["vector_spacing"] = max(0.4, p.get("vector_spacing", 1.5))
+    p["vector_margin"] = max(0.0, p.get("vector_margin", 8.0))
+    p["vector_cross_ratio"] = clamp_range(p.get("vector_cross_ratio", 0.5), 0.0, 1.0)
+    p["vector_wave_amplitude"] = max(0.0, p.get("vector_wave_amplitude", 8.0))
+    p["vector_wave_frequency"] = max(0.1, p.get("vector_wave_frequency", 1.0))
+    p["vector_jitter"] = max(0.0, p.get("vector_jitter", 0.6))
+    p["vector_relief"] = max(0.0, p.get("vector_relief", 0.4))
+    p["vector_mangle"] = max(0.0, min(p.get("vector_mangle", 0.3), 1.0))
     return port_radius
 
 
@@ -924,6 +955,120 @@ def add_blobtrude_pattern(
     return safe_boolean_diff(shade, blobs)
 
 
+def add_vector_pattern(
+    shade,
+    p,
+    pattern_surface,
+    base_height,
+    sleeve_height,
+):
+    if not shade or not pattern_surface:
+        return shade
+
+    rows = int(p["vector_rows"]) * int(p["vector_subdivisions"])
+    columns = int(p["vector_columns"]) * int(p["vector_subdivisions"])
+    if rows <= 0 or columns <= 0:
+        return shade
+
+    dom_u = rs.SurfaceDomain(pattern_surface, 0)
+    dom_v = rs.SurfaceDomain(pattern_surface, 1)
+    if not dom_u or not dom_v:
+        return shade
+
+    u_range = dom_u[1] - dom_u[0]
+    v_range = dom_v[1] - dom_v[0]
+    if u_range <= 0.0 or v_range <= 0.0:
+        return shade
+
+    margin = p["vector_margin"]
+    scratches_per = int(p["vector_scratches_per_cell"])
+    length_base = p["vector_length"]
+    radius = p["vector_radius"]
+    spacing = p["vector_spacing"]
+    angle_primary = p["vector_angle"]
+    angle_secondary = p["vector_secondary_angle"]
+    cross_ratio = p["vector_cross_ratio"]
+    wave_amp = p["vector_wave_amplitude"]
+    wave_freq = p["vector_wave_frequency"]
+    jitter = p["vector_jitter"]
+    relief = min(p["vector_relief"], radius * 0.9)
+    mangle = p["vector_mangle"]
+
+    cutters = []
+    for row in range(rows):
+        v = dom_v[0] + v_range * (row + 0.5) / float(rows)
+        for col in range(columns):
+            u = dom_u[0] + u_range * (col + 0.5) / float(columns)
+            pt = rs.EvaluateSurface(pattern_surface, u, v)
+            if not pt:
+                continue
+            if pt[2] < base_height + sleeve_height + margin:
+                continue
+            if pt[2] > base_height + p["shade_height"] - margin:
+                continue
+
+            tangent_u = rs.SurfaceTangent(pattern_surface, (u, v), 0)
+            tangent_v = rs.SurfaceTangent(pattern_surface, (u, v), 1)
+            if not tangent_u or not tangent_v:
+                continue
+            tangent_u = rs.VectorUnitize(tangent_u)
+            tangent_v = rs.VectorUnitize(tangent_v)
+            if not tangent_u or not tangent_v:
+                continue
+
+            wave = math.sin((row * 0.7 + col * 0.4) * wave_freq)
+            angle_offset = wave * wave_amp + math.sin((row + col) * 0.3) * (mangle * 12.0)
+            length = length_base * (0.65 + 0.35 * math.cos((row + col) * 0.4))
+
+            mix_value = 0.5 + 0.5 * math.sin((row * 1.1 + col * 0.9) * 0.6)
+            angles = [angle_primary + angle_offset]
+            if mix_value < cross_ratio:
+                angles.append(angle_secondary - angle_offset * 0.8)
+
+            normal = rs.SurfaceNormal(pattern_surface, (u, v))
+            normal = rs.VectorUnitize(normal)
+            center = pt
+            if normal:
+                center = rs.PointAdd(center, rs.VectorScale(normal, relief))
+
+            radial = rs.VectorUnitize((pt[0], pt[1], 0.0))
+            if radial:
+                center = rs.PointAdd(center, rs.VectorScale(radial, jitter * wave))
+
+            for angle_deg in angles:
+                angle_rad = math.radians(angle_deg)
+                direction = rs.VectorAdd(
+                    rs.VectorScale(tangent_u, math.cos(angle_rad)),
+                    rs.VectorScale(tangent_v, math.sin(angle_rad)),
+                )
+                direction = rs.VectorUnitize(direction)
+                if not direction:
+                    continue
+                perp = rs.VectorAdd(
+                    rs.VectorScale(tangent_u, -math.sin(angle_rad)),
+                    rs.VectorScale(tangent_v, math.cos(angle_rad)),
+                )
+                perp = rs.VectorUnitize(perp)
+                if not perp:
+                    continue
+
+                for s in range(scratches_per):
+                    offset = (s - (scratches_per - 1) * 0.5) * spacing
+                    scratch_center = rs.PointAdd(center, rs.VectorScale(perp, offset))
+                    start = rs.PointAdd(scratch_center, rs.VectorScale(direction, -length * 0.5))
+                    end = rs.PointAdd(scratch_center, rs.VectorScale(direction, length * 0.5))
+                    line = rs.AddLine(start, end)
+                    if not line:
+                        continue
+                    domain = rs.CurveDomain(line)
+                    pipe = to_single(rs.AddPipe(line, [domain[0], domain[1]], [radius, radius], cap=1))
+                    rs.DeleteObject(line)
+                    if pipe:
+                        cutters.append(pipe)
+
+    return safe_boolean_diff(shade, cutters)
+
+
 def apply_shade_pattern(
     shade,
     p,
@@ -936,6 +1081,14 @@ def apply_shade_pattern(
     pattern = p.get("shade_pattern", "slots").lower()
     if not shade or pattern == "none":
         return shade
+    if pattern in ("vector", "scratch", "scratches", "diagonal"):
+        return add_vector_pattern(
+            shade,
+            p,
+            pattern_surface,
+            base_height,
+            sleeve_height,
+        )
     if pattern in ("blobtrude", "manglutified", "mangle", "blob"):
         return add_blobtrude_pattern(
             shade,
