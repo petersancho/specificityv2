@@ -31,7 +31,7 @@ type ShaderHandles = {
 };
 
 const VERTEX_STRIDE = 8;
-const ATLAS_ICON_SIZE = 128;
+const ATLAS_ICON_SIZE = 224;
 
 const ICON_IDS = [
   "point",
@@ -101,6 +101,9 @@ const ICON_IDS = [
   "remap",
   "random",
   "repeat",
+  "arrayLinear",
+  "arrayPolar",
+  "arrayGrid",
   "sineWave",
   "cosineWave",
   "sawtoothWave",
@@ -130,6 +133,8 @@ const ICON_IDS = [
   "surface",
   "loft",
   "extrude",
+  "boolean",
+  "offset",
   "specificitySymbol",
   "selectionFilter",
   "displayMode",
@@ -180,10 +185,15 @@ const rgb = (r: number, g: number, b: number, a = 1): RGBA => [
 ];
 
 const DEFAULT_ICON_STYLE: IconRenderStyle = "glyph";
-const DEFAULT_GLYPH_TINT: RGBA = rgb(31, 31, 34, 0.95);
+const DEFAULT_GLYPH_TINT: RGBA = rgb(54, 62, 78, 0.95);
 let activeIconStyle: IconRenderStyle = DEFAULT_ICON_STYLE;
 
 const isGlyphStyle = () => activeIconStyle === "glyph";
+
+const clampStrokeWidth = (width: number, min = 1) => {
+  const rounded = Math.round(width);
+  return Math.max(min, rounded);
+};
 
 const createShader = (
   gl: WebGLRenderingContext,
@@ -283,7 +293,7 @@ const strokeOutline = (
   color = "rgba(18, 16, 12, 0.85)"
 ) => {
   ctx.strokeStyle = color;
-  ctx.lineWidth = 6;
+  ctx.lineWidth = clampStrokeWidth(6, 2);
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
   ctx.stroke();
@@ -307,9 +317,10 @@ const setGlyphStroke = (
   weight = 0.1,
   alpha = 1
 ) => {
-  ctx.lineWidth = Math.max(2, size * weight);
+  ctx.lineWidth = clampStrokeWidth(size * weight, 2);
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
+  ctx.miterLimit = 2.4;
   ctx.strokeStyle = glyphColor(alpha);
 };
 
@@ -328,6 +339,11 @@ const drawGlyphDot = (
   ctx.beginPath();
   ctx.arc(x, y, radius, 0, Math.PI * 2);
   ctx.fill();
+  ctx.save();
+  ctx.lineWidth = clampStrokeWidth(radius * 0.45, 1);
+  ctx.strokeStyle = glyphColor(alpha * 0.55);
+  ctx.stroke();
+  ctx.restore();
 };
 
 const drawGlyphArrow = (
@@ -363,6 +379,11 @@ const drawGlyphArrow = (
   ctx.lineTo(hx - nx * wing, hy - ny * wing);
   ctx.closePath();
   ctx.fill();
+  ctx.save();
+  ctx.lineWidth = clampStrokeWidth(size * 0.03, 1);
+  ctx.strokeStyle = glyphColor(alpha * 0.55);
+  ctx.stroke();
+  ctx.restore();
 };
 
 const drawGlyphArrowHead = (
@@ -387,6 +408,11 @@ const drawGlyphArrowHead = (
   ctx.lineTo(hx - nx * wing, hy - ny * wing);
   ctx.closePath();
   ctx.fill();
+  ctx.save();
+  ctx.lineWidth = clampStrokeWidth(size * 0.03, 1);
+  ctx.strokeStyle = glyphColor(alpha * 0.55);
+  ctx.stroke();
+  ctx.restore();
 };
 
 const drawGlyphArcArrow = (
@@ -452,32 +478,61 @@ const drawIsoCubeOutline = (
 
 const drawPointIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
   const cx = x + size * 0.5;
-  const cy = y + size * 0.5;
-  const len = size * 0.26;
+  const cy = y + size * 0.52;
+  const len = size * 0.3;
+  const ring = size * 0.18;
 
-  setGlyphStroke(ctx, size, 0.1, 0.9);
+  strokeDualPath(ctx, size * 0.075, size * 0.045, () => {
+    ctx.beginPath();
+    ctx.moveTo(cx - len, cy);
+    ctx.lineTo(cx + len, cy);
+    ctx.moveTo(cx, cy - len);
+    ctx.lineTo(cx, cy + len);
+  });
+
+  strokeDualPath(ctx, size * 0.07, size * 0.042, () => {
+    ctx.beginPath();
+    ctx.arc(cx, cy, ring, 0, Math.PI * 2);
+  });
+
+  setGlyphStroke(ctx, size, 0.05, 0.5);
+  const tick = size * 0.12;
   ctx.beginPath();
-  ctx.moveTo(cx - len, cy);
-  ctx.lineTo(cx + len, cy);
-  ctx.moveTo(cx, cy - len);
-  ctx.lineTo(cx, cy + len);
+  ctx.moveTo(cx - tick, cy - tick);
+  ctx.lineTo(cx - tick * 0.55, cy - tick);
+  ctx.moveTo(cx + tick, cy + tick);
+  ctx.lineTo(cx + tick * 0.55, cy + tick);
+  ctx.moveTo(cx - tick, cy + tick);
+  ctx.lineTo(cx - tick * 0.55, cy + tick);
+  ctx.moveTo(cx + tick, cy - tick);
+  ctx.lineTo(cx + tick * 0.55, cy - tick);
   ctx.stroke();
 
-  drawGlyphDot(ctx, cx, cy, size * 0.095, 1);
+  drawGlyphDot(ctx, cx, cy, size * 0.1, 1);
 };
 
 const drawLineIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
   const start = { x: x + size * 0.18, y: y + size * 0.74 };
   const end = { x: x + size * 0.82, y: y + size * 0.26 };
 
-  setGlyphStroke(ctx, size, 0.1, 0.92);
-  ctx.beginPath();
-  ctx.moveTo(start.x, start.y);
-  ctx.lineTo(end.x, end.y);
-  ctx.stroke();
+  strokeDualPath(ctx, size * 0.075, size * 0.045, () => {
+    ctx.beginPath();
+    ctx.moveTo(start.x, start.y);
+    ctx.lineTo(end.x, end.y);
+  });
 
-  drawGlyphDot(ctx, start.x, start.y, size * 0.085, 1);
-  drawGlyphDot(ctx, end.x, end.y, size * 0.085, 1);
+  drawGlyphDot(ctx, start.x, start.y, size * 0.09, 1);
+  drawGlyphDot(ctx, end.x, end.y, size * 0.09, 1);
+
+  const midX = (start.x + end.x) * 0.5;
+  const midY = (start.y + end.y) * 0.5;
+  const nx = (end.y - start.y) * 0.12;
+  const ny = (start.x - end.x) * 0.12;
+  setGlyphStroke(ctx, size, 0.05, 0.55);
+  ctx.beginPath();
+  ctx.moveTo(midX - nx, midY - ny);
+  ctx.lineTo(midX + nx, midY + ny);
+  ctx.stroke();
 };
 
 const drawPolylineIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
@@ -488,16 +543,25 @@ const drawPolylineIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, s
     { x: x + size * 0.86, y: y + size * 0.26 },
   ];
 
-  setGlyphStroke(ctx, size, 0.095, 0.92);
-  ctx.beginPath();
-  ctx.moveTo(pts[0].x, pts[0].y);
-  for (let i = 1; i < pts.length; i += 1) {
-    ctx.lineTo(pts[i].x, pts[i].y);
-  }
-  ctx.stroke();
+  strokeDualPath(ctx, size * 0.07, size * 0.042, () => {
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i += 1) {
+      ctx.lineTo(pts[i].x, pts[i].y);
+    }
+  });
 
-  pts.forEach((pt) => {
-    drawGlyphDot(ctx, pt.x, pt.y, size * 0.075, 1);
+  ctx.save();
+  ctx.setLineDash([size * 0.06, size * 0.05]);
+  setGlyphStroke(ctx, size, 0.05, 0.45);
+  ctx.beginPath();
+  ctx.moveTo(pts[1].x, pts[1].y);
+  ctx.lineTo(pts[2].x, pts[2].y);
+  ctx.stroke();
+  ctx.restore();
+
+  pts.forEach((pt, index) => {
+    drawGlyphDot(ctx, pt.x, pt.y, size * (index === 0 || index === 3 ? 0.08 : 0.07), 1);
   });
 };
 
@@ -507,14 +571,22 @@ const drawRectangleIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, 
   const rw = size * 0.68;
   const rh = size * 0.52;
 
-  roundedRectPath(ctx, rx, ry, rw, rh, size * 0.08);
-  setGlyphStroke(ctx, size, 0.095, 0.92);
-  ctx.stroke();
+  strokeDualPath(ctx, size * 0.075, size * 0.045, () => {
+    roundedRectPath(ctx, rx, ry, rw, rh, size * 0.08);
+  });
 
-  drawGlyphDot(ctx, rx, ry, size * 0.055, 0.9);
-  drawGlyphDot(ctx, rx + rw, ry, size * 0.055, 0.9);
-  drawGlyphDot(ctx, rx + rw, ry + rh, size * 0.055, 0.9);
-  drawGlyphDot(ctx, rx, ry + rh, size * 0.055, 0.9);
+  const diagStart = { x: rx + rw * 0.2, y: ry + rh * 0.8 };
+  const diagEnd = { x: rx + rw * 0.8, y: ry + rh * 0.2 };
+  strokeDualPath(ctx, size * 0.055, size * 0.032, () => {
+    ctx.beginPath();
+    ctx.moveTo(diagStart.x, diagStart.y);
+    ctx.lineTo(diagEnd.x, diagEnd.y);
+  }, { outerColor: "rgba(0,0,0,0.35)", innerColor: "rgba(255,255,255,0.7)" });
+
+  drawGlyphDot(ctx, rx, ry, size * 0.06, 0.95);
+  drawGlyphDot(ctx, rx + rw, ry, size * 0.06, 0.95);
+  drawGlyphDot(ctx, rx + rw, ry + rh, size * 0.06, 0.95);
+  drawGlyphDot(ctx, rx, ry + rh, size * 0.06, 0.95);
 };
 
 const drawCircleIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
@@ -522,17 +594,25 @@ const drawCircleIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, siz
   const cy = y + size * 0.5;
   const r = size * 0.33;
 
-  setGlyphStroke(ctx, size, 0.095, 0.92);
+  strokeDualPath(ctx, size * 0.075, size * 0.045, () => {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  });
+
+  strokeDualPath(ctx, size * 0.055, size * 0.032, () => {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.64, Math.PI * 0.1, Math.PI * 0.9);
+  }, { outerColor: "rgba(0,0,0,0.35)", innerColor: "rgba(255,255,255,0.7)" });
+
+  const radiusLineEnd = { x: cx + r * 0.85, y: cy - r * 0.25 };
+  setGlyphStroke(ctx, size, 0.055, 0.65);
   ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(radiusLineEnd.x, radiusLineEnd.y);
   ctx.stroke();
 
-  setGlyphStroke(ctx, size, 0.06, 0.55);
-  ctx.beginPath();
-  ctx.arc(cx, cy, r * 0.6, Math.PI * 0.1, Math.PI * 0.9);
-  ctx.stroke();
-
-  drawGlyphDot(ctx, cx + r * 0.72, cy - r * 0.3, size * 0.055, 0.95);
+  drawGlyphDot(ctx, cx, cy, size * 0.055, 0.9);
+  drawGlyphDot(ctx, radiusLineEnd.x, radiusLineEnd.y, size * 0.055, 0.95);
 };
 
 const drawArcIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
@@ -556,14 +636,22 @@ const drawArcIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: 
     y: cy + Math.sin(midAngle) * r,
   };
 
-  setGlyphStroke(ctx, size, 0.095, 0.92);
+  strokeDualPath(ctx, size * 0.075, size * 0.045, () => {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, startAngle, endAngle, false);
+  });
+
+  const chordStart = { x: start.x + (mid.x - start.x) * 0.2, y: start.y + (mid.y - start.y) * 0.2 };
+  const chordEnd = { x: end.x + (mid.x - end.x) * 0.2, y: end.y + (mid.y - end.y) * 0.2 };
+  setGlyphStroke(ctx, size, 0.045, 0.5);
   ctx.beginPath();
-  ctx.arc(cx, cy, r, startAngle, endAngle, false);
+  ctx.moveTo(chordStart.x, chordStart.y);
+  ctx.lineTo(chordEnd.x, chordEnd.y);
   ctx.stroke();
 
-  drawGlyphDot(ctx, start.x, start.y, size * 0.075, 0.95);
-  drawGlyphDot(ctx, end.x, end.y, size * 0.075, 0.95);
-  drawGlyphDot(ctx, mid.x, mid.y, size * 0.06, 0.7);
+  drawGlyphDot(ctx, start.x, start.y, size * 0.075, 0.98);
+  drawGlyphDot(ctx, end.x, end.y, size * 0.075, 0.98);
+  drawGlyphDot(ctx, mid.x, mid.y, size * 0.06, 0.75);
 };
 
 const drawCube = (
@@ -615,6 +703,15 @@ const drawBoxIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: 
   const cx = x + size * 0.52;
   const cy = y + size * 0.56;
   drawIsoCubeOutline(ctx, cx, cy, size);
+
+  const edgeLen = size * 0.22;
+  setGlyphStroke(ctx, size, 0.055, 0.6);
+  ctx.beginPath();
+  ctx.moveTo(cx - edgeLen * 0.8, cy + edgeLen * 0.9);
+  ctx.lineTo(cx + edgeLen * 0.1, cy + edgeLen * 0.9);
+  ctx.moveTo(cx + edgeLen * 0.9, cy - edgeLen * 0.35);
+  ctx.lineTo(cx + edgeLen * 0.9, cy + edgeLen * 0.45);
+  ctx.stroke();
 };
 
 const drawSphereIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
@@ -622,15 +719,15 @@ const drawSphereIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, siz
   const cy = y + size * 0.52;
   const r = size * 0.33;
 
-  setGlyphStroke(ctx, size, 0.095, 0.95);
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.stroke();
+  strokeDualPath(ctx, size * 0.075, size * 0.045, () => {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  });
 
-  setGlyphStroke(ctx, size, 0.06, 0.55);
+  setGlyphStroke(ctx, size, 0.05, 0.55);
   ctx.save();
   ctx.translate(cx, cy);
-  ctx.scale(0.6, 1);
+  ctx.scale(0.62, 1);
   ctx.beginPath();
   ctx.arc(0, 0, r, 0, Math.PI * 2);
   ctx.restore();
@@ -638,7 +735,15 @@ const drawSphereIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, siz
 
   ctx.save();
   ctx.translate(cx, cy);
-  ctx.scale(1, 0.6);
+  ctx.scale(1, 0.62);
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.restore();
+  ctx.stroke();
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(0.85, 0.42);
   ctx.beginPath();
   ctx.arc(0, 0, r, 0, Math.PI * 2);
   ctx.restore();
@@ -669,7 +774,16 @@ const drawPrimitiveIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, 
   const cx = x + size * 0.5;
   const cy = y + size * 0.55;
   drawIsoCubeOutline(ctx, cx - size * 0.08, cy + size * 0.02, size * 0.9);
-  drawGlyphDot(ctx, x + size * 0.74, y + size * 0.26, size * 0.07, 0.95);
+
+  const sparkle = { x: x + size * 0.76, y: y + size * 0.26 };
+  setGlyphStroke(ctx, size, 0.05, 0.65);
+  ctx.beginPath();
+  ctx.moveTo(sparkle.x - size * 0.06, sparkle.y);
+  ctx.lineTo(sparkle.x + size * 0.06, sparkle.y);
+  ctx.moveTo(sparkle.x, sparkle.y - size * 0.06);
+  ctx.lineTo(sparkle.x, sparkle.y + size * 0.06);
+  ctx.stroke();
+  drawGlyphDot(ctx, sparkle.x, sparkle.y, size * 0.065, 0.95);
 };
 
 const drawCurvedArrow = (
@@ -682,7 +796,7 @@ const drawCurvedArrow = (
   color: string,
   headAngle: number
 ) => {
-  ctx.lineWidth = 12;
+  ctx.lineWidth = clampStrokeWidth(radius * 0.32, 2);
   ctx.strokeStyle = color;
   ctx.beginPath();
   ctx.arc(cx, cy, radius, startAngle, endAngle);
@@ -690,18 +804,20 @@ const drawCurvedArrow = (
 
   const ex = cx + Math.cos(endAngle) * radius;
   const ey = cy + Math.sin(endAngle) * radius;
-  const hx = ex - Math.cos(endAngle) * 18;
-  const hy = ey - Math.sin(endAngle) * 18;
+  const head = Math.max(10, radius * 0.55);
+  const wing = head * 0.55;
+  const hx = ex - Math.cos(endAngle) * head;
+  const hy = ey - Math.sin(endAngle) * head;
 
   ctx.beginPath();
   ctx.moveTo(ex, ey);
   ctx.lineTo(
-    hx + Math.cos(endAngle + headAngle) * 14,
-    hy + Math.sin(endAngle + headAngle) * 14
+    hx + Math.cos(endAngle + headAngle) * wing,
+    hy + Math.sin(endAngle + headAngle) * wing
   );
   ctx.lineTo(
-    hx + Math.cos(endAngle - headAngle) * 14,
-    hy + Math.sin(endAngle - headAngle) * 14
+    hx + Math.cos(endAngle - headAngle) * wing,
+    hy + Math.sin(endAngle - headAngle) * wing
   );
   ctx.closePath();
   fillAndOutline(ctx, color, "rgba(0,0,0,0.55)");
@@ -710,13 +826,23 @@ const drawCurvedArrow = (
 const drawUndoIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
   const cx = x + size * 0.54;
   const cy = y + size * 0.56;
-  drawGlyphArcArrow(ctx, cx, cy, size * 0.28, Math.PI * 0.25, Math.PI * 1.35, size, 0.9);
+  const r = size * 0.3;
+  strokeDualPath(ctx, size * 0.075, size * 0.045, () => {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, Math.PI * 0.2, Math.PI * 1.25);
+  });
+  drawGlyphArcArrow(ctx, cx, cy, r, Math.PI * 0.22, Math.PI * 1.32, size, 0.95);
 };
 
 const drawRedoIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
   const cx = x + size * 0.46;
   const cy = y + size * 0.56;
-  drawGlyphArcArrow(ctx, cx, cy, size * 0.28, Math.PI * 0.75, Math.PI * 1.9, size, 0.9);
+  const r = size * 0.3;
+  strokeDualPath(ctx, size * 0.075, size * 0.045, () => {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, Math.PI * 0.7, Math.PI * 1.9);
+  });
+  drawGlyphArcArrow(ctx, cx, cy, r, Math.PI * 0.75, Math.PI * 1.92, size, 0.95);
 };
 
 const drawDeleteIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
@@ -725,9 +851,9 @@ const drawDeleteIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, siz
   const bodyW = size * 0.4;
   const bodyH = size * 0.44;
 
-  roundedRectPath(ctx, bodyX, bodyY, bodyW, bodyH, size * 0.05);
-  setGlyphStroke(ctx, size, 0.09, 0.92);
-  ctx.stroke();
+  strokeDualPath(ctx, size * 0.08, size * 0.045, () => {
+    roundedRectPath(ctx, bodyX, bodyY, bodyW, bodyH, size * 0.05);
+  });
 
   roundedRectPath(
     ctx,
@@ -737,7 +863,7 @@ const drawDeleteIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, siz
     size * 0.1,
     size * 0.04
   );
-  setGlyphStroke(ctx, size, 0.08, 0.85);
+  setGlyphStroke(ctx, size, 0.06, 0.75);
   ctx.stroke();
 
   setGlyphStroke(ctx, size, 0.055, 0.6);
@@ -755,6 +881,15 @@ const drawDeleteIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, siz
   ctx.moveTo(bodyX + bodyW * 0.35, bodyY - size * 0.13);
   ctx.lineTo(bodyX + bodyW * 0.65, bodyY - size * 0.13);
   ctx.stroke();
+
+  const crossPad = size * 0.06;
+  setGlyphStroke(ctx, size, 0.045, 0.6);
+  ctx.beginPath();
+  ctx.moveTo(bodyX + crossPad, bodyY + crossPad);
+  ctx.lineTo(bodyX + bodyW - crossPad, bodyY + bodyH - crossPad);
+  ctx.moveTo(bodyX + bodyW - crossPad, bodyY + crossPad);
+  ctx.lineTo(bodyX + crossPad, bodyY + bodyH - crossPad);
+  ctx.stroke();
 };
 
 const drawFocusIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
@@ -762,12 +897,12 @@ const drawFocusIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size
   const cy = y + size * 0.52;
   const r = size * 0.22;
 
-  setGlyphStroke(ctx, size, 0.095, 0.92);
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.stroke();
+  strokeDualPath(ctx, size * 0.075, size * 0.045, () => {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  });
 
-  setGlyphStroke(ctx, size, 0.065, 0.7);
+  setGlyphStroke(ctx, size, 0.055, 0.7);
   ctx.beginPath();
   ctx.moveTo(cx - r * 1.6, cy);
   ctx.lineTo(cx - r * 0.9, cy);
@@ -778,6 +913,8 @@ const drawFocusIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size
   ctx.moveTo(cx, cy + r * 0.9);
   ctx.lineTo(cx, cy + r * 1.6);
   ctx.stroke();
+
+  drawGlyphDot(ctx, cx, cy, size * 0.065, 0.95);
 };
 
 const drawFrameAllIcon = (
@@ -794,23 +931,40 @@ const drawFrameAllIcon = (
     height: size - inset * 2,
   };
 
-  roundedRectPath(ctx, frame.x, frame.y, frame.width, frame.height, size * 0.06);
-  setGlyphStroke(ctx, size, 0.09, 0.92);
+  strokeDualPath(ctx, size * 0.075, size * 0.045, () => {
+    roundedRectPath(ctx, frame.x, frame.y, frame.width, frame.height, size * 0.06);
+  });
+
+  const corner = size * 0.12;
+  setGlyphStroke(ctx, size, 0.055, 0.65);
+  ctx.beginPath();
+  ctx.moveTo(frame.x, frame.y + corner);
+  ctx.lineTo(frame.x, frame.y);
+  ctx.lineTo(frame.x + corner, frame.y);
+  ctx.moveTo(frame.x + frame.width - corner, frame.y);
+  ctx.lineTo(frame.x + frame.width, frame.y);
+  ctx.lineTo(frame.x + frame.width, frame.y + corner);
+  ctx.moveTo(frame.x, frame.y + frame.height - corner);
+  ctx.lineTo(frame.x, frame.y + frame.height);
+  ctx.lineTo(frame.x + corner, frame.y + frame.height);
+  ctx.moveTo(frame.x + frame.width - corner, frame.y + frame.height);
+  ctx.lineTo(frame.x + frame.width, frame.y + frame.height);
+  ctx.lineTo(frame.x + frame.width, frame.y + frame.height - corner);
   ctx.stroke();
 
   drawGlyphArrow(
     ctx,
-    { x: frame.x + frame.width * 0.5, y: frame.y + frame.height * 0.7 },
+    { x: frame.x + frame.width * 0.5, y: frame.y + frame.height * 0.65 },
     { x: frame.x + frame.width * 0.5, y: frame.y - size * 0.06 },
     size,
-    0.85
+    0.9
   );
   drawGlyphArrow(
     ctx,
-    { x: frame.x + frame.width * 0.3, y: frame.y + frame.height * 0.5 },
+    { x: frame.x + frame.width * 0.35, y: frame.y + frame.height * 0.5 },
     { x: frame.x + frame.width + size * 0.06, y: frame.y + frame.height * 0.5 },
     size,
-    0.85
+    0.9
   );
 };
 
@@ -821,9 +975,9 @@ const drawCopyIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size:
     width: size * 0.46,
     height: size * 0.56,
   };
-  roundedRectPath(ctx, back.x, back.y, back.width, back.height, size * 0.06);
-  setGlyphStroke(ctx, size, 0.085, 0.7);
-  ctx.stroke();
+  strokeDualPath(ctx, size * 0.065, size * 0.038, () => {
+    roundedRectPath(ctx, back.x, back.y, back.width, back.height, size * 0.06);
+  }, { outerColor: "rgba(0,0,0,0.35)", innerColor: "rgba(255,255,255,0.6)" });
 
   const front = {
     x: x + size * 0.32,
@@ -831,8 +985,18 @@ const drawCopyIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size:
     width: size * 0.46,
     height: size * 0.56,
   };
-  roundedRectPath(ctx, front.x, front.y, front.width, front.height, size * 0.06);
-  setGlyphStroke(ctx, size, 0.095, 0.92);
+  strokeDualPath(ctx, size * 0.075, size * 0.045, () => {
+    roundedRectPath(ctx, front.x, front.y, front.width, front.height, size * 0.06);
+  });
+
+  const plusX = front.x + front.width * 0.8;
+  const plusY = front.y + front.height * 0.2;
+  setGlyphStroke(ctx, size, 0.05, 0.6);
+  ctx.beginPath();
+  ctx.moveTo(plusX - size * 0.04, plusY);
+  ctx.lineTo(plusX + size * 0.04, plusY);
+  ctx.moveTo(plusX, plusY - size * 0.04);
+  ctx.lineTo(plusX, plusY + size * 0.04);
   ctx.stroke();
 };
 
@@ -843,9 +1007,9 @@ const drawPasteIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size
     width: size * 0.44,
     height: size * 0.56,
   };
-  roundedRectPath(ctx, board.x, board.y, board.width, board.height, size * 0.08);
-  setGlyphStroke(ctx, size, 0.09, 0.92);
-  ctx.stroke();
+  strokeDualPath(ctx, size * 0.075, size * 0.045, () => {
+    roundedRectPath(ctx, board.x, board.y, board.width, board.height, size * 0.08);
+  });
 
   roundedRectPath(
     ctx,
@@ -855,8 +1019,19 @@ const drawPasteIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size
     size * 0.12,
     size * 0.05
   );
-  setGlyphStroke(ctx, size, 0.07, 0.85);
+  setGlyphStroke(ctx, size, 0.06, 0.75);
   ctx.stroke();
+
+  setGlyphStroke(ctx, size, 0.045, 0.5);
+  const lineX = board.x + size * 0.08;
+  const lineW = board.width - size * 0.16;
+  for (let i = 0; i < 3; i += 1) {
+    const ly = board.y + size * (0.18 + i * 0.16);
+    ctx.beginPath();
+    ctx.moveTo(lineX, ly);
+    ctx.lineTo(lineX + lineW, ly);
+    ctx.stroke();
+  }
 };
 
 const drawDuplicateIcon = (
@@ -867,6 +1042,14 @@ const drawDuplicateIcon = (
 ) => {
   drawIsoCubeOutline(ctx, x + size * 0.46, y + size * 0.5, size * 0.85);
   drawIsoCubeOutline(ctx, x + size * 0.6, y + size * 0.64, size * 0.85);
+
+  drawGlyphArrow(
+    ctx,
+    { x: x + size * 0.32, y: y + size * 0.28 },
+    { x: x + size * 0.62, y: y + size * 0.18 },
+    size,
+    0.8
+  );
 };
 
 const drawGumballIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
@@ -874,10 +1057,15 @@ const drawGumballIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, si
   const cy = y + size * 0.54;
   const r = size * 0.26;
 
-  setGlyphStroke(ctx, size, 0.08, 0.75);
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.stroke();
+  strokeDualPath(ctx, size * 0.07, size * 0.042, () => {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  });
+
+  strokeDualPath(ctx, size * 0.06, size * 0.035, () => {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.68, Math.PI * 0.1, Math.PI * 1.6);
+  }, { outerColor: "rgba(0,0,0,0.35)", innerColor: "rgba(255,255,255,0.7)" });
 
   drawGlyphArrow(
     ctx,
@@ -896,7 +1084,7 @@ const drawGumballIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, si
   drawGlyphArrow(
     ctx,
     { x: cx, y: cy },
-    { x: cx - size * 0.22, y: cy + size * 0.28 },
+    { x: cx - size * 0.24, y: cy + size * 0.28 },
     size,
     0.9
   );
@@ -909,9 +1097,9 @@ const drawSurfaceIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, si
   const rw = size * 0.64;
   const rh = size * 0.5;
 
-  roundedRectPath(ctx, rx, ry, rw, rh, size * 0.08);
-  setGlyphStroke(ctx, size, 0.09, 0.92);
-  ctx.stroke();
+  strokeDualPath(ctx, size * 0.075, size * 0.045, () => {
+    roundedRectPath(ctx, rx, ry, rw, rh, size * 0.08);
+  });
 
   setGlyphStroke(ctx, size, 0.055, 0.6);
   for (let i = 1; i < 3; i += 1) {
@@ -935,6 +1123,15 @@ const drawSurfaceIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, si
     ctx.quadraticCurveTo(x0 + rw * 0.06, ry + rh * 0.5, x0, ry + rh - size * 0.05);
     ctx.stroke();
   }
+
+  ctx.save();
+  ctx.setLineDash([size * 0.06, size * 0.05]);
+  setGlyphStroke(ctx, size, 0.045, 0.45);
+  ctx.beginPath();
+  ctx.moveTo(rx + rw * 0.15, ry + rh * 0.2);
+  ctx.lineTo(rx + rw * 0.85, ry + rh * 0.8);
+  ctx.stroke();
+  ctx.restore();
 };
 
 const drawLoftIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
@@ -942,26 +1139,30 @@ const drawLoftIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size:
   const bottom = { x: x + size * 0.28, y: y + size * 0.7 };
   const width = size * 0.48;
 
-  setGlyphStroke(ctx, size, 0.09, 0.92);
-  ctx.beginPath();
-  ctx.moveTo(top.x, top.y);
-  ctx.quadraticCurveTo(x + size * 0.5, y + size * 0.18, top.x + width, top.y);
-  ctx.stroke();
+  strokeDualPath(ctx, size * 0.075, size * 0.045, () => {
+    ctx.beginPath();
+    ctx.moveTo(top.x, top.y);
+    ctx.quadraticCurveTo(x + size * 0.5, y + size * 0.18, top.x + width, top.y);
+  });
 
-  ctx.beginPath();
-  ctx.moveTo(bottom.x, bottom.y);
-  ctx.quadraticCurveTo(x + size * 0.5, y + size * 0.82, bottom.x + width, bottom.y);
-  ctx.stroke();
+  strokeDualPath(ctx, size * 0.075, size * 0.045, () => {
+    ctx.beginPath();
+    ctx.moveTo(bottom.x, bottom.y);
+    ctx.quadraticCurveTo(x + size * 0.5, y + size * 0.82, bottom.x + width, bottom.y);
+  });
 
-  setGlyphStroke(ctx, size, 0.055, 0.65);
-  for (let i = 0; i < 3; i += 1) {
-    const t = (i + 1) / 4;
+  setGlyphStroke(ctx, size, 0.05, 0.6);
+  for (let i = 0; i < 4; i += 1) {
+    const t = (i + 1) / 5;
     const x0 = bottom.x + width * t;
     ctx.beginPath();
     ctx.moveTo(x0, bottom.y);
-    ctx.lineTo(x0 + size * 0.02, top.y);
+    ctx.lineTo(x0 + size * 0.03, top.y);
     ctx.stroke();
   }
+
+  drawGlyphDot(ctx, top.x + width * 0.15, top.y, size * 0.05, 0.8);
+  drawGlyphDot(ctx, top.x + width * 0.85, top.y, size * 0.05, 0.8);
 };
 
 const drawArrow = (
@@ -975,9 +1176,9 @@ const drawArrow = (
   const len = Math.hypot(dx, dy) || 1;
   const ux = dx / len;
   const uy = dy / len;
-  const head = 18;
+  const head = Math.max(8, len * 0.18);
 
-  ctx.lineWidth = 12;
+  ctx.lineWidth = clampStrokeWidth(len * 0.1, 2);
   ctx.strokeStyle = color;
   ctx.beginPath();
   ctx.moveTo(from.x, from.y);
@@ -989,19 +1190,32 @@ const drawArrow = (
   const nx = -uy;
   const ny = ux;
 
+  const wing = head * 0.55;
   ctx.beginPath();
   ctx.moveTo(to.x, to.y);
-  ctx.lineTo(hx + nx * 10, hy + ny * 10);
-  ctx.lineTo(hx - nx * 10, hy - ny * 10);
+  ctx.lineTo(hx + nx * wing, hy + ny * wing);
+  ctx.lineTo(hx - nx * wing, hy - ny * wing);
   ctx.closePath();
   fillAndOutline(ctx, color, "rgba(0,0,0,0.5)");
 };
 
 const drawMoveIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
   const c = { x: x + size * 0.5, y: y + size * 0.56 };
-  drawGlyphArrow(ctx, { x: c.x, y: c.y }, { x: x + size * 0.84, y: c.y }, size, 0.9);
-  drawGlyphArrow(ctx, { x: c.x, y: c.y }, { x: c.x, y: y + size * 0.2 }, size, 0.9);
-  drawGlyphArrow(ctx, { x: c.x, y: c.y }, { x: x + size * 0.24, y: y + size * 0.86 }, size, 0.9);
+  drawGlyphArrow(ctx, { x: c.x, y: c.y }, { x: x + size * 0.84, y: c.y }, size, 0.92);
+  drawGlyphArrow(ctx, { x: c.x, y: c.y }, { x: c.x, y: y + size * 0.2 }, size, 0.92);
+  drawGlyphArrow(ctx, { x: c.x, y: c.y }, { x: x + size * 0.24, y: y + size * 0.86 }, size, 0.92);
+
+  strokeDualPath(ctx, size * 0.05, size * 0.03, () => {
+    roundedRectPath(
+      ctx,
+      c.x - size * 0.16,
+      c.y + size * 0.04,
+      size * 0.18,
+      size * 0.14,
+      size * 0.04
+    );
+  }, { outerColor: "rgba(0,0,0,0.35)", innerColor: "rgba(255,255,255,0.6)" });
+
   drawGlyphDot(ctx, c.x, c.y, size * 0.08, 1);
 };
 
@@ -1010,10 +1224,15 @@ const drawRotateIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, siz
   const cy = y + size * 0.52;
   const r = size * 0.3;
 
-  setGlyphStroke(ctx, size, 0.095, 0.92);
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, Math.PI * 0.18, Math.PI * 1.55);
-  ctx.stroke();
+  strokeDualPath(ctx, size * 0.075, size * 0.045, () => {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, Math.PI * 0.18, Math.PI * 1.55);
+  });
+
+  strokeDualPath(ctx, size * 0.055, size * 0.032, () => {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.72, Math.PI * 0.32, Math.PI * 1.35);
+  }, { outerColor: "rgba(0,0,0,0.35)", innerColor: "rgba(255,255,255,0.7)" });
 
   const endAngle = Math.PI * 1.55;
   const ex = cx + Math.cos(endAngle) * r;
@@ -1023,8 +1242,14 @@ const drawRotateIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, siz
     { x: ex - size * 0.04, y: ey - size * 0.04 },
     { x: ex + size * 0.16, y: ey + size * 0.02 },
     size,
-    0.9
+    0.92
   );
+
+  setGlyphStroke(ctx, size, 0.05, 0.55);
+  ctx.beginPath();
+  ctx.moveTo(cx, cy + r * 0.15);
+  ctx.lineTo(cx, cy - r * 0.85);
+  ctx.stroke();
 };
 
 const drawScaleIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
@@ -1033,17 +1258,27 @@ const drawScaleIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size
   const rw = size * 0.5;
   const rh = size * 0.5;
 
-  roundedRectPath(ctx, rx, ry, rw, rh, size * 0.06);
-  setGlyphStroke(ctx, size, 0.09, 0.92);
-  ctx.stroke();
+  strokeDualPath(ctx, size * 0.075, size * 0.045, () => {
+    roundedRectPath(ctx, rx, ry, rw, rh, size * 0.06);
+  });
 
   drawGlyphArrow(
     ctx,
-    { x: rx + rw * 0.52, y: ry + rh * 0.52 },
+    { x: rx + rw * 0.5, y: ry + rh * 0.5 },
     { x: x + size * 0.86, y: y + size * 0.14 },
     size,
-    0.9
+    0.92
   );
+  drawGlyphArrow(
+    ctx,
+    { x: rx + rw * 0.5, y: ry + rh * 0.5 },
+    { x: x + size * 0.18, y: y + size * 0.86 },
+    size,
+    0.85
+  );
+
+  drawGlyphDot(ctx, rx + rw, ry, size * 0.055, 0.9);
+  drawGlyphDot(ctx, rx, ry + rh, size * 0.055, 0.9);
 };
 
 const drawGeometryReferenceIcon = (
@@ -1195,13 +1430,15 @@ const drawExtrudeIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, si
   const dx = size * 0.16;
   const dy = size * 0.12;
 
-  setGlyphStroke(ctx, size, 0.09, 0.92);
-  roundedRectPath(ctx, frontX, frontY, frontW, frontH, size * 0.05);
-  ctx.stroke();
+  strokeDualPath(ctx, size * 0.075, size * 0.045, () => {
+    roundedRectPath(ctx, frontX, frontY, frontW, frontH, size * 0.05);
+  });
 
-  roundedRectPath(ctx, frontX + dx, frontY - dy, frontW, frontH, size * 0.05);
-  ctx.stroke();
+  strokeDualPath(ctx, size * 0.065, size * 0.04, () => {
+    roundedRectPath(ctx, frontX + dx, frontY - dy, frontW, frontH, size * 0.05);
+  }, { outerColor: "rgba(0,0,0,0.35)", innerColor: "rgba(255,255,255,0.7)" });
 
+  setGlyphStroke(ctx, size, 0.055, 0.6);
   ctx.beginPath();
   ctx.moveTo(frontX, frontY);
   ctx.lineTo(frontX + dx, frontY - dy);
@@ -1216,6 +1453,51 @@ const drawExtrudeIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, si
     { x: frontX + frontW + dx * 0.5, y: frontY - dy * 0.2 },
     { x: frontX + frontW + dx * 0.5, y: y + size * 0.12 },
     size,
+    0.92
+  );
+
+  drawGlyphDot(
+    ctx,
+    frontX + frontW + dx * 0.5,
+    y + size * 0.14,
+    size * 0.055,
+    0.9
+  );
+};
+
+const drawBooleanIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
+  const cy = y + size * 0.52;
+  const r = size * 0.22;
+  const cxLeft = x + size * 0.42;
+  const cxRight = x + size * 0.62;
+  setGlyphStroke(ctx, size, 0.09, 0.92);
+  ctx.beginPath();
+  ctx.arc(cxLeft, cy, r, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cxRight, cy, r, 0, Math.PI * 2);
+  ctx.stroke();
+  drawGlyphDot(ctx, (cxLeft + cxRight) * 0.5, cy, size * 0.06, 0.85);
+};
+
+const drawOffsetIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
+  const baseX = x + size * 0.22;
+  const baseY = y + size * 0.58;
+  const w = size * 0.42;
+  const h = size * 0.22;
+  const offset = size * 0.12;
+
+  setGlyphStroke(ctx, size, 0.09, 0.92);
+  roundedRectPath(ctx, baseX, baseY, w, h, size * 0.05);
+  ctx.stroke();
+  roundedRectPath(ctx, baseX + offset, baseY - offset, w, h, size * 0.05);
+  ctx.stroke();
+
+  drawGlyphArrow(
+    ctx,
+    { x: baseX + w * 0.18, y: baseY + h * 0.5 },
+    { x: baseX + offset + w * 0.18, y: baseY - offset + h * 0.5 },
+    size,
     0.9
   );
 };
@@ -1228,38 +1510,89 @@ const drawSpecificitySymbolIcon = (
 ) => {
   drawSoftShadow(ctx, { x, y, size });
 
-  const cx = x + size * 0.5;
-  const cy = y + size * 0.5;
-  const inset = size * 0.18;
-  const rectSize = size - inset * 2;
-  const radius = rectSize * 0.28;
+  const centerX = x + size * 0.5;
+  const topY = y + size * 0.16;
+  const midY = y + size * 0.34;
+  const frontY = y + size * 0.52;
+  const leftX = x + size * 0.2;
+  const rightX = x + size * 0.8;
+  const depth = size * 0.28;
 
-  roundedRectPath(ctx, x + inset, y + inset, rectSize, rectSize, radius);
-  ctx.strokeStyle = "rgba(18, 16, 12, 0.92)";
-  ctx.lineWidth = Math.max(4, size * 0.08);
-  ctx.lineJoin = "round";
-  ctx.lineCap = "round";
-  ctx.stroke();
+  const top = { x: centerX, y: topY };
+  const right = { x: rightX, y: midY };
+  const front = { x: centerX, y: frontY };
+  const left = { x: leftX, y: midY };
+  const rightDown = { x: rightX, y: midY + depth };
+  const frontDown = { x: centerX, y: frontY + depth };
+  const leftDown = { x: leftX, y: midY + depth };
 
-  const arcRadius = rectSize * 0.26;
-  ctx.strokeStyle = "rgba(18, 16, 12, 0.9)";
-  ctx.lineWidth = Math.max(4, size * 0.1);
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-
+  ctx.save();
+  ctx.fillStyle = "#f7f4f0";
   ctx.beginPath();
-  ctx.arc(cx, cy - rectSize * 0.12, arcRadius, Math.PI * 0.2, Math.PI * 1.15);
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.arc(cx, cy + rectSize * 0.12, arcRadius, Math.PI * 1.05, Math.PI * 2.0);
-  ctx.stroke();
-
-  const dotR = size * 0.045;
-  ctx.fillStyle = "rgba(18, 16, 12, 0.92)";
-  ctx.beginPath();
-  ctx.arc(cx + rectSize * 0.2, cy - rectSize * 0.22, dotR, 0, Math.PI * 2);
+  ctx.moveTo(top.x, top.y);
+  ctx.lineTo(right.x, right.y);
+  ctx.lineTo(front.x, front.y);
+  ctx.lineTo(left.x, left.y);
+  ctx.closePath();
   ctx.fill();
+
+  ctx.fillStyle = "#e8e2dc";
+  ctx.beginPath();
+  ctx.moveTo(left.x, left.y);
+  ctx.lineTo(front.x, front.y);
+  ctx.lineTo(frontDown.x, frontDown.y);
+  ctx.lineTo(leftDown.x, leftDown.y);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = "#ddd5ce";
+  ctx.beginPath();
+  ctx.moveTo(right.x, right.y);
+  ctx.lineTo(front.x, front.y);
+  ctx.lineTo(frontDown.x, frontDown.y);
+  ctx.lineTo(rightDown.x, rightDown.y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  ctx.save();
+  ctx.strokeStyle = "rgba(18, 16, 12, 0.7)";
+  ctx.lineWidth = clampStrokeWidth(size * 0.04, 1.5);
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(top.x, top.y);
+  ctx.lineTo(right.x, right.y);
+  ctx.lineTo(front.x, front.y);
+  ctx.lineTo(left.x, left.y);
+  ctx.closePath();
+  ctx.moveTo(left.x, left.y);
+  ctx.lineTo(leftDown.x, leftDown.y);
+  ctx.moveTo(front.x, front.y);
+  ctx.lineTo(frontDown.x, frontDown.y);
+  ctx.moveTo(right.x, right.y);
+  ctx.lineTo(rightDown.x, rightDown.y);
+  ctx.moveTo(leftDown.x, leftDown.y);
+  ctx.lineTo(frontDown.x, frontDown.y);
+  ctx.lineTo(rightDown.x, rightDown.y);
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.save();
+  ctx.strokeStyle = "rgba(18, 16, 12, 0.95)";
+  ctx.lineWidth = clampStrokeWidth(size * 0.065, 2);
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(top.x, top.y);
+  ctx.lineTo(right.x, right.y);
+  ctx.lineTo(rightDown.x, rightDown.y);
+  ctx.lineTo(frontDown.x, frontDown.y);
+  ctx.lineTo(leftDown.x, leftDown.y);
+  ctx.lineTo(left.x, left.y);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.restore();
 };
 
 const drawSelectionFilterIcon = (
@@ -1729,40 +2062,39 @@ const drawCPlaneAlignIcon = (
 };
 
 const drawCaptureIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
-  drawSoftShadow(ctx, { x, y, size });
   const bodyX = x + size * 0.14;
   const bodyY = y + size * 0.32;
   const bodyW = size * 0.72;
   const bodyH = size * 0.44;
-  roundedRectPath(ctx, bodyX, bodyY, bodyW, bodyH, size * 0.1);
-  const bodyFill = ctx.createLinearGradient(bodyX, bodyY, bodyX, bodyY + bodyH);
-  bodyFill.addColorStop(0, "#e2e8f0");
-  bodyFill.addColorStop(1, "#94a3b8");
-  fillAndOutline(ctx, bodyFill);
+  strokeDualPath(ctx, size * 0.08, size * 0.048, () => {
+    roundedRectPath(ctx, bodyX, bodyY, bodyW, bodyH, size * 0.1);
+  });
 
   const lensX = x + size * 0.5;
   const lensY = y + size * 0.54;
   const lensR = size * 0.2;
-  const lens = ctx.createRadialGradient(
-    lensX - lensR * 0.25,
-    lensY - lensR * 0.3,
-    lensR * 0.2,
-    lensX,
-    lensY,
-    lensR
-  );
-  lens.addColorStop(0, "#bae6fd");
-  lens.addColorStop(1, "#0ea5e9");
-  ctx.beginPath();
-  ctx.arc(lensX, lensY, lensR, 0, Math.PI * 2);
-  fillAndOutline(ctx, lens);
+  strokeDualPath(ctx, size * 0.075, size * 0.045, () => {
+    ctx.beginPath();
+    ctx.arc(lensX, lensY, lensR, 0, Math.PI * 2);
+  });
+  strokeDualPath(ctx, size * 0.055, size * 0.032, () => {
+    ctx.beginPath();
+    ctx.arc(lensX, lensY, lensR * 0.6, 0, Math.PI * 2);
+  }, { outerColor: "rgba(0,0,0,0.35)", innerColor: "rgba(255,255,255,0.7)" });
 
   const flashX = x + size * 0.28;
   const flashY = y + size * 0.28;
   const flashW = size * 0.18;
   const flashH = size * 0.1;
-  roundedRectPath(ctx, flashX, flashY, flashW, flashH, size * 0.04);
-  fillAndOutline(ctx, "#fef08a");
+  strokeDualPath(ctx, size * 0.06, size * 0.035, () => {
+    roundedRectPath(ctx, flashX, flashY, flashW, flashH, size * 0.04);
+  }, { outerColor: "rgba(0,0,0,0.35)", innerColor: "rgba(255,255,255,0.65)" });
+
+  setGlyphStroke(ctx, size, 0.045, 0.55);
+  ctx.beginPath();
+  ctx.moveTo(bodyX + bodyW * 0.2, bodyY + bodyH * 0.2);
+  ctx.lineTo(bodyX + bodyW * 0.8, bodyY + bodyH * 0.2);
+  ctx.stroke();
 };
 
 const drawSaveIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
@@ -2117,28 +2449,44 @@ const drawThemeDarkIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, 
 const drawBrandRoslynIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
   drawSoftShadow(ctx, { x, y, size });
 
-  const pad = size * 0.16;
+  const pad = size * 0.14;
   const outerSize = size - pad * 2;
-  roundedRectPath(ctx, x + pad, y + pad, outerSize, outerSize, size * 0.16);
-  const outerFill = ctx.createLinearGradient(x + pad, y + pad, x + pad, y + pad + outerSize);
-  outerFill.addColorStop(0, "#e2e8f0");
-  outerFill.addColorStop(1, "#94a3b8");
-  fillAndOutline(ctx, outerFill);
+  strokeDualPath(ctx, size * 0.085, size * 0.05, () => {
+    roundedRectPath(ctx, x + pad, y + pad, outerSize, outerSize, size * 0.18);
+  });
 
-  const innerPad = size * 0.3;
-  const innerSize = size - innerPad * 2;
-  roundedRectPath(ctx, x + innerPad, y + innerPad, innerSize, innerSize, size * 0.12);
-  fillAndOutline(ctx, "#f8fafc", "rgba(15, 23, 42, 0.7)");
+  const cx = x + size * 0.5;
+  const cy = y + size * 0.52;
+  const ring = size * 0.22;
+  strokeDualPath(ctx, size * 0.07, size * 0.04, () => {
+    ctx.beginPath();
+    ctx.arc(cx, cy, ring, 0, Math.PI * 2);
+  });
 
-  ctx.strokeStyle = "#0ea5e9";
-  ctx.lineWidth = 10;
-  ctx.lineCap = "round";
+  const diamond = ring * 1.2;
+  strokeDualPath(ctx, size * 0.06, size * 0.035, () => {
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - diamond);
+    ctx.lineTo(cx + diamond, cy);
+    ctx.lineTo(cx, cy + diamond);
+    ctx.lineTo(cx - diamond, cy);
+    ctx.closePath();
+  }, { outerColor: "rgba(0,0,0,0.4)", innerColor: "rgba(255,255,255,0.7)" });
+
+  setGlyphStroke(ctx, size, 0.05, 0.6);
+  const tick = size * 0.16;
   ctx.beginPath();
-  ctx.moveTo(x + size * 0.2, y + size * 0.5);
-  ctx.lineTo(x + size * 0.36, y + size * 0.5);
-  ctx.moveTo(x + size * 0.64, y + size * 0.5);
-  ctx.lineTo(x + size * 0.8, y + size * 0.5);
+  ctx.moveTo(cx, cy - ring - tick);
+  ctx.lineTo(cx, cy - ring + size * 0.02);
+  ctx.moveTo(cx + ring - size * 0.02, cy);
+  ctx.lineTo(cx + ring + tick, cy);
+  ctx.moveTo(cx, cy + ring - size * 0.02);
+  ctx.lineTo(cx, cy + ring + tick);
+  ctx.moveTo(cx - ring + size * 0.02, cy);
+  ctx.lineTo(cx - ring - tick, cy);
   ctx.stroke();
+
+  drawGlyphDot(ctx, cx, cy, size * 0.075, 1);
 };
 
 const drawBrandNumericaIcon = (
@@ -3117,17 +3465,22 @@ const strokeDualPath = (
 ) => {
   const outerColor = options?.outerColor ?? "rgba(15, 23, 42, 0.52)";
   const innerColor = options?.innerColor ?? "#f8fafc";
+  const resolvedOuter = clampStrokeWidth(outerWidth, 1);
+  let resolvedInner = clampStrokeWidth(innerWidth, 1);
+  if (resolvedInner >= resolvedOuter) {
+    resolvedInner = Math.max(1, resolvedOuter - 1);
+  }
   ctx.save();
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   if (options?.dash) {
     ctx.setLineDash(options.dash);
   }
-  ctx.lineWidth = outerWidth;
+  ctx.lineWidth = resolvedOuter;
   ctx.strokeStyle = outerColor;
   drawPath();
   ctx.stroke();
-  ctx.lineWidth = innerWidth;
+  ctx.lineWidth = resolvedInner;
   ctx.strokeStyle = innerColor;
   drawPath();
   ctx.stroke();
@@ -3746,6 +4099,72 @@ const drawRepeatIcon = (
   );
 };
 
+const drawArrayLinearIcon = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number
+) => {
+  drawMathBadge(ctx, x, y, size, { top: "", bottom: "" });
+  const start = { x: x + size * 0.24, y: y + size * 0.72 };
+  const end = { x: x + size * 0.78, y: y + size * 0.3 };
+  setGlyphStroke(ctx, size, 0.08, 0.8);
+  ctx.beginPath();
+  ctx.moveTo(start.x, start.y);
+  ctx.lineTo(end.x, end.y);
+  ctx.stroke();
+  for (let i = 0; i < 3; i += 1) {
+    const t = i / 2;
+    const px = start.x + (end.x - start.x) * t;
+    const py = start.y + (end.y - start.y) * t;
+    drawGlyphDot(ctx, px, py, size * 0.055, 0.95);
+  }
+};
+
+const drawArrayPolarIcon = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number
+) => {
+  drawMathBadge(ctx, x, y, size, { top: "", bottom: "" });
+  const cx = x + size * 0.5;
+  const cy = y + size * 0.54;
+  const r = size * 0.28;
+  setGlyphStroke(ctx, size, 0.075, 0.8);
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.stroke();
+  const angles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
+  angles.forEach((angle) => {
+    drawGlyphDot(ctx, cx + Math.cos(angle) * r, cy + Math.sin(angle) * r, size * 0.055, 0.95);
+  });
+};
+
+const drawArrayGridIcon = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number
+) => {
+  drawMathBadge(ctx, x, y, size, { top: "", bottom: "" });
+  const left = x + size * 0.28;
+  const top = y + size * 0.34;
+  const span = size * 0.44;
+  const step = span / 2;
+  for (let row = 0; row < 3; row += 1) {
+    for (let col = 0; col < 3; col += 1) {
+      drawGlyphDot(
+        ctx,
+        left + col * step,
+        top + row * step,
+        size * 0.045,
+        0.9
+      );
+    }
+  }
+};
+
 const drawWaveLine = (
   ctx: CanvasRenderingContext2D,
   points: Array<{ x: number; y: number }>,
@@ -4065,6 +4484,7 @@ const applyMonochromeTint = (
   const tintG = tint[1];
   const tintB = tint[2];
   const tintA = tint[3];
+  const alphaBoost = 1.07;
 
   for (let i = 0; i < data.length; i += 4) {
     const alpha = data[i + 3];
@@ -4072,7 +4492,7 @@ const applyMonochromeTint = (
     data[i] = Math.round(tintR * 255);
     data[i + 1] = Math.round(tintG * 255);
     data[i + 2] = Math.round(tintB * 255);
-    data[i + 3] = Math.round(alpha * tintA);
+    data[i + 3] = Math.min(255, Math.round(alpha * tintA * alphaBoost));
   }
 
   ctx.putImageData(image, x, y);
@@ -4304,6 +4724,15 @@ const drawIconToTile = (
     case "repeat":
       drawRepeatIcon(ctx, x, y, size);
       break;
+    case "arrayLinear":
+      drawArrayLinearIcon(ctx, x, y, size);
+      break;
+    case "arrayPolar":
+      drawArrayPolarIcon(ctx, x, y, size);
+      break;
+    case "arrayGrid":
+      drawArrayGridIcon(ctx, x, y, size);
+      break;
     case "sineWave":
       drawSineWaveIcon(ctx, x, y, size);
       break;
@@ -4390,6 +4819,12 @@ const drawIconToTile = (
       break;
     case "extrude":
       drawExtrudeIcon(ctx, x, y, size);
+      break;
+    case "boolean":
+      drawBooleanIcon(ctx, x, y, size);
+      break;
+    case "offset":
+      drawOffsetIcon(ctx, x, y, size);
       break;
     case "specificitySymbol":
       drawSpecificitySymbolIcon(ctx, x, y, size);
@@ -4527,15 +4962,25 @@ export const renderIconDataUrl = (
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) return "";
   ctx.imageSmoothingEnabled = true;
+  if ("imageSmoothingQuality" in ctx) {
+    ctx.imageSmoothingQuality = "high";
+  }
   drawIconToTile(ctx, id, 0, 0, size, options);
   return canvas.toDataURL("image/png");
 };
 
 const createAtlasSpec = (gl: WebGLRenderingContext): AtlasSpec => {
-  const columns = 6;
+  const columns = 8;
   const rows = Math.ceil(ICON_IDS.length / columns);
-  const width = columns * ATLAS_ICON_SIZE;
-  const height = rows * ATLAS_ICON_SIZE;
+  const maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE) || 4096;
+  const maxIconByWidth = Math.floor(maxTextureSize / columns);
+  const maxIconByHeight = Math.floor(maxTextureSize / rows);
+  const atlasIconSize = Math.max(
+    96,
+    Math.min(ATLAS_ICON_SIZE, maxIconByWidth, maxIconByHeight)
+  );
+  const width = columns * atlasIconSize;
+  const height = rows * atlasIconSize;
 
   const canvas = document.createElement("canvas");
   canvas.width = width;
@@ -4546,14 +4991,17 @@ const createAtlasSpec = (gl: WebGLRenderingContext): AtlasSpec => {
   }
 
   ctx.imageSmoothingEnabled = true;
+  if ("imageSmoothingQuality" in ctx) {
+    ctx.imageSmoothingQuality = "high";
+  }
 
   const uvById: Record<string, IconUV> = {};
   ICON_IDS.forEach((id, index) => {
     const col = index % columns;
     const row = Math.floor(index / columns);
-    const x = col * ATLAS_ICON_SIZE;
-    const y = row * ATLAS_ICON_SIZE;
-    drawIconToTile(ctx, id, x, y, ATLAS_ICON_SIZE, {
+    const x = col * atlasIconSize;
+    const y = row * atlasIconSize;
+    drawIconToTile(ctx, id, x, y, atlasIconSize, {
       style: "glyph",
       tint: rgb(255, 255, 255, 1),
       monochrome: true,
@@ -4561,8 +5009,8 @@ const createAtlasSpec = (gl: WebGLRenderingContext): AtlasSpec => {
 
     const u0 = x / width;
     const v0 = y / height;
-    const u1 = (x + ATLAS_ICON_SIZE) / width;
-    const v1 = (y + ATLAS_ICON_SIZE) / height;
+    const u1 = (x + atlasIconSize) / width;
+    const v1 = (y + atlasIconSize) / height;
     uvById[id] = { u0, v0, u1, v1 };
   });
 

@@ -7,6 +7,7 @@ uniform mat4 viewMatrix;
 uniform mat4 projectionMatrix;
 uniform float lineWidth;
 uniform vec2 resolution;
+uniform float depthBias;
 varying float vSide;
 
 void main() {
@@ -22,7 +23,9 @@ void main() {
   vec2 offset = normal * lineWidth * 0.5 * side;
   vec2 finalScreen = currentScreen + offset;
   
-  gl_Position = vec4(finalScreen / resolution * currentProj.w, currentProj.z, currentProj.w);
+  vec4 positionOut = vec4(finalScreen / resolution * currentProj.w, currentProj.z, currentProj.w);
+  positionOut.z -= depthBias * positionOut.w;
+  gl_Position = positionOut;
   vSide = side;
 }
 `;

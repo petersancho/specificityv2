@@ -1,0 +1,38 @@
+export const edgeLineFragmentShader = `
+#ifdef GL_OES_standard_derivatives
+#extension GL_OES_standard_derivatives : enable
+#endif
+precision highp float;
+
+uniform vec3 edgeColorInternal;
+uniform vec3 edgeColorCrease;
+uniform vec3 edgeColorSilhouette;
+uniform vec3 edgeOpacities;
+uniform float edgeAAStrength;
+
+varying float vSide;
+varying float vEdgeKind;
+
+void main() {
+  float dist = abs(vSide);
+#ifdef GL_OES_standard_derivatives
+  float aa = max(1e-4, fwidth(dist) * edgeAAStrength);
+  float alpha = 1.0 - smoothstep(1.0 - aa, 1.0 + aa, dist);
+#else
+  float alpha = 1.0 - smoothstep(0.85, 1.0, dist);
+#endif
+  alpha = pow(alpha, 1.1);
+
+  vec3 color = edgeColorInternal;
+  float opacity = edgeOpacities.x;
+  if (vEdgeKind > 1.5) {
+    color = edgeColorSilhouette;
+    opacity = edgeOpacities.z;
+  } else if (vEdgeKind > 0.5) {
+    color = edgeColorCrease;
+    opacity = edgeOpacities.y;
+  }
+
+  gl_FragColor = vec4(color, alpha * opacity);
+}
+`;

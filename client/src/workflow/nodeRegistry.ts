@@ -1,6 +1,22 @@
 import type { IconId } from "../webgl/ui/WebGLIconRenderer";
-import type { Geometry, VertexGeometry, WorkflowNode } from "../types";
+import type { Geometry, RenderMesh, VertexGeometry, VoxelGrid, WorkflowNode } from "../types";
+import { offsetPolyline2D } from "../geometry/booleans";
+import {
+  computeBestFitPlane,
+  projectPointToPlane,
+  unprojectPointFromPlane,
+} from "../geometry/math";
+import { resampleByArcLength } from "../geometry/curves";
+import {
+  computeMeshArea,
+  computeVertexNormals,
+  generateBoxMesh,
+  generateExtrudeMesh,
+  generateLoftMesh,
+  generateSphereMesh,
+} from "../geometry/mesh";
 import type { NodeType } from "./nodeTypes";
+import { PRIMITIVE_NODE_CATALOG, PRIMITIVE_NODE_TYPE_IDS } from "../data/primitiveCatalog";
 
 export type WorkflowPortType =
   | "number"
@@ -21,7 +37,7 @@ export type WorkflowPortSpec = {
   defaultValue?: unknown;
 };
 
-export type WorkflowParameterType = "number" | "boolean" | "string" | "select";
+export type WorkflowParameterType = "number" | "boolean" | "string" | "select" | "file";
 
 export type WorkflowParameterOption = {
   value: string;
@@ -37,6 +53,7 @@ export type WorkflowParameterSpec = {
   max?: number;
   step?: number;
   options?: WorkflowParameterOption[];
+  accept?: string;
   description?: string;
 };
 
@@ -46,12 +63,18 @@ export type NodeCategoryId =
   | "lists"
   | "primitives"
   | "curves"
+  | "nurbs"
   | "surfaces"
   | "transforms"
+  | "arrays"
+  | "modifiers"
+  | "measurement"
   | "euclidean"
   | "ranges"
   | "signals"
   | "analysis"
+  | "interop"
+  | "voxel"
   | "optimization"
   | "math"
   | "logic";
@@ -69,7 +92,12 @@ type PortResolver = (parameters: Record<string, unknown>) => WorkflowPortSpec[];
 
 type PortsDefinition = WorkflowPortSpec[] | PortResolver;
 
-type WorkflowPrimitive = number | string | boolean | { x: number; y: number; z: number };
+type WorkflowPrimitive =
+  | number
+  | string
+  | boolean
+  | { x: number; y: number; z: number }
+  | Record<string, unknown>;
 
 export type WorkflowValue = WorkflowPrimitive | WorkflowValue[] | null | undefined;
 
@@ -100,6 +128,7 @@ export type WorkflowNodeDefinition = {
 };
 
 const EPSILON = 1e-10;
+const EMPTY_MESH: RenderMesh = { positions: [], normals: [], uvs: [], indices: [] };
 
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
@@ -266,6 +295,8 @@ const crossVec3 = (a: Vec3Value, b: Vec3Value): Vec3Value => ({
 
 const lengthVec3 = (vector: Vec3Value) => Math.sqrt(dotVec3(vector, vector));
 
+const distanceVec3 = (a: Vec3Value, b: Vec3Value) => lengthVec3(subtractVec3(a, b));
+
 const normalizeVec3 = (vector: Vec3Value): Vec3Value => {
   const length = lengthVec3(vector);
   if (length <= EPSILON) {
@@ -273,6 +304,15 @@ const normalizeVec3 = (vector: Vec3Value): Vec3Value => {
   }
   return scaleVec3(vector, 1 / length);
 };
+
+const normalizeVec3Safe = (vector: Vec3Value, fallback: Vec3Value): Vec3Value => {
+  const length = lengthVec3(vector);
+  if (length <= EPSILON) return fallback;
+  return scaleVec3(vector, 1 / length);
+};
+
+const projectVectorOnPlane = (vector: Vec3Value, normal: Vec3Value) =>
+  subtractVec3(vector, scaleVec3(normal, dotVec3(vector, normal)));
 
 const vectorParameterSpecs = (
   prefix: string,
@@ -330,6 +370,17 @@ const UNIT_XYZ_VEC3: Vec3Value = { x: 1, y: 1, z: 1 };
 const toList = (value: WorkflowValue): WorkflowValue[] => {
   if (value == null) return [];
   return Array.isArray(value) ? value : [value];
+};
+
+const translateMesh = (mesh: RenderMesh, offset: Vec3Value) => {
+  if (!offset.x && !offset.y && !offset.z) return mesh;
+  const positions = mesh.positions.slice();
+  for (let i = 0; i < positions.length; i += 3) {
+    positions[i] += offset.x;
+    positions[i + 1] += offset.y;
+    positions[i + 2] += offset.z;
+  }
+  return { ...mesh, positions };
 };
 
 const toFiniteNumber = (value: WorkflowValue): number | null => {
@@ -438,6 +489,79 @@ const collectGeometryVertices = (
   }
 
   return [];
+};
+
+const resolveGeometryList = (
+  inputs: Record<string, WorkflowValue>,
+  context: WorkflowComputeContext,
+  key = "geometry"
+) => {
+  const value = inputs[key];
+  const list = toList(value);
+  const ids = list.filter((entry): entry is string => typeof entry === "string");
+  return ids
+    .map((id) => context.geometryById.get(id))
+    .filter((geometry): geometry is Geometry => Boolean(geometry));
+};
+
+const computeBounds = (points: Vec3Value[]) => {
+  if (points.length === 0) {
+    return { min: ZERO_VEC3, max: ZERO_VEC3 };
+  }
+  const min = { ...points[0] };
+  const max = { ...points[0] };
+  points.forEach((point) => {
+    min.x = Math.min(min.x, point.x);
+    min.y = Math.min(min.y, point.y);
+    min.z = Math.min(min.z, point.z);
+    max.x = Math.max(max.x, point.x);
+    max.y = Math.max(max.y, point.y);
+    max.z = Math.max(max.z, point.z);
+  });
+  return { min, max };
+};
+
+const computeMeshVolume = (positions: number[], indices: number[]) => {
+  let volume = 0;
+  for (let i = 0; i + 2 < indices.length; i += 3) {
+    const ia = indices[i] * 3;
+    const ib = indices[i + 1] * 3;
+    const ic = indices[i + 2] * 3;
+    const ax = positions[ia] ?? 0;
+    const ay = positions[ia + 1] ?? 0;
+    const az = positions[ia + 2] ?? 0;
+    const bx = positions[ib] ?? 0;
+    const by = positions[ib + 1] ?? 0;
+    const bz = positions[ib + 2] ?? 0;
+    const cx = positions[ic] ?? 0;
+    const cy = positions[ic + 1] ?? 0;
+    const cz = positions[ic + 2] ?? 0;
+    const crossX = by * cz - bz * cy;
+    const crossY = bz * cx - bx * cz;
+    const crossZ = bx * cy - by * cx;
+    volume += ax * crossX + ay * crossY + az * crossZ;
+  }
+  return Math.abs(volume) / 6;
+};
+
+const mergeMeshes = (meshA: RenderMesh, meshB: RenderMesh): RenderMesh => {
+  const positions = [...meshA.positions, ...meshB.positions];
+  const uvs = [...(meshA.uvs ?? []), ...(meshB.uvs ?? [])];
+  const indexOffset = Math.floor(meshA.positions.length / 3);
+  const indices = [
+    ...(meshA.indices ?? []),
+    ...(meshB.indices ?? []).map((index) => index + indexOffset),
+  ];
+  const normals =
+    meshA.normals?.length && meshB.normals?.length
+      ? [...meshA.normals, ...meshB.normals]
+      : computeVertexNormals(positions, indices);
+  return {
+    positions,
+    normals,
+    uvs,
+    indices,
+  };
 };
 
 const collectGeometryEdges = (
@@ -603,6 +727,237 @@ const countGeometryControlPoints = (geometry: Geometry, context: WorkflowCompute
   return countGeometryVertices(geometry, context);
 };
 
+const collectGeometryPositions = (
+  geometry: Geometry,
+  context: WorkflowComputeContext,
+  maxItems = 10000
+) => {
+  if (geometry.type === "vertex") {
+    return [geometry.position as Vec3Value];
+  }
+
+  if (geometry.type === "polyline") {
+    const positions: Vec3Value[] = [];
+    geometry.vertexIds.forEach((vertexId) => {
+      if (positions.length >= maxItems) return;
+      const vertex = context.vertexById.get(vertexId);
+      if (vertex) positions.push(vertex.position as Vec3Value);
+    });
+    return positions;
+  }
+
+  if ("mesh" in geometry && geometry.mesh?.positions) {
+    const positions: Vec3Value[] = [];
+    const count = Math.floor(geometry.mesh.positions.length / 3);
+    for (let i = 0; i < count && positions.length < maxItems; i += 1) {
+      positions.push(vec3FromPositions(geometry.mesh.positions, i));
+    }
+    return positions;
+  }
+
+  return [];
+};
+
+const computeBoundsFromPositions = (positions: Vec3Value[]) => {
+  if (positions.length === 0) {
+    return {
+      min: { x: -0.5, y: -0.5, z: -0.5 },
+      max: { x: 0.5, y: 0.5, z: 0.5 },
+    };
+  }
+  const min = { x: positions[0].x, y: positions[0].y, z: positions[0].z };
+  const max = { x: positions[0].x, y: positions[0].y, z: positions[0].z };
+  positions.forEach((point) => {
+    min.x = Math.min(min.x, point.x);
+    min.y = Math.min(min.y, point.y);
+    min.z = Math.min(min.z, point.z);
+    max.x = Math.max(max.x, point.x);
+    max.y = Math.max(max.y, point.y);
+    max.z = Math.max(max.z, point.z);
+  });
+  const expand = (value: number) => (Number.isFinite(value) ? value : 0);
+  return { min: { x: expand(min.x), y: expand(min.y), z: expand(min.z) }, max: { x: expand(max.x), y: expand(max.y), z: expand(max.z) } };
+};
+
+const isVoxelGrid = (value: WorkflowValue): value is VoxelGrid => {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<VoxelGrid>;
+  return Boolean(
+    candidate.densities &&
+      Array.isArray(candidate.densities) &&
+      candidate.resolution &&
+      typeof candidate.resolution.x === "number" &&
+      typeof candidate.resolution.y === "number" &&
+      typeof candidate.resolution.z === "number"
+  );
+};
+
+const clampResolution = (value: number, fallback = 12) =>
+  clampInt(Math.round(value), 4, 36, fallback);
+
+const buildVoxelGridFromGeometry = (
+  geometry: Geometry,
+  context: WorkflowComputeContext,
+  resolutionValue: number,
+  paddingValue: number,
+  mode: string,
+  thicknessValue: number
+): VoxelGrid => {
+  const positions = collectGeometryPositions(geometry, context);
+  const bounds = computeBoundsFromPositions(positions);
+  const padding = Number.isFinite(paddingValue) ? Math.max(0, paddingValue) : 0;
+  const min = {
+    x: bounds.min.x - padding,
+    y: bounds.min.y - padding,
+    z: bounds.min.z - padding,
+  };
+  const max = {
+    x: bounds.max.x + padding,
+    y: bounds.max.y + padding,
+    z: bounds.max.z + padding,
+  };
+  const size = {
+    x: max.x - min.x || 1,
+    y: max.y - min.y || 1,
+    z: max.z - min.z || 1,
+  };
+  const resolution = clampResolution(resolutionValue, 12);
+  const res = { x: resolution, y: resolution, z: resolution };
+  const cellSize = {
+    x: size.x / res.x,
+    y: size.y / res.y,
+    z: size.z / res.z,
+  };
+  const cellCount = res.x * res.y * res.z;
+  const normalizedMode = mode === "surface" ? "surface" : "solid";
+  const densities = new Array<number>(cellCount).fill(normalizedMode === "solid" ? 1 : 0);
+  if (normalizedMode === "surface" && positions.length > 0) {
+    const radius = clampInt(Math.round(thicknessValue), 0, 4, 1);
+    const toIndex = (x: number, y: number, z: number) =>
+      x + y * res.x + z * res.x * res.y;
+    positions.forEach((point) => {
+      const ix = clampInt(Math.floor((point.x - min.x) / cellSize.x), 0, res.x - 1, 0);
+      const iy = clampInt(Math.floor((point.y - min.y) / cellSize.y), 0, res.y - 1, 0);
+      const iz = clampInt(Math.floor((point.z - min.z) / cellSize.z), 0, res.z - 1, 0);
+      for (let dz = -radius; dz <= radius; dz += 1) {
+        const z = iz + dz;
+        if (z < 0 || z >= res.z) continue;
+        for (let dy = -radius; dy <= radius; dy += 1) {
+          const y = iy + dy;
+          if (y < 0 || y >= res.y) continue;
+          for (let dx = -radius; dx <= radius; dx += 1) {
+            const x = ix + dx;
+            if (x < 0 || x >= res.x) continue;
+            densities[toIndex(x, y, z)] = 1;
+          }
+        }
+      }
+    });
+  }
+
+  return {
+    resolution: res,
+    bounds: { min, max },
+    cellSize,
+    densities,
+  };
+};
+
+const appendBoxMesh = (
+  mesh: RenderMesh,
+  min: Vec3Value,
+  size: Vec3Value
+) => {
+  const x0 = min.x;
+  const y0 = min.y;
+  const z0 = min.z;
+  const x1 = min.x + size.x;
+  const y1 = min.y + size.y;
+  const z1 = min.z + size.z;
+  const positions = [
+    // +X
+    x1, y0, z0, x1, y0, z1, x1, y1, z1, x1, y1, z0,
+    // -X
+    x0, y0, z1, x0, y0, z0, x0, y1, z0, x0, y1, z1,
+    // +Y
+    x0, y1, z0, x1, y1, z0, x1, y1, z1, x0, y1, z1,
+    // -Y
+    x0, y0, z1, x1, y0, z1, x1, y0, z0, x0, y0, z0,
+    // +Z
+    x0, y0, z1, x0, y1, z1, x1, y1, z1, x1, y0, z1,
+    // -Z
+    x1, y0, z0, x1, y1, z0, x0, y1, z0, x0, y0, z0,
+  ];
+  const normals = [
+    // +X
+    1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0,
+    // -X
+    -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0,
+    // +Y
+    0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0,
+    // -Y
+    0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0,
+    // +Z
+    0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1,
+    // -Z
+    0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1,
+  ];
+  const uvs = [
+    0, 0, 1, 0, 1, 1, 0, 1,
+    0, 0, 1, 0, 1, 1, 0, 1,
+    0, 0, 1, 0, 1, 1, 0, 1,
+    0, 0, 1, 0, 1, 1, 0, 1,
+    0, 0, 1, 0, 1, 1, 0, 1,
+    0, 0, 1, 0, 1, 1, 0, 1,
+  ];
+  const baseIndex = mesh.positions.length / 3;
+  mesh.positions.push(...positions);
+  mesh.normals.push(...normals);
+  mesh.uvs.push(...uvs);
+  mesh.indices.push(
+    baseIndex, baseIndex + 1, baseIndex + 2,
+    baseIndex, baseIndex + 2, baseIndex + 3,
+    baseIndex + 4, baseIndex + 5, baseIndex + 6,
+    baseIndex + 4, baseIndex + 6, baseIndex + 7,
+    baseIndex + 8, baseIndex + 9, baseIndex + 10,
+    baseIndex + 8, baseIndex + 10, baseIndex + 11,
+    baseIndex + 12, baseIndex + 13, baseIndex + 14,
+    baseIndex + 12, baseIndex + 14, baseIndex + 15,
+    baseIndex + 16, baseIndex + 17, baseIndex + 18,
+    baseIndex + 16, baseIndex + 18, baseIndex + 19,
+    baseIndex + 20, baseIndex + 21, baseIndex + 22,
+    baseIndex + 20, baseIndex + 22, baseIndex + 23
+  );
+};
+
+const buildVoxelMesh = (grid: VoxelGrid, isoValue: number) => {
+  const mesh: RenderMesh = {
+    positions: [],
+    normals: [],
+    uvs: [],
+    indices: [],
+  };
+  const { resolution, bounds, cellSize, densities } = grid;
+  const resX = Math.max(1, Math.round(resolution.x));
+  const resY = Math.max(1, Math.round(resolution.y));
+  const resZ = Math.max(1, Math.round(resolution.z));
+  const toIndex = (x: number, y: number, z: number) => x + y * resX + z * resX * resY;
+  for (let z = 0; z < resZ; z += 1) {
+    for (let y = 0; y < resY; y += 1) {
+      for (let x = 0; x < resX; x += 1) {
+        const density = densities[toIndex(x, y, z)] ?? 0;
+        if (density < isoValue) continue;
+        appendBoxMesh(mesh, {
+          x: bounds.min.x + x * cellSize.x,
+          y: bounds.min.y + y * cellSize.y,
+          z: bounds.min.z + z * cellSize.z,
+        }, cellSize);
+      }
+    }
+  }
+  return mesh;
+};
+
 const stripWrappingChars = (token: string) =>
   token.trim().replace(/^[\[(]+|[\])]+$/g, "");
 
@@ -723,6 +1078,23 @@ const rotateVec3AroundAxis = (vector: Vec3Value, axis: Vec3Value, angleRadians: 
   return addVec3(addVec3(term1, term2), term3);
 };
 
+const buildPlaneBasis = (normal: Vec3Value, reference: Vec3Value) => {
+  const unitNormal = normalizeVec3Safe(normal, UNIT_Z_VEC3);
+  const ref = normalizeVec3Safe(reference, UNIT_X_VEC3);
+  const projected = projectVectorOnPlane(ref, unitNormal);
+  const projectedLen = lengthVec3(projected);
+  let xAxis =
+    projectedLen > EPSILON
+      ? scaleVec3(projected, 1 / projectedLen)
+      : ZERO_VEC3;
+  if (lengthVec3(xAxis) <= EPSILON) {
+    const fallback = Math.abs(unitNormal.y) < 0.9 ? UNIT_Y_VEC3 : UNIT_X_VEC3;
+    xAxis = normalizeVec3Safe(crossVec3(fallback, unitNormal), UNIT_X_VEC3);
+  }
+  const yAxis = crossVec3(unitNormal, xAxis);
+  return { xAxis, yAxis, zAxis: unitNormal };
+};
+
 const evaluateGenomeFitness = (genome: Vec3Value, bias: number) => {
   const periodic =
     Math.sin(genome.x + bias) +
@@ -755,8 +1127,11 @@ const runTopologyDensitySolver = (args: {
 }) => {
   const seed = hashStringToSeed(args.seedKey);
   const random = createSeededRandom(seed);
-  const resolution = clampInt(args.resolution, 4, 18, 10);
-  const cellCount = resolution * resolution;
+  const resolution = clampInt(args.resolution, 4, 36, 10);
+  const resX = resolution;
+  const resY = resolution;
+  const resZ = resolution;
+  const cellCount = resX * resY * resZ;
   const rawVolumeFraction = Number.isFinite(args.volumeFraction) ? args.volumeFraction : 0.4;
   const volumeFraction = clampNumber(rawVolumeFraction, 0.05, 0.95);
   const rawPenaltyExponent = Number.isFinite(args.penaltyExponent) ? args.penaltyExponent : 3;
@@ -773,21 +1148,37 @@ const runTopologyDensitySolver = (args: {
   let objective = 1;
   let constraint = 0;
 
-  const readWrapped = (index: number) => densities[(index + cellCount) % cellCount];
+  const toIndex = (x: number, y: number, z: number) =>
+    x + y * resX + z * resX * resY;
 
   for (let iter = 0; iter < iterations; iter += 1) {
     let mean = 0;
-    for (let i = 0; i < cellCount; i += 1) {
-      let sum = 0;
-      let count = 0;
-      for (let offset = -neighborSpan; offset <= neighborSpan; offset += 1) {
-        sum += readWrapped(i + offset);
-        count += 1;
+    for (let z = 0; z < resZ; z += 1) {
+      for (let y = 0; y < resY; y += 1) {
+        for (let x = 0; x < resX; x += 1) {
+          let sum = 0;
+          let count = 0;
+          for (let dz = -neighborSpan; dz <= neighborSpan; dz += 1) {
+            const nz = z + dz;
+            if (nz < 0 || nz >= resZ) continue;
+            for (let dy = -neighborSpan; dy <= neighborSpan; dy += 1) {
+              const ny = y + dy;
+              if (ny < 0 || ny >= resY) continue;
+              for (let dx = -neighborSpan; dx <= neighborSpan; dx += 1) {
+                const nx = x + dx;
+                if (nx < 0 || nx >= resX) continue;
+                sum += densities[toIndex(nx, ny, nz)];
+                count += 1;
+              }
+            }
+          }
+          const idx = toIndex(x, y, z);
+          const filtered = count > 0 ? sum / count : densities[idx];
+          const penalized = Math.pow(filtered, penaltyExponent);
+          next[idx] = clampNumber(lerpNumber(densities[idx], penalized, 0.42), 0, 1);
+          mean += next[idx];
+        }
       }
-      const filtered = sum / count;
-      const penalized = Math.pow(filtered, penaltyExponent);
-      next[i] = clampNumber(lerpNumber(densities[i], penalized, 0.42), 0, 1);
-      mean += next[i];
     }
 
     mean /= cellCount;
@@ -975,113 +1366,161 @@ export const NODE_CATEGORIES: NodeCategory[] = [
     id: "data",
     label: "Data",
     description: "References and parameters",
-    accent: "#1f1f22",
-    band: "#e9e6e2",
-    port: "#c9c5c0",
+    accent: "#2f3a4a",
+    band: "#e8edf2",
+    port: "#b8c4d0",
   },
   {
     id: "basics",
     label: "Basics",
     description: "Core constants and helpers",
-    accent: "#1f1f22",
-    band: "#e9e6e2",
-    port: "#c9c5c0",
+    accent: "#6b4e3d",
+    band: "#f1e6dc",
+    port: "#d2b8a5",
   },
   {
     id: "lists",
     label: "Lists",
     description: "List and data management",
-    accent: "#1f1f22",
-    band: "#e9e6e2",
-    port: "#c9c5c0",
+    accent: "#1b6b5f",
+    band: "#e2f1ee",
+    port: "#9bc7c0",
   },
   {
     id: "primitives",
     label: "Primitives",
     description: "Base geometry generators",
     accent: "#00c2d1",
-    band: "#e9e6e2",
-    port: "#c9c5c0",
+    band: "#e0f6f8",
+    port: "#86dfe7",
   },
   {
     id: "curves",
     label: "Curves",
     description: "Curve builders and edits",
     accent: "#ff4fb6",
-    band: "#e9e6e2",
-    port: "#c9c5c0",
+    band: "#fde7f3",
+    port: "#f3a6d0",
+  },
+  {
+    id: "nurbs",
+    label: "NURBS",
+    description: "Parametric curve operations",
+    accent: "#0f766e",
+    band: "#e0f2f1",
+    port: "#88cfc7",
   },
   {
     id: "surfaces",
     label: "Surfaces",
     description: "Surface and solid operations",
     accent: "#7a5cff",
-    band: "#e9e6e2",
-    port: "#c9c5c0",
+    band: "#eee9ff",
+    port: "#b8a9ff",
+  },
+  {
+    id: "modifiers",
+    label: "Modifiers",
+    description: "Booleans, offsets, shelling",
+    accent: "#f97316",
+    band: "#ffedd5",
+    port: "#f7c49b",
   },
   {
     id: "transforms",
     label: "Transforms",
     description: "Move, rotate, scale, align",
-    accent: "#1f1f22",
-    band: "#e9e6e2",
-    port: "#c9c5c0",
+    accent: "#f4a261",
+    band: "#fff1e5",
+    port: "#f7c6a1",
+  },
+  {
+    id: "arrays",
+    label: "Arrays",
+    description: "Linear, polar, and grid distributions",
+    accent: "#f59e0b",
+    band: "#fff3d6",
+    port: "#f8cf8a",
   },
   {
     id: "euclidean",
     label: "Euclidean",
     description: "Vectors, points, and spatial transforms",
-    accent: "#1f1f22",
-    band: "#e9e6e2",
-    port: "#c9c5c0",
+    accent: "#3b82f6",
+    band: "#e7f0ff",
+    port: "#a6c7ff",
   },
   {
     id: "ranges",
     label: "Ranges",
     description: "Sequences, remaps, and generators",
-    accent: "#1f1f22",
-    band: "#e9e6e2",
-    port: "#c9c5c0",
+    accent: "#a855f7",
+    band: "#f1e8ff",
+    port: "#cdb1ff",
   },
   {
     id: "signals",
     label: "Signals",
     description: "Waveforms and oscillators",
-    accent: "#1f1f22",
-    band: "#e9e6e2",
-    port: "#c9c5c0",
+    accent: "#22c55e",
+    band: "#e6f8ed",
+    port: "#a8e2c1",
   },
   {
     id: "analysis",
     label: "Analysis",
     description: "Measure and inspect",
-    accent: "#1f1f22",
-    band: "#e9e6e2",
-    port: "#c9c5c0",
+    accent: "#0ea5a4",
+    band: "#e0f7f7",
+    port: "#9fdede",
+  },
+  {
+    id: "interop",
+    label: "Interchange",
+    description: "Import, export, and mesh conversion",
+    accent: "#2563eb",
+    band: "#e0ecff",
+    port: "#a4c7ff",
+  },
+  {
+    id: "measurement",
+    label: "Measurement",
+    description: "Length, area, volume",
+    accent: "#38bdf8",
+    band: "#e0f2fe",
+    port: "#a5d8f3",
+  },
+  {
+    id: "voxel",
+    label: "Voxel",
+    description: "Voxel grids and solvers",
+    accent: "#16a34a",
+    band: "#e6f7ea",
+    port: "#a8e2b5",
   },
   {
     id: "optimization",
     label: "Optimization",
     description: "Topology and evolutionary tools",
-    accent: "#1f1f22",
-    band: "#e9e6e2",
-    port: "#c9c5c0",
+    accent: "#ef4444",
+    band: "#ffe8e8",
+    port: "#f4a3a3",
   },
   {
     id: "math",
     label: "Math",
     description: "Scalar computation and expressions",
     accent: "#ffc533",
-    band: "#e9e6e2",
-    port: "#c9c5c0",
+    band: "#fff6d6",
+    port: "#ffe08a",
   },
   {
     id: "logic",
     label: "Logic",
     description: "Conditions and branching",
-    accent: "#1f1f22",
-    band: "#e9e6e2",
-    port: "#c9c5c0",
+    accent: "#6366f1",
+    band: "#e9e9ff",
+    port: "#b6b8ff",
   },
 ];
 
@@ -1140,6 +1579,134 @@ const conditionalModeOptions: WorkflowParameterOption[] = [
   { value: "equal", label: "Equal" },
   { value: "notEqual", label: "Not Equal" },
 ];
+
+const primitiveKindOptions: WorkflowParameterOption[] = [
+  { value: "box", label: "Box" },
+  { value: "sphere", label: "Sphere" },
+  { value: "cylinder", label: "Cylinder" },
+  { value: "torus", label: "Torus" },
+  { value: "pyramid", label: "Pyramid" },
+  { value: "tetrahedron", label: "Tetrahedron" },
+  { value: "octahedron", label: "Octahedron" },
+  { value: "icosahedron", label: "Icosahedron" },
+  { value: "dodecahedron", label: "Dodecahedron" },
+  { value: "hemisphere", label: "Hemisphere" },
+  { value: "capsule", label: "Capsule" },
+  { value: "disk", label: "Disk" },
+  { value: "ring", label: "Ring / Annulus" },
+  { value: "triangularPrism", label: "Triangular Prism" },
+  { value: "pentagonalPrism", label: "Pentagonal Prism" },
+  { value: "hexagonalPrism", label: "Hexagonal Prism" },
+  { value: "torusKnot", label: "Torus Knot" },
+  { value: "utahTeapot", label: "Utah Teapot" },
+  { value: "frustum", label: "Frustum" },
+  { value: "mobiusStrip", label: "Mobius Strip" },
+  { value: "ellipsoid", label: "Ellipsoid" },
+  { value: "wedge", label: "Wedge" },
+  { value: "sphericalCap", label: "Spherical Cap / Dome" },
+  { value: "bipyramid", label: "Bipyramid" },
+  { value: "rhombicDodecahedron", label: "Rhombic Dodecahedron" },
+  { value: "truncatedCube", label: "Truncated Cube" },
+  { value: "truncatedOctahedron", label: "Truncated Octahedron" },
+  { value: "truncatedIcosahedron", label: "Truncated Icosahedron" },
+  { value: "pipe", label: "Pipe / Hollow Cylinder" },
+  { value: "superellipsoid", label: "Superellipsoid" },
+  { value: "hyperbolicParaboloid", label: "Hyperbolic Paraboloid" },
+  { value: "geodesicDome", label: "Geodesic Dome" },
+  { value: "oneSheetHyperboloid", label: "One-Sheet Hyperboloid" },
+];
+
+const PRIMITIVE_PARAMETER_SPECS: WorkflowParameterSpec[] = [
+  { key: "size", label: "Size", type: "number", defaultValue: 1, min: 0.01, step: 0.1 },
+  { key: "radius", label: "Radius", type: "number", defaultValue: 0.5, min: 0.01, step: 0.1 },
+  { key: "height", label: "Height", type: "number", defaultValue: 1, min: 0.01, step: 0.1 },
+  { key: "tube", label: "Tube", type: "number", defaultValue: 0.2, min: 0.01, step: 0.05 },
+  {
+    key: "innerRadius",
+    label: "Inner Radius",
+    type: "number",
+    defaultValue: 0.25,
+    min: 0.01,
+    step: 0.05,
+  },
+  {
+    key: "topRadius",
+    label: "Top Radius",
+    type: "number",
+    defaultValue: 0.2,
+    min: 0.01,
+    step: 0.05,
+  },
+  {
+    key: "capHeight",
+    label: "Cap Height",
+    type: "number",
+    defaultValue: 0.4,
+    min: 0.01,
+    step: 0.05,
+  },
+  { key: "detail", label: "Detail", type: "number", defaultValue: 1, min: 0, max: 6, step: 1 },
+  {
+    key: "exponent1",
+    label: "Exponent 1",
+    type: "number",
+    defaultValue: 2,
+    min: 0.2,
+    step: 0.1,
+  },
+  {
+    key: "exponent2",
+    label: "Exponent 2",
+    type: "number",
+    defaultValue: 2,
+    min: 0.2,
+    step: 0.1,
+  },
+  {
+    key: "radialSegments",
+    label: "Radial Segments",
+    type: "number",
+    defaultValue: 24,
+    min: 6,
+    max: 128,
+    step: 1,
+  },
+  {
+    key: "tubularSegments",
+    label: "Tubular Segments",
+    type: "number",
+    defaultValue: 36,
+    min: 6,
+    max: 128,
+    step: 1,
+  },
+];
+
+const toPrimitiveShortLabel = (label: string) => {
+  const collapsed = label.replace(/[^A-Za-z0-9]/g, "");
+  const source = collapsed.length > 0 ? collapsed : label;
+  return source.slice(0, 3).toUpperCase();
+};
+
+const PRIMITIVE_NODE_DEFINITIONS: WorkflowNodeDefinition[] = PRIMITIVE_NODE_CATALOG.map(
+  (entry) => ({
+    type: entry.id as NodeType,
+    label: entry.label,
+    shortLabel: toPrimitiveShortLabel(entry.label),
+    description: `Create a ${entry.label} primitive.`,
+    category: "primitives",
+    iconId: "primitive",
+    inputs: [],
+    outputs: [
+      { key: "geometry", label: entry.label, type: "geometry", required: true },
+    ],
+    parameters: PRIMITIVE_PARAMETER_SPECS,
+    primaryOutputKey: "geometry",
+    compute: ({ parameters }) => ({
+      geometry: typeof parameters.geometryId === "string" ? parameters.geometryId : null,
+    }),
+  })
+);
 
 const baseWaveInputPorts = (): WorkflowPortSpec[] => [
   {
@@ -1242,6 +1809,53 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     }),
   },
   {
+    type: "annotations",
+    label: "Annotations",
+    shortLabel: "NOTE",
+    description: "Attach annotation text to a point or geometry.",
+    category: "data",
+    iconId: "group",
+    inputs: [
+      { key: "geometry", label: "Geometry", type: "geometry", required: false },
+      { key: "anchor", label: "Anchor", type: "vector", required: false },
+      {
+        key: "text",
+        label: "Text",
+        type: "string",
+        parameterKey: "text",
+        defaultValue: "Annotation",
+      },
+      {
+        key: "size",
+        label: "Size",
+        type: "number",
+        parameterKey: "size",
+        defaultValue: 1,
+      },
+    ],
+    outputs: [
+      { key: "annotation", label: "Annotation", type: "any" },
+      { key: "geometry", label: "Geometry", type: "geometry" },
+      { key: "anchor", label: "Anchor", type: "vector" },
+      { key: "text", label: "Text", type: "string" },
+      { key: "size", label: "Size", type: "number" },
+    ],
+    parameters: [
+      ...vectorParameterSpecs("anchor", "Anchor", ZERO_VEC3),
+      { key: "text", label: "Text", type: "string", defaultValue: "Annotation" },
+      { key: "size", label: "Size", type: "number", defaultValue: 1, step: 0.1 },
+    ],
+    primaryOutputKey: "annotation",
+    compute: ({ inputs, parameters }) => {
+      const geometry = typeof inputs.geometry === "string" ? inputs.geometry : null;
+      const anchor = resolveVectorInput(inputs, parameters, "anchor", "anchor", ZERO_VEC3);
+      const text = String(inputs.text ?? parameters.text ?? "Annotation");
+      const size = toNumber(inputs.size, readNumberParameter(parameters, "size", 1));
+      const annotation = { geometry, anchor, text, size };
+      return { annotation, geometry, anchor, text, size };
+    },
+  },
+  {
     type: "geometryViewer",
     label: "Geometry Viewer",
     shortLabel: "VIEW",
@@ -1259,6 +1873,253 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     outputs: [],
     parameters: [],
     compute: () => ({}),
+  },
+  {
+    type: "metadataPanel",
+    label: "Metadata Panel",
+    shortLabel: "META",
+    description: "Inspect geometry metadata and attributes.",
+    category: "analysis",
+    iconId: "geometryInfo",
+    inputs: [
+      {
+        key: "geometry",
+        label: "Geometry",
+        type: "geometry",
+        required: false,
+      },
+    ],
+    outputs: [
+      { key: "metadata", label: "Metadata", type: "any" },
+      { key: "id", label: "Id", type: "string" },
+      { key: "type", label: "Type", type: "string" },
+      { key: "layer", label: "Layer", type: "string" },
+      { key: "area", label: "Area", type: "number" },
+      { key: "thickness", label: "Thickness", type: "number" },
+    ],
+    parameters: [],
+    primaryOutputKey: "metadata",
+    compute: ({ inputs, context }) => {
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      if (!geometry) {
+        return {
+          metadata: null,
+          id: "",
+          type: "",
+          layer: "",
+          area: 0,
+          thickness: 0,
+        };
+      }
+      const metadata = {
+        id: geometry.id,
+        type: geometry.type,
+        layerId: geometry.layerId,
+        area_m2: geometry.area_m2 ?? null,
+        thickness_m: geometry.thickness_m ?? null,
+        metadata: geometry.metadata ?? null,
+      };
+      return {
+        metadata,
+        id: geometry.id,
+        type: geometry.type,
+        layer: geometry.layerId,
+        area: geometry.area_m2 ?? 0,
+        thickness: geometry.thickness_m ?? 0,
+      };
+    },
+  },
+  {
+    type: "meshConvert",
+    label: "Mesh Convert",
+    shortLabel: "MSH",
+    description: "Convert geometry into a mesh for export.",
+    category: "interop",
+    iconId: "surface",
+    inputs: [
+      { key: "geometry", label: "Geometry", type: "geometry", required: true },
+      {
+        key: "distance",
+        label: "Thickness",
+        type: "number",
+        parameterKey: "distance",
+        defaultValue: 0.1,
+      },
+      { key: "direction", label: "Direction", type: "vector", required: false },
+      {
+        key: "capped",
+        label: "Capped",
+        type: "boolean",
+        parameterKey: "capped",
+        defaultValue: true,
+      },
+      {
+        key: "radius",
+        label: "Vertex Radius",
+        type: "number",
+        parameterKey: "radius",
+        defaultValue: 0.1,
+      },
+    ],
+    outputs: [
+      { key: "geometry", label: "Mesh", type: "geometry", required: true },
+      { key: "mesh", label: "Mesh Data", type: "any" },
+      { key: "sourceType", label: "Source Type", type: "string" },
+    ],
+    parameters: [
+      {
+        key: "distance",
+        label: "Thickness",
+        type: "number",
+        defaultValue: 0.1,
+        min: 0,
+        step: 0.05,
+      },
+      ...vectorParameterSpecs("direction", "Direction", UNIT_Y_VEC3),
+      { key: "capped", label: "Capped", type: "boolean", defaultValue: true },
+      {
+        key: "radius",
+        label: "Vertex Radius",
+        type: "number",
+        defaultValue: 0.1,
+        min: 0,
+        step: 0.05,
+      },
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, parameters, context }) => {
+      const geometryId = typeof parameters.geometryId === "string" ? parameters.geometryId : null;
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      if (!geometry) {
+        return { geometry: geometryId, mesh: EMPTY_MESH, sourceType: "" };
+      }
+      if ("mesh" in geometry && geometry.mesh) {
+        return { geometry: geometryId, mesh: geometry.mesh, sourceType: geometry.type };
+      }
+      if (geometry.type === "polyline") {
+        const points = collectGeometryVertices(geometry, context, MAX_LIST_ITEMS);
+        if (points.length < 2) {
+          return { geometry: geometryId, mesh: EMPTY_MESH, sourceType: geometry.type };
+        }
+        const distance = toNumber(
+          inputs.distance,
+          readNumberParameter(parameters, "distance", 0.1)
+        );
+        if (distance <= EPSILON) {
+          return { geometry: geometryId, mesh: EMPTY_MESH, sourceType: geometry.type };
+        }
+        const directionInput = resolveVectorInput(
+          inputs,
+          parameters,
+          "direction",
+          "direction",
+          UNIT_Y_VEC3
+        );
+        const direction = normalizeVec3Safe(directionInput, UNIT_Y_VEC3);
+        const capped = toBoolean(
+          inputs.capped,
+          readBooleanParameter(parameters, "capped", geometry.closed)
+        );
+        const mesh = generateExtrudeMesh(
+          [{ points, closed: geometry.closed }],
+          { direction, distance, capped }
+        );
+        return { geometry: geometryId, mesh, sourceType: geometry.type };
+      }
+      if (geometry.type === "vertex") {
+        const radius = toNumber(
+          inputs.radius,
+          readNumberParameter(parameters, "radius", 0.1)
+        );
+        if (radius <= EPSILON) {
+          return { geometry: geometryId, mesh: EMPTY_MESH, sourceType: geometry.type };
+        }
+        const sphere = generateSphereMesh(radius, 24);
+        const mesh = translateMesh(sphere, geometry.position);
+        return { geometry: geometryId, mesh, sourceType: geometry.type };
+      }
+      return { geometry: geometryId, mesh: EMPTY_MESH, sourceType: geometry.type };
+    },
+  },
+  {
+    type: "stlImport",
+    label: "STL Import",
+    shortLabel: "STL",
+    description: "Import STL geometry into the scene.",
+    category: "interop",
+    iconId: "load",
+    inputs: [],
+    outputs: [
+      { key: "geometry", label: "Mesh", type: "geometry" },
+      { key: "fileName", label: "File", type: "string" },
+      { key: "status", label: "Status", type: "string" },
+    ],
+    parameters: [
+      {
+        key: "file",
+        label: "STL File",
+        type: "file",
+        defaultValue: null,
+        accept: ".stl",
+      },
+      { key: "importNow", label: "Import", type: "boolean", defaultValue: false },
+      { key: "scale", label: "Scale", type: "number", defaultValue: 1, min: 0, step: 0.001 },
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ parameters }) => {
+      const geometryId = typeof parameters.geometryId === "string" ? parameters.geometryId : null;
+      const file = parameters.file as { name?: string } | null | undefined;
+      const importNow = readBooleanParameter(parameters, "importNow", false);
+      const status = !file ? "No file" : importNow ? "Queued" : "Ready";
+      return {
+        geometry: geometryId,
+        fileName: file?.name ?? "",
+        status,
+      };
+    },
+  },
+  {
+    type: "stlExport",
+    label: "STL Export",
+    shortLabel: "STL",
+    description: "Export geometry to an STL file.",
+    category: "interop",
+    iconId: "download",
+    inputs: [
+      {
+        key: "geometry",
+        label: "Geometry",
+        type: "geometry",
+        required: true,
+        allowMultiple: true,
+      },
+    ],
+    outputs: [
+      { key: "geometryList", label: "Geometry List", type: "any" },
+      { key: "count", label: "Count", type: "number" },
+      { key: "status", label: "Status", type: "string" },
+    ],
+    parameters: [
+      { key: "exportNow", label: "Export", type: "boolean", defaultValue: false },
+      {
+        key: "fileName",
+        label: "File Name",
+        type: "string",
+        defaultValue: "specificity-export",
+      },
+      { key: "scale", label: "Scale", type: "number", defaultValue: 1, min: 0, step: 0.001 },
+    ],
+    compute: ({ inputs, parameters, context }) => {
+      const geometries = resolveGeometryList(inputs, context);
+      const exportNow = readBooleanParameter(parameters, "exportNow", false);
+      const status =
+        geometries.length === 0 ? "No geometry" : exportNow ? "Queued" : "Ready";
+      return {
+        geometryList: geometries.map((geometry) => geometry.id),
+        count: geometries.length,
+        status,
+      };
+    },
   },
   {
     type: "origin",
@@ -2144,6 +3005,442 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     },
   },
   {
+    type: "linearArray",
+    label: "Linear Array",
+    shortLabel: "LARR",
+    description: "Duplicate points along a direction at a fixed spacing.",
+    category: "arrays",
+    iconId: "arrayLinear",
+    inputs: [
+      { key: "base", label: "Base", type: "vector", required: true },
+      { key: "direction", label: "Direction", type: "vector", required: true },
+      {
+        key: "spacing",
+        label: "Spacing",
+        type: "number",
+        parameterKey: "spacing",
+        defaultValue: 1,
+      },
+      {
+        key: "count",
+        label: "Count",
+        type: "number",
+        parameterKey: "count",
+        defaultValue: 5,
+      },
+    ],
+    outputs: [
+      { key: "points", label: "Points", type: "any" },
+      { key: "count", label: "Count", type: "number" },
+      { key: "step", label: "Step", type: "vector" },
+      { key: "spacing", label: "Spacing", type: "number" },
+    ],
+    parameters: [
+      ...vectorParameterSpecs("base", "Base", ZERO_VEC3),
+      ...vectorParameterSpecs("direction", "Direction", UNIT_X_VEC3),
+      { key: "spacing", label: "Spacing", type: "number", defaultValue: 1, step: 0.1 },
+      {
+        key: "count",
+        label: "Count",
+        type: "number",
+        defaultValue: 5,
+        min: 1,
+        max: MAX_LIST_ITEMS,
+        step: 1,
+      },
+      {
+        key: "centered",
+        label: "Centered",
+        type: "boolean",
+        defaultValue: false,
+      },
+    ],
+    primaryOutputKey: "points",
+    compute: ({ inputs, parameters }) => {
+      const base = resolveVectorInput(inputs, parameters, "base", "base", ZERO_VEC3);
+      const directionInput = resolveVectorInput(
+        inputs,
+        parameters,
+        "direction",
+        "direction",
+        UNIT_X_VEC3
+      );
+      const direction = normalizeVec3Safe(directionInput, UNIT_X_VEC3);
+      const spacing = toNumber(
+        inputs.spacing,
+        readNumberParameter(parameters, "spacing", 1)
+      );
+      const count = clampInt(
+        toNumber(inputs.count, readNumberParameter(parameters, "count", 5)),
+        1,
+        MAX_LIST_ITEMS,
+        5
+      );
+      const centered = readBooleanParameter(parameters, "centered", false);
+      const step = scaleVec3(direction, spacing);
+      const offset = centered ? scaleVec3(step, (count - 1) * 0.5) : ZERO_VEC3;
+      const start = centered ? subtractVec3(base, offset) : base;
+      const points: Vec3Value[] = [];
+      for (let i = 0; i < count && points.length < MAX_LIST_ITEMS; i += 1) {
+        points.push(addVec3(start, scaleVec3(step, i)));
+      }
+      return {
+        points,
+        count: points.length,
+        step,
+        spacing,
+      };
+    },
+  },
+  {
+    type: "polarArray",
+    label: "Polar Array",
+    shortLabel: "PARR",
+    description: "Distribute points around an axis with a sweep angle.",
+    category: "arrays",
+    iconId: "arrayPolar",
+    inputs: [
+      { key: "center", label: "Center", type: "vector", required: true },
+      { key: "axis", label: "Axis", type: "vector", required: true },
+      { key: "reference", label: "Reference", type: "vector", required: false },
+      {
+        key: "radius",
+        label: "Radius",
+        type: "number",
+        parameterKey: "radius",
+        defaultValue: 5,
+      },
+      {
+        key: "count",
+        label: "Count",
+        type: "number",
+        parameterKey: "count",
+        defaultValue: 8,
+      },
+      {
+        key: "startAngle",
+        label: "Start",
+        type: "number",
+        parameterKey: "startAngle",
+        defaultValue: 0,
+      },
+      {
+        key: "sweep",
+        label: "Sweep",
+        type: "number",
+        parameterKey: "sweep",
+        defaultValue: 360,
+      },
+    ],
+    outputs: [
+      { key: "points", label: "Points", type: "any" },
+      { key: "angles", label: "Angles", type: "any" },
+      { key: "count", label: "Count", type: "number" },
+      { key: "stepAngle", label: "Step", type: "number" },
+      { key: "radius", label: "Radius", type: "number" },
+      { key: "axis", label: "Axis", type: "vector" },
+    ],
+    parameters: [
+      ...vectorParameterSpecs("center", "Center", ZERO_VEC3),
+      ...vectorParameterSpecs("axis", "Axis", UNIT_Z_VEC3),
+      ...vectorParameterSpecs("reference", "Reference", UNIT_X_VEC3),
+      { key: "radius", label: "Radius", type: "number", defaultValue: 5, step: 0.5, min: 0 },
+      {
+        key: "count",
+        label: "Count",
+        type: "number",
+        defaultValue: 8,
+        min: 1,
+        max: MAX_LIST_ITEMS,
+        step: 1,
+      },
+      {
+        key: "startAngle",
+        label: "Start Angle",
+        type: "number",
+        defaultValue: 0,
+        step: 5,
+      },
+      {
+        key: "sweep",
+        label: "Sweep",
+        type: "number",
+        defaultValue: 360,
+        step: 5,
+      },
+      {
+        key: "includeEnd",
+        label: "Include End",
+        type: "boolean",
+        defaultValue: false,
+      },
+    ],
+    primaryOutputKey: "points",
+    compute: ({ inputs, parameters }) => {
+      const center = resolveVectorInput(inputs, parameters, "center", "center", ZERO_VEC3);
+      const axisInput = resolveVectorInput(inputs, parameters, "axis", "axis", UNIT_Z_VEC3);
+      const referenceInput = resolveVectorInput(
+        inputs,
+        parameters,
+        "reference",
+        "reference",
+        UNIT_X_VEC3
+      );
+      const { xAxis, yAxis, zAxis } = buildPlaneBasis(axisInput, referenceInput);
+      const radius = toNumber(
+        inputs.radius,
+        readNumberParameter(parameters, "radius", 5)
+      );
+      const count = clampInt(
+        toNumber(inputs.count, readNumberParameter(parameters, "count", 8)),
+        1,
+        MAX_LIST_ITEMS,
+        8
+      );
+      const startAngle = toNumber(
+        inputs.startAngle,
+        readNumberParameter(parameters, "startAngle", 0)
+      );
+      const sweep = toNumber(inputs.sweep, readNumberParameter(parameters, "sweep", 360));
+      const includeEnd = readBooleanParameter(parameters, "includeEnd", false);
+      const stepAngle =
+        count <= 1 ? 0 : sweep / (includeEnd ? Math.max(1, count - 1) : count);
+      const points: Vec3Value[] = [];
+      const angles: number[] = [];
+      for (let i = 0; i < count && points.length < MAX_LIST_ITEMS; i += 1) {
+        const angleDeg = startAngle + stepAngle * i;
+        const angleRad = (angleDeg * Math.PI) / 180;
+        const offset = addVec3(
+          scaleVec3(xAxis, Math.cos(angleRad) * radius),
+          scaleVec3(yAxis, Math.sin(angleRad) * radius)
+        );
+        points.push(addVec3(center, offset));
+        angles.push(angleDeg);
+      }
+      return {
+        points,
+        angles,
+        count: points.length,
+        stepAngle,
+        radius,
+        axis: zAxis,
+      };
+    },
+  },
+  {
+    type: "gridArray",
+    label: "Grid Array",
+    shortLabel: "GRID",
+    description: "Create a rectangular grid of points from two axes.",
+    category: "arrays",
+    iconId: "arrayGrid",
+    inputs: [
+      { key: "origin", label: "Origin", type: "vector", required: true },
+      { key: "xAxis", label: "X Axis", type: "vector", required: true },
+      { key: "yAxis", label: "Y Axis", type: "vector", required: true },
+      {
+        key: "xSpacing",
+        label: "X Spacing",
+        type: "number",
+        parameterKey: "xSpacing",
+        defaultValue: 1,
+      },
+      {
+        key: "ySpacing",
+        label: "Y Spacing",
+        type: "number",
+        parameterKey: "ySpacing",
+        defaultValue: 1,
+      },
+      {
+        key: "xCount",
+        label: "X Count",
+        type: "number",
+        parameterKey: "xCount",
+        defaultValue: 4,
+      },
+      {
+        key: "yCount",
+        label: "Y Count",
+        type: "number",
+        parameterKey: "yCount",
+        defaultValue: 4,
+      },
+    ],
+    outputs: [
+      { key: "points", label: "Points", type: "any" },
+      { key: "grid", label: "Grid", type: "any" },
+      { key: "count", label: "Count", type: "number" },
+      { key: "xCount", label: "X Count", type: "number" },
+      { key: "yCount", label: "Y Count", type: "number" },
+      { key: "xStep", label: "X Step", type: "vector" },
+      { key: "yStep", label: "Y Step", type: "vector" },
+    ],
+    parameters: [
+      ...vectorParameterSpecs("origin", "Origin", ZERO_VEC3),
+      ...vectorParameterSpecs("xAxis", "X Axis", UNIT_X_VEC3),
+      ...vectorParameterSpecs("yAxis", "Y Axis", UNIT_Y_VEC3),
+      { key: "xSpacing", label: "X Spacing", type: "number", defaultValue: 1, step: 0.1 },
+      { key: "ySpacing", label: "Y Spacing", type: "number", defaultValue: 1, step: 0.1 },
+      {
+        key: "xCount",
+        label: "X Count",
+        type: "number",
+        defaultValue: 4,
+        min: 1,
+        max: MAX_LIST_ITEMS,
+        step: 1,
+      },
+      {
+        key: "yCount",
+        label: "Y Count",
+        type: "number",
+        defaultValue: 4,
+        min: 1,
+        max: MAX_LIST_ITEMS,
+        step: 1,
+      },
+      {
+        key: "centered",
+        label: "Centered",
+        type: "boolean",
+        defaultValue: false,
+      },
+    ],
+    primaryOutputKey: "points",
+    compute: ({ inputs, parameters }) => {
+      const origin = resolveVectorInput(inputs, parameters, "origin", "origin", ZERO_VEC3);
+      const xAxisInput = resolveVectorInput(inputs, parameters, "xAxis", "xAxis", UNIT_X_VEC3);
+      const yAxisInput = resolveVectorInput(inputs, parameters, "yAxis", "yAxis", UNIT_Y_VEC3);
+      const xAxis = normalizeVec3Safe(xAxisInput, UNIT_X_VEC3);
+      let yAxis = normalizeVec3Safe(yAxisInput, UNIT_Y_VEC3);
+      if (lengthVec3(crossVec3(xAxis, yAxis)) <= EPSILON) {
+        const fallback = Math.abs(xAxis.y) < 0.9 ? UNIT_Y_VEC3 : UNIT_Z_VEC3;
+        yAxis = normalizeVec3Safe(crossVec3(xAxis, fallback), UNIT_Y_VEC3);
+      }
+      const xSpacing = toNumber(
+        inputs.xSpacing,
+        readNumberParameter(parameters, "xSpacing", 1)
+      );
+      const ySpacing = toNumber(
+        inputs.ySpacing,
+        readNumberParameter(parameters, "ySpacing", 1)
+      );
+      let xCount = clampInt(
+        toNumber(inputs.xCount, readNumberParameter(parameters, "xCount", 4)),
+        1,
+        MAX_LIST_ITEMS,
+        4
+      );
+      let yCount = clampInt(
+        toNumber(inputs.yCount, readNumberParameter(parameters, "yCount", 4)),
+        1,
+        MAX_LIST_ITEMS,
+        4
+      );
+      if (xCount * yCount > MAX_LIST_ITEMS) {
+        if (xCount >= MAX_LIST_ITEMS) {
+          xCount = MAX_LIST_ITEMS;
+          yCount = 1;
+        } else {
+          yCount = Math.max(1, Math.floor(MAX_LIST_ITEMS / xCount));
+        }
+      }
+      const centered = readBooleanParameter(parameters, "centered", false);
+      const xStep = scaleVec3(xAxis, xSpacing);
+      const yStep = scaleVec3(yAxis, ySpacing);
+      const centerOffset = centered
+        ? addVec3(scaleVec3(xStep, (xCount - 1) * 0.5), scaleVec3(yStep, (yCount - 1) * 0.5))
+        : ZERO_VEC3;
+      const start = centered ? subtractVec3(origin, centerOffset) : origin;
+      const points: Vec3Value[] = [];
+      const grid: Vec3Value[][] = [];
+      for (let y = 0; y < yCount; y += 1) {
+        const row: Vec3Value[] = [];
+        for (let x = 0; x < xCount; x += 1) {
+          const point = addVec3(
+            addVec3(start, scaleVec3(xStep, x)),
+            scaleVec3(yStep, y)
+          );
+          row.push(point);
+          points.push(point);
+        }
+        grid.push(row);
+      }
+      return {
+        points,
+        grid,
+        count: points.length,
+        xCount,
+        yCount,
+        xStep,
+        yStep,
+      };
+    },
+  },
+  {
+    type: "geometryArray",
+    label: "Geometry Array",
+    shortLabel: "ARR",
+    description: "Duplicate geometry in linear, grid, or polar patterns.",
+    category: "arrays",
+    iconId: "arrayGrid",
+    inputs: [
+      { key: "geometry", label: "Geometry", type: "geometry", required: true },
+      {
+        key: "mode",
+        label: "Mode",
+        type: "string",
+        parameterKey: "mode",
+        defaultValue: "linear",
+      },
+    ],
+    outputs: [
+      { key: "geometry", label: "Source", type: "geometry" },
+      { key: "geometryList", label: "Geometry List", type: "any" },
+      { key: "count", label: "Count", type: "number" },
+    ],
+    parameters: [
+      {
+        key: "mode",
+        label: "Mode",
+        type: "select",
+        defaultValue: "linear",
+        options: [
+          { value: "linear", label: "Linear" },
+          { value: "grid", label: "Grid" },
+          { value: "polar", label: "Polar" },
+        ],
+      },
+      ...vectorParameterSpecs("direction", "Direction", UNIT_X_VEC3),
+      { key: "spacing", label: "Spacing", type: "number", defaultValue: 1, min: 0, step: 0.1 },
+      { key: "count", label: "Count", type: "number", defaultValue: 4, min: 1, max: 64, step: 1 },
+      ...vectorParameterSpecs("xAxis", "X Axis", UNIT_X_VEC3),
+      ...vectorParameterSpecs("yAxis", "Y Axis", UNIT_Y_VEC3),
+      { key: "xSpacing", label: "X Spacing", type: "number", defaultValue: 1, min: 0, step: 0.1 },
+      { key: "ySpacing", label: "Y Spacing", type: "number", defaultValue: 1, min: 0, step: 0.1 },
+      { key: "xCount", label: "X Count", type: "number", defaultValue: 3, min: 1, max: 32, step: 1 },
+      { key: "yCount", label: "Y Count", type: "number", defaultValue: 3, min: 1, max: 32, step: 1 },
+      ...vectorParameterSpecs("center", "Center", ZERO_VEC3),
+      ...vectorParameterSpecs("axis", "Axis", UNIT_Y_VEC3),
+      { key: "startAngle", label: "Start Angle", type: "number", defaultValue: 0, step: 5 },
+      { key: "sweep", label: "Sweep", type: "number", defaultValue: 360, step: 5 },
+      { key: "includeEnd", label: "Include End", type: "boolean", defaultValue: false },
+    ],
+    primaryOutputKey: "geometryList",
+    compute: ({ inputs, parameters }) => {
+      const geometry = typeof inputs.geometry === "string" ? inputs.geometry : null;
+      const geometryList = Array.isArray(parameters.geometryIds)
+        ? parameters.geometryIds
+        : [];
+      return {
+        geometry,
+        geometryList,
+        count: geometryList.length,
+      };
+    },
+  },
+  {
     type: "listSum",
     label: "List Sum",
     shortLabel: "SUM",
@@ -2333,6 +3630,134 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
         faceCount,
         controlPointCount,
         normalCount,
+      };
+    },
+  },
+  {
+    type: "measurement",
+    label: "Measurement",
+    shortLabel: "MEAS",
+    description: "Measure length, area, volume, or bounds.",
+    category: "measurement",
+    iconId: "ruler",
+    inputs: [{ key: "geometry", label: "Geometry", type: "geometry", required: true }],
+    outputs: [
+      { key: "value", label: "Value", type: "number" },
+      { key: "length", label: "Length", type: "number" },
+      { key: "area", label: "Area", type: "number" },
+      { key: "volume", label: "Volume", type: "number" },
+      { key: "boundsMin", label: "Bounds Min", type: "vector" },
+      { key: "boundsMax", label: "Bounds Max", type: "vector" },
+    ],
+    parameters: [
+      {
+        key: "property",
+        label: "Property",
+        type: "select",
+        defaultValue: "length",
+        options: [
+          { value: "length", label: "Length" },
+          { value: "area", label: "Area" },
+          { value: "volume", label: "Volume" },
+          { value: "boundsX", label: "Bounds X" },
+          { value: "boundsY", label: "Bounds Y" },
+          { value: "boundsZ", label: "Bounds Z" },
+        ],
+      },
+    ],
+    primaryOutputKey: "value",
+    compute: ({ inputs, parameters, context }) => {
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      if (!geometry) {
+        return {
+          value: 0,
+          length: 0,
+          area: 0,
+          volume: 0,
+          boundsMin: ZERO_VEC3,
+          boundsMax: ZERO_VEC3,
+        };
+      }
+      const vertices = collectGeometryVertices(geometry, context, Number.POSITIVE_INFINITY);
+      const bounds = computeBounds(vertices);
+      let length = 0;
+      if (geometry.type === "polyline" && vertices.length >= 2) {
+        for (let i = 1; i < vertices.length; i += 1) {
+          length += distanceVec3(vertices[i - 1], vertices[i]);
+        }
+        if (geometry.closed && vertices.length > 2) {
+          length += distanceVec3(vertices[vertices.length - 1], vertices[0]);
+        }
+      }
+      let area = 0;
+      let volume = 0;
+      if ("mesh" in geometry && geometry.mesh?.positions && geometry.mesh?.indices) {
+        area = computeMeshArea(geometry.mesh.positions, geometry.mesh.indices);
+        volume = computeMeshVolume(geometry.mesh.positions, geometry.mesh.indices);
+      }
+      const property = String(parameters.property ?? "length");
+      let value = length;
+      if (property === "area") value = area;
+      if (property === "volume") value = volume;
+      if (property === "boundsX") value = bounds.max.x - bounds.min.x;
+      if (property === "boundsY") value = bounds.max.y - bounds.min.y;
+      if (property === "boundsZ") value = bounds.max.z - bounds.min.z;
+      return {
+        value,
+        length,
+        area,
+        volume,
+        boundsMin: bounds.min,
+        boundsMax: bounds.max,
+      };
+    },
+  },
+  {
+    type: "dimensions",
+    label: "Dimensions",
+    shortLabel: "DIM",
+    description: "Measure bounding box dimensions for geometry.",
+    category: "measurement",
+    iconId: "ruler",
+    inputs: [{ key: "geometry", label: "Geometry", type: "geometry", required: true }],
+    outputs: [
+      { key: "size", label: "Size", type: "vector" },
+      { key: "width", label: "Width", type: "number" },
+      { key: "height", label: "Height", type: "number" },
+      { key: "depth", label: "Depth", type: "number" },
+      { key: "diagonal", label: "Diagonal", type: "number" },
+      { key: "boundsMin", label: "Bounds Min", type: "vector" },
+      { key: "boundsMax", label: "Bounds Max", type: "vector" },
+    ],
+    parameters: [],
+    primaryOutputKey: "size",
+    compute: ({ inputs, context }) => {
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      if (!geometry) {
+        return {
+          size: ZERO_VEC3,
+          width: 0,
+          height: 0,
+          depth: 0,
+          diagonal: 0,
+          boundsMin: ZERO_VEC3,
+          boundsMax: ZERO_VEC3,
+        };
+      }
+      const vertices = collectGeometryVertices(geometry, context, MAX_LIST_ITEMS);
+      const bounds = computeBounds(vertices);
+      const width = bounds.max.x - bounds.min.x;
+      const height = bounds.max.y - bounds.min.y;
+      const depth = bounds.max.z - bounds.min.z;
+      const diagonal = Math.hypot(width, height, depth);
+      return {
+        size: { x: width, y: height, z: depth },
+        width,
+        height,
+        depth,
+        diagonal,
+        boundsMin: bounds.min,
+        boundsMax: bounds.max,
       };
     },
   },
@@ -2659,11 +4084,63 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     }),
   },
   {
+    type: "rectangle",
+    label: "Rectangle",
+    shortLabel: "RECT",
+    description: "Create a rectangle on the construction plane.",
+    category: "curves",
+    iconId: "rectangle",
+    inputs: [],
+    outputs: [
+      {
+        key: "geometry",
+        label: "Rectangle",
+        type: "geometry",
+        required: true,
+      },
+    ],
+    parameters: [
+      ...vectorParameterSpecs("center", "Center", ZERO_VEC3),
+      { key: "width", label: "Width", type: "number", defaultValue: 1, min: 0.01, step: 0.1 },
+      { key: "height", label: "Height", type: "number", defaultValue: 1, min: 0.01, step: 0.1 },
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ parameters }) => ({
+      geometry: typeof parameters.geometryId === "string" ? parameters.geometryId : null,
+    }),
+  },
+  {
+    type: "circle",
+    label: "Circle",
+    shortLabel: "CIRC",
+    description: "Create a circular curve on the construction plane.",
+    category: "nurbs",
+    iconId: "circle",
+    inputs: [],
+    outputs: [
+      {
+        key: "geometry",
+        label: "Circle",
+        type: "geometry",
+        required: true,
+      },
+    ],
+    parameters: [
+      ...vectorParameterSpecs("center", "Center", ZERO_VEC3),
+      { key: "radius", label: "Radius", type: "number", defaultValue: 1, min: 0.01, step: 0.1 },
+      { key: "segments", label: "Segments", type: "number", defaultValue: 48, min: 12, max: 128, step: 2 },
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ parameters }) => ({
+      geometry: typeof parameters.geometryId === "string" ? parameters.geometryId : null,
+    }),
+  },
+  {
     type: "arc",
     label: "Arc",
     shortLabel: "ARC",
     description: "Create a circular arc through three points.",
-    category: "curves",
+    category: "nurbs",
     iconId: "arc",
     inputs: [],
     outputs: [
@@ -2685,7 +4162,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     label: "Curve",
     shortLabel: "CRV",
     description: "Create a smooth curve through points.",
-    category: "curves",
+    category: "nurbs",
     iconId: "interpolate",
     inputs: [],
     outputs: [
@@ -2775,6 +4252,624 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     }),
   },
   {
+    type: "loft",
+    label: "Loft",
+    shortLabel: "LOFT",
+    description: "Create a surface through a series of section curves.",
+    category: "surfaces",
+    iconId: "loft",
+    inputs: [
+      {
+        key: "sections",
+        label: "Sections",
+        type: "geometry",
+        required: true,
+        allowMultiple: true,
+      },
+    ],
+    outputs: [
+      { key: "geometry", label: "Loft", type: "geometry", required: true },
+      { key: "mesh", label: "Mesh", type: "any" },
+      { key: "sectionCount", label: "Sections", type: "number" },
+    ],
+    parameters: [
+      { key: "degree", label: "Degree", type: "number", defaultValue: 3, min: 1, max: 3, step: 1 },
+      { key: "closed", label: "Closed", type: "boolean", defaultValue: false },
+      { key: "sectionClosed", label: "Section Closed", type: "boolean", defaultValue: false },
+      { key: "samples", label: "Samples", type: "number", defaultValue: 24, min: 8, max: 128, step: 1 },
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, parameters, context }) => {
+      const geometryId = typeof parameters.geometryId === "string" ? parameters.geometryId : null;
+      const sectionGeometries = resolveGeometryList(inputs, context, "sections");
+      const sectionPoints = sectionGeometries
+        .map((geometry) => collectGeometryVertices(geometry, context, MAX_LIST_ITEMS))
+        .filter((points) => points.length >= 2);
+      if (sectionPoints.length < 2) {
+        return { geometry: geometryId, mesh: { positions: [], normals: [], uvs: [], indices: [] }, sectionCount: 0 };
+      }
+      const degreeRaw = readNumberParameter(parameters, "degree", 3);
+      const degree = Math.min(3, Math.max(1, Math.round(degreeRaw))) as 1 | 2 | 3;
+      const closed = readBooleanParameter(parameters, "closed", false);
+      const sectionClosed = readBooleanParameter(parameters, "sectionClosed", false);
+      const samples = Math.max(8, Math.round(readNumberParameter(parameters, "samples", 24)));
+      const mesh = generateLoftMesh(sectionPoints, {
+        degree,
+        sectionClosed,
+        closed,
+        samples,
+      });
+      return {
+        geometry: geometryId,
+        mesh,
+        sectionCount: sectionPoints.length,
+      };
+    },
+  },
+  {
+    type: "extrude",
+    label: "Extrude",
+    shortLabel: "EXT",
+    description: "Extrude a profile curve along a direction.",
+    category: "surfaces",
+    iconId: "extrude",
+    inputs: [
+      { key: "geometry", label: "Profile", type: "geometry", required: true },
+      {
+        key: "distance",
+        label: "Distance",
+        type: "number",
+        parameterKey: "distance",
+        defaultValue: 1,
+      },
+      { key: "direction", label: "Direction", type: "vector", required: false },
+      {
+        key: "capped",
+        label: "Capped",
+        type: "boolean",
+        parameterKey: "capped",
+        defaultValue: true,
+      },
+    ],
+    outputs: [
+      { key: "geometry", label: "Extrude", type: "geometry", required: true },
+      { key: "mesh", label: "Mesh", type: "any" },
+      { key: "distance", label: "Distance", type: "number" },
+      { key: "direction", label: "Direction", type: "vector" },
+    ],
+    parameters: [
+      { key: "distance", label: "Distance", type: "number", defaultValue: 1, min: 0, step: 0.1 },
+      ...vectorParameterSpecs("direction", "Direction", UNIT_Y_VEC3),
+      { key: "capped", label: "Capped", type: "boolean", defaultValue: true },
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, parameters, context }) => {
+      const geometryId = typeof parameters.geometryId === "string" ? parameters.geometryId : null;
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      if (!geometry) {
+        return {
+          geometry: geometryId,
+          mesh: { positions: [], normals: [], uvs: [], indices: [] },
+          distance: 0,
+          direction: ZERO_VEC3,
+        };
+      }
+      const profilePoints = collectGeometryVertices(geometry, context, MAX_LIST_ITEMS);
+      if (profilePoints.length < 2) {
+        return {
+          geometry: geometryId,
+          mesh: { positions: [], normals: [], uvs: [], indices: [] },
+          distance: 0,
+          direction: ZERO_VEC3,
+        };
+      }
+      const distance = toNumber(inputs.distance, readNumberParameter(parameters, "distance", 1));
+      const directionInput = resolveVectorInput(inputs, parameters, "direction", "direction", UNIT_Y_VEC3);
+      const direction = normalizeVec3Safe(directionInput, UNIT_Y_VEC3);
+      const capped = toBoolean(inputs.capped, readBooleanParameter(parameters, "capped", true));
+      const closed = geometry.type === "polyline" ? geometry.closed : true;
+      const mesh = generateExtrudeMesh(
+        [{ points: profilePoints, closed }],
+        { direction, distance, capped }
+      );
+      return {
+        geometry: geometryId,
+        mesh,
+        distance,
+        direction,
+      };
+    },
+  },
+  {
+    type: "boolean",
+    label: "Boolean",
+    shortLabel: "BOOL",
+    description: "Combine two solids with union, difference, or intersection.",
+    category: "modifiers",
+    iconId: "boolean",
+    inputs: [
+      { key: "geometryA", label: "A", type: "geometry", required: true },
+      { key: "geometryB", label: "B", type: "geometry", required: true },
+      {
+        key: "operation",
+        label: "Operation",
+        type: "string",
+        parameterKey: "operation",
+        defaultValue: "union",
+      },
+    ],
+    outputs: [
+      { key: "geometry", label: "Result", type: "geometry", required: true },
+      { key: "mesh", label: "Mesh", type: "any" },
+      { key: "operation", label: "Operation", type: "string" },
+    ],
+    parameters: [
+      {
+        key: "operation",
+        label: "Operation",
+        type: "select",
+        defaultValue: "union",
+        options: [
+          { value: "union", label: "Union" },
+          { value: "difference", label: "Difference" },
+          { value: "intersection", label: "Intersection" },
+        ],
+      },
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, parameters, context }) => {
+      const geometryId = typeof parameters.geometryId === "string" ? parameters.geometryId : null;
+      const geometryAId = typeof inputs.geometryA === "string" ? inputs.geometryA : null;
+      const geometryBId = typeof inputs.geometryB === "string" ? inputs.geometryB : null;
+      const geometryA = geometryAId ? context.geometryById.get(geometryAId) : null;
+      const geometryB = geometryBId ? context.geometryById.get(geometryBId) : null;
+      const operation = String(inputs.operation ?? parameters.operation ?? "union");
+
+      const meshA = geometryA && "mesh" in geometryA ? geometryA.mesh : null;
+      const meshB = geometryB && "mesh" in geometryB ? geometryB.mesh : null;
+      if (!meshA || !meshB) {
+        return {
+          geometry: geometryId,
+          mesh: { positions: [], normals: [], uvs: [], indices: [] },
+          operation,
+        };
+      }
+
+      if (operation === "intersection") {
+        const pointsA = collectGeometryVertices(geometryA, context, Number.POSITIVE_INFINITY);
+        const pointsB = collectGeometryVertices(geometryB, context, Number.POSITIVE_INFINITY);
+        const boundsA = computeBounds(pointsA);
+        const boundsB = computeBounds(pointsB);
+        const min = {
+          x: Math.max(boundsA.min.x, boundsB.min.x),
+          y: Math.max(boundsA.min.y, boundsB.min.y),
+          z: Math.max(boundsA.min.z, boundsB.min.z),
+        };
+        const max = {
+          x: Math.min(boundsA.max.x, boundsB.max.x),
+          y: Math.min(boundsA.max.y, boundsB.max.y),
+          z: Math.min(boundsA.max.z, boundsB.max.z),
+        };
+        if (min.x >= max.x || min.y >= max.y || min.z >= max.z) {
+          return {
+            geometry: geometryId,
+            mesh: { positions: [], normals: [], uvs: [], indices: [] },
+            operation,
+          };
+        }
+        const size = { width: max.x - min.x, height: max.y - min.y, depth: max.z - min.z };
+        const mesh = generateBoxMesh(size);
+        const centerOffset = {
+          x: min.x + size.width / 2,
+          y: min.y + size.height / 2,
+          z: min.z + size.depth / 2,
+        };
+        const positions = mesh.positions.slice();
+        for (let i = 0; i < positions.length; i += 3) {
+          positions[i] += centerOffset.x;
+          positions[i + 1] += centerOffset.y;
+          positions[i + 2] += centerOffset.z;
+        }
+        return {
+          geometry: geometryId,
+          mesh: { ...mesh, positions, normals: computeVertexNormals(positions, mesh.indices) },
+          operation,
+        };
+      }
+
+      if (operation === "difference") {
+        return {
+          geometry: geometryId,
+          mesh: meshA,
+          operation,
+        };
+      }
+
+      const mesh = mergeMeshes(meshA, meshB);
+      return {
+        geometry: geometryId,
+        mesh,
+        operation,
+      };
+    },
+  },
+  {
+    type: "offset",
+    label: "Offset",
+    shortLabel: "OFF",
+    description: "Offset a curve by a given distance.",
+    category: "modifiers",
+    iconId: "offset",
+    inputs: [
+      { key: "geometry", label: "Geometry", type: "geometry", required: true },
+      {
+        key: "distance",
+        label: "Distance",
+        type: "number",
+        parameterKey: "distance",
+        defaultValue: 1,
+      },
+    ],
+    outputs: [
+      { key: "geometry", label: "Offset", type: "geometry", required: true },
+      { key: "points", label: "Points", type: "any" },
+      { key: "distance", label: "Distance", type: "number" },
+    ],
+    parameters: [
+      { key: "distance", label: "Distance", type: "number", defaultValue: 1, step: 0.1 },
+      { key: "samples", label: "Samples", type: "number", defaultValue: 32, min: 8, max: 128, step: 1 },
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, parameters, context }) => {
+      const geometryId = typeof parameters.geometryId === "string" ? parameters.geometryId : null;
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      if (!geometry) {
+        return {
+          geometry: geometryId,
+          points: [],
+          distance: 0,
+        };
+      }
+      const basePoints = collectGeometryVertices(geometry, context, MAX_LIST_ITEMS);
+      if (basePoints.length < 2) {
+        return {
+          geometry: geometryId,
+          points: [],
+          distance: 0,
+        };
+      }
+      const distance = toNumber(inputs.distance, readNumberParameter(parameters, "distance", 1));
+      const samples = Math.max(8, Math.round(readNumberParameter(parameters, "samples", 32)));
+      const closed = geometry.type === "polyline" ? geometry.closed : false;
+      const plane = computeBestFitPlane(basePoints);
+      const resampled = basePoints.length === samples ? basePoints : resampleByArcLength(basePoints, samples, closed);
+      const projected = resampled.map((point) => projectPointToPlane(point, plane));
+      const offset2d = offsetPolyline2D(
+        projected.map((entry) => ({ x: entry.u, y: entry.v, z: 0 })),
+        distance,
+        closed
+      );
+      const points = offset2d.map((point) =>
+        unprojectPointFromPlane({ u: point.x, v: point.y }, plane)
+      );
+      return {
+        geometry: geometryId,
+        points,
+        distance,
+      };
+    },
+  },
+  {
+    type: "fillet",
+    label: "Fillet",
+    shortLabel: "FIL",
+    description: "Round corners on curves or edges.",
+    category: "modifiers",
+    iconId: "arc",
+    inputs: [
+      { key: "geometry", label: "Geometry", type: "geometry", required: true },
+      {
+        key: "radius",
+        label: "Radius",
+        type: "number",
+        parameterKey: "radius",
+        defaultValue: 0.5,
+      },
+      {
+        key: "segments",
+        label: "Segments",
+        type: "number",
+        parameterKey: "segments",
+        defaultValue: 6,
+      },
+    ],
+    outputs: [
+      { key: "geometry", label: "Geometry", type: "geometry" },
+      { key: "radius", label: "Radius", type: "number" },
+      { key: "segments", label: "Segments", type: "number" },
+    ],
+    parameters: [
+      { key: "radius", label: "Radius", type: "number", defaultValue: 0.5, step: 0.1 },
+      { key: "segments", label: "Segments", type: "number", defaultValue: 6, min: 1, max: 32, step: 1 },
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, parameters }) => {
+      const geometry = typeof inputs.geometry === "string" ? inputs.geometry : null;
+      const radius = toNumber(inputs.radius, readNumberParameter(parameters, "radius", 0.5));
+      const segments = Math.max(
+        1,
+        Math.round(toNumber(inputs.segments, readNumberParameter(parameters, "segments", 6)))
+      );
+      return { geometry, radius, segments };
+    },
+  },
+  {
+    type: "filletEdges",
+    label: "Fillet Edges",
+    shortLabel: "EDGE",
+    description: "Round selected mesh edges by a given radius.",
+    category: "modifiers",
+    iconId: "arc",
+    inputs: [
+      { key: "geometry", label: "Geometry", type: "geometry", required: true },
+      { key: "edges", label: "Edges", type: "any" },
+      {
+        key: "radius",
+        label: "Radius",
+        type: "number",
+        parameterKey: "radius",
+        defaultValue: 0.5,
+      },
+      {
+        key: "segments",
+        label: "Segments",
+        type: "number",
+        parameterKey: "segments",
+        defaultValue: 6,
+      },
+    ],
+    outputs: [
+      { key: "geometry", label: "Geometry", type: "geometry" },
+      { key: "edges", label: "Edges", type: "any" },
+      { key: "edgeCount", label: "Edge Count", type: "number" },
+      { key: "radius", label: "Radius", type: "number" },
+      { key: "segments", label: "Segments", type: "number" },
+    ],
+    parameters: [
+      { key: "radius", label: "Radius", type: "number", defaultValue: 0.5, step: 0.1 },
+      { key: "segments", label: "Segments", type: "number", defaultValue: 6, min: 1, max: 32, step: 1 },
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, parameters }) => {
+      const geometry = typeof inputs.geometry === "string" ? inputs.geometry : null;
+      const edges = toList(inputs.edges);
+      const radius = toNumber(inputs.radius, readNumberParameter(parameters, "radius", 0.5));
+      const segments = Math.max(
+        1,
+        Math.round(toNumber(inputs.segments, readNumberParameter(parameters, "segments", 6)))
+      );
+      return { geometry, edges, edgeCount: edges.length, radius, segments };
+    },
+  },
+  {
+    type: "offsetSurface",
+    label: "Offset Surface",
+    shortLabel: "OSRF",
+    description: "Offset a surface along its normals by a distance.",
+    category: "surfaces",
+    iconId: "surface",
+    inputs: [
+      { key: "geometry", label: "Surface", type: "geometry", required: true },
+      {
+        key: "distance",
+        label: "Distance",
+        type: "number",
+        parameterKey: "distance",
+        defaultValue: 0.5,
+      },
+    ],
+    outputs: [
+      { key: "geometry", label: "Surface", type: "geometry" },
+      { key: "distance", label: "Distance", type: "number" },
+    ],
+    parameters: [
+      { key: "distance", label: "Distance", type: "number", defaultValue: 0.5, step: 0.1 },
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, parameters }) => {
+      const geometry = typeof inputs.geometry === "string" ? inputs.geometry : null;
+      const distance = toNumber(inputs.distance, readNumberParameter(parameters, "distance", 0.5));
+      return { geometry, distance };
+    },
+  },
+  {
+    type: "thickenMesh",
+    label: "Thicken Mesh",
+    shortLabel: "THK",
+    description: "Add thickness to a mesh by offsetting inward/outward.",
+    category: "modifiers",
+    iconId: "offset",
+    inputs: [
+      { key: "geometry", label: "Mesh", type: "geometry", required: true },
+      {
+        key: "thickness",
+        label: "Thickness",
+        type: "number",
+        parameterKey: "thickness",
+        defaultValue: 1,
+      },
+      {
+        key: "sides",
+        label: "Sides",
+        type: "string",
+        parameterKey: "sides",
+        defaultValue: "both",
+      },
+    ],
+    outputs: [
+      { key: "geometry", label: "Mesh", type: "geometry" },
+      { key: "thickness", label: "Thickness", type: "number" },
+      { key: "sides", label: "Sides", type: "string" },
+    ],
+    parameters: [
+      { key: "thickness", label: "Thickness", type: "number", defaultValue: 1, step: 0.1 },
+      {
+        key: "sides",
+        label: "Sides",
+        type: "select",
+        defaultValue: "both",
+        options: [
+          { value: "both", label: "Both" },
+          { value: "outward", label: "Outward" },
+          { value: "inward", label: "Inward" },
+        ],
+      },
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, parameters }) => {
+      const geometry = typeof inputs.geometry === "string" ? inputs.geometry : null;
+      const thickness = toNumber(
+        inputs.thickness,
+        readNumberParameter(parameters, "thickness", 1)
+      );
+      const sides = String(inputs.sides ?? parameters.sides ?? "both");
+      return { geometry, thickness, sides };
+    },
+  },
+  {
+    type: "plasticwrap",
+    label: "Plasticwrap",
+    shortLabel: "WRAP",
+    description: "Shrinkwrap geometry onto a target with a projection distance.",
+    category: "modifiers",
+    iconId: "surface",
+    inputs: [
+      { key: "geometry", label: "Geometry", type: "geometry", required: true },
+      { key: "target", label: "Target", type: "geometry", required: true },
+      {
+        key: "distance",
+        label: "Distance",
+        type: "number",
+        parameterKey: "distance",
+        defaultValue: 0.25,
+      },
+      {
+        key: "smooth",
+        label: "Smooth",
+        type: "number",
+        parameterKey: "smooth",
+        defaultValue: 0.5,
+      },
+    ],
+    outputs: [
+      { key: "geometry", label: "Geometry", type: "geometry" },
+      { key: "target", label: "Target", type: "geometry" },
+      { key: "distance", label: "Distance", type: "number" },
+      { key: "smooth", label: "Smooth", type: "number" },
+    ],
+    parameters: [
+      { key: "distance", label: "Distance", type: "number", defaultValue: 0.25, step: 0.05 },
+      { key: "smooth", label: "Smooth", type: "number", defaultValue: 0.5, min: 0, max: 1, step: 0.05 },
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, parameters }) => {
+      const geometry = typeof inputs.geometry === "string" ? inputs.geometry : null;
+      const target = typeof inputs.target === "string" ? inputs.target : null;
+      const distance = toNumber(
+        inputs.distance,
+        readNumberParameter(parameters, "distance", 0.25)
+      );
+      const smooth = clampNumber(
+        toNumber(inputs.smooth, readNumberParameter(parameters, "smooth", 0.5)),
+        0,
+        1
+      );
+      return { geometry, target, distance, smooth };
+    },
+  },
+  {
+    type: "solid",
+    label: "Solid",
+    shortLabel: "CAP",
+    description: "Cap a surface or open mesh into a closed solid.",
+    category: "modifiers",
+    iconId: "extrude",
+    inputs: [
+      { key: "geometry", label: "Geometry", type: "geometry", required: true },
+      {
+        key: "capMode",
+        label: "Cap Mode",
+        type: "string",
+        parameterKey: "capMode",
+        defaultValue: "auto",
+      },
+      {
+        key: "tolerance",
+        label: "Tolerance",
+        type: "number",
+        parameterKey: "tolerance",
+        defaultValue: 0.01,
+      },
+    ],
+    outputs: [
+      { key: "geometry", label: "Geometry", type: "geometry" },
+      { key: "capMode", label: "Cap Mode", type: "string" },
+      { key: "tolerance", label: "Tolerance", type: "number" },
+    ],
+    parameters: [
+      {
+        key: "capMode",
+        label: "Cap Mode",
+        type: "select",
+        defaultValue: "auto",
+        options: [
+          { value: "auto", label: "Auto" },
+          { value: "planar", label: "Planar" },
+          { value: "triangulate", label: "Triangulate" },
+        ],
+      },
+      { key: "tolerance", label: "Tolerance", type: "number", defaultValue: 0.01, step: 0.001 },
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, parameters }) => {
+      const geometry = typeof inputs.geometry === "string" ? inputs.geometry : null;
+      const capMode = String(inputs.capMode ?? parameters.capMode ?? "auto");
+      const tolerance = toNumber(
+        inputs.tolerance,
+        readNumberParameter(parameters, "tolerance", 0.01)
+      );
+      return { geometry, capMode, tolerance };
+    },
+  },
+  {
+    type: "primitive",
+    label: "Primitive",
+    shortLabel: "PRIM",
+    description: "Create a parametric primitive shape.",
+    category: "primitives",
+    iconId: "primitive",
+    inputs: [],
+    outputs: [
+      { key: "geometry", label: "Geometry", type: "geometry", required: true },
+      { key: "kind", label: "Kind", type: "string" },
+    ],
+    parameters: [
+      {
+        key: "kind",
+        label: "Kind",
+        type: "select",
+        defaultValue: "box",
+        options: primitiveKindOptions,
+      },
+      ...PRIMITIVE_PARAMETER_SPECS,
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ parameters }) => ({
+      geometry: typeof parameters.geometryId === "string" ? parameters.geometryId : null,
+      kind: String(parameters.kind ?? "box"),
+    }),
+  },
+  {
     type: "box",
     label: "Box Builder",
     shortLabel: "BOX",
@@ -2822,12 +4917,184 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       };
     },
   },
+  ...PRIMITIVE_NODE_DEFINITIONS,
+  {
+    type: "voxelizeGeometry",
+    label: "Voxelize Geometry",
+    shortLabel: "VOX",
+    description: "Convert geometry into a voxel grid domain.",
+    category: "voxel",
+    iconId: "box",
+    inputs: [
+      { key: "geometry", label: "Geometry", type: "geometry", required: true },
+    ],
+    outputs: [
+      { key: "voxelGrid", label: "Grid", type: "any" },
+      { key: "densityField", label: "Density", type: "any" },
+      { key: "resolution", label: "Resolution", type: "number" },
+      { key: "cellSize", label: "Cell", type: "vector" },
+      { key: "boundsMin", label: "Bounds Min", type: "vector" },
+      { key: "boundsMax", label: "Bounds Max", type: "vector" },
+    ],
+    parameters: [
+      {
+        key: "resolution",
+        label: "Resolution",
+        type: "number",
+        defaultValue: 12,
+        min: 4,
+        max: 36,
+        step: 1,
+      },
+      {
+        key: "padding",
+        label: "Padding",
+        type: "number",
+        defaultValue: 0.2,
+        min: 0,
+        max: 10,
+        step: 0.1,
+      },
+      {
+        key: "mode",
+        label: "Mode",
+        type: "select",
+        defaultValue: "solid",
+        options: [
+          { value: "solid", label: "Solid" },
+          { value: "surface", label: "Surface" },
+        ],
+      },
+      {
+        key: "thickness",
+        label: "Surface Thickness",
+        type: "number",
+        defaultValue: 1,
+        min: 0,
+        max: 4,
+        step: 1,
+      },
+    ],
+    primaryOutputKey: "voxelGrid",
+    compute: ({ inputs, parameters, context }) => {
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      const resolution = readNumberParameter(parameters, "resolution", 12);
+      if (!geometry) {
+        return {
+          voxelGrid: null,
+          densityField: [],
+          resolution: clampResolution(resolution, 12),
+          cellSize: ZERO_VEC3,
+          boundsMin: ZERO_VEC3,
+          boundsMax: ZERO_VEC3,
+        };
+      }
+      const padding = readNumberParameter(parameters, "padding", 0.2);
+      const mode = String(parameters.mode ?? "solid").toLowerCase();
+      const thickness = readNumberParameter(parameters, "thickness", 1);
+      const grid = buildVoxelGridFromGeometry(
+        geometry,
+        context,
+        resolution,
+        padding,
+        mode,
+        thickness
+      );
+      return {
+        voxelGrid: grid,
+        densityField: grid.densities,
+        resolution: grid.resolution.x,
+        cellSize: grid.cellSize,
+        boundsMin: grid.bounds.min,
+        boundsMax: grid.bounds.max,
+      };
+    },
+  },
+  {
+    type: "extractIsosurface",
+    label: "Extract Isosurface",
+    shortLabel: "ISO",
+    description: "Create a mesh from a voxel density field.",
+    category: "voxel",
+    iconId: "surface",
+    inputs: [
+      { key: "voxelGrid", label: "Voxel Grid", type: "any", required: true },
+    ],
+    outputs: [
+      { key: "geometry", label: "Geometry", type: "geometry", required: true },
+      { key: "mesh", label: "Mesh", type: "any" },
+      { key: "cellCount", label: "Cells", type: "number" },
+    ],
+    parameters: [
+      {
+        key: "isoValue",
+        label: "Iso Value",
+        type: "number",
+        defaultValue: 0.5,
+        min: 0,
+        max: 1,
+        step: 0.05,
+      },
+      {
+        key: "resolution",
+        label: "Resolution",
+        type: "number",
+        defaultValue: 12,
+        min: 4,
+        max: 36,
+        step: 1,
+      },
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, parameters }) => {
+      const isoValue = clampNumber(
+        readNumberParameter(parameters, "isoValue", 0.5),
+        0,
+        1
+      );
+      const geometryId =
+        typeof parameters.geometryId === "string" ? parameters.geometryId : null;
+      let grid: VoxelGrid | null = isVoxelGrid(inputs.voxelGrid) ? inputs.voxelGrid : null;
+      if (!grid && Array.isArray(inputs.voxelGrid)) {
+        const resolution = clampResolution(
+          readNumberParameter(parameters, "resolution", 12),
+          12
+        );
+        const min = { x: -0.5, y: -0.5, z: -0.5 };
+        const max = { x: 0.5, y: 0.5, z: 0.5 };
+        const cellSize = {
+          x: (max.x - min.x) / resolution,
+          y: (max.y - min.y) / resolution,
+          z: (max.z - min.z) / resolution,
+        };
+        grid = {
+          resolution: { x: resolution, y: resolution, z: resolution },
+          bounds: { min, max },
+          cellSize,
+          densities: inputs.voxelGrid as number[],
+        };
+      }
+      if (!grid) {
+        return {
+          geometry: geometryId,
+          mesh: { positions: [], normals: [], uvs: [], indices: [] },
+          cellCount: 0,
+        };
+      }
+      const mesh = buildVoxelMesh(grid, isoValue);
+      return {
+        geometry: geometryId,
+        mesh,
+        cellCount: grid.densities.length,
+      };
+    },
+  },
   {
     type: "topologyOptimize",
     label: "Topology Optimize",
     shortLabel: "TOPO",
     description: "Authoritative topology optimization settings and progress metadata.",
-    category: "optimization",
+    category: "voxel",
     iconId: "topologyOptimize",
     inputs: [
       {
@@ -2918,10 +5185,16 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     label: "Topology Solver",
     shortLabel: "SOLVE",
     description: "Fast density solver prototype for a geometry domain.",
-    category: "optimization",
+    category: "voxel",
     iconId: "topologySolver",
     inputs: [
-      { key: "domain", label: "Domain", type: "geometry", required: true },
+      { key: "domain", label: "Domain", type: "geometry" },
+      {
+        key: "voxelGrid",
+        label: "Voxel Grid",
+        type: "any",
+        description: "Optional voxel grid domain.",
+      },
       {
         key: "volumeFraction",
         label: "VF",
@@ -2960,6 +5233,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     ],
     outputs: [
       { key: "densityField", label: "Density", type: "any" },
+      { key: "voxelGrid", label: "Voxel Grid", type: "any" },
       { key: "bestScore", label: "Best", type: "number" },
       { key: "objective", label: "Objective", type: "number" },
       { key: "constraint", label: "Constraint", type: "number" },
@@ -3010,13 +5284,14 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
         type: "number",
         defaultValue: 12,
         min: 4,
-        max: 18,
+        max: 36,
         step: 1,
       },
     ],
     primaryOutputKey: "densityField",
     compute: ({ inputs, parameters, context }) => {
       const domainId = typeof inputs.domain === "string" ? inputs.domain : null;
+      const inputGrid = isVoxelGrid(inputs.voxelGrid) ? inputs.voxelGrid : null;
       const volumeFraction = toNumber(
         inputs.volumeFraction,
         readNumberParameter(parameters, "volumeFraction", 0.4)
@@ -3035,23 +5310,24 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       );
       const resolution = toNumber(
         inputs.resolution,
-        readNumberParameter(parameters, "resolution", 12)
+        readNumberParameter(parameters, "resolution", inputGrid?.resolution.x ?? 12)
       );
 
-      if (!domainId) {
+      if (!domainId && !inputGrid) {
         return {
           densityField: [],
+          voxelGrid: null,
           bestScore: 0,
           objective: 1,
           constraint: 0,
           iterations: 0,
-          resolution: clampInt(resolution, 4, 18, 12),
+          resolution: clampInt(resolution, 4, 36, 12),
           status: "waiting-for-domain",
         };
       }
 
       const result = runTopologyDensitySolver({
-        seedKey: `${context.nodeId}:${domainId}`,
+        seedKey: `${context.nodeId}:${domainId ?? "voxel"}`,
         resolution,
         volumeFraction,
         penaltyExponent,
@@ -3061,6 +5337,28 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
 
       return {
         densityField: result.densityField,
+        voxelGrid: inputGrid
+          ? {
+              ...inputGrid,
+              densities: result.densityField,
+            }
+          : {
+              resolution: {
+                x: result.resolution,
+                y: result.resolution,
+                z: result.resolution,
+              },
+              bounds: {
+                min: { x: -0.5, y: -0.5, z: -0.5 },
+                max: { x: 0.5, y: 0.5, z: 0.5 },
+              },
+              cellSize: {
+                x: 1 / result.resolution,
+                y: 1 / result.resolution,
+                z: 1 / result.resolution,
+              },
+              densities: result.densityField,
+            },
         bestScore: result.bestScore,
         objective: result.objective,
         constraint: result.constraint,
@@ -3075,7 +5373,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     label: "Biological Solver",
     shortLabel: "EVO",
     description: "Evolutionary search over vector genomes with a fast fitness proxy.",
-    category: "optimization",
+    category: "voxel",
     iconId: "biologicalSolver",
     inputs: [
       {
@@ -3413,6 +5711,102 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
         });
       }
       const result = evaluateExpression(expression, variableValues);
+      return { result };
+    },
+  },
+  {
+    type: "scalarFunctions",
+    label: "Scalar Functions",
+    shortLabel: "FUNC",
+    description: "Apply common scalar functions to a value.",
+    category: "math",
+    iconId: "expression",
+    inputs: [
+      {
+        key: "value",
+        label: "Value",
+        type: "number",
+        parameterKey: "value",
+        defaultValue: 0,
+      },
+      {
+        key: "exponent",
+        label: "Exponent",
+        type: "number",
+        parameterKey: "exponent",
+        defaultValue: 2,
+      },
+    ],
+    outputs: [{ key: "result", label: "Result", type: "number" }],
+    parameters: [
+      {
+        key: "function",
+        label: "Function",
+        type: "select",
+        defaultValue: "abs",
+        options: [
+          { value: "abs", label: "Abs" },
+          { value: "sqrt", label: "Sqrt" },
+          { value: "exp", label: "Exp" },
+          { value: "log", label: "Log" },
+          { value: "sin", label: "Sin" },
+          { value: "cos", label: "Cos" },
+          { value: "tan", label: "Tan" },
+          { value: "floor", label: "Floor" },
+          { value: "ceil", label: "Ceil" },
+          { value: "round", label: "Round" },
+          { value: "pow", label: "Power" },
+        ],
+      },
+    ],
+    primaryOutputKey: "result",
+    compute: ({ inputs, parameters }) => {
+      const value = toNumber(inputs.value, readNumberParameter(parameters, "value", 0));
+      const exponent = toNumber(
+        inputs.exponent,
+        readNumberParameter(parameters, "exponent", 2)
+      );
+      const fn = String(parameters.function ?? "abs");
+      let result = value;
+      switch (fn) {
+        case "sqrt":
+          result = value < 0 ? 0 : Math.sqrt(value);
+          break;
+        case "exp":
+          result = Math.exp(value);
+          break;
+        case "log":
+          result = value <= 0 ? 0 : Math.log(value);
+          break;
+        case "sin":
+          result = Math.sin(value);
+          break;
+        case "cos":
+          result = Math.cos(value);
+          break;
+        case "tan":
+          result = Math.tan(value);
+          break;
+        case "floor":
+          result = Math.floor(value);
+          break;
+        case "ceil":
+          result = Math.ceil(value);
+          break;
+        case "round":
+          result = Math.round(value);
+          break;
+        case "pow":
+          result = Math.pow(value, exponent);
+          break;
+        case "abs":
+        default:
+          result = Math.abs(value);
+          break;
+      }
+      if (!Number.isFinite(result)) {
+        result = 0;
+      }
       return { result };
     },
   },
@@ -3914,6 +6308,64 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     },
   },
   {
+    type: "pointAttractor",
+    label: "Point Attractor",
+    shortLabel: "ATTR",
+    description: "Generate attraction vectors toward a target point.",
+    category: "euclidean",
+    iconId: "point",
+    inputs: [
+      { key: "point", label: "Point", type: "vector", required: true },
+      { key: "attractor", label: "Attractor", type: "vector", required: true },
+      {
+        key: "strength",
+        label: "Strength",
+        type: "number",
+        parameterKey: "strength",
+        defaultValue: 1,
+      },
+      {
+        key: "radius",
+        label: "Radius",
+        type: "number",
+        parameterKey: "radius",
+        defaultValue: 10,
+      },
+    ],
+    outputs: [
+      { key: "vector", label: "Vector", type: "vector" },
+      { key: "distance", label: "Distance", type: "number" },
+      { key: "falloff", label: "Falloff", type: "number" },
+      { key: "strength", label: "Strength", type: "number" },
+      { key: "radius", label: "Radius", type: "number" },
+    ],
+    parameters: [
+      ...vectorParameterSpecs("point", "Point", ZERO_VEC3),
+      ...vectorParameterSpecs("attractor", "Attractor", ZERO_VEC3),
+      { key: "strength", label: "Strength", type: "number", defaultValue: 1, step: 0.1 },
+      { key: "radius", label: "Radius", type: "number", defaultValue: 10, min: 0, step: 0.1 },
+    ],
+    primaryOutputKey: "vector",
+    compute: ({ inputs, parameters }) => {
+      const point = resolveVectorInput(inputs, parameters, "point", "point", ZERO_VEC3);
+      const attractor = resolveVectorInput(inputs, parameters, "attractor", "attractor", ZERO_VEC3);
+      const strength = toNumber(inputs.strength, readNumberParameter(parameters, "strength", 1));
+      const radius = Math.max(
+        0,
+        toNumber(inputs.radius, readNumberParameter(parameters, "radius", 10))
+      );
+      const delta = subtractVec3(attractor, point);
+      const distance = lengthVec3(delta);
+      let falloff = 1;
+      if (radius > EPSILON) {
+        falloff = clampNumber(1 - distance / radius, 0, 1);
+      }
+      const direction = normalizeVec3Safe(delta, ZERO_VEC3);
+      const vector = scaleVec3(direction, strength * falloff);
+      return { vector, distance, falloff, strength, radius };
+    },
+  },
+  {
     type: "move",
     label: "Move",
     shortLabel: "MOVE",
@@ -3974,6 +6426,125 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
         worldX,
         worldY,
         worldZ,
+      };
+    },
+  },
+  {
+    type: "rotate",
+    label: "Rotate",
+    shortLabel: "ROT",
+    description: "Rotate geometry around an axis.",
+    category: "transforms",
+    iconId: "rotate",
+    inputs: [
+      { key: "geometry", label: "Geometry", type: "geometry", required: true, parameterKey: "geometryId" },
+      { key: "axis", label: "Axis", type: "vector", required: true },
+      { key: "pivot", label: "Pivot", type: "vector", required: false },
+      { key: "angle", label: "Angle", type: "number", parameterKey: "angle", defaultValue: 0 },
+    ],
+    outputs: [
+      { key: "geometry", label: "Geometry", type: "geometry" },
+      { key: "axis", label: "Axis", type: "vector" },
+      { key: "pivot", label: "Pivot", type: "vector" },
+      { key: "angle", label: "Angle", type: "number" },
+    ],
+    parameters: [
+      ...vectorParameterSpecs("axis", "Axis", UNIT_Y_VEC3),
+      ...vectorParameterSpecs("pivot", "Pivot", ZERO_VEC3),
+      { key: "angle", label: "Angle", type: "number", defaultValue: 0, step: 5 },
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, parameters }) => {
+      const geometry = typeof inputs.geometry === "string" ? inputs.geometry : null;
+      const axis = resolveVectorInput(inputs, parameters, "axis", "axis", UNIT_Y_VEC3);
+      const pivot = resolveVectorInput(inputs, parameters, "pivot", "pivot", ZERO_VEC3);
+      const angle = toNumber(inputs.angle, readNumberParameter(parameters, "angle", 0));
+      return {
+        geometry,
+        axis,
+        pivot,
+        angle,
+      };
+    },
+  },
+  {
+    type: "scale",
+    label: "Scale",
+    shortLabel: "SCL",
+    description: "Scale geometry around a pivot point.",
+    category: "transforms",
+    iconId: "scale",
+    inputs: [
+      { key: "geometry", label: "Geometry", type: "geometry", required: true, parameterKey: "geometryId" },
+      { key: "scale", label: "Scale", type: "vector", required: true },
+      { key: "pivot", label: "Pivot", type: "vector", required: false },
+    ],
+    outputs: [
+      { key: "geometry", label: "Geometry", type: "geometry" },
+      { key: "scale", label: "Scale", type: "vector" },
+      { key: "pivot", label: "Pivot", type: "vector" },
+    ],
+    parameters: [
+      ...vectorParameterSpecs("scale", "Scale", UNIT_XYZ_VEC3),
+      ...vectorParameterSpecs("pivot", "Pivot", ZERO_VEC3),
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, parameters }) => {
+      const geometry = typeof inputs.geometry === "string" ? inputs.geometry : null;
+      const scale = resolveVectorInput(inputs, parameters, "scale", "scale", UNIT_XYZ_VEC3);
+      const pivot = resolveVectorInput(inputs, parameters, "pivot", "pivot", ZERO_VEC3);
+      return {
+        geometry,
+        scale,
+        pivot,
+      };
+    },
+  },
+  {
+    type: "fieldTransformation",
+    label: "Field Transformation",
+    shortLabel: "FIELD",
+    description: "Transform geometry using a scalar or vector field.",
+    category: "transforms",
+    iconId: "transform",
+    inputs: [
+      { key: "geometry", label: "Geometry", type: "geometry", required: true },
+      { key: "field", label: "Field", type: "any" },
+      {
+        key: "strength",
+        label: "Strength",
+        type: "number",
+        parameterKey: "strength",
+        defaultValue: 1,
+      },
+      {
+        key: "falloff",
+        label: "Falloff",
+        type: "number",
+        parameterKey: "falloff",
+        defaultValue: 1,
+      },
+    ],
+    outputs: [
+      { key: "geometry", label: "Geometry", type: "geometry" },
+      { key: "field", label: "Field", type: "any" },
+      { key: "strength", label: "Strength", type: "number" },
+      { key: "falloff", label: "Falloff", type: "number" },
+    ],
+    parameters: [
+      { key: "strength", label: "Strength", type: "number", defaultValue: 1, step: 0.1 },
+      { key: "falloff", label: "Falloff", type: "number", defaultValue: 1, min: 0, step: 0.1 },
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, parameters }) => {
+      const geometry = typeof inputs.geometry === "string" ? inputs.geometry : null;
+      const strength = toNumber(inputs.strength, readNumberParameter(parameters, "strength", 1));
+      const falloff = toNumber(inputs.falloff, readNumberParameter(parameters, "falloff", 1));
+      return {
+        geometry,
+        field: inputs.field ?? null,
+        strength,
+        falloff,
       };
     },
   },
@@ -4250,6 +6821,8 @@ const mergeParameters = (
   ...(patch ?? {}),
 });
 
+const PRIMITIVE_NODE_TYPE_SET = new Set(PRIMITIVE_NODE_TYPE_IDS);
+
 export const resolveNodeParameters = (node: Pick<WorkflowNode, "type" | "data">) => {
   const type = node.type as NodeType | undefined;
   if (!type) return node.data?.parameters ?? {};
@@ -4279,6 +6852,45 @@ export const resolveNodeParameters = (node: Pick<WorkflowNode, "type" | "data">)
   if (type === "surface") {
     if (node.data?.geometryId) parameters.geometryId = node.data.geometryId;
   }
+  if (type === "rectangle") {
+    if (node.data?.geometryId) parameters.geometryId = node.data.geometryId;
+  }
+  if (type === "circle") {
+    if (node.data?.geometryId) parameters.geometryId = node.data.geometryId;
+  }
+  if (type === "loft") {
+    if (node.data?.geometryId) parameters.geometryId = node.data.geometryId;
+  }
+  if (type === "extrude") {
+    if (node.data?.geometryId) parameters.geometryId = node.data.geometryId;
+  }
+  if (type === "meshConvert") {
+    if (node.data?.geometryId) parameters.geometryId = node.data.geometryId;
+  }
+  if (type === "stlImport") {
+    if (node.data?.geometryId) parameters.geometryId = node.data.geometryId;
+  }
+  if (type === "boolean") {
+    if (node.data?.geometryId) parameters.geometryId = node.data.geometryId;
+  }
+  if (type === "offset") {
+    if (node.data?.geometryId) parameters.geometryId = node.data.geometryId;
+  }
+  if (type === "geometryArray") {
+    if (node.data?.geometryIds) parameters.geometryIds = node.data.geometryIds;
+  }
+  if (type === "rotate") {
+    if (node.data?.geometryId) parameters.geometryId = node.data.geometryId;
+  }
+  if (type === "scale") {
+    if (node.data?.geometryId) parameters.geometryId = node.data.geometryId;
+  }
+  if (type === "primitive") {
+    if (node.data?.geometryId) parameters.geometryId = node.data.geometryId;
+  }
+  if (type && PRIMITIVE_NODE_TYPE_SET.has(type)) {
+    if (node.data?.geometryId) parameters.geometryId = node.data.geometryId;
+  }
   if (type === "box") {
     if (node.data?.geometryId) parameters.geometryId = node.data.geometryId;
     if (node.data?.boxDimensions) {
@@ -4292,6 +6904,9 @@ export const resolveNodeParameters = (node: Pick<WorkflowNode, "type" | "data">)
     if (typeof node.data?.sphereRadius === "number") {
       parameters.sphereRadius = node.data.sphereRadius;
     }
+  }
+  if (type === "extractIsosurface") {
+    if (node.data?.geometryId) parameters.geometryId = node.data.geometryId;
   }
   if (type === "move") {
     if (node.data?.geometryId) parameters.geometryId = node.data.geometryId;

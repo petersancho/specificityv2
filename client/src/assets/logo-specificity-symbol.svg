@@ -8,48 +8,51 @@
   shape-rendering="geometricPrecision"
 >
   <title>Specificity Symbol</title>
-  <defs>
-    <linearGradient id="symbolAccent" x1="10" y1="10" x2="54" y2="54" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#f97316" />
-      <stop offset="100%" stop-color="#fdba74" />
-    </linearGradient>
-    <radialGradient id="symbolGlow" cx="32" cy="32" r="26" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#f97316" stop-opacity="0.28" />
-      <stop offset="100%" stop-color="#f97316" stop-opacity="0" />
-    </radialGradient>
-  </defs>
-
-  <rect x="0" y="0" width="64" height="64" fill="url(#symbolGlow)" />
-
   <polygon
-    points="32 6 58 32 32 58 6 32"
-    fill="#050505"
-    stroke="#fdfdfc"
-    stroke-width="6"
-    stroke-linejoin="round"
+    points="32 10.2 51.2 21.8 32 33.3 12.8 21.8"
+    fill="#f7f4f0"
   />
-
   <polygon
-    points="32 14 50 32 32 50 14 32"
-    fill="none"
-    stroke="url(#symbolAccent)"
-    stroke-width="3.5"
-    stroke-linejoin="round"
+    points="12.8 21.8 32 33.3 32 51.2 12.8 39.7"
+    fill="#e8e2dc"
   />
-
+  <polygon
+    points="51.2 21.8 32 33.3 32 51.2 51.2 39.7"
+    fill="#ddd5ce"
+  />
   <path
-    d="M18 28 L44 14"
+    d="M32 10.2 L51.2 21.8 L32 33.3 L12.8 21.8 Z"
     fill="none"
-    stroke="url(#symbolAccent)"
-    stroke-width="9"
+    stroke="#1d1b18"
+    stroke-opacity="0.7"
+    stroke-width="2.4"
     stroke-linecap="round"
     stroke-linejoin="round"
   />
   <path
-    d="M20 50 L46 36"
+    d="M12.8 21.8 L12.8 39.7 M32 33.3 L32 51.2 M51.2 21.8 L51.2 39.7"
     fill="none"
-    stroke="url(#symbolAccent)"
-    stroke-width="9"
+    stroke="#1d1b18"
+    stroke-opacity="0.7"
+    stroke-width="2.4"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M12.8 39.7 L32 51.2 L51.2 39.7"
+    fill="none"
+    stroke="#1d1b18"
+    stroke-opacity="0.7"
+    stroke-width="2.4"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M32 10.2 L51.2 21.8 L51.2 39.7 L32 51.2 L12.8 39.7 L12.8 21.8 Z"
+    fill="none"
+    stroke="#1d1b18"
+    stroke-opacity="0.95"
+    stroke-width="3.8"
     stroke-linecap="round"
     stroke-linejoin="round"
   />

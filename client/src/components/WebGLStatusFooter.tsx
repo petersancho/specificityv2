@@ -21,6 +21,14 @@ type TitleParts = {
   accent: string;
 };
 
+type ToggleLayout = {
+  rect: Rect;
+  boxRect: Rect;
+  label: string;
+  checked: boolean;
+  onChange: (next: boolean) => void;
+};
+
 type LayoutState = {
   width: number;
   height: number;
@@ -29,12 +37,23 @@ type LayoutState = {
   leftKeys: KeyLayout[];
   centerChips: ChipLayout[];
   rightChips: ChipLayout[];
+  toggles: ToggleLayout[];
 };
 
 type WebGLStatusFooterProps = {
   shortcuts: Shortcut[];
   centerChips: string[];
   rightChips: string[];
+  toggle?: {
+    label: string;
+    checked: boolean;
+    onChange: (next: boolean) => void;
+  };
+  toggles?: Array<{
+    label: string;
+    checked: boolean;
+    onChange: (next: boolean) => void;
+  }>;
   title?: string;
   titleTone?: LogoTone;
   className?: string;
@@ -48,23 +67,27 @@ const rgb = (r: number, g: number, b: number, a = 1): RGBA => [
 ];
 
 const PALETTE = {
-  background: rgb(247, 243, 234, 0.98),
-  border: rgb(18, 16, 12, 0.18),
-  dotStrong: rgb(18, 16, 12, 0.12),
-  dotSoft: rgb(18, 16, 12, 0.05),
-  shadow: rgb(0, 0, 0, 0.16),
-  chipFill: rgb(252, 250, 246, 0.98),
-  chipBorder: rgb(18, 16, 12, 0.22),
-  chipText: rgb(18, 16, 12, 0.98),
-  keyLabel: rgb(18, 16, 12, 0.6),
+  background: rgb(248, 246, 242, 0.96),
+  border: rgb(18, 16, 12, 0.12),
+  dotStrong: rgb(18, 16, 12, 0.06),
+  dotSoft: rgb(18, 16, 12, 0.025),
+  shadow: rgb(0, 0, 0, 0.08),
+  chipFill: rgb(252, 251, 248, 0.98),
+  chipBorder: rgb(18, 16, 12, 0.16),
+  chipText: rgb(18, 16, 12, 0.94),
+  keyLabel: rgb(18, 16, 12, 0.55),
+  toggleFill: rgb(252, 251, 248, 0.98),
+  toggleBorder: rgb(18, 16, 12, 0.2),
+  toggleActive: rgb(18, 16, 12, 0.9),
+  toggleText: rgb(18, 16, 12, 0.88),
 };
 
 const TITLE_PALETTE = {
-  fill: rgb(246, 243, 238, 1),
-  stroke: rgb(198, 193, 187, 1),
-  text: rgb(18, 16, 12, 0.95),
-  shadow: rgb(0, 0, 0, 0.28),
-  glow: rgb(255, 255, 255, 0.45),
+  fill: rgb(248, 246, 242, 1),
+  stroke: rgb(190, 186, 181, 1),
+  text: rgb(18, 16, 12, 0.92),
+  shadow: rgb(0, 0, 0, 0.18),
+  glow: rgb(255, 255, 255, 0.25),
 };
 
 const TITLE_ACCENTS: Record<LogoTone, RGBA> = {
@@ -88,18 +111,23 @@ const DOT_STRONG_EVERY = 4;
 const TITLE_FONT_SIZE = 10;
 const TITLE_PAD_X = 8;
 const TITLE_PAD_Y = 4;
-const TITLE_BAR_WIDTH = 2.4;
-const TITLE_BAR_GAP = 6;
+const TITLE_BAR_WIDTH = 2;
+const TITLE_BAR_GAP = 5;
 const TITLE_GAP = 2;
-const TITLE_RADIUS = 8;
-const TITLE_STROKE = 1.2;
-const TITLE_SHADOW_OFFSET = 2;
-const TITLE_UNDERLINE_HEIGHT = 2;
-const TITLE_UNDERLINE_INSET = 3;
+const TITLE_RADIUS = 5;
+const TITLE_STROKE = 1;
+const TITLE_SHADOW_OFFSET = 1;
+const TITLE_UNDERLINE_HEIGHT = 1.4;
+const TITLE_UNDERLINE_INSET = 2;
 
 const KEY_FONT_SIZE = 11;
 const LABEL_FONT_SIZE = 9;
 const CHIP_FONT_SIZE = 11;
+const TOGGLE_FONT_SIZE = 10;
+const TOGGLE_HEIGHT = 24;
+const TOGGLE_BOX_SIZE = 14;
+const TOGGLE_LABEL_GAP = 6;
+const TOGGLE_ITEM_GAP = 12;
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
@@ -146,6 +174,9 @@ const measureKeyWidth = (key: string, label: string) => {
   return Math.max(keyWidth, labelWidth) + KEY_PAD_X * 2;
 };
 
+const measureToggleWidth = (label: string) =>
+  TOGGLE_BOX_SIZE + TOGGLE_LABEL_GAP + measureTextWidth(label, TOGGLE_FONT_SIZE, 700);
+
 const buildRowLayouts = (
   items: { width: number; text: string }[],
   startX: number,
@@ -191,12 +222,15 @@ const WebGLStatusFooter = ({
   shortcuts,
   centerChips,
   rightChips,
+  toggle,
+  toggles,
   title,
   titleTone = "neutral",
   className,
 }: WebGLStatusFooterProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerWidthRef = useRef(1);
   const glRef = useRef<WebGLRenderingContext | null>(null);
   const uiRef = useRef<WebGLUIRenderer | null>(null);
   const textRef = useRef<WebGLTextRenderer | null>(null);
@@ -209,8 +243,15 @@ const WebGLStatusFooter = ({
     leftKeys: [],
     centerChips: [],
     rightChips: [],
+    toggles: [],
   });
   const [, setLayoutVersion] = useState(0);
+
+  const resolvedToggles = useMemo(() => {
+    if (toggles && toggles.length > 0) return toggles;
+    if (toggle) return [toggle];
+    return [];
+  }, [toggle, toggles]);
 
   const shortcutLayouts = useMemo(
     () => shortcuts.map((shortcut) => ({ ...shortcut, width: measureKeyWidth(shortcut.key, shortcut.label) })),
@@ -254,8 +295,8 @@ const WebGLStatusFooter = ({
     if (!ui) return;
     const dpr = dprRef.current;
 
-    const shadowOffsetX = 2 * dpr;
-    const shadowOffsetY = 4 * dpr;
+    const shadowOffsetX = 1.2 * dpr;
+    const shadowOffsetY = 2 * dpr;
     ui.drawRect(
       (rect.x + shadowOffsetX) * dpr,
       (rect.y + shadowOffsetY) * dpr,
@@ -264,12 +305,12 @@ const WebGLStatusFooter = ({
       PALETTE.shadow
     );
     ui.drawRect(rect.x * dpr, rect.y * dpr, rect.width * dpr, rect.height * dpr, PALETTE.chipFill);
-    ui.drawRect(rect.x * dpr, rect.y * dpr, rect.width * dpr, 1.5 * dpr, PALETTE.border);
-    ui.drawRect(
+    ui.drawRectStroke(
       rect.x * dpr,
-      (rect.y + rect.height - 1.5) * dpr,
+      rect.y * dpr,
       rect.width * dpr,
-      1.5 * dpr,
+      rect.height * dpr,
+      1 * dpr,
       PALETTE.chipBorder
     );
   };
@@ -297,14 +338,6 @@ const WebGLStatusFooter = ({
       rect.height * dpr,
       TITLE_RADIUS * dpr,
       TITLE_PALETTE.fill
-    );
-    ui.drawRoundedRect(
-      (rect.x + TITLE_STROKE) * dpr,
-      (rect.y + TITLE_STROKE) * dpr,
-      rect.width * dpr,
-      rect.height * 0.5 * dpr,
-      Math.max(2, (TITLE_RADIUS - TITLE_STROKE)) * dpr,
-      TITLE_PALETTE.glow
     );
     ui.drawRectStroke(
       rect.x * dpr,
@@ -378,14 +411,20 @@ const WebGLStatusFooter = ({
     const leftWidths = shortcutLayouts.map((item) => item.width);
     const centerWidths = centerChipLayouts.map((item) => item.width);
     const rightWidths = rightChipLayouts.map((item) => item.width);
+    const toggleWidths = resolvedToggles.map((item) => measureToggleWidth(item.label));
 
     const leftWidth = getRowWidth(leftWidths);
     const centerWidth = getRowWidth(centerWidths);
     const rightWidth = getRowWidth(rightWidths);
+    const togglesWidth =
+      toggleWidths.reduce((sum, item) => sum + item, 0) +
+      Math.max(0, toggleWidths.length - 1) * TOGGLE_ITEM_GAP;
 
     const leftStart = titleRect ? titleRect.x + titleRect.width + GROUP_GAP : PADDING_X;
     const leftEnd = leftStart + leftWidth;
-    const rightStart = width - PADDING_X - rightWidth;
+    const rightInset = togglesWidth > 0 ? togglesWidth + GROUP_GAP : 0;
+    const rightStart = width - PADDING_X - rightWidth - rightInset;
+    const toggleStart = width - PADDING_X - togglesWidth;
 
     const centeredStart = (width - centerWidth) * 0.5;
     const minCenterStart = leftEnd + GROUP_GAP;
@@ -395,6 +434,31 @@ const WebGLStatusFooter = ({
     const leftKeys = buildKeyLayouts(shortcuts, leftStart, centerY);
     const centerChipsLayout = buildRowLayouts(centerChipLayouts, centerStart, centerY, CHIP_HEIGHT);
     const rightChipsLayout = buildRowLayouts(rightChipLayouts, rightStart, centerY, CHIP_HEIGHT);
+    const toggleLayouts: ToggleLayout[] = [];
+    let toggleX = toggleStart;
+    resolvedToggles.forEach((item) => {
+      const width = measureToggleWidth(item.label);
+      const rect = {
+        x: toggleX,
+        y: centerY - TOGGLE_HEIGHT * 0.5,
+        width,
+        height: TOGGLE_HEIGHT,
+      } satisfies Rect;
+      const boxRect = {
+        x: rect.x,
+        y: rect.y + (rect.height - TOGGLE_BOX_SIZE) * 0.5,
+        width: TOGGLE_BOX_SIZE,
+        height: TOGGLE_BOX_SIZE,
+      } satisfies Rect;
+      toggleLayouts.push({
+        rect,
+        boxRect,
+        label: item.label,
+        checked: item.checked,
+        onChange: item.onChange,
+      });
+      toggleX += width + TOGGLE_ITEM_GAP;
+    });
 
     layoutRef.current = {
       width,
@@ -404,6 +468,7 @@ const WebGLStatusFooter = ({
       leftKeys,
       centerChips: centerChipsLayout,
       rightChips: rightChipsLayout,
+      toggles: toggleLayouts,
     };
 
     setLayoutVersion((version) => version + 1);
@@ -422,6 +487,7 @@ const WebGLStatusFooter = ({
       rightChips: rightLayout,
       titleRect,
       titleParts,
+      toggles: toggleLayout,
     } = layoutRef.current;
 
     gl.viewport(0, 0, canvas.width, canvas.height);
@@ -454,6 +520,36 @@ const WebGLStatusFooter = ({
     [...centerLayout, ...rightLayout].forEach((chip) => drawChip(chip.rect));
     leftKeys.forEach((key) => drawChip(key.rect));
 
+    toggleLayout.forEach((toggleItem) => {
+      const box = toggleItem.boxRect;
+      ui.drawRoundedRect(
+        box.x * dpr,
+        box.y * dpr,
+        box.width * dpr,
+        box.height * dpr,
+        4 * dpr,
+        PALETTE.toggleFill
+      );
+      ui.drawRectStroke(
+        box.x * dpr,
+        box.y * dpr,
+        box.width * dpr,
+        box.height * dpr,
+        1 * dpr,
+        PALETTE.toggleBorder
+      );
+      if (toggleItem.checked) {
+        const x1 = (box.x + 3) * dpr;
+        const y1 = (box.y + box.height * 0.55) * dpr;
+        const x2 = (box.x + box.width * 0.45) * dpr;
+        const y2 = (box.y + box.height - 3) * dpr;
+        const x3 = (box.x + box.width - 2.5) * dpr;
+        const y3 = (box.y + 3) * dpr;
+        ui.drawLine(x1, y1, x2, y2, 2 * dpr, PALETTE.toggleActive);
+        ui.drawLine(x2, y2, x3, y3, 2 * dpr, PALETTE.toggleActive);
+      }
+    });
+
     ui.flush();
 
     const drawCenteredText = (
@@ -484,6 +580,15 @@ const WebGLStatusFooter = ({
       drawCenteredText(keyLayout.key, keyLayout.rect, KEY_FONT_SIZE, 700, PALETTE.chipText, -6);
       drawCenteredText(keyLayout.label, keyLayout.rect, LABEL_FONT_SIZE, 600, PALETTE.keyLabel, 8);
     });
+
+    toggleLayout.forEach((toggleItem) => {
+      const textX = (toggleItem.boxRect.x + toggleItem.boxRect.width + TOGGLE_LABEL_GAP) * dpr;
+      const size = prepareText(toggleItem.label, TOGGLE_FONT_SIZE, 700);
+      const textHeight = size.height / dpr;
+      const textY =
+        (toggleItem.rect.y + toggleItem.rect.height * 0.5 - textHeight * 0.5) * dpr;
+      drawPreparedText(textX, textY, PALETTE.toggleText);
+    });
   };
 
   useEffect(() => {
@@ -502,6 +607,32 @@ const WebGLStatusFooter = ({
   }, []);
 
   useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      const toggleItems = layoutRef.current.toggles;
+      for (const item of toggleItems) {
+        const hit =
+          x >= item.rect.x &&
+          x <= item.rect.x + item.rect.width &&
+          y >= item.rect.y &&
+          y <= item.rect.y + item.rect.height;
+        if (hit) {
+          item.onChange(!item.checked);
+          break;
+        }
+      }
+    };
+
+    canvas.addEventListener("pointerdown", handlePointerDown);
+    return () => canvas.removeEventListener("pointerdown", handlePointerDown);
+  }, [resolvedToggles]);
+
+  useEffect(() => {
     const container = containerRef.current;
     const canvas = canvasRef.current;
     if (!container || !canvas) return;
@@ -510,6 +641,7 @@ const WebGLStatusFooter = ({
       const rect = container.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
       dprRef.current = dpr;
+      containerWidthRef.current = rect.width;
       updateLayout(rect.width);
       canvas.width = Math.max(1, Math.floor(rect.width * dpr));
       canvas.height = Math.max(1, Math.floor(FOOTER_HEIGHT * dpr));
@@ -520,11 +652,11 @@ const WebGLStatusFooter = ({
     const observer = new ResizeObserver(updateSize);
     observer.observe(container);
     return () => observer.disconnect();
-  }, [centerChipLayouts, rightChipLayouts, shortcutLayouts, title]);
+  }, [centerChipLayouts, rightChipLayouts, shortcutLayouts, title, resolvedToggles]);
 
   useEffect(() => {
     draw();
-  }, [centerChipLayouts, rightChipLayouts, shortcutLayouts, title, titleTone]);
+  }, [centerChipLayouts, rightChipLayouts, shortcutLayouts, title, titleTone, resolvedToggles]);
 
   const rootClassName = className ? `${styles.root} ${className}` : styles.root;
 

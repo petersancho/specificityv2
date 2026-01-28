@@ -1,3 +1,5 @@
+import { PRIMITIVE_CATALOG, PRIMITIVE_COMMAND_ALIAS_ENTRIES } from "../data/primitiveCatalog";
+
 export type CommandCategory = "geometry" | "performs";
 
 export type CommandDefinition = {
@@ -9,6 +11,16 @@ export type CommandDefinition = {
 
 export const COMMAND_PREFIX = /^(geometry|perform|performs)\s*[:\-]?\s*/;
 
+const primitivePrompt = (label: string) =>
+  `${label}: place a ${label.toLowerCase()} primitive on the construction plane.`;
+
+const PRIMITIVE_COMMAND_DEFINITIONS: CommandDefinition[] = PRIMITIVE_CATALOG.map((entry) => ({
+  id: entry.id,
+  label: entry.label,
+  category: "geometry",
+  prompt: primitivePrompt(entry.label),
+}));
+
 export const COMMAND_DEFINITIONS: CommandDefinition[] = [
   {
     id: "point",
@@ -17,6 +29,7 @@ export const COMMAND_DEFINITIONS: CommandDefinition[] = [
     prompt:
       "Point: click to place points or type x,y,z. Snaps to grid/verts/midpoints.",
   },
+  ...PRIMITIVE_COMMAND_DEFINITIONS,
   {
     id: "line",
     label: "Line",
@@ -64,31 +77,6 @@ export const COMMAND_DEFINITIONS: CommandDefinition[] = [
     label: "Interpolate",
     category: "performs",
     prompt: "Interpolate: degree=1-3 for selected poly-lines.",
-  },
-  {
-    id: "primitive",
-    label: "Primitive",
-    category: "geometry",
-    prompt:
-      "Primitive: choose a base point to place geometry. Types: box, sphere, cylinder, torus.",
-  },
-  {
-    id: "box",
-    label: "Box",
-    category: "geometry",
-    prompt: "Box: place a box primitive on the construction plane.",
-  },
-  {
-    id: "sphere",
-    label: "Sphere",
-    category: "geometry",
-    prompt: "Sphere: place a sphere primitive on the construction plane.",
-  },
-  {
-    id: "cylinder",
-    label: "Cylinder",
-    category: "geometry",
-    prompt: "Cylinder: place a cylinder primitive on the construction plane.",
   },
   {
     id: "boolean",
@@ -329,7 +317,7 @@ export const COMMAND_DEFINITIONS: CommandDefinition[] = [
   },
 ];
 
-const COMMAND_ALIASES: Record<string, string> = {
+const BASE_COMMAND_ALIASES: Record<string, string> = {
   verticee: "point",
   vertex: "point",
   point: "point",
@@ -353,17 +341,6 @@ const COMMAND_ALIASES: Record<string, string> = {
   circle: "circle",
   circ: "circle",
   c: "circle",
-  primitive: "primitive",
-  prim: "primitive",
-  bx: "box",
-  box: "box",
-  cube: "box",
-  sph: "sphere",
-  sphere: "sphere",
-  cyl: "cylinder",
-  cylinder: "cylinder",
-  torus: "primitive",
-  toroid: "primitive",
   ext: "extrude",
   ex: "extrude",
   move: "move",
@@ -392,7 +369,7 @@ const COMMAND_ALIASES: Record<string, string> = {
   del: "delete",
   frame: "focus",
   "frame-all": "frameall",
-  "frameall": "frameall",
+  frameall: "frameall",
   view: "view",
   camera: "camera",
   pivot: "pivot",
@@ -412,6 +389,11 @@ const COMMAND_ALIASES: Record<string, string> = {
   tolerance: "tolerance",
   precision: "tolerance",
   status: "status",
+};
+
+const COMMAND_ALIASES: Record<string, string> = {
+  ...BASE_COMMAND_ALIASES,
+  ...Object.fromEntries(PRIMITIVE_COMMAND_ALIAS_ENTRIES),
 };
 
 export const resolveCommandToken = (token: string) => {

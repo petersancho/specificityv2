@@ -56,21 +56,25 @@ const mix = (a: RGBA, b: RGBA, t: number): RGBA => [
 ];
 
 const PALETTE = {
-  bgTop: rgb(250, 247, 242, 1),
-  bgBottom: rgb(244, 239, 232, 1),
-  border: rgb(18, 16, 12, 0.18),
-  topAccent: rgb(18, 16, 12, 0.64),
-  topAccentSoft: rgb(18, 16, 12, 0.28),
-  dotStrong: rgb(18, 16, 12, 0.12),
-  dotSoft: rgb(18, 16, 12, 0.045),
-  glow: rgb(210, 139, 92, 0.12),
-  brandText: rgb(18, 16, 12, 0.98),
-  brandAccent: rgb(0, 194, 209, 0.98),
-  brandAccentDeep: rgb(122, 92, 255, 0.98),
-  brandAccentGlow: rgb(0, 194, 209, 0.25),
-  brandShadow: rgb(0, 0, 0, 0.18),
-  chipShadow: rgb(0, 0, 0, 0.16),
-  chipText: rgb(18, 16, 12, 0.94),
+  bgTop: rgb(250, 248, 246, 1),
+  bgBottom: rgb(246, 244, 240, 1),
+  border: rgb(18, 16, 12, 0.12),
+  topAccent: rgb(18, 16, 12, 0.35),
+  topAccentSoft: rgb(18, 16, 12, 0.18),
+  dotStrong: rgb(18, 16, 12, 0.06),
+  dotSoft: rgb(18, 16, 12, 0.02),
+  glow: rgb(210, 139, 92, 0.06),
+  brandText: rgb(18, 16, 12, 0.95),
+  brandAccent: rgb(0, 194, 209, 0.92),
+  brandAccentDeep: rgb(122, 92, 255, 0.92),
+  brandAccentGlow: rgb(0, 194, 209, 0.18),
+  brandShadow: rgb(0, 0, 0, 0.12),
+  brandBadgeFill: rgb(250, 248, 244, 1),
+  brandBadgeStroke: rgb(190, 186, 181, 1),
+  brandBadgeGlow: rgb(255, 255, 255, 0.3),
+  brandBadgeShadow: rgb(0, 0, 0, 0.14),
+  chipShadow: rgb(0, 0, 0, 0.08),
+  chipText: rgb(18, 16, 12, 0.92),
 };
 
 const CHIP_TONES: Record<
@@ -78,22 +82,22 @@ const CHIP_TONES: Record<
   { fill: RGBA; border: RGBA; dot: RGBA; bar: RGBA | null }
 > = {
   accent: {
-    fill: rgb(250, 243, 233, 0.98),
-    border: rgb(210, 139, 92, 0.6),
-    dot: rgb(210, 139, 92, 0.95),
-    bar: rgb(210, 139, 92, 0.82),
+    fill: rgb(250, 245, 238, 0.98),
+    border: rgb(210, 139, 92, 0.4),
+    dot: rgb(210, 139, 92, 0.85),
+    bar: rgb(210, 139, 92, 0.6),
   },
   neutral: {
-    fill: rgb(247, 243, 234, 0.98),
-    border: rgb(18, 16, 12, 0.18),
-    dot: rgb(18, 16, 12, 0.64),
+    fill: rgb(248, 246, 242, 0.98),
+    border: rgb(18, 16, 12, 0.14),
+    dot: rgb(18, 16, 12, 0.5),
     bar: null,
   },
   tech: {
-    fill: rgb(238, 246, 252, 0.98),
-    border: rgb(59, 130, 246, 0.48),
-    dot: rgb(59, 130, 246, 0.86),
-    bar: rgb(59, 130, 246, 0.72),
+    fill: rgb(241, 246, 251, 0.98),
+    border: rgb(59, 130, 246, 0.38),
+    dot: rgb(59, 130, 246, 0.72),
+    bar: rgb(59, 130, 246, 0.55),
   },
 };
 
@@ -106,9 +110,15 @@ const PADDING_X = 24;
 const BRAND_SYMBOL_SIZE = 56;
 const BRAND_FONT_SIZE = 44;
 const BRAND_GAP = 12;
-const BRAND_ACCENT_GAP = 6;
+const BRAND_ACCENT_GAP = 5;
 const BRAND_TRACKING = -0.6;
 const BRAND_ACCENT_TRACKING = -0.4;
+const BRAND_BADGE_PAD_X = 14;
+const BRAND_BADGE_PAD_Y = 7;
+const BRAND_BADGE_BAR_WIDTH = 4;
+const BRAND_BADGE_BAR_GAP = 10;
+const BRAND_BADGE_RADIUS = 11;
+const BRAND_BADGE_STROKE = 1.1;
 const BRAND_TO_CHIPS_GAP = 18;
 const CHIP_HEIGHT = 34;
 const CHIP_PAD_X = 12;
@@ -116,14 +126,14 @@ const CHIP_GAP = 8;
 const CHIP_DOT_SIZE = 6;
 const CHIP_DOT_GAP = 7;
 const CHIP_BAR_WIDTH = 3;
-const CHIP_RADIUS = 10;
+const CHIP_RADIUS = 7;
 const CHIP_FONT_SIZE = 11.5;
 const STATUS_FONT_SIZE = 12.5;
 const STATUS_PAD_X = 14;
 const STATUS_GAP = 18;
 
 const DOT_SPACING = 26;
-const DOT_SIZE = 1.4;
+const DOT_SIZE = 1.1;
 const DOT_STRONG_EVERY = 4;
 
 const GRADIENT_STEPS = 10;
@@ -182,7 +192,13 @@ const BASE_BRAND_TEXT_WIDTH =
     BRAND_FONT_FAMILY
   ) +
   BRAND_ACCENT_GAP;
-const BASE_BRAND_WIDTH = BASE_BRAND_TEXT_WIDTH + BRAND_SYMBOL_SIZE + BRAND_GAP;
+const BASE_BRAND_BADGE_WIDTH =
+  BASE_BRAND_TEXT_WIDTH +
+  BRAND_SYMBOL_SIZE +
+  BRAND_GAP +
+  BRAND_BADGE_PAD_X * 2 +
+  BRAND_BADGE_BAR_WIDTH +
+  BRAND_BADGE_BAR_GAP;
 
 const measureChipWidth = (label: string, fontSize: number, padX: number, dotSize: number) => {
   const textWidth = measureTextWidth(label, fontSize, 700, UI_FONT_FAMILY);
@@ -223,7 +239,7 @@ const WebGLAppTopBar = ({ status, className }: WebGLAppTopBarProps) => {
   const updateLayout = (width: number) => {
     const statusText = "";
 
-    const brandWidthBase = BASE_BRAND_WIDTH;
+    const brandWidthBase = BASE_BRAND_BADGE_WIDTH;
     const chipsWidthBase = CHIP_SPECS.reduce((sum, spec, index) => {
       const chipWidth = measureChipWidth(spec.label, CHIP_FONT_SIZE, CHIP_PAD_X, CHIP_DOT_SIZE);
       const gap = index === CHIP_SPECS.length - 1 ? 0 : CHIP_GAP;
@@ -241,6 +257,9 @@ const WebGLAppTopBar = ({ status, className }: WebGLAppTopBarProps) => {
     const brandAccentGap = BRAND_ACCENT_GAP * scale;
     const brandTracking = BRAND_TRACKING * scale;
     const brandAccentTracking = BRAND_ACCENT_TRACKING * scale;
+    const brandBadgePadX = BRAND_BADGE_PAD_X * scale;
+    const brandBadgeBarWidth = BRAND_BADGE_BAR_WIDTH * scale;
+    const brandBadgeBarGap = BRAND_BADGE_BAR_GAP * scale;
     const brandBaseWidth = measureTrackedWidth(
       BRAND_TEXT_BASE,
       brandFontSize,
@@ -256,6 +275,13 @@ const WebGLAppTopBar = ({ status, className }: WebGLAppTopBarProps) => {
       BRAND_FONT_FAMILY
     );
     const brandTextWidth = brandBaseWidth + brandAccentWidth + brandAccentGap;
+    const brandBadgeWidth =
+      brandBadgePadX * 2 +
+      brandBadgeBarWidth +
+      brandBadgeBarGap +
+      brandSymbolSize +
+      brandGap +
+      brandTextWidth;
 
     const chipHeight = CHIP_HEIGHT * scale;
     const chipPadX = CHIP_PAD_X * scale;
@@ -270,21 +296,22 @@ const WebGLAppTopBar = ({ status, className }: WebGLAppTopBarProps) => {
     const statusWidth = measureStatusWidth(statusText, statusFontSize, statusPadX, chipDotSize);
 
     const centerY = BAR_HEIGHT * 0.5;
-    const brandTotalWidth = brandSymbolSize + brandGap + brandTextWidth;
+    const brandTotalWidth = brandBadgeWidth;
     const brandStartX = clamp(
       (width - brandTotalWidth) * 0.5,
       PADDING_X,
       Math.max(PADDING_X, width - PADDING_X - brandTotalWidth)
     );
     const brandSymbolRect: Rect = {
-      x: brandStartX,
+      x: brandStartX + brandBadgePadX + brandBadgeBarWidth + brandBadgeBarGap,
       y: centerY - brandSymbolSize * 0.5,
       width: brandSymbolSize,
       height: brandSymbolSize,
     };
 
     const brandTextX = brandSymbolRect.x + brandSymbolRect.width + brandGap;
-    const chipsStartX = brandTextX + brandTextWidth + BRAND_TO_CHIPS_GAP * scale;
+    const chipsStartX =
+      brandTextX + brandTextWidth + brandBadgePadX + BRAND_TO_CHIPS_GAP * scale;
 
     const statusRect: Rect = {
       x: width - PADDING_X - statusWidth,
@@ -394,8 +421,8 @@ const WebGLAppTopBar = ({ status, className }: WebGLAppTopBarProps) => {
       );
     }
 
-    ui.drawRect(0, 0, widthCss * dpr, 3 * dpr, PALETTE.topAccent);
-    ui.drawRect(0, 3 * dpr, widthCss * 0.34 * dpr, 1.5 * dpr, PALETTE.topAccentSoft);
+    ui.drawRect(0, 0, widthCss * dpr, 1.5 * dpr, PALETTE.topAccent);
+    ui.drawRect(0, 1.5 * dpr, widthCss * 0.32 * dpr, 1 * dpr, PALETTE.topAccentSoft);
   };
 
   const drawDotGrid = (
@@ -424,21 +451,21 @@ const WebGLAppTopBar = ({ status, className }: WebGLAppTopBarProps) => {
   };
 
   const drawGlowRect = (ui: WebGLUIRenderer, rect: Rect, color: RGBA, dpr: number, scale: number) => {
-    const glowPadX = 18 * scale;
-    const glowPadY = 14 * scale;
+    const glowPadX = 12 * scale;
+    const glowPadY = 10 * scale;
     ui.drawRoundedRect(
       (rect.x - glowPadX) * dpr,
       (rect.y - glowPadY) * dpr,
       (rect.width + glowPadX * 2) * dpr,
       (rect.height + glowPadY * 2) * dpr,
-      (18 * scale) * dpr,
+      (14 * scale) * dpr,
       color
     );
   };
 
   const drawChipShapes = (chip: LayoutChip, ui: WebGLUIRenderer, dpr: number, radius: number) => {
     const tone = CHIP_TONES[chip.spec.tone];
-    const shadowOffset = { x: 2.2, y: 4 };
+    const shadowOffset = { x: 1.4, y: 2.4 };
 
     ui.drawRoundedRect(
       (chip.rect.x + shadowOffset.x) * dpr,
@@ -463,7 +490,7 @@ const WebGLAppTopBar = ({ status, className }: WebGLAppTopBarProps) => {
       chip.rect.y * dpr,
       chip.rect.width * dpr,
       chip.rect.height * dpr,
-      1.5 * dpr,
+      1 * dpr,
       tone.border
     );
 
@@ -566,14 +593,14 @@ const WebGLAppTopBar = ({ status, className }: WebGLAppTopBarProps) => {
     ui.drawRoundedRect(
       widthCss * 0.28 * dpr,
       heightCss * 0.18 * dpr,
-      widthCss * 0.44 * dpr,
-      heightCss * 0.64 * dpr,
-      24 * dpr,
-      rgb(18, 16, 12, 0.035)
+      widthCss * 0.4 * dpr,
+      heightCss * 0.58 * dpr,
+      18 * dpr,
+      rgb(18, 16, 12, 0.02)
     );
     ui.flush();
 
-    // Measure brand text for the glow block.
+    // Measure brand text for the badge block.
     const brandAccentGap = BRAND_ACCENT_GAP * scale;
     const brandTracking = BRAND_TRACKING * scale;
     const brandAccentTracking = BRAND_ACCENT_TRACKING * scale;
@@ -606,18 +633,75 @@ const WebGLAppTopBar = ({ status, className }: WebGLAppTopBarProps) => {
     const brandRight = brandTextX + brandTextWidth;
     const brandTextY = BAR_HEIGHT * 0.5 - brandTextHeight * 0.5;
     const brandAccentX = brandTextX + brandBaseWidth + brandAccentGap;
-
-    const brandGlowRect: Rect = {
-      x: brandSymbolRect.x - 8 * scale,
-      y: brandSymbolRect.y - 4 * scale,
-      width: brandRight - brandSymbolRect.x + 12 * scale,
-      height: Math.max(brandSymbolRect.height, brandTextHeight) + 8 * scale,
+    const brandBadgePadX = BRAND_BADGE_PAD_X * scale;
+    const brandBadgePadY = BRAND_BADGE_PAD_Y * scale;
+    const brandBadgeBarWidth = BRAND_BADGE_BAR_WIDTH * scale;
+    const brandBadgeBarGap = BRAND_BADGE_BAR_GAP * scale;
+    const brandBadgeStroke = Math.max(1, BRAND_BADGE_STROKE * scale);
+    const brandBadgeHeight =
+      Math.max(brandSymbolRect.height, brandTextHeight) + brandBadgePadY * 2;
+    const brandBadgeRadius = Math.min(
+      BRAND_BADGE_RADIUS * scale,
+      brandBadgeHeight * 0.5
+    );
+    const brandBadgeLeft =
+      brandSymbolRect.x - (brandBadgePadX + brandBadgeBarWidth + brandBadgeBarGap);
+    const brandBadgeRight = brandRight + brandBadgePadX;
+    const brandBadgeRect: Rect = {
+      x: brandBadgeLeft,
+      y: BAR_HEIGHT * 0.5 - brandBadgeHeight * 0.5,
+      width: brandBadgeRight - brandBadgeLeft,
+      height: brandBadgeHeight,
     };
 
     // Accent + chip shapes pass.
     ui.begin(canvas.width, canvas.height);
-    drawGlowRect(ui, brandGlowRect, PALETTE.glow, dpr, scale);
-    const underlineHeight = Math.max(2, 2.2 * scale);
+    drawGlowRect(ui, brandBadgeRect, PALETTE.glow, dpr, scale);
+    const badgeShadowOffsetX = 1.4 * scale;
+    const badgeShadowOffsetY = 2.2 * scale;
+    ui.drawRoundedRect(
+      (brandBadgeRect.x + badgeShadowOffsetX) * dpr,
+      (brandBadgeRect.y + badgeShadowOffsetY) * dpr,
+      brandBadgeRect.width * dpr,
+      brandBadgeRect.height * dpr,
+      brandBadgeRadius * dpr,
+      PALETTE.brandBadgeShadow
+    );
+    ui.drawRoundedRect(
+      brandBadgeRect.x * dpr,
+      brandBadgeRect.y * dpr,
+      brandBadgeRect.width * dpr,
+      brandBadgeRect.height * dpr,
+      brandBadgeRadius * dpr,
+      PALETTE.brandBadgeFill
+    );
+    ui.drawRoundedRect(
+      (brandBadgeRect.x + brandBadgeStroke) * dpr,
+      (brandBadgeRect.y + brandBadgeStroke) * dpr,
+      brandBadgeRect.width * dpr,
+      brandBadgeRect.height * 0.4 * dpr,
+      Math.max(2, brandBadgeRadius - brandBadgeStroke) * dpr,
+      PALETTE.brandBadgeGlow
+    );
+    ui.drawRectStroke(
+      brandBadgeRect.x * dpr,
+      brandBadgeRect.y * dpr,
+      brandBadgeRect.width * dpr,
+      brandBadgeRect.height * dpr,
+      brandBadgeStroke * dpr,
+      PALETTE.brandBadgeStroke
+    );
+    const barHeight = brandBadgeRect.height - brandBadgeStroke * 2;
+    const barRadius = Math.min(3 * scale, barHeight * 0.5);
+    ui.drawRoundedRect(
+      (brandBadgeRect.x + brandBadgeStroke) * dpr,
+      (brandBadgeRect.y + brandBadgeStroke) * dpr,
+      brandBadgeBarWidth * dpr,
+      barHeight * dpr,
+      barRadius * dpr,
+      PALETTE.brandAccent
+    );
+    const underlineHeight = Math.max(1.4, 1.6 * scale);
     const underlineY = brandTextY + brandTextHeight - underlineHeight - 4 * scale;
     ui.drawRoundedRect(
       brandAccentX * dpr,
@@ -647,7 +731,7 @@ const WebGLAppTopBar = ({ status, className }: WebGLAppTopBarProps) => {
         width: statusChip.rect.width + 12 * scale,
         height: statusChip.rect.height + 12 * scale,
       };
-      drawGlowRect(ui, statusGlowRect, rgb(210, 139, 92, 0.08), dpr, scale);
+      drawGlowRect(ui, statusGlowRect, rgb(210, 139, 92, 0.04), dpr, scale);
       drawChipShapes(statusChip, ui, dpr, chipRadius);
     }
     ui.flush();
@@ -680,7 +764,7 @@ const WebGLAppTopBar = ({ status, className }: WebGLAppTopBarProps) => {
     }
 
     // Text pass: brand then chips.
-    const shadowOffset = 1.8 * scale;
+    const shadowOffset = 1.2 * scale;
     drawTrackedText(
       BRAND_TEXT_BASE,
       brandTextX + shadowOffset,

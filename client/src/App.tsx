@@ -151,6 +151,7 @@ const App = () => {
   const [workspaceOffset, setWorkspaceOffset] = useState(getInitialWorkspaceOffset);
   const [panels, setPanels] = useState<Record<PanelId, PanelState>>(INITIAL_PANELS);
   const [workspaceLocked, setWorkspaceLocked] = useState(false);
+  const [fullscreenPanel, setFullscreenPanel] = useState<PanelId | null>(null);
   const [showIntroOverlay, setShowIntroOverlay] = useState(true);
   const [isCapturing, setIsCapturing] = useState(false);
   const [capturePreview, setCapturePreview] = useState<{ url: string; label: string } | null>(null);
@@ -204,6 +205,17 @@ const App = () => {
       root.dataset.theme = "light";
     }
   }, []);
+
+  useEffect(() => {
+    if (!fullscreenPanel) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setFullscreenPanel(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [fullscreenPanel]);
 
   useEffect(() => {
     const socket = SOCKET_URL
@@ -346,6 +358,7 @@ const App = () => {
     if (event.button !== 0) return;
     if (workspaceLocked) return;
     const target = event.target as HTMLElement | null;
+    if (shouldIgnoreWorkspaceInput(target)) return;
     if (!target?.closest(PANEL_DRAG_SELECTOR)) return;
     event.preventDefault();
     event.stopPropagation();
@@ -432,6 +445,12 @@ const App = () => {
     link.click();
   };
 
+  const toggleFullscreen = (panelId: PanelId) => {
+    setFullscreenPanel((current) => (current === panelId ? null : panelId));
+  };
+
+  const isFullscreen = fullscreenPanel !== null;
+
   return (
     <div className={styles.app}>
       {showIntroOverlay && (
@@ -443,20 +462,30 @@ const App = () => {
           />
         </div>
       )}
-      <WebGLAppTopBar status={status} />
+      {!isFullscreen && <WebGLAppTopBar status={status} />}
 
       <main className={styles.workspace}>
-        <div className={styles.stackLayout}>
-          <div className={`${styles.fullPanel} ${styles.roslynPanel}`}>
+        <div className={styles.stackLayout} data-fullscreen={fullscreenPanel ?? "none"}>
+          <div
+            className={`${styles.fullPanel} ${styles.roslynPanel}`}
+            data-panel="roslyn"
+          >
             <ModelerSection
               onCaptureRequest={(element) => captureElement(element, "Roslyn")}
               captureDisabled={isCapturing}
+              isFullscreen={fullscreenPanel === "roslyn"}
+              onToggleFullscreen={() => toggleFullscreen("roslyn")}
             />
           </div>
-          <div className={`${styles.fullPanel} ${styles.numericaPanel}`}>
+          <div
+            className={`${styles.fullPanel} ${styles.numericaPanel}`}
+            data-panel="numerica"
+          >
             <WorkflowSection
               onCaptureRequest={(element) => captureElement(element, "Numerica")}
               captureDisabled={isCapturing}
+              isFullscreen={fullscreenPanel === "numerica"}
+              onToggleFullscreen={() => toggleFullscreen("numerica")}
             />
           </div>
         </div>

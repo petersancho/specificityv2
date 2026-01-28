@@ -58,6 +58,13 @@ export type RenderMesh = {
   indices: number[];
 };
 
+export type VoxelGrid = {
+  resolution: { x: number; y: number; z: number };
+  bounds: { min: Vec3; max: Vec3 };
+  cellSize: Vec3;
+  densities: number[];
+};
+
 export type VertexGeometry = {
   id: string;
   type: "vertex";
@@ -126,16 +133,60 @@ export type ExtrudeGeometry = {
   metadata?: Record<string, unknown>;
 };
 
+export type PrimitiveKind =
+  | "box"
+  | "sphere"
+  | "cylinder"
+  | "torus"
+  | "pyramid"
+  | "tetrahedron"
+  | "octahedron"
+  | "icosahedron"
+  | "dodecahedron"
+  | "hemisphere"
+  | "capsule"
+  | "disk"
+  | "ring"
+  | "triangularPrism"
+  | "pentagonalPrism"
+  | "hexagonalPrism"
+  | "torusKnot"
+  | "utahTeapot"
+  | "frustum"
+  | "mobiusStrip"
+  | "ellipsoid"
+  | "wedge"
+  | "sphericalCap"
+  | "bipyramid"
+  | "rhombicDodecahedron"
+  | "truncatedCube"
+  | "truncatedOctahedron"
+  | "truncatedIcosahedron"
+  | "pipe"
+  | "superellipsoid"
+  | "hyperbolicParaboloid"
+  | "geodesicDome"
+  | "oneSheetHyperboloid";
+
 export type MeshPrimitiveGeometry = {
   id: string;
   type: "mesh";
   mesh: RenderMesh;
   layerId: string;
   primitive?: {
-    kind: "box" | "sphere";
+    kind: PrimitiveKind;
     origin: Vec3;
     dimensions?: { width: number; height: number; depth: number };
     radius?: number;
+    height?: number;
+    tube?: number;
+    innerRadius?: number;
+    topRadius?: number;
+    capHeight?: number;
+    detail?: number;
+    exponent1?: number;
+    exponent2?: number;
+    params?: Record<string, number>;
   };
   area_m2?: number;
   thickness_m?: number;
@@ -184,6 +235,7 @@ export type DisplayMode = "shaded" | "wireframe" | "shaded_edges" | "ghosted";
 export type ViewSettings = {
   backfaceCulling: boolean;
   showNormals: boolean;
+  sheen: number;
 };
 
 export type SnapSettings = {
@@ -259,6 +311,7 @@ export type ModelerSnapshot = {
   pivot: PivotState;
   transformOrientation: TransformOrientation;
   gumballAlignment: GumballAlignment;
+  showRotationRings: boolean;
   displayMode: DisplayMode;
   viewSolidity: number;
   viewSettings: ViewSettings;
@@ -300,13 +353,14 @@ export type TopologyOptimizationProgress = {
   status: "idle" | "running" | "complete";
 };
 
-type WorkflowPrimitive = number | string | boolean | Vec3;
+type WorkflowPrimitive = number | string | boolean | Vec3 | Record<string, unknown>;
 
 export type WorkflowValue = WorkflowPrimitive | WorkflowValue[] | null | undefined;
 
 export type WorkflowNodeData = {
   label: string;
   geometryId?: string;
+  geometryIds?: string[];
   geometryType?: Geometry["type"];
   isLinked?: boolean;
   point?: Vec3;
@@ -319,6 +373,14 @@ export type WorkflowNodeData = {
   sphereRadius?: number;
   moveOffset?: Vec3;
   moveGeometryId?: string;
+  rotateGeometryId?: string;
+  rotateAxis?: Vec3;
+  rotatePivot?: Vec3;
+  rotateAngle?: number;
+  scaleGeometryId?: string;
+  scaleVector?: Vec3;
+  scalePivot?: Vec3;
+  arraySourceGeometryId?: string;
   topologySettings?: TopologyOptimizationSettings;
   topologyProgress?: TopologyOptimizationProgress;
   parameters?: Record<string, unknown>;

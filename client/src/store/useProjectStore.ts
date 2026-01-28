@@ -81,6 +81,7 @@ import type {
   PivotMode,
   PivotState,
   ProjectSavePayload,
+  PrimitiveKind,
   RenderMesh,
   TopologyOptimizationProgress,
   TopologyOptimizationSettings,
@@ -113,10 +114,25 @@ import {
   generateSurfaceMesh,
   generateBoxMesh,
   generateSphereMesh,
+  generatePrimitiveMesh,
+  DEFAULT_PRIMITIVE_CONFIG,
   computeMeshArea,
+  computeVertexNormals,
 } from "../geometry/mesh";
+import {
+  PRIMITIVE_NODE_CATALOG,
+  PRIMITIVE_NODE_KIND_BY_TYPE,
+  PRIMITIVE_NODE_TYPE_IDS,
+} from "../data/primitiveCatalog";
 import { computeArcPolyline } from "../geometry/arc";
 import { interpolatePolyline } from "../geometry/curves";
+import {
+  applyMatrixToPositions,
+  createRotationMatrixAroundAxis,
+  createScaleMatrixAroundPivot,
+  WORLD_BASIS,
+} from "../geometry/transform";
+import { transformPoint, translation, type Mat4 } from "../math/matrix";
 import { evaluateWorkflow } from "../workflow/workflowEngine";
 import {
   getDefaultParameters,
@@ -130,6 +146,14 @@ import {
   SUPPORTED_WORKFLOW_NODE_TYPES,
   type NodeType,
 } from "../workflow/nodeTypes";
+import { base64ToArrayBuffer } from "../utils/binary";
+import { downloadBlob } from "../utils/download";
+import {
+  exportMeshToStlAscii,
+  mergeRenderMeshes,
+  parseStl,
+  scaleRenderMesh,
+} from "../utils/meshIo";
 export type { NodeType } from "../workflow/nodeTypes";
 
 type SaveEntry = {
@@ -176,6 +200,7 @@ type ProjectStore = {
   cPlane: CPlane;
   transformOrientation: TransformOrientation;
   gumballAlignment: GumballAlignment;
+  showRotationRings: boolean;
   pivot: PivotState;
   displayMode: DisplayMode;
   viewSolidity: number;
@@ -203,6 +228,7 @@ type ProjectStore = {
   renameSceneNode: (id: string, name: string) => void;
   setTransformOrientation: (orientation: TransformOrientation) => void;
   setGumballAlignment: (alignment: GumballAlignment) => void;
+  setShowRotationRings: (show: boolean) => void;
   setPivotMode: (mode: PivotMode) => void;
   setPivotPosition: (position: Vec3) => void;
   setPivotCursorPosition: (position: Vec3 | null) => void;
@@ -307,15 +333,31 @@ const supportedWorkflowNodeTypes = new Set<string>(
   SUPPORTED_WORKFLOW_NODE_TYPES as string[]
 );
 
+const PRIMITIVE_NODE_TYPE_SET = new Set<NodeType>(
+  PRIMITIVE_NODE_TYPE_IDS as NodeType[]
+);
+
 const GEOMETRY_OWNING_NODE_TYPES = new Set<NodeType>([
   "point",
   "line",
+  "rectangle",
+  "circle",
   "arc",
   "curve",
   "polyline",
   "surface",
+  "loft",
+  "extrude",
+  "primitive",
+  ...(PRIMITIVE_NODE_TYPE_IDS as NodeType[]),
   "box",
   "sphere",
+  "boolean",
+  "offset",
+  "geometryArray",
+  "extractIsosurface",
+  "meshConvert",
+  "stlImport",
 ]);
 
 const pruneWorkflowState = (workflow: WorkflowState): WorkflowState => {
@@ -384,6 +426,7 @@ const defaultGridSettings: GridSettings = {
 const defaultViewSettings: ViewSettings = {
   backfaceCulling: false,
   showNormals: false,
+  sheen: 0.08,
 };
 
 const defaultTopologySettings: TopologyOptimizationSettings = {
@@ -412,7 +455,7 @@ const defaultCamera: CameraState = {
   orbitSpeed: 1,
   panSpeed: 1,
   zoomSpeed: 1,
-  fov: 50,
+  fov: 28,
 };
 
 const defaultPivot: PivotState = {
@@ -455,6 +498,84 @@ const buildSceneNodesFromGeometry = (geometry: Geometry[]): SceneNode[] =>
       item.metadata?.label ? String(item.metadata.label) : undefined
     )
   );
+
+const reconcileGeometryCollections = (
+  geometry: Geometry[],
+  layers: Layer[],
+  sceneNodes: SceneNode[],
+  assignments: MaterialAssignment[],
+  hiddenGeometryIds: string[],
+  lockedGeometryIds: string[],
+  selectedGeometryIds: string[]
+) => {
+  const geometryIds = new Set(geometry.map((item) => item.id));
+  const geometryByLayer = new Map<string, string[]>();
+  geometry.forEach((item) => {
+    const layerId = item.layerId ?? "layer-default";
+    const list = geometryByLayer.get(layerId);
+    if (list) {
+      list.push(item.id);
+    } else {
+      geometryByLayer.set(layerId, [item.id]);
+    }
+  });
+
+  let nextLayers = layers.map((layer) => ({
+    ...layer,
+    geometryIds: geometryByLayer.get(layer.id) ?? [],
+  }));
+
+  geometryByLayer.forEach((ids, layerId) => {
+    if (nextLayers.some((layer) => layer.id === layerId)) return;
+    nextLayers = [
+      ...nextLayers,
+      {
+        id: layerId,
+        name: layerId,
+        geometryIds: ids,
+        visible: true,
+        locked: false,
+        parentId: null,
+      },
+    ];
+  });
+
+  const filteredNodes = sceneNodes.filter(
+    (node) => !node.geometryId || geometryIds.has(node.geometryId)
+  );
+  const existingNodeIds = new Set(filteredNodes.map((node) => node.id));
+  const cleanedNodes = filteredNodes.map((node) => ({
+    ...node,
+    childIds: node.childIds.filter((childId) => existingNodeIds.has(childId)),
+  }));
+  const geometryIdsInScene = new Set(
+    cleanedNodes.filter((node) => node.geometryId).map((node) => node.geometryId as string)
+  );
+  const missingGeometry = geometry.filter((item) => !geometryIdsInScene.has(item.id));
+  const newSceneNodes = missingGeometry.map((item) =>
+    createGeometrySceneNode(
+      item.id,
+      item.metadata?.label ? String(item.metadata.label) : undefined
+    )
+  );
+  const nextSceneNodes = [...cleanedNodes, ...newSceneNodes];
+
+  const nextAssignments = assignments.filter(
+    (assignment) => !assignment.geometryId || geometryIds.has(assignment.geometryId)
+  );
+  const nextHidden = hiddenGeometryIds.filter((id) => geometryIds.has(id));
+  const nextLocked = lockedGeometryIds.filter((id) => geometryIds.has(id));
+  const nextSelected = selectedGeometryIds.filter((id) => geometryIds.has(id));
+
+  return {
+    layers: nextLayers,
+    sceneNodes: nextSceneNodes,
+    assignments: nextAssignments,
+    hiddenGeometryIds: nextHidden,
+    lockedGeometryIds: nextLocked,
+    selectedGeometryIds: nextSelected,
+  };
+};
 
 const defaultNodes: WorkflowNode[] = [
   {
@@ -520,6 +641,8 @@ const computeWorkflowOutputs = (
       node.type === "curve" ||
       node.type === "polyline" ||
       node.type === "surface" ||
+      node.type === "primitive" ||
+      (node.type && PRIMITIVE_NODE_TYPE_SET.has(node.type as NodeType)) ||
       node.type === "box" ||
       node.type === "sphere"
     ) {
@@ -529,7 +652,12 @@ const computeWorkflowOutputs = (
           data.geometryType ??
           (node.type === "line" || node.type === "arc" || node.type === "curve"
             ? "polyline"
-            : node.type);
+            : node.type === "primitive" ||
+                (node.type && PRIMITIVE_NODE_TYPE_SET.has(node.type as NodeType)) ||
+                node.type === "box" ||
+                node.type === "sphere"
+              ? "mesh"
+              : node.type);
         outputs.isLinked = true;
       }
       if (node.type === "box" && data.boxDimensions) {
@@ -578,6 +706,7 @@ type MeshInsertOptions = {
   sourceNodeId?: string;
   geometryId?: string;
   metadata?: Record<string, unknown>;
+  primitive?: MeshPrimitiveGeometry["primitive"];
   origin?: Vec3;
 };
 
@@ -591,6 +720,99 @@ type SphereInsertOptions = MeshInsertOptions & {
   origin?: Vec3;
   radius: number;
   segments?: number;
+};
+
+const readNumberParam = (
+  parameters: Record<string, unknown> | undefined,
+  key: string,
+  fallback: number
+) => {
+  const value = parameters?.[key];
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  if (typeof value === "boolean") return value ? 1 : 0;
+  return fallback;
+};
+
+const resolvePrimitiveConfig = (
+  parameters: Record<string, unknown> | undefined,
+  overrides?: Partial<typeof DEFAULT_PRIMITIVE_CONFIG> & { kind?: PrimitiveKind }
+) => {
+  const base = DEFAULT_PRIMITIVE_CONFIG;
+  const kindValue = String(
+    overrides?.kind ?? parameters?.kind ?? base.kind
+  ) as PrimitiveKind;
+  return {
+    ...base,
+    kind: kindValue,
+    size: readNumberParam(parameters, "size", overrides?.size ?? base.size),
+    radius: readNumberParam(parameters, "radius", overrides?.radius ?? base.radius),
+    height: readNumberParam(parameters, "height", overrides?.height ?? base.height),
+    tube: readNumberParam(parameters, "tube", overrides?.tube ?? base.tube),
+    innerRadius: readNumberParam(
+      parameters,
+      "innerRadius",
+      overrides?.innerRadius ?? base.innerRadius
+    ),
+    topRadius: readNumberParam(
+      parameters,
+      "topRadius",
+      overrides?.topRadius ?? base.topRadius
+    ),
+    capHeight: readNumberParam(
+      parameters,
+      "capHeight",
+      overrides?.capHeight ?? base.capHeight
+    ),
+    detail: Math.max(
+      0,
+      Math.round(readNumberParam(parameters, "detail", overrides?.detail ?? base.detail))
+    ),
+    exponent1: readNumberParam(
+      parameters,
+      "exponent1",
+      overrides?.exponent1 ?? base.exponent1
+    ),
+    exponent2: readNumberParam(
+      parameters,
+      "exponent2",
+      overrides?.exponent2 ?? base.exponent2
+    ),
+    radialSegments: Math.max(
+      3,
+      Math.round(
+        readNumberParam(
+          parameters,
+          "radialSegments",
+          overrides?.radialSegments ?? base.radialSegments
+        )
+      )
+    ),
+    tubularSegments: Math.max(
+      3,
+      Math.round(
+        readNumberParam(
+          parameters,
+          "tubularSegments",
+          overrides?.tubularSegments ?? base.tubularSegments
+        )
+      )
+    ),
+  };
+};
+
+const resolvePrimitiveKindForNode = (
+  nodeType: NodeType | undefined,
+  parameters: Record<string, unknown> | undefined
+): PrimitiveKind | null => {
+  if (!nodeType) return null;
+  if (nodeType === "primitive") {
+    return String(parameters?.kind ?? DEFAULT_PRIMITIVE_CONFIG.kind) as PrimitiveKind;
+  }
+  return PRIMITIVE_NODE_KIND_BY_TYPE.get(nodeType) ?? null;
 };
 
 const translateMesh = (mesh: RenderMesh, offset: Vec3): RenderMesh => {
@@ -616,8 +838,76 @@ const subtractVec3 = (a: Vec3, b: Vec3): Vec3 => ({
   z: a.z - b.z,
 });
 
+const buildCirclePoints = (
+  center: Vec3,
+  radius: number,
+  segments: number,
+  plane: CPlane
+) => {
+  const count = Math.max(8, Math.round(segments));
+  const points: Vec3[] = [];
+  for (let i = 0; i < count; i += 1) {
+    const angle = (i / count) * Math.PI * 2;
+    const x = Math.cos(angle) * radius;
+    const y = Math.sin(angle) * radius;
+    const alongX = { x: plane.xAxis.x * x, y: plane.xAxis.y * x, z: plane.xAxis.z * x };
+    const alongY = { x: plane.yAxis.x * y, y: plane.yAxis.y * y, z: plane.yAxis.z * y };
+    points.push(addVec3(center, addVec3(alongX, alongY)));
+  }
+  return points;
+};
+
+const buildRectanglePoints = (
+  center: Vec3,
+  width: number,
+  height: number,
+  plane: CPlane
+) => {
+  const halfW = width * 0.5;
+  const halfH = height * 0.5;
+  const offsets = [
+    { x: -halfW, y: -halfH },
+    { x: halfW, y: -halfH },
+    { x: halfW, y: halfH },
+    { x: -halfW, y: halfH },
+  ];
+  return offsets.map((offset) => {
+    const alongX = {
+      x: plane.xAxis.x * offset.x,
+      y: plane.xAxis.y * offset.x,
+      z: plane.xAxis.z * offset.x,
+    };
+    const alongY = {
+      x: plane.yAxis.x * offset.y,
+      y: plane.yAxis.y * offset.y,
+      z: plane.yAxis.z * offset.y,
+    };
+    return addVec3(center, addVec3(alongX, alongY));
+  });
+};
+
 const isNearlyZeroVec3 = (value: Vec3, epsilon = 1e-6) =>
   Math.abs(value.x) + Math.abs(value.y) + Math.abs(value.z) <= epsilon;
+
+const lengthVec3 = (value: Vec3) =>
+  Math.sqrt(value.x * value.x + value.y * value.y + value.z * value.z);
+
+const scaleVec3 = (value: Vec3, scale: number): Vec3 => ({
+  x: value.x * scale,
+  y: value.y * scale,
+  z: value.z * scale,
+});
+
+const normalizeVec3Safe = (value: Vec3, fallback: Vec3): Vec3 => {
+  const len = lengthVec3(value);
+  if (!Number.isFinite(len) || len < 1e-8) return fallback;
+  return scaleVec3(value, 1 / len);
+};
+
+const isNearlyEqualVec3 = (a: Vec3, b: Vec3, epsilon = 1e-5) =>
+  Math.abs(a.x - b.x) <= epsilon &&
+  Math.abs(a.y - b.y) <= epsilon &&
+  Math.abs(a.z - b.z) <= epsilon;
 
 const applyMoveDeltaToGeometry = (
   geometryById: Map<string, Geometry>,
@@ -696,6 +986,76 @@ const applyMoveDeltaToGeometry = (
   }
 };
 
+const applyMatrixToGeometry = (
+  geometryById: Map<string, Geometry>,
+  updates: Map<string, Partial<Geometry>>,
+  geometryId: string,
+  matrix: Mat4
+) => {
+  const geometry = geometryById.get(geometryId);
+  if (!geometry) return;
+
+  if (geometry.type === "vertex") {
+    const existing = updates.get(geometryId) as Partial<VertexGeometry> | undefined;
+    const basePosition = existing?.position ?? geometry.position;
+    const nextPosition = transformPoint(matrix, basePosition);
+    updates.set(geometryId, {
+      ...(existing ?? {}),
+      position: nextPosition,
+    });
+    return;
+  }
+
+  if (geometry.type === "polyline") {
+    geometry.vertexIds.forEach((vertexId) => {
+      const vertex = geometryById.get(vertexId);
+      if (!vertex || vertex.type !== "vertex") return;
+      const existing = updates.get(vertexId) as Partial<VertexGeometry> | undefined;
+      const basePosition = existing?.position ?? vertex.position;
+      const nextPosition = transformPoint(matrix, basePosition);
+      updates.set(vertexId, {
+        ...(existing ?? {}),
+        position: nextPosition,
+      });
+    });
+    return;
+  }
+
+  if ("mesh" in geometry && geometry.mesh) {
+    const existing = updates.get(geometryId) as Partial<
+      SurfaceGeometry | LoftGeometry | ExtrudeGeometry | MeshPrimitiveGeometry
+    > | undefined;
+    const baseMesh = (existing?.mesh ?? geometry.mesh) as RenderMesh;
+    const positions = applyMatrixToPositions(baseMesh.positions, matrix);
+    const normals =
+      baseMesh.indices.length > 0 ? computeVertexNormals(positions, baseMesh.indices) : baseMesh.normals;
+    const nextMesh: RenderMesh = {
+      ...baseMesh,
+      positions,
+      normals,
+    };
+    const nextArea = computeMeshArea(positions, baseMesh.indices);
+    const nextUpdate: Partial<Geometry> & {
+      primitive?: MeshPrimitiveGeometry["primitive"];
+    } = {
+      ...(existing ?? {}),
+      mesh: nextMesh,
+      area_m2: nextArea,
+    };
+    if (geometry.type === "mesh" && geometry.primitive) {
+      const existingMesh = existing as Partial<MeshPrimitiveGeometry> | undefined;
+      const basePrimitive = (existingMesh?.primitive ?? geometry.primitive) as NonNullable<
+        MeshPrimitiveGeometry["primitive"]
+      >;
+      nextUpdate.primitive = {
+        ...basePrimitive,
+        origin: transformPoint(matrix, basePrimitive.origin),
+      };
+    }
+    updates.set(geometryId, nextUpdate);
+  }
+};
+
 const asVec3 = (value: unknown): Vec3 | null => {
   if (!value || typeof value !== "object") return null;
   const candidate = value as { x?: unknown; y?: unknown; z?: unknown };
@@ -710,6 +1070,29 @@ const asVec3 = (value: unknown): Vec3 | null => {
     return { x: candidate.x, y: candidate.y, z: candidate.z };
   }
   return null;
+};
+
+const asNumber = (value: unknown, fallback = 0): number => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  if (typeof value === "boolean") return value ? 1 : 0;
+  return fallback;
+};
+
+const readVec3Parameter = (
+  parameters: Record<string, unknown> | undefined,
+  prefix: string,
+  fallback: Vec3
+): Vec3 => {
+  if (!parameters) return fallback;
+  return {
+    x: asNumber(parameters[`${prefix}X`], fallback.x),
+    y: asNumber(parameters[`${prefix}Y`], fallback.y),
+    z: asNumber(parameters[`${prefix}Z`], fallback.z),
+  };
 };
 
 const applyMoveNodesToGeometry = (
@@ -766,6 +1149,932 @@ const applyMoveNodesToGeometry = (
   });
 
   return { nodes: nextNodes, geometry: nextGeometry, didApply };
+};
+
+const applyRotateNodesToGeometry = (
+  nodes: WorkflowNode[],
+  geometry: Geometry[]
+) => {
+  const geometryById = new Map<string, Geometry>(
+    geometry.map((item) => [item.id, item])
+  );
+  const updates = new Map<string, Partial<Geometry>>();
+  let didApply = false;
+
+  const nextNodes = nodes.map((node) => {
+    if (node.type !== "rotate") return node;
+    const outputs = node.data?.outputs;
+    const geometryId =
+      typeof outputs?.geometry === "string"
+        ? outputs.geometry
+        : typeof node.data?.geometryId === "string"
+          ? node.data.geometryId
+          : null;
+    const axis = asVec3(outputs?.axis);
+    const pivot = asVec3(outputs?.pivot) ?? { x: 0, y: 0, z: 0 };
+    const angle = asNumber(outputs?.angle, 0);
+    if (!geometryId || !axis) {
+      return node;
+    }
+    const axisLength = lengthVec3(axis);
+    if (!Number.isFinite(angle) || axisLength < 1e-8) {
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          rotateGeometryId: geometryId,
+          rotateAxis: axis,
+          rotatePivot: pivot,
+          rotateAngle: angle,
+        },
+      };
+    }
+
+    const previousGeometryId = node.data?.rotateGeometryId ?? null;
+    const previousAxis = node.data?.rotateAxis ?? null;
+    const previousPivot = node.data?.rotatePivot ?? null;
+    const previousAngle = typeof node.data?.rotateAngle === "number" ? node.data.rotateAngle : 0;
+    const angleRad = (angle * Math.PI) / 180;
+
+    let applied = false;
+    if (previousGeometryId && previousGeometryId === geometryId && previousAxis && previousPivot) {
+      const sameAxis = isNearlyEqualVec3(previousAxis, axis);
+      const samePivot = isNearlyEqualVec3(previousPivot, pivot);
+      if (sameAxis && samePivot) {
+        const delta = angle - previousAngle;
+        if (Math.abs(delta) > 1e-4) {
+          const deltaMatrix = createRotationMatrixAroundAxis(
+            pivot,
+            axis,
+            (delta * Math.PI) / 180
+          );
+          applyMatrixToGeometry(geometryById, updates, geometryId, deltaMatrix);
+          applied = true;
+        }
+      } else {
+        if (Math.abs(previousAngle) > 1e-4) {
+          const undoMatrix = createRotationMatrixAroundAxis(
+            previousPivot,
+            previousAxis,
+            (-previousAngle * Math.PI) / 180
+          );
+          applyMatrixToGeometry(geometryById, updates, geometryId, undoMatrix);
+          applied = true;
+        }
+        if (Math.abs(angle) > 1e-4) {
+          const nextMatrix = createRotationMatrixAroundAxis(pivot, axis, angleRad);
+          applyMatrixToGeometry(geometryById, updates, geometryId, nextMatrix);
+          applied = true;
+        }
+      }
+    } else if (Math.abs(angle) > 1e-4) {
+      const nextMatrix = createRotationMatrixAroundAxis(pivot, axis, angleRad);
+      applyMatrixToGeometry(geometryById, updates, geometryId, nextMatrix);
+      applied = true;
+    }
+
+    if (applied) didApply = true;
+
+    return {
+      ...node,
+      data: {
+        ...node.data,
+        rotateGeometryId: geometryId,
+        rotateAxis: axis,
+        rotatePivot: pivot,
+        rotateAngle: angle,
+      },
+    };
+  });
+
+  if (!didApply) {
+    return { nodes: nextNodes, geometry, didApply };
+  }
+
+  const nextGeometry = geometry.map((item) => {
+    const update = updates.get(item.id);
+    return update ? ({ ...item, ...update } as Geometry) : item;
+  });
+
+  return { nodes: nextNodes, geometry: nextGeometry, didApply };
+};
+
+const applyScaleNodesToGeometry = (
+  nodes: WorkflowNode[],
+  geometry: Geometry[]
+) => {
+  const geometryById = new Map<string, Geometry>(
+    geometry.map((item) => [item.id, item])
+  );
+  const updates = new Map<string, Partial<Geometry>>();
+  let didApply = false;
+
+  const nextNodes = nodes.map((node) => {
+    if (node.type !== "scale") return node;
+    const outputs = node.data?.outputs;
+    const geometryId =
+      typeof outputs?.geometry === "string"
+        ? outputs.geometry
+        : typeof node.data?.geometryId === "string"
+          ? node.data.geometryId
+          : null;
+    const scale = asVec3(outputs?.scale);
+    const pivot = asVec3(outputs?.pivot) ?? { x: 0, y: 0, z: 0 };
+    if (!geometryId || !scale) {
+      return node;
+    }
+
+    const previousGeometryId = node.data?.scaleGeometryId ?? null;
+    const previousScale = node.data?.scaleVector ?? null;
+    const previousPivot = node.data?.scalePivot ?? null;
+
+    const hasScale = Number.isFinite(scale.x) && Number.isFinite(scale.y) && Number.isFinite(scale.z);
+    if (!hasScale) {
+      return node;
+    }
+
+    const nearlyIdentity =
+      Math.abs(scale.x - 1) < 1e-4 &&
+      Math.abs(scale.y - 1) < 1e-4 &&
+      Math.abs(scale.z - 1) < 1e-4;
+
+    let applied = false;
+    if (previousGeometryId && previousGeometryId === geometryId && previousScale && previousPivot) {
+      const sameScale = isNearlyEqualVec3(previousScale, scale);
+      const samePivot = isNearlyEqualVec3(previousPivot, pivot);
+      if (!sameScale || !samePivot) {
+        if (
+          Math.abs(previousScale.x - 1) > 1e-4 ||
+          Math.abs(previousScale.y - 1) > 1e-4 ||
+          Math.abs(previousScale.z - 1) > 1e-4
+        ) {
+          const invScale = {
+            x: previousScale.x === 0 ? 1 : 1 / previousScale.x,
+            y: previousScale.y === 0 ? 1 : 1 / previousScale.y,
+            z: previousScale.z === 0 ? 1 : 1 / previousScale.z,
+          };
+          const undoMatrix = createScaleMatrixAroundPivot(previousPivot, invScale, WORLD_BASIS);
+          applyMatrixToGeometry(geometryById, updates, geometryId, undoMatrix);
+          applied = true;
+        }
+        if (!nearlyIdentity) {
+          const nextMatrix = createScaleMatrixAroundPivot(pivot, scale, WORLD_BASIS);
+          applyMatrixToGeometry(geometryById, updates, geometryId, nextMatrix);
+          applied = true;
+        }
+      }
+    } else if (!nearlyIdentity) {
+      const nextMatrix = createScaleMatrixAroundPivot(pivot, scale, WORLD_BASIS);
+      applyMatrixToGeometry(geometryById, updates, geometryId, nextMatrix);
+      applied = true;
+    }
+
+    if (applied) didApply = true;
+
+    return {
+      ...node,
+      data: {
+        ...node.data,
+        scaleGeometryId: geometryId,
+        scaleVector: scale,
+        scalePivot: pivot,
+      },
+    };
+  });
+
+  if (!didApply) {
+    return { nodes: nextNodes, geometry, didApply };
+  }
+
+  const nextGeometry = geometry.map((item) => {
+    const update = updates.get(item.id);
+    return update ? ({ ...item, ...update } as Geometry) : item;
+  });
+
+  return { nodes: nextNodes, geometry: nextGeometry, didApply };
+};
+
+const applyLoftNodesToGeometry = (
+  nodes: WorkflowNode[],
+  geometry: Geometry[]
+) => {
+  const geometryById = new Map<string, Geometry>(
+    geometry.map((item) => [item.id, item])
+  );
+  const updates = new Map<string, Partial<Geometry>>();
+  let didApply = false;
+
+  const nextNodes = nodes.map((node) => {
+    if (node.type !== "loft") return node;
+    const outputs = node.data?.outputs;
+    const geometryId =
+      typeof outputs?.geometry === "string"
+        ? outputs.geometry
+        : typeof node.data?.geometryId === "string"
+          ? node.data.geometryId
+          : null;
+    const mesh = outputs?.mesh as RenderMesh | undefined;
+    if (!geometryId || !mesh) return node;
+    const existing = geometryById.get(geometryId);
+    if (!existing || !("mesh" in existing)) return node;
+    updates.set(geometryId, {
+      mesh,
+      area_m2: computeMeshArea(mesh.positions, mesh.indices),
+    });
+    didApply = true;
+    return node;
+  });
+
+  if (!didApply) {
+    return { nodes: nextNodes, geometry, didApply };
+  }
+
+  const nextGeometry = geometry.map((item) => {
+    const update = updates.get(item.id);
+    return update ? ({ ...item, ...update } as Geometry) : item;
+  });
+
+  return { nodes: nextNodes, geometry: nextGeometry, didApply };
+};
+
+const applyExtrudeNodesToGeometry = (
+  nodes: WorkflowNode[],
+  geometry: Geometry[]
+) => {
+  const geometryById = new Map<string, Geometry>(
+    geometry.map((item) => [item.id, item])
+  );
+  const updates = new Map<string, Partial<Geometry>>();
+  let didApply = false;
+
+  const nextNodes = nodes.map((node) => {
+    if (node.type !== "extrude") return node;
+    const outputs = node.data?.outputs;
+    const geometryId =
+      typeof outputs?.geometry === "string"
+        ? outputs.geometry
+        : typeof node.data?.geometryId === "string"
+          ? node.data.geometryId
+          : null;
+    const mesh = outputs?.mesh as RenderMesh | undefined;
+    if (!geometryId || !mesh) return node;
+    const existing = geometryById.get(geometryId);
+    if (!existing || !("mesh" in existing)) return node;
+    const direction = asVec3(outputs?.direction);
+    const distance = asNumber(outputs?.distance, 0);
+    const capped =
+      typeof node.data?.parameters?.capped === "boolean"
+        ? node.data.parameters.capped
+        : true;
+    updates.set(geometryId, {
+      mesh,
+      area_m2: computeMeshArea(mesh.positions, mesh.indices),
+      distance,
+      direction: direction ?? { x: 0, y: 0, z: 0 },
+      capped,
+    } as Partial<ExtrudeGeometry>);
+    didApply = true;
+    return node;
+  });
+
+  if (!didApply) {
+    return { nodes: nextNodes, geometry, didApply };
+  }
+
+  const nextGeometry = geometry.map((item) => {
+    const update = updates.get(item.id);
+    return update ? ({ ...item, ...update } as Geometry) : item;
+  });
+
+  return { nodes: nextNodes, geometry: nextGeometry, didApply };
+};
+
+const applyBooleanNodesToGeometry = (
+  nodes: WorkflowNode[],
+  geometry: Geometry[]
+) => {
+  const geometryById = new Map<string, Geometry>(
+    geometry.map((item) => [item.id, item])
+  );
+  const updates = new Map<string, Partial<Geometry>>();
+  let didApply = false;
+
+  const nextNodes = nodes.map((node) => {
+    if (node.type !== "boolean") return node;
+    const outputs = node.data?.outputs;
+    const geometryId =
+      typeof outputs?.geometry === "string"
+        ? outputs.geometry
+        : typeof node.data?.geometryId === "string"
+          ? node.data.geometryId
+          : null;
+    const mesh = outputs?.mesh as RenderMesh | undefined;
+    if (!geometryId || !mesh) return node;
+    const existing = geometryById.get(geometryId);
+    if (!existing || !("mesh" in existing)) return node;
+    updates.set(geometryId, {
+      mesh,
+      area_m2: computeMeshArea(mesh.positions, mesh.indices),
+    });
+    didApply = true;
+    return node;
+  });
+
+  if (!didApply) {
+    return { nodes: nextNodes, geometry, didApply };
+  }
+
+  const nextGeometry = geometry.map((item) => {
+    const update = updates.get(item.id);
+    return update ? ({ ...item, ...update } as Geometry) : item;
+  });
+
+  return { nodes: nextNodes, geometry: nextGeometry, didApply };
+};
+
+const applyOffsetNodesToGeometry = (
+  nodes: WorkflowNode[],
+  geometry: Geometry[]
+) => {
+  const geometryById = new Map<string, Geometry>(
+    geometry.map((item) => [item.id, item])
+  );
+  const updates = new Map<string, Partial<Geometry>>();
+  const itemsToAdd: Geometry[] = [];
+  const idsToRemove = new Set<string>();
+  let didApply = false;
+
+  const nextNodes = nodes.map((node) => {
+    if (node.type !== "offset") return node;
+    const outputs = node.data?.outputs;
+    const geometryId =
+      typeof outputs?.geometry === "string"
+        ? outputs.geometry
+        : typeof node.data?.geometryId === "string"
+          ? node.data.geometryId
+          : null;
+    const pointsRaw = outputs?.points;
+    if (!geometryId || !Array.isArray(pointsRaw)) return node;
+    const points = pointsRaw
+      .map((point) => asVec3(point))
+      .filter((point): point is Vec3 => Boolean(point));
+    if (points.length < 2) return node;
+    const existing = geometryById.get(geometryId);
+    if (!existing || existing.type !== "polyline") return node;
+    const vertexIds = existing.vertexIds;
+    if (vertexIds.length === points.length) {
+      vertexIds.forEach((vertexId, index) => {
+        const vertex = geometryById.get(vertexId);
+        if (!vertex || vertex.type !== "vertex") return;
+        updates.set(vertexId, { position: points[index] });
+      });
+      didApply = true;
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          vertexIds,
+        },
+      };
+    }
+    vertexIds.forEach((vertexId) => idsToRemove.add(vertexId));
+    const layerId = existing.layerId ?? "layer-default";
+    const nextVertexIds = points.map(() => createGeometryId("vertex"));
+    const vertexItems: Geometry[] = points.map((point, index) => ({
+      id: nextVertexIds[index],
+      type: "vertex",
+      position: point,
+      layerId,
+      area_m2: 1,
+      thickness_m: 0.1,
+    }));
+    updates.set(geometryId, { vertexIds: nextVertexIds });
+    itemsToAdd.push(...vertexItems);
+    didApply = true;
+    return {
+      ...node,
+      data: {
+        ...node.data,
+        vertexIds: nextVertexIds,
+      },
+    };
+  });
+
+  if (!didApply && idsToRemove.size === 0 && itemsToAdd.length === 0) {
+    return { nodes: nextNodes, geometry, didApply };
+  }
+
+  let nextGeometry = geometry
+    .filter((item) => !idsToRemove.has(item.id))
+    .map((item) => {
+      const update = updates.get(item.id);
+      return update ? ({ ...item, ...update } as Geometry) : item;
+    });
+  if (itemsToAdd.length > 0) {
+    nextGeometry = [...nextGeometry, ...itemsToAdd];
+  }
+
+  return { nodes: nextNodes, geometry: nextGeometry, didApply: true };
+};
+
+const applyGeometryArrayNodesToGeometry = (
+  nodes: WorkflowNode[],
+  geometry: Geometry[]
+) => {
+  const geometryById = new Map<string, Geometry>(
+    geometry.map((item) => [item.id, item])
+  );
+  const updates = new Map<string, Partial<Geometry>>();
+  const itemsToAdd: Geometry[] = [];
+  const idsToRemove = new Set<string>();
+  let didApply = false;
+
+  const readAxis = (parameters: Record<string, unknown> | undefined, key: string, fallback: Vec3) =>
+    normalizeVec3Safe(readVec3Parameter(parameters, key, fallback), fallback);
+
+  const buildTransforms = (parameters: Record<string, unknown>) => {
+    const mode = String(parameters.mode ?? "linear");
+    if (mode === "grid") {
+      const xAxis = readAxis(parameters, "xAxis", { x: 1, y: 0, z: 0 });
+      const yAxis = readAxis(parameters, "yAxis", { x: 0, y: 1, z: 0 });
+      const xSpacing = asNumber(parameters.xSpacing, 1);
+      const ySpacing = asNumber(parameters.ySpacing, 1);
+      const xCount = Math.max(1, Math.round(asNumber(parameters.xCount, 3)));
+      const yCount = Math.max(1, Math.round(asNumber(parameters.yCount, 3)));
+      const transforms: Mat4[] = [];
+      for (let y = 0; y < yCount; y += 1) {
+        for (let x = 0; x < xCount; x += 1) {
+          const offset = addVec3(scaleVec3(xAxis, x * xSpacing), scaleVec3(yAxis, y * ySpacing));
+          transforms.push(translation(offset));
+        }
+      }
+      return transforms;
+    }
+    if (mode === "polar") {
+      const center = readVec3Parameter(parameters, "center", { x: 0, y: 0, z: 0 });
+      const axis = readAxis(parameters, "axis", { x: 0, y: 1, z: 0 });
+      const count = Math.max(1, Math.round(asNumber(parameters.count, 8)));
+      const startAngle = asNumber(parameters.startAngle, 0);
+      const sweep = asNumber(parameters.sweep, 360);
+      const includeEnd = Boolean(parameters.includeEnd);
+      const step = count <= 1 ? 0 : sweep / (includeEnd ? Math.max(1, count - 1) : count);
+      const transforms: Mat4[] = [];
+      for (let i = 0; i < count; i += 1) {
+        const angle = (startAngle + step * i) * (Math.PI / 180);
+        transforms.push(createRotationMatrixAroundAxis(center, axis, angle));
+      }
+      return transforms;
+    }
+    const direction = readAxis(parameters, "direction", { x: 1, y: 0, z: 0 });
+    const spacing = asNumber(parameters.spacing, 1);
+    const count = Math.max(1, Math.round(asNumber(parameters.count, 4)));
+    const step = scaleVec3(direction, spacing);
+    const transforms: Mat4[] = [];
+    for (let i = 0; i < count; i += 1) {
+      transforms.push(translation(scaleVec3(step, i)));
+    }
+    return transforms;
+  };
+
+  const collectPolylinePoints = (polyline: PolylineGeometry): Vec3[] => {
+    const points: Vec3[] = [];
+    polyline.vertexIds.forEach((vertexId) => {
+      const vertex = geometryById.get(vertexId);
+      if (vertex && vertex.type === "vertex") {
+        points.push(vertex.position);
+      }
+    });
+    return points;
+  };
+
+  const transformMesh = (mesh: RenderMesh, matrix: Mat4): RenderMesh => {
+    const positions = applyMatrixToPositions(mesh.positions, matrix);
+    const normals =
+      mesh.indices.length > 0 ? computeVertexNormals(positions, mesh.indices) : mesh.normals;
+    return { ...mesh, positions, normals };
+  };
+
+  const cloneGeometry = (source: Geometry, matrix: Mat4): { geometryId: string; items: Geometry[] } | null => {
+    const layerId = source.layerId ?? "layer-default";
+    if (source.type === "vertex") {
+      const geometryId = createGeometryId("vertex");
+      const position = transformPoint(matrix, source.position);
+      return {
+        geometryId,
+        items: [
+          {
+            id: geometryId,
+            type: "vertex",
+            position,
+            layerId,
+            area_m2: source.area_m2,
+            thickness_m: source.thickness_m,
+            metadata: source.metadata,
+          },
+        ],
+      };
+    }
+    if (source.type === "polyline") {
+      const points = collectPolylinePoints(source);
+      if (points.length < 2) return null;
+      const vertexIds = points.map(() => createGeometryId("vertex"));
+      const vertices: Geometry[] = points.map((point, index) => ({
+        id: vertexIds[index],
+        type: "vertex",
+        position: transformPoint(matrix, point),
+        layerId,
+        area_m2: 1,
+        thickness_m: 0.1,
+      }));
+      const geometryId = createGeometryId("polyline");
+      const polyline: Geometry = {
+        ...source,
+        id: geometryId,
+        vertexIds,
+        layerId,
+      };
+      return { geometryId, items: [...vertices, polyline] };
+    }
+    if ("mesh" in source && source.mesh) {
+      const geometryId = createGeometryId(source.type === "mesh" ? "mesh" : source.type);
+      const mesh = transformMesh(source.mesh, matrix);
+      const base = { ...source, id: geometryId, mesh, layerId } as Geometry;
+      if (base.type === "mesh" && base.primitive) {
+        base.primitive = {
+          ...base.primitive,
+          origin: transformPoint(matrix, base.primitive.origin),
+        };
+      }
+      base.area_m2 = computeMeshArea(mesh.positions, mesh.indices);
+      return { geometryId, items: [base] };
+    }
+    return null;
+  };
+
+  const updateDuplicate = (
+    target: Geometry,
+    source: Geometry,
+    matrix: Mat4
+  ): boolean => {
+    if (source.type === "vertex" && target.type === "vertex") {
+      const position = transformPoint(matrix, source.position);
+      updates.set(target.id, { position });
+      return true;
+    }
+    if (source.type === "polyline" && target.type === "polyline") {
+      const points = collectPolylinePoints(source).map((point) => transformPoint(matrix, point));
+      if (points.length < 2 || points.length !== target.vertexIds.length) {
+        return false;
+      }
+      target.vertexIds.forEach((vertexId, index) => {
+        updates.set(vertexId, { position: points[index] });
+      });
+      updates.set(target.id, {
+        closed: source.closed,
+        degree: source.degree,
+      });
+      return true;
+    }
+    if ("mesh" in source && source.mesh && "mesh" in target && target.mesh) {
+      if (source.type !== target.type) {
+        return false;
+      }
+      const mesh = transformMesh(source.mesh, matrix);
+      const area = computeMeshArea(mesh.positions, mesh.indices);
+      const baseUpdate = { mesh, area_m2: area };
+      if (target.type === "loft" && source.type === "loft") {
+        updates.set(target.id, {
+          ...baseUpdate,
+          sectionIds: source.sectionIds,
+          degree: source.degree,
+          closed: source.closed,
+        });
+      }
+      if (target.type === "extrude" && source.type === "extrude") {
+        updates.set(target.id, {
+          ...baseUpdate,
+          profileIds: source.profileIds,
+          distance: source.distance,
+          direction: source.direction,
+          capped: source.capped,
+        });
+      }
+      if (target.type === "surface" && source.type === "surface") {
+        updates.set(target.id, {
+          ...baseUpdate,
+          loops: source.loops,
+          plane: source.plane,
+        });
+      }
+      if (target.type === "mesh" && source.type === "mesh") {
+        updates.set(target.id, {
+          ...baseUpdate,
+          primitive: source.primitive
+            ? {
+                ...source.primitive,
+                origin: transformPoint(matrix, source.primitive.origin),
+              }
+            : undefined,
+        });
+      } else if (
+        target.type !== "loft" &&
+        target.type !== "extrude" &&
+        target.type !== "surface"
+      ) {
+        updates.set(target.id, baseUpdate);
+      }
+      return true;
+    }
+    return false;
+  };
+
+  const nextNodes = nodes.map((node) => {
+    if (node.type !== "geometryArray") return node;
+    const outputs = node.data?.outputs;
+    const sourceId = typeof outputs?.geometry === "string" ? outputs.geometry : null;
+    const existingIds = Array.isArray(node.data?.geometryIds) ? node.data.geometryIds : [];
+    if (!sourceId) {
+      if (existingIds.length > 0) {
+        existingIds.forEach((id) => idsToRemove.add(id));
+        didApply = true;
+      }
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          geometryIds: [],
+          arraySourceGeometryId: undefined,
+        },
+      };
+    }
+    const sourceGeometry = geometryById.get(sourceId);
+    if (!sourceGeometry) return node;
+    const parameters = resolveNodeParameters(node);
+    const transforms = buildTransforms(parameters);
+    const desiredCount = transforms.length;
+    const sourceChanged =
+      node.data?.arraySourceGeometryId && node.data.arraySourceGeometryId !== sourceId;
+    let existingIdsMutable = existingIds;
+    if (sourceChanged && existingIds.length > 0) {
+      existingIds.forEach((id) => idsToRemove.add(id));
+      existingIdsMutable = [];
+    }
+    const nextIds: string[] = [];
+    for (let i = 0; i < desiredCount; i += 1) {
+      const matrix = transforms[i];
+      const existingId = existingIdsMutable[i];
+      const existingGeometry = existingId ? geometryById.get(existingId) : null;
+      if (existingGeometry && updateDuplicate(existingGeometry, sourceGeometry, matrix)) {
+        nextIds.push(existingId);
+        didApply = true;
+        continue;
+      }
+      if (existingGeometry) {
+        idsToRemove.add(existingGeometry.id);
+        if (existingGeometry.type === "polyline") {
+          existingGeometry.vertexIds.forEach((vertexId) => idsToRemove.add(vertexId));
+        }
+      }
+      const cloned = cloneGeometry(sourceGeometry, matrix);
+      if (cloned) {
+        itemsToAdd.push(...cloned.items);
+        nextIds.push(cloned.geometryId);
+        didApply = true;
+      }
+    }
+    if (existingIdsMutable.length > desiredCount) {
+      existingIdsMutable.slice(desiredCount).forEach((id) => {
+        idsToRemove.add(id);
+        const existing = geometryById.get(id);
+        if (existing?.type === "polyline") {
+          existing.vertexIds.forEach((vertexId) => idsToRemove.add(vertexId));
+        }
+      });
+      didApply = true;
+    }
+    return {
+      ...node,
+      data: {
+        ...node.data,
+        geometryIds: nextIds,
+        arraySourceGeometryId: sourceId,
+      },
+    };
+  });
+
+  if (!didApply && idsToRemove.size === 0 && itemsToAdd.length === 0) {
+    return { nodes: nextNodes, geometry, didApply };
+  }
+
+  let nextGeometry = geometry
+    .filter((item) => !idsToRemove.has(item.id))
+    .map((item) => {
+      const update = updates.get(item.id);
+      return update ? ({ ...item, ...update } as Geometry) : item;
+    });
+  if (itemsToAdd.length > 0) {
+    nextGeometry = [...nextGeometry, ...itemsToAdd];
+  }
+
+  return { nodes: nextNodes, geometry: nextGeometry, didApply: true };
+};
+
+const applyIsosurfaceNodesToGeometry = (
+  nodes: WorkflowNode[],
+  geometry: Geometry[]
+) => {
+  const geometryById = new Map<string, Geometry>(
+    geometry.map((item) => [item.id, item])
+  );
+  const updates = new Map<string, Partial<Geometry>>();
+  let didApply = false;
+
+  const nextNodes = nodes.map((node) => {
+    if (node.type !== "extractIsosurface") return node;
+    const geometryId = node.data?.geometryId;
+    if (!geometryId) return node;
+    const outputs = node.data?.outputs;
+    const mesh = outputs?.mesh as RenderMesh | undefined;
+    if (!mesh || !Array.isArray(mesh.positions) || !Array.isArray(mesh.indices)) {
+      return node;
+    }
+    const existing = geometryById.get(geometryId);
+    if (!existing || !("mesh" in existing)) return node;
+    updates.set(geometryId, {
+      mesh,
+      area_m2: computeMeshArea(mesh.positions, mesh.indices),
+    });
+    didApply = true;
+    return node;
+  });
+
+  if (!didApply) {
+    return { nodes: nextNodes, geometry, didApply };
+  }
+
+  const nextGeometry = geometry.map((item) => {
+    const update = updates.get(item.id);
+    return update ? ({ ...item, ...update } as Geometry) : item;
+  });
+
+  return { nodes: nextNodes, geometry: nextGeometry, didApply };
+};
+
+const applyMeshConvertNodesToGeometry = (
+  nodes: WorkflowNode[],
+  geometry: Geometry[]
+) => {
+  const geometryById = new Map<string, Geometry>(
+    geometry.map((item) => [item.id, item])
+  );
+  const updates = new Map<string, Partial<Geometry>>();
+  let didApply = false;
+
+  const nextNodes = nodes.map((node) => {
+    if (node.type !== "meshConvert") return node;
+    const outputs = node.data?.outputs;
+    const geometryId =
+      typeof outputs?.geometry === "string"
+        ? outputs.geometry
+        : typeof node.data?.geometryId === "string"
+          ? node.data.geometryId
+          : null;
+    const mesh = outputs?.mesh as RenderMesh | undefined;
+    if (!geometryId || !mesh) return node;
+    const existing = geometryById.get(geometryId);
+    if (!existing || !("mesh" in existing)) return node;
+    updates.set(geometryId, {
+      mesh,
+      area_m2: computeMeshArea(mesh.positions, mesh.indices),
+    });
+    didApply = true;
+    return node;
+  });
+
+  if (!didApply) {
+    return { nodes: nextNodes, geometry, didApply };
+  }
+
+  const nextGeometry = geometry.map((item) => {
+    const update = updates.get(item.id);
+    return update ? ({ ...item, ...update } as Geometry) : item;
+  });
+
+  return { nodes: nextNodes, geometry: nextGeometry, didApply };
+};
+
+const coerceFilePayload = (value: unknown) => {
+  if (!value || typeof value !== "object") return null;
+  const payload = value as { name?: string; type?: string; data?: string };
+  if (typeof payload.data !== "string") return null;
+  return payload;
+};
+
+const applyImportNodesToGeometry = (
+  nodes: WorkflowNode[],
+  geometry: Geometry[]
+) => {
+  const geometryById = new Map<string, Geometry>(
+    geometry.map((item) => [item.id, item])
+  );
+  const updates = new Map<string, Partial<Geometry>>();
+  let didApply = false;
+  let didUpdateNodes = false;
+
+  const nextNodes = nodes.map((node) => {
+    if (node.type !== "stlImport") return node;
+    const parameters = node.data?.parameters ?? {};
+    const importNow = parameters.importNow === true;
+    if (!importNow) return node;
+    const geometryId =
+      typeof node.data?.geometryId === "string" ? node.data.geometryId : null;
+    const file = coerceFilePayload(parameters.file);
+    if (!geometryId || !file) {
+      const nextParameters = { ...parameters, importNow: false };
+      didUpdateNodes = true;
+      return { ...node, data: { ...node.data, parameters: nextParameters } };
+    }
+
+    try {
+      const buffer = base64ToArrayBuffer(file.data ?? "");
+      const scale = typeof parameters.scale === "number" ? parameters.scale : 1;
+      const parsed = parseStl(buffer);
+      const mesh = scaleRenderMesh(parsed, scale);
+      const existing = geometryById.get(geometryId);
+      if (existing && "mesh" in existing) {
+        updates.set(geometryId, {
+          mesh,
+          area_m2: computeMeshArea(mesh.positions, mesh.indices),
+        });
+        didApply = true;
+      }
+    } catch (error) {
+      console.error("Failed to import STL", error);
+    }
+
+    const nextParameters = { ...parameters, importNow: false };
+    didUpdateNodes = true;
+    return { ...node, data: { ...node.data, parameters: nextParameters } };
+  });
+
+  if (!didApply) {
+    return { nodes: didUpdateNodes ? nextNodes : nodes, geometry, didApply };
+  }
+
+  const nextGeometry = geometry.map((item) => {
+    const update = updates.get(item.id);
+    return update ? ({ ...item, ...update } as Geometry) : item;
+  });
+
+  return {
+    nodes: didUpdateNodes ? nextNodes : nodes,
+    geometry: nextGeometry,
+    didApply,
+  };
+};
+
+const ensureFileExtension = (name: string, extension: string) => {
+  const trimmed = name.trim();
+  if (trimmed.length === 0) return `specificity-export${extension}`;
+  return trimmed.toLowerCase().endsWith(extension) ? trimmed : `${trimmed}${extension}`;
+};
+
+const handleExportNodes = (nodes: WorkflowNode[], geometry: Geometry[]) => {
+  const geometryById = new Map<string, Geometry>(
+    geometry.map((item) => [item.id, item])
+  );
+  let didUpdateNodes = false;
+
+  const nextNodes = nodes.map((node) => {
+    if (node.type !== "stlExport") return node;
+    const parameters = node.data?.parameters ?? {};
+    const exportNow = parameters.exportNow === true;
+    if (!exportNow) return node;
+
+    const geometryIds = Array.isArray(node.data?.outputs?.geometryList)
+      ? (node.data?.outputs?.geometryList as string[])
+      : [];
+    const meshes = geometryIds
+      .map((id) => geometryById.get(id))
+      .filter((item): item is Geometry => Boolean(item))
+      .flatMap((item) => ("mesh" in item && item.mesh ? [item.mesh] : []));
+
+    const scale = typeof parameters.scale === "number" ? parameters.scale : 1;
+    const fileNameBase = String(parameters.fileName ?? "specificity-export");
+
+    if (meshes.length > 0) {
+      const merged = mergeRenderMeshes(meshes);
+      const stl = exportMeshToStlAscii(merged, { name: fileNameBase, scale });
+      const fileName = ensureFileExtension(fileNameBase, ".stl");
+      downloadBlob(new Blob([stl], { type: "model/stl" }), fileName);
+    }
+
+    const nextParameters = { ...parameters, exportNow: false };
+    didUpdateNodes = true;
+    return { ...node, data: { ...node.data, parameters: nextParameters } };
+  });
+
+  return { nodes: didUpdateNodes ? nextNodes : nodes };
 };
 
 const normalizeGeometryLayer = (
@@ -890,6 +2199,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   cPlane: defaultCPlane,
   transformOrientation: "world",
   gumballAlignment: "boundingBox",
+  showRotationRings: true,
   pivot: defaultPivot,
   displayMode: "shaded",
   viewSolidity: SOLIDITY_PRESETS.shaded,
@@ -919,6 +2229,45 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       get().setSelectedGeometryIds([geometryId]);
       return true;
     };
+    const primitiveKind = resolvePrimitiveKindForNode(node.type as NodeType, node.data?.parameters);
+    if (primitiveKind) {
+      const parameters = node.data?.parameters;
+      const resolved = resolvePrimitiveConfig(parameters, { kind: primitiveKind });
+      const mesh = generatePrimitiveMesh(resolved);
+      const origin = { x: 0, y: 0, z: 0 };
+      const geometryId = get().addGeometryMesh(mesh, {
+        origin,
+        sourceNodeId: nodeId,
+        geometryId: node.data?.geometryId,
+        recordHistory: true,
+        metadata: {
+          label: node.data?.label ?? "Primitive",
+          primitive: { kind: resolved.kind, origin, params: { ...resolved } },
+        },
+        selectIds: node.data?.geometryId ? [node.data.geometryId] : undefined,
+      });
+      set((state) => ({
+        workflow: {
+          ...state.workflow,
+          nodes: state.workflow.nodes.map((entry) =>
+            entry.id === nodeId
+              ? {
+                  ...entry,
+                  data: {
+                    ...entry.data,
+                    geometryId,
+                    geometryType: "mesh",
+                    isLinked: true,
+                  },
+                }
+              : entry
+          ),
+        },
+      }));
+      selectIfExists(geometryId);
+      get().recalculateWorkflow();
+      return;
+    }
     if (node.type === "box") {
       const dims = node.data?.boxDimensions;
       if (!dims) return;
@@ -1089,6 +2438,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
   setTransformOrientation: (orientation) => set({ transformOrientation: orientation }),
   setGumballAlignment: (alignment) => set({ gumballAlignment: alignment }),
+  setShowRotationRings: (show) => set({ showRotationRings: show }),
   setPivotMode: (mode) =>
     set((state) => ({
       pivot: { ...state.pivot, mode },
@@ -1230,15 +2580,16 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           layers: state.layers,
           assignments: state.assignments,
           selectedGeometryIds: state.selectedGeometryIds,
-      componentSelection: state.componentSelection,
-      selectionMode: state.selectionMode,
-      cPlane: state.cPlane,
-      pivot: state.pivot,
-      transformOrientation: state.transformOrientation,
-      gumballAlignment: state.gumballAlignment,
-      displayMode: state.displayMode,
-      viewSolidity: state.viewSolidity,
-      viewSettings: state.viewSettings,
+          componentSelection: state.componentSelection,
+          selectionMode: state.selectionMode,
+          cPlane: state.cPlane,
+          pivot: state.pivot,
+          transformOrientation: state.transformOrientation,
+          gumballAlignment: state.gumballAlignment,
+          showRotationRings: state.showRotationRings,
+          displayMode: state.displayMode,
+          viewSolidity: state.viewSolidity,
+          viewSettings: state.viewSettings,
           snapSettings: state.snapSettings,
           gridSettings: state.gridSettings,
           camera: state.camera,
@@ -1266,6 +2617,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       pivot: get().pivot,
       transformOrientation: get().transformOrientation,
       gumballAlignment: get().gumballAlignment,
+      showRotationRings: get().showRotationRings,
       displayMode: get().displayMode,
       viewSolidity: get().viewSolidity,
       viewSettings: get().viewSettings,
@@ -1287,6 +2639,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       pivot: snapshot.pivot,
       transformOrientation: snapshot.transformOrientation,
       gumballAlignment: snapshot.gumballAlignment,
+      showRotationRings: snapshot.showRotationRings,
       displayMode: snapshot.displayMode,
       viewSolidity: snapshot.viewSolidity,
       viewSettings: snapshot.viewSettings,
@@ -1316,6 +2669,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       pivot: get().pivot,
       transformOrientation: get().transformOrientation,
       gumballAlignment: get().gumballAlignment,
+      showRotationRings: get().showRotationRings,
       displayMode: get().displayMode,
       viewSolidity: get().viewSolidity,
       viewSettings: get().viewSettings,
@@ -1337,6 +2691,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       pivot: snapshot.pivot,
       transformOrientation: snapshot.transformOrientation,
       gumballAlignment: snapshot.gumballAlignment,
+      showRotationRings: snapshot.showRotationRings,
       displayMode: snapshot.displayMode,
       viewSolidity: snapshot.viewSolidity,
       viewSettings: snapshot.viewSettings,
@@ -1489,6 +2844,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       ? translateMesh(mesh, options.origin)
       : mesh;
     const area = options?.area_m2 ?? computeMeshArea(translatedMesh.positions, translatedMesh.indices);
+    const primitive =
+      options?.primitive ??
+      (options?.metadata?.primitive as MeshPrimitiveGeometry["primitive"] | undefined);
     set((state) => {
       const layerId = withDefaultLayerId(options?.layerId, state);
       const nextGeometry: Geometry = {
@@ -1500,6 +2858,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         thickness_m: options?.thickness_m,
         sourceNodeId: options?.sourceNodeId,
         metadata: options?.metadata,
+        primitive,
       } satisfies MeshPrimitiveGeometry;
       const nextLayers = state.layers.map((layer) =>
         layer.id === layerId
@@ -1899,6 +3258,42 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           }));
         }
       }
+      const primitiveKind = resolvePrimitiveKindForNode(node.type as NodeType, node.data.parameters);
+      if (primitiveKind) {
+        const parameters = node.data.parameters;
+        const config = resolvePrimitiveConfig(parameters, { kind: primitiveKind });
+        const mesh = generatePrimitiveMesh(config);
+        const origin = { x: 0, y: 0, z: 0 };
+        const geometryId = get().addGeometryMesh(mesh, {
+          origin,
+          sourceNodeId: nodeId,
+          geometryId: node.data.geometryId,
+          recordHistory: true,
+          selectIds: get().selectedGeometryIds,
+          metadata: {
+            label: node.data?.label ?? "Primitive",
+            primitive: { kind: config.kind, origin, params: { ...config } },
+          },
+        });
+        set((state) => ({
+          workflow: {
+            ...state.workflow,
+            nodes: state.workflow.nodes.map((entry) =>
+              entry.id === nodeId
+                ? {
+                    ...entry,
+                    data: {
+                      ...entry.data,
+                      geometryId,
+                      geometryType: "mesh",
+                      isLinked: true,
+                    },
+                  }
+                : entry
+            ),
+          },
+        }));
+      }
       if (node.type === "line") {
         const parsed = parsePointsText(node.data.pointsText);
         const points = parsed.length >= 2 ? parsed.slice(0, 2) : [];
@@ -2252,6 +3647,152 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           }
         }
       }
+      if (node.type === "rectangle") {
+        const parameters = node.data.parameters ?? {};
+        const width = Number(parameters.width ?? 1);
+        const height = Number(parameters.height ?? 1);
+        const center = {
+          x: Number(parameters.centerX ?? 0),
+          y: Number(parameters.centerY ?? 0),
+          z: Number(parameters.centerZ ?? 0),
+        };
+        if (Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) {
+          const points = buildRectanglePoints(center, width, height, get().cPlane);
+          const reuse =
+            node.data.geometryId &&
+            node.data.vertexIds &&
+            node.data.vertexIds.length === points.length;
+          if (reuse && node.data.geometryId && node.data.vertexIds) {
+            node.data.vertexIds.forEach((vertexId, index) => {
+              const point = points[index];
+              if (!point) return;
+              get().updateGeometry(vertexId, { position: point });
+            });
+            get().updateGeometry(node.data.geometryId, {
+              vertexIds: node.data.vertexIds,
+              closed: true,
+            });
+          } else {
+            if (node.data.vertexIds?.length) {
+              get().deleteGeometry(node.data.vertexIds, { recordHistory: true });
+            }
+            const vertexIds = points.map(() => createGeometryId("vertex"));
+            const rectId = node.data.geometryId ?? createGeometryId("polyline");
+            const vertexItems: Geometry[] = points.map((point, index) => ({
+              id: vertexIds[index],
+              type: "vertex",
+              position: point,
+              layerId: "layer-default",
+              area_m2: 1,
+              thickness_m: 0.1,
+            }));
+            const rectItem: Geometry = {
+              id: rectId,
+              type: "polyline",
+              vertexIds,
+              closed: true,
+              degree: 1,
+              layerId: "layer-default",
+            };
+            get().addGeometryItems([...vertexItems, rectItem], {
+              selectIds: get().selectedGeometryIds,
+              recordHistory: true,
+            });
+            set((state) => ({
+              workflow: {
+                ...state.workflow,
+                nodes: state.workflow.nodes.map((entry) =>
+                  entry.id === nodeId
+                    ? {
+                        ...entry,
+                        data: {
+                          ...entry.data,
+                          geometryId: rectId,
+                          geometryType: "polyline",
+                          vertexIds,
+                          closed: true,
+                        },
+                      }
+                    : entry
+                ),
+              },
+            }));
+          }
+        }
+      }
+      if (node.type === "circle") {
+        const parameters = node.data.parameters ?? {};
+        const radius = Number(parameters.radius ?? 1);
+        const segments = Number(parameters.segments ?? 48);
+        const center = {
+          x: Number(parameters.centerX ?? 0),
+          y: Number(parameters.centerY ?? 0),
+          z: Number(parameters.centerZ ?? 0),
+        };
+        if (Number.isFinite(radius) && radius > 0) {
+          const points = buildCirclePoints(center, radius, segments, get().cPlane);
+          const reuse =
+            node.data.geometryId &&
+            node.data.vertexIds &&
+            node.data.vertexIds.length === points.length;
+          if (reuse && node.data.geometryId && node.data.vertexIds) {
+            node.data.vertexIds.forEach((vertexId, index) => {
+              const point = points[index];
+              if (!point) return;
+              get().updateGeometry(vertexId, { position: point });
+            });
+            get().updateGeometry(node.data.geometryId, {
+              vertexIds: node.data.vertexIds,
+              closed: true,
+            });
+          } else {
+            if (node.data.vertexIds?.length) {
+              get().deleteGeometry(node.data.vertexIds, { recordHistory: true });
+            }
+            const vertexIds = points.map(() => createGeometryId("vertex"));
+            const circleId = node.data.geometryId ?? createGeometryId("polyline");
+            const vertexItems: Geometry[] = points.map((point, index) => ({
+              id: vertexIds[index],
+              type: "vertex",
+              position: point,
+              layerId: "layer-default",
+              area_m2: 1,
+              thickness_m: 0.1,
+            }));
+            const circleItem: Geometry = {
+              id: circleId,
+              type: "polyline",
+              vertexIds,
+              closed: true,
+              degree: 2,
+              layerId: "layer-default",
+            };
+            get().addGeometryItems([...vertexItems, circleItem], {
+              selectIds: get().selectedGeometryIds,
+              recordHistory: true,
+            });
+            set((state) => ({
+              workflow: {
+                ...state.workflow,
+                nodes: state.workflow.nodes.map((entry) =>
+                  entry.id === nodeId
+                    ? {
+                        ...entry,
+                        data: {
+                          ...entry.data,
+                          geometryId: circleId,
+                          geometryType: "polyline",
+                          vertexIds,
+                          closed: true,
+                        },
+                      }
+                    : entry
+                ),
+              },
+            }));
+          }
+        }
+      }
     }
     get().recalculateWorkflow();
   },
@@ -2264,14 +3805,38 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const labels: Partial<Record<NodeType, string>> = {
       geometryReference: "Geometry Reference",
       geometryViewer: "Geometry Viewer",
+      meshConvert: "Mesh Convert",
+      stlExport: "STL Export",
+      stlImport: "STL Import",
       point: "Point Generator",
       line: "Line",
+      rectangle: "Rectangle",
+      circle: "Circle",
       arc: "Arc",
       curve: "Curve",
       polyline: "Polyline",
       surface: "Surface",
+      loft: "Loft",
+      extrude: "Extrude",
+      primitive: "Primitive",
       box: "Box Builder",
       sphere: "Sphere",
+      boolean: "Boolean",
+      offset: "Offset",
+      fillet: "Fillet",
+      filletEdges: "Fillet Edges",
+      offsetSurface: "Offset Surface",
+      thickenMesh: "Thicken Mesh",
+      plasticwrap: "Plasticwrap",
+      solid: "Solid",
+      measurement: "Measurement",
+      dimensions: "Dimensions",
+      geometryArray: "Geometry Array",
+      rotate: "Rotate",
+      scale: "Scale",
+      fieldTransformation: "Field Transformation",
+      voxelizeGeometry: "Voxelize Geometry",
+      extractIsosurface: "Extract Isosurface",
       topologyOptimize: "Topology Optimize",
       topologySolver: "Topology Solver",
       biologicalSolver: "Biological Solver",
@@ -2291,6 +3856,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       min: "Min",
       max: "Max",
       expression: "Expression",
+      scalarFunctions: "Scalar Functions",
       conditional: "Conditional",
       vectorConstruct: "Vector Compose",
       vectorDeconstruct: "Vector Decompose",
@@ -2306,6 +3872,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       vectorAngle: "Vector Angle",
       vectorLerp: "Vector Lerp",
       vectorProject: "Vector Project",
+      pointAttractor: "Point Attractor",
       move: "Move",
       movePoint: "Move Point",
       movePointByVector: "Move Point By Vector",
@@ -2326,6 +3893,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       listMedian: "List Median",
       listStdDev: "List Std Dev",
       geometryInfo: "Geometry Info",
+      metadataPanel: "Metadata Panel",
+      annotations: "Annotations",
       geometryVertices: "Geometry Vertices",
       geometryEdges: "Geometry Edges",
       geometryFaces: "Geometry Faces",
@@ -2336,12 +3905,18 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       remap: "Remap",
       random: "Random",
       repeat: "Repeat",
+      linearArray: "Linear Array",
+      polarArray: "Polar Array",
+      gridArray: "Grid Array",
       sineWave: "Sine Wave",
       cosineWave: "Cosine Wave",
       sawtoothWave: "Sawtooth Wave",
       triangleWave: "Triangle Wave",
       squareWave: "Square Wave",
     };
+    PRIMITIVE_NODE_CATALOG.forEach((entry) => {
+      labels[entry.id as NodeType] = entry.label;
+    });
     const parameters = getDefaultParameters(type);
     const data: WorkflowNodeData = {
       label: labels[type] ?? type,
@@ -2357,6 +3932,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         data.geometryId = geometryId;
         data.moveGeometryId = geometryId;
         data.moveOffset = { x: 0, y: 0, z: 0 };
+      }
+    }
+    if (type === "rotate" || type === "scale") {
+      const geometryId =
+        get().selectedGeometryIds[0] ?? get().geometry[0]?.id ?? null;
+      if (geometryId) {
+        data.geometryId = geometryId;
       }
     }
     if (type === "point") {
@@ -2406,6 +3988,78 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         layerId: "layer-default",
       };
       get().addGeometryItems([...vertexItems, lineItem], {
+        selectIds: get().selectedGeometryIds,
+        recordHistory: true,
+      });
+    }
+    if (type === "rectangle") {
+      const width = typeof parameters.width === "number" ? parameters.width : 1;
+      const height = typeof parameters.height === "number" ? parameters.height : 1;
+      const center = {
+        x: typeof parameters.centerX === "number" ? parameters.centerX : 0,
+        y: typeof parameters.centerY === "number" ? parameters.centerY : 0,
+        z: typeof parameters.centerZ === "number" ? parameters.centerZ : 0,
+      };
+      const points = buildRectanglePoints(center, width, height, get().cPlane);
+      const vertexIds = points.map(() => createGeometryId("vertex"));
+      data.vertexIds = vertexIds;
+      const rectId = createGeometryId("polyline");
+      data.geometryId = rectId;
+      data.geometryType = "polyline";
+      data.isLinked = true;
+      const vertexItems: Geometry[] = points.map((point, index) => ({
+        id: vertexIds[index],
+        type: "vertex",
+        position: point,
+        layerId: "layer-default",
+        area_m2: 1,
+        thickness_m: 0.1,
+      }));
+      const rectItem: Geometry = {
+        id: rectId,
+        type: "polyline",
+        vertexIds,
+        closed: true,
+        degree: 1,
+        layerId: "layer-default",
+      };
+      get().addGeometryItems([...vertexItems, rectItem], {
+        selectIds: get().selectedGeometryIds,
+        recordHistory: true,
+      });
+    }
+    if (type === "circle") {
+      const radius = typeof parameters.radius === "number" ? parameters.radius : 1;
+      const segments = typeof parameters.segments === "number" ? parameters.segments : 48;
+      const center = {
+        x: typeof parameters.centerX === "number" ? parameters.centerX : 0,
+        y: typeof parameters.centerY === "number" ? parameters.centerY : 0,
+        z: typeof parameters.centerZ === "number" ? parameters.centerZ : 0,
+      };
+      const points = buildCirclePoints(center, radius, segments, get().cPlane);
+      const vertexIds = points.map(() => createGeometryId("vertex"));
+      data.vertexIds = vertexIds;
+      const circleId = createGeometryId("polyline");
+      data.geometryId = circleId;
+      data.geometryType = "polyline";
+      data.isLinked = true;
+      const vertexItems: Geometry[] = points.map((point, index) => ({
+        id: vertexIds[index],
+        type: "vertex",
+        position: point,
+        layerId: "layer-default",
+        area_m2: 1,
+        thickness_m: 0.1,
+      }));
+      const circleItem: Geometry = {
+        id: circleId,
+        type: "polyline",
+        vertexIds,
+        closed: true,
+        degree: 2,
+        layerId: "layer-default",
+      };
+      get().addGeometryItems([...vertexItems, circleItem], {
         selectIds: get().selectedGeometryIds,
         recordHistory: true,
       });
@@ -2548,6 +4202,91 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       });
     }
 
+    if (type === "loft") {
+      const emptyMesh: RenderMesh = { positions: [], normals: [], uvs: [], indices: [] };
+      const loftId = createGeometryId("loft");
+      data.geometryId = loftId;
+      data.geometryType = "loft";
+      data.isLinked = true;
+      const loftItem: Geometry = {
+        id: loftId,
+        type: "loft",
+        mesh: emptyMesh,
+        sectionIds: [],
+        degree: 3,
+        closed: false,
+        layerId: "layer-default",
+      };
+      get().addGeometryItems([loftItem], {
+        selectIds: get().selectedGeometryIds,
+        recordHistory: true,
+      });
+    }
+
+    if (type === "extrude") {
+      const emptyMesh: RenderMesh = { positions: [], normals: [], uvs: [], indices: [] };
+      const extrudeId = createGeometryId("extrude");
+      data.geometryId = extrudeId;
+      data.geometryType = "extrude";
+      data.isLinked = true;
+      const extrudeItem: Geometry = {
+        id: extrudeId,
+        type: "extrude",
+        mesh: emptyMesh,
+        profileIds: [],
+        distance: 0,
+        direction: { x: 0, y: 1, z: 0 },
+        capped: true,
+        layerId: "layer-default",
+      };
+      get().addGeometryItems([extrudeItem], {
+        selectIds: get().selectedGeometryIds,
+        recordHistory: true,
+      });
+    }
+
+    if (type === "meshConvert" || type === "stlImport") {
+      const emptyMesh: RenderMesh = { positions: [], normals: [], uvs: [], indices: [] };
+      const meshId = createGeometryId("mesh");
+      data.geometryId = meshId;
+      data.geometryType = "mesh";
+      data.isLinked = true;
+      const meshItem: Geometry = {
+        id: meshId,
+        type: "mesh",
+        mesh: emptyMesh,
+        layerId: "layer-default",
+        sourceNodeId: id,
+        metadata: {
+          label: labels[type] ?? "Mesh",
+        },
+      };
+      get().addGeometryItems([meshItem], {
+        selectIds: get().selectedGeometryIds,
+        recordHistory: true,
+      });
+    }
+
+    const primitiveKind = resolvePrimitiveKindForNode(type, parameters);
+    if (primitiveKind) {
+      const config = resolvePrimitiveConfig(parameters, { kind: primitiveKind });
+      const mesh = generatePrimitiveMesh(config);
+      const origin = { x: 0, y: 0, z: 0 };
+      const geometryId = get().addGeometryMesh(mesh, {
+        origin,
+        sourceNodeId: id,
+        recordHistory: true,
+        selectIds: get().selectedGeometryIds,
+        metadata: {
+          label: labels[type],
+          primitive: { kind: config.kind, origin, params: { ...config } },
+        },
+      });
+      data.geometryId = geometryId;
+      data.geometryType = "mesh";
+      data.isLinked = true;
+    }
+
     if (type === "box") {
       data.boxOrigin = { x: 0, y: 0, z: 0 };
       data.boxDimensions = { width: 1, height: 1, depth: 1 };
@@ -2564,6 +4303,56 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       data.isLinked = true;
     }
 
+    if (type === "boolean") {
+      const emptyMesh: RenderMesh = {
+        positions: [],
+        normals: [],
+        uvs: [],
+        indices: [],
+      };
+      const geometryId = get().addGeometryMesh(emptyMesh, {
+        sourceNodeId: id,
+        recordHistory: true,
+        selectIds: get().selectedGeometryIds,
+        metadata: { label: labels[type] },
+      });
+      data.geometryId = geometryId;
+      data.geometryType = "mesh";
+      data.isLinked = true;
+    }
+    if (type === "offset") {
+      const points = buildRectanglePoints({ x: 0, y: 0, z: 0 }, 1, 1, get().cPlane);
+      const vertexIds = points.map(() => createGeometryId("vertex"));
+      const offsetId = createGeometryId("polyline");
+      data.geometryId = offsetId;
+      data.geometryType = "polyline";
+      data.vertexIds = vertexIds;
+      data.isLinked = true;
+      const vertexItems: Geometry[] = points.map((point, index) => ({
+        id: vertexIds[index],
+        type: "vertex",
+        position: point,
+        layerId: "layer-default",
+        area_m2: 1,
+        thickness_m: 0.1,
+      }));
+      const offsetItem: Geometry = {
+        id: offsetId,
+        type: "polyline",
+        vertexIds,
+        closed: true,
+        degree: 1,
+        layerId: "layer-default",
+      };
+      get().addGeometryItems([...vertexItems, offsetItem], {
+        selectIds: get().selectedGeometryIds,
+        recordHistory: true,
+      });
+    }
+    if (type === "geometryArray") {
+      data.geometryIds = [];
+    }
+
     if (type === "topologyOptimize") {
       data.topologySettings = { ...defaultTopologySettings };
       data.topologyProgress = { ...defaultTopologyProgress };
@@ -2575,6 +4364,23 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const geometryId = get().addGeometrySphere({
         origin: data.sphereOrigin,
         radius: data.sphereRadius,
+        sourceNodeId: id,
+        recordHistory: true,
+        selectIds: get().selectedGeometryIds,
+        metadata: { label: labels[type] },
+      });
+      data.geometryId = geometryId;
+      data.geometryType = "mesh";
+      data.isLinked = true;
+    }
+    if (type === "extractIsosurface") {
+      const emptyMesh: RenderMesh = {
+        positions: [],
+        normals: [],
+        uvs: [],
+        indices: [],
+      };
+      const geometryId = get().addGeometryMesh(emptyMesh, {
         sourceNodeId: id,
         recordHistory: true,
         selectIds: get().selectedGeometryIds,
@@ -2622,10 +4428,20 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const geometryIds = ownedNodes
         .map((node) => node.data?.geometryId)
         .filter(Boolean) as string[];
+      const arrayGeometryIds = ownedNodes
+        .flatMap((node) => node.data?.geometryIds ?? [])
+        .filter(Boolean) as string[];
+      const geometryById = new Map(get().geometry.map((item) => [item.id, item]));
+      const arrayVertexIds = arrayGeometryIds.flatMap((geometryId) => {
+        const geometry = geometryById.get(geometryId);
+        return geometry?.type === "polyline" ? geometry.vertexIds : [];
+      });
       const vertexIds = ownedNodes
         .flatMap((node) => node.data?.vertexIds ?? [])
         .filter(Boolean);
-      const idsToDelete = Array.from(new Set([...geometryIds, ...vertexIds]));
+      const idsToDelete = Array.from(
+        new Set([...geometryIds, ...arrayGeometryIds, ...arrayVertexIds, ...vertexIds])
+      );
       if (idsToDelete.length > 0) {
         get().deleteGeometry(idsToDelete, { recordHistory: true });
       }
@@ -2727,10 +4543,20 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const geometryIds = ownedNodes
       .map((node) => node.data?.geometryId)
       .filter(Boolean) as string[];
+    const geometryById = new Map(get().geometry.map((item) => [item.id, item]));
     const vertexIds = ownedNodes
       .flatMap((node) => node.data?.vertexIds ?? [])
       .filter(Boolean);
-    const idsToDelete = Array.from(new Set([...geometryIds, ...vertexIds]));
+    const arrayGeometryIds = ownedNodes
+      .flatMap((node) => node.data?.geometryIds ?? [])
+      .filter(Boolean) as string[];
+    const arrayVertexIds = arrayGeometryIds.flatMap((geometryId) => {
+      const geometry = geometryById.get(geometryId);
+      return geometry?.type === "polyline" ? geometry.vertexIds : [];
+    });
+    const idsToDelete = Array.from(
+      new Set([...geometryIds, ...arrayGeometryIds, ...arrayVertexIds, ...vertexIds])
+    );
     if (idsToDelete.length > 0) {
       get().deleteGeometry(idsToDelete, { recordHistory: true });
     }
@@ -2792,13 +4618,75 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     if (moveApplied.didApply) {
       get().recordModelerHistory();
     }
-    set({
-      geometry: moveApplied.geometry,
+    const rotateApplied = applyRotateNodesToGeometry(
+      moveApplied.nodes,
+      moveApplied.geometry
+    );
+    const scaleApplied = applyScaleNodesToGeometry(
+      rotateApplied.nodes,
+      rotateApplied.geometry
+    );
+    const loftApplied = applyLoftNodesToGeometry(
+      scaleApplied.nodes,
+      scaleApplied.geometry
+    );
+    const extrudeApplied = applyExtrudeNodesToGeometry(
+      loftApplied.nodes,
+      loftApplied.geometry
+    );
+    const booleanApplied = applyBooleanNodesToGeometry(
+      extrudeApplied.nodes,
+      extrudeApplied.geometry
+    );
+    const offsetApplied = applyOffsetNodesToGeometry(
+      booleanApplied.nodes,
+      booleanApplied.geometry
+    );
+    const arrayApplied = applyGeometryArrayNodesToGeometry(
+      offsetApplied.nodes,
+      offsetApplied.geometry
+    );
+    const isoApplied = applyIsosurfaceNodesToGeometry(
+      arrayApplied.nodes,
+      arrayApplied.geometry
+    );
+    const meshApplied = applyMeshConvertNodesToGeometry(
+      isoApplied.nodes,
+      isoApplied.geometry
+    );
+    const importApplied = applyImportNodesToGeometry(
+      meshApplied.nodes,
+      meshApplied.geometry
+    );
+    const exportHandled = handleExportNodes(importApplied.nodes, importApplied.geometry);
+    const nextGeometry = importApplied.geometry;
+    const previousIds = new Set(state.geometry.map((item) => item.id));
+    const nextIds = new Set(nextGeometry.map((item) => item.id));
+    const geometryIdsChanged =
+      previousIds.size !== nextIds.size ||
+      Array.from(nextIds).some((id) => !previousIds.has(id));
+    const nextState: Partial<ProjectStore> = {
+      geometry: nextGeometry,
       workflow: {
-        nodes: moveApplied.nodes,
+        nodes: exportHandled.nodes,
         edges: evaluated.edges,
       },
-    });
+    };
+    if (geometryIdsChanged) {
+      Object.assign(
+        nextState,
+        reconcileGeometryCollections(
+          nextGeometry,
+          state.layers,
+          state.sceneNodes,
+          state.assignments,
+          state.hiddenGeometryIds,
+          state.lockedGeometryIds,
+          state.selectedGeometryIds
+        )
+      );
+    }
+    set(nextState);
   },
   pruneWorkflow: () => {
     set((state) => {

@@ -135,6 +135,15 @@ const WebGLSlider = ({
     return next;
   }, [controlStyle, overlayUrl]);
 
+  const sliderStyle = useMemo(() => {
+    const next: CSSProperties = { ...mergedStyle };
+    (next as Record<string, string>)["--webgl-slider-accent"] =
+      accentColor ?? "var(--color-accent)";
+    return next;
+  }, [mergedStyle, accentColor]);
+
+  const sliderPercent = `${normalized * 100}%`;
+
   const handleFocus = composeHandler<ReactFocusEvent<HTMLInputElement>>(
     () => setFocused(true),
     onFocus
@@ -179,7 +188,7 @@ const WebGLSlider = ({
       <label
         ref={controlRef}
         className={[styles.control, styles.slider, className].filter(Boolean).join(" ")}
-        style={mergedStyle}
+        style={sliderStyle}
         data-state={state}
         data-disabled={disabled ? "true" : "false"}
         onMouseEnter={rootMouseEnter}
@@ -190,6 +199,18 @@ const WebGLSlider = ({
       >
         <span className={styles.srOnly}>{label}</span>
         {iconSrc && <img className={styles.controlIcon} src={iconSrc} alt="" aria-hidden />}
+        <span className={styles.sliderTrackWrap} aria-hidden="true">
+          <span className={styles.sliderTrack}>
+            <span
+              className={styles.sliderFill}
+              style={{ width: sliderPercent }}
+            />
+            <span
+              className={styles.sliderThumb}
+              style={{ left: sliderPercent }}
+            />
+          </span>
+        </span>
         <input
           {...inputProps}
           className={styles.sliderInput}

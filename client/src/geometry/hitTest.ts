@@ -60,6 +60,7 @@ type ComponentHitTestArgs = {
   context: HitTestContext;
   pickPixelThreshold?: number;
   edgePixelThreshold?: number;
+  mode?: "vertex" | "edge" | "face";
   getSurfacePickMesh: (item: Geometry) => RenderMesh | null;
   getPolylineRenderData: (
     points: Vec3[],
@@ -368,6 +369,7 @@ export const hitTestComponent = ({
   context,
   pickPixelThreshold = 16,
   edgePixelThreshold = 12,
+  mode,
   getSurfacePickMesh,
   getPolylineRenderData,
   refineSurfaceIntersection,
@@ -396,6 +398,27 @@ export const hitTestComponent = ({
         .map((id) => vertexMap.get(id)?.position)
         .filter(Boolean) as Vec3[];
       if (points.length < 2) return;
+      if (mode === "vertex") {
+        item.vertexIds.forEach((vertexId) => {
+          const vertex = vertexMap.get(vertexId);
+          if (!vertex) return;
+          const screen = projectPointToScreen(vertex.position, viewProjection, rect);
+          if (!screen) return;
+          const distance = Math.hypot(pointer.x - screen.x, pointer.y - screen.y);
+          if (distance <= pickPixelThreshold) {
+            consider(
+              {
+                kind: "vertex",
+                geometryId: item.id,
+                vertexId,
+              },
+              screen.depth,
+              vertex.position
+            );
+          }
+        });
+        return;
+      }
       const renderData = getPolylineRenderData(points, item.degree, item.closed, item.nurbs);
       const edgePoints = renderData.points;
       const controlEdgePoints = item.closed ? [...points, points[0]] : points;
@@ -522,51 +545,83 @@ export const hitTestComponent = ({
     const screenPoint = projectPointToScreen(bestIntersection.point, viewProjection, rect);
     const depth = screenPoint?.depth ?? bestIntersection.t;
 
-    if (aScreen && bScreen && cScreen) {
-      const edges = [
-        {
-          edge: [i0, i1] as [number, number],
-          distance: distancePointToSegment2d(pointer, aScreen, bScreen),
-          localIndex: 0,
-        },
-        {
-          edge: [i1, i2] as [number, number],
-          distance: distancePointToSegment2d(pointer, bScreen, cScreen),
-          localIndex: 1,
-        },
-        {
-          edge: [i2, i0] as [number, number],
-          distance: distancePointToSegment2d(pointer, cScreen, aScreen),
-          localIndex: 2,
-        },
+    if (mode === "vertex") {
+      if (!aScreen || !bScreen || !cScreen) return;
+      const vertexCandidates = [
+        { index: i0, screen: aScreen, point: a },
+        { index: i1, screen: bScreen, point: b },
+        { index: i2, screen: cScreen, point: c },
       ];
-      edges.sort((lhs, rhs) => lhs.distance - rhs.distance);
-      const closest = edges[0];
-      if (closest.distance <= edgePixelThreshold) {
-        consider(
-          {
-            kind: "edge",
-            geometryId: item.id,
-            edgeIndex: bestFaceIndex * 3 + closest.localIndex,
-            vertexIndices: [closest.edge[0], closest.edge[1]],
-          },
-          depth,
-          bestIntersection.point
-        );
-        return;
-      }
+      vertexCandidates.sort(
+        (lhs, rhs) =>
+          Math.hypot(pointer.x - lhs.screen.x, pointer.y - lhs.screen.y) -
+          Math.hypot(pointer.x - rhs.screen.x, pointer.y - rhs.screen.y)
+      );
+      const candidate = vertexCandidates[0];
+      const distance = Math.hypot(pointer.x - candidate.screen.x, pointer.y - candidate.screen.y);
+      if (distance > pickPixelThreshold) return;
+      consider(
+        {
+          kind: "vertex",
+          geometryId: item.id,
+          vertexIndex: candidate.index,
+        },
+        candidate.screen.depth,
+        candidate.point
+      );
+      return;
     }
 
-    consider(
-      {
-        kind: "face",
-        geometryId: item.id,
-        faceIndex: bestFaceIndex,
-        vertexIndices: [i0, i1, i2],
-      },
-      depth,
-      bestIntersection.point
-    );
+    if (mode === "edge" || mode === undefined) {
+      if (aScreen && bScreen && cScreen) {
+        const edges = [
+          {
+            edge: [i0, i1] as [number, number],
+            distance: distancePointToSegment2d(pointer, aScreen, bScreen),
+            localIndex: 0,
+          },
+          {
+            edge: [i1, i2] as [number, number],
+            distance: distancePointToSegment2d(pointer, bScreen, cScreen),
+            localIndex: 1,
+          },
+          {
+            edge: [i2, i0] as [number, number],
+            distance: distancePointToSegment2d(pointer, cScreen, aScreen),
+            localIndex: 2,
+          },
+        ];
+        edges.sort((lhs, rhs) => lhs.distance - rhs.distance);
+        const closest = edges[0];
+        if (closest.distance <= edgePixelThreshold) {
+          consider(
+            {
+              kind: "edge",
+              geometryId: item.id,
+              edgeIndex: bestFaceIndex * 3 + closest.localIndex,
+              vertexIndices: [closest.edge[0], closest.edge[1]],
+            },
+            depth,
+            bestIntersection.point
+          );
+          return;
+        }
+      }
+      if (mode === "edge") return;
+    }
+
+    if (mode === "face" || mode === undefined) {
+      consider(
+        {
+          kind: "face",
+          geometryId: item.id,
+          faceIndex: bestFaceIndex,
+          vertexIndices: [i0, i1, i2],
+        },
+        depth,
+        bestIntersection.point
+      );
+    }
   });
 
   return best;

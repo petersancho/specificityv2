@@ -4,27 +4,33 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
 } from "react";
 import { createPortal } from "react-dom";
 import WebGLViewerCanvas from "./WebGLViewerCanvas";
-import WebGLPanelTopBar, { type WebGLTopBarAction } from "./WebGLPanelTopBar";
+import { type WebGLTopBarAction, resolveTopBarShortLabel } from "./WebGLPanelTopBar";
 import WebGLStatusFooter from "./WebGLStatusFooter";
 import WebGLTitleLogo from "./WebGLTitleLogo";
+import { NumericalCanvas } from "./workflow/NumericalCanvas";
 import WebGLButton from "./ui/WebGLButton";
+import IconButton from "./ui/IconButton";
 import WebGLSlider from "./ui/WebGLSlider";
 import { useProjectStore } from "../store/useProjectStore";
 import styles from "./ModelerSection.module.css";
 import {
   COMMAND_DEFINITIONS,
+  COMMAND_PREFIX,
   parseCommandInput,
   type CommandDefinition,
 } from "../commands/registry";
 import { COMMAND_DESCRIPTIONS } from "../data/commandDescriptions";
 import type {
+  CameraState,
   CPlane,
   Geometry,
   GumballAlignment,
   PolylineGeometry,
+  PrimitiveKind,
   Vec3,
 } from "../types";
 import {
@@ -36,42 +42,11 @@ import {
   scale,
   sub,
 } from "../geometry/math";
+import { DEFAULT_PRIMITIVE_CONFIG } from "../geometry/mesh";
+import { PRIMITIVE_COMMAND_IDS, PRIMITIVE_KIND_BY_COMMAND } from "../data/primitiveCatalog";
 import { offsetPolyline2D } from "../geometry/booleans";
 import type { IconId } from "../webgl/ui/WebGLIconRenderer";
-import {
-  resolveDisplayModeFromSolidity,
-  resolveSolidityFromDisplayMode,
-} from "../view/solidity";
 
-const geometryCommands = COMMAND_DEFINITIONS.filter(
-  (command) => command.category === "geometry"
-);
-const SUPPORTED_PERFORM_COMMANDS = new Set([
-  "undo",
-  "redo",
-  "copy",
-  "paste",
-  "duplicate",
-  "delete",
-  "focus",
-  "frameall",
-  "move",
-  "rotate",
-  "scale",
-  "offset",
-  "mirror",
-  "array",
-  "transform",
-  "gumball",
-  "interpolate",
-  "loft",
-  "surface",
-  "extrude",
-]);
-const performCommands = COMMAND_DEFINITIONS.filter(
-  (command) =>
-    command.category === "performs" && SUPPORTED_PERFORM_COMMANDS.has(command.id)
-);
 
 const selectionModeOptions = [
   {
@@ -177,45 +152,85 @@ const pivotModeOptions = [
   },
 ] as const;
 
-const displayModeOptions = [
-  {
-    value: "shaded",
-    label: "Solid",
-    iconId: "sphere",
-    tooltip: "Solid shading for surfaces and solids.",
-  },
-  {
-    value: "wireframe",
-    label: "Wireframe",
-    iconId: "rectangle",
-    tooltip: "Wireframe display showing edges only.",
-  },
-  {
-    value: "ghosted",
-    label: "Ghosted",
-    iconId: "circle",
-    tooltip: "Ghosted display with semi-transparent shading.",
-  },
-] as const;
-
-const sortByOrder = <T extends { id: string }>(items: T[], order: readonly string[]) => {
-  const indexMap = new Map(order.map((id, index) => [id, index] as const));
-  const fallbackIndex = order.length + 1;
-  return [...items].sort(
-    (a, b) => (indexMap.get(a.id) ?? fallbackIndex) - (indexMap.get(b.id) ?? fallbackIndex)
-  );
-};
-
 const ROSLYN_PANEL_SCALE_KEY = "specificity.webglPanelScale";
-const ROSLYN_COMMAND_BAR_COLLAPSED_KEY = "specificity.roslynCommandBarCollapsed";
 const MIN_ROSLYN_PANEL_SCALE = 0.4;
 const MAX_ROSLYN_PANEL_SCALE = 1.05;
 const PANEL_SCALE_SPEED = 0.0015;
+const ROSLYN_PALETTE_COLLAPSED_KEY = "specificity.roslynPaletteCollapsed";
+
+const ROSLYN_PALETTE_SECTIONS: Array<{
+  id: string;
+  label: string;
+  description: string;
+  groups: string[];
+}> = [
+  {
+    id: "geometry",
+    label: "Geometry",
+    description: "Primitives, curves, surfaces",
+    groups: ["Primitive", "Curve", "Mesh"],
+  },
+  {
+    id: "transform",
+    label: "Transform",
+    description: "Move, rotate, orient, pivot",
+    groups: ["Transform", "Orientation", "Gumball", "Pivot"],
+  },
+  {
+    id: "selection",
+    label: "Selection",
+    description: "Selection modes + C-Plane",
+    groups: ["Selection", "C-Plane"],
+  },
+  {
+    id: "workflow",
+    label: "Workflow",
+    description: "Reference + groups",
+    groups: ["Workflow", "Groups"],
+  },
+  {
+    id: "view",
+    label: "View",
+    description: "Camera + capture",
+    groups: ["Camera", "View"],
+  },
+  {
+    id: "edit",
+    label: "Edit",
+    description: "Undo, redo, duplicate",
+    groups: ["Edit"],
+  },
+];
+
+const ROSLYN_GROUP_ACCENTS: Record<string, string> = {
+  Primitive: "#ff6040",
+  Curve: "#1eb8a0",
+  Mesh: "#4876ff",
+  Transform: "#935eff",
+  Edit: "#ff5c86",
+  Selection: "#f6ac38",
+  Orientation: "#42d28c",
+  Gumball: "#35beff",
+  Pivot: "#cc6aff",
+  "C-Plane": "#5cd2bc",
+  Workflow: "#9adb48",
+  Groups: "#00b6a6",
+  Camera: "#6299ff",
+  View: "#b078ff",
+};
+
+const resolveRoslynGroupAccent = (label: string) =>
+  ROSLYN_GROUP_ACCENTS[label] ?? "#343c4a";
 
 type CommandRequest = {
   id: string;
   input: string;
   requestId: number;
+};
+
+type CommandSuggestion = {
+  command: CommandDefinition;
+  input: string;
 };
 
 const iconProps = {
@@ -230,6 +245,8 @@ const iconProps = {
 };
 
 const COMMAND_ICON_ID_MAP: Record<string, IconId> = {
+  box: "box",
+  sphere: "sphere",
   frameall: "frameAll",
   "geometry-reference": "geometryReference",
   "point-generator": "pointGenerator",
@@ -243,6 +260,25 @@ const COMMAND_ICON_ID_MAP: Record<string, IconId> = {
   "extrude-node": "extrude",
   "selection-filter": "selectionFilter",
   "display-mode": "displayMode",
+  selectionfilter: "selectionFilter",
+  display: "displayMode",
+  grid: "ruler",
+  snapping: "point",
+  tolerance: "ruler",
+  view: "frameAll",
+  camera: "upright",
+  orbit: "rotate",
+  pan: "move",
+  zoom: "zoomCursor",
+  pivot: "pivotMode",
+  cplane: "cplaneAlign",
+  isolate: "hide",
+  outliner: "group",
+  cancel: "close",
+  confirm: "run",
+  cycle: "repeat",
+  status: "script",
+  morph: "gumball",
   "reference-active": "referenceActive",
   "reference-all": "referenceAll",
   "advanced-toggle": "advanced",
@@ -254,23 +290,20 @@ const COMMAND_ICON_ID_MAP: Record<string, IconId> = {
   "cplane-align": "cplaneAlign",
 };
 
+const PRIMITIVE_COMMAND_ID_SET = new Set(PRIMITIVE_COMMAND_IDS);
+
 const resolveCommandIconId = (commandId: string): IconId =>
-  COMMAND_ICON_ID_MAP[commandId] ?? (commandId as IconId);
+  COMMAND_ICON_ID_MAP[commandId] ??
+  (PRIMITIVE_COMMAND_ID_SET.has(commandId) ? "primitive" : (commandId as IconId));
 
 const COMMAND_CATEGORY_TINTS = {
-  primitive: "#00c2d1",
-  curve: "#ff4fb6",
-  mesh: "#7a5cff",
-  neutral: "#1f1f22",
+  primitive: "#ff6040",
+  curve: "#1eb8a0",
+  mesh: "#4876ff",
+  neutral: "#343c4a",
 } as const;
 
-const PRIMITIVE_COMMANDS = new Set([
-  "point",
-  "primitive",
-  "box",
-  "sphere",
-  "cylinder",
-]);
+const PRIMITIVE_COMMANDS = new Set(["point", ...PRIMITIVE_COMMAND_IDS]);
 
 const CURVE_COMMANDS = new Set([
   "line",
@@ -283,6 +316,70 @@ const CURVE_COMMANDS = new Set([
 ]);
 
 const MESH_COMMANDS = new Set(["surface", "loft", "extrude", "boolean"]);
+
+const TRANSFORM_COMMANDS = new Set([
+  "transform",
+  "move",
+  "rotate",
+  "scale",
+  "offset",
+  "mirror",
+  "array",
+  "morph",
+]);
+
+const GUMBALL_COMMANDS = new Set(["gumball"]);
+const PIVOT_COMMANDS = new Set(["pivot"]);
+
+const SELECTION_COMMANDS = new Set([
+  "selectionfilter",
+  "cycle",
+  "snapping",
+  "grid",
+  "tolerance",
+]);
+
+const C_PLANE_COMMANDS = new Set(["cplane"]);
+
+const CAMERA_COMMANDS = new Set(["camera", "orbit", "pan", "zoom"]);
+
+const VIEW_COMMANDS = new Set([
+  "focus",
+  "frameall",
+  "view",
+  "display",
+  "isolate",
+  "status",
+]);
+
+const WORKFLOW_COMMANDS = new Set(["outliner"]);
+
+const EDIT_COMMANDS = new Set([
+  "undo",
+  "redo",
+  "copy",
+  "paste",
+  "duplicate",
+  "delete",
+  "cancel",
+  "confirm",
+]);
+
+const resolveCommandGroupLabel = (commandId: string) => {
+  if (PRIMITIVE_COMMANDS.has(commandId)) return "Primitive";
+  if (CURVE_COMMANDS.has(commandId)) return "Curve";
+  if (MESH_COMMANDS.has(commandId)) return "Mesh";
+  if (GUMBALL_COMMANDS.has(commandId)) return "Gumball";
+  if (PIVOT_COMMANDS.has(commandId)) return "Pivot";
+  if (C_PLANE_COMMANDS.has(commandId)) return "C-Plane";
+  if (SELECTION_COMMANDS.has(commandId)) return "Selection";
+  if (CAMERA_COMMANDS.has(commandId)) return "Camera";
+  if (VIEW_COMMANDS.has(commandId)) return "View";
+  if (WORKFLOW_COMMANDS.has(commandId)) return "Workflow";
+  if (EDIT_COMMANDS.has(commandId)) return "Edit";
+  if (TRANSFORM_COMMANDS.has(commandId)) return "Transform";
+  return "Edit";
+};
 
 const resolveCommandCategory = (
   commandId: string
@@ -515,9 +612,16 @@ const renderCommandIcon = (commandId: string) => {
 type ModelerSectionProps = {
   onCaptureRequest?: (element: HTMLElement) => Promise<void> | void;
   captureDisabled?: boolean;
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 };
 
-const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionProps) => {
+const ModelerSection = ({
+  onCaptureRequest,
+  captureDisabled,
+  isFullscreen: isFullscreenProp = false,
+  onToggleFullscreen,
+}: ModelerSectionProps) => {
   const geometry = useProjectStore((state) => state.geometry);
   const layers = useProjectStore((state) => state.layers);
   const assignments = useProjectStore((state) => state.assignments);
@@ -544,13 +648,13 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
   );
   const gumballAlignment = useProjectStore((state) => state.gumballAlignment);
   const setGumballAlignment = useProjectStore((state) => state.setGumballAlignment);
+  const showRotationRings = useProjectStore((state) => state.showRotationRings);
+  const setShowRotationRings = useProjectStore((state) => state.setShowRotationRings);
   const pivot = useProjectStore((state) => state.pivot);
   const setPivotMode = useProjectStore((state) => state.setPivotMode);
-  const displayMode = useProjectStore((state) => state.displayMode);
   const setDisplayMode = useProjectStore((state) => state.setDisplayMode);
   const viewSolidity = useProjectStore((state) => state.viewSolidity);
   const setViewSolidity = useProjectStore((state) => state.setViewSolidity);
-  const displayModeForUI = resolveDisplayModeFromSolidity(viewSolidity);
   const viewSettings = useProjectStore((state) => state.viewSettings);
   const setViewSettings = useProjectStore((state) => state.setViewSettings);
   const snapSettings = useProjectStore((state) => state.snapSettings);
@@ -561,6 +665,7 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
   const resetCPlane = useProjectStore((state) => state.resetCPlane);
   const cPlane = useProjectStore((state) => state.cPlane);
   const cameraState = useProjectStore((state) => state.camera);
+  const isFullscreen = Boolean(isFullscreenProp);
   const setCameraPreset = useProjectStore((state) => state.setCameraPreset);
   const setCameraState = useProjectStore((state) => state.setCameraState);
   const undoModeler = useProjectStore((state) => state.undoModeler);
@@ -603,22 +708,14 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
       Math.max(MIN_ROSLYN_PANEL_SCALE, parsed)
     );
   });
-  const [commandBarCollapsed, setCommandBarCollapsed] = useState(() => {
+  const [paletteCollapsed, setPaletteCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
-    return (
-      window.localStorage.getItem(ROSLYN_COMMAND_BAR_COLLAPSED_KEY) === "true"
-    );
+    return window.localStorage.getItem(ROSLYN_PALETTE_COLLAPSED_KEY) === "true";
   });
   const [commandBarHeight, setCommandBarHeight] = useState(0);
-  const [primitiveSettings, setPrimitiveSettings] = useState({
-    kind: "box" as "box" | "sphere" | "cylinder" | "torus",
-    size: 1,
-    radius: 0.5,
-    height: 1,
-    tube: 0.2,
-    radialSegments: 24,
-    tubularSegments: 36,
-  });
+  const [primitiveSettings, setPrimitiveSettings] = useState(() => ({
+    ...DEFAULT_PRIMITIVE_CONFIG,
+  }));
   const [rectangleSettings, setRectangleSettings] = useState({
     width: 1.6,
     height: 1,
@@ -636,13 +733,85 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
   const commandInputRef = useRef<HTMLInputElement>(null);
   const [footerRoot, setFooterRoot] = useState<HTMLElement | null>(null);
   const viewerRef = useRef<HTMLDivElement>(null);
+  const minimapRef = useRef<HTMLDivElement>(null);
+  const [minimapSize, setMinimapSize] = useState({ width: 0, height: 0 });
   const commandBarRef = useRef<HTMLDivElement>(null);
+  const paletteRef = useRef<HTMLElement | null>(null);
 
-  useEffect(() => {
-    if (displayMode !== displayModeForUI) {
-      setDisplayMode(displayModeForUI);
-    }
-  }, [displayMode, displayModeForUI, setDisplayMode]);
+  const commandSuggestion = useMemo<CommandSuggestion | null>(() => {
+    const raw = commandInput.trim();
+    if (!raw) return null;
+    const parsed = parseCommandInput(commandInput);
+    if (parsed.command) return null;
+
+    const normalized = raw.toLowerCase();
+    const prefixMatch = normalized.match(COMMAND_PREFIX);
+    const prefixLength = prefixMatch ? prefixMatch[0].length : 0;
+    const prefix = prefixLength ? raw.slice(0, prefixLength) : "";
+    const withoutPrefix = raw.slice(prefixLength).trim();
+    if (!withoutPrefix) return null;
+
+    const [token, ...rest] = withoutPrefix.split(/\s+/);
+    if (!token) return null;
+    const normalizedToken = token.toLowerCase();
+    const match = COMMAND_DEFINITIONS.find(
+      (command) =>
+        command.id.startsWith(normalizedToken) ||
+        command.label.toLowerCase().startsWith(normalizedToken)
+    );
+    if (!match) return null;
+
+    const args = rest.join(" ");
+    const suggestionInput = `${prefix}${match.id}${args ? ` ${args}` : ""}`.trim();
+    return { command: match, input: suggestionInput };
+  }, [commandInput]);
+
+  const buildSuggestionInput = (command: CommandDefinition) => {
+    const raw = commandInput.trim();
+    if (!raw) return command.id;
+    const normalized = raw.toLowerCase();
+    const prefixMatch = normalized.match(COMMAND_PREFIX);
+    const prefixLength = prefixMatch ? prefixMatch[0].length : 0;
+    const prefix = prefixLength ? raw.slice(0, prefixLength) : "";
+    const withoutPrefix = raw.slice(prefixLength).trim();
+    if (!withoutPrefix) return `${prefix}${command.id}`.trim();
+    const [, ...rest] = withoutPrefix.split(/\s+/);
+    const args = rest.join(" ");
+    return `${prefix}${command.id}${args ? ` ${args}` : ""}`.trim();
+  };
+
+  const commandMatches = useMemo(() => {
+    const raw = commandInput.trim();
+    if (!raw) return [];
+    const parsed = parseCommandInput(commandInput);
+    if (parsed.command) return [];
+
+    const normalized = raw.toLowerCase();
+    const prefixMatch = normalized.match(COMMAND_PREFIX);
+    const prefixLength = prefixMatch ? prefixMatch[0].length : 0;
+    const withoutPrefix = raw.slice(prefixLength).trim();
+    if (!withoutPrefix) return [];
+
+    const [token] = withoutPrefix.split(/\s+/);
+    if (!token) return [];
+    const normalizedToken = token.toLowerCase();
+
+    const scored = COMMAND_DEFINITIONS.map((command) => {
+      const id = command.id.toLowerCase();
+      const label = command.label.toLowerCase();
+      let score = 4;
+      if (id.startsWith(normalizedToken)) score = 0;
+      else if (label.startsWith(normalizedToken)) score = 1;
+      else if (id.includes(normalizedToken)) score = 2;
+      else if (label.includes(normalizedToken)) score = 3;
+      return { command, score };
+    }).filter((entry) => entry.score < 4);
+
+    return scored
+      .sort((a, b) => a.score - b.score || a.command.label.localeCompare(b.command.label))
+      .slice(0, 6)
+      .map((entry) => entry.command);
+  }, [commandInput]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -657,10 +826,22 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.localStorage.setItem(
-      ROSLYN_COMMAND_BAR_COLLAPSED_KEY,
-      commandBarCollapsed ? "true" : "false"
+      ROSLYN_PALETTE_COLLAPSED_KEY,
+      String(paletteCollapsed)
     );
-  }, [commandBarCollapsed]);
+  }, [paletteCollapsed]);
+
+  useEffect(() => {
+    if (paletteCollapsed) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (target && paletteRef.current?.contains(target)) return;
+      setPaletteCollapsed(true);
+    };
+    window.addEventListener("pointerdown", handlePointerDown, { capture: true });
+    return () =>
+      window.removeEventListener("pointerdown", handlePointerDown, { capture: true });
+  }, [paletteCollapsed]);
 
   useLayoutEffect(() => {
     const node = commandBarRef.current;
@@ -672,14 +853,24 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
     const observer = new ResizeObserver(measure);
     observer.observe(node);
     return () => observer.disconnect();
-  }, [commandBarCollapsed]);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!isFullscreen || typeof window === "undefined") return;
+    const node = minimapRef.current;
+    if (!node) return;
+    const measure = () => {
+      const rect = node.getBoundingClientRect();
+      setMinimapSize({ width: rect.width, height: rect.height });
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [isFullscreen]);
 
   const clampPanelScale = (value: number) =>
     Math.min(MAX_ROSLYN_PANEL_SCALE, Math.max(MIN_ROSLYN_PANEL_SCALE, value));
-
-  const handlePanelScaleChange = (nextScale: number) => {
-    setPanelScale(clampPanelScale(nextScale));
-  };
 
   const handleCommandBarWheel = (
     event: React.WheelEvent<HTMLDivElement>
@@ -695,19 +886,12 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
     : 0;
 
   const commandBarShellStyle = useMemo(() => {
-    const collapsedHeight = 52 * panelScale;
-    if (commandBarCollapsed) {
-      return {
-        height: `${collapsedHeight}px`,
-        minHeight: `${collapsedHeight}px`,
-      };
-    }
     if (!scaledCommandBarHeight) return undefined;
     return {
       height: `${scaledCommandBarHeight}px`,
       minHeight: `${scaledCommandBarHeight}px`,
     };
-  }, [commandBarCollapsed, panelScale, scaledCommandBarHeight]);
+  }, [scaledCommandBarHeight]);
 
   const commandBarScaleStyle = useMemo(
     () => ({
@@ -715,6 +899,52 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
       transformOrigin: "top left",
     }),
     [panelScale]
+  );
+
+  const viewDistance = useMemo(() => {
+    const dx = cameraState.position.x - cameraState.target.x;
+    const dy = cameraState.position.y - cameraState.target.y;
+    const dz = cameraState.position.z - cameraState.target.z;
+    return Math.max(0.1, Math.hypot(dx, dy, dz));
+  }, [cameraState.position, cameraState.target]);
+
+  const topCamera = useMemo<CameraState>(
+    () => ({
+      ...cameraState,
+      position: {
+        x: cameraState.target.x,
+        y: cameraState.target.y + viewDistance,
+        z: cameraState.target.z,
+      },
+      up: { x: 0, y: 0, z: 1 },
+    }),
+    [cameraState, viewDistance]
+  );
+
+  const leftCamera = useMemo<CameraState>(
+    () => ({
+      ...cameraState,
+      position: {
+        x: cameraState.target.x - viewDistance,
+        y: cameraState.target.y,
+        z: cameraState.target.z,
+      },
+      up: { x: 0, y: 1, z: 0 },
+    }),
+    [cameraState, viewDistance]
+  );
+
+  const rightCamera = useMemo<CameraState>(
+    () => ({
+      ...cameraState,
+      position: {
+        x: cameraState.target.x + viewDistance,
+        y: cameraState.target.y,
+        z: cameraState.target.z,
+      },
+      up: { x: 0, y: 1, z: 0 },
+    }),
+    [cameraState, viewDistance]
   );
 
   const selectedPolylines = useMemo(
@@ -783,10 +1013,6 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
 
   const extrudeCommand = useMemo(
     () => COMMAND_DEFINITIONS.find((command) => command.id === "extrude") ?? null,
-    []
-  );
-  const primitiveCommand = useMemo(
-    () => COMMAND_DEFINITIONS.find((command) => command.id === "primitive") ?? null,
     []
   );
 
@@ -1407,6 +1633,28 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
         duplicateSelection();
         return;
       }
+      if (!event.altKey && !event.ctrlKey && !event.metaKey) {
+        if (event.key === "1") {
+          event.preventDefault();
+          setSelectionMode("object");
+          return;
+        }
+        if (event.key === "2") {
+          event.preventDefault();
+          setSelectionMode("vertex");
+          return;
+        }
+        if (event.key === "3") {
+          event.preventDefault();
+          setSelectionMode("edge");
+          return;
+        }
+        if (event.key === "4") {
+          event.preventDefault();
+          setSelectionMode("face");
+          return;
+        }
+      }
       if (key === "c" && !(event.ctrlKey || event.metaKey)) {
         event.preventDefault();
         const index = transformOrientationOrder.indexOf(transformOrientation);
@@ -1435,6 +1683,7 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
     redoModeler,
     transformOrientation,
     setTransformOrientation,
+    setSelectionMode,
   ]);
 
   const sceneNodeMap = useMemo(
@@ -1633,90 +1882,10 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
   };
 
   const handleCommandClick = (command: CommandDefinition) => {
-    if (command.id === "undo") {
-      undoModeler();
-      return;
-    }
-    if (command.id === "redo") {
-      redoModeler();
-      return;
-    }
-    if (command.id === "copy") {
-      copySelection();
-      return;
-    }
-    if (command.id === "paste") {
-      pasteSelection("cursor");
-      return;
-    }
-    if (command.id === "duplicate") {
-      duplicateSelection();
-      return;
-    }
-    if (command.id === "focus" || command.id === "frameall") {
-      dispatchCommandRequest(command.id, "");
-      return;
-    }
-    if (command.id === "delete") {
-      if (selectedGeometryIds.length > 0) {
-        const shouldDelete =
-          selectedGeometryIds.length > 20
-            ? window.confirm(
-                `Delete ${selectedGeometryIds.length} items? This cannot be undone without undo.`
-              )
-            : true;
-        if (shouldDelete) {
-          deleteGeometry(selectedGeometryIds);
-        }
-      }
-      return;
-    }
-    if (command.id === "offset") {
-      const distance = Number.isFinite(gridSettings.spacing) ? gridSettings.spacing : 1;
-      const result = offsetSelectedPolylines(distance);
-      setCommandInput("");
-      setActiveCommand(null);
-      setCommandError(result.error ?? "");
-      return;
-    }
-    if (command.id === "mirror") {
-      const result = mirrorSelection("x");
-      setCommandInput("");
-      setActiveCommand(null);
-      setCommandError(result.error ?? "");
-      return;
-    }
-    if (command.id === "array") {
-      const spacing =
-        Number.isFinite(gridSettings.spacing) && gridSettings.spacing !== 0
-          ? gridSettings.spacing
-          : 1;
-      const result = arraySelection("x", spacing, 3);
-      setCommandInput("");
-      setActiveCommand(null);
-      setCommandError(result.error ?? "");
-      return;
-    }
-    if (command.id === "box" || command.id === "sphere" || command.id === "cylinder") {
-      ensurePlanarDefaults();
-      const kind =
-        command.id === "sphere" ? "sphere" : command.id === "cylinder" ? "cylinder" : "box";
-      setPrimitiveSettings((prev) => ({ ...prev, kind }));
-      activateCommand(primitiveCommand ?? command);
-      setCommandInput("");
-      setCommandError("");
-      return;
-    }
     if (command.id === "rectangle" || command.id === "circle") {
       ensurePlanarDefaults();
     }
-    activateCommand(command);
-    setCommandInput("");
-    if (command.id === "loft" && !loftSelectionState.ready) {
-      setCommandError(loftSelectionState.message);
-    } else {
-      setCommandError("");
-    }
+    handleCommandSubmit(command.id);
   };
 
   const dispatchCommandRequest = (id: string, input: string) => {
@@ -1735,14 +1904,75 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
     return match ? Number(match[0]) : null;
   };
 
-  const updatePrimitiveFromInput = (input: string) => {
+  const updatePrimitiveFromInput = (input: string, forcedKind?: PrimitiveKind) => {
     const lower = input.toLowerCase();
     setPrimitiveSettings((prev) => {
       const next = { ...prev };
-      if (lower.includes("sphere")) next.kind = "sphere";
-      if (lower.includes("box") || lower.includes("cube")) next.kind = "box";
-      if (lower.includes("cylinder")) next.kind = "cylinder";
-      if (lower.includes("torus") || lower.includes("toroid")) next.kind = "torus";
+      if (forcedKind) {
+        next.kind = forcedKind;
+      } else {
+        const kindMatchers: Array<{ kind: typeof next.kind; matches: string[] }> = [
+          {
+            kind: "truncatedIcosahedron",
+            matches: ["truncated icosahedron", "truncated-icosahedron", "soccer", "bucky"],
+          },
+          {
+            kind: "truncatedOctahedron",
+            matches: ["truncated octahedron", "truncated-octahedron"],
+          },
+          { kind: "truncatedCube", matches: ["truncated cube", "truncated-cube"] },
+          {
+            kind: "rhombicDodecahedron",
+            matches: ["rhombic dodecahedron", "rhombic-dodecahedron", "rhombic"],
+          },
+          { kind: "geodesicDome", matches: ["geodesic dome", "geodesic"] },
+          { kind: "torusKnot", matches: ["torus knot", "torus-knot", "torusknot", "knot"] },
+          {
+            kind: "utahTeapot",
+            matches: ["utah teapot", "utah-teapot", "teapot", "utah"],
+          },
+          { kind: "mobiusStrip", matches: ["mobius", "moebius"] },
+          { kind: "oneSheetHyperboloid", matches: ["one-sheet", "one sheet", "hyperboloid"] },
+          {
+            kind: "hyperbolicParaboloid",
+            matches: ["hyperbolic paraboloid", "hyperbolic-paraboloid", "hyperbolic", "saddle"],
+          },
+          { kind: "superellipsoid", matches: ["superellipsoid", "super-ellipsoid"] },
+          { kind: "ellipsoid", matches: ["ellipsoid"] },
+          { kind: "sphericalCap", matches: ["spherical cap", "spherical-cap", "dome"] },
+          { kind: "hemisphere", matches: ["hemisphere", "hemi"] },
+          { kind: "capsule", matches: ["capsule", "pill"] },
+          { kind: "pipe", matches: ["pipe", "hollow cylinder", "hollow-cyl"] },
+          { kind: "ring", matches: ["ring", "annulus"] },
+          { kind: "disk", matches: ["disk", "disc"] },
+          { kind: "frustum", matches: ["frustum"] },
+          { kind: "bipyramid", matches: ["bipyramid", "bi-pyramid"] },
+          {
+            kind: "triangularPrism",
+            matches: ["triangular prism", "triangular-prism", "triangular"],
+          },
+          {
+            kind: "pentagonalPrism",
+            matches: ["pentagonal prism", "pentagonal-prism", "pentagonal"],
+          },
+          { kind: "hexagonalPrism", matches: ["hexagonal prism", "hexagonal-prism", "hexagonal"] },
+          { kind: "tetrahedron", matches: ["tetrahedron", "tetra"] },
+          { kind: "octahedron", matches: ["octahedron", "octa"] },
+          { kind: "icosahedron", matches: ["icosahedron", "icosa"] },
+          { kind: "dodecahedron", matches: ["dodecahedron", "dodeca"] },
+          { kind: "pyramid", matches: ["pyramid", "pyr"] },
+          { kind: "torus", matches: ["torus", "toroid"] },
+          { kind: "cylinder", matches: ["cylinder"] },
+          { kind: "sphere", matches: ["sphere"] },
+          { kind: "box", matches: ["box", "cube"] },
+        ];
+        for (const matcher of kindMatchers) {
+          if (matcher.matches.some((match) => lower.includes(match))) {
+            next.kind = matcher.kind;
+            break;
+          }
+        }
+      }
       const sizeMatch = input.match(/size\s*=?\s*(-?\d*\.?\d+)/i);
       if (sizeMatch) {
         next.size = parseNumeric(sizeMatch[1], next.size);
@@ -1753,6 +1983,24 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
       if (radiusMatch) {
         next.radius = parseNumeric(radiusMatch[1], next.radius);
       }
+      const innerMatch =
+        input.match(/inner\s*=?\s*(-?\d*\.?\d+)/i) ??
+        input.match(/innerRadius\s*=?\s*(-?\d*\.?\d+)/i);
+      if (innerMatch) {
+        next.innerRadius = parseNumeric(innerMatch[1], next.innerRadius);
+      }
+      const topMatch =
+        input.match(/top\s*=?\s*(-?\d*\.?\d+)/i) ??
+        input.match(/topRadius\s*=?\s*(-?\d*\.?\d+)/i);
+      if (topMatch) {
+        next.topRadius = parseNumeric(topMatch[1], next.topRadius);
+      }
+      const capMatch =
+        input.match(/cap\s*=?\s*(-?\d*\.?\d+)/i) ??
+        input.match(/capHeight\s*=?\s*(-?\d*\.?\d+)/i);
+      if (capMatch) {
+        next.capHeight = parseNumeric(capMatch[1], next.capHeight);
+      }
       const heightMatch = input.match(/height\s*=?\s*(-?\d*\.?\d+)/i);
       if (heightMatch) {
         next.height = parseNumeric(heightMatch[1], next.height);
@@ -1760,6 +2008,28 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
       const tubeMatch = input.match(/tube\s*=?\s*(-?\d*\.?\d+)/i);
       if (tubeMatch) {
         next.tube = parseNumeric(tubeMatch[1], next.tube);
+      }
+      const detailMatch =
+        input.match(/detail\s*=?\s*(\d+)/i) ??
+        input.match(/subdiv\s*=?\s*(\d+)/i);
+      if (detailMatch) {
+        next.detail = Math.max(0, Math.round(parseNumeric(detailMatch[1], next.detail)));
+      }
+      const exp1Match = input.match(/exp1\s*=?\s*(-?\d*\.?\d+)/i);
+      if (exp1Match) {
+        next.exponent1 = parseNumeric(exp1Match[1], next.exponent1);
+      }
+      const exp2Match = input.match(/exp2\s*=?\s*(-?\d*\.?\d+)/i);
+      if (exp2Match) {
+        next.exponent2 = parseNumeric(exp2Match[1], next.exponent2);
+      }
+      const expMatch =
+        input.match(/exp\s*=?\s*(-?\d*\.?\d+)/i) ??
+        input.match(/exponent\s*=?\s*(-?\d*\.?\d+)/i);
+      if (expMatch && !exp1Match && !exp2Match) {
+        const exp = parseNumeric(expMatch[1], next.exponent1);
+        next.exponent1 = exp;
+        next.exponent2 = exp;
       }
       const radialMatch = input.match(/segments\s*=?\s*(\d+)/i);
       if (radialMatch) {
@@ -1777,7 +2047,17 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
       }
       const fallbackNumber = parseFirstNumber(input);
       if (fallbackNumber != null && !sizeMatch && !radiusMatch) {
-        next.size = fallbackNumber;
+        const sizeDriven = new Set([
+          "box",
+          "pyramid",
+          "wedge",
+          "hyperbolicParaboloid",
+        ]);
+        if (sizeDriven.has(next.kind)) {
+          next.size = fallbackNumber;
+        } else {
+          next.radius = fallbackNumber;
+        }
       }
       return next;
     });
@@ -1813,28 +2093,26 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
     }));
   };
 
-  const handleCommandSubmit = () => {
-    const trimmed = commandInput.trim();
-    
+  const handleCommandSubmit = (inputOverride?: string) => {
+    const rawInput = inputOverride ?? commandInput;
+    const trimmed = rawInput.trim();
     if (!trimmed) return;
-    const parsed = parseCommandInput(commandInput);
+    const parsed = parseCommandInput(rawInput);
     if (parsed.command) {
       const commandId = parsed.command.id;
       const args = parsed.args ?? "";
       const lower = args.toLowerCase();
-      if (commandId === "box" || commandId === "sphere" || commandId === "cylinder") {
+      const commandKind = PRIMITIVE_KIND_BY_COMMAND.get(commandId);
+      if (commandKind) {
         ensurePlanarDefaults();
-        updatePrimitiveFromInput(commandInput);
-        const kind =
-          commandId === "sphere" ? "sphere" : commandId === "cylinder" ? "cylinder" : "box";
-        setPrimitiveSettings((prev) => ({ ...prev, kind }));
-        activateCommand(primitiveCommand ?? parsed.command);
+        updatePrimitiveFromInput(rawInput, commandKind);
+        activateCommand(parsed.command);
         setCommandInput("");
         setCommandError("");
         return;
       }
       if (commandId === "offset") {
-        const distanceInput = args || commandInput;
+        const distanceInput = args || rawInput;
         const parsedDistance = parseFirstNumber(distanceInput);
         const distance =
           parsedDistance ??
@@ -1846,7 +2124,7 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
         return;
       }
       if (commandId === "mirror") {
-        const axisKey = parseAxisKey(args || commandInput);
+        const axisKey = parseAxisKey(args || rawInput);
         const result = mirrorSelection(axisKey);
         setActiveCommand(null);
         setCommandInput("");
@@ -1854,7 +2132,7 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
         return;
       }
       if (commandId === "array") {
-        const settings = parseArraySettings(args || commandInput);
+        const settings = parseArraySettings(args || rawInput);
         const result = arraySelection(
           settings.axis,
           settings.spacing,
@@ -1865,22 +2143,15 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
         setCommandError(result.error ?? "");
         return;
       }
-      if (commandId === "primitive") {
-        updatePrimitiveFromInput(commandInput);
-        activateCommand(parsed.command);
-        setCommandInput("");
-        setCommandError("");
-        return;
-      }
       if (commandId === "rectangle") {
-        updateRectangleFromInput(args || commandInput);
+        updateRectangleFromInput(args || rawInput);
         activateCommand(parsed.command);
         setCommandInput("");
         setCommandError("");
         return;
       }
       if (commandId === "circle") {
-        updateCircleFromInput(args || commandInput);
+        updateCircleFromInput(args || rawInput);
         activateCommand(parsed.command);
         setCommandInput("");
         setCommandError("");
@@ -2063,7 +2334,7 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
             },
           });
         } else if (lower.includes("persp")) {
-          setCameraState({ fov: 50 });
+          setCameraState({ fov: 28 });
         } else if (lower.includes("ortho")) {
           setCameraState({ fov: 20 });
         }
@@ -2161,6 +2432,11 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
     setCommandError("Command not recognized.");
   };
 
+  const handleCommandComplete = (commandId: string) => {
+    setActiveCommand((prev) => (prev?.id === commandId ? null : prev));
+    setCommandError("");
+  };
+
   const selectionAlreadyLinked = useMemo(() => {
     if (!primarySelectedGeometryId) return false;
     return referencedGeometryIds.has(primarySelectedGeometryId);
@@ -2203,6 +2479,11 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
     { label: "Snaps", value: activeSnapsLabel },
   ];
 
+  const rotationSnapEnabled = snapSettings.angleStep >= 89.5;
+  const handleRotationSnapToggle = (next: boolean) => {
+    setSnapSettings({ angleStep: next ? 90 : 0 });
+  };
+
   const footerContent = (
     <WebGLStatusFooter
       shortcuts={[
@@ -2220,67 +2501,35 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
         `Mode: ${activeCommand?.label ?? "Idle"}`,
         `Filter: ${selectionMode}`,
       ]}
+      toggles={[
+        {
+          label: "Rotation Rings",
+          checked: showRotationRings,
+          onChange: setShowRotationRings,
+        },
+        {
+          label: "90° Snap",
+          checked: rotationSnapEnabled,
+          onChange: handleRotationSnapToggle,
+        },
+      ]}
     />
   );
 
-  const commandActions: WebGLTopBarAction[] = [...geometryCommands, ...performCommands].map(
-    (command) => {
-      const meta = COMMAND_DESCRIPTIONS[command.id];
-      const shortcut = meta?.shortcut ? ` (${meta.shortcut})` : "";
-      return {
-        id: command.id,
-        label: command.label,
-        tooltip: `${meta?.description ?? command.prompt}${shortcut}`,
-        onClick: () => handleCommandClick(command),
-        isActive: activeCommand?.id === command.id,
-        iconTint: resolveCommandIconTint(command.id),
-      };
-    }
-  );
-
-  const TOP_BAR_ORDER: string[] = [
-    "point",
-    "primitive",
-    "line",
-    "polyline",
-    "rectangle",
-    "circle",
-    "arc",
-    "curve",
-    "interpolate",
-    "surface",
-    "loft",
-    "extrude",
-    "move",
-    "rotate",
-    "scale",
-    "gumball",
-    "undo",
-    "redo",
-    "copy",
-    "paste",
-    "duplicate",
-    "delete",
-    "focus",
-    "frameall",
-  ];
-
-  const COMMAND_BREAKS = new Set(["line", "surface", "move", "undo"]);
-  const COMMAND_GROUP_LABELS: Record<string, string> = {
-    point: "Primitive",
-    line: "Curve",
-    surface: "Mesh",
-    move: "Transform",
-    undo: "Edit",
-  };
-  const commandActionById = new Map(commandActions.map((action) => [action.id, action] as const));
-  const orderedCommandActions = TOP_BAR_ORDER.map((id) => commandActionById.get(id))
-    .filter((action): action is (typeof commandActions)[number] => Boolean(action))
-    .map((action) => ({
-      ...action,
-      groupBreakBefore: COMMAND_BREAKS.has(action.id),
-      groupLabel: COMMAND_GROUP_LABELS[action.id],
-    }));
+  const commandActions: WebGLTopBarAction[] = COMMAND_DEFINITIONS.map((command) => {
+    const meta = COMMAND_DESCRIPTIONS[command.id];
+    const shortcut = meta?.shortcut ? ` (${meta.shortcut})` : "";
+    return {
+      id: command.id,
+      label: command.label,
+      tooltip: `${meta?.description ?? command.prompt}${shortcut}`,
+      onClick: () => handleCommandClick(command),
+      isActive: activeCommand?.id === command.id,
+      icon: resolveCommandIconId(command.id),
+      iconTint: resolveCommandIconTint(command.id),
+      groupLabel: resolveCommandGroupLabel(command.id),
+    };
+  });
 
   const referenceAllDisabled =
     selectedGeometryIds.length === 0 ||
@@ -2341,7 +2590,7 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
   };
 
   const selectionModeActions: WebGLTopBarAction[] = selectionModeOptions.map(
-    (option, index) => ({
+    (option) => ({
       id: `selection-${option.value}`,
       label: option.label,
       tooltip: option.tooltip,
@@ -2349,28 +2598,12 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
       isActive: selectionMode === option.value,
       icon: option.iconId as IconId,
       iconTint: COMMAND_CATEGORY_TINTS.neutral,
-      groupBreakBefore: index === 0,
-      groupLabel: index === 0 ? "Selection" : undefined,
-    })
-  );
-
-  const displayModeActions: WebGLTopBarAction[] = displayModeOptions.map(
-    (option, index) => ({
-      id: `display-${option.value}`,
-      label: option.label,
-      tooltip: option.tooltip,
-      onClick: () =>
-        setViewSolidity(resolveSolidityFromDisplayMode(option.value as typeof displayMode)),
-      isActive: displayModeForUI === option.value,
-      icon: option.iconId as IconId,
-      iconTint: COMMAND_CATEGORY_TINTS.neutral,
-      groupBreakBefore: index === 0,
-      groupLabel: index === 0 ? "Display" : undefined,
+      groupLabel: "Selection",
     })
   );
 
   const transformOrientationActions: WebGLTopBarAction[] = transformOrientationOptions.map(
-    (option, index) => ({
+    (option) => ({
       id: `orient-${option.value}`,
       label: option.label,
       tooltip: option.tooltip,
@@ -2379,13 +2612,12 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
       isActive: transformOrientation === option.value,
       icon: option.iconId as IconId,
       iconTint: COMMAND_CATEGORY_TINTS.neutral,
-      groupBreakBefore: index === 0,
-      groupLabel: index === 0 ? "Orientation" : undefined,
+      groupLabel: "Orientation",
     })
   );
 
   const gumballAlignmentActions: WebGLTopBarAction[] = gumballAlignmentOptions.map(
-    (option, index) => ({
+    (option) => ({
       id: `gumball-align-${option.value}`,
       label: option.label,
       tooltip: option.tooltip,
@@ -2394,12 +2626,11 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
       isActive: gumballAlignment === option.value,
       icon: option.iconId as IconId,
       iconTint: COMMAND_CATEGORY_TINTS.neutral,
-      groupBreakBefore: index === 0,
-      groupLabel: index === 0 ? "Gumball" : undefined,
+      groupLabel: "Gumball",
     })
   );
 
-  const pivotModeActions: WebGLTopBarAction[] = pivotModeOptions.map((option, index) => ({
+  const pivotModeActions: WebGLTopBarAction[] = pivotModeOptions.map((option) => ({
     id: `pivot-${option.value}`,
     label: option.label,
     tooltip: option.tooltip,
@@ -2407,8 +2638,7 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
     isActive: pivot.mode === option.value,
     icon: option.iconId as IconId,
     iconTint: COMMAND_CATEGORY_TINTS.neutral,
-    groupBreakBefore: index === 0,
-    groupLabel: index === 0 ? "Pivot" : undefined,
+    groupLabel: "Pivot",
   }));
 
   const workflowActions: WebGLTopBarAction[] = [
@@ -2420,7 +2650,6 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
       isDisabled: !primarySelectedGeometryId || selectionAlreadyLinked,
       icon: "referenceActive",
       iconTint: COMMAND_CATEGORY_TINTS.neutral,
-      groupBreakBefore: true,
       groupLabel: "Workflow",
     },
     {
@@ -2431,6 +2660,7 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
       isDisabled: referenceAllDisabled,
       icon: "referenceAll",
       iconTint: COMMAND_CATEGORY_TINTS.neutral,
+      groupLabel: "Workflow",
     },
   ];
 
@@ -2443,7 +2673,6 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
       isDisabled: groupDisabled,
       icon: "group",
       iconTint: COMMAND_CATEGORY_TINTS.neutral,
-      groupBreakBefore: true,
       groupLabel: "Groups",
     },
     {
@@ -2454,6 +2683,7 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
       isDisabled: !selectedGroupId,
       icon: "ungroup",
       iconTint: COMMAND_CATEGORY_TINTS.neutral,
+      groupLabel: "Groups",
     },
   ];
 
@@ -2466,7 +2696,6 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
       isActive: isWorldXY,
       icon: "cplaneXY",
       iconTint: COMMAND_CATEGORY_TINTS.neutral,
-      groupBreakBefore: true,
       groupLabel: "C-Plane",
     },
     {
@@ -2477,6 +2706,7 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
       isActive: isWorldXZ,
       icon: "cplaneXZ",
       iconTint: COMMAND_CATEGORY_TINTS.neutral,
+      groupLabel: "C-Plane",
     },
     {
       id: "cplane-yz",
@@ -2486,6 +2716,7 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
       isActive: isWorldYZ,
       icon: "cplaneYZ",
       iconTint: COMMAND_CATEGORY_TINTS.neutral,
+      groupLabel: "C-Plane",
     },
     {
       id: "cplane-align",
@@ -2496,6 +2727,7 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
       isActive: isAlignedPlane,
       icon: "cplaneAlign",
       iconTint: COMMAND_CATEGORY_TINTS.neutral,
+      groupLabel: "C-Plane",
     },
   ];
 
@@ -2508,7 +2740,6 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
       isActive: cameraState.zoomToCursor,
       icon: "zoomCursor",
       iconTint: COMMAND_CATEGORY_TINTS.neutral,
-      groupBreakBefore: true,
       groupLabel: "Camera",
     },
     {
@@ -2519,6 +2750,7 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
       isActive: cameraState.invertZoom,
       icon: "invertZoom",
       iconTint: COMMAND_CATEGORY_TINTS.neutral,
+      groupLabel: "Camera",
     },
     {
       id: "camera-upright",
@@ -2528,6 +2760,7 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
       isActive: cameraState.upright,
       icon: "upright",
       iconTint: COMMAND_CATEGORY_TINTS.neutral,
+      groupLabel: "Camera",
     },
   ];
 
@@ -2540,14 +2773,12 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
     isDisabled: captureDisabled,
     icon: "capture",
     iconTint: COMMAND_CATEGORY_TINTS.neutral,
-    groupBreakBefore: true,
     groupLabel: "View",
   };
 
-  const topBarActions: WebGLTopBarAction[] = [
-    ...orderedCommandActions,
+  const paletteActions: WebGLTopBarAction[] = [
+    ...commandActions,
     ...selectionModeActions,
-    ...displayModeActions,
     ...transformOrientationActions,
     ...gumballAlignmentActions,
     ...pivotModeActions,
@@ -2558,474 +2789,378 @@ const ModelerSection = ({ onCaptureRequest, captureDisabled }: ModelerSectionPro
     captureAction,
   ];
 
+  const paletteGroups = useMemo(() => {
+    const groups = new Map<
+      string,
+      { label: string; actions: WebGLTopBarAction[]; accent: string }
+    >();
+    paletteActions.forEach((action) => {
+      const label = action.groupLabel ?? "Commands";
+      const group =
+        groups.get(label) ?? {
+          label,
+          actions: [],
+          accent: resolveRoslynGroupAccent(label),
+        };
+      group.actions.push(action);
+      groups.set(label, group);
+    });
+    return Array.from(groups.values());
+  }, [paletteActions]);
+
+  const paletteSections = useMemo(() => {
+    const groupMap = new Map(paletteGroups.map((group) => [group.label, group]));
+    return ROSLYN_PALETTE_SECTIONS.map((section) => {
+      const groups = section.groups
+        .map((label) => groupMap.get(label))
+        .filter((group): group is NonNullable<typeof group> => Boolean(group));
+      return { ...section, groups };
+    }).filter((section) => section.groups.length > 0);
+  }, [paletteGroups]);
+
   return (
     <>
       <section className={styles.section}>
-        <div className={styles.body}>
-          <div
-            className={styles.commandBarShell}
-            style={commandBarShellStyle}
-            onWheel={handleCommandBarWheel}
-            data-no-workspace-pan
-            data-collapsed={commandBarCollapsed ? "true" : "false"}
-          >
-            {commandBarCollapsed ? (
-              <div className={styles.commandBarCollapsed} style={commandBarScaleStyle}>
-                <WebGLButton
-                  type="button"
-                  className={styles.commandBarToggle}
-                  label="Expand command bar"
-                  iconId="brandRoslyn"
-                  hideLabel
-                  size="sm"
-                  variant="icon"
-                  shape="square"
-                  tooltip="Expand command bar"
-                  tooltipPosition="right"
-                  onClick={() => setCommandBarCollapsed(false)}
-                />
-              </div>
-            ) : (
+        <div className={styles.header}>
+          <div className={styles.headerCluster}>
+            <WebGLTitleLogo title="Roslyn" tone="roslyn" />
+            <div
+              className={styles.commandBarShell}
+              style={commandBarShellStyle}
+              onWheel={handleCommandBarWheel}
+              data-no-workspace-pan
+            >
               <div
                 className={styles.commandBar}
                 ref={commandBarRef}
                 style={commandBarScaleStyle}
               >
-                <div className={styles.commandBarHeader}>
-                  <div className={styles.commandBarTitle}>
-                    <WebGLTitleLogo
-                      title="Roslyn"
-                      tone="roslyn"
-                      className={styles.commandBarLogo}
-                    />
-                    <span className={styles.commandBarLabel}>Command Bar</span>
-                  </div>
-                  <div className={styles.commandBarControls}>
-                    <WebGLButton
-                      type="button"
-                      className={styles.commandBarToggle}
-                      label="Collapse command bar"
-                      iconId="chevronDown"
-                      hideLabel
-                      size="xs"
-                      variant="icon"
-                      shape="square"
-                      tooltip="Collapse command bar"
-                      tooltipPosition="bottom"
-                      onClick={() => setCommandBarCollapsed(true)}
-                    />
-                  </div>
+                <div className={styles.commandInputRow}>
+                  <input
+                    ref={commandInputRef}
+                    className={styles.commandInput}
+                    value={commandInput}
+                    onChange={(event) => {
+                      setCommandInput(event.target.value);
+                      if (commandError) setCommandError("");
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        handleCommandSubmit(commandSuggestion?.input);
+                      }
+                    }}
+                    placeholder="Command…"
+                  />
+                  <WebGLButton
+                    type="button"
+                    className={styles.commandActionPrimary}
+                    onClick={() => handleCommandSubmit(commandSuggestion?.input)}
+                    label="Run command"
+                    shortLabel="Run"
+                    iconId="run"
+                    variant="primary"
+                    accentColor="#00c2d1"
+                    elevated
+                    size="sm"
+                    tooltip="Run command"
+                  />
                 </div>
-                <div className={styles.commandPrimary}>
-                  <div className={styles.railSection}>
-                    <span className={styles.railTitle}>Command Line</span>
-                    <div className={styles.commandInputRow}>
-                      <input
-                        ref={commandInputRef}
-                        className={styles.commandInput}
-                        value={commandInput}
-                        onChange={(event) => {
-                          setCommandInput(event.target.value);
-                          if (commandError) setCommandError("");
-                        }}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            event.preventDefault();
-                            handleCommandSubmit();
-                          }
-                        }}
-                        placeholder="Type a command (e.g. polyline, move, extrude distance=1)"
-                      />
-                      <WebGLButton
-                        type="button"
-                        className={styles.commandActionPrimary}
-                        onClick={handleCommandSubmit}
-                        label="Run command"
-                        shortLabel="Run"
-                        iconId="run"
-                        variant="primary"
-                        size="sm"
-                        tooltip="Run command"
-                      />
-                    </div>
-                    {commandError && (
-                      <span className={styles.commandErrorText}>{commandError}</span>
-                    )}
-                    <span className={styles.commandHint}>
-                      Mouse-first: click or drag in the viewport.
-                    </span>
-                  </div>
-                  {activeCommand && (
-                    <div className={styles.railSection}>
-                      <span className={styles.railTitle}>Active Command</span>
-                      <div className={styles.activeCommandCard}>
-                        <span className={styles.activeCommandName}>
-                          {activeCommand.label}
+                {commandError && (
+                  <span className={styles.commandErrorText}>{commandError}</span>
+                )}
+                {!commandError && commandMatches.length > 0 && (
+                  <div className={styles.commandSuggestions}>
+                    <div className={styles.commandSuggestionsHeader}>
+                      <span className={styles.commandSuggestionsLabel}>Suggestions</span>
+                      {commandSuggestion && (
+                        <span className={styles.commandSuggestionsHint}>
+                          Enter to run {commandSuggestion.command.label}
                         </span>
-                        <span className={styles.activeCommandPrompt}>
-                          Click or drag in the viewport.
-                        </span>
-                        <div className={styles.commandActions}>
-                          {activeCommand.id === "gumball" &&
-                            extrudeCommand &&
-                            hasExtrudeProfile && (
-                              <WebGLButton
-                                type="button"
-                                className={styles.commandActionPrimary}
-                                onClick={() => handleCommandClick(extrudeCommand)}
-                                label="Extrude"
-                                iconId="extrude"
-                                iconTintOverride={resolveCommandIconTint("extrude")}
-                                variant="primary"
-                                size="sm"
-                                tooltip="Extrude selection"
-                              />
-                            )}
-                          {componentSelection.length === 0 && loftSelectionState.ready && (
-                            <WebGLButton
-                              type="button"
-                              className={styles.commandActionPrimary}
-                              onClick={() => {
-                                const loftCommand = COMMAND_DEFINITIONS.find(
-                                  (command) => command.id === "loft"
-                                );
-                                if (loftCommand) handleCommandClick(loftCommand);
-                              }}
-                              label="Loft selection"
-                              shortLabel="Loft"
-                              iconId="loft"
-                              iconTintOverride={resolveCommandIconTint("loft")}
-                              variant="primary"
-                              size="sm"
-                              tooltip="Loft selection"
-                            />
-                          )}
-                          <WebGLButton
-                            type="button"
-                            className={styles.commandAction}
-                            onClick={() => setActiveCommand(null)}
-                            label="Exit command"
-                            shortLabel="Exit"
-                            iconId="close"
-                            variant="ghost"
-                            size="sm"
-                            tooltip="Exit active command"
-                          />
-                        </div>
-                        <span className={styles.commandHint}>Esc exits.</span>
-                      </div>
+                      )}
                     </div>
-                  )}
-                  {activeCommand?.id === "primitive" && (
-                    <div className={styles.railSection}>
-                      <span className={styles.railTitle}>Primitive Options</span>
-                      <label className={styles.field}>
-                        <span>Type</span>
-                        <select
-                          className={styles.fieldInput}
-                          value={primitiveSettings.kind}
-                          onChange={(event) =>
-                            setPrimitiveSettings((prev) => ({
-                              ...prev,
-                              kind: event.target.value as typeof prev.kind,
-                            }))
-                          }
+                    <div className={styles.commandSuggestionList}>
+                      {commandMatches.map((command) => (
+                        <button
+                          key={command.id}
+                          type="button"
+                          className={styles.commandSuggestionItem}
+                          onClick={() => {
+                            const nextInput = buildSuggestionInput(command);
+                            setCommandError("");
+                            handleCommandSubmit(nextInput);
+                            commandInputRef.current?.focus();
+                          }}
                         >
-                          <option value="box">Box</option>
-                          <option value="sphere">Sphere</option>
-                          <option value="cylinder">Cylinder</option>
-                          <option value="torus">Torus</option>
-                        </select>
-                      </label>
-                      {primitiveSettings.kind === "box" && (
-                        <label className={styles.field}>
-                          <span>Size</span>
-                          <input
-                            className={styles.fieldInput}
-                            type="number"
-                            min="0.01"
-                            step="0.1"
-                            value={primitiveSettings.size}
-                            onChange={(event) =>
-                              setPrimitiveSettings((prev) => ({
-                                ...prev,
-                                size: Number(event.target.value),
-                              }))
-                            }
-                          />
-                        </label>
-                      )}
-                      {primitiveSettings.kind === "sphere" && (
-                        <label className={styles.field}>
-                          <span>Radius</span>
-                          <input
-                            className={styles.fieldInput}
-                            type="number"
-                            min="0.01"
-                            step="0.1"
-                            value={primitiveSettings.radius}
-                            onChange={(event) =>
-                              setPrimitiveSettings((prev) => ({
-                                ...prev,
-                                radius: Number(event.target.value),
-                              }))
-                            }
-                          />
-                        </label>
-                      )}
-                      {primitiveSettings.kind === "cylinder" && (
-                        <>
-                          <label className={styles.field}>
-                            <span>Radius</span>
-                            <input
-                              className={styles.fieldInput}
-                              type="number"
-                              min="0.01"
-                              step="0.1"
-                              value={primitiveSettings.radius}
-                              onChange={(event) =>
-                                setPrimitiveSettings((prev) => ({
-                                  ...prev,
-                                  radius: Number(event.target.value),
-                                }))
-                              }
-                            />
-                          </label>
-                          <label className={styles.field}>
-                            <span>Height</span>
-                            <input
-                              className={styles.fieldInput}
-                              type="number"
-                              min="0.01"
-                              step="0.1"
-                              value={primitiveSettings.height}
-                              onChange={(event) =>
-                                setPrimitiveSettings((prev) => ({
-                                  ...prev,
-                                  height: Number(event.target.value),
-                                }))
-                              }
-                            />
-                          </label>
-                        </>
-                      )}
-                      {primitiveSettings.kind === "torus" && (
-                        <>
-                          <label className={styles.field}>
-                            <span>Radius</span>
-                            <input
-                              className={styles.fieldInput}
-                              type="number"
-                              min="0.01"
-                              step="0.1"
-                              value={primitiveSettings.radius}
-                              onChange={(event) =>
-                                setPrimitiveSettings((prev) => ({
-                                  ...prev,
-                                  radius: Number(event.target.value),
-                                }))
-                              }
-                            />
-                          </label>
-                          <label className={styles.field}>
-                            <span>Tube</span>
-                            <input
-                              className={styles.fieldInput}
-                              type="number"
-                              min="0.01"
-                              step="0.05"
-                              value={primitiveSettings.tube}
-                              onChange={(event) =>
-                                setPrimitiveSettings((prev) => ({
-                                  ...prev,
-                                  tube: Number(event.target.value),
-                                }))
-                              }
-                            />
-                          </label>
-                        </>
-                      )}
-                      <label className={styles.field}>
-                        <span>Segments</span>
-                        <input
-                          className={styles.fieldInput}
-                          type="number"
-                          min="6"
-                          step="1"
-                          value={primitiveSettings.radialSegments}
-                          onChange={(event) =>
-                            setPrimitiveSettings((prev) => ({
-                              ...prev,
-                              radialSegments: Math.max(
-                                6,
-                                Math.round(Number(event.target.value))
-                              ),
-                            }))
-                          }
-                        />
-                      </label>
-                      {primitiveSettings.kind === "torus" && (
-                        <label className={styles.field}>
-                          <span>Tubular Segments</span>
-                          <input
-                            className={styles.fieldInput}
-                            type="number"
-                            min="8"
-                            step="1"
-                            value={primitiveSettings.tubularSegments}
-                            onChange={(event) =>
-                              setPrimitiveSettings((prev) => ({
-                                ...prev,
-                                tubularSegments: Math.max(
-                                  8,
-                                  Math.round(Number(event.target.value))
-                                ),
-                              }))
-                            }
-                          />
-                        </label>
-                      )}
+                          <span className={styles.commandSuggestionName}>
+                            {command.label}
+                          </span>
+                          <span className={styles.commandSuggestionMeta}>
+                            {command.id}
+                          </span>
+                          <span className={styles.commandSuggestionPrompt}>
+                            {command.prompt}
+                          </span>
+                        </button>
+                      ))}
                     </div>
-                  )}
-                  {activeCommand?.id === "rectangle" && (
-                    <div className={styles.railSection}>
-                      <span className={styles.railTitle}>Rectangle Options</span>
-                      <label className={styles.field}>
-                        <span>Width</span>
-                        <input
-                          className={styles.fieldInput}
-                          type="number"
-                          min="0.01"
-                          step="0.1"
-                          value={rectangleSettings.width}
-                          onChange={(event) =>
-                            setRectangleSettings((prev) => ({
-                              ...prev,
-                              width: Number(event.target.value),
-                            }))
-                          }
-                        />
-                      </label>
-                      <label className={styles.field}>
-                        <span>Height</span>
-                        <input
-                          className={styles.fieldInput}
-                          type="number"
-                          min="0.01"
-                          step="0.1"
-                          value={rectangleSettings.height}
-                          onChange={(event) =>
-                            setRectangleSettings((prev) => ({
-                              ...prev,
-                              height: Number(event.target.value),
-                            }))
-                          }
-                        />
-                      </label>
-                    </div>
-                  )}
-                  {activeCommand?.id === "circle" && (
-                    <div className={styles.railSection}>
-                      <span className={styles.railTitle}>Circle Options</span>
-                      <label className={styles.field}>
-                        <span>Radius</span>
-                        <input
-                          className={styles.fieldInput}
-                          type="number"
-                          min="0.01"
-                          step="0.1"
-                          value={circleSettings.radius}
-                          onChange={(event) =>
-                            setCircleSettings((prev) => ({
-                              ...prev,
-                              radius: Number(event.target.value),
-                            }))
-                          }
-                        />
-                      </label>
-                      <label className={styles.field}>
-                        <span>Segments</span>
-                        <input
-                          className={styles.fieldInput}
-                          type="number"
-                          min="8"
-                          step="1"
-                          value={circleSettings.segments}
-                          onChange={(event) =>
-                            setCircleSettings((prev) => ({
-                              ...prev,
-                              segments: Math.max(
-                                8,
-                                Math.round(Number(event.target.value))
-                              ),
-                            }))
-                          }
-                        />
-                      </label>
-                    </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
+            </div>
+          </div>
+          <div className={styles.headerCluster}>
+            <IconButton
+              size="sm"
+              label="Capture viewport"
+              iconId="capture"
+              tooltip="Capture a render of the current viewport"
+              tooltipPosition="bottom"
+              onClick={handleCapture}
+              disabled={captureDisabled}
+            />
+            {onToggleFullscreen && (
+              <IconButton
+                size="sm"
+                label={isFullscreen ? "Exit full screen" : "Enter full screen"}
+                iconId={isFullscreen ? "close" : "frameAll"}
+                tooltip={isFullscreen ? "Exit full screen" : "Full screen"}
+                tooltipPosition="bottom"
+                onClick={onToggleFullscreen}
+              />
             )}
           </div>
-          <WebGLPanelTopBar
-            actions={topBarActions}
-            label="WEBGL"
-            logoTone="roslyn"
-            className={styles.commandWebglTopBar}
-            panelScale={panelScale}
-            onPanelScaleChange={handlePanelScaleChange}
-          />
+        </div>
+        <div className={styles.body}>
           <div className={styles.viewer} data-panel-drag="true" ref={viewerRef}>
+            <div
+              className={styles.paletteDock}
+              data-collapsed={paletteCollapsed ? "true" : "false"}
+            >
+              {paletteCollapsed ? (
+                <WebGLButton
+                  type="button"
+                  className={styles.paletteToggle}
+                  label="Open Roslyn palette"
+                  iconId="brandRoslyn"
+                  hideLabel
+                  size="sm"
+                  variant="icon"
+                  shape="square"
+                  tooltip="Open Roslyn palette"
+                  tooltipPosition="right"
+                  onClick={() => setPaletteCollapsed(false)}
+                />
+              ) : (
+                <aside className={styles.palette} ref={paletteRef}>
+                  <div className={styles.paletteHeader}>
+                    <div className={styles.paletteHeaderText}>
+                      <span className={styles.paletteTitle}>Command Library</span>
+                      <WebGLTitleLogo
+                        title="Roslyn"
+                        tone="roslyn"
+                        className={styles.paletteSubtitleLogo}
+                      />
+                    </div>
+                    <div className={styles.paletteControls}>
+                      <WebGLButton
+                        type="button"
+                        label="Collapse palette"
+                        iconId="chevronDown"
+                        hideLabel
+                        size="xs"
+                        variant="icon"
+                        shape="square"
+                        onClick={() => setPaletteCollapsed(true)}
+                      />
+                    </div>
+                  </div>
+                  <div className={styles.paletteGroups}>
+                    {paletteSections.map((section) => (
+                      <div key={section.id} className={styles.paletteSection}>
+                        <div className={styles.paletteSectionHeader}>
+                          <span className={styles.paletteSectionTitle}>
+                            {section.label}
+                          </span>
+                          <span className={styles.paletteSectionMeta}>
+                            {section.description}
+                          </span>
+                        </div>
+                        <div className={styles.paletteSectionGroups}>
+                          {section.groups.map((group) => (
+                            <div key={group.label} className={styles.paletteGroup}>
+                              <div className={styles.paletteGroupHeader}>
+                                <span
+                                  className={styles.paletteGroupDot}
+                                  style={{ backgroundColor: group.accent }}
+                                  aria-hidden="true"
+                                />
+                                <div className={styles.paletteGroupText}>
+                                  <span className={styles.paletteGroupTitle}>
+                                    {group.label}
+                                  </span>
+                                  <span className={styles.paletteGroupMeta}>
+                                    {group.actions.length} tools
+                                  </span>
+                                </div>
+                              </div>
+                              <div className={styles.paletteGroupGrid}>
+                                {group.actions.map((action) => (
+                                  <WebGLButton
+                                    key={action.id}
+                                    type="button"
+                                    className={styles.paletteItem}
+                                    style={
+                                      group.accent
+                                        ? ({
+                                            ["--palette-accent" as string]: group.accent,
+                                          } as CSSProperties)
+                                        : undefined
+                                    }
+                                    label={action.label}
+                                    shortLabel={resolveTopBarShortLabel(action)}
+                                    iconId={action.icon ?? "primitive"}
+                                    variant="palette"
+                                    shape="square"
+                                    accentColor={group.accent}
+                                    tooltip={action.tooltip}
+                                    tooltipPosition="bottom"
+                                    disabled={action.isDisabled}
+                                    onClick={action.onClick}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </aside>
+              )}
+            </div>
             <div
               className={styles.viewerInner}
               onContextMenu={(event) => event.preventDefault()}
               data-no-workspace-pan
               data-panel-drag="true"
+              data-fullscreen={isFullscreen ? "true" : "false"}
             >
-              <WebGLViewerCanvas
-                activeCommandId={activeCommand?.id ?? null}
-                commandRequest={commandRequest}
-                primitiveSettings={primitiveSettings}
-                rectangleSettings={rectangleSettings}
-                circleSettings={circleSettings}
-              />
+              {isFullscreen ? (
+                <div className={styles.viewerGrid}>
+                  <div className={styles.viewerCell}>
+                    <div className={styles.viewerCellLabel}>Axonometric</div>
+                    <WebGLViewerCanvas
+                      activeCommandId={activeCommand?.id ?? null}
+                      commandRequest={commandRequest}
+                      primitiveSettings={primitiveSettings}
+                      rectangleSettings={rectangleSettings}
+                      circleSettings={circleSettings}
+                      onCommandComplete={handleCommandComplete}
+                    />
+                  </div>
+                  <div className={`${styles.viewerCell} ${styles.viewerCellPassive}`}>
+                    <div className={styles.viewerCellLabel}>Top</div>
+                    <WebGLViewerCanvas
+                      activeCommandId={activeCommand?.id ?? null}
+                      commandRequest={commandRequest}
+                      primitiveSettings={primitiveSettings}
+                      rectangleSettings={rectangleSettings}
+                      circleSettings={circleSettings}
+                      onCommandComplete={handleCommandComplete}
+                      cameraOverride={topCamera}
+                      interactionsEnabled={false}
+                    />
+                  </div>
+                  <div className={`${styles.viewerCell} ${styles.viewerCellPassive}`}>
+                    <div className={styles.viewerCellLabel}>Left</div>
+                    <WebGLViewerCanvas
+                      activeCommandId={activeCommand?.id ?? null}
+                      commandRequest={commandRequest}
+                      primitiveSettings={primitiveSettings}
+                      rectangleSettings={rectangleSettings}
+                      circleSettings={circleSettings}
+                      onCommandComplete={handleCommandComplete}
+                      cameraOverride={leftCamera}
+                      interactionsEnabled={false}
+                    />
+                  </div>
+                  <div className={`${styles.viewerCell} ${styles.viewerCellPassive}`}>
+                    <div className={styles.viewerCellLabel}>Right</div>
+                    <WebGLViewerCanvas
+                      activeCommandId={activeCommand?.id ?? null}
+                      commandRequest={commandRequest}
+                      primitiveSettings={primitiveSettings}
+                      rectangleSettings={rectangleSettings}
+                      circleSettings={circleSettings}
+                      onCommandComplete={handleCommandComplete}
+                      cameraOverride={rightCamera}
+                      interactionsEnabled={false}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <WebGLViewerCanvas
+                  activeCommandId={activeCommand?.id ?? null}
+                  commandRequest={commandRequest}
+                  primitiveSettings={primitiveSettings}
+                  rectangleSettings={rectangleSettings}
+                  circleSettings={circleSettings}
+                  onCommandComplete={handleCommandComplete}
+                />
+              )}
             </div>
-            <div className={styles.viewerOverlay} data-no-workspace-pan>
-              <div className={styles.overlayQuickBar}>
-                <label className={styles.overlayField}>
-                  <span>Filter</span>
-                  <select
-                    value={selectionMode}
-                    onChange={(event) =>
-                      setSelectionMode(event.target.value as typeof selectionMode)
-                    }
-                    aria-label="Selection filter"
-                  >
-                    <option value="object">Object</option>
-                    <option value="vertex">Vertex</option>
-                    <option value="edge">Edge</option>
-                    <option value="face">Face</option>
-                  </select>
-                </label>
-                <div className={styles.overlaySlider}>
-                  <WebGLSlider
-                    label="Solidity"
-                    tooltip="Scrub to fade solids into ghosted and wireframe views."
-                    iconId="displayMode"
-                    value={viewSolidity}
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    onChange={setViewSolidity}
-                    variant="command"
-                    size="sm"
-                    shape="rounded"
-                    accentColor="#00c2d1"
-                    className={styles.overlaySliderControl}
-                  />
+            {isFullscreen && (
+              <div className={styles.numericaMinimap} aria-hidden="true">
+                <div className={styles.numericaMinimapLabel}>Numerica</div>
+                <div className={styles.numericaMinimapCanvas} ref={minimapRef}>
+                  {minimapSize.width > 0 && minimapSize.height > 0 && (
+                    <NumericalCanvas
+                      width={minimapSize.width}
+                      height={minimapSize.height}
+                      mode="minimap"
+                    />
+                  )}
                 </div>
               </div>
+            )}
+            <div className={styles.viewerModeCorner} data-no-workspace-pan>
+              <WebGLSlider
+                label="View"
+                tooltip="Slide between Solid, Ghosted, and Wireframe."
+                iconId="displayMode"
+                value={viewSolidity}
+                min={0}
+                max={1}
+                step={0.00025}
+                onChange={setViewSolidity}
+                variant="command"
+                size="sm"
+                shape="rounded"
+                accentColor="#00c2d1"
+                className={styles.viewerModeControl}
+                onPointerDown={(event) => event.stopPropagation()}
+                onPointerUp={(event) => event.stopPropagation()}
+                onPointerCancel={(event) => event.stopPropagation()}
+              />
+              <WebGLSlider
+                label="Sheen"
+                tooltip="Glossy highlight intensity (white light)."
+                iconId="sphere"
+                value={viewSettings.sheen ?? 0.08}
+                min={0}
+                max={0.15}
+                step={0.005}
+                onChange={(value) => setViewSettings({ sheen: value })}
+                variant="command"
+                size="sm"
+                shape="rounded"
+                accentColor="#f7f3ea"
+                className={styles.viewerModeControl}
+                onPointerDown={(event) => event.stopPropagation()}
+                onPointerUp={(event) => event.stopPropagation()}
+                onPointerCancel={(event) => event.stopPropagation()}
+              />
             </div>
           </div>
         </div>

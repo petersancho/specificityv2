@@ -93,6 +93,20 @@ export const isWorkflowNodeInvalid = (
       return parsePointsText(safeData.pointsText).length < 2;
     case "surface":
       return parsePointsText(safeData.pointsText).length < 3;
+    case "rectangle": {
+      const parameters = safeData.parameters;
+      if (!parameters) return false;
+      const width = parseFiniteNumber(parameters.width) ?? 0;
+      const height = parseFiniteNumber(parameters.height) ?? 0;
+      return width <= 0 || height <= 0;
+    }
+    case "circle": {
+      const parameters = safeData.parameters;
+      if (!parameters) return false;
+      const radius = parseFiniteNumber(parameters.radius) ?? 0;
+      const segments = parseFiniteNumber(parameters.segments) ?? 0;
+      return radius <= 0 || segments < 8;
+    }
     case "box": {
       const dims = safeData.boxDimensions;
       if (!dims) return true;
@@ -109,6 +123,25 @@ export const isWorkflowNodeInvalid = (
       const radius = safeData.sphereRadius;
       return !isFiniteNumber(radius) || radius <= 0;
     }
+    case "meshConvert": {
+      const parameters = safeData.parameters;
+      if (!parameters) return false;
+      return (
+        isInvalidNumberParameter(parameters, "distance") ||
+        isInvalidNumberParameter(parameters, "radius") ||
+        isInvalidVectorParameters(parameters, "direction")
+      );
+    }
+    case "stlExport": {
+      const parameters = safeData.parameters;
+      if (!parameters) return false;
+      return isInvalidNumberParameter(parameters, "scale");
+    }
+    case "stlImport": {
+      const parameters = safeData.parameters;
+      if (!parameters) return false;
+      return isInvalidNumberParameter(parameters, "scale");
+    }
     case "move": {
       const geometryId =
         typeof safeData.outputs?.geometry === "string"
@@ -121,6 +154,134 @@ export const isWorkflowNodeInvalid = (
         isInvalidNumberParameter(parameters, "worldY") ||
         isInvalidNumberParameter(parameters, "worldZ")
       );
+    }
+    case "rotate": {
+      const geometryId =
+        typeof safeData.outputs?.geometry === "string"
+          ? safeData.outputs.geometry
+          : safeData.geometryId;
+      if (!geometryId) return true;
+      const parameters = safeData.parameters;
+      return (
+        isInvalidVectorParameters(parameters, "axis") ||
+        isInvalidVectorParameters(parameters, "pivot") ||
+        isInvalidNumberParameter(parameters, "angle")
+      );
+    }
+    case "scale": {
+      const geometryId =
+        typeof safeData.outputs?.geometry === "string"
+          ? safeData.outputs.geometry
+          : safeData.geometryId;
+      if (!geometryId) return true;
+      const parameters = safeData.parameters;
+      if (!parameters) return false;
+      if (
+        isInvalidVectorParameters(parameters, "scale") ||
+        isInvalidVectorParameters(parameters, "pivot")
+      ) {
+        return true;
+      }
+      const sx = parseFiniteNumber(parameters.scaleX) ?? 1;
+      const sy = parseFiniteNumber(parameters.scaleY) ?? 1;
+      const sz = parseFiniteNumber(parameters.scaleZ) ?? 1;
+      return sx === 0 || sy === 0 || sz === 0;
+    }
+    case "loft": {
+      const geometryId =
+        typeof safeData.outputs?.geometry === "string"
+          ? safeData.outputs.geometry
+          : safeData.geometryId;
+      if (!geometryId) return true;
+      return false;
+    }
+    case "extrude": {
+      const geometryId =
+        typeof safeData.outputs?.geometry === "string"
+          ? safeData.outputs.geometry
+          : safeData.geometryId;
+      if (!geometryId) return true;
+      const parameters = safeData.parameters;
+      if (!parameters) return false;
+      return isInvalidNumberParameter(parameters, "distance") ||
+        isInvalidVectorParameters(parameters, "direction");
+    }
+    case "offset": {
+      const geometryId =
+        typeof safeData.outputs?.geometry === "string"
+          ? safeData.outputs.geometry
+          : safeData.geometryId;
+      if (!geometryId) return true;
+      const parameters = safeData.parameters;
+      if (!parameters) return false;
+      return (
+        isInvalidNumberParameter(parameters, "distance") ||
+        isInvalidNumberParameter(parameters, "samples")
+      );
+    }
+    case "boolean": {
+      const geometryId =
+        typeof safeData.outputs?.geometry === "string"
+          ? safeData.outputs.geometry
+          : safeData.geometryId;
+      if (!geometryId) return true;
+      const op = String(safeData.parameters?.operation ?? "union");
+      return !["union", "difference", "intersection"].includes(op);
+    }
+    case "measurement": {
+      const parameters = safeData.parameters;
+      if (!parameters) return false;
+      const property = String(parameters.property ?? "length");
+      return ![
+        "length",
+        "area",
+        "volume",
+        "boundsX",
+        "boundsY",
+        "boundsZ",
+      ].includes(property);
+    }
+    case "geometryArray": {
+      const parameters = safeData.parameters;
+      if (!parameters) return false;
+      if (
+        isInvalidNumberParameter(parameters, "spacing") ||
+        isInvalidNumberParameter(parameters, "count") ||
+        isInvalidNumberParameter(parameters, "xSpacing") ||
+        isInvalidNumberParameter(parameters, "ySpacing") ||
+        isInvalidNumberParameter(parameters, "xCount") ||
+        isInvalidNumberParameter(parameters, "yCount")
+      ) {
+        return true;
+      }
+      const count = parseFiniteNumber(parameters.count) ?? 1;
+      const xCount = parseFiniteNumber(parameters.xCount) ?? 1;
+      const yCount = parseFiniteNumber(parameters.yCount) ?? 1;
+      return count < 1 || xCount < 1 || yCount < 1;
+    }
+    case "voxelizeGeometry": {
+      const parameters = safeData.parameters;
+      if (!parameters) return false;
+      if (
+        isInvalidNumberParameter(parameters, "resolution") ||
+        isInvalidNumberParameter(parameters, "padding") ||
+        isInvalidNumberParameter(parameters, "thickness")
+      ) {
+        return true;
+      }
+      const resolution = parseFiniteNumber(parameters.resolution) ?? 12;
+      if (resolution <= 0) return true;
+      return false;
+    }
+    case "extractIsosurface": {
+      const parameters = safeData.parameters;
+      if (!parameters) return false;
+      if (isInvalidNumberParameter(parameters, "isoValue")) {
+        return true;
+      }
+      const isoValue = parseFiniteNumber(parameters.isoValue) ?? 0.5;
+      if (isoValue < 0 || isoValue > 1) return true;
+      return false;
     }
     case "topologyOptimize": {
       const parameters = safeData.parameters;
@@ -290,6 +451,56 @@ export const isWorkflowNodeInvalid = (
       if (isInvalidNumberParameter(parameters, "count")) return true;
       const count = parseFiniteNumber(parameters.count) ?? 1;
       return count <= 0;
+    }
+    case "linearArray": {
+      const parameters = safeData.parameters;
+      if (!parameters) return false;
+      if (
+        isInvalidVectorParameters(parameters, "base") ||
+        isInvalidVectorParameters(parameters, "direction") ||
+        isInvalidNumberParameter(parameters, "count") ||
+        isInvalidNumberParameter(parameters, "spacing")
+      ) {
+        return true;
+      }
+      const count = parseFiniteNumber(parameters.count) ?? 1;
+      return count <= 0;
+    }
+    case "polarArray": {
+      const parameters = safeData.parameters;
+      if (!parameters) return false;
+      if (
+        isInvalidVectorParameters(parameters, "center") ||
+        isInvalidVectorParameters(parameters, "axis") ||
+        isInvalidVectorParameters(parameters, "reference") ||
+        isInvalidNumberParameter(parameters, "count") ||
+        isInvalidNumberParameter(parameters, "radius") ||
+        isInvalidNumberParameter(parameters, "startAngle") ||
+        isInvalidNumberParameter(parameters, "sweep")
+      ) {
+        return true;
+      }
+      const count = parseFiniteNumber(parameters.count) ?? 1;
+      const radius = parseFiniteNumber(parameters.radius) ?? 0;
+      return count <= 0 || radius < 0;
+    }
+    case "gridArray": {
+      const parameters = safeData.parameters;
+      if (!parameters) return false;
+      if (
+        isInvalidVectorParameters(parameters, "origin") ||
+        isInvalidVectorParameters(parameters, "xAxis") ||
+        isInvalidVectorParameters(parameters, "yAxis") ||
+        isInvalidNumberParameter(parameters, "xCount") ||
+        isInvalidNumberParameter(parameters, "yCount") ||
+        isInvalidNumberParameter(parameters, "xSpacing") ||
+        isInvalidNumberParameter(parameters, "ySpacing")
+      ) {
+        return true;
+      }
+      const xCount = parseFiniteNumber(parameters.xCount) ?? 1;
+      const yCount = parseFiniteNumber(parameters.yCount) ?? 1;
+      return xCount <= 0 || yCount <= 0;
     }
     case "listSlice": {
       const parameters = safeData.parameters;

@@ -4,6 +4,7 @@ import { NumericalCanvas } from "./NumericalCanvas";
 import IconButton from "../ui/IconButton";
 import WebGLButton from "../ui/WebGLButton";
 import WebGLTitleLogo from "../WebGLTitleLogo";
+import { arrayBufferToBase64 } from "../../utils/binary";
 import {
   NODE_CATEGORIES,
   NODE_CATEGORY_BY_ID,
@@ -15,7 +16,10 @@ import {
 } from "./nodeCatalog";
 import styles from "./WorkflowSection.module.css";
 
-const nodeOptions = NODE_DEFINITIONS;
+const nodeOptions = NODE_DEFINITIONS.filter(
+  (definition) => definition.type !== "primitive"
+);
+const legacyNodeTypes = new Set<NodeType>(["primitive"]);
 
 const PALETTE_COLLAPSED_KEY = "specificity.numericaPaletteCollapsed";
 
@@ -28,8 +32,8 @@ const PALETTE_SECTIONS: Array<{
   {
     id: "geometry",
     label: "Geometry",
-    description: "Primitives, curves, surfaces",
-    categories: ["primitives", "curves", "surfaces"],
+    description: "Primitives, curves, NURBS, surfaces",
+    categories: ["primitives", "curves", "nurbs", "surfaces", "modifiers"],
   },
   {
     id: "transform",
@@ -38,10 +42,28 @@ const PALETTE_SECTIONS: Array<{
     categories: ["transforms", "euclidean"],
   },
   {
+    id: "arrays",
+    label: "Arrays",
+    description: "Linear, polar, grid distributions",
+    categories: ["arrays"],
+  },
+  {
+    id: "interop",
+    label: "Interchange",
+    description: "Import, export, mesh conversion",
+    categories: ["interop"],
+  },
+  {
     id: "data",
     label: "Data",
     description: "Lists, ranges, analysis",
-    categories: ["data", "basics", "lists", "ranges", "signals", "analysis", "optimization"],
+    categories: ["data", "basics", "lists", "ranges", "signals", "analysis", "measurement", "optimization"],
+  },
+  {
+    id: "voxel",
+    label: "Voxel Optimization",
+    description: "Voxel grids and solvers",
+    categories: ["voxel"],
   },
   {
     id: "logic",
@@ -54,10 +76,18 @@ const PALETTE_SECTIONS: Array<{
 type WorkflowSectionProps = {
   onCaptureRequest?: (element: HTMLElement) => Promise<void> | void;
   captureDisabled?: boolean;
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 };
 
-const WorkflowSection = ({ onCaptureRequest, captureDisabled }: WorkflowSectionProps) => {
+const WorkflowSection = ({
+  onCaptureRequest,
+  captureDisabled,
+  isFullscreen = false,
+  onToggleFullscreen,
+}: WorkflowSectionProps) => {
   const [selectedType, setSelectedType] = useState<NodeType>("number");
+  const [nodeQuery, setNodeQuery] = useState("");
   const nodes = useProjectStore((state) => state.workflow.nodes);
   const edges = useProjectStore((state) => state.workflow.edges);
   const addNode = useProjectStore((state) => state.addNode);
@@ -69,11 +99,13 @@ const WorkflowSection = ({ onCaptureRequest, captureDisabled }: WorkflowSectionP
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem(PALETTE_COLLAPSED_KEY) === "true";
   });
+  const paletteRef = useRef<HTMLElement | null>(null);
 
-  const supportedTypes = useMemo(
-    () => new Set(nodeOptions.map((option) => option.type)),
-    []
-  );
+  const supportedTypes = useMemo(() => {
+    const next = new Set(nodeOptions.map((option) => option.type));
+    legacyNodeTypes.forEach((type) => next.add(type));
+    return next;
+  }, []);
   const filteredNodes = useMemo(
     () =>
       nodes.filter(
@@ -89,8 +121,27 @@ const WorkflowSection = ({ onCaptureRequest, captureDisabled }: WorkflowSectionP
   }, [edges, filteredNodes]);
 
   const paletteSections = useMemo(() => {
+    const normalizedQuery = nodeQuery.trim().toLowerCase();
+    const paletteDefinitions =
+      normalizedQuery.length === 0
+        ? nodeOptions
+        : nodeOptions.filter((definition) => {
+            const categoryLabel =
+              NODE_CATEGORY_BY_ID.get(definition.category)?.label.toLowerCase() ?? "";
+            const haystack = [
+              definition.label,
+              definition.shortLabel,
+              definition.description,
+              definition.type,
+              categoryLabel,
+            ]
+              .filter(Boolean)
+              .map((value) => String(value).toLowerCase())
+              .join(" ");
+            return haystack.includes(normalizedQuery);
+          });
     const groupMap = new Map<NodeCategory["id"], typeof nodeOptions>();
-    nodeOptions.forEach((definition) => {
+    paletteDefinitions.forEach((definition) => {
       const list = groupMap.get(definition.category);
       if (list) {
         list.push(definition);
@@ -131,7 +182,29 @@ const WorkflowSection = ({ onCaptureRequest, captureDisabled }: WorkflowSectionP
     }
 
     return sections;
-  }, []);
+  }, [nodeQuery]);
+
+  const normalizedQuery = nodeQuery.trim().toLowerCase();
+  const filteredNodeOptions = useMemo(() => {
+    if (normalizedQuery.length === 0) return nodeOptions;
+    return nodeOptions.filter((definition) => {
+      const categoryLabel =
+        NODE_CATEGORY_BY_ID.get(definition.category)?.label.toLowerCase() ?? "";
+      const haystack = [
+        definition.label,
+        definition.shortLabel,
+        definition.description,
+        definition.type,
+        categoryLabel,
+      ]
+        .filter(Boolean)
+        .map((value) => String(value).toLowerCase())
+        .join(" ");
+      return haystack.includes(normalizedQuery);
+    });
+  }, [normalizedQuery]);
+  const searchPrimaryOption =
+    normalizedQuery.length === 0 ? null : filteredNodeOptions[0] ?? null;
 
   const selectedNode = useMemo(
     () => nodes.filter((node) => node.selected).at(-1) ?? null,
@@ -221,6 +294,21 @@ const WorkflowSection = ({ onCaptureRequest, captureDisabled }: WorkflowSectionP
     window.localStorage.setItem(PALETTE_COLLAPSED_KEY, String(paletteCollapsed));
   }, [paletteCollapsed]);
 
+  useEffect(() => {
+    if (paletteCollapsed) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (event.button !== 0) return;
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (paletteRef.current?.contains(target)) return;
+      setPaletteCollapsed(true);
+    };
+    document.addEventListener("pointerdown", handlePointerDown, { capture: true });
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown, { capture: true });
+    };
+  }, [paletteCollapsed]);
+
   const canvasRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
 
@@ -243,6 +331,11 @@ const WorkflowSection = ({ onCaptureRequest, captureDisabled }: WorkflowSectionP
     if (!canvasRef.current || !onCaptureRequest) return;
     const container = canvasRef.current;
     await onCaptureRequest(container);
+  };
+
+  const handleAddType = (type: NodeType) => {
+    addNode(type);
+    setSelectedType(type);
   };
 
   const startPaletteDrag = (type: NodeType, event: React.PointerEvent) => {
@@ -339,49 +432,32 @@ const WorkflowSection = ({ onCaptureRequest, captureDisabled }: WorkflowSectionP
       <div className={styles.header}>
         <div className={styles.headerCluster}>
           <WebGLTitleLogo title="Numerica" tone="numerica" />
-          <div className={styles.headerSelect}>
-            <span className={styles.srOnly}>Component type</span>
-            <select
-              value={selectedType}
-              onChange={(event) => setSelectedType(event.target.value as NodeType)}
-              aria-label="Component type"
-            >
-              {nodeOptions.map((option) => (
-                <option key={option.type} value={option.type}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+          <div className={styles.headerSearch}>
+            <span className={styles.srOnly}>Search nodes</span>
+            <input
+              className={styles.headerSearchInput}
+              type="search"
+              placeholder="Search nodes…"
+              value={nodeQuery}
+              onChange={(event) => setNodeQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && searchPrimaryOption) {
+                  event.preventDefault();
+                  handleAddType(searchPrimaryOption.type);
+                }
+              }}
+              aria-label="Search nodes"
+            />
+            <span className={styles.headerSearchMeta} aria-live="polite">
+              {normalizedQuery.length === 0
+                ? "Type to search"
+                : searchPrimaryOption
+                  ? `Add: ${searchPrimaryOption.label}`
+                  : "No matches"}
+            </span>
           </div>
         </div>
         <div className={styles.headerCluster}>
-          <IconButton
-            size="sm"
-            label="Add selected node type"
-            iconId="add"
-            variant="primary"
-            tooltip="Add selected node type"
-            tooltipPosition="bottom"
-            onClick={() => addNode(selectedType)}
-          />
-          <IconButton
-            size="sm"
-            label="Undo workflow action"
-            iconId="undo"
-            tooltip="Undo workflow action"
-            tooltipPosition="bottom"
-            onClick={undoWorkflow}
-          />
-          <IconButton
-            size="sm"
-            label="Prune unsupported nodes"
-            iconId="prune"
-            variant="ghost"
-            accentColor="#ef4444"
-            tooltip="Prune unsupported nodes"
-            tooltipPosition="bottom"
-            onClick={pruneWorkflow}
-          />
           <IconButton
             size="sm"
             label="Capture workflow canvas"
@@ -391,6 +467,16 @@ const WorkflowSection = ({ onCaptureRequest, captureDisabled }: WorkflowSectionP
             onClick={handleCapture}
             disabled={captureDisabled}
           />
+          {onToggleFullscreen && (
+            <IconButton
+              size="sm"
+              label={isFullscreen ? "Exit full screen" : "Enter full screen"}
+              iconId={isFullscreen ? "close" : "frameAll"}
+              tooltip={isFullscreen ? "Exit full screen" : "Full screen"}
+              tooltipPosition="bottom"
+              onClick={onToggleFullscreen}
+            />
+          )}
         </div>
       </div>
 
@@ -423,7 +509,7 @@ const WorkflowSection = ({ onCaptureRequest, captureDisabled }: WorkflowSectionP
                 onClick={() => setPaletteCollapsed(false)}
               />
             ) : (
-              <aside className={styles.palette}>
+              <aside className={styles.palette} ref={paletteRef}>
                 <div className={styles.paletteHeader}>
                   <div className={styles.paletteHeaderText}>
                     <span className={styles.paletteTitle}>Node Library</span>
@@ -499,7 +585,7 @@ const WorkflowSection = ({ onCaptureRequest, captureDisabled }: WorkflowSectionP
                                       onPointerDown={(event) =>
                                         startPaletteDrag(option.type, event)
                                       }
-                                      onClick={() => addNode(option.type)}
+                                      onClick={() => handleAddType(option.type)}
                                     />
                                   );
                                 })}
@@ -534,6 +620,31 @@ const WorkflowSection = ({ onCaptureRequest, captureDisabled }: WorkflowSectionP
                             const value =
                               selectedNodeContext.parameters[parameter.key] ??
                               parameter.defaultValue;
+
+                            if (parameter.type === "file") {
+                              return (
+                                <label key={parameter.key} className={styles.parameterRow}>
+                                  <span className={styles.parameterLabel}>
+                                    {parameter.label}
+                                  </span>
+                                  <input
+                                    className={styles.parameterControl}
+                                    type="file"
+                                    accept={parameter.accept}
+                                    onChange={async (event) => {
+                                      const file = event.target.files?.[0];
+                                      if (!file) return;
+                                      const buffer = await file.arrayBuffer();
+                                      setParameter(parameter.key, {
+                                        name: file.name,
+                                        type: file.type,
+                                        data: arrayBufferToBase64(buffer),
+                                      });
+                                    }}
+                                  />
+                                </label>
+                              );
+                            }
 
                             if (parameter.type === "select") {
                               const selectedValue = String(value ?? parameter.defaultValue);

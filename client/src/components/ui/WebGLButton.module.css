@@ -31,22 +31,21 @@
   cursor: pointer;
   user-select: none;
   transition: transform 120ms ease, filter 120ms ease, box-shadow 120ms ease;
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.14);
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.18);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.55);
   isolation: isolate;
 }
 
 .button[data-state="hover"]:not(:disabled) {
-  filter: brightness(1.02) saturate(1.03);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.45);
 }
 
 .button[data-state="pressed"]:not(:disabled) {
   transform: translateY(1px);
-  filter: saturate(1.06);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
 }
 
 .button[data-active="true"]:not(:disabled) {
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
 }
 
 .button:disabled {
@@ -82,7 +81,6 @@
   object-fit: contain;
   display: block;
   pointer-events: none;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.24));
 }
 
 .label {

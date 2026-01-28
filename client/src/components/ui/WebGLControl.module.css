@@ -121,7 +121,7 @@
 }
 
 .slider {
-  cursor: pointer;
+  cursor: ew-resize;
 }
 
 .sliderInput {
@@ -132,10 +132,66 @@
   opacity: 0;
   cursor: pointer;
   margin: 0;
+  z-index: 3;
 }
 
 .sliderInput:disabled {
   cursor: not-allowed;
+}
+
+.sliderTrackWrap {
+  position: relative;
+  flex: 1;
+  height: 12px;
+  min-width: 140px;
+  pointer-events: none;
+}
+
+.sliderTrack {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 6px;
+  border-radius: 999px;
+  transform: translateY(-50%);
+  background: color-mix(in srgb, var(--webgl-button-fallback-border) 65%, transparent);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.sliderFill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: inherit;
+  transition: width 160ms linear;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--webgl-slider-accent) 72%, #ffffff) 0%,
+    color-mix(in srgb, var(--webgl-slider-accent) 92%, #0d0d0d) 100%
+  );
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--webgl-slider-accent) 40%, transparent);
+}
+
+.sliderThumb {
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: left 160ms linear;
+  background: radial-gradient(
+    circle at 35% 35%,
+    #ffffff 0%,
+    color-mix(in srgb, var(--webgl-slider-accent) 55%, #ffffff) 55%,
+    color-mix(in srgb, var(--webgl-slider-accent) 90%, #000000) 100%
+  );
+  border: 1px solid color-mix(in srgb, var(--webgl-slider-accent) 65%, #1a1a1a);
+  box-shadow:
+    0 2px 5px rgba(0, 0, 0, 0.25),
+    0 0 0 2px color-mix(in srgb, #ffffff 65%, transparent);
 }
 
 .srOnly {

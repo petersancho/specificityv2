@@ -1,14 +1,69 @@
 export type NodeType =
   | "geometryReference"
   | "geometryViewer"
+  | "meshConvert"
+  | "stlExport"
+  | "stlImport"
   | "point"
   | "line"
+  | "rectangle"
+  | "circle"
   | "arc"
   | "curve"
   | "polyline"
   | "surface"
+  | "loft"
+  | "extrude"
+  | "primitive"
+  | "cylinder"
+  | "torus"
+  | "pyramid"
+  | "tetrahedron"
+  | "octahedron"
+  | "icosahedron"
+  | "dodecahedron"
+  | "hemisphere"
+  | "capsule"
+  | "disk"
+  | "ring"
+  | "triangular-prism"
+  | "pentagonal-prism"
+  | "hexagonal-prism"
+  | "torus-knot"
+  | "utah-teapot"
+  | "frustum"
+  | "mobius-strip"
+  | "ellipsoid"
+  | "wedge"
+  | "spherical-cap"
+  | "bipyramid"
+  | "rhombic-dodecahedron"
+  | "truncated-cube"
+  | "truncated-octahedron"
+  | "truncated-icosahedron"
+  | "pipe"
+  | "superellipsoid"
+  | "hyperbolic-paraboloid"
+  | "geodesic-dome"
+  | "one-sheet-hyperboloid"
   | "box"
   | "sphere"
+  | "boolean"
+  | "offset"
+  | "fillet"
+  | "filletEdges"
+  | "offsetSurface"
+  | "thickenMesh"
+  | "plasticwrap"
+  | "solid"
+  | "measurement"
+  | "dimensions"
+  | "geometryArray"
+  | "rotate"
+  | "scale"
+  | "fieldTransformation"
+  | "voxelizeGeometry"
+  | "extractIsosurface"
   | "topologyOptimize"
   | "topologySolver"
   | "biologicalSolver"
@@ -28,6 +83,7 @@ export type NodeType =
   | "min"
   | "max"
   | "expression"
+  | "scalarFunctions"
   | "conditional"
   | "vectorConstruct"
   | "vectorDeconstruct"
@@ -43,6 +99,7 @@ export type NodeType =
   | "vectorAngle"
   | "vectorLerp"
   | "vectorProject"
+  | "pointAttractor"
   | "move"
   | "movePoint"
   | "movePointByVector"
@@ -63,6 +120,8 @@ export type NodeType =
   | "listMedian"
   | "listStdDev"
   | "geometryInfo"
+  | "metadataPanel"
+  | "annotations"
   | "geometryVertices"
   | "geometryEdges"
   | "geometryFaces"
@@ -73,6 +132,9 @@ export type NodeType =
   | "remap"
   | "random"
   | "repeat"
+  | "linearArray"
+  | "polarArray"
+  | "gridArray"
   | "sineWave"
   | "cosineWave"
   | "sawtoothWave"
@@ -82,14 +144,69 @@ export type NodeType =
 export const SUPPORTED_WORKFLOW_NODE_TYPES: NodeType[] = [
   "geometryReference",
   "geometryViewer",
+  "meshConvert",
+  "stlExport",
+  "stlImport",
   "point",
   "line",
+  "rectangle",
+  "circle",
   "arc",
   "curve",
   "polyline",
   "surface",
+  "loft",
+  "extrude",
+  "primitive",
+  "cylinder",
+  "torus",
+  "pyramid",
+  "tetrahedron",
+  "octahedron",
+  "icosahedron",
+  "dodecahedron",
+  "hemisphere",
+  "capsule",
+  "disk",
+  "ring",
+  "triangular-prism",
+  "pentagonal-prism",
+  "hexagonal-prism",
+  "torus-knot",
+  "utah-teapot",
+  "frustum",
+  "mobius-strip",
+  "ellipsoid",
+  "wedge",
+  "spherical-cap",
+  "bipyramid",
+  "rhombic-dodecahedron",
+  "truncated-cube",
+  "truncated-octahedron",
+  "truncated-icosahedron",
+  "pipe",
+  "superellipsoid",
+  "hyperbolic-paraboloid",
+  "geodesic-dome",
+  "one-sheet-hyperboloid",
   "box",
   "sphere",
+  "boolean",
+  "offset",
+  "fillet",
+  "filletEdges",
+  "offsetSurface",
+  "thickenMesh",
+  "plasticwrap",
+  "solid",
+  "measurement",
+  "dimensions",
+  "geometryArray",
+  "rotate",
+  "scale",
+  "fieldTransformation",
+  "voxelizeGeometry",
+  "extractIsosurface",
   "topologyOptimize",
   "topologySolver",
   "biologicalSolver",
@@ -109,6 +226,7 @@ export const SUPPORTED_WORKFLOW_NODE_TYPES: NodeType[] = [
   "min",
   "max",
   "expression",
+  "scalarFunctions",
   "conditional",
   "vectorConstruct",
   "vectorDeconstruct",
@@ -124,6 +242,7 @@ export const SUPPORTED_WORKFLOW_NODE_TYPES: NodeType[] = [
   "vectorAngle",
   "vectorLerp",
   "vectorProject",
+  "pointAttractor",
   "move",
   "movePoint",
   "movePointByVector",
@@ -144,6 +263,8 @@ export const SUPPORTED_WORKFLOW_NODE_TYPES: NodeType[] = [
   "listMedian",
   "listStdDev",
   "geometryInfo",
+  "metadataPanel",
+  "annotations",
   "geometryVertices",
   "geometryEdges",
   "geometryFaces",
@@ -154,6 +275,9 @@ export const SUPPORTED_WORKFLOW_NODE_TYPES: NodeType[] = [
   "remap",
   "random",
   "repeat",
+  "linearArray",
+  "polarArray",
+  "gridArray",
   "sineWave",
   "cosineWave",
   "sawtoothWave",

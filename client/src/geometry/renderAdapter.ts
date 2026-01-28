@@ -16,7 +16,7 @@ export type RenderableGeometry = {
   id: string;
   buffer: GeometryBuffer;
   edgeBuffer?: GeometryBuffer;
-  edgeLineBuffer?: GeometryBuffer;
+  edgeLineBuffers?: GeometryBuffer[];
   type: "vertex" | "polyline" | "surface" | "mesh";
   needsUpdate: boolean;
 };
@@ -163,9 +163,9 @@ export class GeometryRenderAdapter {
   private updateMeshGeometry(geometry: SurfaceGeometry, existing?: RenderableGeometry): void {
     let buffer: GeometryBuffer;
     const edgeBufferId = `${geometry.id}__edges`;
-    const edgeLineBufferId = `${geometry.id}__edge_lines`;
+    const edgeLineBufferBaseId = `${geometry.id}__edge_lines`;
     let edgeBuffer: GeometryBuffer | undefined = existing?.edgeBuffer;
-    let edgeLineBuffer: GeometryBuffer | undefined = existing?.edgeLineBuffer;
+    let edgeLineBuffers: GeometryBuffer[] = existing?.edgeLineBuffers ?? [];
 
     if (existing) {
       buffer = existing.buffer;
@@ -193,7 +193,8 @@ export class GeometryRenderAdapter {
         indices: flatMesh.indices,
       });
 
-      const edgeIndices = buildEdgeIndexBuffer(meshSource);
+      const edgeSegments = buildEdgeSegments(meshSource);
+      const edgeIndices = buildEdgeIndexBuffer(edgeSegments);
       if (!edgeBuffer) {
         edgeBuffer = this.renderer.createGeometryBuffer(edgeBufferId);
       }
@@ -202,20 +203,32 @@ export class GeometryRenderAdapter {
         indices: edgeIndices,
       });
 
-      const edgeLineData = buildEdgeLineBufferData(meshSource, edgeIndices);
-      if (edgeLineData) {
-        if (!edgeLineBuffer) {
-          edgeLineBuffer = this.renderer.createGeometryBuffer(edgeLineBufferId);
-        }
-        edgeLineBuffer.setData({
-          positions: edgeLineData.positions,
-          nextPositions: edgeLineData.nextPositions,
-          sides: edgeLineData.sides,
-          indices: edgeLineData.indices,
+      const edgeLineChunks = buildEdgeLineBufferChunks(meshSource, edgeSegments);
+      if (edgeLineChunks.length > 0) {
+        const nextBuffers: GeometryBuffer[] = [];
+        edgeLineChunks.forEach((chunk, index) => {
+          const bufferId = `${edgeLineBufferBaseId}_${index}`;
+          let buffer = edgeLineBuffers[index];
+          if (!buffer) {
+            buffer = this.renderer.createGeometryBuffer(bufferId);
+          }
+          buffer.setData({
+            positions: chunk.positions,
+            nextPositions: chunk.nextPositions,
+            sides: chunk.sides,
+            edgeKinds: chunk.edgeKinds,
+            indices: chunk.indices,
+          });
+          nextBuffers.push(buffer);
         });
-      } else if (edgeLineBuffer) {
-        this.renderer.deleteGeometryBuffer(edgeLineBufferId);
-        edgeLineBuffer = undefined;
+
+        for (let i = edgeLineChunks.length; i < edgeLineBuffers.length; i += 1) {
+          this.renderer.deleteGeometryBuffer(edgeLineBuffers[i].id);
+        }
+        edgeLineBuffers = nextBuffers;
+      } else {
+        edgeLineBuffers.forEach((buffer) => this.renderer.deleteGeometryBuffer(buffer.id));
+        edgeLineBuffers = [];
       }
     }
 
@@ -223,7 +236,7 @@ export class GeometryRenderAdapter {
       id: geometry.id,
       buffer,
       edgeBuffer,
-      edgeLineBuffer,
+      edgeLineBuffers,
       type: "mesh",
       needsUpdate: false,
     });
@@ -236,8 +249,10 @@ export class GeometryRenderAdapter {
       if (renderable.edgeBuffer) {
         this.renderer.deleteGeometryBuffer(renderable.edgeBuffer.id);
       }
-      if (renderable.edgeLineBuffer) {
-        this.renderer.deleteGeometryBuffer(renderable.edgeLineBuffer.id);
+      if (renderable.edgeLineBuffers) {
+        renderable.edgeLineBuffers.forEach((buffer) => {
+          this.renderer.deleteGeometryBuffer(buffer.id);
+        });
       }
       this.renderables.delete(id);
     }
@@ -264,8 +279,10 @@ export class GeometryRenderAdapter {
       if (renderable.edgeBuffer) {
         this.renderer.deleteGeometryBuffer(renderable.edgeBuffer.id);
       }
-      if (renderable.edgeLineBuffer) {
-        this.renderer.deleteGeometryBuffer(renderable.edgeLineBuffer.id);
+      if (renderable.edgeLineBuffers) {
+        renderable.edgeLineBuffers.forEach((buffer) => {
+          this.renderer.deleteGeometryBuffer(buffer.id);
+        });
       }
     }
     this.renderables.clear();
@@ -394,82 +411,229 @@ const createFlatShadedMesh = (
   };
 };
 
-const buildEdgeIndexBuffer = (mesh: RenderMesh): Uint16Array => {
-  const baseIndices = toTriangleIndices(mesh);
-  const edges = new Map<string, [number, number]>();
+const EDGE_KIND_INTERNAL = 0;
+const EDGE_KIND_CREASE = 1;
+const EDGE_KIND_SILHOUETTE = 2;
+const CREASE_ANGLE = Math.PI / 6;
 
-  const addEdge = (a: number, b: number) => {
+type EdgeSegment = { a: number; b: number; kind: number };
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value));
+
+const buildEdgeSegments = (mesh: RenderMesh): EdgeSegment[] => {
+  const baseIndices = toTriangleIndices(mesh);
+  const edges = new Map<
+    string,
+    {
+      a: number;
+      b: number;
+      count: number;
+      nx1: number;
+      ny1: number;
+      nz1: number;
+      nx2: number;
+      ny2: number;
+      nz2: number;
+    }
+  >();
+
+  const addEdge = (a: number, b: number, nx: number, ny: number, nz: number) => {
     const min = Math.min(a, b);
     const max = Math.max(a, b);
     const key = `${min}:${max}`;
-    if (!edges.has(key)) {
-      edges.set(key, [min, max]);
+    const existing = edges.get(key);
+    if (!existing) {
+      edges.set(key, {
+        a: min,
+        b: max,
+        count: 1,
+        nx1: nx,
+        ny1: ny,
+        nz1: nz,
+        nx2: 0,
+        ny2: 0,
+        nz2: 0,
+      });
+      return;
     }
+    if (existing.count === 1) {
+      existing.nx2 = nx;
+      existing.ny2 = ny;
+      existing.nz2 = nz;
+    }
+    existing.count += 1;
   };
 
   for (let i = 0; i + 2 < baseIndices.length; i += 3) {
     const a = baseIndices[i];
     const b = baseIndices[i + 1];
     const c = baseIndices[i + 2];
-    addEdge(a, b);
-    addEdge(b, c);
-    addEdge(c, a);
-  }
-
-  const edgeIndices: number[] = [];
-  edges.forEach(([a, b]) => {
-    edgeIndices.push(a, b);
-  });
-
-  return new Uint16Array(edgeIndices);
-};
-
-const buildEdgeLineBufferData = (
-  mesh: RenderMesh,
-  edgeIndices: Uint16Array
-): {
-  positions: Float32Array;
-  nextPositions: Float32Array;
-  sides: Float32Array;
-  indices: Uint16Array;
-} | null => {
-  const segmentCount = Math.floor(edgeIndices.length / 2);
-  const vertexCount = segmentCount * 4;
-  if (vertexCount > 65535) {
-    return null;
-  }
-
-  const positions: number[] = [];
-  const nextPositions: number[] = [];
-  const sides: number[] = [];
-  const indices: number[] = [];
-  let cursor = 0;
-
-  for (let i = 0; i + 1 < edgeIndices.length; i += 2) {
-    const a = edgeIndices[i];
-    const b = edgeIndices[i + 1];
     const ai = a * 3;
     const bi = b * 3;
+    const ci = c * 3;
     const ax = mesh.positions[ai];
     const ay = mesh.positions[ai + 1];
     const az = mesh.positions[ai + 2];
     const bx = mesh.positions[bi];
     const by = mesh.positions[bi + 1];
     const bz = mesh.positions[bi + 2];
+    const cx = mesh.positions[ci];
+    const cy = mesh.positions[ci + 1];
+    const cz = mesh.positions[ci + 2];
 
-    positions.push(ax, ay, az, ax, ay, az, bx, by, bz, bx, by, bz);
-    nextPositions.push(bx, by, bz, bx, by, bz, ax, ay, az, ax, ay, az);
-    sides.push(-1, 1, -1, 1);
+    const abx = bx - ax;
+    const aby = by - ay;
+    const abz = bz - az;
+    const acx = cx - ax;
+    const acy = cy - ay;
+    const acz = cz - az;
 
-    indices.push(cursor, cursor + 1, cursor + 2);
-    indices.push(cursor + 1, cursor + 3, cursor + 2);
-    cursor += 4;
+    let nx = aby * acz - abz * acy;
+    let ny = abz * acx - abx * acz;
+    let nz = abx * acy - aby * acx;
+    const len = Math.hypot(nx, ny, nz);
+    if (len < 1e-6) continue;
+    nx /= len;
+    ny /= len;
+    nz /= len;
+
+    addEdge(a, b, nx, ny, nz);
+    addEdge(b, c, nx, ny, nz);
+    addEdge(c, a, nx, ny, nz);
   }
 
-  return {
-    positions: new Float32Array(positions),
-    nextPositions: new Float32Array(nextPositions),
-    sides: new Float32Array(sides),
-    indices: new Uint16Array(indices),
-  };
+  const segments: EdgeSegment[] = [];
+  edges.forEach((edge) => {
+    let kind = EDGE_KIND_INTERNAL;
+    if (edge.count === 1) {
+      kind = EDGE_KIND_SILHOUETTE;
+    } else if (edge.count >= 3) {
+      kind = EDGE_KIND_CREASE;
+    } else {
+      const dot = clamp(
+        edge.nx1 * edge.nx2 + edge.ny1 * edge.ny2 + edge.nz1 * edge.nz2,
+        -1,
+        1
+      );
+      const angle = Math.acos(dot);
+      if (angle >= CREASE_ANGLE) {
+        kind = EDGE_KIND_CREASE;
+      }
+    }
+    segments.push({ a: edge.a, b: edge.b, kind });
+  });
+
+  return segments;
+};
+
+const buildEdgeIndexBuffer = (segments: EdgeSegment[]): Uint16Array => {
+  const edgeIndices: number[] = [];
+  segments.forEach(({ a, b }) => {
+    edgeIndices.push(a, b);
+  });
+  return new Uint16Array(edgeIndices);
+};
+
+const buildEdgeLineBufferChunks = (
+  mesh: RenderMesh,
+  edgeSegments: EdgeSegment[]
+): Array<{
+  positions: Float32Array;
+  nextPositions: Float32Array;
+  sides: Float32Array;
+  edgeKinds: Float32Array;
+  indices: Uint16Array;
+}> => {
+  const segments = edgeSegments.length;
+  if (segments === 0) return [];
+
+  const maxSegments = Math.floor(65535 / 4);
+  const chunks: Array<{
+    positions: Float32Array;
+    nextPositions: Float32Array;
+    sides: Float32Array;
+    edgeKinds: Float32Array;
+    indices: Uint16Array;
+  }> = [];
+
+  for (let start = 0; start < segments; start += maxSegments) {
+    const chunkSegments = Math.min(maxSegments, segments - start);
+    const positions = new Float32Array(chunkSegments * 12);
+    const nextPositions = new Float32Array(chunkSegments * 12);
+    const sides = new Float32Array(chunkSegments * 4);
+    const edgeKinds = new Float32Array(chunkSegments * 4);
+    const indices = new Uint16Array(chunkSegments * 6);
+
+    for (let i = 0; i < chunkSegments; i += 1) {
+      const edge = edgeSegments[start + i];
+      const a = edge.a;
+      const b = edge.b;
+      const ai = a * 3;
+      const bi = b * 3;
+      const ax = mesh.positions[ai];
+      const ay = mesh.positions[ai + 1];
+      const az = mesh.positions[ai + 2];
+      const bx = mesh.positions[bi];
+      const by = mesh.positions[bi + 1];
+      const bz = mesh.positions[bi + 2];
+
+      const vertexOffset = i * 12;
+      positions[vertexOffset] = ax;
+      positions[vertexOffset + 1] = ay;
+      positions[vertexOffset + 2] = az;
+      positions[vertexOffset + 3] = ax;
+      positions[vertexOffset + 4] = ay;
+      positions[vertexOffset + 5] = az;
+      positions[vertexOffset + 6] = bx;
+      positions[vertexOffset + 7] = by;
+      positions[vertexOffset + 8] = bz;
+      positions[vertexOffset + 9] = bx;
+      positions[vertexOffset + 10] = by;
+      positions[vertexOffset + 11] = bz;
+
+      nextPositions[vertexOffset] = bx;
+      nextPositions[vertexOffset + 1] = by;
+      nextPositions[vertexOffset + 2] = bz;
+      nextPositions[vertexOffset + 3] = bx;
+      nextPositions[vertexOffset + 4] = by;
+      nextPositions[vertexOffset + 5] = bz;
+      nextPositions[vertexOffset + 6] = ax;
+      nextPositions[vertexOffset + 7] = ay;
+      nextPositions[vertexOffset + 8] = az;
+      nextPositions[vertexOffset + 9] = ax;
+      nextPositions[vertexOffset + 10] = ay;
+      nextPositions[vertexOffset + 11] = az;
+
+      const sideOffset = i * 4;
+      sides[sideOffset] = -1;
+      sides[sideOffset + 1] = 1;
+      sides[sideOffset + 2] = -1;
+      sides[sideOffset + 3] = 1;
+
+      edgeKinds[sideOffset] = edge.kind;
+      edgeKinds[sideOffset + 1] = edge.kind;
+      edgeKinds[sideOffset + 2] = edge.kind;
+      edgeKinds[sideOffset + 3] = edge.kind;
+
+      const indexOffset = i * 6;
+      const v = i * 4;
+      indices[indexOffset] = v;
+      indices[indexOffset + 1] = v + 1;
+      indices[indexOffset + 2] = v + 2;
+      indices[indexOffset + 3] = v + 1;
+      indices[indexOffset + 4] = v + 3;
+      indices[indexOffset + 5] = v + 2;
+    }
+
+    chunks.push({
+      positions,
+      nextPositions,
+      sides,
+      edgeKinds,
+      indices,
+    });
+  }
+
+  return chunks;
 };

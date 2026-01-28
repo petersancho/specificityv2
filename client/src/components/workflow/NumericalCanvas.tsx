@@ -76,6 +76,7 @@ type NumericalCanvasProps = {
   height: number;
   pendingNodeType?: NodeType | null;
   onDropNode?: (type: NodeType, world: Vec2) => void;
+  mode?: "standard" | "minimap";
 };
 
 type CanvasPalette = {
@@ -121,8 +122,11 @@ const ICON_SIZE = 26;
 const ICON_PADDING = 10;
 const EDGE_HIT_RADIUS = 6;
 const EDGE_SAMPLE_COUNT = 24;
-const MIN_SCALE = 1.0;
-const MAX_SCALE = 1.0;
+const MIN_SCALE = 0.35;
+const MAX_SCALE = 3.5;
+const ZOOM_SPEED = 0.0012;
+const ZOOM_STEP = 1.12;
+const RIGHT_CLICK_HOLD_MS = 240;
 const GRID_MINOR_BASE = 24;
 const GRID_MAJOR_FACTOR = 5;
 const GRID_SNAP_KEY = "specificity.numericaGridSnap";
@@ -440,7 +444,10 @@ export const NumericalCanvas = ({
   height,
   pendingNodeType,
   onDropNode,
+  mode = "standard",
 }: NumericalCanvasProps) => {
+  const isMinimap = mode === "minimap";
+  const interactionsEnabled = !isMinimap;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const paletteRef = useRef<CanvasPalette>(getPalette());
   const layoutRef = useRef<Map<string, NodeLayout>>(new Map());
@@ -459,13 +466,18 @@ export const NumericalCanvas = ({
     return stored === "true";
   });
   const [showShortcutOverlay, setShowShortcutOverlay] = useState(() => {
-    if (typeof window === "undefined") return false;
+    if (typeof window === "undefined" || isMinimap) return false;
     return window.localStorage.getItem(SHORTCUT_OVERLAY_KEY) === "true";
   });
   const spacePanRef = useRef(false);
   const [spacePan, setSpacePan] = useState(false);
   const [pendingReference, setPendingReference] = useState<PendingReference | null>(null);
+  const shortcutOverlayEnabled = interactionsEnabled && showShortcutOverlay;
   const pointerScreenRef = useRef<Vec2>({ x: 0, y: 0 });
+  const rightPanRef = useRef<{ start: Vec2 } | null>(null);
+  const suppressContextMenuRef = useRef(false);
+  const rightHoldTimeoutRef = useRef<number | null>(null);
+  const rightClickHeldRef = useRef(false);
 
   const nodes = useProjectStore((state) => state.workflow.nodes);
   const edges = useProjectStore((state) => state.workflow.edges);
@@ -530,6 +542,7 @@ export const NumericalCanvas = ({
   }, []);
 
   useEffect(() => {
+    if (!interactionsEnabled) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const preventWheelScroll = (event: WheelEvent) => {
@@ -537,19 +550,20 @@ export const NumericalCanvas = ({
     };
     canvas.addEventListener("wheel", preventWheelScroll, { passive: false });
     return () => canvas.removeEventListener("wheel", preventWheelScroll);
-  }, []);
+  }, [interactionsEnabled]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (!interactionsEnabled || typeof window === "undefined") return;
     window.localStorage.setItem(GRID_SNAP_KEY, String(gridSnapEnabled));
-  }, [gridSnapEnabled]);
+  }, [gridSnapEnabled, interactionsEnabled]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (!interactionsEnabled || typeof window === "undefined") return;
     window.localStorage.setItem(SHORTCUT_OVERLAY_KEY, String(showShortcutOverlay));
-  }, [showShortcutOverlay]);
+  }, [showShortcutOverlay, interactionsEnabled]);
 
   useEffect(() => {
+    if (!interactionsEnabled) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Backspace" && event.key !== "Delete") return;
       const target = event.target as HTMLElement | null;
@@ -574,9 +588,10 @@ export const NumericalCanvas = ({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [deleteSelectedNodes, edges, nodes, onEdgesChange]);
+  }, [deleteSelectedNodes, edges, interactionsEnabled, nodes, onEdgesChange]);
 
   useEffect(() => {
+    if (!interactionsEnabled) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.code !== "Space") return;
       if (isEditableTarget(event.target)) return;
@@ -608,9 +623,10 @@ export const NumericalCanvas = ({
       window.removeEventListener("keyup", handleKeyUp);
       window.removeEventListener("blur", handleBlur);
     };
-  }, []);
+  }, [interactionsEnabled]);
 
   useEffect(() => {
+    if (!interactionsEnabled) return;
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setContextMenu(null);
@@ -619,7 +635,7 @@ export const NumericalCanvas = ({
     };
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
-  }, []);
+  }, [interactionsEnabled]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -673,7 +689,7 @@ export const NumericalCanvas = ({
         drawPendingReferenceHint(ctx, width, height, palette);
       }
 
-      if (showShortcutOverlay) {
+      if (shortcutOverlayEnabled) {
         drawShortcutOverlay(ctx, width, height, palette, gridSnapEnabled);
       }
 
@@ -694,7 +710,7 @@ export const NumericalCanvas = ({
     hoveredTarget,
     dragState,
     pendingReference,
-    showShortcutOverlay,
+    shortcutOverlayEnabled,
     gridSnapEnabled,
   ]);
 
@@ -722,6 +738,20 @@ export const NumericalCanvas = ({
       x: prev.x + dx,
       y: prev.y + dy,
     }));
+  };
+
+  const zoomAt = (screen: Vec2, scaleFactor: number) => {
+    setViewTransform((prev) => {
+      const nextScale = clampValue(prev.scale * scaleFactor, MIN_SCALE, MAX_SCALE);
+      if (nextScale === prev.scale) return prev;
+      const worldX = (screen.x - prev.x) / prev.scale;
+      const worldY = (screen.y - prev.y) / prev.scale;
+      return {
+        scale: nextScale,
+        x: screen.x - worldX * nextScale,
+        y: screen.y - worldY * nextScale,
+      };
+    });
   };
 
   const resetView = () => {
@@ -863,6 +893,7 @@ export const NumericalCanvas = ({
   };
 
   useEffect(() => {
+    if (!interactionsEnabled) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (isEditableTarget(event.target)) return;
       if (!isCanvasActive()) return;
@@ -929,7 +960,17 @@ export const NumericalCanvas = ({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [applyNodeSelection, frameNodes, isCanvasActive, nodes, panBy, resetView, width, height]);
+  }, [
+    applyNodeSelection,
+    frameNodes,
+    interactionsEnabled,
+    isCanvasActive,
+    nodes,
+    panBy,
+    resetView,
+    width,
+    height,
+  ]);
 
   const getLayouts = () => {
     if (layoutRef.current.size > 0) return layoutRef.current;
@@ -1140,6 +1181,7 @@ export const NumericalCanvas = ({
   };
 
   const contextMenuActions = useMemo<ContextMenuAction[]>(() => {
+    if (!interactionsEnabled) return [];
     if (!contextMenu) return [];
     const actions: ContextMenuAction[] = [];
     const closeMenu = (action: () => void) => () => {
@@ -1329,6 +1371,14 @@ export const NumericalCanvas = ({
       onSelect: closeMenu(() => frameNodes()),
     });
     actions.push({
+      label: "Zoom In",
+      onSelect: closeMenu(() => zoomAt(contextMenu.screen, ZOOM_STEP)),
+    });
+    actions.push({
+      label: "Zoom Out",
+      onSelect: closeMenu(() => zoomAt(contextMenu.screen, 1 / ZOOM_STEP)),
+    });
+    actions.push({
       label: "Reset View",
       onSelect: closeMenu(() => resetView()),
     });
@@ -1337,7 +1387,7 @@ export const NumericalCanvas = ({
       onSelect: closeMenu(() => setGridSnapEnabled((prev) => !prev)),
     });
     actions.push({
-      label: showShortcutOverlay ? "Hide Shortcuts" : "Show Shortcuts",
+      label: shortcutOverlayEnabled ? "Hide Shortcuts" : "Show Shortcuts",
       onSelect: closeMenu(() => setShowShortcutOverlay((prev) => !prev)),
     });
     actions.push({
@@ -1366,9 +1416,11 @@ export const NumericalCanvas = ({
     selectedGeometryType,
     updateNodeData,
     frameNodes,
+    zoomAt,
     resetView,
     gridSnapEnabled,
-    showShortcutOverlay,
+    interactionsEnabled,
+    shortcutOverlayEnabled,
     width,
     height,
   ]);
@@ -1602,6 +1654,7 @@ export const NumericalCanvas = ({
     if (!canvas) return;
     canvas.focus();
 
+    suppressContextMenuRef.current = false;
     const rect = canvas.getBoundingClientRect();
     const screenX = e.clientX - rect.left;
     const screenY = e.clientY - rect.top;
@@ -1626,6 +1679,19 @@ export const NumericalCanvas = ({
 
     if (e.button === 2) {
       e.preventDefault();
+      rightClickHeldRef.current = false;
+      if (rightHoldTimeoutRef.current) {
+        window.clearTimeout(rightHoldTimeoutRef.current);
+      }
+      rightHoldTimeoutRef.current = window.setTimeout(() => {
+        rightClickHeldRef.current = true;
+      }, RIGHT_CLICK_HOLD_MS);
+      rightPanRef.current = { start: { x: screenX, y: screenY } };
+      setDragState({
+        type: "pan",
+        startPos: { x: screenX, y: screenY },
+        startTransform: { ...viewTransform },
+      });
       return;
     }
 
@@ -1718,6 +1784,16 @@ export const NumericalCanvas = ({
     if (dragState.type === "pan") {
       const dx = screenX - dragState.startPos.x;
       const dy = screenY - dragState.startPos.y;
+      if (rightPanRef.current) {
+        const distance = Math.hypot(
+          screenX - rightPanRef.current.start.x,
+          screenY - rightPanRef.current.start.y
+        );
+        if (distance > 4) {
+          suppressContextMenuRef.current = true;
+          rightClickHeldRef.current = true;
+        }
+      }
       setViewTransform({
         x: dragState.startTransform.x + dx,
         y: dragState.startTransform.y + dy,
@@ -1841,6 +1917,13 @@ export const NumericalCanvas = ({
       }
     }
 
+    if (rightPanRef.current) {
+      rightPanRef.current = null;
+    }
+    if (rightHoldTimeoutRef.current) {
+      window.clearTimeout(rightHoldTimeoutRef.current);
+      rightHoldTimeoutRef.current = null;
+    }
     setDragState({ type: "none" });
   };
 
@@ -1851,12 +1934,50 @@ export const NumericalCanvas = ({
       setContextMenu(null);
     }
     e.preventDefault();
+
+    const rect = canvas.getBoundingClientRect();
+    const screenX = e.clientX - rect.left;
+    const screenY = e.clientY - rect.top;
+    pointerScreenRef.current = { x: screenX, y: screenY };
+
+    const DOM_DELTA_LINE = 1;
+    const DOM_DELTA_PAGE = 2;
+    const lineHeight = 16;
+    let deltaX = e.deltaX;
+    let deltaY = e.deltaY;
+
+    if (e.deltaMode === DOM_DELTA_LINE) {
+      deltaX *= lineHeight;
+      deltaY *= lineHeight;
+    } else if (e.deltaMode === DOM_DELTA_PAGE) {
+      deltaX *= width;
+      deltaY *= height;
+    }
+
+    const isZoomGesture = e.ctrlKey || e.metaKey || e.deltaMode === DOM_DELTA_LINE;
+    if (isZoomGesture) {
+      const delta = deltaY !== 0 ? deltaY : deltaX;
+      const scaleFactor = Math.exp(-delta * ZOOM_SPEED);
+      zoomAt({ x: screenX, y: screenY }, scaleFactor);
+      return;
+    }
+
+    setViewTransform((prev) => ({
+      ...prev,
+      x: prev.x + deltaX,
+      y: prev.y + deltaY,
+    }));
   };
 
   const handleContextMenu = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     event.preventDefault();
+    if (suppressContextMenuRef.current || rightClickHeldRef.current) {
+      suppressContextMenuRef.current = false;
+      rightClickHeldRef.current = false;
+      return;
+    }
 
     const rect = canvas.getBoundingClientRect();
     const screenX = event.clientX - rect.left;
@@ -1890,41 +2011,43 @@ export const NumericalCanvas = ({
         height: "100%",
       }}
     >
-      <div
-        style={{
-          position: "absolute",
-          left: "12px",
-          top: "10px",
-          zIndex: 4,
-        }}
-      >
-        <WebGLButton
-          label="Shortcuts"
-          shortLabel="Help"
-          iconId="advanced"
-          variant="command"
-          size="sm"
-          shape="rounded"
-          active={showShortcutOverlay}
-          hideLabel
-          tooltip="Shortcuts"
-          tooltipShortcut="?"
-          tooltipPosition="right"
-          onClick={() => {
-            setContextMenu(null);
-            setShowShortcutOverlay((prev) => !prev);
+      {interactionsEnabled && (
+        <div
+          style={{
+            position: "absolute",
+            left: "12px",
+            top: "10px",
+            zIndex: 4,
           }}
-        />
-      </div>
+        >
+          <WebGLButton
+            label="Shortcuts"
+            shortLabel="Help"
+            iconId="advanced"
+            variant="command"
+            size="sm"
+            shape="rounded"
+            active={shortcutOverlayEnabled}
+            hideLabel
+            tooltip="Shortcuts"
+            tooltipShortcut="?"
+            tooltipPosition="right"
+            onClick={() => {
+              setContextMenu(null);
+              setShowShortcutOverlay((prev) => !prev);
+            }}
+          />
+        </div>
+      )}
       <canvas
         ref={canvasRef}
-        tabIndex={0}
+        tabIndex={interactionsEnabled ? 0 : -1}
         aria-label="Numerica canvas"
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onWheel={handleWheel}
-        onContextMenu={handleContextMenu}
+        onPointerDown={interactionsEnabled ? handlePointerDown : undefined}
+        onPointerMove={interactionsEnabled ? handlePointerMove : undefined}
+        onPointerUp={interactionsEnabled ? handlePointerUp : undefined}
+        onWheel={interactionsEnabled ? handleWheel : undefined}
+        onContextMenu={interactionsEnabled ? handleContextMenu : undefined}
         style={{
           display: "block",
           width: "100%",
@@ -1991,7 +2114,7 @@ export const NumericalCanvas = ({
           );
         })}
       </div>
-      {contextMenu && contextMenuActions.length > 0 ? (
+      {interactionsEnabled && contextMenu && contextMenuActions.length > 0 ? (
         <div
           role="menu"
           style={{
@@ -2608,7 +2731,11 @@ function drawShortcutOverlay(
 ) {
   const title = "Numerica Shortcuts";
   const lines = [
-    "Space: Pan",
+    "Mouse wheel: Zoom",
+    "Trackpad scroll: Pan",
+    "Pinch/Ctrl+Wheel: Zoom",
+    "Right-drag: Pan",
+    "Space: Pan (drag)",
     "F: Frame selection",
     "Shift+F: Frame all",
     "G: Grid snap " + (gridSnapEnabled ? "On" : "Off"),

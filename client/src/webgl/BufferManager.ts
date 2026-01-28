@@ -5,6 +5,8 @@ export type BufferData = {
   colors?: Float32Array;
   nextPositions?: Float32Array;
   sides?: Float32Array;
+  edgeKinds?: Float32Array;
+  edgeWeights?: Float32Array;
 };
 
 export class BufferManager {
@@ -69,6 +71,8 @@ export class GeometryBuffer {
   public colorBuffer?: WebGLBuffer;
   public nextPositionBuffer?: WebGLBuffer;
   public sideBuffer?: WebGLBuffer;
+  public edgeKindBuffer?: WebGLBuffer;
+  public edgeWeightBuffer?: WebGLBuffer;
   public vertexCount: number = 0;
   public indexCount: number = 0;
 
@@ -158,6 +162,38 @@ export class GeometryBuffer {
         );
       }
     }
+
+    if (data.edgeKinds) {
+      if (this.edgeKindBuffer) {
+        this.bufferManager.updateBuffer(
+          `${this.id}_edge_kind`,
+          gl.ARRAY_BUFFER,
+          data.edgeKinds
+        );
+      } else {
+        this.edgeKindBuffer = this.bufferManager.createBuffer(
+          `${this.id}_edge_kind`,
+          gl.ARRAY_BUFFER,
+          data.edgeKinds
+        );
+      }
+    }
+
+    if (data.edgeWeights) {
+      if (this.edgeWeightBuffer) {
+        this.bufferManager.updateBuffer(
+          `${this.id}_edge_weight`,
+          gl.ARRAY_BUFFER,
+          data.edgeWeights
+        );
+      } else {
+        this.edgeWeightBuffer = this.bufferManager.createBuffer(
+          `${this.id}_edge_weight`,
+          gl.ARRAY_BUFFER,
+          data.edgeWeights
+        );
+      }
+    }
   }
 
   bind(program: WebGLProgram): void {
@@ -208,6 +244,24 @@ export class GeometryBuffer {
       }
     }
 
+    if (this.edgeKindBuffer) {
+      const edgeKindLoc = gl.getAttribLocation(program, "edgeKind");
+      if (edgeKindLoc !== -1) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.edgeKindBuffer);
+        gl.enableVertexAttribArray(edgeKindLoc);
+        gl.vertexAttribPointer(edgeKindLoc, 1, gl.FLOAT, false, 0, 0);
+      }
+    }
+
+    if (this.edgeWeightBuffer) {
+      const edgeWeightLoc = gl.getAttribLocation(program, "edgeWeight");
+      if (edgeWeightLoc !== -1) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.edgeWeightBuffer);
+        gl.enableVertexAttribArray(edgeWeightLoc);
+        gl.vertexAttribPointer(edgeWeightLoc, 1, gl.FLOAT, false, 0, 0);
+      }
+    }
+
     if (this.indexBuffer) {
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
     }
@@ -240,6 +294,12 @@ export class GeometryBuffer {
     }
     if (this.sideBuffer) {
       this.bufferManager.deleteBuffer(`${this.id}_side`);
+    }
+    if (this.edgeKindBuffer) {
+      this.bufferManager.deleteBuffer(`${this.id}_edge_kind`);
+    }
+    if (this.edgeWeightBuffer) {
+      this.bufferManager.deleteBuffer(`${this.id}_edge_weight`);
     }
   }
 }

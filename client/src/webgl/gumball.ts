@@ -35,7 +35,8 @@ export const GUMBALL_METRICS = {
   planeDepth: 0.018,
   planeOffset: 0.46,
   rotateRadius: 0.82,
-  rotateTube: 0.045,
+  rotateTube: 0.035,
+  rotateOffset: 0.25,
   scaleHandleOffset: 0.95,
   scaleHandleSize: 0.16,
   scaleCenterRadius: 0.12,
@@ -49,6 +50,11 @@ export type GumballBuffers = {
   ring: GeometryBuffer;
   scale: GeometryBuffer;
   scaleCenter: GeometryBuffer;
+  axisEdgeLines: GeometryBuffer[];
+  planeEdgeLines: GeometryBuffer[];
+  ringEdgeLines: GeometryBuffer[];
+  scaleEdgeLines: GeometryBuffer[];
+  scaleCenterEdgeLines: GeometryBuffer[];
 };
 
 export type GumballRenderState = {
@@ -65,6 +71,9 @@ export type GumballRenderOptions = {
   ambientColor?: [number, number, number];
   axisOpacity?: number;
   planeOpacity?: number;
+  showRotate?: boolean;
+  sheenIntensity?: number;
+  ambientStrength?: number;
 };
 
 const AXIS_COLORS: Record<"x" | "y" | "z", [number, number, number]> = {
@@ -81,6 +90,10 @@ const PLANE_COLORS: Record<"xy" | "yz" | "xz", [number, number, number]> = {
 
 const UNIFORM_SCALE_COLOR: [number, number, number] = [0.94, 0.94, 0.94];
 
+export const GUMBALL_AXIS_COLORS = AXIS_COLORS;
+export const GUMBALL_PLANE_COLORS = PLANE_COLORS;
+export const GUMBALL_UNIFORM_SCALE_COLOR = UNIFORM_SCALE_COLOR;
+
 const mixColor = (
   a: [number, number, number],
   b: [number, number, number],
@@ -93,6 +106,259 @@ const mixColor = (
 
 const lightenColor = (color: [number, number, number], amount: number) =>
   mixColor(color, [1, 1, 1], amount);
+
+const EDGE_KIND_INTERNAL = 0;
+const EDGE_KIND_CREASE = 1;
+const EDGE_KIND_SILHOUETTE = 2;
+const CREASE_ANGLE = Math.PI / 6;
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value));
+
+type EdgeSegment = { a: number; b: number; kind: number };
+
+const toTriangleIndices = (mesh: RenderMesh): number[] => {
+  if (mesh.indices.length >= 3) {
+    return mesh.indices;
+  }
+  const vertexCount = Math.floor(mesh.positions.length / 3);
+  const indices: number[] = [];
+  for (let i = 0; i + 2 < vertexCount; i += 3) {
+    indices.push(i, i + 1, i + 2);
+  }
+  return indices;
+};
+
+const buildEdgeSegments = (mesh: RenderMesh): EdgeSegment[] => {
+  const baseIndices = toTriangleIndices(mesh);
+  const edges = new Map<
+    string,
+    {
+      a: number;
+      b: number;
+      count: number;
+      nx1: number;
+      ny1: number;
+      nz1: number;
+      nx2: number;
+      ny2: number;
+      nz2: number;
+    }
+  >();
+
+  const addEdge = (a: number, b: number, nx: number, ny: number, nz: number) => {
+    const min = Math.min(a, b);
+    const max = Math.max(a, b);
+    const key = `${min}:${max}`;
+    const existing = edges.get(key);
+    if (!existing) {
+      edges.set(key, {
+        a: min,
+        b: max,
+        count: 1,
+        nx1: nx,
+        ny1: ny,
+        nz1: nz,
+        nx2: 0,
+        ny2: 0,
+        nz2: 0,
+      });
+      return;
+    }
+    if (existing.count === 1) {
+      existing.nx2 = nx;
+      existing.ny2 = ny;
+      existing.nz2 = nz;
+    }
+    existing.count += 1;
+  };
+
+  for (let i = 0; i + 2 < baseIndices.length; i += 3) {
+    const a = baseIndices[i];
+    const b = baseIndices[i + 1];
+    const c = baseIndices[i + 2];
+    const ai = a * 3;
+    const bi = b * 3;
+    const ci = c * 3;
+    const ax = mesh.positions[ai];
+    const ay = mesh.positions[ai + 1];
+    const az = mesh.positions[ai + 2];
+    const bx = mesh.positions[bi];
+    const by = mesh.positions[bi + 1];
+    const bz = mesh.positions[bi + 2];
+    const cx = mesh.positions[ci];
+    const cy = mesh.positions[ci + 1];
+    const cz = mesh.positions[ci + 2];
+
+    const abx = bx - ax;
+    const aby = by - ay;
+    const abz = bz - az;
+    const acx = cx - ax;
+    const acy = cy - ay;
+    const acz = cz - az;
+
+    let nx = aby * acz - abz * acy;
+    let ny = abz * acx - abx * acz;
+    let nz = abx * acy - aby * acx;
+    const len = Math.hypot(nx, ny, nz);
+    if (len < 1e-6) continue;
+    nx /= len;
+    ny /= len;
+    nz /= len;
+
+    addEdge(a, b, nx, ny, nz);
+    addEdge(b, c, nx, ny, nz);
+    addEdge(c, a, nx, ny, nz);
+  }
+
+  const segments: EdgeSegment[] = [];
+  edges.forEach((edge) => {
+    let kind = EDGE_KIND_INTERNAL;
+    if (edge.count === 1) {
+      kind = EDGE_KIND_SILHOUETTE;
+    } else if (edge.count >= 3) {
+      kind = EDGE_KIND_CREASE;
+    } else {
+      const dot = clamp(
+        edge.nx1 * edge.nx2 + edge.ny1 * edge.ny2 + edge.nz1 * edge.nz2,
+        -1,
+        1
+      );
+      const angle = Math.acos(dot);
+      if (angle >= CREASE_ANGLE) {
+        kind = EDGE_KIND_CREASE;
+      }
+    }
+    segments.push({ a: edge.a, b: edge.b, kind });
+  });
+
+  return segments;
+};
+
+const buildEdgeLineBufferChunks = (
+  mesh: RenderMesh,
+  edgeSegments: EdgeSegment[]
+): Array<{
+  positions: Float32Array;
+  nextPositions: Float32Array;
+  sides: Float32Array;
+  edgeKinds: Float32Array;
+  indices: Uint16Array;
+}> => {
+  const segments = edgeSegments.length;
+  if (segments === 0) return [];
+
+  const maxSegments = Math.floor(65535 / 4);
+  const chunks: Array<{
+    positions: Float32Array;
+    nextPositions: Float32Array;
+    sides: Float32Array;
+    edgeKinds: Float32Array;
+    indices: Uint16Array;
+  }> = [];
+
+  for (let start = 0; start < segments; start += maxSegments) {
+    const chunkSegments = Math.min(maxSegments, segments - start);
+    const positions = new Float32Array(chunkSegments * 12);
+    const nextPositions = new Float32Array(chunkSegments * 12);
+    const sides = new Float32Array(chunkSegments * 4);
+    const edgeKinds = new Float32Array(chunkSegments * 4);
+    const indices = new Uint16Array(chunkSegments * 6);
+
+    for (let i = 0; i < chunkSegments; i += 1) {
+      const edge = edgeSegments[start + i];
+      const a = edge.a;
+      const b = edge.b;
+      const ai = a * 3;
+      const bi = b * 3;
+      const ax = mesh.positions[ai];
+      const ay = mesh.positions[ai + 1];
+      const az = mesh.positions[ai + 2];
+      const bx = mesh.positions[bi];
+      const by = mesh.positions[bi + 1];
+      const bz = mesh.positions[bi + 2];
+
+      const vertexOffset = i * 12;
+      positions[vertexOffset] = ax;
+      positions[vertexOffset + 1] = ay;
+      positions[vertexOffset + 2] = az;
+      positions[vertexOffset + 3] = ax;
+      positions[vertexOffset + 4] = ay;
+      positions[vertexOffset + 5] = az;
+      positions[vertexOffset + 6] = bx;
+      positions[vertexOffset + 7] = by;
+      positions[vertexOffset + 8] = bz;
+      positions[vertexOffset + 9] = bx;
+      positions[vertexOffset + 10] = by;
+      positions[vertexOffset + 11] = bz;
+
+      nextPositions[vertexOffset] = bx;
+      nextPositions[vertexOffset + 1] = by;
+      nextPositions[vertexOffset + 2] = bz;
+      nextPositions[vertexOffset + 3] = bx;
+      nextPositions[vertexOffset + 4] = by;
+      nextPositions[vertexOffset + 5] = bz;
+      nextPositions[vertexOffset + 6] = ax;
+      nextPositions[vertexOffset + 7] = ay;
+      nextPositions[vertexOffset + 8] = az;
+      nextPositions[vertexOffset + 9] = ax;
+      nextPositions[vertexOffset + 10] = ay;
+      nextPositions[vertexOffset + 11] = az;
+
+      const sideOffset = i * 4;
+      sides[sideOffset] = -1;
+      sides[sideOffset + 1] = 1;
+      sides[sideOffset + 2] = -1;
+      sides[sideOffset + 3] = 1;
+
+      edgeKinds[sideOffset] = edge.kind;
+      edgeKinds[sideOffset + 1] = edge.kind;
+      edgeKinds[sideOffset + 2] = edge.kind;
+      edgeKinds[sideOffset + 3] = edge.kind;
+
+      const indexOffset = i * 6;
+      const v = i * 4;
+      indices[indexOffset] = v;
+      indices[indexOffset + 1] = v + 1;
+      indices[indexOffset + 2] = v + 2;
+      indices[indexOffset + 3] = v + 1;
+      indices[indexOffset + 4] = v + 3;
+      indices[indexOffset + 5] = v + 2;
+    }
+
+    chunks.push({
+      positions,
+      nextPositions,
+      sides,
+      edgeKinds,
+      indices,
+    });
+  }
+
+  return chunks;
+};
+
+const createEdgeLineBuffers = (
+  renderer: WebGLRenderer,
+  baseId: string,
+  mesh: RenderMesh
+) => {
+  const edgeSegments = buildEdgeSegments(mesh);
+  const edgeLineChunks = buildEdgeLineBufferChunks(mesh, edgeSegments);
+  if (edgeLineChunks.length === 0) return [];
+  return edgeLineChunks.map((chunk, index) => {
+    const buffer = renderer.createGeometryBuffer(`${baseId}_${index}`);
+    buffer.setData({
+      positions: chunk.positions,
+      nextPositions: chunk.nextPositions,
+      sides: chunk.sides,
+      edgeKinds: chunk.edgeKinds,
+      indices: chunk.indices,
+    });
+    return buffer;
+  });
+};
+
 
 const mat4Multiply = (a: Float32Array, b: Float32Array) => {
   const out = new Float32Array(16);
@@ -231,6 +497,7 @@ export const createGumballBuffers = (renderer: WebGLRenderer): GumballBuffers =>
     normals: new Float32Array(axisMesh.normals),
     indices: new Uint16Array(axisMesh.indices),
   });
+  const axisEdgeLines = createEdgeLineBuffers(renderer, "__gumball_axis_edges", axisMesh);
 
   const planeMesh = generateBoxMesh(
     {
@@ -246,6 +513,7 @@ export const createGumballBuffers = (renderer: WebGLRenderer): GumballBuffers =>
     normals: new Float32Array(planeMesh.normals),
     indices: new Uint16Array(planeMesh.indices),
   });
+  const planeEdgeLines = createEdgeLineBuffers(renderer, "__gumball_plane_edges", planeMesh);
 
   const ringMesh = generateTorusMesh(
     GUMBALL_METRICS.rotateRadius,
@@ -259,6 +527,7 @@ export const createGumballBuffers = (renderer: WebGLRenderer): GumballBuffers =>
     normals: new Float32Array(ringMesh.normals),
     indices: new Uint16Array(ringMesh.indices),
   });
+  const ringEdgeLines = createEdgeLineBuffers(renderer, "__gumball_ring_edges", ringMesh);
 
   const scaleMesh = generateBoxMesh(
     {
@@ -274,6 +543,7 @@ export const createGumballBuffers = (renderer: WebGLRenderer): GumballBuffers =>
     normals: new Float32Array(scaleMesh.normals),
     indices: new Uint16Array(scaleMesh.indices),
   });
+  const scaleEdgeLines = createEdgeLineBuffers(renderer, "__gumball_scale_edges", scaleMesh);
 
   const scaleCenterMesh = generateSphereMesh(GUMBALL_METRICS.scaleCenterRadius, 18);
   const scaleCenter = renderer.createGeometryBuffer("__gumball_scale_center");
@@ -282,8 +552,24 @@ export const createGumballBuffers = (renderer: WebGLRenderer): GumballBuffers =>
     normals: new Float32Array(scaleCenterMesh.normals),
     indices: new Uint16Array(scaleCenterMesh.indices),
   });
+  const scaleCenterEdgeLines = createEdgeLineBuffers(
+    renderer,
+    "__gumball_scale_center_edges",
+    scaleCenterMesh
+  );
 
-  return { axis, plane, ring, scale, scaleCenter };
+  return {
+    axis,
+    plane,
+    ring,
+    scale,
+    scaleCenter,
+    axisEdgeLines,
+    planeEdgeLines,
+    ringEdgeLines,
+    scaleEdgeLines,
+    scaleCenterEdgeLines,
+  };
 };
 
 export const disposeGumballBuffers = (
@@ -295,6 +581,11 @@ export const disposeGumballBuffers = (
   renderer.deleteGeometryBuffer(buffers.ring.id);
   renderer.deleteGeometryBuffer(buffers.scale.id);
   renderer.deleteGeometryBuffer(buffers.scaleCenter.id);
+  buffers.axisEdgeLines.forEach((buffer) => renderer.deleteGeometryBuffer(buffer.id));
+  buffers.planeEdgeLines.forEach((buffer) => renderer.deleteGeometryBuffer(buffer.id));
+  buffers.ringEdgeLines.forEach((buffer) => renderer.deleteGeometryBuffer(buffer.id));
+  buffers.scaleEdgeLines.forEach((buffer) => renderer.deleteGeometryBuffer(buffer.id));
+  buffers.scaleCenterEdgeLines.forEach((buffer) => renderer.deleteGeometryBuffer(buffer.id));
 };
 
 export const getGumballTransforms = (state: GumballRenderState) => {
@@ -325,9 +616,15 @@ export const getGumballTransforms = (state: GumballRenderState) => {
     )
   );
 
-  const rotateX = mat4Multiply(base, mat4Multiply(mat4RotationZ(-Math.PI / 2), scale));
+  const rotateX = mat4Multiply(
+    base,
+    mat4Multiply(mat4RotationZ(-Math.PI / 2), scale)
+  );
   const rotateY = mat4Multiply(base, scale);
-  const rotateZ = mat4Multiply(base, mat4Multiply(mat4RotationX(Math.PI / 2), scale));
+  const rotateZ = mat4Multiply(
+    base,
+    mat4Multiply(mat4RotationX(Math.PI / 2), scale)
+  );
 
   const scaleOffset = GUMBALL_METRICS.scaleHandleOffset * state.scale;
   const scaleTranslate = mat4Translation(0, scaleOffset, 0);
@@ -381,42 +678,40 @@ export const renderGumball = (
   const transforms = getGumballTransforms(state);
   const activeHandle = state.activeHandle ?? null;
   const showMove = state.mode === "move" || state.mode === "gumball";
-  const showRotate = state.mode === "rotate" || state.mode === "gumball";
+  const showRotate = (state.mode === "rotate" || state.mode === "gumball") &&
+    (options.showRotate ?? true);
   const showScale = state.mode === "scale" || state.mode === "gumball";
   const lightPosition = options.lightPosition ?? [12, 18, 10];
   const lightColor = options.lightColor ?? [0.74, 0.76, 0.74];
   const ambientColor = options.ambientColor ?? [0.62, 0.64, 0.62];
+  const ambientStrength = options.ambientStrength ?? 0.68;
+  const sheenIntensity = options.sheenIntensity ?? 0.08;
   const axisOpacity = options.axisOpacity ?? 1;
   const planeOpacity = options.planeOpacity ?? 0.65;
   const ringOpacity = Math.min(axisOpacity, 0.92);
   const scaleOpacity = Math.min(axisOpacity, 0.95);
+  const lighting = { lightPosition, lightColor, ambientColor, ambientStrength, sheenIntensity };
 
-  if (showMove) {
+  const renderMoveHandles = () => {
     renderer.renderGeometry(buffers.axis, camera, {
       modelMatrix: transforms.xAxis,
       materialColor:
         activeHandle === "axis-x" ? lightenColor(AXIS_COLORS.x, 0.2) : AXIS_COLORS.x,
-      lightPosition,
-      lightColor,
-      ambientColor,
+      ...lighting,
       opacity: axisOpacity,
     });
     renderer.renderGeometry(buffers.axis, camera, {
       modelMatrix: transforms.yAxis,
       materialColor:
         activeHandle === "axis-y" ? lightenColor(AXIS_COLORS.y, 0.2) : AXIS_COLORS.y,
-      lightPosition,
-      lightColor,
-      ambientColor,
+      ...lighting,
       opacity: axisOpacity,
     });
     renderer.renderGeometry(buffers.axis, camera, {
       modelMatrix: transforms.zAxis,
       materialColor:
         activeHandle === "axis-z" ? lightenColor(AXIS_COLORS.z, 0.2) : AXIS_COLORS.z,
-      lightPosition,
-      lightColor,
-      ambientColor,
+      ...lighting,
       opacity: axisOpacity,
     });
 
@@ -426,9 +721,7 @@ export const renderGumball = (
         activeHandle === "plane-xy"
           ? lightenColor(PLANE_COLORS.xy, 0.2)
           : PLANE_COLORS.xy,
-      lightPosition,
-      lightColor,
-      ambientColor,
+      ...lighting,
       opacity: planeOpacity,
     });
     renderer.renderGeometry(buffers.plane, camera, {
@@ -437,9 +730,7 @@ export const renderGumball = (
         activeHandle === "plane-yz"
           ? lightenColor(PLANE_COLORS.yz, 0.2)
           : PLANE_COLORS.yz,
-      lightPosition,
-      lightColor,
-      ambientColor,
+      ...lighting,
       opacity: planeOpacity,
     });
     renderer.renderGeometry(buffers.plane, camera, {
@@ -448,69 +739,31 @@ export const renderGumball = (
         activeHandle === "plane-xz"
           ? lightenColor(PLANE_COLORS.xz, 0.2)
           : PLANE_COLORS.xz,
-      lightPosition,
-      lightColor,
-      ambientColor,
+      ...lighting,
       opacity: planeOpacity,
     });
-  }
+  };
 
-  if (showRotate) {
-    renderer.renderGeometry(buffers.ring, camera, {
-      modelMatrix: transforms.rotateX,
-      materialColor:
-        activeHandle === "rotate-x" ? lightenColor(AXIS_COLORS.x, 0.25) : AXIS_COLORS.x,
-      lightPosition,
-      lightColor,
-      ambientColor,
-      opacity: ringOpacity,
-    });
-    renderer.renderGeometry(buffers.ring, camera, {
-      modelMatrix: transforms.rotateY,
-      materialColor:
-        activeHandle === "rotate-y" ? lightenColor(AXIS_COLORS.y, 0.25) : AXIS_COLORS.y,
-      lightPosition,
-      lightColor,
-      ambientColor,
-      opacity: ringOpacity,
-    });
-    renderer.renderGeometry(buffers.ring, camera, {
-      modelMatrix: transforms.rotateZ,
-      materialColor:
-        activeHandle === "rotate-z" ? lightenColor(AXIS_COLORS.z, 0.25) : AXIS_COLORS.z,
-      lightPosition,
-      lightColor,
-      ambientColor,
-      opacity: ringOpacity,
-    });
-  }
-
-  if (showScale) {
+  const renderScaleHandles = () => {
     renderer.renderGeometry(buffers.scale, camera, {
       modelMatrix: transforms.scaleX,
       materialColor:
         activeHandle === "scale-x" ? lightenColor(AXIS_COLORS.x, 0.25) : AXIS_COLORS.x,
-      lightPosition,
-      lightColor,
-      ambientColor,
+      ...lighting,
       opacity: scaleOpacity,
     });
     renderer.renderGeometry(buffers.scale, camera, {
       modelMatrix: transforms.scaleY,
       materialColor:
         activeHandle === "scale-y" ? lightenColor(AXIS_COLORS.y, 0.25) : AXIS_COLORS.y,
-      lightPosition,
-      lightColor,
-      ambientColor,
+      ...lighting,
       opacity: scaleOpacity,
     });
     renderer.renderGeometry(buffers.scale, camera, {
       modelMatrix: transforms.scaleZ,
       materialColor:
         activeHandle === "scale-z" ? lightenColor(AXIS_COLORS.z, 0.25) : AXIS_COLORS.z,
-      lightPosition,
-      lightColor,
-      ambientColor,
+      ...lighting,
       opacity: scaleOpacity,
     });
     renderer.renderGeometry(buffers.scale, camera, {
@@ -519,19 +772,51 @@ export const renderGumball = (
         activeHandle === "scale-uniform"
           ? lightenColor(UNIFORM_SCALE_COLOR, 0.25)
           : UNIFORM_SCALE_COLOR,
-      lightPosition,
-      lightColor,
-      ambientColor,
+      ...lighting,
       opacity: scaleOpacity,
     });
+  };
+
+  if (showScale && state.mode === "gumball") {
+    renderScaleHandles();
+  }
+
+  if (showMove) {
+    renderMoveHandles();
+  }
+
+  if (showRotate) {
+    renderer.renderGeometry(buffers.ring, camera, {
+      modelMatrix: transforms.rotateX,
+      materialColor:
+        activeHandle === "rotate-x" ? lightenColor(AXIS_COLORS.x, 0.25) : AXIS_COLORS.x,
+      ...lighting,
+      opacity: ringOpacity,
+    });
+    renderer.renderGeometry(buffers.ring, camera, {
+      modelMatrix: transforms.rotateY,
+      materialColor:
+        activeHandle === "rotate-y" ? lightenColor(AXIS_COLORS.y, 0.25) : AXIS_COLORS.y,
+      ...lighting,
+      opacity: ringOpacity,
+    });
+    renderer.renderGeometry(buffers.ring, camera, {
+      modelMatrix: transforms.rotateZ,
+      materialColor:
+        activeHandle === "rotate-z" ? lightenColor(AXIS_COLORS.z, 0.25) : AXIS_COLORS.z,
+      ...lighting,
+      opacity: ringOpacity,
+    });
+  }
+
+  if (showScale && state.mode !== "gumball") {
+    renderScaleHandles();
   }
 
   renderer.renderGeometry(buffers.scaleCenter, camera, {
     modelMatrix: transforms.pivot,
     materialColor: activeHandle === "pivot" ? lightenColor([1, 1, 1], 0.2) : [0.98, 0.98, 0.96],
-    lightPosition,
-    lightColor,
-    ambientColor,
+    ...lighting,
     opacity: 0.95,
   });
 };

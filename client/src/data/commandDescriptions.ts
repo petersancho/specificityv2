@@ -1,3 +1,15 @@
+import { PRIMITIVE_CATALOG } from "./primitiveCatalog";
+
+const PRIMITIVE_COMMAND_DESCRIPTIONS = Object.fromEntries(
+  PRIMITIVE_CATALOG.map((entry) => [
+    entry.id,
+    {
+      description: `Create a ${entry.label} primitive.`,
+      category: "geometry",
+    },
+  ])
+);
+
 export const COMMAND_DESCRIPTIONS: Record<
   string,
   { description: string; shortcut?: string; category: string }
@@ -34,23 +46,7 @@ export const COMMAND_DESCRIPTIONS: Record<
     description: "Draw a smooth interpolated curve through control points.",
     category: "geometry",
   },
-  primitive: {
-    description: "Create 3D primitives: Box, Sphere, Cylinder, Torus.",
-    shortcut: "B",
-    category: "geometry",
-  },
-  box: {
-    description: "Shortcut to place a box primitive on the construction plane.",
-    category: "geometry",
-  },
-  sphere: {
-    description: "Shortcut to place a sphere primitive on the construction plane.",
-    category: "geometry",
-  },
-  cylinder: {
-    description: "Shortcut to place a cylinder primitive on the construction plane.",
-    category: "geometry",
-  },
+  ...PRIMITIVE_COMMAND_DESCRIPTIONS,
   interpolate: {
     description: "Create a smooth NURBS curve through control points.",
     shortcut: "I",

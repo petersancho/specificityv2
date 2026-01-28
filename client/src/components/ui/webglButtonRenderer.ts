@@ -85,10 +85,15 @@ const SIZE_SETTINGS: Record<WebGLButtonSize, SizeSettings> = {
   lg: { minHeight: 48, paddingX: 16, paddingY: 8, gap: 9, fontSize: 14, iconScale: 0.54 },
 };
 
+const BUTTON_SUPERSAMPLE = 1.35;
+
 const rgb = (r: number, g: number, b: number, a = 1): RGBA => [r / 255, g / 255, b / 255, a];
 
 const WHITE = rgb(255, 255, 255, 1);
 const BLACK = rgb(0, 0, 0, 1);
+const NEUTRAL_FILL = rgb(242, 240, 236, 1);
+const NEUTRAL_BORDER = rgb(205, 201, 196, 1);
+const NEUTRAL_SHADOW = rgb(0, 0, 0, 0.45);
 
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
 
@@ -248,7 +253,6 @@ const getVariantBasePalette = (
   const cream = theme.cream;
   const ink = theme.ink;
   const border = theme.border;
-  const surfaceMuted = theme.surfaceMuted;
 
   switch (variant) {
     case "primary":
@@ -283,43 +287,42 @@ const getVariantBasePalette = (
       };
     case "icon":
       return {
-        fill: cream,
-        border: withAlpha(darken(ink, 0.04), 0.92),
-        shadow: withAlpha(darken(ink, 0.65), 0.36),
-        glow: withAlpha(lighten(accent, 0.26), 0.3),
-        gloss: withAlpha(WHITE, 0.24),
+        fill: NEUTRAL_FILL,
+        border: NEUTRAL_BORDER,
+        shadow: NEUTRAL_SHADOW,
+        glow: withAlpha(BLACK, 0),
+        gloss: withAlpha(WHITE, 0),
         text: ink,
         icon: accent,
       };
     case "palette": {
-      const tintedFill = mix(cream, surfaceMuted, 0.32);
       return {
-        fill: tintedFill,
-        border: withAlpha(darken(border, 0.08), 0.86),
-        shadow: withAlpha(darken(ink, 0.6), 0.28),
-        glow: withAlpha(lighten(accent, 0.32), 0.3),
-        gloss: withAlpha(WHITE, 0.22),
+        fill: NEUTRAL_FILL,
+        border: NEUTRAL_BORDER,
+        shadow: NEUTRAL_SHADOW,
+        glow: withAlpha(BLACK, 0),
+        gloss: withAlpha(WHITE, 0),
         text: ink,
         icon: accent,
       };
     }
     case "outliner":
       return {
-        fill: cream,
-        border: withAlpha(darken(border, 0.12), 0.78),
-        shadow: withAlpha(darken(ink, 0.6), 0.22),
-        glow: withAlpha(lighten(accent, 0.5), 0.18),
-        gloss: withAlpha(WHITE, 0.18),
+        fill: NEUTRAL_FILL,
+        border: NEUTRAL_BORDER,
+        shadow: NEUTRAL_SHADOW,
+        glow: withAlpha(BLACK, 0),
+        gloss: withAlpha(WHITE, 0),
         text: ink,
         icon: accent,
       };
     case "command":
       return {
-        fill: cream,
-        border: withAlpha(darken(ink, 0.02), 0.9),
-        shadow: withAlpha(darken(ink, 0.64), 0.34),
-        glow: withAlpha(lighten(accent, 0.38), 0.28),
-        gloss: withAlpha(WHITE, 0.24),
+        fill: NEUTRAL_FILL,
+        border: NEUTRAL_BORDER,
+        shadow: NEUTRAL_SHADOW,
+        glow: withAlpha(BLACK, 0),
+        gloss: withAlpha(WHITE, 0),
         text: ink,
         icon: accent,
       };
@@ -341,33 +344,33 @@ const applyStateToPalette = (base: VariantPalette, state: WebGLButtonState): Var
   switch (state) {
     case "hover":
       return {
-        fill: lighten(base.fill, 0.06),
-        border: lighten(base.border, 0.04),
-        shadow: withAlpha(darken(base.shadow, 0.08), base.shadow[3] + 0.04),
-        glow: withAlpha(lighten(base.glow, 0.08), base.glow[3] + 0.06),
-        gloss: withAlpha(lighten(base.gloss, 0.12), Math.min(0.55, base.gloss[3] + 0.08)),
+        fill: lighten(base.fill, 0.04),
+        border: lighten(base.border, 0.03),
+        shadow: withAlpha(base.shadow, base.shadow[3] * 0.85),
+        glow: withAlpha(lighten(base.glow, 0.05), base.glow[3] * 1.1),
+        gloss: withAlpha(lighten(base.gloss, 0.08), base.gloss[3] * 1.05),
         text: lighten(base.text, 0.02),
         icon: lighten(base.icon, 0.02),
       };
     case "pressed":
       return {
-        fill: darken(base.fill, 0.08),
-        border: darken(base.border, 0.06),
-        shadow: withAlpha(darken(base.shadow, 0.18), Math.max(0.18, base.shadow[3] - 0.1)),
-        glow: withAlpha(darken(base.glow, 0.06), Math.max(0.12, base.glow[3] - 0.08)),
-        gloss: withAlpha(base.gloss, Math.max(0.08, base.gloss[3] - 0.12)),
-        text: darken(base.text, 0.04),
-        icon: darken(base.icon, 0.04),
+        fill: darken(base.fill, 0.06),
+        border: darken(base.border, 0.05),
+        shadow: withAlpha(base.shadow, base.shadow[3] * 0.6),
+        glow: withAlpha(base.glow, base.glow[3] * 0.6),
+        gloss: withAlpha(base.gloss, base.gloss[3] * 0.5),
+        text: darken(base.text, 0.03),
+        icon: darken(base.icon, 0.03),
       };
     case "active":
       return {
-        fill: darken(base.fill, 0.14),
-        border: darken(base.border, 0.12),
-        shadow: withAlpha(darken(base.shadow, 0.22), Math.min(0.65, base.shadow[3] + 0.06)),
-        glow: withAlpha(lighten(base.glow, 0.1), Math.min(0.62, base.glow[3] + 0.12)),
-        gloss: withAlpha(base.gloss, Math.min(0.6, base.gloss[3] + 0.06)),
-        text: lighten(base.text, 0.06),
-        icon: lighten(base.icon, 0.08),
+        fill: darken(base.fill, 0.1),
+        border: darken(base.border, 0.08),
+        shadow: withAlpha(base.shadow, base.shadow[3] * 0.7),
+        glow: withAlpha(base.glow, base.glow[3] * 0.9),
+        gloss: withAlpha(base.gloss, base.gloss[3] * 0.8),
+        text: lighten(base.text, 0.04),
+        icon: lighten(base.icon, 0.05),
       };
     case "disabled": {
       const desaturatedFill = mix(base.fill, rgb(160, 160, 160, 1), 0.35);
@@ -456,7 +459,10 @@ const renderButtonBackground = (options: RenderOptions): string => {
   const cached = backgroundCache.get(cacheKey);
   if (cached) return cached;
 
-  const dpr = typeof window === "undefined" ? 1 : Math.min(2, window.devicePixelRatio || 1);
+  const dpr =
+    typeof window === "undefined"
+      ? 1
+      : Math.min(3, (window.devicePixelRatio || 1) * BUTTON_SUPERSAMPLE);
   const pixelWidth = Math.max(1, Math.round(width * dpr));
   const pixelHeight = Math.max(1, Math.round(height * dpr));
   const handles = ensureRenderer(pixelWidth, pixelHeight);
@@ -467,23 +473,30 @@ const renderButtonBackground = (options: RenderOptions): string => {
   gl.clear(gl.COLOR_BUFFER_BIT);
 
   const stroke = Math.max(1, Math.round(1.6 * dpr));
-  const shadowOffset = elevated ? Math.round(4 * dpr) : Math.round(3 * dpr);
-  const shadowBlurPad = Math.max(2, Math.round(3 * dpr));
+  const isFlatVariant = ["icon", "palette", "outliner", "command"].includes(variant);
+  const baseShadowOffset = elevated ? 4 : 3;
+  const stateFactor =
+    state === "pressed" || state === "active" ? 0.4 : state === "hover" ? 0.7 : 1;
+  const shadowOffset = Math.max(1, Math.round(baseShadowOffset * stateFactor * dpr));
+  const shadowBlurPad = isFlatVariant
+    ? Math.max(1, Math.round(2 * dpr))
+    : Math.max(2, Math.round(3 * dpr));
 
   const r = Math.max(2, radius * dpr);
 
   ui.begin(pixelWidth, pixelHeight);
 
-  // Ambient glow.
-  const glowPad = Math.max(3, Math.round(6 * dpr));
-  ui.drawRoundedRect(
-    glowPad * -0.5,
-    glowPad * -0.5,
-    pixelWidth + glowPad,
-    pixelHeight + glowPad,
-    r + glowPad,
-    withAlpha(palette.glow, palette.glow[3] * 0.35)
-  );
+  if (!isFlatVariant && palette.glow[3] > 0.01) {
+    const glowPad = Math.max(3, Math.round(6 * dpr));
+    ui.drawRoundedRect(
+      glowPad * -0.5,
+      glowPad * -0.5,
+      pixelWidth + glowPad,
+      pixelHeight + glowPad,
+      r + glowPad,
+      withAlpha(palette.glow, palette.glow[3] * 0.35)
+    );
+  }
 
   // Shadow.
   ui.drawRoundedRect(
@@ -507,19 +520,27 @@ const renderButtonBackground = (options: RenderOptions): string => {
 
   ui.drawRoundedRect(innerX, innerY, innerWidth, innerHeight, innerRadius, palette.fill);
 
-  drawInnerGlow(ui, pixelWidth, pixelHeight, innerRadius, palette.glow);
-  drawGlossBands(ui, pixelWidth, pixelHeight, innerRadius, palette.gloss, state === "hover" ? 1.25 : 1);
+  if (!isFlatVariant) {
+    drawInnerGlow(ui, pixelWidth, pixelHeight, innerRadius, palette.glow);
+    drawGlossBands(
+      ui,
+      pixelWidth,
+      pixelHeight,
+      innerRadius,
+      palette.gloss,
+      state === "hover" ? 1.25 : 1
+    );
 
-  // Bottom sheen.
-  const sheenHeight = Math.max(3, Math.round(pixelHeight * 0.18));
-  ui.drawRoundedRect(
-    innerX,
-    pixelHeight - sheenHeight - innerY,
-    innerWidth,
-    sheenHeight,
-    innerRadius,
-    withAlpha(darken(palette.fill, 0.12), 0.22)
-  );
+    const sheenHeight = Math.max(3, Math.round(pixelHeight * 0.18));
+    ui.drawRoundedRect(
+      innerX,
+      pixelHeight - sheenHeight - innerY,
+      innerWidth,
+      sheenHeight,
+      innerRadius,
+      withAlpha(darken(palette.fill, 0.12), 0.22)
+    );
+  }
 
   ui.flush();
 
@@ -571,7 +592,10 @@ export const renderSliderOverlay = ({
   const cached = sliderOverlayCache.get(cacheKey);
   if (cached) return cached;
 
-  const dpr = typeof window === "undefined" ? 1 : Math.min(2, window.devicePixelRatio || 1);
+  const dpr =
+    typeof window === "undefined"
+      ? 1
+      : Math.min(3, (window.devicePixelRatio || 1) * BUTTON_SUPERSAMPLE);
   const pixelWidth = Math.max(1, Math.round(width * dpr));
   const pixelHeight = Math.max(1, Math.round(height * dpr));
   const handles = ensureRenderer(pixelWidth, pixelHeight);
@@ -619,7 +643,10 @@ export const renderSliderOverlay = ({
 const renderIconImage = ({ iconId, size, tint }: IconRenderOptions): string => {
   const theme = getThemePalette();
   const themeKey = theme.themeKey;
-  const dpr = typeof window === "undefined" ? 1 : Math.min(2, window.devicePixelRatio || 1);
+  const dpr =
+    typeof window === "undefined"
+      ? 1
+      : Math.min(3, (window.devicePixelRatio || 1) * BUTTON_SUPERSAMPLE);
   const pixelSize = Math.max(16, Math.round(size * dpr));
 
   const cacheKey = [

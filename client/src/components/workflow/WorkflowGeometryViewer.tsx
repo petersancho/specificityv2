@@ -1,50 +1,28 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useProjectStore } from "../../store/useProjectStore";
-import { GeometryRenderAdapter } from "../../geometry/renderAdapter";
-import { add, cross, length, normalize, scale, sub } from "../../geometry/math";
+import { GeometryRenderAdapter, type RenderableGeometry } from "../../geometry/renderAdapter";
+import { add, cross, dot, length, normalize, scale, sub } from "../../geometry/math";
 import { WebGLRenderer, type Camera } from "../../webgl/WebGLRenderer";
+import {
+  VIEW_STYLE,
+  adjustForSelection,
+  clamp01,
+  darkenColor,
+  lerp,
+  mixColor,
+  smoothstep,
+} from "../../webgl/viewProfile";
 import type { Geometry, Vec3 } from "../../types";
 import type { GeometryBuffer } from "../../webgl/BufferManager";
-import {
-  SOLIDITY_GHOSTED_THRESHOLD,
-  SOLIDITY_WIREFRAME_THRESHOLD,
-  resolveDisplayModeFromSolidity,
-} from "../../view/solidity";
 
 const ORBIT_SPEED = 0.006;
 const PAN_SPEED = 0.0025;
 const ZOOM_SPEED = 0.001;
 const MIN_DISTANCE = 0.4;
 const MAX_DISTANCE = 120;
-const GRID_EXTENT_MULTIPLIER = 60;
+const GRID_EXTENT_MULTIPLIER = 120;
 const GRID_MINOR_STEP = 1;
 const GRID_OFFSET_Y = -0.002;
-
-const VIEW_STYLE = {
-  clearColor: [0.94, 0.94, 0.93, 1] as [number, number, number, number],
-  mesh: [0.08, 0.58, 0.62] as [number, number, number],
-  edge: [0.08, 0.08, 0.08] as [number, number, number],
-  solidEdgeOpacity: 1,
-  solidEdgeWidth: 1.4,
-  solidRenderScale: 1.15,
-  hiddenEdge: [0.14, 0.14, 0.14] as [number, number, number],
-  selection: [0.2, 0.14, 0.05] as [number, number, number],
-  ambient: [0.7, 0.7, 0.68] as [number, number, number],
-  light: [0.55, 0.55, 0.55] as [number, number, number],
-  lightPosition: [10, 12, 9] as [number, number, number],
-  ghostedOpacity: 0.26,
-  hiddenEdgeOpacity: 0.5,
-  dashScale: 0.05,
-  gridMinor: [0.82, 0.82, 0.81] as [number, number, number],
-  gridMajor: [0.7, 0.7, 0.69] as [number, number, number],
-};
-
-const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
-const darkenColor = (color: [number, number, number], amount: number) => [
-  clamp01(color[0] * (1 - amount)),
-  clamp01(color[1] * (1 - amount)),
-  clamp01(color[2] * (1 - amount)),
-] as [number, number, number];
 
 type CameraState = {
   position: Vec3;
@@ -60,7 +38,7 @@ const DEFAULT_CAMERA: CameraState = {
   position: { x: 2, y: 2, z: 2 },
   target: { x: 0, y: 0, z: 0 },
   up: { x: 0, y: 1, z: 0 },
-  fov: 50,
+  fov: 28,
   zoomSpeed: 1,
 };
 
@@ -288,10 +266,9 @@ const WorkflowGeometryViewer = ({ geometryId }: WorkflowGeometryViewerProps) => 
     const resize = () => {
       const rect = container.getBoundingClientRect();
       const baseDpr = window.devicePixelRatio || 1;
-      const renderScale =
-        viewSolidityRef.current >= SOLIDITY_GHOSTED_THRESHOLD
-          ? VIEW_STYLE.solidRenderScale
-          : 1;
+      const solidity = clamp01(viewSolidityRef.current);
+      const solidBlend = smoothstep(0.55, 1, solidity);
+      const renderScale = lerp(1, VIEW_STYLE.solidRenderScale, solidBlend);
       const dpr = baseDpr * renderScale;
       canvas.width = Math.max(1, rect.width * dpr);
       canvas.height = Math.max(1, rect.height * dpr);
@@ -515,7 +492,6 @@ const WorkflowGeometryViewer = ({ geometryId }: WorkflowGeometryViewerProps) => 
         return;
       }
 
-      renderer.setBackfaceCulling(viewSettingsRef.current.backfaceCulling);
       renderer.setClearColor(VIEW_STYLE.clearColor);
       renderer.clear();
 
@@ -525,103 +501,244 @@ const WorkflowGeometryViewer = ({ geometryId }: WorkflowGeometryViewerProps) => 
       });
 
       const viewSolidity = clamp01(viewSolidityRef.current);
-      const displayModeSafe = resolveDisplayModeFromSolidity(viewSolidity);
-      const isSolid = displayModeSafe === "shaded";
-      const showMesh = viewSolidity > SOLIDITY_WIREFRAME_THRESHOLD;
+      const smoothSolidity = smoothstep(0, 1, viewSolidity);
+      const solidBlend = smoothSolidity;
+      const baseMeshOpacity = Math.pow(smoothSolidity, 1.12);
+      const showMesh = baseMeshOpacity > 0.02;
+      const nonSolidBlend = 1 - smoothSolidity;
+      const edgeFade = smoothSolidity;
+      const wireframeBoost = Math.pow(1 - smoothSolidity, 1.25);
+      renderer.setBackfaceCulling(false);
       const showEdges = true;
-      const showHiddenEdges = !isSolid;
-      const meshOpacity = showMesh ? viewSolidity : 0;
-      const solidEdgeColor = darkenColor(VIEW_STYLE.mesh, 0.45);
-      const edgeColor = isSolid ? solidEdgeColor : VIEW_STYLE.edge;
-      const edgeOpacity = isSolid ? VIEW_STYLE.solidEdgeOpacity : 1;
-      const renderScale =
-        viewSolidity >= SOLIDITY_GHOSTED_THRESHOLD ? VIEW_STYLE.solidRenderScale : 1;
-      const edgeWidth =
-        VIEW_STYLE.solidEdgeWidth * (window.devicePixelRatio || 1) * renderScale;
+      const renderScale = lerp(1, VIEW_STYLE.solidRenderScale, solidBlend);
+      const dpr = (window.devicePixelRatio || 1) * renderScale;
+      const edgePrimaryWidth = VIEW_STYLE.edgePrimaryWidth * dpr;
+      const edgeSecondaryWidth = VIEW_STYLE.edgeSecondaryWidth * dpr;
+      const edgeTertiaryWidth = VIEW_STYLE.edgeTertiaryWidth * dpr;
+      const edgeBias = lerp(0.00022, 0.00045, edgeFade);
+      const edgeOpacityScale = lerp(1, 0.8, edgeFade);
+      const edgeInternalScale = lerp(1, 0.7, edgeFade);
+      const edgeAAStrength = lerp(0.22, 1.0, smoothSolidity);
+      const edgePixelSnap = lerp(0.65, 0.0, smoothSolidity);
 
       if (gridMinorBufferRef.current) {
         renderer.renderEdges(gridMinorBufferRef.current, cameraPayload, {
           edgeColor: VIEW_STYLE.gridMinor,
-          opacity: 0.7,
+          opacity: 0.35,
           dashEnabled: 0,
         });
       }
       if (gridMajorBufferRef.current) {
         renderer.renderEdges(gridMajorBufferRef.current, cameraPayload, {
           edgeColor: VIEW_STYLE.gridMajor,
-          opacity: 0.92,
+          opacity: 0.5,
           dashEnabled: 0,
         });
       }
 
       const selected = new Set(selectedRef.current);
       const hidden = new Set(hiddenRef.current);
-      adapter.getAllRenderables().forEach((renderable) => {
-        if (hidden.has(renderable.id)) return;
-        const isSelected = selected.has(renderable.id);
+      const hasSelection = selected.size > 0;
+      const viewDir = normalize(sub(cameraRef.current.target, cameraRef.current.position));
+      const renderables = adapter
+        .getAllRenderables()
+        .filter((renderable) => !hidden.has(renderable.id));
+      const meshRenderables = renderables
+        .filter((renderable) => renderable.type !== "polyline")
+        .map((renderable) => {
+          const item = geometryRef.current.find((entry) => entry.id === renderable.id);
+          const center = item
+            ? (() => {
+                if (item.type === "vertex") return item.position;
+                if (item.type === "polyline") {
+                  const points = item.vertexIds
+                    .map((id) => geometryRef.current.find((g) => g.id === id))
+                    .filter((g): g is Geometry => Boolean(g));
+                  if (points.length === 0) return { x: 0, y: 0, z: 0 };
+                  const sum = points.reduce(
+                    (acc, entry) => {
+                      if (entry.type === "vertex") {
+                        acc.x += entry.position.x;
+                        acc.y += entry.position.y;
+                        acc.z += entry.position.z;
+                      }
+                      return acc;
+                    },
+                    { x: 0, y: 0, z: 0 }
+                  );
+                  const count = Math.max(1, points.length);
+                  return { x: sum.x / count, y: sum.y / count, z: sum.z / count };
+                }
+                if ("mesh" in item) {
+                  const positions = item.mesh.positions;
+                  const count = Math.max(1, positions.length / 3);
+                  let sx = 0;
+                  let sy = 0;
+                  let sz = 0;
+                  for (let i = 0; i < positions.length; i += 3) {
+                    sx += positions[i];
+                    sy += positions[i + 1];
+                    sz += positions[i + 2];
+                  }
+                  return { x: sx / count, y: sy / count, z: sz / count };
+                }
+                return { x: 0, y: 0, z: 0 };
+              })()
+            : { x: 0, y: 0, z: 0 };
+          const depth = dot(sub(center, cameraRef.current.position), viewDir);
+          return { renderable, depth };
+        })
+        .sort((a, b) => b.depth - a.depth);
 
-        if (renderable.type === "polyline") {
-          renderer.renderLine(renderable.buffer, cameraPayload, {
-            lineWidth: 2 * (window.devicePixelRatio || 1),
-            resolution: [canvas.width, canvas.height],
-            lineColor: VIEW_STYLE.edge,
-            selectionHighlight: VIEW_STYLE.selection,
-            isSelected: isSelected ? 1 : 0,
-          });
-          return;
-        }
-
-        if (showMesh) {
+      const renderMesh = (renderable: RenderableGeometry, isSelected: boolean) => {
+        if (showMesh && baseMeshOpacity > 0) {
+          const materialColor = adjustForSelection(VIEW_STYLE.mesh, isSelected, hasSelection);
+          const selectionFactor = hasSelection
+            ? lerp(
+                1,
+                isSelected
+                  ? 1.02
+                  : baseMeshOpacity > 0.7
+                    ? 0.9
+                    : 0.75,
+                clamp01(nonSolidBlend)
+              )
+            : 1;
+          const opacity = clamp(
+            baseMeshOpacity * selectionFactor,
+            0.2,
+            1
+          );
           renderer.renderGeometry(renderable.buffer, cameraPayload, {
-            materialColor: VIEW_STYLE.mesh,
+            materialColor,
             lightPosition: VIEW_STYLE.lightPosition,
             lightColor: VIEW_STYLE.light,
             ambientColor: VIEW_STYLE.ambient,
+            cameraPosition: cameraPayload.position,
+            ambientStrength: VIEW_STYLE.ambientStrength,
             selectionHighlight: VIEW_STYLE.selection,
-            isSelected: isSelected ? 1 : 0,
-            opacity: meshOpacity,
+            isSelected: isSelected ? 0.6 : 0,
+            sheenIntensity: viewSettingsRef.current.sheen ?? 0.08,
+            opacity,
           });
         }
+      };
 
+      const renderMeshEdges = (renderable: RenderableGeometry, isSelected: boolean) => {
         if (!showEdges) return;
-
         const edgeBuffer = renderable.edgeBuffer;
-        const edgeLineBuffer = renderable.edgeLineBuffer;
-        if (isSolid && edgeLineBuffer) {
-          renderer.renderLine(
-            edgeLineBuffer,
-            cameraPayload,
-            {
-              lineWidth: edgeWidth,
-              resolution: [canvas.width, canvas.height],
-              lineColor: edgeColor,
-              selectionHighlight: [0, 0, 0],
-              isSelected: 0,
-            },
-            { drawMode: "triangles" }
-          );
-        } else if (edgeBuffer) {
-          renderer.renderEdges(edgeBuffer, cameraPayload, {
-            edgeColor,
-            opacity: edgeOpacity,
-            dashEnabled: 0,
-            lineWidth: isSolid ? edgeWidth : 1,
-          });
-        }
+        const edgeLineBuffers = renderable.edgeLineBuffers;
+        const edgeBase = darkenColor(
+          adjustForSelection(VIEW_STYLE.mesh, isSelected, hasSelection),
+          0.22
+        );
+        const edgeInternalColor = mixColor(edgeBase, [1, 1, 1], 0.28);
+        const edgeCreaseColor = edgeBase;
+        const edgeSilhouetteColor = darkenColor(edgeBase, 0.2);
+        const internalWidthScale = lerp(1, 0.9, wireframeBoost);
+        const creaseWidthScale = lerp(1, 1.12, wireframeBoost * 0.7);
+        const silhouetteWidthScale = lerp(1, 1.5, wireframeBoost);
+        const edgeWidths: [number, number, number] = [
+          edgeTertiaryWidth * internalWidthScale,
+          edgeSecondaryWidth * creaseWidthScale,
+          edgePrimaryWidth * silhouetteWidthScale,
+        ];
+        const internalOpacityScale = lerp(1, 0.55, wireframeBoost);
+        const creaseOpacityScale = lerp(1, 0.8, wireframeBoost * 0.6);
+        const silhouetteOpacityScale = lerp(1, 1.15, wireframeBoost);
+        const edgeOpacities: [number, number, number] = [
+          Math.min(
+            1,
+            VIEW_STYLE.edgeTertiaryOpacity *
+              edgeOpacityScale *
+              edgeInternalScale *
+              internalOpacityScale
+          ),
+          Math.min(
+            1,
+            VIEW_STYLE.edgeSecondaryOpacity *
+              edgeOpacityScale *
+              creaseOpacityScale
+          ),
+          Math.min(
+            1,
+            VIEW_STYLE.edgePrimaryOpacity *
+              edgeOpacityScale *
+              silhouetteOpacityScale
+          ),
+        ];
 
-        if (showHiddenEdges && edgeBuffer) {
+        if (edgeLineBuffers && edgeLineBuffers.length > 0) {
+          edgeLineBuffers.forEach((edgeLineBuffer) => {
+            renderer.renderEdgeLines(
+              edgeLineBuffer,
+              cameraPayload,
+              {
+                resolution: [canvas.width, canvas.height],
+                edgeWidths,
+                edgeOpacities,
+                edgeColorInternal: edgeInternalColor,
+                edgeColorCrease: edgeCreaseColor,
+                edgeColorSilhouette: edgeSilhouetteColor,
+                depthBias: edgeBias,
+                edgeAAStrength,
+                edgePixelSnap,
+              },
+              {
+                depthFunc: "lequal",
+                depthMask: false,
+                blend: true,
+              }
+            );
+          });
+        } else if (edgeBuffer) {
           renderer.renderEdges(
             edgeBuffer,
             cameraPayload,
             {
-              edgeColor: VIEW_STYLE.hiddenEdge,
-              opacity: VIEW_STYLE.hiddenEdgeOpacity,
-              dashEnabled: 1,
-              dashScale: VIEW_STYLE.dashScale,
+              edgeColor: edgeCreaseColor,
+              opacity: 1,
+              dashEnabled: 0,
+              depthBias: edgeBias,
+              lineWidth: 3.2 * dpr,
             },
-            { depthFunc: "greater" }
+            { depthFunc: "lequal" }
           );
         }
+      };
+
+      const polylineRenderables = renderables.filter(
+        (renderable) => renderable.type === "polyline"
+      );
+      const renderPolyline = (renderable: RenderableGeometry, isSelected: boolean) => {
+        const lineColor = darkenColor(
+          adjustForSelection(VIEW_STYLE.mesh, isSelected, hasSelection),
+          0.22
+        );
+        renderer.renderLine(
+          renderable.buffer,
+          cameraPayload,
+          {
+            lineWidth: 6 * dpr,
+            resolution: [canvas.width, canvas.height],
+            lineColor,
+            lineOpacity: 1,
+            depthBias: edgeBias,
+            selectionHighlight: [0, 0, 0],
+            isSelected: 0,
+          },
+          { depthFunc: "lequal", depthMask: false }
+        );
+      };
+
+      meshRenderables.forEach(({ renderable }) => {
+        const isSelected = selected.has(renderable.id);
+        renderMesh(renderable, isSelected);
+        renderMeshEdges(renderable, isSelected);
+      });
+      polylineRenderables.forEach((renderable) => {
+        const isSelected = selected.has(renderable.id);
+        renderPolyline(renderable, isSelected);
       });
 
       frameId = requestAnimationFrame(render);
