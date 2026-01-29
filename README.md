@@ -81,3 +81,4 @@ Start with `docs/README.md` for the full documentation map. Core references:
 - Architecture: `docs/lingua_architecture.md`
 - Conventions: `docs/lingua_conventions.md`
 - AI agent notes: `docs/ai_agent_guide.md`
+- Ontology treatise prompt: `docs/lingua_ontology_comprehensive_prompt_v2.md`
