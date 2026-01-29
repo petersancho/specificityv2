@@ -444,6 +444,11 @@ const App = () => {
 
   const captureElement = async (target: HTMLElement, label: string) => {
     setIsCapturing(true);
+    const hiddenCanvases: Array<{
+      element: HTMLCanvasElement;
+      previousVisibility: string;
+      previousCaptureHide?: string;
+    }> = [];
     try {
       const html2canvas = (await import("html2canvas")).default;
       const scaleOverride = Number(target.dataset.captureScale);
@@ -456,11 +461,6 @@ const App = () => {
       const backgroundColor =
         backgroundMode === "white" ? "#ffffff" : null;
       const captureMode = target.dataset.captureMode;
-      const hiddenCanvases: Array<{
-        element: HTMLCanvasElement;
-        previousVisibility: string;
-        previousCaptureHide?: string;
-      }> = [];
       if (captureMode === "roslyn") {
         target.querySelectorAll<HTMLCanvasElement>("canvas").forEach((canvas) => {
           hiddenCanvases.push({
@@ -696,7 +696,7 @@ const App = () => {
       {!isFullscreen && (
         <WebGLAppTopBar
           status={status}
-          docsHref="#/docs"
+          docsHref={isDocsPage ? "#/" : "#/docs"}
           docsActive={isDocsPage}
         />
       )}

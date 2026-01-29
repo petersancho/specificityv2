@@ -13,7 +13,13 @@ import {
   smoothstep,
 } from "../../webgl/viewProfile";
 import { hexToRgb, normalizeRgbInput } from "../../utils/color";
-import type { Geometry, Vec3 } from "../../types";
+import {
+  normalizePaletteValues,
+  resolvePaletteColor,
+  resolvePaletteShading,
+  type RenderPaletteId,
+} from "../../utils/renderPalette";
+import type { DisplayMode, Geometry, Vec3, ViewSettings } from "../../types";
 import type { GeometryBuffer } from "../../webgl/BufferManager";
 
 const ORBIT_SPEED = 0.006;
@@ -24,24 +30,67 @@ const MAX_DISTANCE = 120;
 const GRID_EXTENT_MULTIPLIER = 120;
 const GRID_MINOR_STEP = 1;
 const GRID_OFFSET_Y = -0.002;
-const SILHOUETTE_BASE_COLOR: [number, number, number] = [0.02, 0.02, 0.02];
+const SILHOUETTE_BASE_COLOR: [number, number, number] = [0, 0, 0];
 const SILHOUETTE_SELECTED_COLOR: [number, number, number] = [0.2, 0.2, 0.2];
 const POINT_FILL_COLOR: [number, number, number] = [1, 0.82, 0.16];
 const POINT_OUTLINE_COLOR: [number, number, number] = [0, 0, 0];
 const POINT_HANDLE_RADIUS_PX = 6;
 const POINT_HANDLE_OUTLINE_PX = 1.5;
 
-const resolveCustomMaterialColor = (metadata?: Geometry["metadata"]) => {
+type CustomMaterialOverrides = {
+  color?: [number, number, number];
+  ambientStrength?: number;
+  sheenIntensity?: number;
+};
+
+const resolveCustomMaterialOverrides = (metadata?: Geometry["metadata"]) => {
   if (!metadata || typeof metadata !== "object") return null;
   const custom = (metadata as { customMaterial?: unknown }).customMaterial;
   if (!custom || typeof custom !== "object") return null;
-  const record = custom as { color?: unknown; hex?: unknown };
-  const color = normalizeRgbInput(record.color);
-  if (color) return color;
-  if (typeof record.hex === "string") {
-    return hexToRgb(record.hex);
+  const record = custom as {
+    color?: unknown;
+    hex?: unknown;
+    palette?: unknown;
+    paletteValues?: unknown;
+    paletteSwatch?: unknown;
+  };
+  const baseColor = normalizeRgbInput(record.color);
+  const hexColor = typeof record.hex === "string" ? hexToRgb(record.hex) : null;
+  const palette =
+    typeof record.palette === "string"
+      ? (record.palette as RenderPaletteId)
+      : null;
+  const paletteValues = normalizePaletteValues(record.paletteValues);
+  const paletteSwatch = typeof record.paletteSwatch === "string" ? record.paletteSwatch : null;
+
+  let color = baseColor ?? hexColor ?? null;
+  let ambientStrength: number | undefined;
+  let sheenIntensity: number | undefined;
+
+  if (palette && paletteValues) {
+    if (!color) {
+      const paletteColor = resolvePaletteColor({
+        palette,
+        values: paletteValues,
+        swatch: paletteSwatch,
+        baseColor: color,
+      });
+      if (paletteColor) {
+        color = paletteColor;
+      }
+    }
+    const shading = resolvePaletteShading(palette, paletteValues);
+    ambientStrength = shading.ambientStrength;
+    sheenIntensity = shading.sheenIntensity;
   }
-  return null;
+
+  if (!color && ambientStrength == null && sheenIntensity == null) return null;
+
+  return {
+    color: color ?? undefined,
+    ambientStrength,
+    sheenIntensity,
+  } as CustomMaterialOverrides;
 };
 
 type CameraState = {
@@ -213,9 +262,17 @@ const buildGridGeometry = (spacing: number, majorLinesEvery: number) => {
 
 type WorkflowGeometryViewerProps = {
   geometryIds: string[];
+  displayMode?: DisplayMode;
+  viewSolidity?: number;
+  viewSettings?: Partial<ViewSettings>;
 };
 
-const WorkflowGeometryViewer = ({ geometryIds }: WorkflowGeometryViewerProps) => {
+const WorkflowGeometryViewer = ({
+  geometryIds,
+  displayMode: displayModeOverride,
+  viewSolidity: viewSolidityOverride,
+  viewSettings: viewSettingsOverride,
+}: WorkflowGeometryViewerProps) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rendererRef = useRef<WebGLRenderer | null>(null);
@@ -228,52 +285,59 @@ const WorkflowGeometryViewer = ({ geometryIds }: WorkflowGeometryViewerProps) =>
 
   const geometry = useProjectStore((state) => state.geometry);
   const gridSettings = useProjectStore((state) => state.gridSettings);
-  const displayMode = useProjectStore((state) => state.displayMode);
-  const viewSolidity = useProjectStore((state) => state.viewSolidity);
-  const viewSettings = useProjectStore((state) => state.viewSettings);
+  const globalDisplayMode = useProjectStore((state) => state.displayMode);
+  const globalViewSolidity = useProjectStore((state) => state.viewSolidity);
+  const globalViewSettings = useProjectStore((state) => state.viewSettings);
   const selectedGeometryIds = useProjectStore((state) => state.selectedGeometryIds);
   const hiddenGeometryIds = useProjectStore((state) => state.hiddenGeometryIds);
 
   const customMaterialMap = useMemo(() => {
-    const map = new Map<string, [number, number, number]>();
+    const map = new Map<string, CustomMaterialOverrides>();
     geometry.forEach((item) => {
-      const color = resolveCustomMaterialColor(item.metadata);
-      if (color) {
-        map.set(item.id, color);
+      const overrides = resolveCustomMaterialOverrides(item.metadata);
+      if (overrides) {
+        map.set(item.id, overrides);
       }
     });
     return map;
   }, [geometry]);
 
   const geometryRef = useRef(geometry);
-  const customMaterialMapRef = useRef(new Map<string, [number, number, number]>());
+  const customMaterialMapRef = useRef(new Map<string, CustomMaterialOverrides>());
 
   useEffect(() => {
     geometryRef.current = geometry;
     customMaterialMapRef.current = customMaterialMap;
   }, [geometry, customMaterialMap]);
 
-  const viewSolidityRef = useRef(viewSolidity);
-  const displayModeRef = useRef(displayMode);
-  const viewSettingsRef = useRef(viewSettings);
+  const resolvedDisplayMode = displayModeOverride ?? globalDisplayMode;
+  const resolvedViewSolidity = viewSolidityOverride ?? globalViewSolidity;
+  const resolvedViewSettings = useMemo(
+    () => ({ ...globalViewSettings, ...(viewSettingsOverride ?? {}) }),
+    [globalViewSettings, viewSettingsOverride]
+  );
+
+  const viewSolidityRef = useRef(resolvedViewSolidity);
+  const displayModeRef = useRef(resolvedDisplayMode);
+  const viewSettingsRef = useRef(resolvedViewSettings);
   const selectedRef = useRef(selectedGeometryIds);
   const hiddenRef = useRef(hiddenGeometryIds);
 
   useEffect(() => {
-    viewSolidityRef.current = viewSolidity;
-  }, [viewSolidity]);
+    viewSolidityRef.current = resolvedViewSolidity;
+  }, [resolvedViewSolidity]);
 
   useEffect(() => {
     resizeRef.current?.();
-  }, [viewSolidity, displayMode]);
+  }, [resolvedViewSolidity, resolvedDisplayMode]);
 
   useEffect(() => {
-    displayModeRef.current = displayMode;
-  }, [displayMode]);
+    displayModeRef.current = resolvedDisplayMode;
+  }, [resolvedDisplayMode]);
 
   useEffect(() => {
-    viewSettingsRef.current = viewSettings;
-  }, [viewSettings]);
+    viewSettingsRef.current = resolvedViewSettings;
+  }, [resolvedViewSettings]);
 
   useEffect(() => {
     selectedRef.current = selectedGeometryIds;
@@ -582,7 +646,7 @@ const WorkflowGeometryViewer = ({ geometryIds }: WorkflowGeometryViewerProps) =>
       const nonSolidBlend = isSilhouette ? 0 : 1 - smoothSolidity;
       const edgeFade = isSilhouette ? 1 : smoothSolidity;
       const wireframeBoost = isSilhouette ? 0 : Math.pow(1 - smoothSolidity, 1.25);
-      renderer.setBackfaceCulling(false);
+      renderer.setBackfaceCulling(Boolean(viewSettingsRef.current.backfaceCulling));
       const showEdges = !isSilhouette;
       const renderScale = lerp(1, VIEW_STYLE.solidRenderScale, solidBlend);
       const baseDpr = window.devicePixelRatio || 1;
@@ -715,8 +779,8 @@ const WorkflowGeometryViewer = ({ geometryIds }: WorkflowGeometryViewerProps) =>
           return;
         }
 
-        const baseColor =
-          customMaterialMapRef.current.get(renderable.id) ?? VIEW_STYLE.mesh;
+        const customOverrides = customMaterialMapRef.current.get(renderable.id);
+        const baseColor = customOverrides?.color ?? VIEW_STYLE.mesh;
         const materialColor = adjustForSelection(baseColor, isSelected, hasSelection);
         const selectionFactor = hasSelection
           ? lerp(
@@ -740,10 +804,12 @@ const WorkflowGeometryViewer = ({ geometryIds }: WorkflowGeometryViewerProps) =>
           lightColor: VIEW_STYLE.light,
           ambientColor: VIEW_STYLE.ambient,
           cameraPosition: cameraPayload.position,
-          ambientStrength: VIEW_STYLE.ambientStrength,
+          ambientStrength:
+            customOverrides?.ambientStrength ?? VIEW_STYLE.ambientStrength,
           selectionHighlight: VIEW_STYLE.selection,
           isSelected: isSelected ? 0.6 : 0,
-          sheenIntensity: viewSettingsRef.current.sheen ?? 0.08,
+          sheenIntensity:
+            customOverrides?.sheenIntensity ?? viewSettingsRef.current.sheen ?? 0.08,
           opacity,
         };
         if (opacity < 0.999 && (showEdges || isSilhouette)) {
@@ -879,8 +945,8 @@ const WorkflowGeometryViewer = ({ geometryIds }: WorkflowGeometryViewerProps) =>
         }
 
         if (!showEdges) return;
-        const baseColor =
-          customMaterialMapRef.current.get(renderable.id) ?? VIEW_STYLE.mesh;
+        const customOverrides = customMaterialMapRef.current.get(renderable.id);
+        const baseColor = customOverrides?.color ?? VIEW_STYLE.mesh;
         const edgeLineBuffers = renderable.edgeLineBuffers;
         const edgeBase = darkenColor(
           adjustForSelection(baseColor, isSelected, hasSelection),
@@ -1015,7 +1081,7 @@ const WorkflowGeometryViewer = ({ geometryIds }: WorkflowGeometryViewerProps) =>
             : SILHOUETTE_BASE_COLOR
           : darkenColor(
               adjustForSelection(
-                customMaterialMapRef.current.get(renderable.id) ?? VIEW_STYLE.mesh,
+                customMaterialMapRef.current.get(renderable.id)?.color ?? VIEW_STYLE.mesh,
                 isSelected,
                 hasSelection
               ),

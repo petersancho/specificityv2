@@ -14,6 +14,7 @@ import {
 } from "react";
 import Tooltip, { type TooltipProps } from "./Tooltip";
 import styles from "./WebGLButton.module.css";
+import StickerIcon from "./StickerIcon";
 import {
   getDefaultMinHeight,
   resolveButtonVisuals,
@@ -29,6 +30,8 @@ export type WebGLButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "ch
   label: string;
   iconId?: IconId;
   iconTintOverride?: string;
+  iconStyle?: "tile" | "glyph" | "sticker" | "sticker2";
+  iconSignature?: string;
   variant?: WebGLButtonVariant;
   size?: WebGLButtonSize;
   shape?: WebGLButtonShape;
@@ -39,6 +42,12 @@ export type WebGLButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "ch
   tooltip?: ReactNode;
   tooltipPosition?: TooltipProps["position"];
   tooltipShortcut?: string;
+  tooltipMaxWidth?: number;
+  tooltipClassName?: string;
+  tooltipContentClassName?: string;
+  tooltipInteractive?: boolean;
+  tooltipBoundaryRef?: TooltipProps["boundaryRef"];
+  tooltipBoundaryPadding?: number;
   elevated?: boolean;
   children?: ReactNode;
 };
@@ -81,6 +90,8 @@ export const WebGLButton = ({
   label,
   iconId,
   iconTintOverride,
+  iconStyle,
+  iconSignature,
   variant = "secondary",
   size = "md",
   shape = "auto",
@@ -91,6 +102,12 @@ export const WebGLButton = ({
   tooltip,
   tooltipPosition = "top",
   tooltipShortcut,
+  tooltipMaxWidth,
+  tooltipClassName,
+  tooltipContentClassName,
+  tooltipInteractive,
+  tooltipBoundaryRef,
+  tooltipBoundaryPadding,
   elevated,
   className,
   style,
@@ -148,6 +165,12 @@ export const WebGLButton = ({
   const visualLabel = shortLabel ?? (typeof children === "string" ? children : label);
   const showLabel = !hideLabel && Boolean(visualLabel);
   const iconOnly = Boolean(iconId) && !showLabel;
+  const resolvedIconStyle = iconStyle ?? (variant === "palette" ? "sticker" : undefined);
+  const resolvedIconSignature =
+    variant === "palette" ? iconSignature : undefined;
+  const isStickerStyle =
+    resolvedIconStyle === "sticker" || resolvedIconStyle === "sticker2";
+  const stickerVariant = resolvedIconStyle === "sticker" ? "library" : "site";
 
   const state = resolveState({ disabled, active, hovered, pressed });
 
@@ -163,17 +186,27 @@ export const WebGLButton = ({
     iconOnly,
     elevated,
   });
+  const stickerTint =
+    resolvedIconStyle === "sticker2" ? iconTintOverride : visuals.iconTint;
 
   const iconTintKey = `${visuals.iconTint.map((value) => Math.round(value * 255)).join("-")}`;
   const iconUrl = useMemo(() => {
-    if (!iconId) return "";
-    return resolveIconImageUrl(iconId, visuals.iconSize, visuals.iconTint);
-  }, [iconId, visuals.iconSize, iconTintKey]);
+    if (!iconId || isStickerStyle) return "";
+    return resolveIconImageUrl(iconId, visuals.iconSize, visuals.iconTint, {
+      style: resolvedIconStyle,
+      signature: resolvedIconSignature,
+    });
+  }, [iconId, visuals.iconSize, iconTintKey, resolvedIconStyle, resolvedIconSignature, isStickerStyle]);
   const fallbackIconUrl = useMemo(() => {
-    if (!iconId) return "";
-    const fallbackSize = Math.max(48, Math.round(visuals.iconSize * 2));
-    return renderIconDataUrl(iconId, fallbackSize, { tint: visuals.iconTint });
-  }, [iconId, visuals.iconSize, iconTintKey]);
+    if (!iconId || isStickerStyle) return "";
+    const fallbackSize = Math.max(128, Math.round(visuals.iconSize * 6));
+    return renderIconDataUrl(iconId, fallbackSize, {
+      tint: visuals.iconTint,
+      style: resolvedIconStyle,
+      signature: resolvedIconSignature,
+      monochrome: isStickerStyle ? true : undefined,
+    });
+  }, [iconId, visuals.iconSize, iconTintKey, resolvedIconStyle, resolvedIconSignature, isStickerStyle]);
   const iconSrc = iconUrl || fallbackIconUrl;
 
   const pillClass = shape === "pill" || variant === "chip" || variant === "outliner";
@@ -302,9 +335,28 @@ export const WebGLButton = ({
       onKeyUp={handleKeyUp}
       {...buttonProps}
     >
-      {iconId && iconSrc && (
-        <img src={iconSrc} className={styles.icon} alt="" aria-hidden="true" draggable={false} />
-      )}
+      {iconId &&
+        (isStickerStyle ? (
+          <StickerIcon
+            iconId={iconId}
+            variant={stickerVariant}
+            size={Math.round(visuals.iconSize)}
+            tint={stickerTint}
+            signature={resolvedIconSignature}
+            className={styles.icon}
+            ariaHidden
+          />
+        ) : (
+          iconSrc && (
+            <img
+              src={iconSrc}
+              className={styles.icon}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+            />
+          )
+        ))}
       {labelContent && <span className={labelClasses}>{labelContent}</span>}
       {!labelContent && <span className={styles.srOnly}>{label}</span>}
     </button>
@@ -315,7 +367,17 @@ export const WebGLButton = ({
   }
 
   return (
-    <Tooltip content={tooltip ?? label} position={tooltipPosition} shortcut={tooltipShortcut}>
+    <Tooltip
+      content={tooltip ?? label}
+      position={tooltipPosition}
+      shortcut={tooltipShortcut}
+      maxWidth={tooltipMaxWidth}
+      className={tooltipClassName}
+      contentClassName={tooltipContentClassName}
+      interactive={tooltipInteractive}
+      boundaryRef={tooltipBoundaryRef}
+      boundaryPadding={tooltipBoundaryPadding}
+    >
       {button}
     </Tooltip>
   );

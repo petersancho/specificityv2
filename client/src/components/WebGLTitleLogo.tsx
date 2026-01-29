@@ -40,9 +40,9 @@ const PALETTE = {
 };
 
 const TONE_ACCENTS: Record<LogoTone, RGBA> = {
-  roslyn: rgb(0, 194, 209, 1),
-  numerica: rgb(122, 92, 255, 1),
-  neutral: rgb(255, 138, 61, 1),
+  roslyn: rgb(11, 138, 151, 1),
+  numerica: rgb(81, 50, 194, 1),
+  neutral: rgb(204, 91, 26, 1),
 };
 
 const TITLE_PARTS: Record<string, TitleParts> = {
@@ -61,7 +61,7 @@ const PADDING_Y = 6;
 const ACCENT_GAP = 3;
 const ACCENT_BAR = 3;
 const ACCENT_BAR_GAP = 7;
-const RADIUS = 10;
+const RADIUS = 7;
 const STROKE = 1.4;
 const SHADOW_OFFSET = 2;
 const UNDERLINE_HEIGHT = 2;

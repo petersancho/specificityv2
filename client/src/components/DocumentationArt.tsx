@@ -67,6 +67,20 @@ const DocumentationCanvas = ({ className, draw, transparent }: DocumentationCanv
     uiRef.current = new WebGLUIRenderer(gl);
     textRef.current = new WebGLTextRenderer(gl);
     drawFrame();
+
+    return () => {
+      const currentGl = glRef.current;
+      if (currentGl) {
+        currentGl.getExtension("WEBGL_lose_context")?.loseContext();
+      }
+      glRef.current = null;
+      uiRef.current = null;
+      textRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    drawFrame();
   }, [drawFrame]);
 
   useEffect(() => {
@@ -138,9 +152,9 @@ const INK = rgb(18, 16, 12, 0.92);
 const SHADOW = rgb(0, 0, 0, 0.85);
 const PORCELAIN = rgb(250, 248, 244, 1);
 const PORCELAIN_SOFT = rgb(244, 241, 236, 1);
-const CYAN = rgb(0, 194, 209, 1);
-const PURPLE = rgb(122, 92, 255, 0.9);
-const ORANGE = rgb(249, 115, 22, 0.95);
+const CYAN = rgb(11, 138, 151, 1);
+const PURPLE = rgb(81, 50, 194, 0.9);
+const ORANGE = rgb(204, 91, 26, 0.95);
 
 const hashString = (value: string) => {
   let hash = 0;
@@ -356,7 +370,7 @@ const drawCardLabel = (
   text.setText(label, {
     fontSize: size * dpr,
     fontWeight: 700,
-    fontFamily: '"Helvetica Neue", "Montreal Neue", "Space Grotesk", sans-serif',
+    fontFamily: '"Montreal Neue", "Space Grotesk", sans-serif',
     paddingX: 0,
     paddingY: 0,
     color: "#ffffff",
@@ -858,7 +872,7 @@ export const RoslynCommandArt = ({
   label,
   description,
   prompt,
-  accent = "#f97316",
+  accent = "#cc5b1a",
   category,
   stage = "operation",
 }: RoslynCommandArtProps) => {
@@ -946,7 +960,7 @@ const drawNode = (
   text.setText(label, {
     fontSize: 12 * dpr,
     fontWeight: 700,
-    fontFamily: '"Helvetica Neue", "Montreal Neue", "Space Grotesk", sans-serif',
+    fontFamily: '"Montreal Neue", "Space Grotesk", sans-serif',
     paddingX: 0,
     paddingY: 0,
     color: "#ffffff",
@@ -1003,11 +1017,11 @@ export const NumericaNodeArt = ({
   stage = "operation",
 }: NumericaNodeArtProps) => {
   const accent = useMemo(
-    () => parseHexColor(category?.accent ?? "#7a5cff", 0.9),
+    () => parseHexColor(category?.accent ?? "#5132c2", 0.9),
     [category]
   );
   const band = useMemo(
-    () => parseHexColor(category?.band ?? "#eee9ff", 1),
+    () => parseHexColor(category?.band ?? "#dedaf2", 1),
     [category]
   );
 
@@ -1024,7 +1038,7 @@ export const NumericaNodeArt = ({
 
   const draw = useCallback(
     (context: DrawContext) => {
-      const { ui, width, height, dpr } = context;
+      const { ui, text, width, height, dpr } = context;
       const scale = dpr;
       const rng = createRng(seed);
       ui.begin(width * dpr, height * dpr);

@@ -43,3 +43,15 @@
 - --sp-yellow: #FFC533
 - --sp-purple: #7A5CFF
 - --sp-orange: #FF8A3D
+
+## Usage Guidelines
+
+- Keep icons monochrome; use category color for the glyph only.
+- Use neutral surfaces for button bodies; avoid filling entire buttons with accent colors.
+- Disabled state: reduce icon alpha to ~0.4 and remove accent bars.
+- Hover state: lighten icon color by ~10% without shifting hue.
+
+## Implementation Notes
+
+- Mirror these tokens in both CSS variables and WebGL uniform tables.
+- Prefer sRGB hex values in UI code; convert to linear space in shaders if needed.

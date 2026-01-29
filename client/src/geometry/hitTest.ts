@@ -326,7 +326,54 @@ export const hitTestObject = ({
       return;
     }
 
-    if (!("mesh" in item)) return;
+    if (item.type === "nurbsCurve") {
+      const points = item.nurbs.controlPoints;
+      if (points.length < 2) return;
+      const renderData = getPolylineRenderData(points, item.nurbs.degree as 1 | 2 | 3, item.closed ?? false, item.nurbs);
+      const edgePoints = renderData.points;
+      let bestDistance = Number.POSITIVE_INFINITY;
+      let bestDepthLocal = Number.POSITIVE_INFINITY;
+      let bestIndex = -1;
+      for (let i = 0; i < edgePoints.length - 1; i += 1) {
+        const a = projectPointToScreen(edgePoints[i], viewProjection, rect);
+        const b = projectPointToScreen(edgePoints[i + 1], viewProjection, rect);
+        if (!a || !b) continue;
+        const distance = distancePointToSegment2d(pointer, a, b);
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          bestDepthLocal = Math.min(a.depth, b.depth);
+          bestIndex = i;
+        }
+      }
+      if (bestDistance <= pickPixelThreshold && bestIndex >= 0) {
+        const a = edgePoints[bestIndex];
+        const b = edgePoints[bestIndex + 1];
+        const closest = closestPointsRaySegment(context.ray, a, b);
+        let pickPoint = closest.segPoint;
+        let pickDepth = bestDepthLocal;
+
+        if (renderData.curve && renderData.parameters.length > bestIndex + 1) {
+          const u0 = renderData.parameters[bestIndex];
+          const u1 = renderData.parameters[bestIndex + 1];
+          const initialU = u0 + (u1 - u0) * clamp(closest.tSeg, 0, 1);
+          const refined = refineRayCurveIntersection(
+            renderData.curve,
+            { origin: context.ray.origin, direction: context.ray.dir },
+            initialU,
+            { maxIterations: 8, tolerance: 1e-5 }
+          );
+          pickPoint = refined.point;
+        }
+
+        const screen = projectPointToScreen(pickPoint, viewProjection, rect);
+        if (screen) {
+          pickDepth = screen.depth;
+        }
+        consider(item.id, pickDepth, pickPoint);
+      }
+      return;
+    }
+
     const mesh = getSurfacePickMesh(item);
     if (!mesh) return;
     const indices = mesh.indices;
@@ -522,7 +569,59 @@ export const hitTestComponent = ({
       return;
     }
 
-    if (!("mesh" in item)) return;
+    if (item.type === "nurbsCurve") {
+      const points = item.nurbs.controlPoints;
+      if (points.length < 2) return;
+      const renderData = getPolylineRenderData(points, item.nurbs.degree as 1 | 2 | 3, item.closed ?? false, item.nurbs);
+      const edgePoints = renderData.points;
+      let bestDistance = Number.POSITIVE_INFINITY;
+      let bestDepthLocal = Number.POSITIVE_INFINITY;
+      let bestIndex = -1;
+      for (let i = 0; i < edgePoints.length - 1; i += 1) {
+        const a = projectPointToScreen(edgePoints[i], viewProjection, rect);
+        const b = projectPointToScreen(edgePoints[i + 1], viewProjection, rect);
+        if (!a || !b) continue;
+        const distance = distancePointToSegment2d(pointer, a, b);
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          bestDepthLocal = Math.min(a.depth, b.depth);
+          bestIndex = i;
+        }
+      }
+      if (bestDistance <= edgePixelThreshold && bestIndex >= 0) {
+        const a = edgePoints[bestIndex];
+        const b = edgePoints[bestIndex + 1];
+        const closest = closestPointsRaySegment(context.ray, a, b);
+        let pickPoint = closest.segPoint;
+        let pickDepth = bestDepthLocal;
+
+        if (renderData.curve && renderData.parameters.length > bestIndex + 1) {
+          const u0 = renderData.parameters[bestIndex];
+          const u1 = renderData.parameters[bestIndex + 1];
+          const initialU = u0 + (u1 - u0) * clamp(closest.tSeg, 0, 1);
+          const refined = refineRayCurveIntersection(
+            renderData.curve,
+            { origin: context.ray.origin, direction: context.ray.dir },
+            initialU,
+            { maxIterations: 8, tolerance: 1e-5 }
+          );
+          pickPoint = refined.point;
+        }
+
+        const screen = projectPointToScreen(pickPoint, viewProjection, rect);
+        if (screen) {
+          pickDepth = screen.depth;
+        }
+        const selection: ComponentSelection = {
+          kind: "edge",
+          geometryId: item.id,
+          edgeIndex: bestIndex,
+        };
+        consider(selection, pickDepth, pickPoint);
+      }
+      return;
+    }
+
     const mesh = getSurfacePickMesh(item);
     if (!mesh) return;
     const indices = mesh.indices;

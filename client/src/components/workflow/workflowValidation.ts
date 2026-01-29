@@ -454,6 +454,8 @@ export const isWorkflowNodeInvalid = (
       if (mutationRate <= 0 || mutationRate > 1) return true;
       return false;
     }
+    case "biologicalEvolutionSolver":
+      return false;
     case "listItem":
       return isInvalidNumberParameter(safeData.parameters, "index");
     case "listPartition": {

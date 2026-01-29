@@ -223,3 +223,15 @@ The keyboard navigation system provides full access to all interface functionali
 The screen reader compatibility ensures that assistive technologies can parse the interface structure and communicate element purposes to users. Each interactive element includes accessible labels that describe its function, with state information like selected or expanded communicated through appropriate ARIA attributes. The custom WebGL-rendered controls maintain semantic HTML structure in the underlying DOM to support screen reader navigation despite visual rendering occurring through canvas.
 
 The scaling support enables users to increase interface size through browser zoom or operating system scaling without breaking layout or making controls inoperative. The interface maintains proportional spacing and appropriate touch target sizes across the full range of scale factors, with text remaining readable and controls remaining clickable. This scaling support helps users with reduced visual acuity or users working on large displays viewed from greater distances.
+
+## Responsiveness and Motion Preferences
+
+- Maintain minimum 44px hit targets and preserve icon legibility at small window sizes.
+- Respect reduced motion preferences by shortening or disabling non-essential animations.
+- Avoid layout shifts during panel transitions; keep viewport resize animations under 200ms.
+
+## Implementation Anchors
+
+- `client/src/components/ModelerSection.tsx` and `client/src/components/workflow/WorkflowSection.tsx`: panel layout and toggles.
+- `client/src/components/WebGLViewerCanvas.tsx`: viewport sizing and panel interactions.
+- `client/src/webgl/ui/WebGLIconRenderer.ts`: icon atlas and button rendering.

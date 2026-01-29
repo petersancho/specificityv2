@@ -58,6 +58,78 @@ export type RenderMesh = {
   indices: number[];
 };
 
+export type NurbsCurveGeometry = {
+  id: string;
+  type: "nurbsCurve";
+  nurbs: NURBSCurve;
+  closed?: boolean;
+  layerId: string;
+  area_m2?: number;
+  thickness_m?: number;
+  sourceNodeId?: string;
+  metadata?: Record<string, unknown>;
+};
+
+export type NurbsSurfaceGeometry = {
+  id: string;
+  type: "nurbsSurface";
+  nurbs: NURBSSurface;
+  mesh?: RenderMesh;
+  layerId: string;
+  area_m2?: number;
+  thickness_m?: number;
+  sourceNodeId?: string;
+  metadata?: Record<string, unknown>;
+};
+
+export type BRepSurface =
+  | { kind: "nurbs"; surface: NURBSSurface }
+  | { kind: "plane"; plane: PlaneDefinition };
+
+export type BRepCurve =
+  | { kind: "nurbs"; curve: NURBSCurve }
+  | { kind: "line"; start: Vec3; end: Vec3 };
+
+export type BRepVertex = {
+  id: string;
+  position: Vec3;
+};
+
+export type BRepEdge = {
+  id: string;
+  curve: BRepCurve;
+  vertices: [string, string];
+};
+
+export type BRepOrientedEdge = {
+  edgeId: string;
+  reversed?: boolean;
+};
+
+export type BRepLoop = {
+  id: string;
+  edges: BRepOrientedEdge[];
+};
+
+export type BRepFace = {
+  id: string;
+  surface: BRepSurface;
+  loops: string[];
+};
+
+export type BRepSolid = {
+  id: string;
+  faces: string[];
+};
+
+export type BRepData = {
+  vertices: BRepVertex[];
+  edges: BRepEdge[];
+  loops: BRepLoop[];
+  faces: BRepFace[];
+  solids?: BRepSolid[];
+};
+
 export type VoxelGrid = {
   resolution: { x: number; y: number; z: number };
   bounds: { min: Vec3; max: Vec3 };
@@ -168,26 +240,42 @@ export type PrimitiveKind =
   | "geodesicDome"
   | "oneSheetHyperboloid";
 
-export type MeshPrimitiveGeometry = {
+export type MeshPrimitiveInfo = {
+  kind: PrimitiveKind;
+  origin: Vec3;
+  dimensions?: { width: number; height: number; depth: number };
+  radius?: number;
+  height?: number;
+  tube?: number;
+  innerRadius?: number;
+  topRadius?: number;
+  capHeight?: number;
+  detail?: number;
+  exponent1?: number;
+  exponent2?: number;
+  params?: Record<string, number>;
+};
+
+export type MeshGeometry = {
   id: string;
   type: "mesh";
   mesh: RenderMesh;
   layerId: string;
-  primitive?: {
-    kind: PrimitiveKind;
-    origin: Vec3;
-    dimensions?: { width: number; height: number; depth: number };
-    radius?: number;
-    height?: number;
-    tube?: number;
-    innerRadius?: number;
-    topRadius?: number;
-    capHeight?: number;
-    detail?: number;
-    exponent1?: number;
-    exponent2?: number;
-    params?: Record<string, number>;
-  };
+  primitive?: MeshPrimitiveInfo;
+  area_m2?: number;
+  thickness_m?: number;
+  sourceNodeId?: string;
+  metadata?: Record<string, unknown>;
+};
+
+export type MeshPrimitiveGeometry = MeshGeometry;
+
+export type BRepGeometry = {
+  id: string;
+  type: "brep";
+  brep: BRepData;
+  mesh?: RenderMesh;
+  layerId: string;
   area_m2?: number;
   thickness_m?: number;
   sourceNodeId?: string;
@@ -200,7 +288,10 @@ export type Geometry =
   | SurfaceGeometry
   | LoftGeometry
   | ExtrudeGeometry
-  | MeshPrimitiveGeometry;
+  | MeshGeometry
+  | NurbsCurveGeometry
+  | NurbsSurfaceGeometry
+  | BRepGeometry;
 
 export type SelectionMode = "object" | "vertex" | "edge" | "face";
 

@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Noto+Serif:wght@400;600;700&family=GFS+Didot&family=Caveat:wght@400;600&display=swap");
 
 :root {
   color-scheme: light;
@@ -8,11 +8,11 @@
   --sp-divider: #c9c5c0;
   --sp-ink: #1f1f22;
   --sp-muted: #6a6661;
-  --sp-cyan: #00c2d1;
-  --sp-pink: #ff4fb6;
-  --sp-yellow: #ffc533;
-  --sp-purple: #7a5cff;
-  --sp-orange: #ff8a3d;
+  --sp-cyan: #0b8a97;
+  --sp-pink: #c2166b;
+  --sp-yellow: #c07a00;
+  --sp-purple: #5132c2;
+  --sp-orange: #cc5b1a;
 
   --roslyn-industrial-warm-grey: #8e8a84;
   --roslyn-instrument-cream: var(--sp-porcelain);
@@ -43,9 +43,9 @@
 
   /* Functional colors */
   --state-error: #dc3545;
-  --state-warning: #e6a23c;
-  --state-success: #67c23a;
-  --state-info: #909399;
+  --state-warning: #b56f1f;
+  --state-success: #2f7a3c;
+  --state-info: #2b5fb3;
 
   --accent-primary: var(--ink-1000);
   --accent-signal: var(--roslyn-signal-orange);
@@ -80,7 +80,7 @@
   --canvas-grid-dot-soft: var(--color-grid-dot-soft);
 
   /* Typography */
-  --font-primary: "Space Grotesk", "SF Pro Text", -apple-system, sans-serif;
+  --font-primary: "Montreal Neue", "Space Grotesk", "SF Pro Text", -apple-system, sans-serif;
   --font-display: "Montreal Neue", "Space Grotesk", sans-serif;
   --font-mono: "JetBrains Mono", "SF Mono", "Consolas", monospace;
   --font-body: var(--font-primary);
@@ -104,11 +104,11 @@
 
   /* Layout */
   --max-w: 1600px;
-  --radius: 6px;
-  --radius-sm: 4px;
-  --radius-lg: 10px;
-  --radius-node: 6px;
-  --radius-pill: 6px;
+  --radius: 4px;
+  --radius-sm: 2px;
+  --radius-lg: 6px;
+  --radius-node: 4px;
+  --radius-pill: 4px;
   --gap: clamp(12px, 2vw, 24px);
   --pad: clamp(12px, 2vw, 24px);
 
@@ -148,10 +148,10 @@
   --eto-icon-primary: var(--roslyn-graphite-ink);
   --eto-icon-secondary: var(--roslyn-industrial-warm-grey);
   --eto-icon-accent: var(--roslyn-signal-orange);
-  --eto-icon-success: #4caf50;
-  --eto-icon-warning: #ff9800;
+  --eto-icon-success: #2f7a3c;
+  --eto-icon-warning: #b56f1f;
   --eto-icon-error: var(--state-error);
-  --eto-icon-info: #2196f3;
+  --eto-icon-info: #2b5fb3;
 
   --font-sans: var(--font-body);
   --font-serif: var(--font-title);

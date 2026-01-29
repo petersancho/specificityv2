@@ -13,6 +13,8 @@ export const VIEW_STYLE = {
   edgeSecondaryWidth: 2.2,
   edgeTertiaryWidth: 1.5,
   solidRenderScale: 1.8,
+  renderQualityScale: 3,
+  maxRenderDpr: 6,
   selection: [0.18, 0.16, 0.12] as [number, number, number],
   ambient: [0.9, 0.9, 0.88] as [number, number, number],
   ambientStrength: 0.68,

@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { WebGLUIRenderer, type RGBA } from "../webgl/ui/WebGLUIRenderer";
 import { WebGLTextRenderer } from "../webgl/ui/WebGLTextRenderer";
 import { WebGLIconRenderer, type IconId } from "../webgl/ui/WebGLIconRenderer";
+import { safeLocalStorageGet, safeLocalStorageSet } from "../utils/safeStorage";
 
 export type { IconId };
 
@@ -9,6 +10,7 @@ export type WebGLTopBarAction = {
   id: string;
   label: string;
   tooltip: string;
+  tooltipContent?: ReactNode;
   onClick: () => void;
   shortLabel?: string;
   icon?: IconId;
@@ -79,8 +81,8 @@ const PALETTE = {
   logoFillSoft: rgb(240, 237, 233, 1),
   logoStroke: rgb(192, 188, 183, 1),
   logoText: rgb(24, 24, 28, 0.96),
-  logoAccent: rgb(0, 194, 209, 1),
-  logoAccentDeep: rgb(122, 92, 255, 1),
+  logoAccent: rgb(11, 138, 151, 1),
+  logoAccentDeep: rgb(81, 50, 194, 1),
   logoGlow: rgb(255, 255, 255, 0.24),
   tooltipBg: rgb(20, 24, 34, 0.96),
   tooltipBorder: rgb(24, 30, 42, 0.9),
@@ -89,6 +91,7 @@ const PALETTE = {
 type TopBarCategory =
   | "primitive"
   | "curve"
+  | "nurbs"
   | "mesh"
   | "transform"
   | "edit"
@@ -105,22 +108,23 @@ type TopBarCategory =
   | "neutral";
 
 const CATEGORY_TINTS: Record<TopBarCategory, RGBA> = {
-  primitive: rgb(255, 96, 64, 1),
-  curve: rgb(30, 184, 160, 1),
-  mesh: rgb(72, 118, 255, 1),
-  transform: rgb(147, 94, 255, 1),
-  edit: rgb(255, 92, 134, 1),
-  selection: rgb(246, 172, 56, 1),
-  orientation: rgb(66, 210, 140, 1),
-  gumball: rgb(53, 190, 255, 1),
-  pivot: rgb(204, 106, 255, 1),
-  cplane: rgb(92, 210, 188, 1),
-  workflow: rgb(154, 219, 72, 1),
-  group: rgb(0, 182, 166, 1),
-  camera: rgb(98, 153, 255, 1),
-  view: rgb(176, 120, 255, 1),
-  math: rgb(244, 186, 67, 1),
-  neutral: rgb(52, 60, 74, 1),
+  primitive: rgb(179, 83, 28, 1),
+  curve: rgb(15, 90, 79, 1),
+  nurbs: rgb(13, 91, 85, 1),
+  mesh: rgb(67, 32, 111, 1),
+  transform: rgb(139, 58, 43, 1),
+  edit: rgb(154, 29, 96, 1),
+  selection: rgb(138, 90, 0, 1),
+  orientation: rgb(31, 106, 51, 1),
+  gumball: rgb(11, 94, 112, 1),
+  pivot: rgb(106, 47, 166, 1),
+  cplane: rgb(14, 95, 98, 1),
+  workflow: rgb(15, 90, 48, 1),
+  group: rgb(34, 50, 72, 1),
+  camera: rgb(31, 75, 155, 1),
+  view: rgb(60, 47, 136, 1),
+  math: rgb(125, 86, 0, 1),
+  neutral: rgb(45, 52, 68, 1),
 };
 
 const LOGO_FONT_FAMILY =
@@ -132,8 +136,8 @@ const LOGO_ACCENTS: Record<
   "roslyn" | "numerica" | "neutral",
   { primary: RGBA; deep: RGBA }
 > = {
-  roslyn: { primary: rgb(0, 194, 209, 1), deep: rgb(255, 79, 182, 1) },
-  numerica: { primary: rgb(122, 92, 255, 1), deep: rgb(0, 194, 209, 1) },
+  roslyn: { primary: rgb(11, 138, 151, 1), deep: rgb(194, 22, 107, 1) },
+  numerica: { primary: rgb(81, 50, 194, 1), deep: rgb(11, 138, 151, 1) },
   neutral: { primary: PALETTE.logoAccent, deep: PALETTE.logoAccentDeep },
 };
 
@@ -147,7 +151,7 @@ const PADDING_Y = 8;
 const LABEL_HEIGHT = 10;
 const LABEL_GAP = 4;
 const SHADOW_OFFSET = 3;
-const BUTTON_RADIUS = 6;
+const BUTTON_RADIUS = 4;
 const BUTTON_STROKE = 1.5;
 const ICON_INSET = 6;
 const SEPARATOR_GAP = 10;
@@ -234,6 +238,11 @@ const ACTION_ICON_MAP: Record<string, IconId> = {
   surface: "surface",
   loft: "loft",
   extrude: "extrude",
+  meshconvert: "surface",
+  nurbsrestore: "interpolate",
+  nurbsbox: "box",
+  nurbssphere: "sphere",
+  nurbscylinder: "primitive",
   "extrude-node": "extrude",
   "selection-filter": "selectionFilter",
   "display-mode": "displayMode",
@@ -258,14 +267,19 @@ const ACTION_CATEGORY_MAP: Record<string, TopBarCategory> = {
   sphere: "primitive",
   line: "curve",
   polyline: "curve",
-  arc: "curve",
-  curve: "curve",
-  interpolate: "curve",
   rectangle: "curve",
-  circle: "curve",
+  arc: "nurbs",
+  circle: "nurbs",
+  curve: "nurbs",
+  interpolate: "nurbs",
+  nurbsbox: "nurbs",
+  nurbssphere: "nurbs",
+  nurbscylinder: "nurbs",
   surface: "mesh",
   loft: "mesh",
   extrude: "mesh",
+  meshconvert: "mesh",
+  nurbsrestore: "mesh",
   move: "transform",
   rotate: "transform",
   scale: "transform",
@@ -307,6 +321,9 @@ const SHORT_LABEL_OVERRIDES: Record<string, string> = {
   arc: "ARC",
   curve: "CRV",
   interpolate: "INT",
+  nurbsbox: "NBX",
+  nurbssphere: "NSP",
+  nurbscylinder: "NCY",
   surface: "SRF",
   loft: "LFT",
   extrude: "EXT",
@@ -394,6 +411,7 @@ const resolveGroupLabelColor = (label: string): RGBA => {
   const normalized = label.trim().toLowerCase();
   if (normalized.includes("primitive")) return withAlpha(CATEGORY_TINTS.primitive, 0.82);
   if (normalized.includes("curve")) return withAlpha(CATEGORY_TINTS.curve, 0.82);
+  if (normalized.includes("nurbs")) return withAlpha(CATEGORY_TINTS.nurbs, 0.82);
   if (normalized.includes("mesh")) return withAlpha(CATEGORY_TINTS.mesh, 0.82);
   if (normalized.includes("math")) return withAlpha(CATEGORY_TINTS.math, 0.82);
   if (normalized.includes("transform")) return withAlpha(CATEGORY_TINTS.transform, 0.82);
@@ -443,7 +461,7 @@ const WebGLPanelTopBar = ({
   });
   const [internalScale, setInternalScale] = useState(() => {
     if (typeof window === "undefined") return 0.85;
-    const stored = window.localStorage.getItem(PANEL_SCALE_KEY);
+    const stored = safeLocalStorageGet(PANEL_SCALE_KEY);
     const parsed = stored ? Number(stored) : 0.85;
     if (!Number.isFinite(parsed)) return 0.85;
     return clamp(parsed, MIN_PANEL_SCALE, MAX_PANEL_SCALE);
@@ -491,7 +509,7 @@ const WebGLPanelTopBar = ({
       logoPadX,
       logoPadY,
       logoAccentGap: 4 * effectiveScale,
-      logoRadius: 5 * effectiveScale,
+      logoRadius: 4 * effectiveScale,
       logoStroke: Math.max(1, effectiveScale),
       logoShadowOffset: 1.1 * effectiveScale,
       logoUnderlineHeight: Math.max(1, 1.6 * effectiveScale),
@@ -510,7 +528,7 @@ const WebGLPanelTopBar = ({
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (isControlled) return;
-    window.localStorage.setItem(PANEL_SCALE_KEY, internalScale.toFixed(3));
+    safeLocalStorageSet(PANEL_SCALE_KEY, internalScale.toFixed(3));
   }, [internalScale, isControlled]);
 
   const drawRect = (rect: Rect, color: RGBA) => {
@@ -1379,7 +1397,7 @@ const WebGLPanelTopBar = ({
     };
 
     ui.begin(canvas.width, canvas.height);
-    const tooltipRadius = 8;
+    const tooltipRadius = 6;
     drawShadowRoundedRect(rect, tooltipRadius, 4, withAlpha(PALETTE.shadowDeep, 0.7));
     drawRoundedRect(rect, tooltipRadius, PALETTE.tooltipBorder);
     drawRoundedRect(

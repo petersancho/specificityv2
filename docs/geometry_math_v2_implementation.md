@@ -161,3 +161,16 @@ Implementation outline:
 - Polylines become line buffers, NURBS curves and surfaces are tessellated.
 - Meshes generate edge lists for outline rendering.
 - Display modes orchestrate shaded, edges, ghosted, and wireframe passes.
+
+## Validation Checklist
+
+- Verify curve and surface evaluators against known analytic cases (circle, cylinder).
+- Confirm tessellation error thresholds with screen-space tests at multiple zoom levels.
+- Ensure hit testing remains consistent with rendered tessellation density.
+- Validate transform operations preserve identifiers and metadata.
+
+## Edge Cases to Cover
+
+- Degenerate vectors (zero length) in normalization and tangent calculations.
+- Closed polylines and periodic NURBS curves with wrap-around indices.
+- Near-coincident control points causing unstable curvature or normals.

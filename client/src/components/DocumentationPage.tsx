@@ -1,4 +1,4 @@
-import { useCallback, useMemo, type CSSProperties } from "react";
+import { Component, useCallback, useMemo, type CSSProperties, type ReactNode } from "react";
 import WebGLTitleLogo from "./WebGLTitleLogo";
 import WebGLButton from "./ui/WebGLButton";
 import Tooltip from "./ui/Tooltip";
@@ -17,6 +17,7 @@ import {
   NODE_DEFINITIONS,
   buildNodeTooltipLines,
   getDefaultNodePorts,
+  resolveNodeDescription,
   type NodeDefinition,
   type WorkflowPortSpec,
 } from "./workflow/nodeCatalog";
@@ -24,7 +25,7 @@ import {
   COMMAND_DEFINITIONS,
   type CommandDefinition,
 } from "../commands/registry";
-import { COMMAND_DESCRIPTIONS } from "../data/commandDescriptions";
+import { COMMAND_DESCRIPTIONS, COMMAND_SEMANTICS } from "../data/commandDescriptions";
 
 type CommandGroup = {
   id: string;
@@ -44,28 +45,26 @@ type DocsRoute =
   | { kind: "roslyn"; id: string }
   | { kind: "numerica"; id: string };
 
+const BRAND_ACCENTS = {
+  cyan: "#0b8a97",
+  purple: "#5132c2",
+  pink: "#c2166b",
+  orange: "#cc5b1a",
+  ink: "#3b3b40",
+};
+
 const COMMAND_CATEGORY_META: Record<string, { label: string; accent: string }> = {
-  geometry: { label: "Geometry", accent: "#f97316" },
-  transform: { label: "Transform", accent: "#7a5cff" },
-  edit: { label: "Edit", accent: "#ff7a96" },
-  view: { label: "View", accent: "#3b82f6" },
-  performs: { label: "Commands", accent: "#54535c" },
+  geometry: { label: "Geometry", accent: BRAND_ACCENTS.orange },
+  transform: { label: "Transform", accent: BRAND_ACCENTS.purple },
+  edit: { label: "Edit", accent: BRAND_ACCENTS.pink },
+  view: { label: "View", accent: BRAND_ACCENTS.cyan },
+  performs: { label: "Commands", accent: BRAND_ACCENTS.ink },
 };
 
 const COMMAND_CATEGORY_ORDER = ["geometry", "transform", "edit", "view", "performs"];
 
-const COMMAND_SEMANTICS: Record<string, string> = {
-  geometry:
-    "Creates or converts geometry directly in Roslyn using the active construction plane and cursor input.",
-  transform:
-    "Repositions geometry by applying spatial transforms. Outputs stay linked to selection state and gumball input.",
-  edit: "Edits selection, clipboard, or history state without generating new geometry.",
-  view: "Changes the camera frame, projection, or viewport focus for spatial clarity.",
-  performs:
-    "Runs a modeling action on the current selection, emphasizing procedural intent over manual edits.",
-};
-
-const cleanCommandPrompt = (prompt: string, label: string) => {
+const cleanCommandPrompt = (prompt?: string, label?: string) => {
+  if (!prompt) return label ?? "";
   const prefix = new RegExp(`^${label}\\s*:\\s*`, "i");
   return prompt.replace(prefix, "").trim();
 };
@@ -73,7 +72,8 @@ const cleanCommandPrompt = (prompt: string, label: string) => {
 const buildNodeTooltipText = (definition: NodeDefinition) => {
   const ports = getDefaultNodePorts(definition);
   const lines = buildNodeTooltipLines(definition, ports);
-  const parameterLines = definition.parameters
+  const parameters = definition.parameters ?? [];
+  const parameterLines = parameters
     .filter((param) => param.description)
     .map((param) => `${param.label}: ${param.description}`);
   const output: string[] = [definition.label, ...lines];
@@ -283,21 +283,21 @@ const DocumentationIndex = ({ onNavigate }: DocumentationIndexProps) => {
             <WebGLButton
               label="Roslyn Commands"
               variant="primary"
-              accentColor="#00c2d1"
+              accentColor={BRAND_ACCENTS.cyan}
               className={styles.docButton}
               onClick={() => scrollToSection("documentation-roslyn")}
             />
             <WebGLButton
               label="Numerica Nodes"
               variant="primary"
-              accentColor="#7a5cff"
+              accentColor={BRAND_ACCENTS.purple}
               className={styles.docButton}
               onClick={() => scrollToSection("documentation-numerica")}
             />
             <WebGLButton
               label="New Users"
               variant="secondary"
-              accentColor="#f97316"
+              accentColor={BRAND_ACCENTS.orange}
               className={styles.docButton}
               onClick={() => onNavigate({ kind: "new-users" })}
             />
@@ -431,6 +431,47 @@ type DocumentationDetailProps = {
   route: DocsRoute;
   onNavigate: (route: DocsRoute) => void;
 };
+
+type DocumentationErrorBoundaryProps = {
+  onReset: () => void;
+  children: ReactNode;
+};
+
+type DocumentationErrorBoundaryState = {
+  hasError: boolean;
+  error: Error | null;
+};
+
+class DocumentationErrorBoundary extends Component<
+  DocumentationErrorBoundaryProps,
+  DocumentationErrorBoundaryState
+> {
+  state: DocumentationErrorBoundaryState = { hasError: false, error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error) {
+    console.error("Documentation render error", error);
+  }
+
+  render() {
+    if (!this.state.hasError) {
+      return this.props.children;
+    }
+    return (
+      <div className={detailStyles.notFound}>
+        <p>Documentation hit an error. Jump back to the index or refresh the page.</p>
+        <WebGLButton
+          label="Back to Documentation"
+          variant="secondary"
+          onClick={this.props.onReset}
+        />
+      </div>
+    );
+  }
+}
 
 const CommandMetaBadge = ({ label, value }: { label: string; value: string }) => (
   <div className={detailStyles.metaBadge}>
@@ -587,8 +628,10 @@ const DocumentationDetail = ({ route, onNavigate }: DocumentationDetailProps) =>
       );
     }
 
-    const category = NODE_CATEGORY_BY_ID[definition.category];
+    const category = NODE_CATEGORY_BY_ID.get(definition.category);
     const ports = getDefaultNodePorts(definition);
+    const parameters = definition.parameters ?? [];
+    const description = resolveNodeDescription(definition);
     const tooltipLines = buildNodeTooltipLines(definition, ports);
     const semanticLines = tooltipLines.filter(
       (line) => !line.startsWith("Inputs:") && !line.startsWith("Outputs:")
@@ -613,7 +656,7 @@ const DocumentationDetail = ({ route, onNavigate }: DocumentationDetailProps) =>
               <WebGLTitleLogo title="Numerica" tone="numerica" />
               <h1>{definition.label}</h1>
             </div>
-            <p className={detailStyles.detailLead}>{definition.description}</p>
+            <p className={detailStyles.detailLead}>{description}</p>
             <div className={detailStyles.detailMeta}>
               <CommandMetaBadge label="Category" value={category?.label ?? definition.category} />
               <CommandMetaBadge label="Node Type" value={definition.type} />
@@ -639,7 +682,7 @@ const DocumentationDetail = ({ route, onNavigate }: DocumentationDetailProps) =>
                 category={category}
                 inputs={ports.inputs}
                 outputs={ports.outputs}
-                parameters={definition.parameters}
+                parameters={parameters}
                 nodeType={definition.type}
                 stage="input"
               />
@@ -648,7 +691,7 @@ const DocumentationDetail = ({ route, onNavigate }: DocumentationDetailProps) =>
                 category={category}
                 inputs={ports.inputs}
                 outputs={ports.outputs}
-                parameters={definition.parameters}
+                parameters={parameters}
                 nodeType={definition.type}
                 stage="operation"
               />
@@ -657,7 +700,7 @@ const DocumentationDetail = ({ route, onNavigate }: DocumentationDetailProps) =>
                 category={category}
                 inputs={ports.inputs}
                 outputs={ports.outputs}
-                parameters={definition.parameters}
+                parameters={parameters}
                 nodeType={definition.type}
                 stage="output"
               />
@@ -676,11 +719,11 @@ const DocumentationDetail = ({ route, onNavigate }: DocumentationDetailProps) =>
           </div>
           <div className={detailStyles.detailSection}>
             <h2>Parameters</h2>
-            {definition.parameters.length === 0 ? (
+            {parameters.length === 0 ? (
               <p className={detailStyles.emptyText}>No parameters.</p>
             ) : (
               <ul className={detailStyles.list}>
-                {definition.parameters.map((parameter) => (
+                {parameters.map((parameter) => (
                   <li key={parameter.key}>
                     <strong>{parameter.label}</strong>
                     <span>{parameter.type}</span>
@@ -783,17 +826,26 @@ const DocumentationPage = ({ hash = "" }: DocumentationPageProps) => {
     if (typeof window === "undefined") return;
     window.location.hash = toDocsHash(next);
   }, []);
+  const errorBoundaryKey =
+    route.kind === "roslyn" || route.kind === "numerica"
+      ? `${route.kind}-${route.id}`
+      : route.kind;
 
   return (
     <div className={styles.page}>
       <DocsTopNav route={route} onNavigate={navigate} />
-      <div className={styles.pageContent}>
-        {route.kind === "index" && <DocumentationIndex onNavigate={navigate} />}
-        {route.kind === "new-users" && <DocumentationNewUsers onNavigate={navigate} />}
-        {(route.kind === "roslyn" || route.kind === "numerica") && (
-          <DocumentationDetail route={route} onNavigate={navigate} />
-        )}
-      </div>
+      <DocumentationErrorBoundary
+        key={errorBoundaryKey}
+        onReset={() => navigate({ kind: "index" })}
+      >
+        <div className={styles.pageContent}>
+          {route.kind === "index" && <DocumentationIndex onNavigate={navigate} />}
+          {route.kind === "new-users" && <DocumentationNewUsers onNavigate={navigate} />}
+          {(route.kind === "roslyn" || route.kind === "numerica") && (
+            <DocumentationDetail route={route} onNavigate={navigate} />
+          )}
+        </div>
+      </DocumentationErrorBoundary>
     </div>
   );
 };

@@ -67,9 +67,9 @@ const PALETTE = {
   dotSoft: rgb(18, 16, 12, 0.02),
   glow: rgb(210, 139, 92, 0.06),
   brandText: rgb(18, 16, 12, 0.95),
-  brandAccent: rgb(0, 194, 209, 0.92),
-  brandAccentDeep: rgb(122, 92, 255, 0.92),
-  brandAccentGlow: rgb(0, 194, 209, 0.18),
+  brandAccent: rgb(11, 138, 151, 0.92),
+  brandAccentDeep: rgb(81, 50, 194, 0.92),
+  brandAccentGlow: rgb(11, 138, 151, 0.18),
   brandShadow: rgb(0, 0, 0, 0.12),
   brandBadgeFill: rgb(250, 248, 244, 1),
   brandBadgeStroke: rgb(190, 186, 181, 1),
@@ -119,7 +119,7 @@ const BRAND_BADGE_PAD_X = 14;
 const BRAND_BADGE_PAD_Y = 7;
 const BRAND_BADGE_BAR_WIDTH = 4;
 const BRAND_BADGE_BAR_GAP = 10;
-const BRAND_BADGE_RADIUS = 6;
+const BRAND_BADGE_RADIUS = 4;
 const BRAND_BADGE_STROKE = 1.1;
 const BRAND_TO_CHIPS_GAP = 18;
 const CHIP_HEIGHT = 34;
@@ -128,7 +128,7 @@ const CHIP_GAP = 8;
 const CHIP_DOT_SIZE = 6;
 const CHIP_DOT_GAP = 7;
 const CHIP_BAR_WIDTH = 3;
-const CHIP_RADIUS = 4;
+const CHIP_RADIUS = 3;
 const CHIP_FONT_SIZE = 11.5;
 const STATUS_FONT_SIZE = 12.5;
 const STATUS_PAD_X = 14;
@@ -142,8 +142,7 @@ const GRADIENT_STEPS = 12;
 const RENDER_SCALE = 1.35;
 const MAX_DPR = 3;
 
-const UI_FONT_FAMILY =
-  '"Helvetica Neue", "Montreal Neue", "Space Grotesk", Helvetica, Arial, sans-serif';
+const UI_FONT_FAMILY = '"Montreal Neue", "Space Grotesk", sans-serif';
 const BRAND_FONT_FAMILY = '"Montreal Neue", "Helvetica Neue", Helvetica, Arial, sans-serif';
 const BRAND_WEIGHT = 700;
 const BRAND_ACCENT_WEIGHT = 800;
@@ -888,6 +887,7 @@ const WebGLAppTopBar = ({
           className={`${styles.docsLink} ${docsActive ? styles.docsLinkActive : ""}`}
           href={docsHref}
           aria-current={docsActive ? "page" : undefined}
+          aria-label={docsActive ? "Back to workspace" : "Open documentation"}
         >
           Documentation
         </a>

@@ -1,5 +1,8 @@
 import type {
   Geometry,
+  NurbsCurveGeometry,
+  NurbsSurfaceGeometry,
+  BRepGeometry,
   PolylineGeometry,
   SurfaceGeometry,
   VertexGeometry,
@@ -10,6 +13,7 @@ import type { WebGLRenderer } from "../webgl/WebGLRenderer";
 import type { NURBSCurve, NURBSSurface } from "./nurbs";
 import { tessellateCurveAdaptive, tessellateSurfaceAdaptive } from "./tessellation";
 import { createNurbsCurveFromPoints } from "./nurbs";
+import { tessellateBRepToMesh } from "./brep";
 
 export type RenderableGeometry = {
   id: string;
@@ -66,8 +70,12 @@ export class GeometryRenderAdapter {
       this.updateVertexGeometry(geometry, existing);
     } else if (geometry.type === "polyline") {
       this.updatePolylineGeometry(geometry as PolylineGeometry, existing);
+    } else if (geometry.type === "nurbsCurve") {
+      this.updateNurbsCurveGeometry(geometry as NurbsCurveGeometry, existing);
+    } else if (geometry.type === "nurbsSurface" || geometry.type === "brep") {
+      this.updateMeshGeometry(geometry, existing);
     } else if ("mesh" in geometry) {
-      this.updateMeshGeometry(geometry as SurfaceGeometry, existing);
+      this.updateMeshGeometry(geometry, existing);
     }
   }
 
@@ -128,7 +136,9 @@ export class GeometryRenderAdapter {
                 Math.abs(first.x - last.x) < 1e-6 &&
                 Math.abs(first.y - last.y) < 1e-6 &&
                 Math.abs(first.z - last.z) < 1e-6;
-              return isClosed ? sampled : [...sampled, { ...first }];
+              const closedPoints = isClosed ? sampled : [...sampled, { ...first }];
+              closedPoints[closedPoints.length - 1] = { ...first };
+              return closedPoints;
             }
             return sampled;
           })()
@@ -160,7 +170,97 @@ export class GeometryRenderAdapter {
     });
   }
 
-  private updateMeshGeometry(geometry: SurfaceGeometry, existing?: RenderableGeometry): void {
+  private updateNurbsCurveGeometry(
+    geometry: NurbsCurveGeometry,
+    existing?: RenderableGeometry
+  ): void {
+    let buffer: GeometryBuffer;
+
+    if (existing) {
+      buffer = existing.buffer;
+    } else {
+      buffer = this.renderer.createGeometryBuffer(geometry.id);
+    }
+
+    const curve = geometry.nurbs;
+    const tessellated = tessellateCurveAdaptive(curve);
+    let points = tessellated.points;
+    if (geometry.closed && points.length > 0) {
+      const first = points[0];
+      const last = points[points.length - 1];
+      const isClosed =
+        Math.abs(first.x - last.x) < 1e-6 &&
+        Math.abs(first.y - last.y) < 1e-6 &&
+        Math.abs(first.z - last.z) < 1e-6;
+      if (!isClosed) {
+        points = [...points, { ...first }];
+      }
+      if (points.length > 0) {
+        points[points.length - 1] = { ...first };
+      }
+    }
+
+    if (points.length >= 2) {
+      const lineData = createLineBufferData(points);
+      buffer.setData({
+        positions: lineData.positions,
+        prevPositions: lineData.prevPositions,
+        nextPositions: lineData.nextPositions,
+        sides: lineData.sides,
+      });
+    } else {
+      buffer.setData({
+        positions: new Float32Array(),
+        prevPositions: new Float32Array(),
+        nextPositions: new Float32Array(),
+        sides: new Float32Array(),
+      });
+    }
+
+    this.renderables.set(geometry.id, {
+      id: geometry.id,
+      buffer,
+      type: "polyline",
+      needsUpdate: false,
+    });
+  }
+
+  private resolveMeshSource(geometry: Geometry): RenderMesh | null {
+    if (geometry.type === "nurbsSurface") {
+      const nurbsSurface = geometry as NurbsSurfaceGeometry;
+      if (nurbsSurface.mesh?.positions?.length) return nurbsSurface.mesh;
+      const tessellated = tessellateSurfaceAdaptive(nurbsSurface.nurbs);
+      return {
+        positions: Array.from(tessellated.positions),
+        normals: Array.from(tessellated.normals),
+        indices: Array.from(tessellated.indices),
+        uvs: Array.from(tessellated.uvs),
+      };
+    }
+
+    if (geometry.type === "brep") {
+      const brep = geometry as BRepGeometry;
+      if (brep.mesh?.positions?.length) return brep.mesh;
+      return tessellateBRepToMesh(brep.brep);
+    }
+
+    if ("mesh" in geometry && geometry.mesh) {
+      if (geometry.type === "surface" && geometry.nurbs) {
+        const tessellated = tessellateSurfaceAdaptive(geometry.nurbs);
+        return {
+          positions: Array.from(tessellated.positions),
+          normals: Array.from(tessellated.normals),
+          indices: Array.from(tessellated.indices),
+          uvs: Array.from(tessellated.uvs),
+        };
+      }
+      return geometry.mesh;
+    }
+
+    return null;
+  }
+
+  private updateMeshGeometry(geometry: Geometry, existing?: RenderableGeometry): void {
     let buffer: GeometryBuffer;
     const edgeBufferId = `${geometry.id}__edges`;
     const edgeLineBufferBaseId = `${geometry.id}__edge_lines`;
@@ -175,19 +275,8 @@ export class GeometryRenderAdapter {
       buffer = this.renderer.createGeometryBuffer(geometry.id);
     }
 
-    if (geometry.mesh) {
-      const meshSource = geometry.nurbs
-        ? (() => {
-            const tessellated = tessellateSurfaceAdaptive(geometry.nurbs);
-            return {
-              positions: Array.from(tessellated.positions),
-              normals: Array.from(tessellated.normals),
-              indices: Array.from(tessellated.indices),
-              uvs: Array.from(tessellated.uvs),
-            } satisfies RenderMesh;
-          })()
-        : geometry.mesh;
-
+    const meshSource = this.resolveMeshSource(geometry);
+    if (meshSource) {
       const flatMesh = createFlatShadedMesh(meshSource);
       buffer.setData({
         positions: flatMesh.positions,

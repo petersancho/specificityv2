@@ -73,8 +73,7 @@ const mix = (a: RGBA, b: RGBA, t: number): RGBA => [
   a[3] + (b[3] - a[3]) * t,
 ];
 
-const UI_FONT_FAMILY =
-  '"Helvetica Neue", "Montreal Neue", "Space Grotesk", Helvetica, Arial, sans-serif';
+const UI_FONT_FAMILY = '"Montreal Neue", "Space Grotesk", sans-serif';
 
 const PALETTE = {
   bgTop: rgb(250, 248, 244, 1),
@@ -106,9 +105,9 @@ const TITLE_PALETTE = {
 };
 
 const TITLE_ACCENTS: Record<LogoTone, RGBA> = {
-  roslyn: rgb(0, 194, 209, 1),
-  numerica: rgb(122, 92, 255, 1),
-  neutral: rgb(255, 138, 61, 1),
+  roslyn: rgb(11, 138, 151, 1),
+  numerica: rgb(81, 50, 194, 1),
+  neutral: rgb(204, 91, 26, 1),
 };
 
 const FOOTER_HEIGHT = 64;
@@ -119,7 +118,7 @@ const CHIP_HEIGHT = 34;
 const KEY_HEIGHT = 38;
 const CHIP_PAD_X = 16;
 const KEY_PAD_X = 13;
-const CHIP_RADIUS = 8;
+const CHIP_RADIUS = 5;
 const CHIP_STROKE = 1.1;
 const DOT_SPACING = 26;
 const DOT_SIZE = 1.1;
@@ -134,7 +133,7 @@ const TITLE_PAD_Y = 5;
 const TITLE_BAR_WIDTH = 3;
 const TITLE_BAR_GAP = 6;
 const TITLE_GAP = 3;
-const TITLE_RADIUS = 7;
+const TITLE_RADIUS = 5;
 const TITLE_STROKE = 1.2;
 const TITLE_SHADOW_OFFSET = 1.4;
 const TITLE_UNDERLINE_HEIGHT = 1.8;
@@ -607,7 +606,7 @@ const WebGLStatusFooter = ({
 
     toggleLayout.forEach((toggleItem) => {
       const box = toggleItem.boxRect;
-      const toggleRadius = Math.min(4.5, box.height * 0.4);
+      const toggleRadius = Math.min(3.5, box.height * 0.4);
       ui.drawRoundedRect(
         box.x * dpr,
         box.y * dpr,

@@ -285,3 +285,7 @@ Per `docs/subsystems_guide.md:3-46`:
 - Restructure App.tsx for vertical scrolling
 - Apply monochrome theme across all components
 - Test responsive design and usability
+
+## Historical Note
+
+Phase 4 documents the initial geometry kernel completion. Validate current kernel behavior against `client/src/geometry` and `docs/geometry_math_v2_implementation.md`.

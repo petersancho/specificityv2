@@ -250,3 +250,8 @@ Per `docs/subsystems_guide.md:3-46`:
 - `docs/lingua_conventions.md` - Code patterns and standards
 - `docs/subsystems_guide.md` - Detailed subsystem implementations
 - `docs/ai_agent_guide.md` - Development guidance and patterns
+
+## Historical Note
+
+This document is a snapshot from Phase 1 and may describe legacy files or names.
+Treat it as historical context, not a current implementation spec.

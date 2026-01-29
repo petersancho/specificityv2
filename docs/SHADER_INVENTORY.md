@@ -378,7 +378,25 @@ client/src/shaders/
 
 ## References
 
-- Current implementation: `client/src/components/ViewerCanvas.tsx:295-324`
+- Current implementation: `client/src/components/WebGLViewerCanvas.tsx`
 - Three.js shader reference: https://threejs.org/docs/#api/en/materials/ShaderMaterial
 - WebGL shader compilation: https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Adding_2D_content_to_a_WebGL_context
 - Per `docs/lingua_conventions.md:60-69` - Explicit WebGL control patterns
+
+## Update Protocol
+
+- Treat shader sources in `client/src/webgl/shaders` as the source of truth.
+- When adding or removing shader programs, update this inventory with new IDs and usage.
+- Mark legacy shader notes explicitly to avoid confusion with current pipelines.
+
+## Validation Checklist
+
+- All shaders compile on WebGL2 with no warnings in supported browsers.
+- Uniforms and attributes match buffer layouts in `renderAdapter`.
+- Selection/hover variants render with identical depth settings to base shaders.
+
+## Implementation Anchors
+
+- `client/src/webgl/WebGLRenderer.ts`
+- `client/src/webgl/shaders`
+- `client/src/geometry/renderAdapter.ts`

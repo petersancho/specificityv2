@@ -1,21 +1,30 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { useProjectStore, type NodeType } from "../../store/useProjectStore";
 import { NumericalCanvas } from "./NumericalCanvas";
 import IconButton from "../ui/IconButton";
 import WebGLButton from "../ui/WebGLButton";
 import WebGLSlider from "../ui/WebGLSlider";
 import Tooltip from "../ui/Tooltip";
+import TooltipCard from "../ui/TooltipCard";
 import WebGLTitleLogo from "../WebGLTitleLogo";
+import { SubCategoryDropdown } from "./SubCategoryDropdown";
+import { createIconSignature } from "./iconSignature";
 import { arrayBufferToBase64 } from "../../utils/binary";
 import { downloadBlob } from "../../utils/download";
 import { normalizeHexColor } from "../../utils/color";
+import { safeLocalStorageGet, safeLocalStorageSet } from "../../utils/safeStorage";
 import {
   NODE_CATEGORIES,
   NODE_CATEGORY_BY_ID,
   NODE_DEFINITIONS,
-  buildNodeTooltipLines,
   getNodeDefinition,
-  getDefaultNodePorts,
   resolveNodeParameters,
   resolveNodePorts,
   type NodeCategory,
@@ -25,6 +34,39 @@ import {
   resolvePanelFormatOptions,
 } from "./panelFormat";
 import styles from "./WorkflowSection.module.css";
+
+const STICKER_TINTS: Record<string, string> = {
+  data: "#00FFFF",
+  basics: "#FFFF00",
+  lists: "#99FF80",
+  primitives: "#FF00FF",
+  curves: "#FF33FF",
+  nurbs: "#00FF80",
+  brep: "#3300FF",
+  mesh: "#1AB3FF",
+  tessellation: "#4DFFFF",
+  modifiers: "#FF331A",
+  transforms: "#661AFF",
+  arrays: "#B2FF00",
+  euclidean: "#00FF00",
+  ranges: "#E6FF1A",
+  signals: "#B200FF",
+  analysis: "#FF0000",
+  interop: "#33FFCC",
+  measurement: "#FF4D66",
+  voxel: "#FF6600",
+  solver: "#0000FF",
+  goal: "#CC1AE6",
+  optimization: "#80FF00",
+  math: "#FFCC00",
+  logic: "#99FF33",
+};
+
+const resolveStickerTint = (categoryId?: string | null) => {
+  if (!categoryId) return undefined;
+  const color = STICKER_TINTS[categoryId];
+  return normalizeHexColor(color) ?? undefined;
+};
 
 const nodeOptions = NODE_DEFINITIONS.filter(
   (definition) => definition.type !== "primitive"
@@ -45,8 +87,8 @@ const PALETTE_SECTIONS: Array<{
   {
     id: "geometry",
     label: "Geometry",
-    description: "Primitives, curves, NURBS, surfaces",
-    categories: ["primitives", "curves", "nurbs", "surfaces", "modifiers"],
+    description: "Primitives, curves, NURBS, BREP",
+    categories: ["primitives", "curves", "nurbs", "brep", "modifiers"],
   },
   {
     id: "transform",
@@ -73,9 +115,15 @@ const PALETTE_SECTIONS: Array<{
     categories: ["data", "basics", "lists", "ranges", "signals", "analysis", "measurement", "optimization"],
   },
   {
+    id: "solver",
+    label: "Solver",
+    description: "Optimization and simulation engines",
+    categories: ["solver"],
+  },
+  {
     id: "voxel",
-    label: "Voxel Optimization",
-    description: "Voxel grids and solvers",
+    label: "Voxel",
+    description: "Voxel grids and utilities",
     categories: ["voxel"],
   },
   {
@@ -112,25 +160,28 @@ const WorkflowSection = ({
 }: WorkflowSectionProps) => {
   const [selectedType, setSelectedType] = useState<NodeType>("number");
   const [nodeQuery, setNodeQuery] = useState("");
+  const nodeSearchRef = useRef<HTMLInputElement>(null);
   const parameterPanelRef = useRef<HTMLDivElement>(null);
+  const sectionRef = useRef<HTMLElement | null>(null);
   const nodes = useProjectStore((state) => state.workflow.nodes);
   const edges = useProjectStore((state) => state.workflow.edges);
-  const addNode = useProjectStore((state) => state.addNode);
   const addNodeAt = useProjectStore((state) => state.addNodeAt);
   const pruneWorkflow = useProjectStore((state) => state.pruneWorkflow);
   const undoWorkflow = useProjectStore((state) => state.undoWorkflow);
   const updateNodeData = useProjectStore((state) => state.updateNodeData);
   const [paletteCollapsed, setPaletteCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
-    return window.localStorage.getItem(PALETTE_COLLAPSED_KEY) === "true";
+    return safeLocalStorageGet(PALETTE_COLLAPSED_KEY) === "true";
   });
-  const [captureBackground, setCaptureBackground] = useState<CaptureBackground>(() => {
+  const [captureBackground] = useState<CaptureBackground>(() => {
     if (typeof window === "undefined") return "transparent";
-    const stored = window.localStorage.getItem(CAPTURE_BACKGROUND_KEY);
+    const stored = safeLocalStorageGet(CAPTURE_BACKGROUND_KEY);
     return stored === "white" ? "white" : "transparent";
   });
   const [captureMode, setCaptureMode] = useState<CaptureBackground | null>(null);
   const paletteRef = useRef<HTMLElement | null>(null);
+  const [pendingNodeType, setPendingNodeType] = useState<NodeType | null>(null);
+  const canvasHoverRef = useRef(false);
 
   const supportedTypes = useMemo(() => {
     const next = new Set(nodeOptions.map((option) => option.type));
@@ -146,15 +197,85 @@ const WorkflowSection = ({
   );
 
   const paletteTooltipByType = useMemo(() => {
-    const map = new Map<string, string>();
+    const map = new Map<string, ReactNode>();
     nodeOptions.forEach((definition) => {
-      const ports = getDefaultNodePorts(definition);
-      const lines = buildNodeTooltipLines(definition, ports);
-      if (lines.length > 0) {
-        map.set(definition.type, lines.join("\n"));
-      }
+      const category = NODE_CATEGORY_BY_ID.get(definition.category);
+      const description = definition.display?.description ?? definition.description;
+      const semantic = category?.description;
+      const translation =
+        definition.display?.nameEnglish &&
+        definition.display?.nameGreek &&
+        definition.display.nameEnglish !== definition.label
+          ? definition.display.nameEnglish
+          : undefined;
+      map.set(
+        definition.type,
+        <TooltipCard
+          title={definition.label}
+          subtitle={translation}
+          kindLabel="Numerica Node"
+          categoryLabel={category?.label ?? definition.category}
+          semantic={semantic}
+          description={description}
+          href={`#/docs/numerica/${encodeURIComponent(definition.type)}`}
+          accentColor={category?.accent}
+        />
+      );
     });
     return map;
+  }, []);
+  const solverInputCategory = useMemo(() => {
+    const buildNode = (type: NodeType) => {
+      const definition = getNodeDefinition(type);
+      if (!definition) return null;
+      return {
+        type,
+        iconId: definition.iconId,
+        nameGreek: definition.display?.nameGreek ?? definition.label,
+        nameEnglish: definition.display?.nameEnglish ?? definition.label,
+        romanization: definition.display?.romanization,
+        description: definition.display?.description ?? definition.description,
+      };
+    };
+    const physicsNodes = [
+      "stiffnessGoal",
+      "volumeGoal",
+      "loadGoal",
+      "anchorGoal",
+    ]
+      .map((type) => buildNode(type as NodeType))
+      .filter((node): node is NonNullable<ReturnType<typeof buildNode>> => Boolean(node));
+    const biologicalNodes = [
+      "growthGoal",
+      "nutrientGoal",
+      "morphogenesisGoal",
+      "homeostasisGoal",
+    ]
+      .map((type) => buildNode(type as NodeType))
+      .filter((node): node is NonNullable<ReturnType<typeof buildNode>> => Boolean(node));
+    const chemistryNodes = [
+      "chemistryMaterialGoal",
+      "chemistryStiffnessGoal",
+      "chemistryMassGoal",
+      "chemistryBlendGoal",
+      "chemistryTransparencyGoal",
+      "chemistryThermalGoal",
+    ]
+      .map((type) => buildNode(type as NodeType))
+      .filter((node): node is NonNullable<ReturnType<typeof buildNode>> => Boolean(node));
+
+    return {
+      nameGreek: "Ἐπιλύτου Εἰσαγωγαί",
+      translation: "Solver Inputs",
+      romanization: "Epilýtou Eisagōgaí",
+      description: "Goal nodes that define optimization objectives for solvers.",
+      subSubCategories: [
+        { name: "Physics Goals", nodes: physicsNodes },
+        { name: "Biological Goals", nodes: biologicalNodes },
+        { name: "Chemistry Goals", nodes: chemistryNodes },
+        { name: "Voxel Goals", nodes: [] },
+      ],
+    };
   }, []);
   const filteredEdges = useMemo(() => {
     const nodeIds = new Set(filteredNodes.map((node) => node.id));
@@ -209,6 +330,7 @@ const WorkflowSection = ({
 
     const remainingGroups = NODE_CATEGORIES.map((category) => {
       if (usedCategories.has(category.id)) return null;
+      if (category.id === "goal") return null;
       const nodes = groupMap.get(category.id) ?? [];
       if (nodes.length === 0) return null;
       return { category, nodes };
@@ -262,30 +384,24 @@ const WorkflowSection = ({
     return { node: selectedNode, definition, parameters, ports };
   }, [selectedNode]);
 
-  const connectedInputs = useMemo(() => {
+  const inputParameterKeys = useMemo(() => {
     if (!selectedNodeContext) return new Set<string>();
-    const defaultInputKey = selectedNodeContext.ports.inputs[0]?.key;
-    const connected = new Set<string>();
-    edges.forEach((edge) => {
-      if (edge.target !== selectedNodeContext.node.id) return;
-      const handle = edge.targetHandle ?? defaultInputKey;
-      if (handle) connected.add(handle);
+    return new Set(
+      selectedNodeContext.ports.inputs
+        .map((port) => port.parameterKey)
+        .filter((key): key is string => Boolean(key))
+    );
+  }, [selectedNodeContext]);
+
+  const editableParameters = useMemo(() => {
+    if (!selectedNodeContext?.definition) return [];
+    const params = selectedNodeContext.parameters ?? {};
+    return selectedNodeContext.definition.parameters.filter((parameter) => {
+      if (inputParameterKeys.has(parameter.key)) return false;
+      if (parameter.enabled && !parameter.enabled(params)) return false;
+      return true;
     });
-    return connected;
-  }, [edges, selectedNodeContext]);
-
-  const specKeys = useMemo(
-    () => new Set(selectedNodeContext?.definition?.parameters.map((parameter) => parameter.key) ?? []),
-    [selectedNodeContext]
-  );
-
-  const inputParameterPorts = useMemo(
-    () =>
-      selectedNodeContext?.ports.inputs.filter(
-        (port) => port.parameterKey && !specKeys.has(port.parameterKey)
-      ) ?? [],
-    [selectedNodeContext, specKeys]
-  );
+  }, [selectedNodeContext, inputParameterKeys]);
 
   const readNumber = (value: unknown, fallback: number) => {
     if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -310,17 +426,6 @@ const WorkflowSection = ({
     if (typeof value === "string") return value;
     if (value === null || value === undefined) return fallback;
     return String(value);
-  };
-
-  const parseLooseValue = (raw: string) => {
-    const trimmed = raw.trim();
-    if (trimmed.length === 0) return "";
-    const lower = trimmed.toLowerCase();
-    if (lower === "true") return true;
-    if (lower === "false") return false;
-    const numeric = Number(trimmed);
-    if (Number.isFinite(numeric)) return numeric;
-    return raw;
   };
 
   const setParameter = (key: string, value: unknown) => {
@@ -400,12 +505,12 @@ const WorkflowSection = ({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    window.localStorage.setItem(PALETTE_COLLAPSED_KEY, String(paletteCollapsed));
+    safeLocalStorageSet(PALETTE_COLLAPSED_KEY, String(paletteCollapsed));
   }, [paletteCollapsed]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    window.localStorage.setItem(CAPTURE_BACKGROUND_KEY, captureBackground);
+    safeLocalStorageSet(CAPTURE_BACKGROUND_KEY, captureBackground);
   }, [captureBackground]);
 
   useEffect(() => {
@@ -432,20 +537,16 @@ const WorkflowSection = ({
     node.dataset.captureBackground = captureBackground;
   }, [captureBackground]);
 
-  const paletteDragRef = useRef<{
-    type: NodeType | null;
-    startX: number;
-    startY: number;
-    dragging: boolean;
-  }>({
-    type: null,
-    startX: 0,
-    startY: 0,
-    dragging: false,
-  });
-  const [paletteDrag, setPaletteDrag] = useState<{ type: NodeType | null; dragging: boolean }>(
-    { type: null, dragging: false }
-  );
+  const beginNodePlacement = (
+    type: NodeType,
+    event?: React.PointerEvent | React.MouseEvent
+  ) => {
+    setPaletteCollapsed(true);
+    setPendingNodeType(type);
+    if (event) {
+      event.preventDefault();
+    }
+  };
 
   const handleCapture = async () => {
     if (!canvasRef.current || !onCaptureRequest) return;
@@ -464,50 +565,10 @@ const WorkflowSection = ({
     }
   };
 
-  const handleAddType = (type: NodeType) => {
-    addNode(type);
+  const handleAddType = (type: NodeType, event?: React.MouseEvent) => {
+    beginNodePlacement(type, event);
     setSelectedType(type);
   };
-
-  const startPaletteDrag = (type: NodeType, event: React.PointerEvent) => {
-    paletteDragRef.current = {
-      type,
-      startX: event.clientX,
-      startY: event.clientY,
-      dragging: false,
-    };
-    setPaletteDrag({ type, dragging: false });
-  };
-
-  useEffect(() => {
-    if (!paletteDrag.type) return;
-
-    const handleMove = (event: PointerEvent) => {
-      const ref = paletteDragRef.current;
-      if (!ref.type) return;
-      const dx = event.clientX - ref.startX;
-      const dy = event.clientY - ref.startY;
-      const distance = Math.hypot(dx, dy);
-      if (!ref.dragging && distance > 6) {
-        ref.dragging = true;
-        setPaletteDrag({ type: ref.type, dragging: true });
-      }
-    };
-
-    const handleUp = () => {
-      const ref = paletteDragRef.current;
-      if (!ref.type) return;
-      paletteDragRef.current = { type: null, startX: 0, startY: 0, dragging: false };
-      setPaletteDrag({ type: null, dragging: false });
-    };
-
-    window.addEventListener("pointermove", handleMove);
-    window.addEventListener("pointerup", handleUp);
-    return () => {
-      window.removeEventListener("pointermove", handleMove);
-      window.removeEventListener("pointerup", handleUp);
-    };
-  }, [paletteDrag.type]);
 
   useEffect(() => {
     const node = canvasRef.current;
@@ -530,14 +591,25 @@ const WorkflowSection = ({
 
   const handleCanvasDrop = (type: NodeType, world: { x: number; y: number }) => {
     addNodeAt(type, { x: world.x, y: world.y });
-    paletteDragRef.current = { type: null, startX: 0, startY: 0, dragging: false };
-    setPaletteDrag({ type: null, dragging: false });
+    setPendingNodeType(null);
   };
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey)) return;
       if (event.key.toLowerCase() !== "z") return;
+      const section = sectionRef.current;
+      if (section) {
+        const targetNode = event.target instanceof Node ? event.target : null;
+        const activeNode =
+          document.activeElement instanceof Node ? document.activeElement : null;
+        if (
+          (!targetNode || !section.contains(targetNode)) &&
+          (!activeNode || !section.contains(activeNode))
+        ) {
+          return;
+        }
+      }
       const target = event.target as HTMLElement | null;
       if (
         target &&
@@ -556,6 +628,41 @@ const WorkflowSection = ({
   }, [undoWorkflow]);
 
   useEffect(() => {
+    const isEditableElement = (element: HTMLElement | null) =>
+      Boolean(
+        element &&
+          (element.tagName === "INPUT" ||
+            element.tagName === "TEXTAREA" ||
+            element.isContentEditable)
+      );
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!canvasHoverRef.current) return;
+      if (event.defaultPrevented) return;
+      if (event.isComposing) return;
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
+      if (event.key.length !== 1 || event.key === " ") return;
+      const target = event.target as HTMLElement | null;
+      const activeElement =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      if (isEditableElement(target) || isEditableElement(activeElement)) {
+        return;
+      }
+      const input = nodeSearchRef.current;
+      if (!input || input.disabled || input.readOnly) return;
+      event.preventDefault();
+      setNodeQuery((prev) => `${prev}${event.key}`);
+      input.focus({ preventScroll: true });
+      requestAnimationFrame(() => {
+        if (!nodeSearchRef.current) return;
+        const length = nodeSearchRef.current.value.length;
+        nodeSearchRef.current.setSelectionRange(length, length);
+      });
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [setNodeQuery]);
+
+  useEffect(() => {
     if (
       filteredNodes.length !== nodes.length ||
       filteredEdges.length !== edges.length
@@ -565,13 +672,18 @@ const WorkflowSection = ({
   }, [filteredNodes.length, filteredEdges.length, nodes.length, edges.length, pruneWorkflow]);
 
   return (
-    <section className={styles.section} data-fullscreen={isFullscreen ? "true" : "false"}>
+    <section
+      ref={sectionRef}
+      className={styles.section}
+      data-fullscreen={isFullscreen ? "true" : "false"}
+    >
       <div className={styles.header}>
         <div className={styles.headerCluster}>
           <WebGLTitleLogo title="Numerica" tone="numerica" />
           <div className={styles.headerSearch}>
             <span className={styles.srOnly}>Search nodes</span>
             <input
+              ref={nodeSearchRef}
               className={styles.headerSearchInput}
               type="search"
               placeholder="Search nodes…"
@@ -595,32 +707,6 @@ const WorkflowSection = ({
           </div>
         </div>
         <div className={styles.headerCluster}>
-          <IconButton
-            size="sm"
-            label="Capture workflow canvas"
-            iconId="capture"
-            tooltip="Capture workflow canvas"
-            tooltipPosition="bottom"
-            onClick={handleCapture}
-            disabled={captureDisabled}
-          />
-          <IconButton
-            size="sm"
-            label={`Capture background: ${
-              captureBackground === "white" ? "White" : "Transparent"
-            }`}
-            iconId={captureBackground === "white" ? "themeLight" : "displayMode"}
-            tooltip={`Capture background: ${
-              captureBackground === "white" ? "White" : "Transparent"
-            }`}
-            tooltipPosition="bottom"
-            onClick={() =>
-              setCaptureBackground((prev) =>
-                prev === "white" ? "transparent" : "white"
-              )
-            }
-            active={captureBackground === "white"}
-          />
           {onToggleFullscreen && (
             <IconButton
               size="sm"
@@ -633,14 +719,22 @@ const WorkflowSection = ({
           )}
         </div>
       </div>
-
       <div className={styles.body}>
         <div className={styles.canvas} data-panel-drag="true">
-          <div className={styles.canvasViewport} ref={canvasRef}>
+          <div
+            className={styles.canvasViewport}
+            ref={canvasRef}
+            onPointerEnter={() => {
+              canvasHoverRef.current = true;
+            }}
+            onPointerLeave={() => {
+              canvasHoverRef.current = false;
+            }}
+          >
             <NumericalCanvas
               width={canvasSize.width}
               height={canvasSize.height}
-              pendingNodeType={paletteDrag.dragging ? paletteDrag.type : null}
+              pendingNodeType={pendingNodeType}
               onDropNode={handleCanvasDrop}
               onRequestNodeSettings={handleRequestNodeSettings}
               captureMode={captureMode}
@@ -718,6 +812,9 @@ const WorkflowSection = ({
                               <div className={styles.paletteGroupGrid}>
                                 {group.nodes.map((option) => {
                                   const iconId = option.iconId ?? "primitive";
+                                  const tooltipContent = paletteTooltipByType.get(option.type);
+                                  const hasTooltipContent = Boolean(tooltipContent);
+                                  const stickerTint = resolveStickerTint(option.category);
                                   return (
                                     <WebGLButton
                                       key={option.type}
@@ -731,20 +828,22 @@ const WorkflowSection = ({
                                           : undefined
                                       }
                                       label={option.label}
-                                      shortLabel={option.shortLabel}
                                       iconId={iconId}
+                                      iconStyle="sticker"
+                                      iconTintOverride={stickerTint}
+                                      iconSignature={createIconSignature(option.type)}
+                                      hideLabel
                                       variant="palette"
                                       shape="square"
                                       accentColor={accent}
-                                      tooltip={
-                                        paletteTooltipByType.get(option.type) ??
-                                        option.description
-                                      }
+                                      tooltip={tooltipContent ?? option.description}
                                       tooltipPosition="bottom"
+                                      tooltipMaxWidth={hasTooltipContent ? 300 : undefined}
+                                      tooltipInteractive={hasTooltipContent}
                                       onPointerDown={(event) =>
-                                        startPaletteDrag(option.type, event)
+                                        beginNodePlacement(option.type, event)
                                       }
-                                      onClick={() => handleAddType(option.type)}
+                                      onClick={(event) => handleAddType(option.type, event)}
                                     />
                                   );
                                 })}
@@ -753,6 +852,15 @@ const WorkflowSection = ({
                           );
                         })}
                       </div>
+                      {section.id === "solver" && (
+                        <SubCategoryDropdown
+                          subCategory={solverInputCategory}
+                          onSelectNode={(type, event) => {
+                            beginNodePlacement(type, event);
+                            setSelectedType(type);
+                          }}
+                        />
+                      )}
                     </div>
                   ))}
                 </div>
@@ -768,14 +876,13 @@ const WorkflowSection = ({
                         <span className={styles.parameterSubtitle}>Parameters</span>
                       </div>
 
-                      {selectedNodeContext.definition?.parameters.length === 0 &&
-                      inputParameterPorts.length === 0 ? (
+                      {editableParameters.length === 0 ? (
                         <p className={styles.parameterEmpty}>
                           No editable parameters for this node.
                         </p>
                       ) : (
                         <div className={styles.parameterGrid}>
-                          {selectedNodeContext.definition?.parameters.map((parameter) => {
+                          {editableParameters.map((parameter) => {
                             const value =
                               selectedNodeContext.parameters[parameter.key] ??
                               parameter.defaultValue;
@@ -795,11 +902,24 @@ const WorkflowSection = ({
                                       const file = event.target.files?.[0];
                                       if (!file) return;
                                       const buffer = await file.arrayBuffer();
-                                      setParameter(parameter.key, {
+                                      const payload = {
                                         name: file.name,
                                         type: file.type,
                                         data: arrayBufferToBase64(buffer),
-                                      });
+                                      };
+                                      if (
+                                        selectedNodeContext?.node.type === "stlImport" &&
+                                        parameter.key === "file"
+                                      ) {
+                                        updateNodeData(selectedNodeContext.node.id, {
+                                          parameters: {
+                                            file: payload,
+                                            importNow: true,
+                                          },
+                                        });
+                                      } else {
+                                        setParameter(parameter.key, payload);
+                                      }
                                     }}
                                   />
                                 </label>
@@ -1036,76 +1156,6 @@ const WorkflowSection = ({
                             );
                           })}
 
-                          {inputParameterPorts.map((port) => {
-                            const paramKey = port.parameterKey!;
-                            const rawValue =
-                              selectedNodeContext.parameters[paramKey] ??
-                              port.defaultValue ??
-                              "";
-                            const isConnected = connectedInputs.has(port.key);
-                            const rowKey = `${selectedNodeContext.node.id}-${port.key}`;
-                            const portLabel = `${port.label}${
-                              isConnected ? " (connected)" : ""
-                            }`;
-
-                            if (port.type === "boolean") {
-                              const checked = readBoolean(rawValue, false);
-                              return (
-                                <label key={rowKey} className={styles.parameterRowCheckbox}>
-                                  <input
-                                    type="checkbox"
-                                    checked={checked}
-                                    disabled={isConnected}
-                                    onChange={(event) =>
-                                      setParameter(paramKey, event.target.checked)
-                                    }
-                                  />
-                                  {renderParameterLabel(portLabel, port.description)}
-                                </label>
-                              );
-                            }
-
-                            if (port.type === "number") {
-                              const numericValue = readNumber(
-                                rawValue,
-                                Number(port.defaultValue) || 0
-                              );
-                              return (
-                                <label key={rowKey} className={styles.parameterRow}>
-                                  {renderParameterLabel(portLabel, port.description)}
-                                  <input
-                                    className={styles.parameterControl}
-                                    type="number"
-                                    value={numericValue}
-                                    disabled={isConnected}
-                                    step={0.1}
-                                    onChange={(event) => {
-                                      const nextValue = Number(event.target.value);
-                                      if (Number.isFinite(nextValue)) {
-                                        setParameter(paramKey, nextValue);
-                                      }
-                                    }}
-                                  />
-                                </label>
-                              );
-                            }
-
-                            const stringValue = String(rawValue ?? "");
-                            return (
-                              <label key={rowKey} className={styles.parameterRow}>
-                                {renderParameterLabel(portLabel, port.description)}
-                                <input
-                                  className={styles.parameterControl}
-                                  type="text"
-                                  value={stringValue}
-                                  disabled={isConnected}
-                                  onChange={(event) =>
-                                    setParameter(paramKey, parseLooseValue(event.target.value))
-                                  }
-                                />
-                              </label>
-                            );
-                          })}
                         </div>
                       )}
 
@@ -1137,6 +1187,21 @@ const WorkflowSection = ({
                       Select a node to edit its parameters.
                     </p>
                   )}
+                </div>
+                <div className={styles.paletteFooter}>
+                  <WebGLButton
+                    type="button"
+                    label="Screenshot"
+                    iconId="capture"
+                    hideLabel
+                    size="sm"
+                    variant="icon"
+                    shape="square"
+                    tooltip="Screenshot"
+                    tooltipPosition="top"
+                    onClick={handleCapture}
+                    disabled={captureDisabled}
+                  />
                 </div>
               </aside>
             )}

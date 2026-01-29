@@ -156,7 +156,7 @@ export const useWebGLControlVisuals = ({
     if (!iconId) return "";
     const url = resolveIconImageUrl(iconId, visuals.iconSize, visuals.iconTint);
     if (url) return url;
-    const fallbackSize = Math.max(48, Math.round(visuals.iconSize * 2));
+    const fallbackSize = Math.max(128, Math.round(visuals.iconSize * 6));
     return renderIconDataUrl(iconId, fallbackSize, { tint: visuals.iconTint });
   }, [iconId, visuals.iconSize, iconTintKey]);
 
@@ -165,7 +165,7 @@ export const useWebGLControlVisuals = ({
     if (!rightIconId) return "";
     const url = resolveIconImageUrl(rightIconId, rightIconSize, visuals.iconTint);
     if (url) return url;
-    const fallbackSize = Math.max(48, Math.round(rightIconSize * 2));
+    const fallbackSize = Math.max(96, Math.round(rightIconSize * 6));
     return renderIconDataUrl(rightIconId, fallbackSize, { tint: visuals.iconTint });
   }, [rightIconId, rightIconSize, iconTintKey]);
 

@@ -419,3 +419,23 @@ The current architecture should extend to support undo and redo for graph editin
 The history implementation should use a command pattern where each graph modification operation is represented as a command object containing the information needed to execute and reverse the operation. The undo operation executes the reverse commands in reverse order while the redo operation re-executes the forward commands.
 
 The evaluation cache invalidation should integrate with the undo system so that undoing a parameter change causes affected nodes to re-evaluate with their previous parameter values. The cache entries associated with undone states may be preserved temporarily to accelerate redo operations that restore those states.
+
+## Implementation Anchors
+
+- `client/src/components/workflow/NumericalCanvas.tsx`: render loop, hit testing, pan/zoom.
+- `client/src/components/workflow/workflowValidation.ts`: connection validation and cycle checks.
+- `client/src/workflow/nodeRegistry.ts`: node definitions, ports, and defaults.
+- `client/src/store/useProjectStore.ts`: workflow state, evaluation, caching, and invalidation.
+
+## Performance Targets
+
+- 60 fps during active interaction (drag, pan, connect), idle rendering can pause.
+- Smooth interaction at 1k+ nodes with minimal frame drops.
+- Hit testing and drawing remain linear in visible nodes/edges with view culling.
+
+## Validation Checklist
+
+- Edge connections enforce type compatibility and single-input constraints.
+- Dirty flags propagate to all downstream nodes on parameter changes.
+- Cycle detection blocks evaluation and reports clear errors.
+- Selection, drag, and connection creation remain stable at high zoom levels.

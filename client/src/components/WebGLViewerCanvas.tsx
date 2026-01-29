@@ -8,11 +8,17 @@ import {
   refineRaySurfaceIntersection,
 } from "../geometry/nurbs";
 import {
+  createNurbsBoxSurfaces,
+  createNurbsCylinderSurface,
+  createNurbsSphereSurface,
+} from "../geometry/nurbsPrimitives";
+import {
   hitTestComponent,
   hitTestObject,
   type HitTestResult,
 } from "../geometry/hitTest";
 import { tessellateCurveAdaptive, tessellateSurfaceAdaptive } from "../geometry/tessellation";
+import { tessellateBRepToMesh } from "../geometry/brep";
 import {
   add,
   centroid,
@@ -43,6 +49,12 @@ import {
   type PrimitiveMeshConfig,
 } from "../geometry/mesh";
 import { hexToRgb, normalizeRgbInput } from "../utils/color";
+import {
+  normalizePaletteValues,
+  resolvePaletteColor,
+  resolvePaletteShading,
+  type RenderPaletteId,
+} from "../utils/renderPalette";
 import { PRIMITIVE_COMMAND_IDS } from "../data/primitiveCatalog";
 import { WebGLRenderer, type Camera } from "../webgl/WebGLRenderer";
 import {
@@ -95,6 +107,9 @@ const GRID_OFFSET_Y = -0.002;
 const SELECTION_DRAG_THRESHOLD = 8;
 const PICK_PIXEL_THRESHOLD = 20;
 const EDGE_PIXEL_THRESHOLD = 16;
+const COMPONENT_PICK_PIXEL_THRESHOLD = 26;
+const COMPONENT_EDGE_PIXEL_THRESHOLD = 20;
+const COMPONENT_POINT_PICK_RADIUS_PX = 14;
 const POINT_HANDLE_RADIUS_PX = 6;
 const POINT_HANDLE_OUTLINE_PX = 1.5;
 const POINT_HANDLE_PICK_RADIUS_PX = 11;
@@ -103,18 +118,30 @@ const PREVIEW_LINE_ID = "__preview-line";
 const PREVIEW_MESH_ID = "__preview-mesh";
 const PREVIEW_EDGE_ID = "__preview-mesh-edges";
 const HOVER_LINE_ID = "__hover-line";
+
+const resolveViewerDpr = () => {
+  if (typeof window === "undefined") return 1;
+  const baseDpr = window.devicePixelRatio || 1;
+  const scaled = baseDpr * (VIEW_STYLE.renderQualityScale ?? 1);
+  const maxDpr = VIEW_STYLE.maxRenderDpr ?? scaled;
+  return Math.min(scaled, maxDpr);
+};
 const HOVER_FACE_ID = "__hover-face";
-const GUMBALL_PIXEL_SIZE = 96;
+const GUMBALL_HOVER_PREVIEW_ID = "__gumball_hover_preview";
+const SELECTED_LINE_ID = "__selected-line";
+const SELECTED_FACE_ID = "__selected-face";
+const SELECTED_POINT_ID = "__selected-point";
+const GUMBALL_PIXEL_SIZE = 150;
 const GUMBALL_FULLSCREEN_SCALE = 0.9;
 const GUMBALL_VIEWPORT_ZOOM_MIN = 0.45;
 const GUMBALL_VIEWPORT_ZOOM_MAX = 2.6;
 const GUMBALL_PROMPT_FADE_DELAY = 520;
 const GUMBALL_PROMPT_REMOVE_DELAY = 820;
-const GUMBALL_CLICK_THRESHOLD = 4;
+const GUMBALL_CLICK_THRESHOLD = 2;
 const GUMBALL_STEP_DEFAULT_DISTANCE = 1;
 const GUMBALL_STEP_DEFAULT_ANGLE = 1;
 const BOUNDING_BOX_COLOR: [number, number, number] = [0.95, 0.86, 0.35];
-const SILHOUETTE_BASE_COLOR: [number, number, number] = [0.02, 0.02, 0.02];
+const SILHOUETTE_BASE_COLOR: [number, number, number] = [0, 0, 0];
 const SILHOUETTE_SELECTED_COLOR: [number, number, number] = [0.2, 0.2, 0.2];
 const POINT_FILL_COLOR: [number, number, number] = [1, 0.82, 0.16];
 const POINT_OUTLINE_COLOR: [number, number, number] = [0, 0, 0];
@@ -131,17 +158,60 @@ const SNAP_COLORS: Record<string, string> = {
 
 const GUMBALL_PICK_MESHES = createGumballPickMeshes();
 
-const resolveCustomMaterialColor = (metadata?: Geometry["metadata"]) => {
+type CustomMaterialOverrides = {
+  color?: [number, number, number];
+  ambientStrength?: number;
+  sheenIntensity?: number;
+};
+
+const resolveCustomMaterialOverrides = (metadata?: Geometry["metadata"]) => {
   if (!metadata || typeof metadata !== "object") return null;
   const custom = (metadata as { customMaterial?: unknown }).customMaterial;
   if (!custom || typeof custom !== "object") return null;
-  const record = custom as { color?: unknown; hex?: unknown };
-  const color = normalizeRgbInput(record.color);
-  if (color) return color;
-  if (typeof record.hex === "string") {
-    return hexToRgb(record.hex);
+  const record = custom as {
+    color?: unknown;
+    hex?: unknown;
+    palette?: unknown;
+    paletteValues?: unknown;
+    paletteSwatch?: unknown;
+  };
+  const baseColor = normalizeRgbInput(record.color);
+  const hexColor = typeof record.hex === "string" ? hexToRgb(record.hex) : null;
+  const palette =
+    typeof record.palette === "string"
+      ? (record.palette as RenderPaletteId)
+      : null;
+  const paletteValues = normalizePaletteValues(record.paletteValues);
+  const paletteSwatch = typeof record.paletteSwatch === "string" ? record.paletteSwatch : null;
+
+  let color = baseColor ?? hexColor ?? null;
+  let ambientStrength: number | undefined;
+  let sheenIntensity: number | undefined;
+
+  if (palette && paletteValues) {
+    if (!color) {
+      const paletteColor = resolvePaletteColor({
+        palette,
+        values: paletteValues,
+        swatch: paletteSwatch,
+        baseColor: color,
+      });
+      if (paletteColor) {
+        color = paletteColor;
+      }
+    }
+    const shading = resolvePaletteShading(palette, paletteValues);
+    ambientStrength = shading.ambientStrength;
+    sheenIntensity = shading.sheenIntensity;
   }
-  return null;
+
+  if (!color && ambientStrength == null && sheenIntensity == null) return null;
+
+  return {
+    color: color ?? undefined,
+    ambientStrength,
+    sheenIntensity,
+  } as CustomMaterialOverrides;
 };
 
 type PrimitiveSettings = PrimitiveMeshConfig;
@@ -183,9 +253,17 @@ const DEFAULT_CURVE_SETTINGS: CurveSettings = {
 };
 
 const PRIMITIVE_COMMAND_SET = new Set(PRIMITIVE_COMMAND_IDS);
+const NURBS_PRIMITIVE_COMMAND_IDS = ["nurbsbox", "nurbssphere", "nurbscylinder"] as const;
+const NURBS_PRIMITIVE_COMMAND_SET = new Set<string>(NURBS_PRIMITIVE_COMMAND_IDS);
 
 const isPrimitiveCommand = (commandId?: string | null) =>
-  Boolean(commandId && PRIMITIVE_COMMAND_SET.has(commandId));
+  Boolean(
+    commandId &&
+      (PRIMITIVE_COMMAND_SET.has(commandId) || NURBS_PRIMITIVE_COMMAND_SET.has(commandId))
+  );
+
+const isNurbsPrimitiveCommand = (commandId?: string | null) =>
+  Boolean(commandId && NURBS_PRIMITIVE_COMMAND_SET.has(commandId));
 
 type ViewerCanvasProps = {
   activeCommandId?: string | null;
@@ -600,6 +678,20 @@ const computePrincipalBasis = (points: Vec3[]): Basis | null => {
     [cxz, cyz, czz],
   ]);
   const order = [0, 1, 2].sort((a, b) => values[b] - values[a]);
+  const sortedValues = order.map((index) => values[index]);
+  const maxValue = sortedValues[0] ?? 0;
+  const midValue = sortedValues[1] ?? 0;
+  const minValue = sortedValues[2] ?? 0;
+  const valueSpan = Math.max(maxValue, 1e-12);
+  const nearIsotropic = Math.abs(maxValue - minValue) / valueSpan < 0.03;
+  if (nearIsotropic) {
+    return WORLD_BASIS;
+  }
+  const planarAmbiguous =
+    Math.abs(maxValue - midValue) / valueSpan < 0.03 && minValue / valueSpan < 0.03;
+  if (planarAmbiguous) {
+    return null;
+  }
   const axisFromIndex = (index: number) =>
     normalize({ x: vectors[0][index], y: vectors[1][index], z: vectors[2][index] });
   const xAxis = axisFromIndex(order[0]);
@@ -980,7 +1072,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
   const gumballPanelGridBufferRef = useRef<GeometryBuffer | null>(null);
   const adapterRef = useRef<GeometryRenderAdapter | null>(null);
   const geometryRef = useRef<Geometry[]>([]);
-  const customMaterialMapRef = useRef(new Map<string, [number, number, number]>());
+  const customMaterialMapRef = useRef(new Map<string, CustomMaterialOverrides>());
   const cameraRef = useRef(cameraOverride ?? useProjectStore.getState().camera);
   const selectionRef = useRef(useProjectStore.getState().selectedGeometryIds);
   const selectionModeRef = useRef(useProjectStore.getState().selectionMode);
@@ -1003,6 +1095,8 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
   });
   const gumballDragRef = useRef<GumballDragState | null>(null);
   const gumballHoverRef = useRef<GumballHandleId | null>(null);
+  const gumballHoverPreviewBufferRef = useRef<GeometryBuffer | null>(null);
+  const gumballHoverPreviewDirtyRef = useRef(true);
   const gumballViewportZoomRef = useRef(1);
   const extrudeHoverRef = useRef<ExtrudeHandle | null>(null);
   const transformSessionRef = useRef<TransformSession | null>(null);
@@ -1072,6 +1166,10 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
   const hoverDirtyRef = useRef(true);
   const hoverLineBufferRef = useRef<GeometryBuffer | null>(null);
   const hoverMeshBufferRef = useRef<GeometryBuffer | null>(null);
+  const selectedLineBufferRef = useRef<GeometryBuffer | null>(null);
+  const selectedFaceBufferRef = useRef<GeometryBuffer | null>(null);
+  const selectedPointBufferRef = useRef<GeometryBuffer | null>(null);
+  const selectedComponentDirtyRef = useRef(true);
   const pointDragRef = useRef<PointDragState | null>(null);
   const pointHoverRef = useRef<PointHandleHover | null>(null);
   const [pointHoverDebug, setPointHoverDebug] = useState<PointHandleHover | null>(null);
@@ -1082,16 +1180,43 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     width: number;
     height: number;
   } | null>(null);
+  const [modifierKeys, setModifierKeys] = useState({
+    shift: false,
+    ctrl: false,
+    meta: false,
+    alt: false,
+  });
+
+  useEffect(() => {
+    const handleModifierEvent = (event: KeyboardEvent) => {
+      setModifierKeys({
+        shift: event.shiftKey,
+        ctrl: event.ctrlKey,
+        meta: event.metaKey,
+        alt: event.altKey,
+      });
+    };
+    const resetModifiers = () =>
+      setModifierKeys({ shift: false, ctrl: false, meta: false, alt: false });
+    window.addEventListener("keydown", handleModifierEvent);
+    window.addEventListener("keyup", handleModifierEvent);
+    window.addEventListener("blur", resetModifiers);
+    return () => {
+      window.removeEventListener("keydown", handleModifierEvent);
+      window.removeEventListener("keyup", handleModifierEvent);
+      window.removeEventListener("blur", resetModifiers);
+    };
+  }, []);
 
   const geometry = useProjectStore((state) => state.geometry);
   const workflowNodes = useProjectStore((state) => state.workflow.nodes);
   const workflowEdges = useProjectStore((state) => state.workflow.edges);
   const customMaterialMap = useMemo(() => {
-    const map = new Map<string, [number, number, number]>();
+    const map = new Map<string, CustomMaterialOverrides>();
     geometry.forEach((item) => {
-      const color = resolveCustomMaterialColor(item.metadata);
-      if (color) {
-        map.set(item.id, color);
+      const overrides = resolveCustomMaterialOverrides(item.metadata);
+      if (overrides) {
+        map.set(item.id, overrides);
       }
     });
     return map;
@@ -1126,9 +1251,11 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
   const addGeometryPolylineFromPoints = useProjectStore(
     (state) => state.addGeometryPolylineFromPoints
   );
+  const addGeometryNurbsCurve = useProjectStore((state) => state.addGeometryNurbsCurve);
   const addGeometryBox = useProjectStore((state) => state.addGeometryBox);
   const addGeometrySphere = useProjectStore((state) => state.addGeometrySphere);
   const addGeometryMesh = useProjectStore((state) => state.addGeometryMesh);
+  const addGeometryItems = useProjectStore((state) => state.addGeometryItems);
 
   const primitiveConfig = useMemo(
     () => ({
@@ -1211,6 +1338,49 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     () => new Map(vertexItems.map((item) => [item.id, item])),
     [vertexItems]
   );
+  const collectMeshPoints = (mesh: RenderMesh): Vec3[] => {
+    const points: Vec3[] = [];
+    for (let i = 0; i < mesh.positions.length; i += 3) {
+      points.push({
+        x: mesh.positions[i],
+        y: mesh.positions[i + 1],
+        z: mesh.positions[i + 2],
+      });
+    }
+    return points;
+  };
+  const collectGeometryPoints = (item: Geometry): Vec3[] => {
+    if (item.type === "vertex") {
+      return [item.position];
+    }
+    if (item.type === "polyline") {
+      return item.vertexIds
+        .map((vertexId) => vertexMap.get(vertexId)?.position)
+        .filter((point): point is Vec3 => Boolean(point));
+    }
+    if (item.type === "nurbsCurve") {
+      return item.nurbs.controlPoints.map((point) => ({ ...point }));
+    }
+    if (item.type === "nurbsSurface") {
+      if (item.mesh && item.mesh.positions.length > 0) {
+        return collectMeshPoints(item.mesh);
+      }
+      return item.nurbs.controlPoints.flat().map((point) => ({ ...point }));
+    }
+    if (item.type === "brep") {
+      if (item.brep.vertices.length > 0) {
+        return item.brep.vertices.map((vertex) => vertex.position);
+      }
+      if (item.mesh && item.mesh.positions.length > 0) {
+        return collectMeshPoints(item.mesh);
+      }
+      return [];
+    }
+    if ("mesh" in item && item.mesh) {
+      return collectMeshPoints(item.mesh);
+    }
+    return [];
+  };
   const referencedVertexIds = useMemo(() => {
     const ids = new Set<string>();
     geometry.forEach((item) => {
@@ -1270,26 +1440,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     selectedGeometryIds.forEach((id) => {
       const item = geometry.find((entry) => entry.id === id);
       if (!item) return;
-      if (item.type === "vertex") {
-        points.push(item.position);
-        return;
-      }
-      if (item.type === "polyline") {
-        item.vertexIds.forEach((vertexId) => {
-          const vertex = vertexMap.get(vertexId);
-          if (vertex) points.push(vertex.position);
-        });
-        return;
-      }
-      if ("mesh" in item) {
-        for (let i = 0; i < item.mesh.positions.length; i += 3) {
-          points.push({
-            x: item.mesh.positions[i],
-            y: item.mesh.positions[i + 1],
-            z: item.mesh.positions[i + 2],
-          });
-        }
-      }
+      points.push(...collectGeometryPoints(item));
     });
     return points;
   }, [componentSelection, geometry, selectedGeometryIds, vertexMap]);
@@ -1522,6 +1673,38 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     return { corners };
   }
 
+  const computeSelectionExtents = (points: Vec3[], basis: Basis) => {
+    if (points.length === 0) {
+      return { x: 0, y: 0, z: 0, max: 0 };
+    }
+    let minX = Number.POSITIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let minZ = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+    let maxZ = Number.NEGATIVE_INFINITY;
+    points.forEach((point) => {
+      const x = dot(point, basis.xAxis);
+      const y = dot(point, basis.yAxis);
+      const z = dot(point, basis.zAxis);
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      minZ = Math.min(minZ, z);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+      maxZ = Math.max(maxZ, z);
+    });
+    const extentX = maxX - minX;
+    const extentY = maxY - minY;
+    const extentZ = maxZ - minZ;
+    return {
+      x: extentX,
+      y: extentY,
+      z: extentZ,
+      max: Math.max(extentX, extentY, extentZ),
+    };
+  };
+
   const computeBoundsForIds = (ids: string[]) => {
     const min = { x: Number.POSITIVE_INFINITY, y: Number.POSITIVE_INFINITY, z: Number.POSITIVE_INFINITY };
     const max = { x: Number.NEGATIVE_INFINITY, y: Number.NEGATIVE_INFINITY, z: Number.NEGATIVE_INFINITY };
@@ -1540,26 +1723,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     ids.forEach((id) => {
       const item = geometry.find((entry) => entry.id === id);
       if (!item) return;
-      if (item.type === "vertex") {
-        includePoint(item.position);
-        return;
-      }
-      if (item.type === "polyline") {
-        item.vertexIds.forEach((vertexId) => {
-          const vertex = vertexMap.get(vertexId);
-          if (vertex) includePoint(vertex.position);
-        });
-        return;
-      }
-      if ("mesh" in item) {
-        for (let i = 0; i < item.mesh.positions.length; i += 3) {
-          includePoint({
-            x: item.mesh.positions[i],
-            y: item.mesh.positions[i + 1],
-            z: item.mesh.positions[i + 2],
-          });
-        }
-      }
+      collectGeometryPoints(item).forEach(includePoint);
     });
 
     if (!hasPoint) return null;
@@ -1588,22 +1752,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
       hasPoint = true;
     };
 
-    if (item.type === "vertex") {
-      includePoint(item.position);
-    } else if (item.type === "polyline") {
-      item.vertexIds.forEach((vertexId) => {
-        const vertex = vertexMap.get(vertexId);
-        if (vertex) includePoint(vertex.position);
-      });
-    } else if ("mesh" in item) {
-      for (let i = 0; i < item.mesh.positions.length; i += 3) {
-        includePoint({
-          x: item.mesh.positions[i],
-          y: item.mesh.positions[i + 1],
-          z: item.mesh.positions[i + 2],
-        });
-      }
-    }
+    collectGeometryPoints(item).forEach(includePoint);
 
     if (!hasPoint) return null;
     return { min, max };
@@ -1651,6 +1800,9 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     if (Math.abs(value) < 1e-6) return fallback;
     return value;
   };
+
+  const createGeometryId = (prefix: string) =>
+    `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
 
   const safeAxis = (axis: Vec3, fallback: Vec3) =>
     length(axis) > 1e-6 ? normalize(axis) : fallback;
@@ -1776,6 +1928,44 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     return { positions, normals, uvs: mesh.uvs, indices: mesh.indices } satisfies RenderMesh;
   };
 
+  const transformNurbsSurfaceToPlane = (
+    surface: NURBSSurface,
+    origin: Vec3,
+    offset?: Vec3
+  ): NURBSSurface => {
+    const { planeNormal, xAxis, yAxis } = getPlaneAxes();
+    const zAxis = scale(yAxis, -1);
+    const localOffset = offset ?? { x: 0, y: 0, z: 0 };
+    const controlPoints = surface.controlPoints.map((row) =>
+      row.map((point) => {
+        const local = add(point, localOffset);
+        return add(
+          origin,
+          add(scale(xAxis, local.x), add(scale(planeNormal, local.y), scale(zAxis, local.z)))
+        );
+      })
+    );
+    const weights = surface.weights ? surface.weights.map((row) => [...row]) : undefined;
+    return {
+      controlPoints,
+      knotsU: [...surface.knotsU],
+      knotsV: [...surface.knotsV],
+      degreeU: surface.degreeU,
+      degreeV: surface.degreeV,
+      weights,
+    };
+  };
+
+  const buildSurfaceMesh = (surface: NURBSSurface): RenderMesh => {
+    const tessellated = tessellateSurfaceAdaptive(surface);
+    return {
+      positions: Array.from(tessellated.positions),
+      normals: Array.from(tessellated.normals),
+      uvs: Array.from(tessellated.uvs),
+      indices: Array.from(tessellated.indices),
+    };
+  };
+
   const seatMeshOnPlane = (mesh: RenderMesh) => {
     if (mesh.positions.length === 0) return mesh;
     let minY = Number.POSITIVE_INFINITY;
@@ -1825,7 +2015,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     addGeometryPolylineFromPoints(points, { closed: true, degree: 1 });
   };
 
-  const buildPrimitiveMesh = (origin: Vec3, scalarOverride?: number) => {
+  const resolvePrimitiveParams = (scalarOverride?: number) => {
     const config = primitiveConfigRef.current;
     const radialSegments = Math.max(6, Math.round(config.radialSegments));
     const tubularSegments = Math.max(6, Math.round(config.tubularSegments));
@@ -1869,54 +2059,141 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
       config.exponent2,
       DEFAULT_PRIMITIVE_SETTINGS.exponent2
     );
+    return {
+      config,
+      radialSegments,
+      tubularSegments,
+      detail,
+      size,
+      radius,
+      height,
+      tube,
+      innerRadius,
+      topRadius,
+      capHeight,
+      exponent1,
+      exponent2,
+    };
+  };
 
+  const buildPrimitiveMesh = (origin: Vec3, scalarOverride?: number) => {
+    const resolved = resolvePrimitiveParams(scalarOverride);
     const localMesh = generatePrimitiveMesh({
-        kind: config.kind,
-        size,
-        radius,
-        height,
-        tube,
-        radialSegments,
-        tubularSegments,
-        innerRadius,
-        topRadius,
-        capHeight,
-        detail,
-        exponent1,
-        exponent2,
-      });
+      kind: resolved.config.kind,
+      size: resolved.size,
+      radius: resolved.radius,
+      height: resolved.height,
+      tube: resolved.tube,
+      radialSegments: resolved.radialSegments,
+      tubularSegments: resolved.tubularSegments,
+      innerRadius: resolved.innerRadius,
+      topRadius: resolved.topRadius,
+      capHeight: resolved.capHeight,
+      detail: resolved.detail,
+      exponent1: resolved.exponent1,
+      exponent2: resolved.exponent2,
+    });
     const mesh = transformMeshToPlane(seatMeshOnPlane(localMesh), origin);
 
     return {
       mesh,
       metadata: {
         primitive: {
-          kind: config.kind,
+          kind: resolved.config.kind,
           origin,
           dimensions:
-            config.kind === "box"
-              ? { width: size, height: size, depth: size }
+            resolved.config.kind === "box"
+              ? { width: resolved.size, height: resolved.size, depth: resolved.size }
               : undefined,
-          radius,
-          height,
-          tube,
-          innerRadius,
-          topRadius,
-          capHeight,
-          detail,
-          exponent1,
-          exponent2,
+          radius: resolved.radius,
+          height: resolved.height,
+          tube: resolved.tube,
+          innerRadius: resolved.innerRadius,
+          topRadius: resolved.topRadius,
+          capHeight: resolved.capHeight,
+          detail: resolved.detail,
+          exponent1: resolved.exponent1,
+          exponent2: resolved.exponent2,
           params: {
-            size,
-            radialSegments,
-            tubularSegments,
+            size: resolved.size,
+            radialSegments: resolved.radialSegments,
+            tubularSegments: resolved.tubularSegments,
           },
         },
       },
     };
   };
 
+  const createNurbsPrimitiveAt = (origin: Vec3, scalarOverride?: number) => {
+    const resolved = resolvePrimitiveParams(scalarOverride);
+    let surfaces: NURBSSurface[] = [];
+    let offset: Vec3 | undefined;
+
+    switch (resolved.config.kind) {
+      case "box":
+        surfaces = createNurbsBoxSurfaces(resolved.size, resolved.size, resolved.size);
+        break;
+      case "sphere":
+        surfaces = [createNurbsSphereSurface(resolved.radius)];
+        offset = { x: 0, y: resolved.radius, z: 0 };
+        break;
+      case "cylinder":
+        surfaces = [createNurbsCylinderSurface(resolved.radius, resolved.height)];
+        break;
+      default:
+        return;
+    }
+
+    const layerId = useProjectStore.getState().layers[0]?.id ?? "layer-default";
+    const metadata = {
+      primitive: {
+        kind: resolved.config.kind,
+        origin,
+        dimensions:
+          resolved.config.kind === "box"
+            ? { width: resolved.size, height: resolved.size, depth: resolved.size }
+            : undefined,
+        radius: resolved.radius,
+        height: resolved.height,
+        tube: resolved.tube,
+        innerRadius: resolved.innerRadius,
+        topRadius: resolved.topRadius,
+        capHeight: resolved.capHeight,
+        detail: resolved.detail,
+        exponent1: resolved.exponent1,
+        exponent2: resolved.exponent2,
+        params: {
+          size: resolved.size,
+          radialSegments: resolved.radialSegments,
+          tubularSegments: resolved.tubularSegments,
+        },
+      },
+    };
+
+    const geometryItems: Geometry[] = surfaces.map((surface) => {
+      const nurbsSurface = transformNurbsSurfaceToPlane(surface, origin, offset);
+      const mesh = buildSurfaceMesh(nurbsSurface);
+      return {
+        id: createGeometryId("nurbsSurface"),
+        type: "nurbsSurface",
+        mesh,
+        nurbs: nurbsSurface,
+        layerId,
+        metadata,
+      };
+    });
+
+    if (geometryItems.length === 0) return;
+    addGeometryItems(geometryItems, {
+      selectIds: geometryItems.map((item) => item.id),
+    });
+  };
+
   const createPrimitiveAt = (origin: Vec3, scalarOverride?: number) => {
+    if (isNurbsPrimitiveCommand(activeCommandIdRef.current)) {
+      createNurbsPrimitiveAt(origin, scalarOverride);
+      return;
+    }
     const built = buildPrimitiveMesh(origin, scalarOverride);
     if (!built) return;
     addGeometryMesh(built.mesh, { metadata: built.metadata });
@@ -2018,11 +2295,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         const nurbs = interpolateNurbsCurve(controlPoints, config.degree, {
           parameterization: "chord",
         });
-        addGeometryPolylineFromPoints(nurbs.controlPoints, {
-          closed: config.closed,
-          degree: config.degree,
-          nurbs,
-        });
+        addGeometryNurbsCurve(nurbs, { closed: config.closed });
       } else {
         addGeometryPolylineFromPoints(controlPoints, {
           closed: config.closed,
@@ -2062,11 +2335,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
   const createArcFromPoints = (start: Vec3, end: Vec3, through: Vec3) => {
     const arc = computeArcFromPoints(start, end, through);
     if (arc.nurbs) {
-      addGeometryPolylineFromPoints(arc.nurbs.controlPoints, {
-        closed: false,
-        degree: 2,
-        nurbs: arc.nurbs,
-      });
+      addGeometryNurbsCurve(arc.nurbs, { closed: false });
     } else {
       addGeometryPolylineFromPoints(arc.points, { closed: false, degree: 1 });
     }
@@ -2122,11 +2391,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
 
   const createCircleFromDrag = (center: Vec3, current: Vec3) => {
     const circle = computeCircleFromDrag(center, current);
-    addGeometryPolylineFromPoints(circle.nurbs.controlPoints, {
-      closed: true,
-      degree: 2,
-      nurbs: circle.nurbs,
-    });
+    addGeometryNurbsCurve(circle.nurbs, { closed: true });
   };
 
   const computePrimitiveScalarFromDrag = (start: Vec3, current: Vec3) => {
@@ -2179,7 +2444,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
 
   const updateComponentSelection = (selection: ComponentSelection, isMultiSelect: boolean) => {
     if (!isMultiSelect) {
-      setSelectionState([selection.geometryId], [selection]);
+      setSelectionState([], [selection]);
       return;
     }
     const current = componentSelectionRef.current;
@@ -2187,9 +2452,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     const next = exists
       ? current.filter((item) => !isSameComponent(item, selection))
       : [...current, selection];
-    const ids = new Set(selectionRef.current);
-    ids.add(selection.geometryId);
-    setSelectionState(Array.from(ids), next);
+    setSelectionState([], next);
   };
 
   const setHoverSelection = (selection: ComponentSelection | null) => {
@@ -2238,8 +2501,37 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
   const nurbsSurfacePickCache = useRef(
     new Map<string, { surface: NURBSSurface; mesh: RenderMesh }>()
   );
+  const brepPickCache = useRef(new Map<string, { brep: unknown; mesh: RenderMesh }>());
 
   const getSurfacePickMesh = (item: Geometry): RenderMesh | null => {
+    if (item.type === "nurbsSurface") {
+      const cache = nurbsSurfacePickCache.current;
+      const cached = cache.get(item.id);
+      if (cached && cached.surface === item.nurbs) {
+        return cached.mesh;
+      }
+      const tessellated = tessellateSurfaceAdaptive(item.nurbs);
+      const mesh: RenderMesh = {
+        positions: Array.from(tessellated.positions),
+        normals: Array.from(tessellated.normals),
+        indices: Array.from(tessellated.indices),
+        uvs: Array.from(tessellated.uvs),
+      };
+      cache.set(item.id, { surface: item.nurbs, mesh });
+      return mesh;
+    }
+
+    if (item.type === "brep") {
+      const cache = brepPickCache.current;
+      const cached = cache.get(item.id);
+      if (cached && cached.brep === item.brep) {
+        return cached.mesh;
+      }
+      const mesh = item.mesh ?? tessellateBRepToMesh(item.brep);
+      cache.set(item.id, { brep: item.brep, mesh });
+      return mesh;
+    }
+
     if (!("mesh" in item) || !item.mesh) return null;
     if (item.type !== "surface" || !item.nurbs) return item.mesh;
     const cache = nurbsSurfacePickCache.current;
@@ -2303,6 +2595,9 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         sampled = [...sampled, { ...first }];
         const lastParam = parameters[parameters.length - 1] ?? 0;
         parameters = [...parameters, lastParam];
+      }
+      if (sampled.length > 0) {
+        sampled[sampled.length - 1] = { ...first };
       }
     }
     return { points: sampled, parameters, curve };
@@ -2454,9 +2749,9 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
       hidden: new Set(hiddenRef.current),
       locked: new Set(lockedRef.current),
       context,
-      pickPixelThreshold: PICK_PIXEL_THRESHOLD,
-      pointPixelThreshold: POINT_HANDLE_PICK_RADIUS_PX,
-      edgePixelThreshold: EDGE_PIXEL_THRESHOLD,
+      pickPixelThreshold: COMPONENT_PICK_PIXEL_THRESHOLD,
+      pointPixelThreshold: Math.max(POINT_HANDLE_PICK_RADIUS_PX, COMPONENT_POINT_PICK_RADIUS_PX),
+      edgePixelThreshold: COMPONENT_EDGE_PIXEL_THRESHOLD,
       mode,
       getSurfacePickMesh,
       getPolylineRenderData,
@@ -4055,9 +4350,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
           { x: 0, y: 0, z: 0 }
         );
         const axis = length(average) > 1e-6 ? normalize(average) : primaryHandle.normal;
-        const extrudeOffset =
-          (GUMBALL_METRICS.axisLength + GUMBALL_METRICS.scaleHandleSize * 0.45) *
-          widgetState.scale;
+        const extrudeOffset = GUMBALL_METRICS.extrudeHandleOffset * widgetState.scale;
         const proxyCenter = add(pivot, scale(axis, extrudeOffset));
         const basis = buildBasisFromNormal(axis);
         const modelMatrix = buildModelMatrix(basis, proxyCenter, widgetState.scale * 0.28);
@@ -4593,6 +4886,334 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     hoverDirtyRef.current = false;
   };
 
+  const updateGumballHoverPreviewBuffers = (
+    canvas: HTMLCanvasElement,
+    pixelSize: number
+  ) => {
+    if (!gumballHoverPreviewDirtyRef.current) return;
+    const renderer = rendererRef.current;
+    if (!renderer) return;
+
+    const buffer =
+      gumballHoverPreviewBufferRef.current ??
+      renderer.createGeometryBuffer(GUMBALL_HOVER_PREVIEW_ID);
+    gumballHoverPreviewBufferRef.current = buffer;
+
+    const emptyFloat = new Float32Array();
+    const clearBuffers = () => {
+      buffer.setData({ positions: emptyFloat, indices: new Uint16Array() });
+    };
+
+    const dragHandle = gumballDragRef.current?.handle ?? null;
+    const hoverHandleId = gumballDragRef.current?.handleId ?? gumballHoverRef.current;
+    const hoverExtrude: ExtrudeHandle | null =
+      dragHandle && dragHandle.kind === "extrude" ? dragHandle : extrudeHoverRef.current;
+
+    if (!hoverHandleId && !hoverExtrude) {
+      clearBuffers();
+      gumballHoverPreviewDirtyRef.current = false;
+      return;
+    }
+
+    const gumballState = gumballStateRef.current;
+    if (!gumballState.visible) {
+      clearBuffers();
+      gumballHoverPreviewDirtyRef.current = false;
+      return;
+    }
+
+    const basis = gumballState.orientation;
+    const pivot = gumballState.pivot;
+    const extents = computeSelectionExtents(gumballState.selectionPoints, basis);
+    const maxExtent = extents.max;
+    const gumballScale = computeGumballScale(cameraRef.current, pivot, canvas.height, pixelSize);
+    const worldPerPixel = gumballScale / pixelSize;
+    const minPlaneExtent = worldPerPixel * 24;
+    const minAxisLength = worldPerPixel * 42;
+    const minRotateRadius = worldPerPixel * 36;
+    const minExtrudeOffset = worldPerPixel * 16;
+
+    const positions: number[] = [];
+    const pushSegment = (a: Vec3, b: Vec3) => {
+      positions.push(a.x, a.y, a.z, b.x, b.y, b.z);
+    };
+
+    const axisVector = (axis: "x" | "y" | "z") => {
+      if (axis === "x") return basis.xAxis;
+      if (axis === "y") return basis.yAxis;
+      return basis.zAxis;
+    };
+
+    const planeAxes = (plane: "xy" | "yz" | "xz") => {
+      if (plane === "xy") return { u: basis.xAxis, v: basis.yAxis, su: extents.x, sv: extents.y };
+      if (plane === "yz") return { u: basis.yAxis, v: basis.zAxis, su: extents.y, sv: extents.z };
+      return { u: basis.xAxis, v: basis.zAxis, su: extents.x, sv: extents.z };
+    };
+
+    if (hoverExtrude) {
+      const axis = normalize(hoverExtrude.normal);
+      if (length(axis) > 1e-6) {
+        const previewOffset =
+          Math.max(maxExtent * 0.2, minExtrudeOffset) || minExtrudeOffset;
+        const edgeMap = new Map<
+          string,
+          { a: Vec3; b: Vec3; count: number }
+        >();
+        const faceSelections = componentSelectionRef.current
+          .map(asFaceSelection)
+          .filter(
+            (
+              selection
+            ): selection is Extract<ComponentSelection, { kind: "face" }> =>
+              Boolean(selection)
+          );
+        const selections =
+          faceSelections.length > 0
+            ? faceSelections
+            : [
+                {
+                  kind: "face",
+                  geometryId: hoverExtrude.geometryId,
+                  faceIndex: hoverExtrude.faceIndex,
+                  vertexIndices: hoverExtrude.vertexIndices,
+                },
+              ];
+
+        selections.forEach((selection) => {
+          const item = geometryRef.current.find((entry) => entry.id === selection.geometryId);
+          if (!item || !("mesh" in item)) return;
+          const mesh = item.mesh;
+          const [i0, i1, i2] = selection.vertexIndices;
+          const addEdge = (aIndex: number, bIndex: number) => {
+            const key =
+              aIndex < bIndex
+                ? `${selection.geometryId}:${aIndex}:${bIndex}`
+                : `${selection.geometryId}:${bIndex}:${aIndex}`;
+            const existing = edgeMap.get(key);
+            if (existing) {
+              existing.count += 1;
+              return;
+            }
+            edgeMap.set(key, {
+              a: getMeshPoint(mesh, aIndex),
+              b: getMeshPoint(mesh, bIndex),
+              count: 1,
+            });
+          };
+          addEdge(i0, i1);
+          addEdge(i1, i2);
+          addEdge(i2, i0);
+        });
+
+        edgeMap.forEach((edge) => {
+          if (edge.count !== 1) return;
+          const a = edge.a;
+          const b = edge.b;
+          const aOffset = add(a, scale(axis, previewOffset));
+          const bOffset = add(b, scale(axis, previewOffset));
+          pushSegment(a, b);
+          pushSegment(aOffset, bOffset);
+          pushSegment(a, aOffset);
+          pushSegment(b, bOffset);
+        });
+      }
+    } else if (hoverHandleId?.startsWith("axis-")) {
+      const axis = hoverHandleId.split("-")[1] as "x" | "y" | "z";
+      const axisDir = normalize(axisVector(axis));
+      if (length(axisDir) > 1e-6) {
+        const axisLength = Math.max(maxExtent * 0.75, minAxisLength);
+        const end = add(pivot, scale(axisDir, axisLength));
+        pushSegment(pivot, end);
+      }
+    } else if (hoverHandleId?.startsWith("plane-")) {
+      const plane = hoverHandleId.split("-")[1] as "xy" | "yz" | "xz";
+      const { u, v, su, sv } = planeAxes(plane);
+      const halfU = Math.max(su * 0.5, minPlaneExtent);
+      const halfV = Math.max(sv * 0.5, minPlaneExtent);
+      const corner1 = add(pivot, add(scale(u, halfU), scale(v, halfV)));
+      const corner2 = add(pivot, add(scale(u, -halfU), scale(v, halfV)));
+      const corner3 = add(pivot, add(scale(u, -halfU), scale(v, -halfV)));
+      const corner4 = add(pivot, add(scale(u, halfU), scale(v, -halfV)));
+      pushSegment(corner1, corner2);
+      pushSegment(corner2, corner3);
+      pushSegment(corner3, corner4);
+      pushSegment(corner4, corner1);
+    } else if (hoverHandleId?.startsWith("rotate-")) {
+      const axis = hoverHandleId.split("-")[1] as "x" | "y" | "z";
+      const axisDir = normalize(axisVector(axis));
+      if (length(axisDir) > 1e-6) {
+        const radius = Math.max(maxExtent * 0.6, minRotateRadius);
+        const planeBasis = buildBasisFromNormal(axisDir);
+        const u = planeBasis.xAxis;
+        const v = planeBasis.zAxis;
+        const segments = 48;
+        let prev = add(pivot, scale(u, radius));
+        for (let i = 1; i <= segments; i += 1) {
+          const t = (i / segments) * Math.PI * 2;
+          const next = add(
+            pivot,
+            add(scale(u, Math.cos(t) * radius), scale(v, Math.sin(t) * radius))
+          );
+          pushSegment(prev, next);
+          prev = next;
+        }
+      }
+    }
+
+    if (positions.length === 0) {
+      clearBuffers();
+      gumballHoverPreviewDirtyRef.current = false;
+      return;
+    }
+
+    const positionsArray = new Float32Array(positions);
+    const vertexCount = positionsArray.length / 3;
+    const indices = new Uint16Array(vertexCount);
+    for (let i = 0; i < vertexCount; i += 1) {
+      indices[i] = i;
+    }
+    buffer.setData({ positions: positionsArray, indices });
+    gumballHoverPreviewDirtyRef.current = false;
+  };
+
+  const updateSelectedComponentBuffers = () => {
+    if (!selectedComponentDirtyRef.current) return;
+    const renderer = rendererRef.current;
+    if (!renderer) return;
+
+    const emptyFloat = new Float32Array();
+    const emptyIndex = new Uint16Array();
+
+    const lineBuffer =
+      selectedLineBufferRef.current ?? renderer.createGeometryBuffer(SELECTED_LINE_ID);
+    selectedLineBufferRef.current = lineBuffer;
+    const faceBuffer =
+      selectedFaceBufferRef.current ?? renderer.createGeometryBuffer(SELECTED_FACE_ID);
+    selectedFaceBufferRef.current = faceBuffer;
+    const pointBuffer =
+      selectedPointBufferRef.current ?? renderer.createGeometryBuffer(SELECTED_POINT_ID);
+    selectedPointBufferRef.current = pointBuffer;
+
+    const selections = componentSelectionRef.current;
+    if (!selections || selections.length === 0) {
+      lineBuffer.setData({ positions: emptyFloat, indices: emptyIndex });
+      faceBuffer.setData({ positions: emptyFloat, normals: emptyFloat, indices: emptyIndex });
+      pointBuffer.setData({ positions: emptyFloat });
+      selectedComponentDirtyRef.current = false;
+      return;
+    }
+
+    const edgePositions: number[] = [];
+    const edgeIndices: number[] = [];
+    const facePositions: number[] = [];
+    const faceNormals: number[] = [];
+    const faceIndices: number[] = [];
+    const pointPositions: number[] = [];
+
+    selections.forEach((selection) => {
+      if (selection.kind === "vertex") {
+        if (selection.vertexId) {
+          const vertex = vertexMap.get(selection.vertexId);
+          if (vertex) {
+            pointPositions.push(vertex.position.x, vertex.position.y, vertex.position.z);
+          }
+          return;
+        }
+        if (selection.vertexIndex != null) {
+          const item = geometryRef.current.find((entry) => entry.id === selection.geometryId);
+          if (item && "mesh" in item) {
+            const point = getMeshPoint(item.mesh, selection.vertexIndex);
+            pointPositions.push(point.x, point.y, point.z);
+          }
+        }
+        return;
+      }
+
+      if (selection.kind === "edge") {
+        let a: Vec3 | null = null;
+        let b: Vec3 | null = null;
+        if (selection.vertexIds) {
+          const va = vertexMap.get(selection.vertexIds[0]);
+          const vb = vertexMap.get(selection.vertexIds[1]);
+          if (va && vb) {
+            a = va.position;
+            b = vb.position;
+          }
+        } else if (selection.vertexIndices) {
+          const item = geometryRef.current.find((entry) => entry.id === selection.geometryId);
+          if (item && "mesh" in item) {
+            a = getMeshPoint(item.mesh, selection.vertexIndices[0]);
+            b = getMeshPoint(item.mesh, selection.vertexIndices[1]);
+          }
+        }
+        if (a && b) {
+          const baseIndex = edgePositions.length / 3;
+          edgePositions.push(a.x, a.y, a.z, b.x, b.y, b.z);
+          edgeIndices.push(baseIndex, baseIndex + 1);
+        }
+        return;
+      }
+
+      if (selection.kind === "face") {
+        const item = geometryRef.current.find((entry) => entry.id === selection.geometryId);
+        if (!item || !("mesh" in item)) return;
+        const [i0, i1, i2] = selection.vertexIndices;
+        const a = getMeshPoint(item.mesh, i0);
+        const b = getMeshPoint(item.mesh, i1);
+        const c = getMeshPoint(item.mesh, i2);
+        const normal = normalize(cross(sub(b, a), sub(c, a)));
+        const normalVec =
+          Number.isFinite(normal.x) && Number.isFinite(normal.y) && Number.isFinite(normal.z)
+            ? normal
+            : { x: 0, y: 1, z: 0 };
+        const baseIndex = facePositions.length / 3;
+        facePositions.push(
+          a.x, a.y, a.z,
+          b.x, b.y, b.z,
+          c.x, c.y, c.z
+        );
+        faceNormals.push(
+          normalVec.x, normalVec.y, normalVec.z,
+          normalVec.x, normalVec.y, normalVec.z,
+          normalVec.x, normalVec.y, normalVec.z
+        );
+        faceIndices.push(baseIndex, baseIndex + 1, baseIndex + 2);
+
+        const edgeBase = edgePositions.length / 3;
+        edgePositions.push(
+          a.x, a.y, a.z,
+          b.x, b.y, b.z,
+          b.x, b.y, b.z,
+          c.x, c.y, c.z,
+          c.x, c.y, c.z,
+          a.x, a.y, a.z
+        );
+        edgeIndices.push(
+          edgeBase,
+          edgeBase + 1,
+          edgeBase + 2,
+          edgeBase + 3,
+          edgeBase + 4,
+          edgeBase + 5
+        );
+      }
+    });
+
+    lineBuffer.setData({
+      positions: edgePositions.length ? new Float32Array(edgePositions) : emptyFloat,
+      indices: edgeIndices.length ? new Uint16Array(edgeIndices) : emptyIndex,
+    });
+    faceBuffer.setData({
+      positions: facePositions.length ? new Float32Array(facePositions) : emptyFloat,
+      normals: faceNormals.length ? new Float32Array(faceNormals) : emptyFloat,
+      indices: faceIndices.length ? new Uint16Array(faceIndices) : emptyIndex,
+    });
+    pointBuffer.setData({
+      positions: pointPositions.length ? new Float32Array(pointPositions) : emptyFloat,
+    });
+    selectedComponentDirtyRef.current = false;
+  };
+
   const isSameBounds = (a: SelectionBounds | null, b: SelectionBounds | null) => {
     if (!a || !b) return false;
     if (a.corners.length !== b.corners.length) return false;
@@ -4702,6 +5323,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     if (hoverSelectionRef.current) {
       hoverDirtyRef.current = true;
     }
+    gumballHoverPreviewDirtyRef.current = true;
   }, [geometry, customMaterialMap]);
 
   useEffect(() => {
@@ -4709,6 +5331,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     if (hoverSelectionRef.current?.kind === "vertex") {
       hoverDirtyRef.current = true;
     }
+    gumballHoverPreviewDirtyRef.current = true;
   }, [camera]);
 
   useEffect(() => {
@@ -4767,7 +5390,15 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
 
   useEffect(() => {
     componentSelectionRef.current = componentSelection;
+    selectedComponentDirtyRef.current = true;
+    gumballHoverPreviewDirtyRef.current = true;
   }, [componentSelection]);
+
+  useEffect(() => {
+    if (componentSelectionRef.current.length > 0) {
+      selectedComponentDirtyRef.current = true;
+    }
+  }, [geometry]);
 
   useEffect(() => {
     lockedRef.current = lockedGeometryIds;
@@ -5011,6 +5642,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
       mode: activeTransformMode,
       visible: isGizmoVisible,
     };
+    gumballHoverPreviewDirtyRef.current = true;
   }, [selectionPoints, gumballBasis, resolvedPivot, activeTransformMode, isGizmoVisible]);
 
   useEffect(() => {
@@ -5033,6 +5665,8 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     selectionBoundsBufferRef.current = null;
     selectionBoundsRef.current = null;
     previewDirtyRef.current = true;
+    gumballHoverPreviewBufferRef.current = null;
+    gumballHoverPreviewDirtyRef.current = true;
 
     if (
       gumballPanelBufferRef.current &&
@@ -5113,6 +5747,10 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
       if (gumballPanelGridBufferRef.current) {
         renderer.deleteGeometryBuffer(gumballPanelGridBufferRef.current.id);
         gumballPanelGridBufferRef.current = null;
+      }
+      if (gumballHoverPreviewBufferRef.current) {
+        renderer.deleteGeometryBuffer(gumballHoverPreviewBufferRef.current.id);
+        gumballHoverPreviewBufferRef.current = null;
       }
       renderer.dispose();
       adapter.dispose();
@@ -5248,8 +5886,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     if (!canvas || !renderer) return;
 
     const resizeWith = (width: number, height: number) => {
-      const baseDpr = window.devicePixelRatio || 1;
-      const dpr = baseDpr;
+      const dpr = resolveViewerDpr();
       canvas.width = Math.max(1, Math.floor(width * dpr));
       canvas.height = Math.max(1, Math.floor(height * dpr));
       canvas.style.width = `${width}px`;
@@ -5294,7 +5931,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
       const isLeftClick = event.button === 0;
       const isMiddleClick = event.button === 1;
       const isRightClick = event.button === 2;
-      const componentMode = event.shiftKey;
+      const componentMode = selectionModeRef.current !== "object" || event.shiftKey;
       const componentKind = componentMode ? resolveComponentMode() : undefined;
       const shiftKey = event.ctrlKey || event.metaKey;
       const ctrlShiftKey = componentMode;
@@ -5472,7 +6109,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         }
 
         if (!commandId) {
-          if (event.shiftKey && componentKind === "vertex") {
+          if (componentMode && componentKind === "vertex") {
             const componentPick = pickComponent(context, "vertex");
             if (componentPick?.kind === "component" && componentPick.selection.kind === "vertex") {
               const selectionPoint =
@@ -5737,11 +6374,23 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         const hoverPick = pickGumballHandle(context, {
           allowPivot: event.ctrlKey || event.metaKey,
         });
-        gumballHoverRef.current = hoverPick?.handleId ?? null;
-        extrudeHoverRef.current =
+        const nextHandleId = hoverPick?.handleId ?? null;
+        const nextExtrude =
           hoverPick?.handle.kind === "extrude" ? hoverPick.handle : null;
+        const prevHandleId = gumballHoverRef.current;
+        const prevExtrude = extrudeHoverRef.current;
+        if (
+          prevHandleId !== nextHandleId ||
+          prevExtrude?.geometryId !== nextExtrude?.geometryId ||
+          prevExtrude?.faceIndex !== nextExtrude?.faceIndex
+        ) {
+          gumballHoverPreviewDirtyRef.current = true;
+        }
+        gumballHoverRef.current = nextHandleId;
+        extrudeHoverRef.current = nextExtrude;
 
-        if (event.shiftKey) {
+        const hoverComponentMode = selectionModeRef.current !== "object" || event.shiftKey;
+        if (hoverComponentMode) {
           const hoverPickComponent = pickComponent(context, resolveComponentMode());
           setHoverSelection(
             hoverPickComponent?.kind === "component"
@@ -6107,10 +6756,11 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
 
       updatePreviewBuffers();
       updateHoverBuffers();
+      updateGumballHoverPreviewBuffers(canvas, gumballPixelSize);
+      updateSelectedComponentBuffers();
       updateSelectionBoundsBuffer(isGizmoVisible ? selectionBounds : null);
 
       const selection = new Set(selectionRef.current);
-      componentSelectionRef.current.forEach((entry) => selection.add(entry.geometryId));
       const hasSelection = selection.size > 0;
       const hidden = new Set(hiddenRef.current);
       const isSilhouette = displayModeRef.current === "silhouette";
@@ -6128,7 +6778,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
       renderer.setBackfaceCulling(false);
       const showEdges = !isSilhouette;
       const renderScale = lerp(1, VIEW_STYLE.solidRenderScale, solidBlend);
-      const baseDpr = window.devicePixelRatio || 1;
+      const baseDpr = resolveViewerDpr();
       const dpr = baseDpr * renderScale;
       const edgePrimaryWidth = VIEW_STYLE.edgePrimaryWidth * dpr;
       const edgeSecondaryWidth = VIEW_STYLE.edgeSecondaryWidth * dpr;
@@ -6226,8 +6876,8 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
           return;
         }
 
-        const baseColor =
-          customMaterialMapRef.current.get(renderable.id) ?? VIEW_STYLE.mesh;
+        const customOverrides = customMaterialMapRef.current.get(renderable.id);
+        const baseColor = customOverrides?.color ?? VIEW_STYLE.mesh;
         const materialColor = adjustForSelection(baseColor, isSelected, hasSelection);
         const selectionFactor = hasSelection
           ? lerp(
@@ -6250,11 +6900,13 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
           lightPosition: VIEW_STYLE.lightPosition,
           lightColor: VIEW_STYLE.light,
           ambientColor: VIEW_STYLE.ambient,
-          ambientStrength: VIEW_STYLE.ambientStrength,
+          ambientStrength:
+            customOverrides?.ambientStrength ?? VIEW_STYLE.ambientStrength,
           cameraPosition: cameraPayload.position,
           selectionHighlight: VIEW_STYLE.selection,
           isSelected: isSelected ? 0.6 : 0,
-          sheenIntensity: viewSettingsRef.current.sheen ?? 0.08,
+          sheenIntensity:
+            customOverrides?.sheenIntensity ?? viewSettingsRef.current.sheen ?? 0.08,
           opacity,
         };
         if (opacity < 0.999 && (showEdges || isSilhouette)) {
@@ -6390,8 +7042,8 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         }
 
         if (!showEdges) return;
-        const baseColor =
-          customMaterialMapRef.current.get(renderable.id) ?? VIEW_STYLE.mesh;
+        const customOverrides = customMaterialMapRef.current.get(renderable.id);
+        const baseColor = customOverrides?.color ?? VIEW_STYLE.mesh;
         const edgeLineBuffers = renderable.edgeLineBuffers;
         const edgeBase = darkenColor(
           adjustForSelection(baseColor, isSelected, hasSelection),
@@ -6526,7 +7178,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
             : SILHOUETTE_BASE_COLOR
           : darkenColor(
               adjustForSelection(
-                customMaterialMapRef.current.get(renderable.id) ?? VIEW_STYLE.mesh,
+                customMaterialMapRef.current.get(renderable.id)?.color ?? VIEW_STYLE.mesh,
                 isSelected,
                 hasSelection
               ),
@@ -6563,6 +7215,57 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         const isSelected = selection.has(renderable.id);
         renderPointHandle(renderable, isSelected);
       });
+
+      const selectedLineBuffer = selectedLineBufferRef.current;
+      const selectedFaceBuffer = selectedFaceBufferRef.current;
+      const selectedPointBuffer = selectedPointBufferRef.current;
+      const componentSelections = componentSelectionRef.current;
+      const hasComponentSelection = componentSelections.length > 0;
+      if (hasComponentSelection) {
+        const highlightColor: [number, number, number] = [0.2, 0.64, 0.66];
+        if (selectedFaceBuffer && selectedFaceBuffer.indexCount > 0) {
+          renderer.renderGeometry(selectedFaceBuffer, cameraPayload, {
+            materialColor: highlightColor,
+            lightPosition: VIEW_STYLE.lightPosition,
+            lightColor: VIEW_STYLE.light,
+            ambientColor: VIEW_STYLE.ambient,
+            ambientStrength: VIEW_STYLE.ambientStrength,
+            selectionHighlight: VIEW_STYLE.selection,
+            isSelected: 0,
+            sheenIntensity: viewSettingsRef.current.sheen ?? 0.08,
+            opacity: 0.38,
+          });
+        }
+        if (selectedLineBuffer && selectedLineBuffer.indexCount > 0) {
+          renderer.renderEdges(
+            selectedLineBuffer,
+            cameraPayload,
+            {
+              edgeColor: highlightColor,
+              opacity: 0.95,
+              dashEnabled: 0,
+              depthBias: edgeDepthBias,
+              lineWidth: 2 * dpr,
+            },
+            { depthFunc: "lequal" }
+          );
+        }
+        if (selectedPointBuffer && selectedPointBuffer.vertexCount > 0) {
+          renderer.renderPoints(
+            selectedPointBuffer,
+            cameraPayload,
+            {
+              pointRadius: pointRadius * 1.35,
+              outlineWidth: pointOutline,
+              fillColor: highlightColor,
+              outlineColor: POINT_OUTLINE_COLOR,
+              depthBias: pointDepthBias,
+              opacity: 1,
+            },
+            { depthFunc: "lequal", depthMask: false, blend: true }
+          );
+        }
+      }
 
       const preview = previewStateRef.current;
       const previewLineBuffer = previewLineBufferRef.current;
@@ -6630,6 +7333,25 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
             linePixelSnap: edgePixelSnap,
           },
           { depthFunc: "lequal", depthMask: false }
+        );
+      }
+
+      const gumballHoverPreviewBuffer = gumballHoverPreviewBufferRef.current;
+      if (gumballHoverPreviewBuffer && gumballHoverPreviewBuffer.vertexCount > 0) {
+        const previewColor: [number, number, number] = [0.78, 0.8, 0.82];
+        const previewOpacity = isSilhouette ? 0.6 : 0.45;
+        renderer.renderEdges(
+          gumballHoverPreviewBuffer,
+          cameraPayload,
+          {
+            edgeColor: previewColor,
+            opacity: previewOpacity,
+            dashEnabled: 1,
+            dashScale: 0.06 / baseDpr,
+            lineWidth: 1.05 * baseDpr,
+            depthBias: lineDepthBias,
+          },
+          { depthFunc: "lequal" }
         );
       }
 
@@ -6706,6 +7428,51 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
             solidColor: gumballSolidColor,
           }
         );
+
+        const connectorDashScale = 0.08 / baseDpr;
+        const connectorOpacity = 0.75 * gumballOpacityScale;
+        const connectorLineWidth = 1.1 * baseDpr;
+        const renderGumballConnector = (
+          buffer: GeometryBuffer | undefined,
+          modelMatrix: Float32Array,
+          baseColor: [number, number, number],
+          opacityScale = 1
+        ) => {
+          if (!buffer) return;
+          const edgeColor = mixColor(baseColor, [1, 1, 1], 0.25);
+          renderer.renderEdges(
+            buffer,
+            cameraPayload,
+            {
+              modelMatrix,
+              edgeColor,
+              opacity: connectorOpacity * opacityScale,
+              dashEnabled: 1,
+              dashScale: connectorDashScale,
+              lineWidth: connectorLineWidth,
+              depthBias: lineDepthBias,
+            },
+            { depthFunc: "lequal" }
+          );
+        };
+
+        if (showScale) {
+          renderGumballConnector(
+            gumballBuffers.scaleConnector,
+            gumballTransforms.xAxis,
+            GUMBALL_AXIS_COLORS.x
+          );
+          renderGumballConnector(
+            gumballBuffers.scaleConnector,
+            gumballTransforms.yAxis,
+            GUMBALL_AXIS_COLORS.y
+          );
+          renderGumballConnector(
+            gumballBuffers.scaleConnector,
+            gumballTransforms.zAxis,
+            GUMBALL_AXIS_COLORS.z
+          );
+        }
 
         const gumballEdgeOpacities: [number, number, number] = [
           Math.min(
@@ -6852,9 +7619,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
               { x: 0, y: 0, z: 0 }
             );
             const axis = length(average) > 1e-6 ? normalize(average) : primaryHandle.normal;
-            const extrudeOffset =
-              (GUMBALL_METRICS.axisLength + GUMBALL_METRICS.scaleHandleSize * 0.45) *
-              widgetState.scale;
+            const extrudeOffset = GUMBALL_METRICS.extrudeHandleOffset * widgetState.scale;
             const proxyCenter = add(widgetState.center, scale(axis, extrudeOffset));
             const basis = buildBasisFromNormal(axis);
             const modelMatrix = buildModelMatrix(
@@ -6865,6 +7630,18 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
             const isActive = gumballDragRef.current?.handle.kind === "extrude";
             const isHover = Boolean(extrudeHoverRef.current);
             const color = isActive || isHover ? gumballHighlight : [0.94, 0.94, 0.94];
+            const connectorColor = color ?? [0.94, 0.94, 0.94];
+            const connectorMatrix = buildModelMatrix(
+              basis,
+              widgetState.center,
+              widgetState.scale
+            );
+            renderGumballConnector(
+              gumballBuffers.extrudeConnector,
+              connectorMatrix,
+              connectorColor,
+              0.9
+            );
             renderer.renderGeometry(gumballBuffers.scale, cameraPayload, {
               modelMatrix,
               materialColor: color,
@@ -7049,7 +7826,6 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         : transformOrientation === "view"
           ? "V"
           : "C";
-
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
       <canvas

@@ -27,38 +27,37 @@
   right: 24px;
   transform: translateY(-50%);
   z-index: 2;
-  padding: 8px 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(18, 16, 12, 0.22);
-  background: rgba(250, 248, 244, 0.92);
-  color: rgba(18, 16, 12, 0.92);
-  font-family: "Montreal Neue", "Helvetica Neue", "Space Grotesk", Helvetica, Arial, sans-serif;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
+  padding: 2px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(18, 16, 12, 0.7);
+  font-family: "Montreal Neue", "Space Grotesk", sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   text-decoration: none;
-  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.85);
-  transition: transform 120ms ease, box-shadow 120ms ease;
+  box-shadow: none;
+  transition: color 120ms ease, text-decoration-color 120ms ease;
   pointer-events: auto;
 }
 
 .docsLink:hover {
-  transform: translateY(calc(-50% - 1px));
-  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.75);
+  color: rgba(18, 16, 12, 0.92);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
 }
 
 .docsLinkActive {
-  background: rgba(0, 194, 209, 0.12);
-  border-color: rgba(0, 194, 209, 0.6);
   color: rgba(8, 40, 46, 0.95);
 }
 
 @media (max-width: 640px) {
   .docsLink {
     right: 12px;
-    padding: 6px 10px;
-    font-size: 10px;
+    font-size: 9px;
     letter-spacing: 0.1em;
   }
 }

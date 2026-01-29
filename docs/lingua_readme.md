@@ -58,3 +58,17 @@ The project currently centers on refining the custom WebGL pipeline, the
 geometry kernel, and the canvas-based workflow editor. The documentation is
 intended to stay aligned with implementation; when patterns change, update the
 relevant docs rather than treating them as static specs.
+
+## Contributor Quick Start
+
+- Read `docs/README.md`, then `lingua_architecture.md` and `lingua_conventions.md`.
+- Roslyn entry points: `client/src/components/WebGLViewerCanvas.tsx` and `client/src/webgl`.
+- Numerica entry points: `client/src/components/workflow/NumericalCanvas.tsx` and the workflow slice in the store.
+- When adding geometry types: update `client/src/types.ts`, store actions, render adapter, hit testing, and relevant docs.
+
+## Core Invariants
+
+- The Zustand store is the single source of truth for geometry, selection, and workflows.
+- Geometry kernel functions are pure and return new records without mutation.
+- Rendering reflects store state only; rendering code should not mutate geometry.
+- Workflow evaluation is lazy with caching; parameter changes invalidate downstream nodes.

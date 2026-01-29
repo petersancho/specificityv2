@@ -1,5 +1,6 @@
 export type NodeType =
   | "geometryReference"
+  | "text"
   | "group"
   | "panel"
   | "textNote"
@@ -7,7 +8,28 @@ export type NodeType =
   | "colorPicker"
   | "customMaterial"
   | "geometryViewer"
+  | "customPreview"
+  | "previewFilter"
   | "meshConvert"
+  | "nurbsToMesh"
+  | "brepToMesh"
+  | "meshToBrep"
+  | "subdivideMesh"
+  | "dualMesh"
+  | "insetFaces"
+  | "extrudeFaces"
+  | "meshRelax"
+  | "selectFaces"
+  | "meshBoolean"
+  | "triangulateMesh"
+  | "geodesicSphere"
+  | "voronoiPattern"
+  | "hexagonalTiling"
+  | "offsetPattern"
+  | "meshRepair"
+  | "meshUVs"
+  | "meshDecimate"
+  | "quadRemesh"
   | "stlExport"
   | "stlImport"
   | "point"
@@ -73,7 +95,28 @@ export type NodeType =
   | "extractIsosurface"
   | "topologyOptimize"
   | "topologySolver"
+  | "physicsSolver"
+  | "voxelSolver"
   | "biologicalSolver"
+  | "biologicalEvolutionSolver"
+  | "chemistrySolver"
+  | "stiffnessGoal"
+  | "volumeGoal"
+  | "loadGoal"
+  | "anchorGoal"
+  | "genomeCollector"
+  | "geometryPhenotype"
+  | "performsFitness"
+  | "growthGoal"
+  | "nutrientGoal"
+  | "morphogenesisGoal"
+  | "homeostasisGoal"
+  | "chemistryStiffnessGoal"
+  | "chemistryMassGoal"
+  | "chemistryBlendGoal"
+  | "chemistryTransparencyGoal"
+  | "chemistryThermalGoal"
+  | "chemistryMaterialGoal"
   | "origin"
   | "unitX"
   | "unitY"
@@ -155,6 +198,7 @@ export type NodeType =
 
 export const SUPPORTED_WORKFLOW_NODE_TYPES: NodeType[] = [
   "geometryReference",
+  "text",
   "group",
   "panel",
   "textNote",
@@ -162,7 +206,28 @@ export const SUPPORTED_WORKFLOW_NODE_TYPES: NodeType[] = [
   "colorPicker",
   "customMaterial",
   "geometryViewer",
+  "customPreview",
+  "previewFilter",
   "meshConvert",
+  "nurbsToMesh",
+  "brepToMesh",
+  "meshToBrep",
+  "subdivideMesh",
+  "dualMesh",
+  "insetFaces",
+  "extrudeFaces",
+  "meshRelax",
+  "selectFaces",
+  "meshBoolean",
+  "triangulateMesh",
+  "geodesicSphere",
+  "voronoiPattern",
+  "hexagonalTiling",
+  "offsetPattern",
+  "meshRepair",
+  "meshUVs",
+  "meshDecimate",
+  "quadRemesh",
   "stlExport",
   "stlImport",
   "point",
@@ -228,7 +293,28 @@ export const SUPPORTED_WORKFLOW_NODE_TYPES: NodeType[] = [
   "extractIsosurface",
   "topologyOptimize",
   "topologySolver",
+  "physicsSolver",
+  "voxelSolver",
   "biologicalSolver",
+  "biologicalEvolutionSolver",
+  "chemistrySolver",
+  "stiffnessGoal",
+  "volumeGoal",
+  "loadGoal",
+  "anchorGoal",
+  "genomeCollector",
+  "geometryPhenotype",
+  "performsFitness",
+  "growthGoal",
+  "nutrientGoal",
+  "morphogenesisGoal",
+  "homeostasisGoal",
+  "chemistryStiffnessGoal",
+  "chemistryMassGoal",
+  "chemistryBlendGoal",
+  "chemistryTransparencyGoal",
+  "chemistryThermalGoal",
+  "chemistryMaterialGoal",
   "origin",
   "unitX",
   "unitY",

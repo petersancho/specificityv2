@@ -76,6 +76,14 @@ Integration testing is more valuable than unit testing for UI components. Tests 
 
 When making changes, verify that existing features still work. The undo system, selection behavior, and command execution are interconnected in ways that may not be immediately obvious. Changes to the store or viewport can break workflows that appear unrelated. Test representative user scenarios after making changes to catch regressions.
 
+## Safe Change Checklist
+
+- Identify all affected subsystems before editing (kernel, renderer, store, workflow, UI).
+- Keep store mutations atomic and history-aware; avoid multi-set mutations.
+- Update registries when adding commands/nodes and refresh reference docs.
+- Add or update targeted tests where feasible; otherwise note manual validation steps.
+- Document new invariants or behavior changes in the relevant spec or guide.
+
 ## Working Effectively with This Documentation
 
 These documentation files provide the architectural foundation and coding conventions that should guide all development work. When starting a new feature, read the relevant sections of the architecture document to understand how the subsystems involved are designed to work together. Use the conventions document to ensure your implementation follows established patterns for naming, organization, and structure.

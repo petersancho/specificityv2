@@ -37,7 +37,8 @@ export const GUMBALL_METRICS = {
   rotateRadius: 0.82,
   rotateTube: 0.045,
   rotateOffset: 0.25,
-  scaleHandleOffset: 1.45,
+  scaleHandleOffset: 1.55,
+  extrudeHandleOffset: 1.44,
   scaleHandleSize: 0.2,
   scaleCenterRadius: 0.12,
   uniformScaleOffset: 0.7,
@@ -50,6 +51,8 @@ export type GumballBuffers = {
   ring: GeometryBuffer;
   scale: GeometryBuffer;
   scaleCenter: GeometryBuffer;
+  scaleConnector: GeometryBuffer;
+  extrudeConnector: GeometryBuffer;
   axisEdgeLines: GeometryBuffer[];
   planeEdgeLines: GeometryBuffer[];
   ringEdgeLines: GeometryBuffer[];
@@ -542,6 +545,19 @@ const createEdgeLineBuffers = (
   });
 };
 
+const createConnectorLineBuffer = (
+  renderer: WebGLRenderer,
+  id: string,
+  start: number,
+  end: number
+) => {
+  const buffer = renderer.createGeometryBuffer(id);
+  buffer.setData({
+    positions: new Float32Array([0, start, 0, 0, end, 0]),
+  });
+  return buffer;
+};
+
 
 const mat4Multiply = (a: Float32Array, b: Float32Array) => {
   const out = new Float32Array(16);
@@ -768,6 +784,18 @@ export const createGumballBuffers = (renderer: WebGLRenderer): GumballBuffers =>
     "__gumball_scale_center_edges",
     scaleCenterMesh
   );
+  const scaleConnector = createConnectorLineBuffer(
+    renderer,
+    "__gumball_scale_connector",
+    GUMBALL_METRICS.axisLength,
+    GUMBALL_METRICS.scaleHandleOffset
+  );
+  const extrudeConnector = createConnectorLineBuffer(
+    renderer,
+    "__gumball_extrude_connector",
+    GUMBALL_METRICS.axisLength,
+    GUMBALL_METRICS.extrudeHandleOffset
+  );
 
   return {
     axis,
@@ -775,6 +803,8 @@ export const createGumballBuffers = (renderer: WebGLRenderer): GumballBuffers =>
     ring,
     scale,
     scaleCenter,
+    scaleConnector,
+    extrudeConnector,
     axisEdgeLines,
     planeEdgeLines,
     ringEdgeLines,
@@ -792,6 +822,8 @@ export const disposeGumballBuffers = (
   renderer.deleteGeometryBuffer(buffers.ring.id);
   renderer.deleteGeometryBuffer(buffers.scale.id);
   renderer.deleteGeometryBuffer(buffers.scaleCenter.id);
+  renderer.deleteGeometryBuffer(buffers.scaleConnector.id);
+  renderer.deleteGeometryBuffer(buffers.extrudeConnector.id);
   buffers.axisEdgeLines.forEach((buffer) => renderer.deleteGeometryBuffer(buffer.id));
   buffers.planeEdgeLines.forEach((buffer) => renderer.deleteGeometryBuffer(buffer.id));
   buffers.ringEdgeLines.forEach((buffer) => renderer.deleteGeometryBuffer(buffer.id));

@@ -180,3 +180,7 @@ No additional Phase 3 work remaining. Proceed with Phase 4+ enhancements or UI p
 - Shaders per `docs/SHADER_INVENTORY.md` specifications
 - WebGL patterns per `docs/lingua_conventions.md:60-69`
 - Architecture per `docs/lingua_architecture.md:40-50`
+
+## Historical Note
+
+Phase 3 focuses on WebGL pipeline maturation. Treat notes as historical; the authoritative rendering behavior lives in `client/src/webgl` and `docs/webgl_rendering_style.md`.

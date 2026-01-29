@@ -212,3 +212,17 @@ The parameter control interface for NURBS operations provides specialized widget
 The interpolation method selection presents as an icon grid showing simplified visualizations of the different parameterization approaches with uniform spacing showing evenly distributed parameter values, chord length showing spacing proportional to geometric distance, and centripetal showing spacing intermediate between the other two methods. The visual representations enable selection based on pattern recognition rather than requiring users to understand the mathematical distinctions between methods. The fairness functional selection similarly presents options through icon-based visualization showing characteristic curvature patterns produced by different functionals, enabling informed selection based on expected quality outcomes rather than mathematical formulations.
 
 The real-time parameter feedback displays current values during interactive manipulation through numeric overlays positioned near the active control without obscuring the geometry being edited. The overlays employ semi-transparent backgrounds ensuring text legibility over varying viewport content, with automatic positioning algorithms that move overlays away from congested regions where multiple controls or geometric elements compete for screen space. The update frequency matches the rendering frame rate to maintain synchronization between visual feedback and numeric readouts, ensuring that users can coordinate visual and quantitative information effectively during precision editing operations.
+
+## Implementation Anchors
+
+- `client/src/geometry/curveEval.ts` and `client/src/geometry/surfaceEval.ts` for evaluation.
+- `client/src/geometry/tessellation.ts` for screen-space error control.
+- `client/src/components/WebGLViewerCanvas.tsx` for control-point editing and previews.
+- `client/src/store/useProjectStore.ts` for NURBS actions and history recording.
+
+## Validation Checklist
+
+- Reject invalid knot vectors (length, ordering, clamp multiplicity).
+- Treat missing weights as 1.0 and reject negative weights.
+- Ensure degree limits enforce degree < control point count.
+- Verify tessellation fidelity across zoom levels and curvature extremes.

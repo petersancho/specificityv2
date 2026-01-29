@@ -90,8 +90,15 @@ import type {
   SurfaceGeometry,
   LoftGeometry,
   ExtrudeGeometry,
+  NurbsCurveGeometry,
+  NurbsSurfaceGeometry,
+  BRepGeometry,
+  BRepData,
+  BRepCurve,
+  BRepSurface,
   MeshPrimitiveGeometry,
   NURBSCurve,
+  NURBSSurface,
   SceneNode,
   SelectionMode,
   SnapSettings,
@@ -120,6 +127,9 @@ import {
   computeMeshArea,
   computeVertexNormals,
 } from "../geometry/mesh";
+import { withTessellationMetadata } from "../geometry/meshTessellation";
+import { tessellateCurveAdaptive, tessellateSurfaceAdaptive } from "../geometry/tessellation";
+import { tessellateBRepToMesh, brepFromMesh, createBRepBox, createBRepSphere, createBRepCylinder } from "../geometry/brep";
 import {
   computeBestFitPlane,
   buildPlaneFromNormal,
@@ -131,8 +141,8 @@ import {
   PRIMITIVE_NODE_KIND_BY_TYPE,
   PRIMITIVE_NODE_TYPE_IDS,
 } from "../data/primitiveCatalog";
-import { computeArcPolyline } from "../geometry/arc";
-import { interpolatePolyline } from "../geometry/curves";
+import { createArcNurbs, createCircleNurbs } from "../geometry/arc";
+import { createNurbsCurveFromPoints, interpolateNurbsCurve } from "../geometry/nurbs";
 import {
   applyMatrixToPositions,
   createRotationMatrixAroundAxis,
@@ -281,6 +291,11 @@ type ProjectStore = {
       layerId?: string;
     }
   ) => string | null;
+  addGeometryNurbsCurve: (nurbs: NURBSCurve, options?: NurbsCurveInsertOptions) => string;
+  addGeometryNurbsSurface: (
+    nurbs: NURBSSurface,
+    options?: NurbsSurfaceInsertOptions
+  ) => string;
   addGeometrySurface: (
     mesh: RenderMesh,
     loops: string[][],
@@ -310,6 +325,10 @@ type ProjectStore = {
     items: Geometry[],
     options?: { selectIds?: string[]; recordHistory?: boolean }
   ) => void;
+  replaceGeometryBatch: (
+    items: Geometry[],
+    options?: { recordHistory?: boolean }
+  ) => void;
   updateGeometryBatch: (
     updates: Array<{ id: string; data: Partial<Geometry> }>,
     options?: { recordHistory?: boolean }
@@ -327,7 +346,7 @@ type ProjectStore = {
   updateNodeData: (nodeId: string, data: Partial<WorkflowNodeData>) => void;
   addNode: (type: NodeType) => void;
   addNodeAt: (type: NodeType, position: { x: number; y: number }) => string;
-  addGeometryReferenceNode: (geometryId?: string) => void;
+  addGeometryReferenceNode: (geometryId?: string) => string | null;
   syncWorkflowGeometryToRoslyn: (nodeId: string) => void;
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;
@@ -375,7 +394,14 @@ const GEOMETRY_OWNING_NODE_TYPES = new Set<NodeType>([
   "geometryArray",
   "extractIsosurface",
   "meshConvert",
+  "nurbsToMesh",
+  "brepToMesh",
+  "meshToBrep",
+  "meshBoolean",
+  "geodesicSphere",
   "stlImport",
+  "physicsSolver",
+  "chemistrySolver",
 ]);
 
 const pruneWorkflowState = (workflow: WorkflowState): WorkflowState => {
@@ -757,6 +783,28 @@ type ExtrudeInsertOptions = {
   metadata?: Record<string, unknown>;
 };
 
+type NurbsCurveInsertOptions = {
+  recordHistory?: boolean;
+  selectIds?: string[];
+  layerId?: string;
+  area_m2?: number;
+  thickness_m?: number;
+  sourceNodeId?: string;
+  metadata?: Record<string, unknown>;
+  closed?: boolean;
+};
+
+type NurbsSurfaceInsertOptions = {
+  recordHistory?: boolean;
+  selectIds?: string[];
+  layerId?: string;
+  area_m2?: number;
+  thickness_m?: number;
+  sourceNodeId?: string;
+  metadata?: Record<string, unknown>;
+  mesh?: RenderMesh;
+};
+
 type BoxInsertOptions = MeshInsertOptions & {
   origin?: Vec3;
   size: { width: number; height: number; depth: number };
@@ -885,25 +933,6 @@ const subtractVec3 = (a: Vec3, b: Vec3): Vec3 => ({
   z: a.z - b.z,
 });
 
-const buildCirclePoints = (
-  center: Vec3,
-  radius: number,
-  segments: number,
-  plane: CPlane
-) => {
-  const count = Math.max(8, Math.round(segments));
-  const points: Vec3[] = [];
-  for (let i = 0; i < count; i += 1) {
-    const angle = (i / count) * Math.PI * 2;
-    const x = Math.cos(angle) * radius;
-    const y = Math.sin(angle) * radius;
-    const alongX = { x: plane.xAxis.x * x, y: plane.xAxis.y * x, z: plane.xAxis.z * x };
-    const alongY = { x: plane.yAxis.x * y, y: plane.yAxis.y * y, z: plane.yAxis.z * y };
-    points.push(addVec3(center, addVec3(alongX, alongY)));
-  }
-  return points;
-};
-
 const buildRectanglePoints = (
   center: Vec3,
   width: number,
@@ -958,6 +987,173 @@ const isNearlyEqualVec3 = (a: Vec3, b: Vec3, epsilon = 1e-5) =>
   Math.abs(a.y - b.y) <= epsilon &&
   Math.abs(a.z - b.z) <= epsilon;
 
+const translateControlPoints = (points: Vec3[], delta: Vec3) =>
+  points.map((point) => addVec3(point, delta));
+
+const translateControlPointGrid = (grid: Vec3[][], delta: Vec3) =>
+  grid.map((row) => row.map((point) => addVec3(point, delta)));
+
+const translateBRepCurve = (curve: BRepCurve, delta: Vec3): BRepCurve => {
+  if (curve.kind === "line") {
+    return {
+      ...curve,
+      start: addVec3(curve.start, delta),
+      end: addVec3(curve.end, delta),
+    };
+  }
+  if (curve.kind === "nurbs") {
+    return {
+      ...curve,
+      curve: {
+        ...curve.curve,
+        controlPoints: translateControlPoints(curve.curve.controlPoints, delta),
+      },
+    };
+  }
+  return curve;
+};
+
+const translateBRepSurface = (surface: BRepSurface, delta: Vec3): BRepSurface => {
+  if (surface.kind === "plane") {
+    return {
+      ...surface,
+      plane: {
+        ...surface.plane,
+        origin: addVec3(surface.plane.origin, delta),
+      },
+    };
+  }
+  if (surface.kind === "nurbs") {
+    return {
+      ...surface,
+      surface: {
+        ...surface.surface,
+        controlPoints: translateControlPointGrid(surface.surface.controlPoints, delta),
+      },
+    };
+  }
+  return surface;
+};
+
+const translateBRepData = (brep: BRepData, delta: Vec3): BRepData => ({
+  ...brep,
+  vertices: brep.vertices.map((vertex) => ({
+    ...vertex,
+    position: addVec3(vertex.position, delta),
+  })),
+  edges: brep.edges.map((edge) => ({
+    ...edge,
+    curve: translateBRepCurve(edge.curve, delta),
+  })),
+  faces: brep.faces.map((face) => ({
+    ...face,
+    surface: translateBRepSurface(face.surface, delta),
+  })),
+});
+
+const transformControlPoints = (points: Vec3[], matrix: Mat4) =>
+  points.map((point) => transformPoint(matrix, point));
+
+const transformControlPointGrid = (grid: Vec3[][], matrix: Mat4) =>
+  grid.map((row) => row.map((point) => transformPoint(matrix, point)));
+
+const transformBRepCurve = (curve: BRepCurve, matrix: Mat4): BRepCurve => {
+  if (curve.kind === "line") {
+    return {
+      ...curve,
+      start: transformPoint(matrix, curve.start),
+      end: transformPoint(matrix, curve.end),
+    };
+  }
+  if (curve.kind === "nurbs") {
+    return {
+      ...curve,
+      curve: {
+        ...curve.curve,
+        controlPoints: transformControlPoints(curve.curve.controlPoints, matrix),
+      },
+    };
+  }
+  return curve;
+};
+
+const transformBRepSurface = (surface: BRepSurface, matrix: Mat4): BRepSurface => {
+  if (surface.kind === "plane") {
+    const origin = surface.plane.origin;
+    const originTransformed = transformPoint(matrix, origin);
+    const xAxisEnd = transformPoint(matrix, addVec3(origin, surface.plane.xAxis));
+    const yAxisEnd = transformPoint(matrix, addVec3(origin, surface.plane.yAxis));
+    const xAxis = subtractVec3(xAxisEnd, originTransformed);
+    const yAxis = subtractVec3(yAxisEnd, originTransformed);
+    return {
+      ...surface,
+      plane: {
+        ...surface.plane,
+        origin: originTransformed,
+        xAxis,
+        yAxis,
+        normal: surface.plane.normal,
+      },
+    };
+  }
+  if (surface.kind === "nurbs") {
+    return {
+      ...surface,
+      surface: {
+        ...surface.surface,
+        controlPoints: transformControlPointGrid(surface.surface.controlPoints, matrix),
+      },
+    };
+  }
+  return surface;
+};
+
+const transformBRepData = (brep: BRepData, matrix: Mat4): BRepData => ({
+  ...brep,
+  vertices: brep.vertices.map((vertex) => ({
+    ...vertex,
+    position: transformPoint(matrix, vertex.position),
+  })),
+  edges: brep.edges.map((edge) => ({
+    ...edge,
+    curve: transformBRepCurve(edge.curve, matrix),
+  })),
+  faces: brep.faces.map((face) => ({
+    ...face,
+    surface: transformBRepSurface(face.surface, matrix),
+  })),
+});
+
+const resolveGeometryMesh = (geometry: Geometry): RenderMesh | null => {
+  if (geometry.type === "nurbsSurface") {
+    if (geometry.mesh?.positions?.length) return geometry.mesh;
+    const tessellated = tessellateSurfaceAdaptive(geometry.nurbs);
+    return {
+      positions: Array.from(tessellated.positions),
+      normals: Array.from(tessellated.normals),
+      indices: Array.from(tessellated.indices),
+      uvs: Array.from(tessellated.uvs),
+    };
+  }
+  if (geometry.type === "brep") {
+    if (geometry.mesh?.positions?.length) return geometry.mesh;
+    return tessellateBRepToMesh(geometry.brep);
+  }
+  if ("mesh" in geometry && geometry.mesh) {
+    if (geometry.type === "surface" && geometry.nurbs) {
+      const tessellated = tessellateSurfaceAdaptive(geometry.nurbs);
+      return {
+        positions: Array.from(tessellated.positions),
+        normals: Array.from(tessellated.normals),
+        indices: Array.from(tessellated.indices),
+        uvs: Array.from(tessellated.uvs),
+      };
+    }
+    return geometry.mesh;
+  }
+  return null;
+};
+
 const applyMoveDeltaToGeometry = (
   geometryById: Map<string, Geometry>,
   updates: Map<string, Partial<Geometry>>,
@@ -988,6 +1184,47 @@ const applyMoveDeltaToGeometry = (
         position: addVec3(basePosition, delta),
       });
     });
+    return;
+  }
+
+  if (geometry.type === "nurbsCurve") {
+    const existing = updates.get(geometryId) as Partial<NurbsCurveGeometry> | undefined;
+    const baseNurbs = (existing?.nurbs ?? geometry.nurbs) as NURBSCurve;
+    const nextNurbs = {
+      ...baseNurbs,
+      controlPoints: translateControlPoints(baseNurbs.controlPoints, delta),
+    };
+    updates.set(geometryId, { ...(existing ?? {}), nurbs: nextNurbs });
+    return;
+  }
+
+  if (geometry.type === "nurbsSurface") {
+    const existing = updates.get(geometryId) as Partial<NurbsSurfaceGeometry> | undefined;
+    const baseNurbs = (existing?.nurbs ?? geometry.nurbs) as NURBSSurface;
+    const nextNurbs = {
+      ...baseNurbs,
+      controlPoints: translateControlPointGrid(baseNurbs.controlPoints, delta),
+    };
+    updates.set(geometryId, { ...(existing ?? {}), nurbs: nextNurbs });
+    return;
+  }
+
+  if (geometry.type === "brep") {
+    const existing = updates.get(geometryId) as Partial<BRepGeometry> | undefined;
+    const baseBrep = (existing?.brep ?? geometry.brep) as BRepData;
+    const nextBrep = translateBRepData(baseBrep, delta);
+    const nextUpdate: Partial<BRepGeometry> = { ...(existing ?? {}), brep: nextBrep };
+    if (geometry.mesh) {
+      const baseMesh = (existing?.mesh ?? geometry.mesh) as RenderMesh;
+      const positions = baseMesh.positions.slice();
+      for (let i = 0; i < positions.length; i += 3) {
+        positions[i] += delta.x;
+        positions[i + 1] += delta.y;
+        positions[i + 2] += delta.z;
+      }
+      nextUpdate.mesh = { ...baseMesh, positions };
+    }
+    updates.set(geometryId, nextUpdate);
     return;
   }
 
@@ -1067,6 +1304,45 @@ const applyMatrixToGeometry = (
         position: nextPosition,
       });
     });
+    return;
+  }
+
+  if (geometry.type === "nurbsCurve") {
+    const existing = updates.get(geometryId) as Partial<NurbsCurveGeometry> | undefined;
+    const baseNurbs = (existing?.nurbs ?? geometry.nurbs) as NURBSCurve;
+    const nextNurbs = {
+      ...baseNurbs,
+      controlPoints: transformControlPoints(baseNurbs.controlPoints, matrix),
+    };
+    updates.set(geometryId, { ...(existing ?? {}), nurbs: nextNurbs });
+    return;
+  }
+
+  if (geometry.type === "nurbsSurface") {
+    const existing = updates.get(geometryId) as Partial<NurbsSurfaceGeometry> | undefined;
+    const baseNurbs = (existing?.nurbs ?? geometry.nurbs) as NURBSSurface;
+    const nextNurbs = {
+      ...baseNurbs,
+      controlPoints: transformControlPointGrid(baseNurbs.controlPoints, matrix),
+    };
+    updates.set(geometryId, { ...(existing ?? {}), nurbs: nextNurbs });
+    return;
+  }
+
+  if (geometry.type === "brep") {
+    const existing = updates.get(geometryId) as Partial<BRepGeometry> | undefined;
+    const baseBrep = (existing?.brep ?? geometry.brep) as BRepData;
+    const nextBrep = transformBRepData(baseBrep, matrix);
+    const nextUpdate: Partial<BRepGeometry> = { ...(existing ?? {}), brep: nextBrep };
+    if (geometry.mesh) {
+      const baseMesh = (existing?.mesh ?? geometry.mesh) as RenderMesh;
+      const positions = applyMatrixToPositions(baseMesh.positions, matrix);
+      const normals =
+        baseMesh.indices.length > 0 ? computeVertexNormals(positions, baseMesh.indices) : baseMesh.normals;
+      nextUpdate.mesh = { ...baseMesh, positions, normals };
+      nextUpdate.area_m2 = computeMeshArea(positions, baseMesh.indices);
+    }
+    updates.set(geometryId, nextUpdate);
     return;
   }
 
@@ -1253,6 +1529,84 @@ const upsertSurfaceGeometry = (
   return nextVertexIds;
 };
 
+const upsertNurbsCurveGeometry = (
+  geometryId: string,
+  nurbs: NURBSCurve,
+  closed: boolean,
+  state: {
+    geometryById: Map<string, Geometry>;
+    updates: Map<string, Partial<Geometry>>;
+    itemsToAdd: Geometry[];
+  }
+) => {
+  const { geometryById, updates, itemsToAdd } = state;
+  const existing = geometryById.get(geometryId);
+  const layerId = existing?.layerId ?? "layer-default";
+  if (existing && existing.type === "nurbsCurve") {
+    updates.set(geometryId, { nurbs, closed });
+    return;
+  }
+  itemsToAdd.push({
+    id: geometryId,
+    type: "nurbsCurve",
+    nurbs,
+    closed,
+    layerId,
+  });
+};
+
+const upsertNurbsSurfaceGeometry = (
+  geometryId: string,
+  nurbs: NURBSSurface,
+  mesh: RenderMesh | undefined,
+  state: {
+    geometryById: Map<string, Geometry>;
+    updates: Map<string, Partial<Geometry>>;
+    itemsToAdd: Geometry[];
+  }
+) => {
+  const { geometryById, updates, itemsToAdd } = state;
+  const existing = geometryById.get(geometryId);
+  const layerId = existing?.layerId ?? "layer-default";
+  if (existing && existing.type === "nurbsSurface") {
+    updates.set(geometryId, { nurbs, mesh });
+    return;
+  }
+  itemsToAdd.push({
+    id: geometryId,
+    type: "nurbsSurface",
+    nurbs,
+    mesh,
+    layerId,
+  });
+};
+
+const upsertBRepGeometry = (
+  geometryId: string,
+  brep: BRepData,
+  mesh: RenderMesh | undefined,
+  state: {
+    geometryById: Map<string, Geometry>;
+    updates: Map<string, Partial<Geometry>>;
+    itemsToAdd: Geometry[];
+  }
+) => {
+  const { geometryById, updates, itemsToAdd } = state;
+  const existing = geometryById.get(geometryId);
+  const layerId = existing?.layerId ?? "layer-default";
+  if (existing && existing.type === "brep") {
+    updates.set(geometryId, { brep, mesh });
+    return;
+  }
+  itemsToAdd.push({
+    id: geometryId,
+    type: "brep",
+    brep,
+    mesh,
+    layerId,
+  });
+};
+
 const upsertMeshGeometry = (
   geometryId: string,
   mesh: RenderMesh,
@@ -1293,6 +1647,7 @@ const applySeedGeometryNodesToGeometry = (
   const itemsToAdd: Geometry[] = [];
   const idsToRemove = new Set<string>();
   let didApply = false;
+  const touchedGeometryIds = new Set<string>();
 
   const nextNodes = nodes.map((node) => {
     const outputs = node.data?.outputs;
@@ -1330,6 +1685,7 @@ const applySeedGeometryNodesToGeometry = (
         });
       }
       didApply = true;
+      touchedGeometryIds.add(geometryId);
       return {
         ...node,
         data: {
@@ -1366,6 +1722,7 @@ const applySeedGeometryNodesToGeometry = (
         { geometryById, updates, itemsToAdd, idsToRemove }
       );
       didApply = true;
+      touchedGeometryIds.add(geometryId);
       return {
         ...node,
         data: {
@@ -1388,33 +1745,27 @@ const applySeedGeometryNodesToGeometry = (
             : null;
       const center = asVec3(outputs?.center);
       const radius = asNumber(outputs?.radius, Number.NaN);
-      const segments = Math.max(8, Math.round(asNumber(outputs?.segments, 48)));
       if (!center || !Number.isFinite(radius) || radius <= 0) {
         return node;
       }
       if (!geometryId) {
-        geometryId = createGeometryId("polyline");
+        geometryId = createGeometryId("nurbsCurve");
       }
       const normal = asVec3(outputs?.normal);
       const plane =
         normal && lengthVec3(normal) > 1e-6
           ? buildPlaneFromNormal(center, normal)
           : cPlane;
-      const points = buildCirclePoints(center, radius, segments, plane);
-      const vertexIds = upsertPolylineGeometry(
-        geometryId,
-        points,
-        { closed: true, degree: 2 },
-        { geometryById, updates, itemsToAdd, idsToRemove }
-      );
+      const nurbs = createCircleNurbs(plane, center, radius);
+      upsertNurbsCurveGeometry(geometryId, nurbs, true, { geometryById, updates, itemsToAdd });
       didApply = true;
+      touchedGeometryIds.add(geometryId);
       return {
         ...node,
         data: {
           ...node.data,
           geometryId,
-          geometryType: "polyline",
-          vertexIds,
+          geometryType: "nurbsCurve",
           closed: true,
           isLinked: true,
         },
@@ -1432,11 +1783,13 @@ const applySeedGeometryNodesToGeometry = (
       const width = asNumber(outputs?.width, Number.NaN);
       const height = asNumber(outputs?.height, Number.NaN);
       const depth = asNumber(outputs?.depth, Number.NaN);
+      const representation = String(outputs?.representation ?? node.data?.parameters?.representation ?? "mesh");
       if (!Number.isFinite(width) || !Number.isFinite(height) || !Number.isFinite(depth)) {
         return node;
       }
-      if (!geometryId) {
-        geometryId = createGeometryId("mesh");
+      const existing = geometryId ? geometryById.get(geometryId) : null;
+      if (!geometryId || (representation === "brep" && existing?.type !== "brep")) {
+        geometryId = createGeometryId(representation === "brep" ? "brep" : "mesh");
       }
       const centerMode = Boolean(outputs?.centerMode);
       const center = centerMode
@@ -1444,23 +1797,29 @@ const applySeedGeometryNodesToGeometry = (
         : { x: anchor.x + width * 0.5, y: anchor.y + height * 0.5, z: anchor.z + depth * 0.5 };
       const baseMesh = generateBoxMesh({ width, height, depth }, 1);
       const mesh = translateMesh(baseMesh, center);
-      upsertMeshGeometry(
-        geometryId,
-        mesh,
-        {
-          kind: "box",
-          origin: center,
-          dimensions: { width, height, depth },
-        },
-        { geometryById, updates, itemsToAdd }
-      );
+      if (representation === "brep") {
+        const brep = createBRepBox(width, height, depth, center);
+        upsertBRepGeometry(geometryId, brep, mesh, { geometryById, updates, itemsToAdd });
+      } else {
+        upsertMeshGeometry(
+          geometryId,
+          mesh,
+          {
+            kind: "box",
+            origin: center,
+            dimensions: { width, height, depth },
+          },
+          { geometryById, updates, itemsToAdd }
+        );
+      }
       didApply = true;
+      touchedGeometryIds.add(geometryId);
       return {
         ...node,
         data: {
           ...node.data,
           geometryId,
-          geometryType: "mesh",
+          geometryType: representation === "brep" ? "brep" : "mesh",
           boxOrigin: anchor,
           boxDimensions: { width, height, depth },
           isLinked: true,
@@ -1477,31 +1836,39 @@ const applySeedGeometryNodesToGeometry = (
             : null;
       const center = asVec3(outputs?.center) ?? { x: 0, y: 0, z: 0 };
       const radius = asNumber(outputs?.radius, Number.NaN);
+      const representation = String(outputs?.representation ?? node.data?.parameters?.representation ?? "mesh");
       if (!Number.isFinite(radius) || radius <= 0) {
         return node;
       }
-      if (!geometryId) {
-        geometryId = createGeometryId("mesh");
+      const existing = geometryId ? geometryById.get(geometryId) : null;
+      if (!geometryId || (representation === "brep" && existing?.type !== "brep")) {
+        geometryId = createGeometryId(representation === "brep" ? "brep" : "mesh");
       }
       const baseMesh = generateSphereMesh(radius, 24);
       const mesh = translateMesh(baseMesh, center);
-      upsertMeshGeometry(
-        geometryId,
-        mesh,
-        {
-          kind: "sphere",
-          origin: center,
-          radius,
-        },
-        { geometryById, updates, itemsToAdd }
-      );
+      if (representation === "brep") {
+        const brep = createBRepSphere(radius, center);
+        upsertBRepGeometry(geometryId, brep, mesh, { geometryById, updates, itemsToAdd });
+      } else {
+        upsertMeshGeometry(
+          geometryId,
+          mesh,
+          {
+            kind: "sphere",
+            origin: center,
+            radius,
+          },
+          { geometryById, updates, itemsToAdd }
+        );
+      }
       didApply = true;
+      touchedGeometryIds.add(geometryId);
       return {
         ...node,
         data: {
           ...node.data,
           geometryId,
-          geometryType: "mesh",
+          geometryType: representation === "brep" ? "brep" : "mesh",
           sphereOrigin: center,
           sphereRadius: radius,
           isLinked: true,
@@ -1520,8 +1887,10 @@ const applySeedGeometryNodesToGeometry = (
           : typeof node.data?.geometryId === "string"
             ? node.data.geometryId
             : null;
-      if (!geometryId) {
-        geometryId = createGeometryId("mesh");
+      const representation = String(outputs?.representation ?? node.data?.parameters?.representation ?? "mesh");
+      const existing = geometryId ? geometryById.get(geometryId) : null;
+      if (!geometryId || (representation === "brep" && existing?.type !== "brep")) {
+        geometryId = createGeometryId(representation === "brep" ? "brep" : "mesh");
       }
       const paramValues =
         outputs?.params && typeof outputs.params === "object"
@@ -1533,23 +1902,34 @@ const applySeedGeometryNodesToGeometry = (
       const mesh = generatePrimitiveMesh(config);
       const origin = { x: 0, y: 0, z: 0 };
       const translated = translateMesh(mesh, origin);
-      upsertMeshGeometry(
-        geometryId,
-        translated,
-        {
-          kind: primitiveKind,
-          origin,
-          params: { ...(config as Record<string, number>) },
-        },
-        { geometryById, updates, itemsToAdd }
-      );
+      if (representation === "brep" && (primitiveKind === "box" || primitiveKind === "sphere" || primitiveKind === "cylinder")) {
+        const brep =
+          primitiveKind === "box"
+            ? createBRepBox(config.size ?? 1, config.height ?? 1, config.size ?? 1, origin)
+            : primitiveKind === "sphere"
+              ? createBRepSphere(config.radius ?? 0.5, origin)
+              : createBRepCylinder(config.radius ?? 0.5, config.height ?? 1, origin);
+        upsertBRepGeometry(geometryId, brep, translated, { geometryById, updates, itemsToAdd });
+      } else {
+        upsertMeshGeometry(
+          geometryId,
+          translated,
+          {
+            kind: primitiveKind,
+            origin,
+            params: { ...(config as Record<string, number>) },
+          },
+          { geometryById, updates, itemsToAdd }
+        );
+      }
       didApply = true;
+      touchedGeometryIds.add(geometryId);
       return {
         ...node,
         data: {
           ...node.data,
           geometryId,
-          geometryType: "mesh",
+          geometryType: representation === "brep" ? "brep" : "mesh",
           isLinked: true,
         },
       };
@@ -1559,7 +1939,7 @@ const applySeedGeometryNodesToGeometry = (
   });
 
   if (!didApply && idsToRemove.size === 0 && itemsToAdd.length === 0) {
-    return { nodes: nextNodes, geometry, didApply };
+    return { nodes: nextNodes, geometry, didApply, touchedGeometryIds };
   }
 
   let nextGeometry = geometry
@@ -1572,7 +1952,7 @@ const applySeedGeometryNodesToGeometry = (
     nextGeometry = [...nextGeometry, ...itemsToAdd];
   }
 
-  return { nodes: nextNodes, geometry: nextGeometry, didApply: true };
+  return { nodes: nextNodes, geometry: nextGeometry, didApply: true, touchedGeometryIds };
 };
 
 const applyDependentGeometryNodesToGeometry = (
@@ -1587,6 +1967,7 @@ const applyDependentGeometryNodesToGeometry = (
   const itemsToAdd: Geometry[] = [];
   const idsToRemove = new Set<string>();
   let didApply = false;
+  const touchedGeometryIds = new Set<string>();
 
   const nextNodes = nodes.map((node) => {
     const outputs = node.data?.outputs;
@@ -1615,6 +1996,7 @@ const applyDependentGeometryNodesToGeometry = (
         { geometryById, updates, itemsToAdd, idsToRemove }
       );
       didApply = true;
+      touchedGeometryIds.add(geometryId);
       return {
         ...node,
         data: {
@@ -1640,24 +2022,21 @@ const applyDependentGeometryNodesToGeometry = (
       const through = asVec3(outputs?.through);
       if (!start || !end || !through) return node;
       if (!geometryId) {
-        geometryId = createGeometryId("polyline");
+        geometryId = createGeometryId("nurbsCurve");
       }
-      const arcPoints = computeArcPolyline(cPlane, start, end, through, 48) ?? [start, end];
-      if (arcPoints.length < 2) return node;
-      const vertexIds = upsertPolylineGeometry(
-        geometryId,
-        arcPoints,
-        { closed: false, degree: 1 },
-        { geometryById, updates, itemsToAdd, idsToRemove }
-      );
+      const plane = computeBestFitPlane([start, through, end]);
+      const nurbs =
+        createArcNurbs(plane, start, end, through) ??
+        createNurbsCurveFromPoints([start, through, end], 2, false);
+      upsertNurbsCurveGeometry(geometryId, nurbs, false, { geometryById, updates, itemsToAdd });
       didApply = true;
+      touchedGeometryIds.add(geometryId);
       return {
         ...node,
         data: {
           ...node.data,
           geometryId,
-          geometryType: "polyline",
-          vertexIds,
+          geometryType: "nurbsCurve",
           closed: false,
           isLinked: true,
         },
@@ -1676,27 +2055,22 @@ const applyDependentGeometryNodesToGeometry = (
         : [];
       if (controlPoints.length < 2) return node;
       if (!geometryId) {
-        geometryId = createGeometryId("polyline");
+        geometryId = createGeometryId("nurbsCurve");
       }
       const degree = Math.min(3, Math.max(1, Math.round(asNumber(outputs?.degree, 3)))) as 1 | 2 | 3;
-      const resolution = Math.max(16, Math.round(asNumber(outputs?.resolution, 64)));
       const closed = Boolean(outputs?.closed);
-      const curvePoints = interpolatePolyline(controlPoints, degree, closed, resolution);
-      if (curvePoints.length < 2) return node;
-      const vertexIds = upsertPolylineGeometry(
-        geometryId,
-        curvePoints,
-        { closed, degree },
-        { geometryById, updates, itemsToAdd, idsToRemove }
-      );
+      const nurbs = closed
+        ? createNurbsCurveFromPoints(controlPoints, degree, true)
+        : interpolateNurbsCurve(controlPoints, degree);
+      upsertNurbsCurveGeometry(geometryId, nurbs, closed, { geometryById, updates, itemsToAdd });
       didApply = true;
+      touchedGeometryIds.add(geometryId);
       return {
         ...node,
         data: {
           ...node.data,
           geometryId,
-          geometryType: "polyline",
-          vertexIds,
+          geometryType: "nurbsCurve",
           closed,
           isLinked: true,
         },
@@ -1725,6 +2099,7 @@ const applyDependentGeometryNodesToGeometry = (
         { geometryById, updates, itemsToAdd, idsToRemove }
       );
       didApply = true;
+      touchedGeometryIds.add(geometryId);
       return {
         ...node,
         data: {
@@ -1779,6 +2154,7 @@ const applyDependentGeometryNodesToGeometry = (
         if (existing && existing.type === "vertex") {
           updates.set(existingId, { position: point });
           nextIds.push(existingId);
+          touchedGeometryIds.add(existingId);
           didApply = true;
           continue;
         }
@@ -1795,6 +2171,7 @@ const applyDependentGeometryNodesToGeometry = (
           thickness_m: 0.1,
         });
         nextIds.push(geometryId);
+        touchedGeometryIds.add(geometryId);
         didApply = true;
       }
 
@@ -1834,6 +2211,7 @@ const applyDependentGeometryNodesToGeometry = (
         { geometryById, updates, itemsToAdd, idsToRemove }
       );
       didApply = true;
+      touchedGeometryIds.add(geometryId);
       return {
         ...node,
         data: {
@@ -1850,7 +2228,7 @@ const applyDependentGeometryNodesToGeometry = (
   });
 
   if (!didApply && idsToRemove.size === 0 && itemsToAdd.length === 0) {
-    return { nodes: nextNodes, geometry, didApply };
+    return { nodes: nextNodes, geometry, didApply, touchedGeometryIds };
   }
 
   let nextGeometry = geometry
@@ -1863,7 +2241,50 @@ const applyDependentGeometryNodesToGeometry = (
     nextGeometry = [...nextGeometry, ...itemsToAdd];
   }
 
-  return { nodes: nextNodes, geometry: nextGeometry, didApply: true };
+  return { nodes: nextNodes, geometry: nextGeometry, didApply: true, touchedGeometryIds };
+};
+
+const resolveTransformGeometryId = (node: WorkflowNode): string | null => {
+  const outputs = node.data?.outputs;
+  if (typeof outputs?.geometry === "string") return outputs.geometry;
+  const dataGeometryId = node.data?.geometryId;
+  if (typeof dataGeometryId === "string") return dataGeometryId;
+  const parameterGeometryId = node.data?.parameters?.geometryId;
+  if (typeof parameterGeometryId === "string") return parameterGeometryId;
+  return null;
+};
+
+const resetTransformCachesForGeometry = (
+  nodes: WorkflowNode[],
+  touchedGeometryIds: Set<string>
+) => {
+  if (touchedGeometryIds.size === 0) return nodes;
+  return nodes.map((node) => {
+    if (node.type !== "move" && node.type !== "rotate" && node.type !== "scale") {
+      return node;
+    }
+    const geometryId = resolveTransformGeometryId(node);
+    if (!geometryId || !touchedGeometryIds.has(geometryId)) {
+      return node;
+    }
+    const data = { ...(node.data ?? {}) };
+    if (node.type === "move") {
+      data.moveGeometryId = undefined;
+      data.moveOffset = undefined;
+    }
+    if (node.type === "rotate") {
+      data.rotateGeometryId = undefined;
+      data.rotateAxis = undefined;
+      data.rotatePivot = undefined;
+      data.rotateAngle = undefined;
+    }
+    if (node.type === "scale") {
+      data.scaleGeometryId = undefined;
+      data.scaleVector = undefined;
+      data.scalePivot = undefined;
+    }
+    return { ...node, data };
+  });
 };
 
 const applyMoveNodesToGeometry = (
@@ -3485,6 +3906,102 @@ const applyFilletEdgesNodesToGeometry = (
   return { nodes: nextNodes, geometry: nextGeometry, didApply };
 };
 
+const TESSELLATION_NODE_TYPES = new Set<NodeType>([
+  "subdivideMesh",
+  "dualMesh",
+  "insetFaces",
+  "extrudeFaces",
+  "meshRelax",
+  "meshBoolean",
+  "triangulateMesh",
+  "geodesicSphere",
+  "voronoiPattern",
+  "hexagonalTiling",
+  "offsetPattern",
+  "meshRepair",
+  "meshUVs",
+  "meshDecimate",
+  "quadRemesh",
+]);
+
+const applyTessellationNodesToGeometry = (
+  nodes: WorkflowNode[],
+  geometry: Geometry[]
+) => {
+  const geometryById = new Map<string, Geometry>(
+    geometry.map((item) => [item.id, item])
+  );
+  const updates = new Map<string, Partial<Geometry>>();
+  const itemsToAdd: Geometry[] = [];
+  let didApply = false;
+
+  const nextNodes = nodes.map((node) => {
+    if (!node.type || !TESSELLATION_NODE_TYPES.has(node.type as NodeType)) return node;
+    const outputs = node.data?.outputs;
+    let geometryId =
+      typeof outputs?.geometry === "string"
+        ? outputs.geometry
+        : typeof node.data?.geometryId === "string"
+          ? node.data.geometryId
+          : null;
+    let updatedNode = node;
+    if (!geometryId && node.type === "geodesicSphere") {
+      geometryId = createGeometryId("mesh");
+      updatedNode = {
+        ...node,
+        data: {
+          ...node.data,
+          geometryId,
+          geometryType: "mesh",
+          isLinked: true,
+        },
+      };
+    }
+    const mesh = outputs?.mesh as RenderMesh | undefined;
+    if (!geometryId || !mesh || !Array.isArray(mesh.positions) || !Array.isArray(mesh.indices)) {
+      return updatedNode;
+    }
+    const existing = geometryById.get(geometryId);
+    const tessellation = outputs?.tessellation as { positions: number[]; faces: number[][]; uvs?: number[] } | undefined;
+    const nextMetadata =
+      tessellation && typeof tessellation === "object"
+        ? withTessellationMetadata(
+            (existing?.metadata as Record<string, unknown> | undefined) ?? {},
+            tessellation
+          )
+        : existing?.metadata;
+    const area = computeMeshArea(mesh.positions, mesh.indices);
+    if (existing && "mesh" in existing) {
+      updates.set(geometryId, { mesh, area_m2: area, metadata: nextMetadata });
+    } else {
+      itemsToAdd.push({
+        id: geometryId,
+        type: "mesh",
+        mesh,
+        layerId: existing?.layerId ?? "layer-default",
+        area_m2: area,
+        metadata: nextMetadata,
+      });
+    }
+    didApply = true;
+    return updatedNode;
+  });
+
+  if (!didApply && itemsToAdd.length === 0) {
+    return { nodes: nextNodes, geometry, didApply: false };
+  }
+
+  let nextGeometry = geometry.map((item) => {
+    const update = updates.get(item.id);
+    return update ? ({ ...item, ...update } as Geometry) : item;
+  });
+  if (itemsToAdd.length > 0) {
+    nextGeometry = [...nextGeometry, ...itemsToAdd];
+  }
+
+  return { nodes: nextNodes, geometry: nextGeometry, didApply: true };
+};
+
 const collectBoundaryEdges = (indices: number[]) => {
   const edgeMap = new Map<string, { a: number; b: number; count: number }>();
   for (let i = 0; i + 2 < indices.length; i += 3) {
@@ -3738,8 +4255,13 @@ const collectGeometryPoints = (
     });
     return points;
   }
-  if ("mesh" in geometry && geometry.mesh) {
-    const positions = geometry.mesh.positions;
+  if (geometry.type === "nurbsCurve") {
+    const tessellated = tessellateCurveAdaptive(geometry.nurbs);
+    return tessellated.points;
+  }
+  const mesh = resolveGeometryMesh(geometry);
+  if (mesh) {
+    const positions = mesh.positions;
     const points: Vec3[] = [];
     for (let i = 0; i + 2 < positions.length; i += 3) {
       points.push({ x: positions[i], y: positions[i + 1], z: positions[i + 2] });
@@ -3779,9 +4301,22 @@ const buildTargetSamples = (
     }
     return { kind: "segments", segments };
   }
-  if ("mesh" in geometry && geometry.mesh) {
-    const positions = geometry.mesh.positions;
-    const indices = resolveMeshIndices(geometry.mesh);
+  if (geometry.type === "nurbsCurve") {
+    const points = collectGeometryPoints(geometry, geometryById);
+    if (points.length < 2) return { kind: "points", points };
+    const segments: Array<[Vec3, Vec3]> = [];
+    for (let i = 0; i + 1 < points.length; i += 1) {
+      segments.push([points[i], points[i + 1]]);
+    }
+    if (geometry.closed && points.length > 2) {
+      segments.push([points[points.length - 1], points[0]]);
+    }
+    return { kind: "segments", segments };
+  }
+  const mesh = resolveGeometryMesh(geometry);
+  if (mesh) {
+    const positions = mesh.positions;
+    const indices = resolveMeshIndices(mesh);
     const triangles: Array<[Vec3, Vec3, Vec3]> = [];
     for (let i = 0; i + 2 < indices.length; i += 3) {
       const a = indices[i];
@@ -4295,10 +4830,18 @@ const applyCustomMaterialNodesToGeometry = (
       return node;
     }
 
+    const existingCustom =
+      (existing.metadata as { customMaterial?: unknown } | undefined)?.customMaterial;
+    const existingRecord =
+      existingCustom && typeof existingCustom === "object"
+        ? (existingCustom as Record<string, unknown>)
+        : {};
+
     updates.set(geometryId, {
       metadata: {
         ...(existing.metadata ?? {}),
         customMaterial: {
+          ...existingRecord,
           color: resolved.color,
           hex: resolved.hex,
         },
@@ -4695,6 +5238,73 @@ const applyGeometryArrayNodesToGeometry = (
       };
       return { geometryId, items: [...vertices, polyline] };
     }
+    if (source.type === "nurbsCurve") {
+      const geometryId = createGeometryId("nurbsCurve");
+      const nurbs = {
+        ...source.nurbs,
+        controlPoints: transformControlPoints(source.nurbs.controlPoints, matrix),
+      };
+      return {
+        geometryId,
+        items: [
+          {
+            id: geometryId,
+            type: "nurbsCurve",
+            nurbs,
+            closed: source.closed,
+            layerId,
+            area_m2: source.area_m2,
+            thickness_m: source.thickness_m,
+            metadata: source.metadata,
+          },
+        ],
+      };
+    }
+    if (source.type === "nurbsSurface") {
+      const geometryId = createGeometryId("nurbsSurface");
+      const nurbs = {
+        ...source.nurbs,
+        controlPoints: transformControlPointGrid(source.nurbs.controlPoints, matrix),
+      };
+      const mesh = source.mesh ? transformMesh(source.mesh, matrix) : undefined;
+      const area = mesh ? computeMeshArea(mesh.positions, mesh.indices) : source.area_m2;
+      return {
+        geometryId,
+        items: [
+          {
+            id: geometryId,
+            type: "nurbsSurface",
+            nurbs,
+            mesh,
+            layerId,
+            area_m2: area,
+            thickness_m: source.thickness_m,
+            metadata: source.metadata,
+          },
+        ],
+      };
+    }
+    if (source.type === "brep") {
+      const geometryId = createGeometryId("brep");
+      const brep = transformBRepData(source.brep, matrix);
+      const mesh = source.mesh ? transformMesh(source.mesh, matrix) : undefined;
+      const area = mesh ? computeMeshArea(mesh.positions, mesh.indices) : source.area_m2;
+      return {
+        geometryId,
+        items: [
+          {
+            id: geometryId,
+            type: "brep",
+            brep,
+            mesh,
+            layerId,
+            area_m2: area,
+            thickness_m: source.thickness_m,
+            metadata: source.metadata,
+          },
+        ],
+      };
+    }
     if ("mesh" in source && source.mesh) {
       const geometryId = createGeometryId(source.type === "mesh" ? "mesh" : source.type);
       const mesh = transformMesh(source.mesh, matrix);
@@ -4733,6 +5343,31 @@ const applyGeometryArrayNodesToGeometry = (
         closed: source.closed,
         degree: source.degree,
       });
+      return true;
+    }
+    if (source.type === "nurbsCurve" && target.type === "nurbsCurve") {
+      const nurbs = {
+        ...source.nurbs,
+        controlPoints: transformControlPoints(source.nurbs.controlPoints, matrix),
+      };
+      updates.set(target.id, { nurbs, closed: source.closed });
+      return true;
+    }
+    if (source.type === "nurbsSurface" && target.type === "nurbsSurface") {
+      const nurbs = {
+        ...source.nurbs,
+        controlPoints: transformControlPointGrid(source.nurbs.controlPoints, matrix),
+      };
+      const mesh = source.mesh ? transformMesh(source.mesh, matrix) : undefined;
+      const area = mesh ? computeMeshArea(mesh.positions, mesh.indices) : target.area_m2;
+      updates.set(target.id, { nurbs, mesh, area_m2: area });
+      return true;
+    }
+    if (source.type === "brep" && target.type === "brep") {
+      const brep = transformBRepData(source.brep, matrix);
+      const mesh = source.mesh ? transformMesh(source.mesh, matrix) : undefined;
+      const area = mesh ? computeMeshArea(mesh.positions, mesh.indices) : target.area_m2;
+      updates.set(target.id, { brep, mesh, area_m2: area });
       return true;
     }
     if ("mesh" in source && source.mesh && "mesh" in target && target.mesh) {
@@ -4931,7 +5566,14 @@ const applyMeshConvertNodesToGeometry = (
   let didApply = false;
 
   const nextNodes = nodes.map((node) => {
-    if (node.type !== "meshConvert") return node;
+    if (
+      node.type !== "meshConvert" &&
+      node.type !== "nurbsToMesh" &&
+      node.type !== "brepToMesh" &&
+      node.type !== "meshToBrep"
+    ) {
+      return node;
+    }
     const outputs = node.data?.outputs;
     const geometryId =
       typeof outputs?.geometry === "string"
@@ -4939,8 +5581,117 @@ const applyMeshConvertNodesToGeometry = (
         : typeof node.data?.geometryId === "string"
           ? node.data.geometryId
           : null;
+    if (!geometryId) return node;
+
+    if (node.type === "meshToBrep") {
+      const brep = outputs?.brep as BRepData | undefined;
+      if (!brep) return node;
+      const existing = geometryById.get(geometryId);
+      if (!existing || existing.type !== "brep") return node;
+      const mesh = outputs?.mesh as RenderMesh | undefined;
+      updates.set(geometryId, {
+        brep,
+        mesh,
+        area_m2: mesh ? computeMeshArea(mesh.positions, mesh.indices) : existing.area_m2,
+      });
+      didApply = true;
+      return node;
+    }
+
     const mesh = outputs?.mesh as RenderMesh | undefined;
-    if (!geometryId || !mesh) return node;
+    if (!mesh) return node;
+    const existing = geometryById.get(geometryId);
+    if (!existing || !("mesh" in existing)) return node;
+    updates.set(geometryId, {
+      mesh,
+      area_m2: computeMeshArea(mesh.positions, mesh.indices),
+    });
+    didApply = true;
+    return node;
+  });
+
+  if (!didApply) {
+    return { nodes: nextNodes, geometry, didApply };
+  }
+
+  const nextGeometry = geometry.map((item) => {
+    const update = updates.get(item.id);
+    return update ? ({ ...item, ...update } as Geometry) : item;
+  });
+
+  return { nodes: nextNodes, geometry: nextGeometry, didApply };
+};
+
+const applyPhysicsSolverNodesToGeometry = (
+  nodes: WorkflowNode[],
+  geometry: Geometry[]
+) => {
+  const geometryById = new Map<string, Geometry>(
+    geometry.map((item) => [item.id, item])
+  );
+  const updates = new Map<string, Partial<Geometry>>();
+  let didApply = false;
+
+  const nextNodes = nodes.map((node) => {
+    if (node.type !== "physicsSolver") return node;
+    const outputs = node.data?.outputs;
+    const geometryId =
+      typeof outputs?.geometry === "string"
+        ? outputs.geometry
+        : typeof node.data?.geometryId === "string"
+          ? node.data.geometryId
+          : null;
+    if (!geometryId) return node;
+    const mesh = outputs?.mesh as RenderMesh | undefined;
+    if (!mesh || !Array.isArray(mesh.positions) || !Array.isArray(mesh.indices)) {
+      return node;
+    }
+    const existing = geometryById.get(geometryId);
+    if (!existing || !("mesh" in existing)) return node;
+    updates.set(geometryId, {
+      mesh,
+      area_m2: computeMeshArea(mesh.positions, mesh.indices),
+    });
+    didApply = true;
+    return node;
+  });
+
+  if (!didApply) {
+    return { nodes: nextNodes, geometry, didApply };
+  }
+
+  const nextGeometry = geometry.map((item) => {
+    const update = updates.get(item.id);
+    return update ? ({ ...item, ...update } as Geometry) : item;
+  });
+
+  return { nodes: nextNodes, geometry: nextGeometry, didApply };
+};
+
+const applyChemistrySolverNodesToGeometry = (
+  nodes: WorkflowNode[],
+  geometry: Geometry[]
+) => {
+  const geometryById = new Map<string, Geometry>(
+    geometry.map((item) => [item.id, item])
+  );
+  const updates = new Map<string, Partial<Geometry>>();
+  let didApply = false;
+
+  const nextNodes = nodes.map((node) => {
+    if (node.type !== "chemistrySolver") return node;
+    const outputs = node.data?.outputs;
+    const geometryId =
+      typeof outputs?.geometry === "string"
+        ? outputs.geometry
+        : typeof node.data?.geometryId === "string"
+          ? node.data.geometryId
+          : null;
+    if (!geometryId) return node;
+    const mesh = outputs?.mesh as RenderMesh | undefined;
+    if (!mesh || !Array.isArray(mesh.positions) || !Array.isArray(mesh.indices)) {
+      return node;
+    }
     const existing = geometryById.get(geometryId);
     if (!existing || !("mesh" in existing)) return node;
     updates.set(geometryId, {
@@ -4970,6 +5721,14 @@ const coerceFilePayload = (value: unknown) => {
   return payload;
 };
 
+const getFileExtension = (name: string) => {
+  const trimmed = name.trim();
+  if (!trimmed) return "";
+  const lastDot = trimmed.lastIndexOf(".");
+  if (lastDot <= 0 || lastDot === trimmed.length - 1) return "";
+  return trimmed.slice(lastDot + 1).toLowerCase();
+};
+
 const applyImportNodesToGeometry = (
   nodes: WorkflowNode[],
   geometry: Geometry[]
@@ -4984,11 +5743,16 @@ const applyImportNodesToGeometry = (
   const nextNodes = nodes.map((node) => {
     if (node.type !== "stlImport") return node;
     const parameters = node.data?.parameters ?? {};
-    const importNow = parameters.importNow === true;
-    if (!importNow) return node;
     const geometryId =
       typeof node.data?.geometryId === "string" ? node.data.geometryId : null;
     const file = coerceFilePayload(parameters.file);
+    const existing = geometryId ? geometryById.get(geometryId) : null;
+    const geometryEmpty =
+      existing && "mesh" in existing
+        ? !existing.mesh?.positions || existing.mesh.positions.length === 0
+        : false;
+    const importNow = parameters.importNow === true || (Boolean(file) && geometryEmpty);
+    if (!importNow) return node;
     if (!geometryId || !file) {
       const nextParameters = { ...parameters, importNow: false };
       didUpdateNodes = true;
@@ -5000,11 +5764,25 @@ const applyImportNodesToGeometry = (
       const scale = typeof parameters.scale === "number" ? parameters.scale : 1;
       const parsed = parseStl(buffer);
       const mesh = scaleRenderMesh(parsed, scale);
-      const existing = geometryById.get(geometryId);
       if (existing && "mesh" in existing) {
+        const fileName = typeof file.name === "string" ? file.name : "";
+        const mimeType = typeof file.type === "string" ? file.type : "";
+        const extension =
+          getFileExtension(fileName) ||
+          (mimeType.includes("/") ? mimeType.split("/")[1].toLowerCase() : "") ||
+          "stl";
+        const metadata = {
+          ...(existing.metadata ?? {}),
+          sourceFile: {
+            name: fileName,
+            type: mimeType,
+            extension,
+          },
+        };
         updates.set(geometryId, {
           mesh,
           area_m2: computeMeshArea(mesh.positions, mesh.indices),
+          metadata,
         });
         didApply = true;
       }
@@ -5123,6 +5901,42 @@ const normalizeGeometryLayer = (
       };
       return normalized;
     }
+    case "nurbsCurve": {
+      const normalized: NurbsCurveGeometry = {
+        id: item.id,
+        type: "nurbsCurve",
+        nurbs: item.nurbs,
+        closed: item.closed,
+        layerId,
+        area_m2: item.area_m2,
+        thickness_m: item.thickness_m,
+      };
+      return normalized;
+    }
+    case "nurbsSurface": {
+      const normalized: NurbsSurfaceGeometry = {
+        id: item.id,
+        type: "nurbsSurface",
+        nurbs: item.nurbs,
+        mesh: item.mesh,
+        layerId,
+        area_m2: item.area_m2,
+        thickness_m: item.thickness_m,
+      };
+      return normalized;
+    }
+    case "brep": {
+      const normalized: BRepGeometry = {
+        id: item.id,
+        type: "brep",
+        brep: item.brep,
+        mesh: item.mesh,
+        layerId,
+        area_m2: item.area_m2,
+        thickness_m: item.thickness_m,
+      };
+      return normalized;
+    }
     case "loft": {
       const normalized: LoftGeometry = {
         id: item.id,
@@ -5231,12 +6045,60 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       get().setSelectedGeometryIds([geometryId]);
       return true;
     };
+    const selectGeometryIds = (ids: string[]) => {
+      if (!Array.isArray(ids) || ids.length === 0) return false;
+      const geometryIdSet = new Set(get().geometry.map((item) => item.id));
+      const unique = Array.from(new Set(ids)).filter((id) => geometryIdSet.has(id));
+      if (unique.length === 0) return false;
+      get().setSelectedGeometryIds(unique);
+      return true;
+    };
+    const collectGeometryIds = (value: unknown, bucket: string[]) => {
+      if (typeof value === "string") {
+        bucket.push(value);
+        return;
+      }
+      if (Array.isArray(value)) {
+        value.forEach((entry) => collectGeometryIds(entry, bucket));
+      }
+    };
+    const selectFromValue = (value: unknown) => {
+      const ids: string[] = [];
+      collectGeometryIds(value, ids);
+      return selectGeometryIds(ids);
+    };
+    const trySelectFromNode = (candidate: WorkflowNode) => {
+      if (!candidate) return false;
+      const outputs = candidate.data?.outputs ?? null;
+      const definition = getNodeDefinition(candidate.type);
+      const parameters = resolveNodeParameters(candidate);
+      const ports = resolveNodePorts(candidate, parameters);
+      const geometryOutputKey =
+        definition?.primaryOutputKey &&
+        ports.outputs.some(
+          (port) => port.key === definition.primaryOutputKey && port.type === "geometry"
+        )
+          ? definition.primaryOutputKey
+          : ports.outputs.find((port) => port.type === "geometry")?.key;
+      const outputValue = geometryOutputKey && outputs ? outputs[geometryOutputKey] : null;
+
+      if (selectFromValue(outputValue)) return true;
+      if (outputs) {
+        if (selectFromValue((outputs as Record<string, unknown>).geometryList)) return true;
+        if (selectFromValue((outputs as Record<string, unknown>).geometryIds)) return true;
+      }
+      if (selectIfExists(candidate.data?.geometryId)) return true;
+      const geometryIds = Array.isArray(candidate.data?.geometryIds)
+        ? candidate.data.geometryIds
+        : [];
+      if (selectGeometryIds(geometryIds)) return true;
+      return false;
+    };
     if (node.type === "pointCloud") {
       const geometryIds = Array.isArray(node.data?.geometryIds) ? node.data.geometryIds : [];
-      if (geometryIds.length > 0) {
-        get().setSelectedGeometryIds(geometryIds);
+      if (selectGeometryIds(geometryIds)) {
+        return;
       }
-      return;
     }
     const outputParams = node.data?.outputs;
     const primitiveKind =
@@ -5598,38 +6460,31 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       return;
     }
 
-    const definition = getNodeDefinition(node.type);
-    const parameters = resolveNodeParameters(node);
-    const ports = resolveNodePorts(node, parameters);
-    const geometryOutputKey =
-      definition?.primaryOutputKey &&
-      ports.outputs.some(
-        (port) => port.key === definition.primaryOutputKey && port.type === "geometry"
-      )
-        ? definition.primaryOutputKey
-        : ports.outputs.find((port) => port.type === "geometry")?.key;
-
-    const outputValue =
-      geometryOutputKey && node.data?.outputs ? node.data.outputs[geometryOutputKey] : null;
-
-    if (typeof outputValue === "string" && selectIfExists(outputValue)) {
+    if (trySelectFromNode(node)) {
       return;
     }
 
-    if (typeof node.data?.geometryId === "string") {
-      selectIfExists(node.data.geometryId);
+    get().recalculateWorkflow();
+
+    const refreshed = get().workflow.nodes.find((entry) => entry.id === nodeId);
+    if (!refreshed) return;
+    if (trySelectFromNode(refreshed)) {
+      return;
     }
   },
   addGeometryReferenceNode: (geometryId) => {
     const resolvedGeometryId =
-      geometryId ?? get().selectedGeometryIds[get().selectedGeometryIds.length - 1] ?? get().geometry[0]?.id;
-    if (!resolvedGeometryId) return;
+      geometryId ??
+      get().selectedGeometryIds[get().selectedGeometryIds.length - 1] ??
+      get().geometry[0]?.id;
+    if (!resolvedGeometryId) return null;
     const selected = get().geometry.find((item) => item.id === resolvedGeometryId);
+    if (!selected) return null;
     const existing = get().workflow.nodes.some(
       (node) =>
         node.type === "geometryReference" && node.data?.geometryId === resolvedGeometryId
     );
-    if (existing) return;
+    if (existing) return null;
     const id = `node-geometry-ref-${Date.now()}`;
     const position = { x: 80 + Math.random() * 160, y: 60 + Math.random() * 160 };
     const data: WorkflowNodeData = {
@@ -5646,6 +6501,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       },
     }));
     get().recalculateWorkflow();
+    return id;
   },
   setSaves: (saves) => set({ saves }),
   selectGeometry: (id, isMultiSelect = false) =>
@@ -6084,6 +6940,54 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     });
     return polylineId;
   },
+  addGeometryNurbsCurve: (nurbs, options) => {
+    const id = createGeometryId("nurbsCurve");
+    const recordHistory = options?.recordHistory ?? true;
+    if (recordHistory) {
+      get().recordModelerHistory();
+    }
+    const layerId = withDefaultLayerId(options?.layerId, get());
+    const item: Geometry = {
+      id,
+      type: "nurbsCurve",
+      nurbs,
+      closed: options?.closed ?? false,
+      layerId,
+      area_m2: options?.area_m2,
+      thickness_m: options?.thickness_m,
+      sourceNodeId: options?.sourceNodeId,
+      metadata: options?.metadata,
+    };
+    get().addGeometryItems([item], {
+      selectIds: options?.selectIds ?? [id],
+      recordHistory: false,
+    });
+    return id;
+  },
+  addGeometryNurbsSurface: (nurbs, options) => {
+    const id = createGeometryId("nurbsSurface");
+    const recordHistory = options?.recordHistory ?? true;
+    if (recordHistory) {
+      get().recordModelerHistory();
+    }
+    const layerId = withDefaultLayerId(options?.layerId, get());
+    const item: Geometry = {
+      id,
+      type: "nurbsSurface",
+      nurbs,
+      mesh: options?.mesh,
+      layerId,
+      area_m2: options?.area_m2,
+      thickness_m: options?.thickness_m,
+      sourceNodeId: options?.sourceNodeId,
+      metadata: options?.metadata,
+    };
+    get().addGeometryItems([item], {
+      selectIds: options?.selectIds ?? [id],
+      recordHistory: false,
+    });
+    return id;
+  },
   addGeometrySurface: (mesh, loops, plane) => {
     get().recordModelerHistory();
     const id = createGeometryId("surface");
@@ -6344,6 +7248,20 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           options?.selectIds ?? normalizedItems.map((item) => item.id),
         sceneNodes: [...state.sceneNodes, ...newSceneNodes],
       } satisfies Partial<ProjectStore>;
+    });
+    get().recalculateWorkflow();
+  },
+  replaceGeometryBatch: (items, options) => {
+    const recordHistory = options?.recordHistory ?? true;
+    if (recordHistory) {
+      get().recordModelerHistory();
+    }
+    set((state) => {
+      const itemMap = new Map(items.map((item) => [item.id, item]));
+      const nextGeometry = state.geometry.map((item) =>
+        itemMap.get(item.id) ?? item
+      ) as Geometry[];
+      return { geometry: nextGeometry } satisfies Partial<ProjectStore>;
     });
     get().recalculateWorkflow();
   },
@@ -6787,68 +7705,52 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         const controlPoints = parsed.length >= 3 ? parsed.slice(0, 3) : [];
         if (controlPoints.length === 3) {
           const [start, end, through] = controlPoints;
-          const arcPoints =
-            computeArcPolyline(get().cPlane, start, end, through, 48) ?? [start, end];
-          const reuse =
-            node.data.geometryId &&
-            node.data.vertexIds &&
-            node.data.vertexIds.length === arcPoints.length;
-          if (reuse && node.data.geometryId && node.data.vertexIds) {
-            node.data.vertexIds.forEach((vertexId, index) => {
-              const point = arcPoints[index];
-              if (!point) return;
-              get().updateGeometry(vertexId, { position: point });
-            });
-            get().updateGeometry(node.data.geometryId, {
-              vertexIds: node.data.vertexIds,
-              closed: false,
-            });
+          const plane = computeBestFitPlane([start, through, end]);
+          const nurbs =
+            createArcNurbs(plane, start, end, through) ??
+            createNurbsCurveFromPoints([start, through, end], 2, false);
+          const arcId = node.data.geometryId ?? createGeometryId("nurbsCurve");
+          const existing = get().geometry.find((item) => item.id === arcId);
+          if (existing && existing.type === "nurbsCurve") {
+            get().updateGeometry(arcId, { nurbs, closed: false });
           } else {
             if (node.data.vertexIds?.length) {
               get().deleteGeometry(node.data.vertexIds, { recordHistory: true });
             }
-            const vertexIds = arcPoints.map(() => createGeometryId("vertex"));
-            const arcId = node.data.geometryId ?? createGeometryId("polyline");
-            const vertexItems: Geometry[] = arcPoints.map((point, index) => ({
-              id: vertexIds[index],
-              type: "vertex",
-              position: point,
-              layerId: "layer-default",
-              area_m2: 1,
-              thickness_m: 0.1,
-            }));
+            if (existing) {
+              get().deleteGeometry(existing.id, { recordHistory: true });
+            }
             const arcItem: Geometry = {
               id: arcId,
-              type: "polyline",
-              vertexIds,
+              type: "nurbsCurve",
+              nurbs,
               closed: false,
-              degree: 1,
               layerId: "layer-default",
             };
-            get().addGeometryItems([...vertexItems, arcItem], {
+            get().addGeometryItems([arcItem], {
               selectIds: get().selectedGeometryIds,
               recordHistory: true,
             });
-            set((state) => ({
-              workflow: {
-                ...state.workflow,
-                nodes: state.workflow.nodes.map((entry) =>
-                  entry.id === nodeId
-                    ? {
-                        ...entry,
-                        data: {
-                          ...entry.data,
-                          geometryId: arcId,
-                          geometryType: "polyline",
-                          vertexIds,
-                          closed: false,
-                        },
-                      }
-                    : entry
-                ),
-              },
-            }));
           }
+          set((state) => ({
+            workflow: {
+              ...state.workflow,
+              nodes: state.workflow.nodes.map((entry) =>
+                entry.id === nodeId
+                  ? {
+                      ...entry,
+                      data: {
+                        ...entry.data,
+                        geometryId: arcId,
+                        geometryType: "nurbsCurve",
+                        closed: false,
+                        vertexIds: undefined,
+                      },
+                    }
+                  : entry
+              ),
+            },
+          }));
         }
       }
       if (node.type === "curve") {
@@ -6874,70 +7776,52 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           };
           const degreeRaw = coerceNumber(parameters.degree, 3);
           const degree = Math.min(3, Math.max(1, Math.round(degreeRaw))) as 1 | 2 | 3;
-          const resolutionRaw = coerceNumber(parameters.resolution, 64);
-          const resolution = Math.min(256, Math.max(16, Math.round(resolutionRaw)));
           const closed = coerceBoolean(parameters.closed, false);
-          const curvePoints = interpolatePolyline(controlPoints, degree, closed, resolution);
-          const reuse =
-            node.data.geometryId &&
-            node.data.vertexIds &&
-            node.data.vertexIds.length === curvePoints.length;
-          if (reuse && node.data.geometryId && node.data.vertexIds) {
-            node.data.vertexIds.forEach((vertexId, index) => {
-              const point = curvePoints[index];
-              if (!point) return;
-              get().updateGeometry(vertexId, { position: point });
-            });
-            get().updateGeometry(node.data.geometryId, {
-              vertexIds: node.data.vertexIds,
-              closed,
-            });
+          const nurbs = closed
+            ? createNurbsCurveFromPoints(controlPoints, degree, true)
+            : interpolateNurbsCurve(controlPoints, degree);
+          const curveId = node.data.geometryId ?? createGeometryId("nurbsCurve");
+          const existing = get().geometry.find((item) => item.id === curveId);
+          if (existing && existing.type === "nurbsCurve") {
+            get().updateGeometry(curveId, { nurbs, closed });
           } else {
             if (node.data.vertexIds?.length) {
               get().deleteGeometry(node.data.vertexIds, { recordHistory: true });
             }
-            const vertexIds = curvePoints.map(() => createGeometryId("vertex"));
-            const curveId = node.data.geometryId ?? createGeometryId("polyline");
-            const vertexItems: Geometry[] = curvePoints.map((point, index) => ({
-              id: vertexIds[index],
-              type: "vertex",
-              position: point,
-              layerId: "layer-default",
-              area_m2: 1,
-              thickness_m: 0.1,
-            }));
+            if (existing) {
+              get().deleteGeometry(existing.id, { recordHistory: true });
+            }
             const curveItem: Geometry = {
               id: curveId,
-              type: "polyline",
-              vertexIds,
+              type: "nurbsCurve",
+              nurbs,
               closed,
-              degree,
               layerId: "layer-default",
             };
-            get().addGeometryItems([...vertexItems, curveItem], {
+            get().addGeometryItems([curveItem], {
               selectIds: get().selectedGeometryIds,
               recordHistory: true,
             });
-            set((state) => ({
-              workflow: {
-                ...state.workflow,
-                nodes: state.workflow.nodes.map((entry) =>
-                  entry.id === nodeId
-                    ? {
-                        ...entry,
-                        data: {
-                          ...entry.data,
-                          geometryId: curveId,
-                          geometryType: "polyline",
-                          vertexIds,
-                          closed,
-                        },
-                      }
-                    : entry
-                ),
-              },
-            }));
           }
+          set((state) => ({
+            workflow: {
+              ...state.workflow,
+              nodes: state.workflow.nodes.map((entry) =>
+                entry.id === nodeId
+                  ? {
+                      ...entry,
+                      data: {
+                        ...entry.data,
+                        geometryId: curveId,
+                        geometryType: "nurbsCurve",
+                        closed,
+                        vertexIds: undefined,
+                      },
+                    }
+                  : entry
+              ),
+            },
+          }));
         }
       }
       if (node.type === "polyline") {
@@ -7145,74 +8029,62 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       if (node.type === "circle") {
         const parameters = node.data.parameters ?? {};
         const radius = Number(parameters.radius ?? 1);
-        const segments = Number(parameters.segments ?? 48);
         const center = {
           x: Number(parameters.centerX ?? 0),
           y: Number(parameters.centerY ?? 0),
           z: Number(parameters.centerZ ?? 0),
         };
+        const normal = {
+          x: Number(parameters.normalX ?? 0),
+          y: Number(parameters.normalY ?? 1),
+          z: Number(parameters.normalZ ?? 0),
+        };
         if (Number.isFinite(radius) && radius > 0) {
-          const points = buildCirclePoints(center, radius, segments, get().cPlane);
-          const reuse =
-            node.data.geometryId &&
-            node.data.vertexIds &&
-            node.data.vertexIds.length === points.length;
-          if (reuse && node.data.geometryId && node.data.vertexIds) {
-            node.data.vertexIds.forEach((vertexId, index) => {
-              const point = points[index];
-              if (!point) return;
-              get().updateGeometry(vertexId, { position: point });
-            });
-            get().updateGeometry(node.data.geometryId, {
-              vertexIds: node.data.vertexIds,
-              closed: true,
-            });
+          const plane =
+            lengthVec3(normal) > 1e-6 ? buildPlaneFromNormal(center, normal) : get().cPlane;
+          const nurbs = createCircleNurbs(plane, center, radius);
+          const circleId = node.data.geometryId ?? createGeometryId("nurbsCurve");
+          const existing = get().geometry.find((item) => item.id === circleId);
+          if (existing && existing.type === "nurbsCurve") {
+            get().updateGeometry(circleId, { nurbs, closed: true });
           } else {
             if (node.data.vertexIds?.length) {
               get().deleteGeometry(node.data.vertexIds, { recordHistory: true });
             }
-            const vertexIds = points.map(() => createGeometryId("vertex"));
-            const circleId = node.data.geometryId ?? createGeometryId("polyline");
-            const vertexItems: Geometry[] = points.map((point, index) => ({
-              id: vertexIds[index],
-              type: "vertex",
-              position: point,
-              layerId: "layer-default",
-              area_m2: 1,
-              thickness_m: 0.1,
-            }));
+            if (existing) {
+              get().deleteGeometry(existing.id, { recordHistory: true });
+            }
             const circleItem: Geometry = {
               id: circleId,
-              type: "polyline",
-              vertexIds,
+              type: "nurbsCurve",
+              nurbs,
               closed: true,
-              degree: 2,
               layerId: "layer-default",
             };
-            get().addGeometryItems([...vertexItems, circleItem], {
+            get().addGeometryItems([circleItem], {
               selectIds: get().selectedGeometryIds,
               recordHistory: true,
             });
-            set((state) => ({
-              workflow: {
-                ...state.workflow,
-                nodes: state.workflow.nodes.map((entry) =>
-                  entry.id === nodeId
-                    ? {
-                        ...entry,
-                        data: {
-                          ...entry.data,
-                          geometryId: circleId,
-                          geometryType: "polyline",
-                          vertexIds,
-                          closed: true,
-                        },
-                      }
-                    : entry
-                ),
-              },
-            }));
           }
+          set((state) => ({
+            workflow: {
+              ...state.workflow,
+              nodes: state.workflow.nodes.map((entry) =>
+                entry.id === nodeId
+                  ? {
+                      ...entry,
+                      data: {
+                        ...entry.data,
+                        geometryId: circleId,
+                        geometryType: "nurbsCurve",
+                        closed: true,
+                        vertexIds: undefined,
+                      },
+                    }
+                  : entry
+              ),
+            },
+          }));
         }
       }
     }
@@ -7224,13 +8096,35 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
   addNodeAt: (type, position) => {
     const id = `node-${type}-${Date.now()}`;
-    const labels: Partial<Record<NodeType, string>> = {
-      geometryReference: "Geometry Reference",
-      group: "Group",
+      const labels: Partial<Record<NodeType, string>> = {
+        geometryReference: "Geometry Reference",
+        text: "Text",
+        group: "Group",
       colorPicker: "Color Picker",
       customMaterial: "Custom Material",
       geometryViewer: "Geometry Viewer",
+      customPreview: "Custom Preview",
+      previewFilter: "Filter",
       meshConvert: "Mesh Convert",
+      nurbsToMesh: "NURBS to Mesh",
+      brepToMesh: "B-Rep to Mesh",
+      meshToBrep: "Mesh to B-Rep",
+      subdivideMesh: "Subdivide Mesh",
+      dualMesh: "Dual Mesh",
+      insetFaces: "Inset Faces",
+      extrudeFaces: "Extrude Faces",
+      meshRelax: "Mesh Relax",
+      selectFaces: "Select Faces",
+      meshBoolean: "Mesh Boolean",
+      triangulateMesh: "Triangulate Mesh",
+      geodesicSphere: "Geodesic Sphere",
+      voronoiPattern: "Voronoi Pattern",
+      hexagonalTiling: "Hexagonal Tiling",
+      offsetPattern: "Offset Pattern",
+      meshRepair: "Mesh Repair",
+      meshUVs: "Generate UVs",
+      meshDecimate: "Mesh Decimate",
+      quadRemesh: "Quad Remesh",
       stlExport: "STL Export",
       stlImport: "STL Import",
       point: "Point Generator",
@@ -7267,7 +8161,28 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       extractIsosurface: "Extract Isosurface",
       topologyOptimize: "Topology Optimize",
       topologySolver: "Topology Solver",
-      biologicalSolver: "Biological Solver",
+      physicsSolver: "Ἐπιλύτης Φυσικῆς",
+      voxelSolver: "Ἐπιλύτης Φογκελ",
+      biologicalSolver: "Ἐπιλύτης Βιολογίας",
+      biologicalEvolutionSolver: "Biological Solver",
+      chemistrySolver: "Ἐπιλύτης Χημείας",
+      stiffnessGoal: "Σκληρότης",
+      volumeGoal: "Ὄγκος",
+      loadGoal: "Βάρος",
+      anchorGoal: "Ἄγκυρα",
+      genomeCollector: "Genome Collector",
+      geometryPhenotype: "Geometry Phenotype",
+      performsFitness: "Performs Fitness",
+      growthGoal: "Αὔξησις",
+      nutrientGoal: "Θρέψις",
+      morphogenesisGoal: "Μορφογένεσις",
+      homeostasisGoal: "Ὁμοιόστασις",
+      chemistryMaterialGoal: "Ὕλη",
+      chemistryStiffnessGoal: "Τέλος Σκληρότητος",
+      chemistryMassGoal: "Τέλος Ἐλαχίστου Ὄγκου",
+      chemistryBlendGoal: "Τέλος Κράσεως",
+      chemistryTransparencyGoal: "Τέλος Διαφανείας",
+      chemistryThermalGoal: "Τέλος Ῥοῆς Θερμότητος",
       origin: "Origin",
       unitX: "Unit X",
       unitY: "Unit Y",
@@ -7352,7 +8267,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       parameters: Object.keys(parameters).length > 0 ? parameters : undefined,
     };
     if (type === "geometryReference") {
-      data.geometryId = get().geometry[0]?.id ?? "vertex-1";
+      const fallbackId = get().geometry[0]?.id ?? null;
+      if (fallbackId) {
+        data.geometryId = fallbackId;
+      }
     }
     if (type === "move") {
       const geometryId =
@@ -7466,36 +8384,32 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }
     if (type === "circle") {
       const radius = typeof parameters.radius === "number" ? parameters.radius : 1;
-      const segments = typeof parameters.segments === "number" ? parameters.segments : 48;
       const center = {
         x: typeof parameters.centerX === "number" ? parameters.centerX : 0,
         y: typeof parameters.centerY === "number" ? parameters.centerY : 0,
         z: typeof parameters.centerZ === "number" ? parameters.centerZ : 0,
       };
-      const points = buildCirclePoints(center, radius, segments, get().cPlane);
-      const vertexIds = points.map(() => createGeometryId("vertex"));
-      data.vertexIds = vertexIds;
-      const circleId = createGeometryId("polyline");
+      const normal = {
+        x: typeof parameters.normalX === "number" ? parameters.normalX : 0,
+        y: typeof parameters.normalY === "number" ? parameters.normalY : 1,
+        z: typeof parameters.normalZ === "number" ? parameters.normalZ : 0,
+      };
+      const plane =
+        lengthVec3(normal) > 1e-6 ? buildPlaneFromNormal(center, normal) : get().cPlane;
+      const nurbs = createCircleNurbs(plane, center, radius);
+      const circleId = createGeometryId("nurbsCurve");
       data.geometryId = circleId;
-      data.geometryType = "polyline";
+      data.geometryType = "nurbsCurve";
+      data.closed = true;
       data.isLinked = true;
-      const vertexItems: Geometry[] = points.map((point, index) => ({
-        id: vertexIds[index],
-        type: "vertex",
-        position: point,
-        layerId: "layer-default",
-        area_m2: 1,
-        thickness_m: 0.1,
-      }));
       const circleItem: Geometry = {
         id: circleId,
-        type: "polyline",
-        vertexIds,
+        type: "nurbsCurve",
+        nurbs,
         closed: true,
-        degree: 2,
         layerId: "layer-default",
       };
-      get().addGeometryItems([...vertexItems, circleItem], {
+      get().addGeometryItems([circleItem], {
         selectIds: get().selectedGeometryIds,
         recordHistory: true,
       });
@@ -7505,33 +8419,25 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       data.closed = false;
       const controlPoints = parsePointsText(data.pointsText).slice(0, 3);
       const [start, end, through] = controlPoints;
-      const arcPoints =
+      const plane =
+        start && end && through ? computeBestFitPlane([start, through, end]) : get().cPlane;
+      const nurbs =
         start && end && through
-          ? computeArcPolyline(get().cPlane, start, end, through, 48) ?? [start, end]
-          : controlPoints;
-      const vertexIds = arcPoints.map(() => createGeometryId("vertex"));
-      data.vertexIds = vertexIds;
-      const arcId = createGeometryId("polyline");
+          ? createArcNurbs(plane, start, end, through) ??
+            createNurbsCurveFromPoints([start, through, end], 2, false)
+          : createNurbsCurveFromPoints(controlPoints, 2, false);
+      const arcId = createGeometryId("nurbsCurve");
       data.geometryId = arcId;
-      data.geometryType = "polyline";
+      data.geometryType = "nurbsCurve";
       data.isLinked = true;
-      const vertexItems: Geometry[] = arcPoints.map((point, index) => ({
-        id: vertexIds[index],
-        type: "vertex",
-        position: point,
-        layerId: "layer-default",
-        area_m2: 1,
-        thickness_m: 0.1,
-      }));
       const arcItem: Geometry = {
         id: arcId,
-        type: "polyline",
-        vertexIds,
+        type: "nurbsCurve",
+        nurbs,
         closed: false,
-        degree: 1,
         layerId: "layer-default",
       };
-      get().addGeometryItems([...vertexItems, arcItem], {
+      get().addGeometryItems([arcItem], {
         selectIds: get().selectedGeometryIds,
         recordHistory: true,
       });
@@ -7541,35 +8447,23 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const controlPoints = parsePointsText(data.pointsText);
       const degreeRaw = typeof parameters.degree === "number" ? parameters.degree : 3;
       const degree = Math.min(3, Math.max(1, Math.round(degreeRaw))) as 1 | 2 | 3;
-      const resolutionRaw =
-        typeof parameters.resolution === "number" ? parameters.resolution : 64;
-      const resolution = Math.min(256, Math.max(16, Math.round(resolutionRaw)));
       const closed = Boolean(parameters.closed);
       data.closed = closed;
-      const curvePoints = interpolatePolyline(controlPoints, degree, closed, resolution);
-      const vertexIds = curvePoints.map(() => createGeometryId("vertex"));
-      data.vertexIds = vertexIds;
-      const curveId = createGeometryId("polyline");
+      const nurbs = closed
+        ? createNurbsCurveFromPoints(controlPoints, degree, true)
+        : interpolateNurbsCurve(controlPoints, degree);
+      const curveId = createGeometryId("nurbsCurve");
       data.geometryId = curveId;
-      data.geometryType = "polyline";
+      data.geometryType = "nurbsCurve";
       data.isLinked = true;
-      const vertexItems: Geometry[] = curvePoints.map((point, index) => ({
-        id: vertexIds[index],
-        type: "vertex",
-        position: point,
-        layerId: "layer-default",
-        area_m2: 1,
-        thickness_m: 0.1,
-      }));
       const curveItem: Geometry = {
         id: curveId,
-        type: "polyline",
-        vertexIds,
+        type: "nurbsCurve",
+        nurbs,
         closed,
-        degree,
         layerId: "layer-default",
       };
-      get().addGeometryItems([...vertexItems, curveItem], {
+      get().addGeometryItems([curveItem], {
         selectIds: get().selectedGeometryIds,
         recordHistory: true,
       });
@@ -7681,7 +8575,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       });
     }
 
-    if (type === "meshConvert" || type === "stlImport") {
+    if (type === "meshConvert" || type === "nurbsToMesh" || type === "brepToMesh" || type === "stlImport") {
       const emptyMesh: RenderMesh = { positions: [], normals: [], uvs: [], indices: [] };
       const meshId = createGeometryId("mesh");
       data.geometryId = meshId;
@@ -7698,6 +8592,73 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         },
       };
       get().addGeometryItems([meshItem], {
+        selectIds: get().selectedGeometryIds,
+        recordHistory: true,
+      });
+    }
+
+    if (type === "physicsSolver") {
+      const emptyMesh: RenderMesh = { positions: [], normals: [], uvs: [], indices: [] };
+      const meshId = createGeometryId("mesh");
+      data.geometryId = meshId;
+      data.geometryType = "mesh";
+      data.isLinked = true;
+      const meshItem: Geometry = {
+        id: meshId,
+        type: "mesh",
+        mesh: emptyMesh,
+        layerId: "layer-default",
+        sourceNodeId: id,
+        metadata: {
+          label: labels[type] ?? "Physics Solver",
+        },
+      };
+      get().addGeometryItems([meshItem], {
+        selectIds: get().selectedGeometryIds,
+        recordHistory: true,
+      });
+    }
+
+    if (type === "chemistrySolver") {
+      const emptyMesh: RenderMesh = { positions: [], normals: [], uvs: [], indices: [] };
+      const meshId = createGeometryId("mesh");
+      data.geometryId = meshId;
+      data.geometryType = "mesh";
+      data.isLinked = true;
+      const meshItem: Geometry = {
+        id: meshId,
+        type: "mesh",
+        mesh: emptyMesh,
+        layerId: "layer-default",
+        sourceNodeId: id,
+        metadata: {
+          label: labels[type] ?? "Chemistry Solver",
+        },
+      };
+      get().addGeometryItems([meshItem], {
+        selectIds: get().selectedGeometryIds,
+        recordHistory: true,
+      });
+    }
+
+    if (type === "meshToBrep") {
+      const emptyMesh: RenderMesh = { positions: [], normals: [], uvs: [], indices: [] };
+      const brepId = createGeometryId("brep");
+      data.geometryId = brepId;
+      data.geometryType = "brep";
+      data.isLinked = true;
+      const brepItem: Geometry = {
+        id: brepId,
+        type: "brep",
+        brep: { vertices: [], edges: [], loops: [], faces: [], solids: [] },
+        mesh: emptyMesh,
+        layerId: "layer-default",
+        sourceNodeId: id,
+        metadata: {
+          label: labels[type] ?? "B-Rep",
+        },
+      };
+      get().addGeometryItems([brepItem], {
         selectIds: get().selectedGeometryIds,
         recordHistory: true,
       });
@@ -7869,13 +8830,35 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       .filter((change) => change.type === "remove")
       .map((change) => previousNodes.find((node) => node.id === change.id))
       .filter(Boolean) as WorkflowNode[];
+    const removedNodeIds = new Set(removedNodes.map((node) => node.id));
     set((state) => ({
       workflowHistory: shouldTrackNodeChange(changes)
         ? appendWorkflowHistory(state.workflowHistory, state.workflow)
         : state.workflowHistory,
       workflow: {
         ...state.workflow,
-        nodes: applyNodeChanges(changes, state.workflow.nodes),
+        nodes: (() => {
+          const nextNodes = applyNodeChanges(changes, state.workflow.nodes);
+          if (removedNodeIds.size === 0) return nextNodes;
+          return nextNodes.map((node) => {
+            if (node.type !== "group" || !Array.isArray(node.data?.groupNodeIds)) {
+              return node;
+            }
+            const nextGroupNodeIds = node.data.groupNodeIds.filter(
+              (groupNodeId) => !removedNodeIds.has(groupNodeId)
+            );
+            if (nextGroupNodeIds.length === node.data.groupNodeIds.length) {
+              return node;
+            }
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                groupNodeIds: nextGroupNodeIds,
+              },
+            };
+          });
+        })(),
       },
     }));
     if (removedNodes.length > 0) {
@@ -7946,6 +8929,15 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       sourceHandle: sourceKey,
       targetHandle: targetKey,
     };
+
+    const hasDuplicate = state.workflow.edges.some(
+      (edge) =>
+        edge.source === normalizedConnection.source &&
+        edge.target === normalizedConnection.target &&
+        (edge.sourceHandle ?? defaultSourceKey) === normalizedConnection.sourceHandle &&
+        (edge.targetHandle ?? defaultTargetKey) === normalizedConnection.targetHandle
+    );
+    if (hasDuplicate) return;
 
     set((current) => {
       const filteredEdges = targetPort.allowMultiple
@@ -8064,23 +9056,24 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     };
   },
   recalculateWorkflow: () => {
-    const state = get();
-    const prunedWorkflow = pruneWorkflowState(state.workflow);
-    const evaluated = evaluateWorkflow(
-      prunedWorkflow.nodes,
-      prunedWorkflow.edges,
-      state.geometry
-    );
+    try {
+      const state = get();
+      const prunedWorkflow = pruneWorkflowState(state.workflow);
+      const evaluated = evaluateWorkflow(
+        prunedWorkflow.nodes,
+        prunedWorkflow.edges,
+        state.geometry
+      );
     const seedApplied = applySeedGeometryNodesToGeometry(
       evaluated.nodes,
       state.geometry,
       state.cPlane
     );
-    const evaluatedAfterSeed = evaluateWorkflow(
-      seedApplied.nodes,
-      evaluated.edges,
-      seedApplied.geometry
-    );
+      const evaluatedAfterSeed = evaluateWorkflow(
+        seedApplied.nodes,
+        evaluated.edges,
+        seedApplied.geometry
+      );
     const dependentApplied = applyDependentGeometryNodesToGeometry(
       evaluatedAfterSeed.nodes,
       seedApplied.geometry,
@@ -8091,130 +9084,153 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       evaluatedAfterSeed.edges,
       dependentApplied.geometry
     );
-    const moveApplied = applyMoveNodesToGeometry(
+    const upstreamTouched = new Set<string>([
+      ...seedApplied.touchedGeometryIds,
+      ...dependentApplied.touchedGeometryIds,
+    ]);
+    const nodesWithResetTransforms = resetTransformCachesForGeometry(
       evaluatedAfterCreate.nodes,
+      upstreamTouched
+    );
+    const moveApplied = applyMoveNodesToGeometry(
+      nodesWithResetTransforms,
       dependentApplied.geometry
     );
-    if (moveApplied.didApply) {
-      get().recordModelerHistory();
-    }
-    const rotateApplied = applyRotateNodesToGeometry(
-      moveApplied.nodes,
-      moveApplied.geometry
-    );
-    const scaleApplied = applyScaleNodesToGeometry(
-      rotateApplied.nodes,
-      rotateApplied.geometry
-    );
-    const loftApplied = applyLoftNodesToGeometry(
-      scaleApplied.nodes,
-      scaleApplied.geometry
-    );
-    const extrudeApplied = applyExtrudeNodesToGeometry(
-      loftApplied.nodes,
-      loftApplied.geometry
-    );
-    const booleanApplied = applyBooleanNodesToGeometry(
-      extrudeApplied.nodes,
-      extrudeApplied.geometry
-    );
-    const pipeApplied = applyPipeSweepNodesToGeometry(
-      booleanApplied.nodes,
-      booleanApplied.geometry
-    );
-    const pipeMerged = applyPipeMergeNodesToGeometry(
-      pipeApplied.nodes,
-      pipeApplied.geometry
-    );
-    const offsetApplied = applyOffsetNodesToGeometry(
-      pipeMerged.nodes,
-      pipeMerged.geometry
-    );
-    const offsetSurfaceApplied = applyOffsetSurfaceNodesToGeometry(
-      offsetApplied.nodes,
-      offsetApplied.geometry
-    );
-    const filletApplied = applyFilletNodesToGeometry(
-      offsetSurfaceApplied.nodes,
-      offsetSurfaceApplied.geometry
-    );
-    const filletEdgesApplied = applyFilletEdgesNodesToGeometry(
-      filletApplied.nodes,
-      filletApplied.geometry
-    );
-    const thickenApplied = applyThickenMeshNodesToGeometry(
-      filletEdgesApplied.nodes,
-      filletEdgesApplied.geometry
-    );
-    const plasticwrapApplied = applyPlasticwrapNodesToGeometry(
-      thickenApplied.nodes,
-      thickenApplied.geometry
-    );
-    const solidApplied = applySolidNodesToGeometry(
-      plasticwrapApplied.nodes,
-      plasticwrapApplied.geometry
-    );
-    const fieldApplied = applyFieldTransformationNodesToGeometry(
-      solidApplied.nodes,
-      solidApplied.geometry
-    );
-    const arrayApplied = applyGeometryArrayNodesToGeometry(
-      fieldApplied.nodes,
-      fieldApplied.geometry
-    );
-    const isoApplied = applyIsosurfaceNodesToGeometry(
-      arrayApplied.nodes,
-      arrayApplied.geometry
-    );
-    const meshApplied = applyMeshConvertNodesToGeometry(
-      isoApplied.nodes,
-      isoApplied.geometry
-    );
-    const importApplied = applyImportNodesToGeometry(
-      meshApplied.nodes,
-      meshApplied.geometry
-    );
-    const customMaterialApplied = applyCustomMaterialNodesToGeometry(
-      importApplied.nodes,
-      importApplied.geometry
-    );
-    const exportHandled = handleExportNodes(
-      customMaterialApplied.nodes,
-      customMaterialApplied.geometry
-    );
-    const finalEvaluated = evaluateWorkflow(
-      exportHandled.nodes,
-      evaluatedAfterCreate.edges,
-      customMaterialApplied.geometry
-    );
-    const nextGeometry = customMaterialApplied.geometry;
-    const previousIds = new Set(state.geometry.map((item) => item.id));
-    const nextIds = new Set(nextGeometry.map((item) => item.id));
-    const geometryIdsChanged =
-      previousIds.size !== nextIds.size ||
-      Array.from(nextIds).some((id) => !previousIds.has(id));
-    const nextState: Partial<ProjectStore> = {
-      geometry: nextGeometry,
-      workflow: {
-        nodes: finalEvaluated.nodes,
-        edges: finalEvaluated.edges,
-      },
-    };
-    if (geometryIdsChanged) {
-      Object.assign(
-        nextState,
-        reconcileGeometryCollections(
-          nextGeometry,
-          state.layers,
-          state.sceneNodes,
-          state.assignments,
-          state.hiddenGeometryIds,
-          state.lockedGeometryIds,
-          state.selectedGeometryIds
-        )
+      if (moveApplied.didApply) {
+        get().recordModelerHistory();
+      }
+      const rotateApplied = applyRotateNodesToGeometry(
+        moveApplied.nodes,
+        moveApplied.geometry
       );
+      const scaleApplied = applyScaleNodesToGeometry(
+        rotateApplied.nodes,
+        rotateApplied.geometry
+      );
+      const loftApplied = applyLoftNodesToGeometry(
+        scaleApplied.nodes,
+        scaleApplied.geometry
+      );
+      const extrudeApplied = applyExtrudeNodesToGeometry(
+        loftApplied.nodes,
+        loftApplied.geometry
+      );
+      const booleanApplied = applyBooleanNodesToGeometry(
+        extrudeApplied.nodes,
+        extrudeApplied.geometry
+      );
+      const pipeApplied = applyPipeSweepNodesToGeometry(
+        booleanApplied.nodes,
+        booleanApplied.geometry
+      );
+      const pipeMerged = applyPipeMergeNodesToGeometry(
+        pipeApplied.nodes,
+        pipeApplied.geometry
+      );
+      const offsetApplied = applyOffsetNodesToGeometry(
+        pipeMerged.nodes,
+        pipeMerged.geometry
+      );
+      const offsetSurfaceApplied = applyOffsetSurfaceNodesToGeometry(
+        offsetApplied.nodes,
+        offsetApplied.geometry
+      );
+      const filletApplied = applyFilletNodesToGeometry(
+        offsetSurfaceApplied.nodes,
+        offsetSurfaceApplied.geometry
+      );
+      const filletEdgesApplied = applyFilletEdgesNodesToGeometry(
+        filletApplied.nodes,
+        filletApplied.geometry
+      );
+      const tessellationApplied = applyTessellationNodesToGeometry(
+        filletEdgesApplied.nodes,
+        filletEdgesApplied.geometry
+      );
+      const thickenApplied = applyThickenMeshNodesToGeometry(
+        tessellationApplied.nodes,
+        tessellationApplied.geometry
+      );
+      const plasticwrapApplied = applyPlasticwrapNodesToGeometry(
+        thickenApplied.nodes,
+        thickenApplied.geometry
+      );
+      const solidApplied = applySolidNodesToGeometry(
+        plasticwrapApplied.nodes,
+        plasticwrapApplied.geometry
+      );
+      const fieldApplied = applyFieldTransformationNodesToGeometry(
+        solidApplied.nodes,
+        solidApplied.geometry
+      );
+      const arrayApplied = applyGeometryArrayNodesToGeometry(
+        fieldApplied.nodes,
+        fieldApplied.geometry
+      );
+      const isoApplied = applyIsosurfaceNodesToGeometry(
+        arrayApplied.nodes,
+        arrayApplied.geometry
+      );
+      const meshApplied = applyMeshConvertNodesToGeometry(
+        isoApplied.nodes,
+        isoApplied.geometry
+      );
+      const solverApplied = applyPhysicsSolverNodesToGeometry(
+        meshApplied.nodes,
+        meshApplied.geometry
+      );
+      const chemistryApplied = applyChemistrySolverNodesToGeometry(
+        solverApplied.nodes,
+        solverApplied.geometry
+      );
+      const importApplied = applyImportNodesToGeometry(
+        chemistryApplied.nodes,
+        chemistryApplied.geometry
+      );
+      const customMaterialApplied = applyCustomMaterialNodesToGeometry(
+        importApplied.nodes,
+        importApplied.geometry
+      );
+      const exportHandled = handleExportNodes(
+        customMaterialApplied.nodes,
+        customMaterialApplied.geometry
+      );
+      const finalEvaluated = evaluateWorkflow(
+        exportHandled.nodes,
+        evaluatedAfterCreate.edges,
+        customMaterialApplied.geometry
+      );
+      const nextGeometry = customMaterialApplied.geometry;
+      const previousIds = new Set(state.geometry.map((item) => item.id));
+      const nextIds = new Set(nextGeometry.map((item) => item.id));
+      const geometryIdsChanged =
+        previousIds.size !== nextIds.size ||
+        Array.from(nextIds).some((id) => !previousIds.has(id));
+      const nextState: Partial<ProjectStore> = {
+        geometry: nextGeometry,
+        workflow: {
+          nodes: finalEvaluated.nodes,
+          edges: finalEvaluated.edges,
+        },
+      };
+      if (geometryIdsChanged) {
+        Object.assign(
+          nextState,
+          reconcileGeometryCollections(
+            nextGeometry,
+            state.layers,
+            state.sceneNodes,
+            state.assignments,
+            state.hiddenGeometryIds,
+            state.lockedGeometryIds,
+            state.selectedGeometryIds
+          )
+        );
+      }
+      set(nextState);
+    } catch (error) {
+      console.error("Workflow recalculation failed.", error);
     }
-    set(nextState);
   },
   pruneWorkflow: () => {
     set((state) => {

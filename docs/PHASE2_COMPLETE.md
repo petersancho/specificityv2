@@ -240,3 +240,7 @@ grep -r "import.*reactflow" client/src/
 8. Performance improved (no DOM overhead)
 
 **Ready for Phase 2 Cleanup:** Remove ReactFlow dependency once user verifies functionality.
+
+## Historical Note
+
+Phase 2 documents the ReactFlow-to-canvas migration. Use it for context, but validate current behavior against `NumericalCanvas.tsx` and the workflow registry.

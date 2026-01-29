@@ -1,4 +1,5 @@
 import type { RGBA } from "./WebGLUIRenderer";
+import { STICKER2_PALETTE } from "../../assets/Stickers2";
 
 type Resolution = { width: number; height: number };
 
@@ -6,12 +7,13 @@ type Rect = { x: number; y: number; width: number; height: number };
 
 type IconUV = { u0: number; v0: number; u1: number; v1: number };
 
-type IconRenderStyle = "tile" | "glyph";
+type IconRenderStyle = "tile" | "glyph" | "sticker" | "sticker2";
 
 type IconRenderOptions = {
   style?: IconRenderStyle;
   tint?: RGBA;
   monochrome?: boolean;
+  signature?: string;
 };
 
 type AtlasSpec = {
@@ -31,7 +33,7 @@ type ShaderHandles = {
 };
 
 const VERTEX_STRIDE = 8;
-const ATLAS_ICON_SIZE = 224;
+const ATLAS_ICON_SIZE = 512;
 
 const ICON_IDS = [
   "point",
@@ -112,6 +114,12 @@ const ICON_IDS = [
   "topologyOptimize",
   "topologySolver",
   "biologicalSolver",
+  "solver",
+  "goal",
+  "stiffnessGoal",
+  "volumeGoal",
+  "loadGoal",
+  "anchorGoal",
   "move",
   "rotate",
   "scale",
@@ -188,7 +196,11 @@ const DEFAULT_ICON_STYLE: IconRenderStyle = "glyph";
 const DEFAULT_GLYPH_TINT: RGBA = rgb(54, 62, 78, 0.95);
 let activeIconStyle: IconRenderStyle = DEFAULT_ICON_STYLE;
 
-const isGlyphStyle = () => activeIconStyle === "glyph";
+const isStickerStyle = () =>
+  activeIconStyle === "sticker" || activeIconStyle === "sticker2";
+const isSticker2Style = () => activeIconStyle === "sticker2";
+const isGlyphStyle = () =>
+  activeIconStyle === "glyph" || isStickerStyle();
 
 const clampStrokeWidth = (width: number, min = 1) => {
   const rounded = Math.round(width);
@@ -270,6 +282,37 @@ const drawSoftShadow = (
   ctx.fillRect(x, y, size, size);
 };
 
+const applyGlyphDepth = (
+  ctx: CanvasRenderingContext2D,
+  bounds: { x: number; y: number; size: number }
+) => {
+  if (!isGlyphStyle() || isStickerStyle()) return;
+  const { x, y, size } = bounds;
+  ctx.save();
+  ctx.globalCompositeOperation = "source-atop";
+  const shade = ctx.createRadialGradient(
+    x + size * 0.55,
+    y + size * 0.6,
+    size * 0.12,
+    x + size * 0.52,
+    y + size * 0.58,
+    size * 0.7
+  );
+  shade.addColorStop(0, "rgba(0,0,0,0)");
+  shade.addColorStop(1, "rgba(0,0,0,0.22)");
+  ctx.fillStyle = shade;
+  ctx.fillRect(x, y, size, size);
+
+  ctx.globalCompositeOperation = "screen";
+  const highlight = ctx.createLinearGradient(x, y, x, y + size);
+  highlight.addColorStop(0, "rgba(255,255,255,0.45)");
+  highlight.addColorStop(0.5, "rgba(255,255,255,0.08)");
+  highlight.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = highlight;
+  ctx.fillRect(x, y, size, size);
+  ctx.restore();
+};
+
 const roundedRectPath = (
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -309,7 +352,7 @@ const fillAndOutline = (
   strokeOutline(ctx, outline);
 };
 
-const glyphColor = (alpha = 1) => `rgba(0,0,0,${alpha})`;
+const glyphColor = (alpha = 1) => `rgba(14,18,26,${alpha})`;
 
 const setGlyphStroke = (
   ctx: CanvasRenderingContext2D,
@@ -343,6 +386,13 @@ const drawGlyphDot = (
   ctx.lineWidth = clampStrokeWidth(radius * 0.45, 1);
   ctx.strokeStyle = glyphColor(alpha * 0.55);
   ctx.stroke();
+  ctx.restore();
+  ctx.save();
+  ctx.globalCompositeOperation = "screen";
+  ctx.fillStyle = "rgba(255,255,255,0.42)";
+  ctx.beginPath();
+  ctx.arc(x - radius * 0.28, y - radius * 0.28, Math.max(1, radius * 0.45), 0, Math.PI * 2);
+  ctx.fill();
   ctx.restore();
 };
 
@@ -1366,7 +1416,7 @@ const drawLineBuilderIcon = (
     ctx,
     { x: x + size * 0.42, y: y + size * 0.54 },
     { x: x + size * 0.88, y: y + size * 0.2 },
-    "#38bdf8"
+    "#0b6e9a"
   );
 };
 
@@ -1623,7 +1673,7 @@ const drawSelectionFilterIcon = (
   const fill = ctx.createLinearGradient(x, topY, x, botY);
   fill.addColorStop(0, "#67e8f9");
   fill.addColorStop(0.55, "#22d3ee");
-  fill.addColorStop(1, "#0ea5e9");
+  fill.addColorStop(1, "#0c4f8f");
   fillAndOutline(ctx, fill);
 
   const badgeX = x + size * 0.72;
@@ -1749,9 +1799,9 @@ const drawReferenceAllIcon = (
   sources.forEach((src, index) => {
     drawNodeDot(ctx, src.x, src.y, size * 0.11, {
       inner: index === 0 ? "#f0f9ff" : "#ecfdf5",
-      outer: index === 0 ? "#38bdf8" : "#22c55e",
+      outer: index === 0 ? "#0b6e9a" : "#1f6a33",
     });
-    drawArrow(ctx, src, target, index === 0 ? "#38bdf8" : "#22c55e");
+    drawArrow(ctx, src, target, index === 0 ? "#0b6e9a" : "#1f6a33");
   });
 
   drawNodeDot(ctx, target.x, target.y, size * 0.13, {
@@ -1792,7 +1842,7 @@ const drawGroupIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size
 
   const linkFrom = { x: x + size * 0.3, y: y + size * 0.64 };
   const linkTo = { x: x + size * 0.78, y: y + size * 0.32 };
-  drawArrow(ctx, linkFrom, linkTo, "#0ea5e9");
+  drawArrow(ctx, linkFrom, linkTo, "#0c4f8f");
 };
 
 const drawUngroupIcon = (
@@ -1819,7 +1869,7 @@ const drawUngroupIcon = (
     ctx,
     { x: leftX + w * 0.5, y: squareY + h * 0.5 },
     { x: x + size * 0.04, y: y + size * 0.18 },
-    "#3b82f6"
+    "#1f4b9b"
   );
   drawArrow(
     ctx,
@@ -1892,8 +1942,8 @@ const drawTransformOrientationIcon = (
   drawSoftShadow(ctx, { x, y, size });
   const origin = { x: x + size * 0.34, y: y + size * 0.7 };
   drawArrow(ctx, origin, { x: origin.x + size * 0.5, y: origin.y - size * 0.04 }, "#ef4444");
-  drawArrow(ctx, origin, { x: origin.x - size * 0.04, y: origin.y - size * 0.52 }, "#22c55e");
-  drawArrow(ctx, origin, { x: origin.x + size * 0.18, y: origin.y + size * 0.16 }, "#3b82f6");
+  drawArrow(ctx, origin, { x: origin.x - size * 0.04, y: origin.y - size * 0.52 }, "#1f6a33");
+  drawArrow(ctx, origin, { x: origin.x + size * 0.18, y: origin.y + size * 0.16 }, "#1f4b9b");
 
   drawNodeDot(ctx, origin.x, origin.y, size * 0.12, {
     inner: "#f8fafc",
@@ -1913,13 +1963,13 @@ const drawPivotModeIcon = (
   const r = size * 0.34;
 
   ctx.lineWidth = 12;
-  ctx.strokeStyle = "#38bdf8";
+  ctx.strokeStyle = "#0b6e9a";
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.stroke();
 
   ctx.lineWidth = 10;
-  ctx.strokeStyle = "#0ea5e9";
+  ctx.strokeStyle = "#0c4f8f";
   ctx.beginPath();
   ctx.moveTo(cx - r, cy);
   ctx.lineTo(cx + r, cy);
@@ -2004,7 +2054,7 @@ const drawCPlaneXYIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, s
     size,
     -0.08,
     { top: "#e0f2fe", bottom: "#bae6fd" },
-    { x: "#ef4444", y: "#22c55e" }
+    { x: "#ef4444", y: "#1f6a33" }
   );
 };
 
@@ -2016,7 +2066,7 @@ const drawCPlaneXZIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, s
     size,
     -0.34,
     { top: "#ede9fe", bottom: "#c4b5fd" },
-    { x: "#ef4444", y: "#3b82f6" }
+    { x: "#ef4444", y: "#1f4b9b" }
   );
 };
 
@@ -2027,8 +2077,8 @@ const drawCPlaneYZIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, s
     y,
     size,
     0.34,
-    { top: "#ecfdf5", bottom: "#bbf7d0" },
-    { x: "#22c55e", y: "#3b82f6" }
+    { top: "#ecfdf5", bottom: "#b3d7c2" },
+    { x: "#1f6a33", y: "#1f4b9b" }
   );
 };
 
@@ -2045,20 +2095,20 @@ const drawCPlaneAlignIcon = (
     size,
     -0.18,
     { top: "#fef9c3", bottom: "#fde68a" },
-    { x: "#0ea5e9", y: "#0ea5e9" }
+    { x: "#0c4f8f", y: "#0c4f8f" }
   );
 
   const p1 = { x: x + size * 0.28, y: y + size * 0.64 };
   const p2 = { x: x + size * 0.62, y: y + size * 0.36 };
   drawNodeDot(ctx, p1.x, p1.y, size * 0.09, {
     inner: "#f8fafc",
-    outer: "#0ea5e9",
+    outer: "#0c4f8f",
   });
   drawNodeDot(ctx, p2.x, p2.y, size * 0.09, {
     inner: "#f8fafc",
-    outer: "#0ea5e9",
+    outer: "#0c4f8f",
   });
-  drawArrow(ctx, p1, p2, "#0ea5e9");
+  drawArrow(ctx, p1, p2, "#0c4f8f");
 };
 
 const drawCaptureIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
@@ -2098,6 +2148,23 @@ const drawCaptureIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, si
 };
 
 const drawSaveIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
+  if (isStickerStyle()) {
+    const cx = x + size * 0.5;
+    const top = y + size * 0.22;
+    const mid = y + size * 0.62;
+    const baseY = y + size * 0.74;
+    setGlyphStroke(ctx, size, 0.09, 0.9);
+    ctx.beginPath();
+    ctx.moveTo(cx, top);
+    ctx.lineTo(cx, mid);
+    ctx.moveTo(cx - size * 0.12, mid - size * 0.1);
+    ctx.lineTo(cx, mid + size * 0.06);
+    ctx.lineTo(cx + size * 0.12, mid - size * 0.1);
+    ctx.moveTo(cx - size * 0.24, baseY);
+    ctx.lineTo(cx + size * 0.24, baseY);
+    ctx.stroke();
+    return;
+  }
   drawSoftShadow(ctx, { x, y, size });
 
   const pad = size * 0.16;
@@ -2135,6 +2202,23 @@ const drawSaveIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size:
 };
 
 const drawLoadIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
+  if (isStickerStyle()) {
+    const cx = x + size * 0.5;
+    const top = y + size * 0.18;
+    const mid = y + size * 0.58;
+    const baseY = y + size * 0.76;
+    setGlyphStroke(ctx, size, 0.09, 0.9);
+    ctx.beginPath();
+    ctx.moveTo(cx, top);
+    ctx.lineTo(cx, mid);
+    ctx.moveTo(cx - size * 0.12, mid - size * 0.08);
+    ctx.lineTo(cx, mid + size * 0.08);
+    ctx.lineTo(cx + size * 0.12, mid - size * 0.08);
+    ctx.moveTo(cx - size * 0.26, baseY);
+    ctx.lineTo(cx + size * 0.26, baseY);
+    ctx.stroke();
+    return;
+  }
   drawSoftShadow(ctx, { x, y, size });
 
   const bodyX = x + size * 0.12;
@@ -2157,7 +2241,7 @@ const drawLoadIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size:
   const arrowTop = y + size * 0.14;
   const arrowMid = y + size * 0.44;
   const arrowX = x + size * 0.5;
-  ctx.strokeStyle = "#0ea5e9";
+  ctx.strokeStyle = "#0c4f8f";
   ctx.lineWidth = 12;
   ctx.lineCap = "round";
   ctx.beginPath();
@@ -2172,6 +2256,23 @@ const drawLoadIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size:
 };
 
 const drawDownloadIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
+  if (isStickerStyle()) {
+    const cx = x + size * 0.5;
+    const top = y + size * 0.18;
+    const mid = y + size * 0.62;
+    const baseY = y + size * 0.74;
+    setGlyphStroke(ctx, size, 0.09, 0.9);
+    ctx.beginPath();
+    ctx.moveTo(cx, top);
+    ctx.lineTo(cx, mid);
+    ctx.moveTo(cx - size * 0.14, mid - size * 0.1);
+    ctx.lineTo(cx, mid + size * 0.06);
+    ctx.lineTo(cx + size * 0.14, mid - size * 0.1);
+    ctx.moveTo(cx - size * 0.24, baseY);
+    ctx.lineTo(cx + size * 0.24, baseY);
+    ctx.stroke();
+    return;
+  }
   drawSoftShadow(ctx, { x, y, size });
 
   const trayX = x + size * 0.2;
@@ -2276,7 +2377,7 @@ const drawZoomCursorIcon = (
   });
   drawNodeDot(ctx, cx, cy, size * 0.06, {
     inner: "#f8fafc",
-    outer: "#38bdf8",
+    outer: "#0b6e9a",
   });
 };
 
@@ -2344,8 +2445,8 @@ const drawRunIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: 
   const cy = y + size * 0.5;
   const r = size * 0.34;
   const ring = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.35, r * 0.2, cx, cy, r);
-  ring.addColorStop(0, "#dcfce7");
-  ring.addColorStop(1, "#22c55e");
+  ring.addColorStop(0, "#cfe3d6");
+  ring.addColorStop(1, "#1f6a33");
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   fillAndOutline(ctx, ring);
@@ -2498,8 +2599,8 @@ const drawBrandNumericaIcon = (
   drawSoftShadow(ctx, { x, y, size });
 
   const nodes = [
-    { x: x + size * 0.28, y: y + size * 0.3, color: "#38bdf8" },
-    { x: x + size * 0.72, y: y + size * 0.3, color: "#22c55e" },
+    { x: x + size * 0.28, y: y + size * 0.3, color: "#0b6e9a" },
+    { x: x + size * 0.72, y: y + size * 0.3, color: "#1f6a33" },
     { x: x + size * 0.5, y: y + size * 0.7, color: "#f97316" },
   ] as const;
 
@@ -2532,7 +2633,7 @@ const drawPruneIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size
   ctx.lineTo(x + size * 0.36, y + size * 0.28);
   ctx.stroke();
 
-  ctx.strokeStyle = "#22c55e";
+  ctx.strokeStyle = "#1f6a33";
   ctx.lineWidth = 10;
   ctx.beginPath();
   ctx.moveTo(x + size * 0.44, y + size * 0.54);
@@ -2594,7 +2695,7 @@ const drawShowIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size:
     size * 0.16
   );
   iris.addColorStop(0, "#f8fafc");
-  iris.addColorStop(1, "#0ea5e9");
+  iris.addColorStop(1, "#0c4f8f");
   ctx.beginPath();
   ctx.arc(cx, cy, size * 0.16, 0, Math.PI * 2);
   fillAndOutline(ctx, iris);
@@ -2631,7 +2732,7 @@ const drawLockBody = (
   const shackleR = size * 0.24;
   const shackleCx = x + size * 0.5;
   const shackleCy = y + size * 0.44;
-  ctx.strokeStyle = open ? "#0ea5e9" : "#1d4ed8";
+  ctx.strokeStyle = open ? "#0c4f8f" : "#1d4ed8";
   ctx.lineWidth = 12;
   ctx.lineCap = "round";
   ctx.beginPath();
@@ -2663,6 +2764,25 @@ const drawUnlockIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, siz
 };
 
 const drawScriptIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
+  if (isStickerStyle()) {
+    const left = x + size * 0.32;
+    const right = x + size * 0.68;
+    const top = y + size * 0.3;
+    const mid = y + size * 0.52;
+    const bottom = y + size * 0.74;
+    setGlyphStroke(ctx, size, 0.085, 0.9);
+    ctx.beginPath();
+    ctx.moveTo(left + size * 0.06, top);
+    ctx.lineTo(left - size * 0.06, mid);
+    ctx.lineTo(left + size * 0.06, bottom);
+    ctx.moveTo(right - size * 0.06, top);
+    ctx.lineTo(right + size * 0.06, mid);
+    ctx.lineTo(right - size * 0.06, bottom);
+    ctx.moveTo(x + size * 0.5 - size * 0.04, top);
+    ctx.lineTo(x + size * 0.5 + size * 0.04, bottom);
+    ctx.stroke();
+    return;
+  }
   drawSoftShadow(ctx, { x, y, size });
 
   const docX = x + size * 0.2;
@@ -2683,7 +2803,7 @@ const drawScriptIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, siz
   ctx.closePath();
   fillAndOutline(ctx, "#cbd5f5", "rgba(30, 41, 59, 0.6)");
 
-  ctx.strokeStyle = "#0ea5e9";
+  ctx.strokeStyle = "#0c4f8f";
   ctx.lineWidth = 8;
   ctx.lineCap = "round";
   const lineX = docX + docW * 0.18;
@@ -2713,7 +2833,7 @@ const drawInterpolateIcon = (
     { x: x + size * 0.84, y: y + size * 0.28 },
   ] as const;
 
-  ctx.strokeStyle = "#0ea5e9";
+  ctx.strokeStyle = "#0c4f8f";
   ctx.lineWidth = 10;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
@@ -2732,7 +2852,7 @@ const drawInterpolateIcon = (
   points.forEach((pt, index) => {
     drawNodeDot(ctx, pt.x, pt.y, size * (index === 0 || index === points.length - 1 ? 0.1 : 0.09), {
       inner: "#f8fafc",
-      outer: index % 2 === 0 ? "#38bdf8" : "#22c55e",
+      outer: index % 2 === 0 ? "#0b6e9a" : "#1f6a33",
     });
   });
 };
@@ -2744,6 +2864,7 @@ const drawMathBadge = (
   size: number,
   colors: { top: string; bottom: string }
 ) => {
+  if (isStickerStyle()) return;
   void colors;
   const pad = size * 0.18;
   const w = size - pad * 2;
@@ -2776,7 +2897,7 @@ const drawNumberConstantIcon = (
   setGlyphFill(ctx, 0.95);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.font = `${Math.round(size * 0.52)}px "Proxima Nova", "Helvetica Neue", Arial, sans-serif`;
+  ctx.font = `${Math.round(size * 0.52)}px "Montreal Neue", "Space Grotesk", sans-serif`;
   ctx.fillText("1", x + size * 0.5, y + size * 0.55);
   ctx.restore();
 };
@@ -2919,7 +3040,7 @@ const drawExpressionIcon = (
   setGlyphFill(ctx, 0.95);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.font = `${Math.round(size * 0.34)}px "Proxima Nova", "Helvetica Neue", Arial, sans-serif`;
+  ctx.font = `${Math.round(size * 0.34)}px "Montreal Neue", "Space Grotesk", sans-serif`;
   ctx.fillText("f(x)", x + size * 0.5, y + size * 0.56);
   ctx.restore();
 };
@@ -3016,7 +3137,7 @@ const drawUnitXIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size
 };
 
 const drawUnitYIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
-  drawVectorBadge(ctx, x, y, size, { top: "#bbf7d0", bottom: "#22c55e" });
+  drawVectorBadge(ctx, x, y, size, { top: "#b3d7c2", bottom: "#1f6a33" });
   const center = { x: x + size * 0.5, y: y + size * 0.76 };
   const end = { x: x + size * 0.5, y: y + size * 0.3 };
   drawGlyphDot(ctx, center.x, center.y, size * 0.08, 0.95);
@@ -3103,7 +3224,7 @@ const drawVectorDeconstructIcon = (
   y: number,
   size: number
 ) => {
-  drawVectorBadge(ctx, x, y, size, { top: "#bbf7d0", bottom: "#16a34a" });
+  drawVectorBadge(ctx, x, y, size, { top: "#b3d7c2", bottom: "#16a34a" });
   const source = { x: x + size * 0.26, y: y + size * 0.46 };
   drawVectorArrow(ctx, source, { x: x + size * 0.52, y: y + size * 0.46 }, size);
   const outputs = [
@@ -3408,7 +3529,7 @@ const drawMovePointIcon = (
   y: number,
   size: number
 ) => {
-  drawVectorBadge(ctx, x, y, size, { top: "#bbf7d0", bottom: "#16a34a" });
+  drawVectorBadge(ctx, x, y, size, { top: "#b3d7c2", bottom: "#16a34a" });
   const start = { x: x + size * 0.26, y: y + size * 0.64 };
   const end = { x: x + size * 0.8, y: y + size * 0.38 };
   drawGlyphDot(ctx, start.x, start.y, size * 0.08, 0.95);
@@ -3463,8 +3584,8 @@ const strokeDualPath = (
   drawPath: () => void,
   options?: { outerColor?: string; innerColor?: string; dash?: number[] }
 ) => {
-  const outerColor = options?.outerColor ?? "rgba(15, 23, 42, 0.52)";
-  const innerColor = options?.innerColor ?? "#f8fafc";
+  const outerColor = options?.outerColor ?? "rgba(10, 14, 22, 0.64)";
+  const innerColor = options?.innerColor ?? "rgba(248, 250, 252, 0.96)";
   const resolvedOuter = clampStrokeWidth(outerWidth, 1);
   let resolvedInner = clampStrokeWidth(innerWidth, 1);
   if (resolvedInner >= resolvedOuter) {
@@ -3478,10 +3599,30 @@ const strokeDualPath = (
   }
   ctx.lineWidth = resolvedOuter;
   ctx.strokeStyle = outerColor;
+  if (isStickerStyle()) {
+    ctx.shadowColor = "transparent";
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+  } else {
+    ctx.shadowColor = "rgba(0, 0, 0, 0.28)";
+    ctx.shadowBlur = Math.max(0, resolvedOuter * 0.45);
+    ctx.shadowOffsetX = resolvedOuter * 0.12;
+    ctx.shadowOffsetY = resolvedOuter * 0.18;
+  }
   drawPath();
   ctx.stroke();
+  ctx.shadowColor = "transparent";
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
   ctx.lineWidth = resolvedInner;
   ctx.strokeStyle = innerColor;
+  drawPath();
+  ctx.stroke();
+  ctx.lineWidth = Math.max(1, resolvedInner - 1);
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.55)";
+  ctx.translate(-resolvedOuter * 0.08, -resolvedOuter * 0.08);
   drawPath();
   ctx.stroke();
   ctx.restore();
@@ -4408,13 +4549,1022 @@ const drawTopologySolverIcon = (
   ctx.restore();
 };
 
+const drawGreekGlyph = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  glyph: string,
+  options?: { color?: string; stroke?: string; glow?: boolean }
+) => {
+  ctx.save();
+  ctx.fillStyle = options?.color ?? "#f8f7ff";
+  ctx.font = `${Math.round(size * 0.64)}px \"Noto Serif\", \"GFS Didot\", serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const centerX = x + size * 0.5;
+  const centerY = y + size * 0.56;
+  if (options?.glow) {
+    ctx.shadowColor = "rgba(255, 255, 255, 0.55)";
+    ctx.shadowBlur = size * 0.08;
+  }
+  if (options?.stroke) {
+    ctx.lineWidth = Math.max(1, size * 0.05);
+    ctx.strokeStyle = options.stroke;
+    ctx.strokeText(glyph, centerX, centerY);
+  }
+  ctx.fillText(glyph, centerX, centerY);
+  ctx.restore();
+};
+
+const drawSolverIcon = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number
+) => {
+  drawSolverBadge(ctx, x, y, size, { top: "#d8ccff", bottom: "#7a5cff" });
+  drawGreekGlyph(ctx, x, y, size, "Ε", {
+    stroke: "rgba(15, 23, 42, 0.45)",
+    glow: true,
+  });
+};
+
+const STICKER_COLORS = {
+  goal: "#111827",
+  stiffness: "#2563eb",
+  volume: "#0f766e",
+  load: "#d97706",
+  anchor: "#15803d",
+};
+
+const STICKER2_COLORS = {
+  goal: STICKER2_PALETTE.black,
+  stiffness: STICKER2_PALETTE.cyan,
+  volume: STICKER2_PALETTE.magenta,
+  load: STICKER2_PALETTE.yellow,
+  anchor: STICKER2_PALETTE.black,
+};
+
+const resolveStickerColor = (key: keyof typeof STICKER_COLORS) =>
+  isSticker2Style() ? STICKER2_COLORS[key] : STICKER_COLORS[key];
+
+const hashStickerSignature = (value: string) => {
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+};
+
+const drawStickerSignatureMarks = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  signature: string
+) => {
+  const text = signature.trim().toUpperCase();
+  if (!text) return;
+  const hash = hashStickerSignature(text);
+  const positions = [
+    [0.22, 0.22],
+    [0.5, 0.18],
+    [0.78, 0.24],
+    [0.18, 0.5],
+    [0.82, 0.5],
+    [0.22, 0.78],
+    [0.5, 0.82],
+    [0.78, 0.78],
+  ] as const;
+  const pick = (seed: number) =>
+    positions[((seed % positions.length) + positions.length) % positions.length];
+  const shapeA = hash & 3;
+  const shapeB = (hash >>> 3) & 3;
+  let posAIndex = (hash >>> 5) % positions.length;
+  let posBIndex = (hash >>> 9) % positions.length;
+  if (posBIndex === posAIndex) {
+    posBIndex = (posBIndex + 3) % positions.length;
+  }
+  const [ax, ay] = pick(posAIndex);
+  const [bx, by] = pick(posBIndex);
+  const markSize = size * 0.075;
+  const stroke = clampStrokeWidth(size * 0.028, 1);
+
+  const drawMark = (shape: number, px: number, py: number) => {
+    const cx = x + size * px;
+    const cy = y + size * py;
+    switch (shape) {
+      case 0: {
+        ctx.beginPath();
+        ctx.arc(cx, cy, markSize * 0.28, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      }
+      case 1: {
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - markSize * 0.32);
+        ctx.lineTo(cx + markSize * 0.28, cy + markSize * 0.26);
+        ctx.lineTo(cx - markSize * 0.28, cy + markSize * 0.26);
+        ctx.closePath();
+        ctx.fill();
+        break;
+      }
+      case 2: {
+        ctx.beginPath();
+        ctx.rect(
+          cx - markSize * 0.26,
+          cy - markSize * 0.26,
+          markSize * 0.52,
+          markSize * 0.52
+        );
+        ctx.stroke();
+        break;
+      }
+      default: {
+        ctx.beginPath();
+        ctx.moveTo(cx - markSize * 0.32, cy - markSize * 0.1);
+        ctx.lineTo(cx + markSize * 0.32, cy + markSize * 0.1);
+        ctx.stroke();
+        break;
+      }
+    }
+  };
+
+  ctx.save();
+  ctx.lineWidth = stroke;
+  ctx.strokeStyle = "rgba(8, 11, 18, 0.8)";
+  ctx.fillStyle = "rgba(8, 11, 18, 0.9)";
+  drawMark(shapeA, ax, ay);
+  drawMark(shapeB, bx, by);
+  ctx.restore();
+};
+
+const drawStickerSignature = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  signature: string
+) => {
+  const text = signature.trim().toUpperCase();
+  if (!text) return;
+  ctx.save();
+  ctx.font = `${Math.round(size * 0.2)}px "Space Grotesk", "Inter", sans-serif`;
+  ctx.textAlign = "right";
+  ctx.textBaseline = "alphabetic";
+  const padding = size * 0.12;
+  const anchorX = x + size - padding;
+  const anchorY = y + size - padding * 0.35;
+  ctx.lineWidth = clampStrokeWidth(size * 0.035, 1);
+  ctx.strokeStyle = "rgba(8, 11, 18, 0.55)";
+  ctx.fillStyle = "rgba(8, 11, 18, 0.92)";
+  ctx.strokeText(text, anchorX, anchorY);
+  ctx.fillText(text, anchorX, anchorY);
+  ctx.restore();
+};
+
+const setStickerStroke = (
+  ctx: CanvasRenderingContext2D,
+  size: number,
+  color: string,
+  weight = 0.085
+) => {
+  ctx.lineWidth = clampStrokeWidth(size * weight, 2);
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  ctx.strokeStyle = color;
+};
+
+const drawStickerTarget = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  color: string
+) => {
+  const cx = x + size * 0.5;
+  const cy = y + size * 0.54;
+  const outer = size * 0.28;
+  const inner = size * 0.17;
+  const dot = size * 0.06;
+  ctx.save();
+  setStickerStroke(ctx, size, color, 0.09);
+  ctx.beginPath();
+  ctx.arc(cx, cy, outer, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cx, cy, inner, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(cx, cy, dot, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+};
+
+const drawStickerSpring = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  color: string
+) => {
+  const cx = x + size * 0.5;
+  const top = y + size * 0.18;
+  const bottom = y + size * 0.82;
+  const amplitude = size * 0.16;
+  const steps = 6;
+  const step = (bottom - top) / steps;
+
+  ctx.save();
+  setStickerStroke(ctx, size, color, 0.09);
+  ctx.beginPath();
+  ctx.moveTo(cx - size * 0.22, top);
+  ctx.lineTo(cx + size * 0.22, top);
+  ctx.moveTo(cx, top);
+  for (let i = 1; i < steps; i += 1) {
+    const dir = i % 2 === 0 ? -1 : 1;
+    ctx.lineTo(cx + dir * amplitude, top + step * i);
+  }
+  ctx.lineTo(cx, bottom);
+  ctx.moveTo(cx - size * 0.22, bottom);
+  ctx.lineTo(cx + size * 0.22, bottom);
+  ctx.stroke();
+  ctx.restore();
+};
+
+const drawStickerCube = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  color: string
+) => {
+  const cx = x + size * 0.52;
+  const cy = y + size * 0.54;
+  const s = size * 0.22;
+  const dx = size * 0.14;
+  const dy = size * 0.1;
+
+  const a = { x: cx - s, y: cy - s };
+  const b = { x: cx + s, y: cy - s };
+  const c = { x: cx + s, y: cy + s };
+  const d = { x: cx - s, y: cy + s };
+
+  const a2 = { x: a.x - dx, y: a.y - dy };
+  const b2 = { x: b.x - dx, y: b.y - dy };
+  const c2 = { x: c.x - dx, y: c.y - dy };
+  const d2 = { x: d.x - dx, y: d.y - dy };
+
+  ctx.save();
+  setStickerStroke(ctx, size, color, 0.085);
+  ctx.beginPath();
+  ctx.moveTo(a.x, a.y);
+  ctx.lineTo(b.x, b.y);
+  ctx.lineTo(c.x, c.y);
+  ctx.lineTo(d.x, d.y);
+  ctx.closePath();
+  ctx.moveTo(a.x, a.y);
+  ctx.lineTo(a2.x, a2.y);
+  ctx.lineTo(b2.x, b2.y);
+  ctx.lineTo(b.x, b.y);
+  ctx.moveTo(b2.x, b2.y);
+  ctx.lineTo(c2.x, c2.y);
+  ctx.lineTo(c.x, c.y);
+  ctx.moveTo(a2.x, a2.y);
+  ctx.lineTo(d2.x, d2.y);
+  ctx.lineTo(c2.x, c2.y);
+  ctx.stroke();
+  ctx.restore();
+};
+
+const drawStickerLoad = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  color: string
+) => {
+  const cx = x + size * 0.5;
+  const arrowTop = y + size * 0.16;
+  const arrowBottom = y + size * 0.58;
+  const head = size * 0.12;
+  const plateY = y + size * 0.7;
+  const plateW = size * 0.52;
+  const plateH = size * 0.12;
+
+  ctx.save();
+  setStickerStroke(ctx, size, color, 0.09);
+  ctx.beginPath();
+  ctx.moveTo(cx, arrowTop);
+  ctx.lineTo(cx, arrowBottom);
+  ctx.moveTo(cx - head, arrowBottom - head * 0.6);
+  ctx.lineTo(cx, arrowBottom);
+  ctx.lineTo(cx + head, arrowBottom - head * 0.6);
+  ctx.stroke();
+  roundedRectPath(ctx, cx - plateW * 0.5, plateY, plateW, plateH, size * 0.06);
+  ctx.stroke();
+  ctx.restore();
+};
+
+const drawStickerAnchor = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  color: string
+) => {
+  const cx = x + size * 0.5;
+  const ringR = size * 0.075;
+  const ringY = y + size * 0.2;
+  const shaftTop = ringY + ringR + size * 0.02;
+  const shaftBottom = y + size * 0.72;
+  const barY = y + size * 0.44;
+  const barW = size * 0.36;
+  const arcR = size * 0.22;
+  const arcY = shaftBottom;
+  const fluke = size * 0.06;
+
+  ctx.save();
+  setStickerStroke(ctx, size, color, 0.085);
+  ctx.beginPath();
+  ctx.arc(cx, ringY, ringR, 0, Math.PI * 2);
+  ctx.moveTo(cx, shaftTop);
+  ctx.lineTo(cx, shaftBottom);
+  ctx.moveTo(cx - barW * 0.5, barY);
+  ctx.lineTo(cx + barW * 0.5, barY);
+  ctx.moveTo(cx - arcR, arcY);
+  ctx.arc(cx, arcY, arcR, Math.PI, 0);
+  ctx.moveTo(cx - arcR, arcY);
+  ctx.lineTo(cx - arcR + fluke, arcY + fluke);
+  ctx.moveTo(cx + arcR, arcY);
+  ctx.lineTo(cx + arcR - fluke, arcY + fluke);
+  ctx.stroke();
+  ctx.restore();
+};
+
+const drawStickerPolygon = (
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  r: number,
+  sides: number,
+  rotation = -Math.PI * 0.5
+) => {
+  ctx.beginPath();
+  for (let i = 0; i < sides; i += 1) {
+    const angle = rotation + (Math.PI * 2 * i) / sides;
+    const px = cx + Math.cos(angle) * r;
+    const py = cy + Math.sin(angle) * r;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+};
+
+const drawStickerWirePrism = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  sides: number
+) => {
+  const cx = x + size * 0.52;
+  const cy = y + size * 0.5;
+  const r = size * 0.22;
+  const dx = size * 0.16;
+  const dy = size * 0.12;
+  const top = { x: cx - dx, y: cy - dy };
+  const bottom = { x: cx + dx, y: cy + dy };
+  drawStickerPolygon(ctx, top.x, top.y, r, sides);
+  ctx.stroke();
+  drawStickerPolygon(ctx, bottom.x, bottom.y, r, sides);
+  ctx.stroke();
+  for (let i = 0; i < sides; i += 1) {
+    const angle = -Math.PI * 0.5 + (Math.PI * 2 * i) / sides;
+    const tx = top.x + Math.cos(angle) * r;
+    const ty = top.y + Math.sin(angle) * r;
+    const bx = bottom.x + Math.cos(angle) * r;
+    const by = bottom.y + Math.sin(angle) * r;
+    ctx.beginPath();
+    ctx.moveTo(tx, ty);
+    ctx.lineTo(bx, by);
+    ctx.stroke();
+  }
+};
+
+const drawStickerWirePyramid = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  sides: number,
+  topScale = 0
+) => {
+  const cx = x + size * 0.52;
+  const cy = y + size * 0.58;
+  const r = size * 0.22;
+  const apex = { x: cx - size * 0.1, y: y + size * 0.22 };
+  const base = { x: cx + size * 0.1, y: cy + size * 0.08 };
+  drawStickerPolygon(ctx, base.x, base.y, r, sides);
+  ctx.stroke();
+  const topR = r * topScale;
+  if (topR > 0.01) {
+    drawStickerPolygon(ctx, apex.x, apex.y, topR, sides);
+    ctx.stroke();
+  }
+  for (let i = 0; i < sides; i += 1) {
+    const angle = -Math.PI * 0.5 + (Math.PI * 2 * i) / sides;
+    const bx = base.x + Math.cos(angle) * r;
+    const by = base.y + Math.sin(angle) * r;
+    ctx.beginPath();
+    ctx.moveTo(apex.x, apex.y);
+    ctx.lineTo(bx, by);
+    ctx.stroke();
+  }
+};
+
+const drawStickerSphere = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  squashed = 1
+) => {
+  const cx = x + size * 0.5;
+  const cy = y + size * 0.55;
+  const r = size * 0.24;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, r * squashed, r, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, r * 0.45 * squashed, r, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, r * squashed, r * 0.45, 0, 0, Math.PI * 2);
+  ctx.stroke();
+};
+
+const drawStickerTorus = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number
+) => {
+  const cx = x + size * 0.5;
+  const cy = y + size * 0.55;
+  const rx = size * 0.28;
+  const ry = size * 0.18;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, rx * 0.5, ry * 0.5, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + ry * 0.28, rx * 0.78, ry * 0.58, 0, Math.PI, 0);
+  ctx.stroke();
+};
+
+const drawStickerCapsule = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number
+) => {
+  const rx = size * 0.18;
+  const ry = size * 0.24;
+  const cx = x + size * 0.5;
+  const top = y + size * 0.28;
+  const bottom = y + size * 0.78;
+  ctx.beginPath();
+  ctx.ellipse(cx, top, rx, ry, 0, Math.PI, 0);
+  ctx.ellipse(cx, bottom, rx, ry, 0, 0, Math.PI);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx - rx, top);
+  ctx.lineTo(cx - rx, bottom);
+  ctx.moveTo(cx + rx, top);
+  ctx.lineTo(cx + rx, bottom);
+  ctx.stroke();
+};
+
+const drawStickerMobius = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number
+) => {
+  const cx = x + size * 0.5;
+  const cy = y + size * 0.55;
+  const r = size * 0.26;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, r, r * 0.55, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx - r, cy);
+  ctx.bezierCurveTo(cx - r * 0.4, cy - r * 0.6, cx + r * 0.4, cy + r * 0.6, cx + r, cy);
+  ctx.stroke();
+};
+
+const drawStickerTeapot = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number
+) => {
+  const cx = x + size * 0.5;
+  const cy = y + size * 0.6;
+  const w = size * 0.5;
+  const h = size * 0.26;
+  ctx.beginPath();
+  roundedRectPath(ctx, cx - w * 0.5, cy - h * 0.5, w, h, size * 0.12);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx + w * 0.5, cy - h * 0.2);
+  ctx.lineTo(cx + w * 0.72, cy - h * 0.1);
+  ctx.lineTo(cx + w * 0.72, cy + h * 0.1);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cx - w * 0.5, cy, h * 0.45, Math.PI * 0.6, Math.PI * 1.4);
+  ctx.stroke();
+};
+
+const drawStickerHyperboloid = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number
+) => {
+  const cx = x + size * 0.5;
+  const top = y + size * 0.26;
+  const bottom = y + size * 0.82;
+  ctx.beginPath();
+  ctx.moveTo(cx - size * 0.18, top);
+  ctx.bezierCurveTo(
+    cx - size * 0.05,
+    y + size * 0.46,
+    cx - size * 0.05,
+    y + size * 0.62,
+    cx - size * 0.18,
+    bottom
+  );
+  ctx.moveTo(cx + size * 0.18, top);
+  ctx.bezierCurveTo(
+    cx + size * 0.05,
+    y + size * 0.46,
+    cx + size * 0.05,
+    y + size * 0.62,
+    cx + size * 0.18,
+    bottom
+  );
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.ellipse(cx, top, size * 0.18, size * 0.07, 0, Math.PI, 0);
+  ctx.ellipse(cx, bottom, size * 0.18, size * 0.07, 0, 0, Math.PI);
+  ctx.stroke();
+};
+
+const drawStickerSaddle = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number
+) => {
+  const left = x + size * 0.18;
+  const right = x + size * 0.82;
+  const top = y + size * 0.3;
+  const bottom = y + size * 0.8;
+  ctx.beginPath();
+  ctx.moveTo(left, bottom);
+  ctx.quadraticCurveTo(x + size * 0.5, y + size * 0.35, right, bottom);
+  ctx.moveTo(left, top);
+  ctx.quadraticCurveTo(x + size * 0.5, y + size * 0.75, right, top);
+  ctx.stroke();
+};
+
+const drawPrimitiveStickerVariant = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  variant: string
+) => {
+  ctx.save();
+  setGlyphStroke(ctx, size, 0.085, 0.9);
+
+  switch (variant) {
+    case "generic":
+      drawStickerWirePrism(ctx, x, y, size, 4);
+      drawStickerSphere(ctx, x + size * 0.12, y + size * 0.02, size * 0.85, 0.85);
+      break;
+    case "cylinder":
+      drawStickerWirePrism(ctx, x, y, size, 16);
+      break;
+    case "pipe":
+      drawStickerWirePrism(ctx, x, y, size, 16);
+      ctx.beginPath();
+      ctx.ellipse(x + size * 0.62, y + size * 0.62, size * 0.08, size * 0.04, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      break;
+    case "torus":
+      drawStickerTorus(ctx, x, y, size);
+      break;
+    case "torus-knot":
+      drawStickerTorus(ctx, x, y, size);
+      ctx.beginPath();
+      ctx.moveTo(x + size * 0.3, y + size * 0.5);
+      ctx.bezierCurveTo(x + size * 0.5, y + size * 0.28, x + size * 0.7, y + size * 0.72, x + size * 0.5, y + size * 0.58);
+      ctx.stroke();
+      break;
+    case "sphere":
+      drawStickerSphere(ctx, x, y, size, 1);
+      break;
+    case "hemisphere":
+      drawStickerSphere(ctx, x, y + size * 0.06, size, 1);
+      ctx.beginPath();
+      ctx.moveTo(x + size * 0.26, y + size * 0.62);
+      ctx.lineTo(x + size * 0.74, y + size * 0.62);
+      ctx.stroke();
+      break;
+    case "spherical-cap":
+      drawStickerSphere(ctx, x, y + size * 0.04, size, 0.9);
+      ctx.beginPath();
+      ctx.moveTo(x + size * 0.28, y + size * 0.58);
+      ctx.lineTo(x + size * 0.72, y + size * 0.58);
+      ctx.stroke();
+      break;
+    case "ellipsoid":
+      drawStickerSphere(ctx, x, y, size, 1.25);
+      break;
+    case "superellipsoid":
+      roundedRectPath(ctx, x + size * 0.28, y + size * 0.32, size * 0.44, size * 0.44, size * 0.18);
+      ctx.stroke();
+      break;
+    case "pyramid":
+      drawStickerWirePyramid(ctx, x, y, size, 4, 0);
+      break;
+    case "frustum":
+      drawStickerWirePyramid(ctx, x, y, size, 4, 0.45);
+      break;
+    case "wedge":
+      drawStickerWirePyramid(ctx, x, y, size, 3, 0);
+      break;
+    case "tetrahedron":
+      drawStickerWirePyramid(ctx, x, y, size, 3, 0);
+      break;
+    case "octahedron":
+      drawStickerPolygon(ctx, x + size * 0.5, y + size * 0.52, size * 0.26, 4, Math.PI / 4);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x + size * 0.5, y + size * 0.26);
+      ctx.lineTo(x + size * 0.5, y + size * 0.78);
+      ctx.stroke();
+      break;
+    case "icosahedron":
+      drawStickerPolygon(ctx, x + size * 0.5, y + size * 0.54, size * 0.26, 5);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x + size * 0.36, y + size * 0.4);
+      ctx.lineTo(x + size * 0.64, y + size * 0.68);
+      ctx.stroke();
+      break;
+    case "dodecahedron":
+      drawStickerPolygon(ctx, x + size * 0.5, y + size * 0.54, size * 0.28, 5, Math.PI * 0.2);
+      ctx.stroke();
+      drawStickerPolygon(ctx, x + size * 0.5, y + size * 0.54, size * 0.18, 5, Math.PI * 0.2);
+      ctx.stroke();
+      break;
+    case "bipyramid":
+      drawStickerPolygon(ctx, x + size * 0.5, y + size * 0.54, size * 0.22, 4, Math.PI / 4);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x + size * 0.5, y + size * 0.24);
+      ctx.lineTo(x + size * 0.5, y + size * 0.84);
+      ctx.stroke();
+      break;
+    case "rhombic-dodecahedron":
+      drawStickerPolygon(ctx, x + size * 0.5, y + size * 0.54, size * 0.24, 4, Math.PI / 4);
+      ctx.stroke();
+      drawStickerPolygon(ctx, x + size * 0.5, y + size * 0.54, size * 0.12, 4, Math.PI / 4);
+      ctx.stroke();
+      break;
+    case "truncated-cube":
+      drawStickerPolygon(ctx, x + size * 0.5, y + size * 0.54, size * 0.24, 8, Math.PI / 8);
+      ctx.stroke();
+      break;
+    case "truncated-octahedron":
+      drawStickerPolygon(ctx, x + size * 0.5, y + size * 0.54, size * 0.24, 8, 0);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x + size * 0.5, y + size * 0.32);
+      ctx.lineTo(x + size * 0.5, y + size * 0.76);
+      ctx.stroke();
+      break;
+    case "truncated-icosahedron":
+      drawStickerPolygon(ctx, x + size * 0.5, y + size * 0.54, size * 0.26, 10, Math.PI / 10);
+      ctx.stroke();
+      break;
+    case "triangular-prism":
+      drawStickerWirePrism(ctx, x, y, size, 3);
+      break;
+    case "pentagonal-prism":
+      drawStickerWirePrism(ctx, x, y, size, 5);
+      break;
+    case "hexagonal-prism":
+      drawStickerWirePrism(ctx, x, y, size, 6);
+      break;
+    case "disk":
+      ctx.beginPath();
+      ctx.arc(x + size * 0.5, y + size * 0.56, size * 0.24, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x + size * 0.34, y + size * 0.44);
+      ctx.lineTo(x + size * 0.66, y + size * 0.68);
+      ctx.stroke();
+      break;
+    case "ring":
+      ctx.beginPath();
+      ctx.arc(x + size * 0.5, y + size * 0.56, size * 0.26, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(x + size * 0.5, y + size * 0.56, size * 0.14, 0, Math.PI * 2);
+      ctx.stroke();
+      break;
+    case "capsule":
+      drawStickerCapsule(ctx, x, y, size);
+      break;
+    case "utah-teapot":
+      drawStickerTeapot(ctx, x, y, size);
+      break;
+    case "mobius-strip":
+      drawStickerMobius(ctx, x, y, size);
+      break;
+    case "hyperbolic-paraboloid":
+      drawStickerSaddle(ctx, x, y, size);
+      break;
+    case "geodesic-dome":
+      drawStickerSphere(ctx, x, y + size * 0.05, size, 0.95);
+      ctx.beginPath();
+      ctx.moveTo(x + size * 0.32, y + size * 0.62);
+      ctx.lineTo(x + size * 0.5, y + size * 0.38);
+      ctx.lineTo(x + size * 0.68, y + size * 0.62);
+      ctx.stroke();
+      break;
+    case "one-sheet-hyperboloid":
+      drawStickerHyperboloid(ctx, x, y, size);
+      break;
+    default:
+      drawStickerWirePrism(ctx, x, y, size, 4);
+      break;
+  }
+  ctx.restore();
+};
+
+const drawStickerGrid = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  rows: number,
+  cols: number
+) => {
+  const pad = size * 0.2;
+  const left = x + pad;
+  const top = y + pad;
+  const width = size - pad * 2;
+  const height = size - pad * 2;
+  for (let r = 0; r <= rows; r += 1) {
+    const yPos = top + (height * r) / rows;
+    ctx.beginPath();
+    ctx.moveTo(left, yPos);
+    ctx.lineTo(left + width, yPos);
+    ctx.stroke();
+  }
+  for (let c = 0; c <= cols; c += 1) {
+    const xPos = left + (width * c) / cols;
+    ctx.beginPath();
+    ctx.moveTo(xPos, top);
+    ctx.lineTo(xPos, top + height);
+    ctx.stroke();
+  }
+};
+
+const drawTessellationStickerVariant = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  variant: string
+) => {
+  ctx.save();
+  setGlyphStroke(ctx, size, 0.08, 0.9);
+  switch (variant) {
+    case "subdivideMesh":
+      drawStickerGrid(ctx, x, y, size, 3, 3);
+      drawStickerGrid(ctx, x + size * 0.05, y + size * 0.05, size * 0.9, 4, 4);
+      break;
+    case "triangulateMesh": {
+      const pad = size * 0.2;
+      const left = x + pad;
+      const top = y + pad;
+      const width = size - pad * 2;
+      const height = size - pad * 2;
+      drawStickerGrid(ctx, x, y, size, 2, 2);
+      ctx.beginPath();
+      ctx.moveTo(left, top);
+      ctx.lineTo(left + width, top + height);
+      ctx.moveTo(left + width, top);
+      ctx.lineTo(left, top + height);
+      ctx.stroke();
+      break;
+    }
+    case "quadRemesh":
+      drawStickerGrid(ctx, x, y, size, 4, 4);
+      break;
+    case "meshDecimate": {
+      drawStickerGrid(ctx, x, y, size, 2, 2);
+      ctx.beginPath();
+      ctx.moveTo(x + size * 0.32, y + size * 0.32);
+      ctx.lineTo(x + size * 0.68, y + size * 0.68);
+      ctx.stroke();
+      break;
+    }
+    case "meshRelax": {
+      const pad = size * 0.22;
+      const left = x + pad;
+      const right = x + size - pad;
+      const top = y + pad;
+      const bottom = y + size - pad;
+      ctx.beginPath();
+      ctx.moveTo(left, top);
+      ctx.quadraticCurveTo(x + size * 0.5, y + size * 0.42, right, top);
+      ctx.moveTo(left, bottom);
+      ctx.quadraticCurveTo(x + size * 0.5, y + size * 0.62, right, bottom);
+      ctx.stroke();
+      break;
+    }
+    case "meshRepair": {
+      drawStickerGrid(ctx, x, y, size, 2, 2);
+      roundedRectPath(ctx, x + size * 0.44, y + size * 0.44, size * 0.14, size * 0.14, size * 0.04);
+      ctx.stroke();
+      break;
+    }
+    case "meshUVs": {
+      drawStickerGrid(ctx, x, y, size, 2, 2);
+      ctx.beginPath();
+      ctx.moveTo(x + size * 0.28, y + size * 0.78);
+      ctx.lineTo(x + size * 0.72, y + size * 0.78);
+      ctx.moveTo(x + size * 0.28, y + size * 0.78);
+      ctx.lineTo(x + size * 0.28, y + size * 0.32);
+      ctx.stroke();
+      break;
+    }
+    case "dualMesh": {
+      drawStickerPolygon(ctx, x + size * 0.5, y + size * 0.52, size * 0.24, 6);
+      ctx.stroke();
+      drawStickerPolygon(ctx, x + size * 0.5, y + size * 0.52, size * 0.14, 6, Math.PI / 6);
+      ctx.stroke();
+      break;
+    }
+    case "offsetPattern": {
+      roundedRectPath(ctx, x + size * 0.24, y + size * 0.28, size * 0.5, size * 0.42, size * 0.06);
+      ctx.stroke();
+      roundedRectPath(ctx, x + size * 0.3, y + size * 0.34, size * 0.38, size * 0.3, size * 0.06);
+      ctx.stroke();
+      break;
+    }
+    case "hexagonalTiling": {
+      drawStickerPolygon(ctx, x + size * 0.42, y + size * 0.48, size * 0.14, 6);
+      ctx.stroke();
+      drawStickerPolygon(ctx, x + size * 0.62, y + size * 0.6, size * 0.14, 6);
+      ctx.stroke();
+      drawStickerPolygon(ctx, x + size * 0.62, y + size * 0.36, size * 0.14, 6);
+      ctx.stroke();
+      break;
+    }
+    case "voronoiPattern": {
+      const points = [
+        [x + size * 0.3, y + size * 0.32],
+        [x + size * 0.7, y + size * 0.28],
+        [x + size * 0.66, y + size * 0.68],
+        [x + size * 0.34, y + size * 0.7],
+      ];
+      ctx.beginPath();
+      ctx.moveTo(points[0][0], points[0][1]);
+      for (let i = 1; i < points.length; i += 1) ctx.lineTo(points[i][0], points[i][1]);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(points[0][0], points[0][1]);
+      ctx.lineTo(points[2][0], points[2][1]);
+      ctx.moveTo(points[1][0], points[1][1]);
+      ctx.lineTo(points[3][0], points[3][1]);
+      ctx.stroke();
+      break;
+    }
+    case "extrudeFaces": {
+      roundedRectPath(ctx, x + size * 0.26, y + size * 0.34, size * 0.34, size * 0.28, size * 0.06);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x + size * 0.6, y + size * 0.36);
+      ctx.lineTo(x + size * 0.74, y + size * 0.26);
+      ctx.lineTo(x + size * 0.74, y + size * 0.5);
+      ctx.closePath();
+      ctx.stroke();
+      break;
+    }
+    case "insetFaces": {
+      roundedRectPath(ctx, x + size * 0.26, y + size * 0.32, size * 0.48, size * 0.36, size * 0.06);
+      ctx.stroke();
+      roundedRectPath(ctx, x + size * 0.36, y + size * 0.42, size * 0.28, size * 0.16, size * 0.05);
+      ctx.stroke();
+      break;
+    }
+    case "meshBoolean": {
+      ctx.beginPath();
+      ctx.arc(x + size * 0.44, y + size * 0.52, size * 0.16, 0, Math.PI * 2);
+      ctx.arc(x + size * 0.6, y + size * 0.52, size * 0.16, 0, Math.PI * 2);
+      ctx.stroke();
+      break;
+    }
+    case "geodesicSphere": {
+      drawStickerSphere(ctx, x, y, size, 1);
+      ctx.beginPath();
+      ctx.moveTo(x + size * 0.36, y + size * 0.52);
+      ctx.lineTo(x + size * 0.5, y + size * 0.36);
+      ctx.lineTo(x + size * 0.64, y + size * 0.52);
+      ctx.stroke();
+      break;
+    }
+    case "selectFaces": {
+      drawStickerGrid(ctx, x, y, size, 2, 2);
+      roundedRectPath(ctx, x + size * 0.46, y + size * 0.46, size * 0.14, size * 0.14, size * 0.03);
+      ctx.stroke();
+      break;
+    }
+    default:
+      drawStickerGrid(ctx, x, y, size, 2, 2);
+      break;
+  }
+  ctx.restore();
+};
+
+const drawGoalIcon = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number
+) => {
+  drawStickerTarget(ctx, x, y, size, resolveStickerColor("goal"));
+};
+
+const drawStiffnessStickerIcon = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number
+) => {
+  drawStickerSpring(ctx, x, y, size, resolveStickerColor("stiffness"));
+};
+
+const drawVolumeStickerIcon = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number
+) => {
+  drawStickerCube(ctx, x, y, size, resolveStickerColor("volume"));
+};
+
+const drawLoadStickerIcon = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number
+) => {
+  drawStickerLoad(ctx, x, y, size, resolveStickerColor("load"));
+};
+
+const drawAnchorStickerIcon = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number
+) => {
+  drawStickerAnchor(ctx, x, y, size, resolveStickerColor("anchor"));
+};
+
 const drawBiologicalSolverIcon = (
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
   size: number
 ) => {
-  drawSolverBadge(ctx, x, y, size, { top: "#dcfce7", bottom: "#22c55e" });
+  drawSolverBadge(ctx, x, y, size, { top: "#cfe3d6", bottom: "#1f6a33" });
 
   const midX = x + size * 0.5;
   const top = y + size * 0.22;
@@ -4484,15 +5634,144 @@ const applyMonochromeTint = (
   const tintG = tint[1];
   const tintB = tint[2];
   const tintA = tint[3];
-  const alphaBoost = 1.07;
+  const alphaBoost = 1.08;
+
+  const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
+  const mixRgb = (a: [number, number, number], b: [number, number, number], t: number) => {
+    const amount = clamp01(t);
+    return [
+      a[0] + (b[0] - a[0]) * amount,
+      a[1] + (b[1] - a[1]) * amount,
+      a[2] + (b[2] - a[2]) * amount,
+    ] as [number, number, number];
+  };
+  const rgbToHsl = (r: number, g: number, b: number) => {
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const l = (max + min) / 2;
+    if (max === min) {
+      return { h: 0, s: 0, l };
+    }
+    const d = max - min;
+    const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    let h = 0;
+    switch (max) {
+      case r:
+        h = (g - b) / d + (g < b ? 6 : 0);
+        break;
+      case g:
+        h = (b - r) / d + 2;
+        break;
+      default:
+        h = (r - g) / d + 4;
+        break;
+    }
+    h /= 6;
+    return { h, s, l };
+  };
+  const hueToRgb = (p: number, q: number, t: number) => {
+    let tt = t;
+    if (tt < 0) tt += 1;
+    if (tt > 1) tt -= 1;
+    if (tt < 1 / 6) return p + (q - p) * 6 * tt;
+    if (tt < 1 / 2) return q;
+    if (tt < 2 / 3) return p + (q - p) * (2 / 3 - tt) * 6;
+    return p;
+  };
+  const hslToRgb = (h: number, s: number, l: number) => {
+    if (s === 0) return [l, l, l] as [number, number, number];
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    return [
+      hueToRgb(p, q, h + 1 / 3),
+      hueToRgb(p, q, h),
+      hueToRgb(p, q, h - 1 / 3),
+    ] as [number, number, number];
+  };
+
+  const { h, s, l } = rgbToHsl(tintR, tintG, tintB);
+  const base: [number, number, number] = [tintR, tintG, tintB];
+  const secondaryHue = (h + 0.08) % 1;
+  const shadow = hslToRgb(h, clamp01(s * 0.9 + 0.05), clamp01(l * 0.48 + 0.05));
+  const secondary = hslToRgb(
+    secondaryHue,
+    clamp01(s * 0.85 + 0.12),
+    clamp01(l * 1.12 + 0.08)
+  );
+  const highlight = hslToRgb(
+    (h + 0.02) % 1,
+    clamp01(s * 0.7 + 0.18),
+    clamp01(l * 1.35 + 0.12)
+  );
 
   for (let i = 0; i < data.length; i += 4) {
     const alpha = data[i + 3];
     if (alpha === 0) continue;
-    data[i] = Math.round(tintR * 255);
-    data[i + 1] = Math.round(tintG * 255);
-    data[i + 2] = Math.round(tintB * 255);
-    data[i + 3] = Math.min(255, Math.round(alpha * tintA * alphaBoost));
+    const lum =
+      (0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]) / 255;
+    const pixelIndex = i / 4;
+    const px = pixelIndex % size;
+    const py = Math.floor(pixelIndex / size);
+    const grad = (px / size) * 0.18 + (1 - py / size) * 0.08;
+    const low = lum < 0.5 ? lum / 0.5 : 1;
+    const high = lum < 0.5 ? 0 : (lum - 0.5) / 0.5;
+    let tone = mixRgb(shadow, base, low);
+    tone = mixRgb(tone, secondary, high);
+    const highlightMix = clamp01(Math.pow(lum, 2.1) * 0.4 + grad);
+    tone = mixRgb(tone, highlight, highlightMix);
+    data[i] = Math.round(tone[0] * 255);
+    data[i + 1] = Math.round(tone[1] * 255);
+    data[i + 2] = Math.round(tone[2] * 255);
+    const alphaScale = 0.78 + lum * 0.42;
+    data[i + 3] = Math.min(255, Math.round(alpha * tintA * alphaBoost * alphaScale));
+  }
+
+  ctx.putImageData(image, x, y);
+};
+
+const applyStickerOutline = (
+  ctx: CanvasRenderingContext2D,
+  bounds: { x: number; y: number; size: number }
+) => {
+  const { x, y, size } = bounds;
+  const image = ctx.getImageData(x, y, size, size);
+  const data = image.data;
+  const width = size;
+  const height = size;
+  const alphaThreshold = 16;
+  const outlineWidth = Math.max(1, Math.min(3, Math.round(size * 0.01)));
+  const outline = new Uint8Array(width * height);
+
+  for (let py = 0; py < height; py += 1) {
+    const rowOffset = py * width;
+    for (let px = 0; px < width; px += 1) {
+      const idx = rowOffset + px;
+      const alpha = data[idx * 4 + 3];
+      if (alpha <= alphaThreshold) continue;
+      for (let oy = -outlineWidth; oy <= outlineWidth; oy += 1) {
+        const ny = py + oy;
+        if (ny < 0 || ny >= height) continue;
+        const nRow = ny * width;
+        for (let ox = -outlineWidth; ox <= outlineWidth; ox += 1) {
+          const nx = px + ox;
+          if (nx < 0 || nx >= width) continue;
+          const nIdx = nRow + nx;
+          if (data[nIdx * 4 + 3] <= alphaThreshold) {
+            outline[nIdx] = 1;
+          }
+        }
+      }
+    }
+  }
+
+  for (let i = 0; i < outline.length; i += 1) {
+    if (!outline[i]) continue;
+    const offset = i * 4;
+    if (data[offset + 3] > alphaThreshold) continue;
+    data[offset] = 0;
+    data[offset + 1] = 0;
+    data[offset + 2] = 0;
+    data[offset + 3] = 255;
   }
 
   ctx.putImageData(image, x, y);
@@ -4522,7 +5801,20 @@ const drawIconToTile = (
     ctx.fillRect(x, y, size, size);
   }
 
-  switch (id) {
+  const idString = typeof id === "string" ? id : "";
+  let handled = false;
+  if (idString.startsWith("primitive:")) {
+    const variant = idString.slice("primitive:".length);
+    drawPrimitiveStickerVariant(ctx, x, y, size, variant);
+    handled = true;
+  } else if (idString.startsWith("tessellation:")) {
+    const variant = idString.slice("tessellation:".length);
+    drawTessellationStickerVariant(ctx, x, y, size, variant);
+    handled = true;
+  }
+
+  if (!handled) {
+    switch (id) {
     case "point":
       drawPointIcon(ctx, x, y, size);
       break;
@@ -4808,6 +6100,24 @@ const drawIconToTile = (
     case "biologicalSolver":
       drawBiologicalSolverIcon(ctx, x, y, size);
       break;
+    case "solver":
+      drawSolverIcon(ctx, x, y, size);
+      break;
+    case "goal":
+      drawGoalIcon(ctx, x, y, size);
+      break;
+    case "stiffnessGoal":
+      drawStiffnessStickerIcon(ctx, x, y, size);
+      break;
+    case "volumeGoal":
+      drawVolumeStickerIcon(ctx, x, y, size);
+      break;
+    case "loadGoal":
+      drawLoadStickerIcon(ctx, x, y, size);
+      break;
+    case "anchorGoal":
+      drawAnchorStickerIcon(ctx, x, y, size);
+      break;
     case "transform":
       drawTransformIcon(ctx, x, y, size);
       break;
@@ -4937,16 +6247,25 @@ const drawIconToTile = (
     default:
       drawPointIcon(ctx, x, y, size);
       break;
+    }
   }
 
+  applyGlyphDepth(ctx, { x, y, size });
   applyGloss(ctx, { x, y, size });
   ctx.restore();
   activeIconStyle = previousStyle;
 
   const tint = options.tint ?? (style === "glyph" ? DEFAULT_GLYPH_TINT : undefined);
-  const monochrome = options.monochrome ?? style === "glyph";
+  const monochrome = options.monochrome ?? style !== "tile";
   if (monochrome && tint) {
     applyMonochromeTint(ctx, { x, y, size }, tint);
+  }
+  if (style === "sticker2") {
+    applyStickerOutline(ctx, { x, y, size });
+  }
+  if (options.signature && (style === "sticker" || style === "sticker2")) {
+    drawStickerSignatureMarks(ctx, x, y, size, options.signature);
+    drawStickerSignature(ctx, x, y, size, options.signature);
   }
 };
 
@@ -4970,7 +6289,7 @@ export const renderIconDataUrl = (
 };
 
 const createAtlasSpec = (gl: WebGLRenderingContext): AtlasSpec => {
-  const columns = 8;
+  const columns = 12;
   const rows = Math.ceil(ICON_IDS.length / columns);
   const maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE) || 4096;
   const maxIconByWidth = Math.floor(maxTextureSize / columns);

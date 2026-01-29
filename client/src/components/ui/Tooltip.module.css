@@ -9,6 +9,10 @@
   animation: tooltipEnter 100ms ease-out;
 }
 
+.tooltip[data-interactive="true"] {
+  pointer-events: auto;
+}
+
 .content {
   display: inline-flex;
   align-items: center;
@@ -27,6 +31,7 @@
 }
 
 .text {
+  display: block;
   max-width: 240px;
   white-space: pre-line;
   line-height: 1.4;

@@ -117,3 +117,17 @@ Fourth, use type discriminators consistently for polymorphic data. Geometry reco
 Fifth, keep rendering logic separate from geometric computation. The viewport should map geometry records to renderable WebGL buffers but should not perform geometric operations directly. The workflow editor should render node graphs but should delegate evaluation to a separate graph evaluator. This separation enables testing of geometric and computational logic without UI dependencies.
 
 When implementing new features, consider how they integrate with the existing subsystems. New geometry types need kernel operations, viewport rendering, selection support, and persistence serialization. New commands need registry entries, input validation, preview rendering if applicable, and store integration. New workflow node types need type definitions, compute functions, port specifications, and UI rendering. This systematic integration ensures features work consistently across the application.
+
+## System Boundaries and Non-Goals
+
+- No external CAD kernel: the geometry kernel remains custom TypeScript code.
+- The node editor remains canvas-based; DOM/SVG node editors are out of scope.
+- The server remains a minimal persistence layer; collaboration and multi-user sync are not part of the current baseline.
+- Rendering stays in the custom WebGL pipeline; Three.js is limited to math helpers and primitive generation.
+
+## Change Impact Checklist
+
+- New geometry type: update types, kernel ops, render adapter, hit testing, selection UI, and persistence.
+- New command: update registry, validation, command UI, and undo/redo hooks.
+- New workflow node: update node registry, validation, compute function, and canvas rendering.
+- New render mode or style: update shaders, renderer orchestration, UI labels, and docs.

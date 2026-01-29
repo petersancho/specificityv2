@@ -189,3 +189,17 @@ The ReactFlow replacement now uses a single HTML5 canvas (`NumericalCanvas.tsx`)
 All interaction is handled through manual hit testing in canvas space. Pointer events test ports first, then nodes, then the background to decide between edge creation, node dragging, or panning. Drag sessions capture starting positions, update live preview positions in memory, and commit final node positions to the Zustand store on release to preserve undo/redo semantics. Edge creation validates port targets before committing connections to the workflow graph.
 
 Because the workflow editor is fully canvas-driven, there are no DOM node elements or SVG overlays. Visuals and hit testing are implemented within the draw loop, ensuring consistent performance for large graphs while preserving the existing data model and evaluation behavior.
+
+## Subsystem Integration Checklist
+
+- Geometry changes: update kernel ops, render adapter, hit testing, and persistence.
+- Workflow changes: update node registry, validation, compute functions, and canvas UI.
+- Command changes: update registry, input parsing, undo/redo integration, and help text.
+- Rendering changes: update shaders, display mode definitions, and style docs.
+
+## Known Coupling Points
+
+- Render adapter depends on geometry types and tessellation helpers.
+- Hit testing depends on both kernel math and render-time tessellation density.
+- Workflow evaluation depends on node registry and store invalidation rules.
+- Command modal behavior depends on viewport interaction session patterns.

@@ -138,10 +138,21 @@ These modules are the primary integration points:
 - `client/src/webgl/ui/WebGLIconRenderer.ts`
   - icon atlas generation and icon identity system
 
+## Color and Line Tokens
+
+- Use the icon palette tokens in `icon_palette.md` for UI color alignment.
+- Edge lines: default 1px, selected 2px; keep dashed hidden edges lighter than visible edges.
+- Selection highlight should be high-contrast but limited to a single accent color.
+
+## Performance Guardrails
+
+- Avoid full re-tessellation on every frame; cache tessellations per geometry and invalidate only on changes.
+- Keep hidden-edge passes minimal; skip when not in ghosted or wireframe modes.
+- Favor instanced rendering for repeated primitives like points or vertex markers.
+
 ## Guardrails
 
 - Favor clarity over novelty.
 - The grid must aid orientation but never compete with geometry.
 - Edges should remain readable under all display modes.
 - When uncertain, reduce visual complexity and increase structural contrast.
-

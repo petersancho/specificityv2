@@ -17,9 +17,61 @@ import {
   generatePipeMesh,
   generateSphereMesh,
 } from "../geometry/mesh";
+import {
+  getTessellationMetadata,
+  toTessellationMesh,
+  toTessellationMeshData,
+  tessellationMeshToRenderMesh,
+  subdivideLinear,
+  subdivideCatmullClark,
+  subdivideLoop,
+  subdivideAdaptive,
+  dualMesh,
+  insetFaces,
+  extrudeFaces,
+  meshRelax,
+  selectFaces,
+  triangulateMesh,
+  generateGeodesicSphere,
+  generateHexagonalTiling,
+  generateVoronoiPattern,
+  offsetPattern,
+  generateMeshUVs,
+  repairMesh,
+  decimateMesh,
+  quadDominantRemesh,
+  meshBoolean,
+} from "../geometry/meshTessellation";
+import { brepFromMesh, tessellateBRepToMesh } from "../geometry/brep";
+import { tessellateCurveAdaptive, tessellateSurfaceAdaptive } from "../geometry/tessellation";
 import type { NodeType } from "./nodeTypes";
 import { PRIMITIVE_NODE_CATALOG, PRIMITIVE_NODE_TYPE_IDS } from "../data/primitiveCatalog";
 import { hexToRgb, normalizeHexColor, normalizeRgbInput, rgbToHex } from "../utils/color";
+import { PhysicsSolverNode } from "./nodes/solver/PhysicsSolver";
+import { BiologicalEvolutionSolverNode } from "./nodes/solver/BiologicalEvolutionSolver";
+import { createVoxelSolverNode } from "./nodes/solver/VoxelSolver";
+import { AnchorGoalNode, LoadGoalNode, StiffnessGoalNode, VolumeGoalNode } from "./nodes/solver/goals/physics";
+import {
+  GrowthGoalNode,
+  NutrientGoalNode,
+  MorphogenesisGoalNode,
+  HomeostasisGoalNode,
+} from "./nodes/solver/goals/biological";
+import {
+  GenomeCollectorNode,
+  GeometryPhenotypeNode,
+  PerformsFitnessNode,
+} from "./nodes/solver/goals/biologicalEvolution";
+import {
+  ChemistryBlendGoalNode,
+  ChemistryMassGoalNode,
+  ChemistryMaterialGoalNode,
+  ChemistryStiffnessGoalNode,
+  ChemistryThermalGoalNode,
+  ChemistryTransparencyGoalNode,
+} from "./nodes/solver/goals/chemistry";
+import { validateBiologicalGoals, validateChemistryGoals } from "./nodes/solver/validation";
+import type { GoalSpecification } from "./nodes/solver/types";
 
 export type WorkflowPortType =
   | "number"
@@ -27,6 +79,12 @@ export type WorkflowPortType =
   | "string"
   | "vector"
   | "geometry"
+  | "goal"
+  | "genomeSpec"
+  | "phenotypeSpec"
+  | "fitnessSpec"
+  | "solverResult"
+  | "animation"
   | "any";
 
 export type WorkflowPortSpec = {
@@ -69,6 +127,7 @@ export type WorkflowParameterSpec = {
   options?: WorkflowParameterOption[];
   accept?: string;
   description?: string;
+  enabled?: (parameters: Record<string, unknown>) => boolean;
 };
 
 export type NodeCategoryId =
@@ -78,7 +137,9 @@ export type NodeCategoryId =
   | "primitives"
   | "curves"
   | "nurbs"
-  | "surfaces"
+  | "brep"
+  | "mesh"
+  | "tessellation"
   | "transforms"
   | "arrays"
   | "modifiers"
@@ -89,6 +150,8 @@ export type NodeCategoryId =
   | "analysis"
   | "interop"
   | "voxel"
+  | "solver"
+  | "goal"
   | "optimization"
   | "math"
   | "logic";
@@ -134,6 +197,12 @@ export type WorkflowNodeDefinition = {
   description: string;
   category: NodeCategoryId;
   iconId: IconId;
+  display?: {
+    nameGreek?: string;
+    nameEnglish?: string;
+    romanization?: string;
+    description?: string;
+  };
   inputs: PortsDefinition;
   outputs: PortsDefinition;
   parameters: WorkflowParameterSpec[];
@@ -239,6 +308,166 @@ const roundToPrecision = (value: number, precision: number) => {
 };
 
 type Vec3Value = { x: number; y: number; z: number };
+
+type ChemistryMaterialSpec = {
+  name: string;
+  density: number;
+  stiffness: number;
+  thermalConductivity: number;
+  opticalTransmission: number;
+  diffusivity: number;
+  color: [number, number, number];
+};
+
+type ChemistryMaterialAssignment = {
+  geometryId?: string;
+  material: ChemistryMaterialSpec;
+  weight?: number;
+};
+
+type ChemistrySeed = {
+  position: Vec3Value;
+  material: string;
+  strength: number;
+  radius: number;
+};
+
+type ChemistryParticle = {
+  position: Vec3Value;
+  radius: number;
+  materials: Record<string, number>;
+};
+
+type ChemistryField = {
+  resolution: { x: number; y: number; z: number };
+  bounds: { min: Vec3Value; max: Vec3Value };
+  cellSize: Vec3Value;
+  materials: string[];
+  channels: number[][];
+  densities: number[];
+  maxDensity: number;
+};
+
+type ChemistryHistoryEntry = {
+  iteration: number;
+  energies: Record<string, number>;
+  totalEnergy: number;
+};
+
+type ChemistrySolverResult = {
+  particles: ChemistryParticle[];
+  field: ChemistryField | null;
+  mesh: RenderMesh;
+  history: ChemistryHistoryEntry[];
+  bestState: { particles: ChemistryParticle[]; totalEnergy: number; iteration: number } | null;
+  totalEnergy: number;
+  iterations: number;
+  status: string;
+  warnings: string[];
+  materials: ChemistryMaterialSpec[];
+};
+
+type BiologicalFitnessProfile = {
+  bias: number;
+  penalty: number;
+  frequency: Vec3Value;
+};
+
+type BiologicalProfileTuning = {
+  fitnessProfile: BiologicalFitnessProfile;
+  mutationRateScale: number;
+  populationScale: number;
+};
+
+const DEFAULT_BIOLOGICAL_FITNESS_PROFILE: BiologicalFitnessProfile = {
+  bias: 0,
+  penalty: 0.04,
+  frequency: { x: 1, y: 1, z: 0.7 },
+};
+
+export const CHEMISTRY_MATERIAL_LIBRARY: Record<string, ChemistryMaterialSpec> = {
+  steel: {
+    name: "Steel",
+    density: 7850,
+    stiffness: 200e9,
+    thermalConductivity: 50,
+    opticalTransmission: 0,
+    diffusivity: 0.2,
+    color: [0.7, 0.7, 0.75],
+  },
+  aluminum: {
+    name: "Aluminum",
+    density: 2700,
+    stiffness: 69e9,
+    thermalConductivity: 205,
+    opticalTransmission: 0,
+    diffusivity: 0.25,
+    color: [0.78, 0.8, 0.82],
+  },
+  metal: {
+    name: "Metal",
+    density: 7850,
+    stiffness: 180e9,
+    thermalConductivity: 60,
+    opticalTransmission: 0,
+    diffusivity: 0.22,
+    color: [0.68, 0.68, 0.72],
+  },
+  ceramic: {
+    name: "Ceramic",
+    density: 3900,
+    stiffness: 300e9,
+    thermalConductivity: 20,
+    opticalTransmission: 0.05,
+    diffusivity: 0.18,
+    color: [0.9, 0.9, 0.94],
+  },
+  alumina: {
+    name: "Alumina",
+    density: 3900,
+    stiffness: 320e9,
+    thermalConductivity: 25,
+    opticalTransmission: 0.03,
+    diffusivity: 0.16,
+    color: [0.92, 0.92, 0.96],
+  },
+  zirconia: {
+    name: "Zirconia",
+    density: 5600,
+    stiffness: 210e9,
+    thermalConductivity: 2.5,
+    opticalTransmission: 0.02,
+    diffusivity: 0.14,
+    color: [0.95, 0.95, 0.98],
+  },
+  glass: {
+    name: "Glass",
+    density: 2500,
+    stiffness: 70e9,
+    thermalConductivity: 1.4,
+    opticalTransmission: 0.9,
+    diffusivity: 0.35,
+    color: [0.7, 0.85, 0.95],
+  },
+  silica: {
+    name: "Silica",
+    density: 2200,
+    stiffness: 72e9,
+    thermalConductivity: 1.3,
+    opticalTransmission: 0.92,
+    diffusivity: 0.35,
+    color: [0.75, 0.88, 0.96],
+  },
+  borosilicate: {
+    name: "Borosilicate",
+    density: 2230,
+    stiffness: 64e9,
+    thermalConductivity: 1.2,
+    opticalTransmission: 0.88,
+    diffusivity: 0.32,
+    color: [0.76, 0.9, 0.97],
+  },
+};
 
 const isVec3Value = (value: WorkflowValue): value is Vec3Value => {
   if (!value || typeof value !== "object") return false;
@@ -475,6 +704,11 @@ const toNumericList = (value: WorkflowValue): number[] => {
   return numbers;
 };
 
+const toIndexList = (value: WorkflowValue): number[] =>
+  toNumericList(value)
+    .map((entry) => Math.round(entry))
+    .filter((entry) => Number.isFinite(entry) && entry >= 0);
+
 const resolveGeometryInput = (
   inputs: Record<string, WorkflowValue>,
   context: WorkflowComputeContext,
@@ -492,6 +726,139 @@ const resolveGeometryInput = (
     throw new Error("Referenced geometry could not be found.");
   }
   return geometry;
+};
+
+const resolveGeometryFileType = (geometry: Geometry) => {
+  const metadata = geometry.metadata;
+  if (metadata && typeof metadata === "object") {
+    const record = metadata as Record<string, unknown>;
+    const sourceFile = record.sourceFile;
+    if (sourceFile && typeof sourceFile === "object") {
+      const source = sourceFile as Record<string, unknown>;
+      const extensionRaw = typeof source.extension === "string" ? source.extension : "";
+      const nameRaw = typeof source.name === "string" ? source.name : "";
+      const typeRaw = typeof source.type === "string" ? source.type : "";
+      const nameExtension = nameRaw.includes(".")
+        ? nameRaw.split(".").pop() ?? ""
+        : "";
+      const candidate =
+        extensionRaw ||
+        nameExtension ||
+        (typeRaw.includes("/") ? typeRaw.split("/")[1] : "");
+      const trimmed = candidate.trim().replace(/^\./, "").toLowerCase();
+      if (trimmed.length > 0) return trimmed;
+    }
+    const fileType = record.fileType;
+    if (typeof fileType === "string" && fileType.trim().length > 0) {
+      return fileType.trim().toLowerCase();
+    }
+  }
+  return geometry.type;
+};
+
+const meshFromTessellation = (tessellated: {
+  positions: Float32Array;
+  normals: Float32Array;
+  indices: Uint32Array | Uint16Array;
+  uvs: Float32Array;
+}): RenderMesh => ({
+  positions: Array.from(tessellated.positions),
+  normals: Array.from(tessellated.normals),
+  indices: Array.from(tessellated.indices),
+  uvs: Array.from(tessellated.uvs),
+});
+
+const resolveMeshFromGeometry = (geometry: Geometry): RenderMesh | null => {
+  if (geometry.type === "nurbsSurface") {
+    if (geometry.mesh?.positions?.length) return geometry.mesh;
+    return meshFromTessellation(tessellateSurfaceAdaptive(geometry.nurbs));
+  }
+  if (geometry.type === "brep") {
+    if (geometry.mesh?.positions?.length) return geometry.mesh;
+    return tessellateBRepToMesh(geometry.brep);
+  }
+  if (geometry.type === "surface" && geometry.nurbs) {
+    return meshFromTessellation(tessellateSurfaceAdaptive(geometry.nurbs));
+  }
+  if ("mesh" in geometry && geometry.mesh?.positions?.length) {
+    return geometry.mesh;
+  }
+  return null;
+};
+
+const convertGeometryToMesh = (
+  geometry: Geometry,
+  inputs: Record<string, WorkflowValue>,
+  parameters: Record<string, unknown>,
+  context: WorkflowComputeContext
+): RenderMesh => {
+  const resolvedMesh = resolveMeshFromGeometry(geometry);
+  if (resolvedMesh) return resolvedMesh;
+
+  if (geometry.type === "polyline" || geometry.type === "nurbsCurve") {
+    let points: Vec3Value[] = [];
+    let closed = false;
+    if (geometry.type === "polyline") {
+      points = collectGeometryVertices(geometry, context, MAX_LIST_ITEMS);
+      closed = geometry.closed;
+      if (geometry.nurbs) {
+        const tessellated = tessellateCurveAdaptive(geometry.nurbs);
+        if (tessellated.points.length >= 2) {
+          points = tessellated.points.slice(0, MAX_LIST_ITEMS);
+        }
+      }
+    } else {
+      const tessellated = tessellateCurveAdaptive(geometry.nurbs);
+      points = tessellated.points.slice(0, MAX_LIST_ITEMS);
+      closed = Boolean(geometry.closed);
+      if (closed && points.length > 1) {
+        const first = points[0];
+        const last = points[points.length - 1];
+        const isClosed =
+          Math.abs(first.x - last.x) < 1e-6 &&
+          Math.abs(first.y - last.y) < 1e-6 &&
+          Math.abs(first.z - last.z) < 1e-6;
+        if (!isClosed) {
+          points = [...points, { ...first }];
+        }
+        points[points.length - 1] = { ...first };
+      }
+    }
+    if (points.length < 2) {
+      return EMPTY_MESH;
+    }
+    const distance = toNumber(
+      inputs.distance,
+      readNumberParameter(parameters, "distance", 0.1)
+    );
+    if (distance <= EPSILON) {
+      return EMPTY_MESH;
+    }
+    const directionInput = resolveVectorInput(
+      inputs,
+      parameters,
+      "direction",
+      "direction",
+      UNIT_Y_VEC3
+    );
+    const direction = normalizeVec3Safe(directionInput, UNIT_Y_VEC3);
+    const capped = toBoolean(
+      inputs.capped,
+      readBooleanParameter(parameters, "capped", closed)
+    );
+    return generateExtrudeMesh([{ points, closed }], { direction, distance, capped });
+  }
+
+  if (geometry.type === "vertex") {
+    const radius = toNumber(inputs.radius, readNumberParameter(parameters, "radius", 0.1));
+    if (radius <= EPSILON) {
+      return EMPTY_MESH;
+    }
+    const sphere = generateSphereMesh(radius, 24);
+    return translateMesh(sphere, geometry.position);
+  }
+
+  return EMPTY_MESH;
 };
 
 const vec3FromPositions = (positions: number[], index: number): Vec3Value => {
@@ -547,6 +914,33 @@ const collectGeometryVertices = (
       }
     });
     return positions;
+  }
+
+  if (geometry.type === "nurbsCurve") {
+    return geometry.nurbs.controlPoints.slice(0, maxItems);
+  }
+
+  if (geometry.type === "nurbsSurface") {
+    const points: Vec3Value[] = [];
+    geometry.nurbs.controlPoints.forEach((row) => {
+      row.forEach((point) => {
+        if (points.length >= maxItems) return;
+        points.push(point);
+      });
+    });
+    return points;
+  }
+
+  if (geometry.type === "brep") {
+    if (geometry.mesh?.positions) {
+      const positions: Vec3Value[] = [];
+      const count = Math.floor(geometry.mesh.positions.length / 3);
+      for (let i = 0; i < count && positions.length < maxItems; i += 1) {
+        positions.push(vec3FromPositions(geometry.mesh.positions, i));
+      }
+      return positions;
+    }
+    return geometry.brep.vertices.slice(0, maxItems).map((vertex) => vertex.position);
   }
 
   if ("mesh" in geometry && geometry.mesh?.positions) {
@@ -659,6 +1053,21 @@ const collectGeometryEdges = (
     return edges;
   }
 
+  if (geometry.type === "brep") {
+    const positionsById = new Map(
+      geometry.brep.vertices.map((vertex) => [vertex.id, vertex.position])
+    );
+    geometry.brep.edges.forEach((edge) => {
+      if (edges.length >= maxItems) return;
+      const start = positionsById.get(edge.vertices[0]);
+      const end = positionsById.get(edge.vertices[1]);
+      if (start && end) {
+        edges.push([start, end]);
+      }
+    });
+    return edges;
+  }
+
   if ("mesh" in geometry && geometry.mesh?.indices && geometry.mesh?.positions) {
     const edgeIndices = collectMeshEdges(geometry.mesh.indices, maxItems);
     edgeIndices.forEach(([a, b]) => {
@@ -709,6 +1118,21 @@ const collectGeometryControlPoints = (
   context: WorkflowComputeContext,
   maxItems: number
 ) => {
+  if (geometry.type === "nurbsCurve") {
+    return geometry.nurbs.controlPoints.slice(0, maxItems);
+  }
+
+  if (geometry.type === "nurbsSurface") {
+    const points: Vec3Value[] = [];
+    geometry.nurbs.controlPoints.forEach((row) => {
+      row.forEach((point) => {
+        if (points.length >= maxItems) return;
+        points.push(point);
+      });
+    });
+    return points;
+  }
+
   if (geometry.type === "surface" && geometry.nurbs?.controlPoints) {
     const points: Vec3Value[] = [];
     geometry.nurbs.controlPoints.forEach((row) => {
@@ -750,6 +1174,16 @@ const collectGeometryControlPoints = (
 const countGeometryVertices = (geometry: Geometry, context: WorkflowComputeContext) => {
   if (geometry.type === "vertex") return 1;
   if (geometry.type === "polyline") return geometry.vertexIds.length;
+  if (geometry.type === "nurbsCurve") return geometry.nurbs.controlPoints.length;
+  if (geometry.type === "nurbsSurface") {
+    return geometry.nurbs.controlPoints.reduce((acc, row) => acc + row.length, 0);
+  }
+  if (geometry.type === "brep") {
+    if (geometry.mesh?.positions) {
+      return Math.floor(geometry.mesh.positions.length / 3);
+    }
+    return geometry.brep.vertices.length;
+  }
   if ("mesh" in geometry && geometry.mesh?.positions) {
     return Math.floor(geometry.mesh.positions.length / 3);
   }
@@ -757,6 +1191,12 @@ const countGeometryVertices = (geometry: Geometry, context: WorkflowComputeConte
 };
 
 const countGeometryFaces = (geometry: Geometry) => {
+  if (geometry.type === "brep") {
+    if (geometry.mesh?.indices) {
+      return Math.floor(geometry.mesh.indices.length / 3);
+    }
+    return geometry.brep.faces.length;
+  }
   if (!("mesh" in geometry) || !geometry.mesh?.indices) return 0;
   return Math.floor(geometry.mesh.indices.length / 3);
 };
@@ -770,15 +1210,27 @@ const countGeometryEdges = (geometry: Geometry, context: WorkflowComputeContext)
     const edges = collectMeshEdges(geometry.mesh.indices, Number.POSITIVE_INFINITY);
     return edges.length;
   }
+  if (geometry.type === "brep") {
+    return geometry.brep.edges.length;
+  }
   return 0;
 };
 
 const countGeometryNormals = (geometry: Geometry) => {
+  if (geometry.type === "brep" && geometry.mesh?.normals) {
+    return Math.floor(geometry.mesh.normals.length / 3);
+  }
   if (!("mesh" in geometry) || !geometry.mesh?.normals) return 0;
   return Math.floor(geometry.mesh.normals.length / 3);
 };
 
 const countGeometryControlPoints = (geometry: Geometry, context: WorkflowComputeContext) => {
+  if (geometry.type === "nurbsCurve") {
+    return geometry.nurbs.controlPoints.length;
+  }
+  if (geometry.type === "nurbsSurface") {
+    return geometry.nurbs.controlPoints.reduce((acc, row) => acc + row.length, 0);
+  }
   if (geometry.type === "surface" && geometry.nurbs?.controlPoints) {
     return geometry.nurbs.controlPoints.reduce((acc, row) => acc + row.length, 0);
   }
@@ -814,6 +1266,33 @@ const collectGeometryPositions = (
       if (vertex) positions.push(vertex.position as Vec3Value);
     });
     return positions;
+  }
+
+  if (geometry.type === "nurbsCurve") {
+    return geometry.nurbs.controlPoints.slice(0, maxItems);
+  }
+
+  if (geometry.type === "nurbsSurface") {
+    const positions: Vec3Value[] = [];
+    geometry.nurbs.controlPoints.forEach((row) => {
+      row.forEach((point) => {
+        if (positions.length >= maxItems) return;
+        positions.push(point);
+      });
+    });
+    return positions;
+  }
+
+  if (geometry.type === "brep") {
+    if (geometry.mesh?.positions) {
+      const positions: Vec3Value[] = [];
+      const count = Math.floor(geometry.mesh.positions.length / 3);
+      for (let i = 0; i < count && positions.length < maxItems; i += 1) {
+        positions.push(vec3FromPositions(geometry.mesh.positions, i));
+      }
+      return positions;
+    }
+    return geometry.brep.vertices.slice(0, maxItems).map((vertex) => vertex.position);
   }
 
   if ("mesh" in geometry && geometry.mesh?.positions) {
@@ -1720,13 +2199,111 @@ const buildPlaneBasis = (normal: Vec3Value, reference: Vec3Value) => {
   return { xAxis, yAxis, zAxis: unitNormal };
 };
 
-const evaluateGenomeFitness = (genome: Vec3Value, bias: number) => {
+const evaluateGenomeFitness = (genome: Vec3Value, profile: BiologicalFitnessProfile) => {
+  const bias = profile.bias;
+  const freq = profile.frequency;
   const periodic =
-    Math.sin(genome.x + bias) +
-    Math.cos(genome.y - bias * 0.5) +
-    Math.sin(genome.z * 0.7 + bias * 0.25);
-  const penalty = 0.04 * (genome.x * genome.x + genome.y * genome.y + genome.z * genome.z);
+    Math.sin(genome.x * freq.x + bias) +
+    Math.cos(genome.y * freq.y - bias * 0.5) +
+    Math.sin(genome.z * freq.z + bias * 0.25);
+  const penalty =
+    profile.penalty * (genome.x * genome.x + genome.y * genome.y + genome.z * genome.z);
   return periodic - penalty;
+};
+
+const deriveBiologicalProfile = (
+  goals: GoalSpecification[],
+  baseBias: number
+): BiologicalProfileTuning => {
+  if (!Array.isArray(goals) || goals.length === 0) {
+    return {
+      fitnessProfile: {
+        ...DEFAULT_BIOLOGICAL_FITNESS_PROFILE,
+        bias: baseBias,
+        frequency: { ...DEFAULT_BIOLOGICAL_FITNESS_PROFILE.frequency },
+      },
+      mutationRateScale: 1,
+      populationScale: 1,
+    };
+  }
+
+  let bias = baseBias;
+  let penalty = DEFAULT_BIOLOGICAL_FITNESS_PROFILE.penalty;
+  let frequency = { ...DEFAULT_BIOLOGICAL_FITNESS_PROFILE.frequency };
+  let mutationRateScale = 1;
+  let populationScale = 1;
+
+  goals.forEach((goal) => {
+    const weight = clampNumber(toNumber(goal.weight, 0), 0, 1);
+    const params = goal.parameters ?? {};
+    switch (goal.goalType) {
+      case "growth": {
+        const targetBiomass = clampNumber(
+          toNumber(params.targetBiomass, toNumber(goal.target, 0.7)),
+          0,
+          1
+        );
+        const growthRate = clampNumber(toNumber(params.growthRate, 0.6), 0, 3);
+        const carryingCapacity = clampNumber(toNumber(params.carryingCapacity, 1), 0.1, 5);
+        bias += weight * (targetBiomass - 0.5) * 1.2;
+        mutationRateScale *= 1 + weight * (growthRate - 0.5) * 0.4;
+        populationScale *= 1 + weight * (carryingCapacity - 1) * 0.15;
+        break;
+      }
+      case "nutrient": {
+        const sourceStrength = clampNumber(toNumber(params.sourceStrength, 1), 0, 5);
+        const uptakeRate = clampNumber(toNumber(params.uptakeRate, 0.4), 0, 2);
+        const diffusionRate = clampNumber(toNumber(params.diffusionRate, 0.6), 0, 2);
+        bias += weight * sourceStrength * 0.2;
+        penalty += weight * uptakeRate * 0.02;
+        const diffusionScale = 1 + (diffusionRate - 0.6) * 0.3;
+        frequency = {
+          x: frequency.x * diffusionScale,
+          y: frequency.y * diffusionScale,
+          z: frequency.z * diffusionScale,
+        };
+        break;
+      }
+      case "morphogenesis": {
+        const branchingFactor = clampNumber(toNumber(params.branchingFactor, 0.6), 0, 2);
+        const patternScale = clampNumber(toNumber(params.patternScale, 1), 0.2, 3);
+        const anisotropy = clampNumber(toNumber(params.anisotropy, 0), -1, 1);
+        const scale = 1 + (patternScale - 1) * 0.6;
+        frequency = {
+          x: frequency.x * scale * (1 + anisotropy * 0.2),
+          y: frequency.y * scale * (1 - anisotropy * 0.2),
+          z: frequency.z * scale,
+        };
+        mutationRateScale *= 1 + weight * branchingFactor * 0.5;
+        break;
+      }
+      case "homeostasis": {
+        const stabilityTarget = clampNumber(toNumber(params.stabilityTarget, 0.6), 0, 1);
+        const damping = clampNumber(toNumber(params.damping, 0.5), 0, 1);
+        const stressLimit = clampNumber(toNumber(params.stressLimit, 1), 0.1, 10);
+        penalty += weight * (1 - stabilityTarget) * 0.03;
+        mutationRateScale *= 1 - weight * damping * 0.6;
+        populationScale *= 1 + weight * (stressLimit - 1) * 0.05;
+        break;
+      }
+      default:
+        break;
+    }
+  });
+
+  mutationRateScale = clampNumber(mutationRateScale, 0.35, 2);
+  populationScale = clampNumber(populationScale, 0.6, 2);
+  penalty = clampNumber(penalty, 0.005, 0.2);
+
+  return {
+    fitnessProfile: {
+      bias,
+      penalty,
+      frequency,
+    },
+    mutationRateScale,
+    populationScale,
+  };
 };
 
 const mutateGenome = (genome: Vec3Value, mutationRate: number, random: () => number) => {
@@ -1848,7 +2425,7 @@ const runBiologicalSolver = (args: {
   populationSize: number;
   generations: number;
   mutationRate: number;
-  fitnessBias: number;
+  fitnessProfile: BiologicalFitnessProfile;
 }) => {
   const seed = hashStringToSeed(args.seedKey);
   const random = createSeededRandom(seed);
@@ -1856,7 +2433,7 @@ const runBiologicalSolver = (args: {
   const populationSize = clampInt(args.populationSize, 8, 96, 32);
   const generations = clampInt(args.generations, 1, 80, 24);
   const mutationRate = clampNumber(args.mutationRate, 0.01, 0.95);
-  const fitnessBias = Number.isFinite(args.fitnessBias) ? args.fitnessBias : 0;
+  const fitnessProfile = args.fitnessProfile ?? DEFAULT_BIOLOGICAL_FITNESS_PROFILE;
 
   const createRandomGenome = (): Vec3Value => ({
     x: (random() - 0.5) * 8,
@@ -1867,12 +2444,12 @@ const runBiologicalSolver = (args: {
   const population = Array.from({ length: populationSize }, () => createRandomGenome());
 
   let bestGenome = { ...population[0] };
-  let bestScore = evaluateGenomeFitness(bestGenome, fitnessBias);
+  let bestScore = evaluateGenomeFitness(bestGenome, fitnessProfile);
   let evaluations = 0;
 
   for (let gen = 0; gen < generations; gen += 1) {
     const scored = population.map((genome) => {
-      const score = evaluateGenomeFitness(genome, fitnessBias);
+      const score = evaluateGenomeFitness(genome, fitnessProfile);
       evaluations += 1;
       if (score > bestScore) {
         bestScore = score;
@@ -1904,6 +2481,928 @@ const runBiologicalSolver = (args: {
     evaluations,
     bestGenome,
     bestScore,
+  };
+};
+
+const normalizeChemistryMaterialName = (value: string) => value.trim().toLowerCase();
+
+const resolveChemistryMaterialSpec = (name: string): ChemistryMaterialSpec => {
+  const normalized = normalizeChemistryMaterialName(name);
+  const base =
+    CHEMISTRY_MATERIAL_LIBRARY[normalized] ?? CHEMISTRY_MATERIAL_LIBRARY.steel;
+  return { ...base, name: base.name ?? name };
+};
+
+const coerceChemistryColor = (
+  value: unknown,
+  fallback: [number, number, number]
+): [number, number, number] => {
+  const normalizeChannel = (channel: number) => {
+    const normalized = channel > 1 ? channel / 255 : channel;
+    return clampNumber(normalized, 0, 1);
+  };
+  if (Array.isArray(value) && value.length >= 3) {
+    const r = toNumber(value[0], fallback[0]);
+    const g = toNumber(value[1], fallback[1]);
+    const b = toNumber(value[2], fallback[2]);
+    return [normalizeChannel(r), normalizeChannel(g), normalizeChannel(b)];
+  }
+  if (value && typeof value === "object") {
+    const candidate = value as Partial<Vec3Value>;
+    if (
+      isFiniteNumber(candidate.x) &&
+      isFiniteNumber(candidate.y) &&
+      isFiniteNumber(candidate.z)
+    ) {
+      return [
+        normalizeChannel(candidate.x),
+        normalizeChannel(candidate.y),
+        normalizeChannel(candidate.z),
+      ];
+    }
+  }
+  return fallback;
+};
+
+const coerceChemistryMaterialSpec = (
+  value: unknown,
+  fallbackName: string
+): ChemistryMaterialSpec => {
+  if (typeof value === "string") {
+    return resolveChemistryMaterialSpec(value);
+  }
+  if (value && typeof value === "object") {
+    const candidate = value as Record<string, unknown>;
+    const name =
+      typeof candidate.name === "string" && candidate.name.trim().length > 0
+        ? candidate.name
+        : fallbackName;
+    const base = resolveChemistryMaterialSpec(name);
+    const density = isFiniteNumber(candidate.density)
+      ? candidate.density
+      : base.density;
+    const stiffness = isFiniteNumber(candidate.stiffness)
+      ? candidate.stiffness
+      : base.stiffness;
+    const thermalConductivity = isFiniteNumber(candidate.thermalConductivity)
+      ? candidate.thermalConductivity
+      : base.thermalConductivity;
+    const opticalTransmission = isFiniteNumber(candidate.opticalTransmission)
+      ? clampNumber(candidate.opticalTransmission, 0, 1)
+      : base.opticalTransmission;
+    const diffusivity = isFiniteNumber(candidate.diffusivity)
+      ? clampNumber(candidate.diffusivity, 0, 4)
+      : base.diffusivity;
+    const color = coerceChemistryColor(candidate.color, base.color);
+    return {
+      name,
+      density,
+      stiffness,
+      thermalConductivity,
+      opticalTransmission,
+      diffusivity,
+      color,
+    };
+  }
+  return resolveChemistryMaterialSpec(fallbackName);
+};
+
+const parseMaterialOrder = (value: unknown) => {
+  if (typeof value !== "string") return ["Steel", "Ceramic", "Glass"];
+  const entries = value
+    .split(/[,;]+/)
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+  return entries.length > 0 ? entries : ["Steel", "Ceramic", "Glass"];
+};
+
+const flattenWorkflowValues = (value: WorkflowValue, target: WorkflowValue[]) => {
+  if (value == null) return;
+  if (Array.isArray(value)) {
+    value.forEach((entry) => flattenWorkflowValues(entry as WorkflowValue, target));
+    return;
+  }
+  target.push(value);
+};
+
+const parseChemistryAssignmentsFromText = (text: string) => {
+  const assignments: Array<{ geometryId: string; material: string }> = [];
+  const lines = text.split(/\r?\n/);
+  lines.forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#") || trimmed.startsWith("//")) return;
+    if (trimmed.includes(":")) {
+      const [materialPart, ...rest] = trimmed.split(":");
+      const material = materialPart.trim();
+      const ids = rest
+        .join(":")
+        .split(/[\s,]+/)
+        .map((entry) => entry.trim())
+        .filter((entry) => entry.length > 0);
+      ids.forEach((geometryId) => assignments.push({ geometryId, material }));
+      return;
+    }
+    const separator = trimmed.includes("->")
+      ? "->"
+      : trimmed.includes("=")
+        ? "="
+        : trimmed.includes(",")
+          ? ","
+          : null;
+    if (!separator) return;
+    const [left, ...right] = trimmed.split(separator);
+    const geometryId = left.trim();
+    const material = right.join(separator).trim();
+    if (geometryId && material) {
+      assignments.push({ geometryId, material });
+    }
+  });
+  return assignments;
+};
+
+const resolveChemistryMaterialAssignments = (
+  input: WorkflowValue,
+  parameters: Record<string, unknown>,
+  context: WorkflowComputeContext,
+  domainGeometryId?: string | null
+) => {
+  const warnings: string[] = [];
+  const materialOrder = parseMaterialOrder(parameters.materialOrder);
+  const defaultMaterialName = materialOrder[0] ?? "Steel";
+  const assignments: ChemistryMaterialAssignment[] = [];
+  const materialsByName = new Map<string, ChemistryMaterialSpec>();
+
+  const pushAssignment = (
+    geometryId: string | undefined,
+    materialInput: unknown,
+    weight?: number
+  ) => {
+    const material = coerceChemistryMaterialSpec(materialInput, defaultMaterialName);
+    assignments.push({ geometryId, material, weight });
+    if (!materialsByName.has(material.name)) {
+      materialsByName.set(material.name, material);
+    }
+  };
+
+  const entries: WorkflowValue[] = [];
+  flattenWorkflowValues(input, entries);
+  entries.forEach((entry, index) => {
+    if (entry == null) return;
+    if (typeof entry === "string") {
+      if (context.geometryById.has(entry)) {
+        const materialName =
+          materialOrder[index % materialOrder.length] ?? defaultMaterialName;
+        pushAssignment(entry, materialName);
+      } else {
+        pushAssignment(domainGeometryId ?? undefined, entry);
+      }
+      return;
+    }
+    if (typeof entry === "object") {
+      const candidate = entry as Record<string, unknown>;
+      const geometryId =
+        typeof candidate.geometryId === "string"
+          ? candidate.geometryId
+          : typeof candidate.geometry === "string"
+            ? candidate.geometry
+            : typeof candidate.geometryID === "string"
+              ? candidate.geometryID
+              : undefined;
+      const materialInput =
+        candidate.material ??
+        candidate.materialName ??
+        candidate.name ??
+        defaultMaterialName;
+      const weight = toFiniteNumber(
+        (candidate.weight ?? candidate.influence ?? candidate.strength) as WorkflowValue
+      );
+      pushAssignment(geometryId ?? (domainGeometryId ?? undefined), materialInput, weight ?? undefined);
+    }
+  });
+
+  const materialsText =
+    typeof parameters.materialsText === "string" ? parameters.materialsText : "";
+  if (materialsText.trim().length > 0) {
+    try {
+      const parsed = JSON.parse(materialsText) as WorkflowValue;
+      const parsedEntries: WorkflowValue[] = [];
+      flattenWorkflowValues(parsed, parsedEntries);
+      parsedEntries.forEach((entry, index) => {
+        if (entry == null) return;
+        if (typeof entry === "string") {
+          if (context.geometryById.has(entry)) {
+            const materialName =
+              materialOrder[index % materialOrder.length] ?? defaultMaterialName;
+            pushAssignment(entry, materialName);
+          } else {
+            pushAssignment(domainGeometryId ?? undefined, entry);
+          }
+          return;
+        }
+        if (typeof entry === "object") {
+          const candidate = entry as Record<string, unknown>;
+          const geometryId =
+            typeof candidate.geometryId === "string"
+              ? candidate.geometryId
+              : typeof candidate.geometry === "string"
+                ? candidate.geometry
+                : undefined;
+          const materialInput =
+            candidate.material ??
+            candidate.materialName ??
+            candidate.name ??
+            defaultMaterialName;
+          const weight = toFiniteNumber(
+            (candidate.weight ?? candidate.influence ?? candidate.strength) as WorkflowValue
+          );
+          pushAssignment(geometryId ?? (domainGeometryId ?? undefined), materialInput, weight ?? undefined);
+        }
+      });
+    } catch {
+      const parsedAssignments = parseChemistryAssignmentsFromText(materialsText);
+      parsedAssignments.forEach(({ geometryId, material }) => {
+        pushAssignment(geometryId, material);
+      });
+    }
+  }
+
+  if (assignments.length === 0) {
+    pushAssignment(domainGeometryId ?? undefined, defaultMaterialName);
+    warnings.push("No materials specified; using default material assignment.");
+  }
+
+  const materials = Array.from(materialsByName.values());
+  if (materials.length === 0) {
+    const fallback = resolveChemistryMaterialSpec(defaultMaterialName);
+    materials.push(fallback);
+  }
+
+  return {
+    assignments,
+    materials,
+    materialNames: materials.map((material) => material.name),
+    warnings,
+  };
+};
+
+const resolveChemistrySeeds = (
+  input: WorkflowValue,
+  parameters: Record<string, unknown>,
+  context: WorkflowComputeContext,
+  defaultMaterial: string
+) => {
+  const seeds: ChemistrySeed[] = [];
+  const defaultStrength = clampNumber(
+    toNumber(parameters.seedStrength, 0.85),
+    0,
+    1
+  );
+  const defaultRadius = clampNumber(
+    toNumber(parameters.seedRadius, 0.25),
+    0,
+    1000
+  );
+  const defaultMaterialName =
+    typeof parameters.seedMaterial === "string" && parameters.seedMaterial.trim().length > 0
+      ? parameters.seedMaterial.trim()
+      : defaultMaterial;
+
+  const pushSeed = (
+    position: Vec3Value,
+    material: string,
+    strength: number,
+    radius: number
+  ) => {
+    seeds.push({
+      position,
+      material,
+      strength: clampNumber(strength, 0, 1),
+      radius: clampNumber(radius, 0, 1000),
+    });
+  };
+
+  const handleEntry = (entry: WorkflowValue) => {
+    if (entry == null) return;
+    if (Array.isArray(entry)) {
+      entry.forEach((nested) => handleEntry(nested as WorkflowValue));
+      return;
+    }
+    if (typeof entry === "string") {
+      const parsed = tryVec3Value(entry);
+      if (parsed) {
+        pushSeed(parsed, defaultMaterialName, defaultStrength, defaultRadius);
+        return;
+      }
+      const geometry = context.geometryById.get(entry);
+      if (geometry) {
+        const positions = collectGeometryPositions(geometry, context, 128);
+        positions.forEach((position) => {
+          pushSeed(position, defaultMaterialName, defaultStrength, defaultRadius);
+        });
+      }
+      return;
+    }
+    if (typeof entry === "object") {
+      const candidate = entry as Record<string, unknown>;
+      const position = tryVec3Value(candidate.position as WorkflowValue) ?? tryVec3Value(entry);
+      if (position) {
+        const material =
+          typeof candidate.material === "string" ? candidate.material : defaultMaterialName;
+        const strength = toNumber(candidate.strength, defaultStrength);
+        const radius = toNumber(
+          candidate.radius ?? candidate.influenceRadius,
+          defaultRadius
+        );
+        pushSeed(position, material, strength, radius);
+      }
+    }
+  };
+
+  handleEntry(input);
+
+  const seedsText = typeof parameters.seedsText === "string" ? parameters.seedsText : "";
+  if (seedsText.trim().length > 0) {
+    const points = parsePointsText(seedsText);
+    points.forEach((position) => {
+      pushSeed(position, defaultMaterialName, defaultStrength, defaultRadius);
+    });
+  }
+
+  return seeds;
+};
+
+const createMaterialMap = (materialNames: string[]) => {
+  const map: Record<string, number> = {};
+  materialNames.forEach((name) => {
+    map[name] = 0;
+  });
+  return map;
+};
+
+const normalizeMaterialMap = (map: Record<string, number>, materialNames: string[]) => {
+  let sum = 0;
+  materialNames.forEach((name) => {
+    const value = map[name] ?? 0;
+    sum += value;
+  });
+  if (!Number.isFinite(sum) || sum <= EPSILON) {
+    const uniform = materialNames.length > 0 ? 1 / materialNames.length : 0;
+    materialNames.forEach((name) => {
+      map[name] = uniform;
+    });
+    return;
+  }
+  materialNames.forEach((name) => {
+    map[name] = clampNumber((map[name] ?? 0) / sum, 0, 1);
+  });
+};
+
+const cloneChemistryParticles = (particles: ChemistryParticle[]) =>
+  particles.map((particle) => ({
+    position: { ...particle.position },
+    radius: particle.radius,
+    materials: { ...particle.materials },
+  }));
+
+const buildChemistryField = (
+  particles: ChemistryParticle[],
+  materialNames: string[],
+  bounds: { min: Vec3Value; max: Vec3Value },
+  resolutionValue: number
+): ChemistryField => {
+  const resolution = clampInt(Math.round(resolutionValue), 8, 96, 32);
+  const res = { x: resolution, y: resolution, z: resolution };
+  const size = {
+    x: bounds.max.x - bounds.min.x,
+    y: bounds.max.y - bounds.min.y,
+    z: bounds.max.z - bounds.min.z,
+  };
+  const cellSize = {
+    x: size.x / res.x,
+    y: size.y / res.y,
+    z: size.z / res.z,
+  };
+  const cellCount = res.x * res.y * res.z;
+  const channels = materialNames.map(() => new Array<number>(cellCount).fill(0));
+  const densities = new Array<number>(cellCount).fill(0);
+  const toIndex = (x: number, y: number, z: number) =>
+    x + y * res.x + z * res.x * res.y;
+
+  particles.forEach((particle) => {
+    const ix = clampInt(
+      Math.floor((particle.position.x - bounds.min.x) / cellSize.x),
+      0,
+      res.x - 1,
+      0
+    );
+    const iy = clampInt(
+      Math.floor((particle.position.y - bounds.min.y) / cellSize.y),
+      0,
+      res.y - 1,
+      0
+    );
+    const iz = clampInt(
+      Math.floor((particle.position.z - bounds.min.z) / cellSize.z),
+      0,
+      res.z - 1,
+      0
+    );
+    const idx = toIndex(ix, iy, iz);
+    let sum = 0;
+    materialNames.forEach((name, materialIndex) => {
+      const value = particle.materials[name] ?? 0;
+      channels[materialIndex][idx] += value;
+      sum += value;
+    });
+    densities[idx] += sum;
+  });
+
+  let maxDensity = 0;
+  densities.forEach((value) => {
+    if (value > maxDensity) maxDensity = value;
+  });
+  if (maxDensity > EPSILON) {
+    for (let i = 0; i < densities.length; i += 1) {
+      densities[i] = clampNumber(densities[i] / maxDensity, 0, 1);
+    }
+  }
+
+  return {
+    resolution: res,
+    bounds,
+    cellSize,
+    materials: materialNames.slice(),
+    channels,
+    densities,
+    maxDensity,
+  };
+};
+
+const runChemistrySolver = (args: {
+  seedKey: string;
+  domainGeometryId?: string | null;
+  domainGeometry?: Geometry | null;
+  goals: GoalSpecification[];
+  assignments: ChemistryMaterialAssignment[];
+  materials: ChemistryMaterialSpec[];
+  materialNames: string[];
+  seeds: ChemistrySeed[];
+  particleCount: number;
+  iterations: number;
+  fieldResolution: number;
+  isoValue: number;
+  convergenceTolerance: number;
+  blendStrength: number;
+  historyLimit: number;
+  context: WorkflowComputeContext;
+}): ChemistrySolverResult => {
+  const warnings: string[] = [];
+  const random = createSeededRandom(hashStringToSeed(args.seedKey));
+  const materialNames = args.materialNames.length > 0 ? args.materialNames : ["Steel"];
+  const materialSpecs = args.materials.length > 0 ? args.materials : [resolveChemistryMaterialSpec("Steel")];
+
+  const materialByName = new Map<string, ChemistryMaterialSpec>();
+  materialSpecs.forEach((material) => {
+    materialByName.set(material.name, material);
+  });
+  materialNames.forEach((name) => {
+    if (!materialByName.has(name)) {
+      materialByName.set(name, resolveChemistryMaterialSpec(name));
+    }
+  });
+
+  const domainGeometry = args.domainGeometry ?? null;
+  const domainPositions = domainGeometry
+    ? collectGeometryPositions(domainGeometry, args.context, 20000)
+    : [];
+  const domainBounds = normalizeVoxelBounds(
+    computeBoundsFromPositions(domainPositions)
+  );
+  const domainCenter = {
+    x: (domainBounds.min.x + domainBounds.max.x) * 0.5,
+    y: (domainBounds.min.y + domainBounds.max.y) * 0.5,
+    z: (domainBounds.min.z + domainBounds.max.z) * 0.5,
+  };
+  const domainSize = {
+    x: domainBounds.max.x - domainBounds.min.x,
+    y: domainBounds.max.y - domainBounds.min.y,
+    z: domainBounds.max.z - domainBounds.min.z,
+  };
+  const maxDimension = Math.max(domainSize.x, domainSize.y, domainSize.z, 1);
+  const particleRadius = clampNumber(
+    maxDimension / Math.cbrt(Math.max(1, args.particleCount)) * 0.35,
+    maxDimension * 0.005,
+    maxDimension * 0.2
+  );
+
+  const assignments = args.assignments.length > 0 ? args.assignments : [{
+    geometryId: args.domainGeometryId ?? undefined,
+    material: resolveChemistryMaterialSpec(materialNames[0] ?? "Steel"),
+  }];
+
+  const weights = assignments.map((assignment) =>
+    clampNumber(
+      isFiniteNumber(assignment.weight) ? assignment.weight : 1,
+      0,
+      10
+    )
+  );
+  const totalWeight = weights.reduce((sum, value) => sum + value, 0) || 1;
+  const counts = assignments.map((assignment, index) =>
+    Math.max(
+      1,
+      Math.floor((args.particleCount * weights[index]) / totalWeight)
+    )
+  );
+  let allocated = counts.reduce((sum, value) => sum + value, 0);
+  let cursor = 0;
+  while (allocated < args.particleCount) {
+    counts[cursor % counts.length] += 1;
+    allocated += 1;
+    cursor += 1;
+  }
+  cursor = 0;
+  while (allocated > args.particleCount && counts.some((count) => count > 1)) {
+    const index = cursor % counts.length;
+    if (counts[index] > 1) {
+      counts[index] -= 1;
+      allocated -= 1;
+    }
+    cursor += 1;
+  }
+
+  const randomPointInBounds = () => ({
+    x: domainBounds.min.x + random() * (domainBounds.max.x - domainBounds.min.x),
+    y: domainBounds.min.y + random() * (domainBounds.max.y - domainBounds.min.y),
+    z: domainBounds.min.z + random() * (domainBounds.max.z - domainBounds.min.z),
+  });
+
+  const jitterPosition = (position: Vec3Value) => {
+    const jitter = particleRadius * 0.4;
+    return {
+      x: clampNumber(position.x + (random() - 0.5) * jitter, domainBounds.min.x, domainBounds.max.x),
+      y: clampNumber(position.y + (random() - 0.5) * jitter, domainBounds.min.y, domainBounds.max.y),
+      z: clampNumber(position.z + (random() - 0.5) * jitter, domainBounds.min.z, domainBounds.max.z),
+    };
+  };
+
+  const particles: ChemistryParticle[] = [];
+  assignments.forEach((assignment, index) => {
+    const count = counts[index];
+    const geometry = assignment.geometryId
+      ? args.context.geometryById.get(assignment.geometryId) ?? null
+      : null;
+    const basePositions = geometry
+      ? collectGeometryPositions(geometry, args.context, Math.max(32, count))
+      : [];
+    const materialMap = createMaterialMap(materialNames);
+    materialMap[assignment.material.name] = 1;
+    for (let i = 0; i < count; i += 1) {
+      const base = basePositions.length > 0
+        ? basePositions[i % basePositions.length]
+        : randomPointInBounds();
+      particles.push({
+        position: jitterPosition(base),
+        radius: particleRadius,
+        materials: { ...materialMap },
+      });
+    }
+  });
+
+  if (particles.length === 0) {
+    warnings.push("No particles were initialized; using fallback particles.");
+    const fallbackMaterial = materialNames[0] ?? "Steel";
+    for (let i = 0; i < Math.max(1, args.particleCount); i += 1) {
+      const materials = createMaterialMap(materialNames);
+      materials[fallbackMaterial] = 1;
+      particles.push({
+        position: randomPointInBounds(),
+        radius: particleRadius,
+        materials,
+      });
+    }
+  }
+
+  const seeds = args.seeds;
+  if (seeds.length > 0) {
+    seeds.forEach((seed) => {
+      const materialName = materialByName.has(seed.material)
+        ? seed.material
+        : materialNames[0] ?? seed.material;
+      particles.forEach((particle) => {
+        const distance = distanceVec3(particle.position, seed.position);
+        if (distance <= seed.radius) {
+          particle.materials[materialName] = Math.max(
+            particle.materials[materialName] ?? 0,
+            seed.strength
+          );
+          normalizeMaterialMap(particle.materials, materialNames);
+        }
+      });
+    });
+  }
+
+  const maxStiffness = Math.max(
+    ...materialSpecs.map((material) => material.stiffness),
+    1
+  );
+  const maxDensity = Math.max(
+    ...materialSpecs.map((material) => material.density),
+    1
+  );
+  const maxThermal = Math.max(
+    ...materialSpecs.map((material) => material.thermalConductivity),
+    1
+  );
+  const maxOptical = Math.max(
+    ...materialSpecs.map((material) => material.opticalTransmission),
+    1
+  );
+
+  const goalRegions = args.goals.map((goal) => {
+    const params = goal.parameters ?? {};
+    const regionIds = Array.isArray(params.regionGeometryIds)
+      ? params.regionGeometryIds.filter((id) => typeof id === "string")
+      : [];
+    const regions = regionIds
+      .map((id) => {
+        const geometry = args.context.geometryById.get(id);
+        if (!geometry) return null;
+        const positions = collectGeometryPositions(geometry, args.context, 10000);
+        return normalizeVoxelBounds(computeBoundsFromPositions(positions));
+      })
+      .filter(Boolean) as Array<{ min: Vec3Value; max: Vec3Value }>;
+    const loadVector =
+      goal.goalType === "chemStiffness" && params.loadVector && isVec3Value(params.loadVector)
+        ? normalizeVec3Safe(params.loadVector, UNIT_Y_VEC3)
+        : UNIT_Y_VEC3;
+    const smoothness = clampNumber(toNumber(params.smoothness, 0.7), 0, 1);
+    const diffusivity = clampNumber(toNumber(params.diffusivity, 1), 0, 4);
+    const mode = String(params.mode ?? "conduct").toLowerCase() === "insulate" ? "insulate" : "conduct";
+    return { goal, regions, loadVector, smoothness, diffusivity, mode };
+  });
+
+  const isInsideRegions = (position: Vec3Value, regions: Array<{ min: Vec3Value; max: Vec3Value }>) => {
+    if (regions.length === 0) return true;
+    return regions.some((region) =>
+      position.x >= region.min.x &&
+      position.x <= region.max.x &&
+      position.y >= region.min.y &&
+      position.y <= region.max.y &&
+      position.z >= region.min.z &&
+      position.z <= region.max.z
+    );
+  };
+
+  const history: ChemistryHistoryEntry[] = [];
+  const historyStride = Math.max(1, Math.floor(args.iterations / Math.max(1, args.historyLimit)));
+  let bestState: ChemistrySolverResult["bestState"] = null;
+  let bestEnergy = Number.POSITIVE_INFINITY;
+  let previousEnergy = Number.POSITIVE_INFINITY;
+  let iterationsUsed = 0;
+
+  for (let iter = 0; iter < args.iterations; iter += 1) {
+    const step = 0.18;
+    particles.forEach((particle) => {
+      const deltas = createMaterialMap(materialNames);
+      goalRegions.forEach((info) => {
+        const weight = clampNumber(toNumber(info.goal.weight, 0), 0, 1);
+        if (weight <= EPSILON) return;
+        if (!isInsideRegions(particle.position, info.regions)) return;
+        const params = info.goal.parameters ?? {};
+        switch (info.goal.goalType) {
+          case "chemStiffness": {
+            const relative = subtractVec3(particle.position, domainCenter);
+            const align =
+              lengthVec3(relative) > EPSILON
+                ? (dotVec3(normalizeVec3(relative), info.loadVector) + 1) * 0.5
+                : 0.5;
+            const penalty = clampNumber(toNumber(params.structuralPenalty, 1), 0, 10);
+            materialNames.forEach((name) => {
+              const spec = materialByName.get(name);
+              if (!spec) return;
+              const stiffness = spec.stiffness / maxStiffness;
+              deltas[name] += weight * penalty * align * stiffness;
+            });
+            break;
+          }
+          case "chemMass": {
+            const target = clampNumber(toNumber(params.targetMassFraction, 0.6), 0, 1);
+            const densityPenalty = clampNumber(toNumber(params.densityPenalty, 1), 0, 5);
+            const scale = (1 - target) * densityPenalty;
+            materialNames.forEach((name) => {
+              const spec = materialByName.get(name);
+              if (!spec) return;
+              const density = spec.density / maxDensity;
+              deltas[name] -= weight * scale * density;
+            });
+            break;
+          }
+          case "chemTransparency": {
+            const opticalWeight = clampNumber(toNumber(params.opticalWeight, 1), 0, 5);
+            materialNames.forEach((name) => {
+              const spec = materialByName.get(name);
+              if (!spec) return;
+              const optical = spec.opticalTransmission / maxOptical;
+              deltas[name] += weight * opticalWeight * optical;
+            });
+            break;
+          }
+          case "chemThermal": {
+            const thermalWeight = clampNumber(toNumber(params.thermalWeight, 1), 0, 5);
+            materialNames.forEach((name) => {
+              const spec = materialByName.get(name);
+              if (!spec) return;
+              const thermal = spec.thermalConductivity / maxThermal;
+              const bias = info.mode === "insulate" ? 1 - thermal : thermal;
+              deltas[name] += weight * thermalWeight * bias;
+            });
+            break;
+          }
+          default:
+            break;
+        }
+      });
+      materialNames.forEach((name) => {
+        const nextValue = clampNumber(
+          (particle.materials[name] ?? 0) + deltas[name] * step,
+          0,
+          1
+        );
+        particle.materials[name] = nextValue;
+      });
+      normalizeMaterialMap(particle.materials, materialNames);
+    });
+
+    const blendGoals = goalRegions.filter((info) => info.goal.goalType === "chemBlend");
+    let blendWeight = 0;
+    let blendDiffusivity = 0;
+    blendGoals.forEach((info) => {
+      blendWeight += clampNumber(toNumber(info.goal.weight, 0), 0, 1) * info.smoothness;
+      blendDiffusivity += info.diffusivity;
+    });
+    blendWeight = clampNumber(blendWeight * args.blendStrength, 0, 1);
+    const avgDiffusivity =
+      blendGoals.length > 0 ? blendDiffusivity / blendGoals.length : 1;
+
+    let blendEnergy = 0;
+    if (blendWeight > EPSILON && particles.length > 1) {
+      particles.forEach((particle, index) => {
+        const neighborIndex = Math.floor(random() * particles.length);
+        const neighbor =
+          particles[neighborIndex === index ? (neighborIndex + 1) % particles.length : neighborIndex];
+        let diffSum = 0;
+        materialNames.forEach((name) => {
+          const current = particle.materials[name] ?? 0;
+          const target = neighbor.materials[name] ?? 0;
+          diffSum += Math.abs(current - target);
+          const diffusivity = clampNumber(
+            (materialByName.get(name)?.diffusivity ?? avgDiffusivity),
+            0,
+            4
+          );
+          particle.materials[name] = lerpNumber(
+            current,
+            target,
+            blendWeight * diffusivity
+          );
+        });
+        normalizeMaterialMap(particle.materials, materialNames);
+        blendEnergy += diffSum / materialNames.length;
+      });
+      blendEnergy /= particles.length;
+    }
+
+    const blendGoalWeight = clampNumber(
+      blendGoals.reduce(
+        (sum, info) => sum + clampNumber(toNumber(info.goal.weight, 0), 0, 1),
+        0
+      ),
+      0,
+      1
+    );
+    const blendEnergyContribution = blendEnergy * blendGoalWeight;
+    const energyByKey = {
+      stiffness: 0,
+      mass: 0,
+      blend: blendEnergyContribution,
+      transparency: 0,
+      thermal: 0,
+    };
+    let totalEnergy = blendEnergyContribution;
+
+    particles.forEach((particle) => {
+      const stiffnessValue = materialNames.reduce((sum, name) => {
+        const spec = materialByName.get(name);
+        if (!spec) return sum;
+        return sum + (particle.materials[name] ?? 0) * (spec.stiffness / maxStiffness);
+      }, 0);
+      const densityValue = materialNames.reduce((sum, name) => {
+        const spec = materialByName.get(name);
+        if (!spec) return sum;
+        return sum + (particle.materials[name] ?? 0) * (spec.density / maxDensity);
+      }, 0);
+      const opticalValue = materialNames.reduce((sum, name) => {
+        const spec = materialByName.get(name);
+        if (!spec) return sum;
+        return sum + (particle.materials[name] ?? 0) * (spec.opticalTransmission / maxOptical);
+      }, 0);
+      const thermalValue = materialNames.reduce((sum, name) => {
+        const spec = materialByName.get(name);
+        if (!spec) return sum;
+        return sum + (particle.materials[name] ?? 0) * (spec.thermalConductivity / maxThermal);
+      }, 0);
+
+      goalRegions.forEach((info) => {
+        const weight = clampNumber(toNumber(info.goal.weight, 0), 0, 1);
+        if (weight <= EPSILON) return;
+        if (!isInsideRegions(particle.position, info.regions)) return;
+        const params = info.goal.parameters ?? {};
+        switch (info.goal.goalType) {
+          case "chemStiffness": {
+            const energy = 1 - clampNumber(stiffnessValue, 0, 1);
+            energyByKey.stiffness += energy * weight;
+            totalEnergy += energy * weight;
+            break;
+          }
+          case "chemMass": {
+            const target = clampNumber(toNumber(params.targetMassFraction, 0.6), 0, 1);
+            const energy = Math.abs(clampNumber(densityValue, 0, 1) - target);
+            energyByKey.mass += energy * weight;
+            totalEnergy += energy * weight;
+            break;
+          }
+          case "chemTransparency": {
+            const energy = 1 - clampNumber(opticalValue, 0, 1);
+            energyByKey.transparency += energy * weight;
+            totalEnergy += energy * weight;
+            break;
+          }
+          case "chemThermal": {
+            const mode = info.mode;
+            const energy =
+              mode === "insulate"
+                ? clampNumber(thermalValue, 0, 1)
+                : 1 - clampNumber(thermalValue, 0, 1);
+            energyByKey.thermal += energy * weight;
+            totalEnergy += energy * weight;
+            break;
+          }
+          default:
+            break;
+        }
+      });
+    });
+
+    if (iter % historyStride === 0 || iter === args.iterations - 1) {
+      history.push({
+        iteration: iter,
+        energies: energyByKey,
+        totalEnergy,
+      });
+    }
+
+    if (totalEnergy < bestEnergy) {
+      bestEnergy = totalEnergy;
+      bestState = { particles: cloneChemistryParticles(particles), totalEnergy, iteration: iter };
+    }
+
+    iterationsUsed = iter + 1;
+    if (
+      iter > 4 &&
+      Number.isFinite(previousEnergy) &&
+      Math.abs(previousEnergy - totalEnergy) < args.convergenceTolerance
+    ) {
+      break;
+    }
+    previousEnergy = totalEnergy;
+  }
+
+  const field = buildChemistryField(
+    particles,
+    materialNames,
+    domainBounds,
+    args.fieldResolution
+  );
+  const fieldGrid: VoxelGrid = {
+    resolution: field.resolution,
+    bounds: field.bounds,
+    cellSize: field.cellSize,
+    densities: field.densities,
+  };
+  const mesh = buildVoxelMesh(fieldGrid, clampNumber(args.isoValue, 0, 1));
+
+  return {
+    particles,
+    field,
+    mesh,
+    history,
+    bestState,
+    totalEnergy: history.length > 0 ? history[history.length - 1].totalEnergy : 0,
+    iterations: iterationsUsed,
+    status: "complete",
+    warnings,
+    materials: materialSpecs,
   };
 };
 
@@ -2005,161 +3504,193 @@ export const NODE_CATEGORIES: NodeCategory[] = [
     id: "data",
     label: "Data",
     description: "References and parameters",
-    accent: "#2f3a4a",
-    band: "#e8edf2",
-    port: "#b8c4d0",
+    accent: "#223248",
+    band: "#d8e1ea",
+    port: "#9bb0c3",
   },
   {
     id: "basics",
     label: "Basics",
     description: "Core constants and helpers",
-    accent: "#6b4e3d",
-    band: "#f1e6dc",
-    port: "#d2b8a5",
+    accent: "#5d3a29",
+    band: "#e6d8cf",
+    port: "#b8947a",
   },
   {
     id: "lists",
     label: "Lists",
     description: "List and data management",
-    accent: "#1b6b5f",
-    band: "#e2f1ee",
-    port: "#9bc7c0",
+    accent: "#0f5a4f",
+    band: "#d7e7e3",
+    port: "#87a8a0",
   },
   {
     id: "primitives",
     label: "Primitives",
     description: "Base geometry generators",
-    accent: "#00c2d1",
-    band: "#e0f6f8",
-    port: "#86dfe7",
+    accent: "#0b5e70",
+    band: "#d4e8ec",
+    port: "#7fb2bd",
   },
   {
     id: "curves",
     label: "Curves",
     description: "Curve builders and edits",
-    accent: "#ff4fb6",
-    band: "#fde7f3",
-    port: "#f3a6d0",
+    accent: "#9a1d60",
+    band: "#f1d6e5",
+    port: "#c982ab",
   },
   {
     id: "nurbs",
     label: "NURBS",
     description: "Parametric curve operations",
-    accent: "#0f766e",
-    band: "#e0f2f1",
-    port: "#88cfc7",
+    accent: "#0d5b55",
+    band: "#d5e6e4",
+    port: "#7faea6",
   },
   {
-    id: "surfaces",
-    label: "Surfaces",
+    id: "brep",
+    label: "BREP",
     description: "Surface and solid operations",
-    accent: "#7a5cff",
-    band: "#eee9ff",
-    port: "#b8a9ff",
+    accent: "#b3531c",
+    band: "#f0dccf",
+    port: "#c7926b",
+  },
+  {
+    id: "mesh",
+    label: "Mesh",
+    description: "Mesh conversion and editing",
+    accent: "#43206f",
+    band: "#e2d8f0",
+    port: "#a88bc8",
+  },
+  {
+    id: "tessellation",
+    label: "Tessellation",
+    description: "Surface patterning and subdivision",
+    accent: "#0c4f8f",
+    band: "#d8e4f2",
+    port: "#8baad0",
   },
   {
     id: "modifiers",
     label: "Modifiers",
-    description: "Booleans, offsets, shelling",
-    accent: "#f97316",
-    band: "#ffedd5",
-    port: "#f7c49b",
+    description: "Offsets, shelling, materials",
+    accent: "#b34700",
+    band: "#f1d8c6",
+    port: "#c89a71",
   },
   {
     id: "transforms",
     label: "Transforms",
     description: "Move, rotate, scale, align",
-    accent: "#f4a261",
-    band: "#fff1e5",
-    port: "#f7c6a1",
+    accent: "#8b3a2b",
+    band: "#eed9d2",
+    port: "#c28f83",
   },
   {
     id: "arrays",
     label: "Arrays",
     description: "Linear, polar, and grid distributions",
-    accent: "#f59e0b",
-    band: "#fff3d6",
-    port: "#f8cf8a",
+    accent: "#7d5600",
+    band: "#f0e0c2",
+    port: "#c4a168",
   },
   {
     id: "euclidean",
     label: "Euclidean",
     description: "Vectors, points, and spatial transforms",
-    accent: "#3b82f6",
-    band: "#e7f0ff",
-    port: "#a6c7ff",
+    accent: "#1f4b9b",
+    band: "#d9e4f5",
+    port: "#8ba9d6",
   },
   {
     id: "ranges",
     label: "Ranges",
     description: "Sequences, remaps, and generators",
-    accent: "#a855f7",
-    band: "#f1e8ff",
-    port: "#cdb1ff",
+    accent: "#6a2fa6",
+    band: "#e5dbf3",
+    port: "#b08ad6",
   },
   {
     id: "signals",
     label: "Signals",
     description: "Waveforms and oscillators",
-    accent: "#22c55e",
-    band: "#e6f8ed",
-    port: "#a8e2c1",
+    accent: "#1f6a33",
+    band: "#d8e9db",
+    port: "#8fb698",
   },
   {
     id: "analysis",
     label: "Analysis",
     description: "Measure and inspect",
-    accent: "#0ea5a4",
-    band: "#e0f7f7",
-    port: "#9fdede",
+    accent: "#0e5f62",
+    band: "#d5e9ea",
+    port: "#7fb2b5",
   },
   {
     id: "interop",
     label: "Interchange",
-    description: "Import, export, and mesh conversion",
-    accent: "#2563eb",
-    band: "#e0ecff",
-    port: "#a4c7ff",
+    description: "Import and export geometry",
+    accent: "#2345b5",
+    band: "#d8def5",
+    port: "#8fa0d5",
   },
   {
     id: "measurement",
     label: "Measurement",
     description: "Length, area, volume",
-    accent: "#38bdf8",
-    band: "#e0f2fe",
-    port: "#a5d8f3",
+    accent: "#0b6e9a",
+    band: "#d3e7f1",
+    port: "#88b7c8",
   },
   {
     id: "voxel",
     label: "Voxel",
-    description: "Voxel grids and solvers",
-    accent: "#16a34a",
-    band: "#e6f7ea",
-    port: "#a8e2b5",
+    description: "Voxel grids and utilities",
+    accent: "#0f5a30",
+    band: "#d6e8dc",
+    port: "#83b592",
+  },
+  {
+    id: "solver",
+    label: "Solver",
+    description: "Goal-based optimization and simulation",
+    accent: "#7a5cff",
+    band: "#f2edff",
+    port: "#b8a6ff",
+  },
+  {
+    id: "goal",
+    label: "Goal",
+    description: "Solver input specifications",
+    accent: "#b8a6ff",
+    band: "#f7f3ff",
+    port: "#d2c7ff",
   },
   {
     id: "optimization",
     label: "Optimization",
     description: "Topology and evolutionary tools",
-    accent: "#ef4444",
-    band: "#ffe8e8",
-    port: "#f4a3a3",
+    accent: "#b2262f",
+    band: "#f1d5d7",
+    port: "#c9878e",
   },
   {
     id: "math",
     label: "Math",
     description: "Scalar computation and expressions",
-    accent: "#ffc533",
-    band: "#fff6d6",
-    port: "#ffe08a",
+    accent: "#8a5a00",
+    band: "#f0e0c2",
+    port: "#c4a06a",
   },
   {
     id: "logic",
     label: "Logic",
     description: "Conditions and branching",
-    accent: "#6366f1",
-    band: "#e9e9ff",
-    port: "#b6b8ff",
+    accent: "#3c2f88",
+    band: "#dedaf2",
+    port: "#9c93d0",
   },
 ];
 
@@ -2321,6 +3852,17 @@ const PRIMITIVE_PARAMETER_SPECS: WorkflowParameterSpec[] = [
   },
 ];
 
+const PRIMITIVE_REPRESENTATION_SPEC: WorkflowParameterSpec = {
+  key: "representation",
+  label: "Representation",
+  type: "select",
+  defaultValue: "mesh",
+  options: [
+    { value: "mesh", label: "Mesh" },
+    { value: "brep", label: "B-Rep" },
+  ],
+};
+
 const PRIMITIVE_PARAMETER_DEFAULTS = PRIMITIVE_PARAMETER_SPECS.reduce<Record<string, number>>(
   (acc, spec) => {
     acc[spec.key] = Number(spec.defaultValue);
@@ -2401,16 +3943,18 @@ const PRIMITIVE_NODE_DEFINITIONS: WorkflowNodeDefinition[] = PRIMITIVE_NODE_CATA
     shortLabel: toPrimitiveShortLabel(entry.label),
     description: `Create a ${entry.label} primitive.`,
     category: "primitives",
-    iconId: "primitive",
+    iconId: `primitive:${entry.id}`,
     inputs: PRIMITIVE_PARAMETER_PORTS,
     outputs: [
       { key: "geometry", label: entry.label, type: "geometry", required: true },
+      { key: "representation", label: "Representation", type: "string" },
       { key: "params", label: "Params", type: "any" },
     ],
-    parameters: PRIMITIVE_PARAMETER_SPECS,
+    parameters: [PRIMITIVE_REPRESENTATION_SPEC, ...PRIMITIVE_PARAMETER_SPECS],
     primaryOutputKey: "geometry",
     compute: ({ inputs, parameters }) => ({
       geometry: typeof parameters.geometryId === "string" ? parameters.geometryId : null,
+      representation: String(parameters.representation ?? "mesh"),
       params: resolvePrimitiveInputParameters(inputs, parameters),
     }),
   })
@@ -2421,45 +3965,32 @@ const baseWaveInputPorts = (): WorkflowPortSpec[] => [
     key: "t",
     label: "T",
     type: "number",
-    parameterKey: "t",
     defaultValue: 0,
   },
   {
     key: "amplitude",
     label: "Amplitude",
     type: "number",
-    parameterKey: "amplitude",
     defaultValue: 1,
   },
   {
     key: "frequency",
     label: "Frequency",
     type: "number",
-    parameterKey: "frequency",
     defaultValue: 1,
   },
   {
     key: "phaseDeg",
     label: "Phase",
     type: "number",
-    parameterKey: "phaseDeg",
     defaultValue: 0,
   },
   {
     key: "offset",
     label: "Offset",
     type: "number",
-    parameterKey: "offset",
     defaultValue: 0,
   },
-];
-
-const baseWaveParameterSpecs = (): WorkflowParameterSpec[] => [
-  { key: "t", label: "T", type: "number", defaultValue: 0, step: 0.1 },
-  { key: "amplitude", label: "Amplitude", type: "number", defaultValue: 1, step: 0.1 },
-  { key: "frequency", label: "Frequency", type: "number", defaultValue: 1, step: 0.1 },
-  { key: "phaseDeg", label: "Phase (deg)", type: "number", defaultValue: 0, step: 1 },
-  { key: "offset", label: "Offset", type: "number", defaultValue: 0, step: 0.1 },
 ];
 
 const resolveWaveInputs = (
@@ -2515,6 +4046,21 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     compute: ({ parameters }) => ({
       geometry: typeof parameters.geometryId === "string" ? parameters.geometryId : null,
     }),
+  },
+  {
+    type: "text",
+    label: "Text",
+    shortLabel: "TEXT",
+    description: "Floating canvas text with a handwritten style.",
+    category: "data",
+    iconId: "script",
+    inputs: [],
+    outputs: [],
+    parameters: [
+      { key: "text", label: "Text", type: "string", defaultValue: "Text" },
+      { key: "size", label: "Size", type: "number", defaultValue: 24, min: 8, max: 96, step: 1 },
+    ],
+    compute: () => ({}),
   },
   {
     type: "group",
@@ -2789,10 +4335,149 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
         type: "geometry",
         required: false,
       },
+      {
+        key: "filter",
+        label: "Filter",
+        type: "any",
+        description: "Preview filter settings from a Filter node.",
+      },
     ],
-    outputs: [],
+    outputs: [
+      { key: "geometry", label: "Geometry", type: "geometry" },
+      { key: "fileType", label: "File Type", type: "string" },
+    ],
     parameters: [],
-    compute: () => ({}),
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, context }) => {
+      const geometryId = typeof inputs.geometry === "string" ? inputs.geometry : null;
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      const fileType = geometry ? resolveGeometryFileType(geometry) : "";
+      return { geometry: geometryId, fileType };
+    },
+  },
+  {
+    type: "previewFilter",
+    label: "Filter",
+    shortLabel: "FILTER",
+    description: "Roslyn preview filters for Custom Preview nodes.",
+    category: "analysis",
+    iconId: "displayMode",
+    inputs: [],
+    outputs: [
+      {
+        key: "filter",
+        label: "Filter",
+        type: "any",
+        description: "Preview filter settings payload.",
+      },
+    ],
+    parameters: [
+      {
+        key: "displayMode",
+        label: "Display Mode",
+        type: "select",
+        defaultValue: "shaded",
+        options: [
+          { label: "Shaded", value: "shaded" },
+          { label: "Wireframe", value: "wireframe" },
+          { label: "Shaded + Edges", value: "shaded_edges" },
+          { label: "Ghosted", value: "ghosted" },
+          { label: "Silhouette", value: "silhouette" },
+        ],
+      },
+      {
+        key: "viewSolidity",
+        label: "Solidity",
+        type: "slider",
+        defaultValue: 0.7,
+        min: 0,
+        max: 1,
+        step: 0.05,
+      },
+      {
+        key: "sheen",
+        label: "Sheen",
+        type: "slider",
+        defaultValue: 0.08,
+        min: 0,
+        max: 1,
+        step: 0.01,
+      },
+      {
+        key: "backfaceCulling",
+        label: "Backface Culling",
+        type: "boolean",
+        defaultValue: true,
+      },
+      {
+        key: "showNormals",
+        label: "Show Normals",
+        type: "boolean",
+        defaultValue: false,
+      },
+    ],
+    primaryOutputKey: "filter",
+    compute: ({ parameters }) => {
+      const displayModeRaw =
+        typeof parameters.displayMode === "string" ? parameters.displayMode : "shaded";
+      const displayModes = new Set([
+        "shaded",
+        "wireframe",
+        "shaded_edges",
+        "ghosted",
+        "silhouette",
+      ]);
+      const displayMode = displayModes.has(displayModeRaw) ? displayModeRaw : "shaded";
+      const viewSolidity = clampNumber(
+        readNumberParameter(parameters, "viewSolidity", 0.7),
+        0,
+        1
+      );
+      const sheen = clampNumber(readNumberParameter(parameters, "sheen", 0.08), 0, 1);
+      const backfaceCulling = toBoolean(parameters.backfaceCulling as WorkflowValue, true);
+      const showNormals = toBoolean(parameters.showNormals as WorkflowValue, false);
+
+      return {
+        filter: {
+          displayMode,
+          viewSolidity,
+          viewSettings: {
+            backfaceCulling,
+            showNormals,
+            sheen,
+          },
+        },
+      };
+    },
+  },
+  {
+    type: "customPreview",
+    label: "Custom Preview",
+    shortLabel: "PREVIEW",
+    description: "Preview geometry with a custom filter payload.",
+    category: "analysis",
+    iconId: "displayMode",
+    inputs: [
+      {
+        key: "geometry",
+        label: "Geometry",
+        type: "geometry",
+        required: false,
+      },
+      {
+        key: "filter",
+        label: "Filter",
+        type: "any",
+        description: "Preview filter settings from a Filter node.",
+      },
+    ],
+    outputs: [{ key: "geometry", label: "Geometry", type: "geometry" }],
+    parameters: [],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs }) => {
+      const geometryId = typeof inputs.geometry === "string" ? inputs.geometry : null;
+      return { geometry: geometryId };
+    },
   },
   {
     type: "metadataPanel",
@@ -2854,7 +4539,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     label: "Mesh Convert",
     shortLabel: "MSH",
     description: "Convert geometry into a mesh for export.",
-    category: "interop",
+    category: "mesh",
     iconId: "surface",
     inputs: [
       { key: "geometry", label: "Geometry", type: "geometry", required: true },
@@ -2913,52 +4598,1217 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       if (!geometry) {
         return { geometry: geometryId, mesh: EMPTY_MESH, sourceType: "" };
       }
-      if ("mesh" in geometry && geometry.mesh) {
-        return { geometry: geometryId, mesh: geometry.mesh, sourceType: geometry.type };
+      const mesh = convertGeometryToMesh(geometry, inputs, parameters, context);
+      return { geometry: geometryId, mesh, sourceType: geometry.type };
+    },
+  },
+  {
+    type: "nurbsToMesh",
+    label: "NURBS to Mesh",
+    shortLabel: "N2M",
+    description: "Convert NURBS curves or surfaces into a mesh.",
+    category: "mesh",
+    iconId: "surface",
+    inputs: [
+      { key: "geometry", label: "NURBS", type: "geometry", required: true },
+      {
+        key: "distance",
+        label: "Thickness",
+        type: "number",
+        parameterKey: "distance",
+        defaultValue: 0.1,
+      },
+      { key: "direction", label: "Direction", type: "vector", required: false },
+      {
+        key: "capped",
+        label: "Capped",
+        type: "boolean",
+        parameterKey: "capped",
+        defaultValue: true,
+      },
+      {
+        key: "radius",
+        label: "Vertex Radius",
+        type: "number",
+        parameterKey: "radius",
+        defaultValue: 0.1,
+      },
+    ],
+    outputs: [
+      { key: "geometry", label: "Mesh", type: "geometry", required: true },
+      { key: "mesh", label: "Mesh Data", type: "any" },
+      { key: "sourceType", label: "Source Type", type: "string" },
+    ],
+    parameters: [
+      {
+        key: "distance",
+        label: "Thickness",
+        type: "number",
+        defaultValue: 0.1,
+        min: 0,
+        step: 0.05,
+      },
+      ...vectorParameterSpecs("direction", "Direction", UNIT_Y_VEC3),
+      { key: "capped", label: "Capped", type: "boolean", defaultValue: true },
+      {
+        key: "radius",
+        label: "Vertex Radius",
+        type: "number",
+        defaultValue: 0.1,
+        min: 0,
+        step: 0.05,
+      },
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, parameters, context }) => {
+      const geometryId = typeof parameters.geometryId === "string" ? parameters.geometryId : null;
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      if (!geometry) {
+        return { geometry: geometryId, mesh: EMPTY_MESH, sourceType: "" };
       }
-      if (geometry.type === "polyline") {
-        const points = collectGeometryVertices(geometry, context, MAX_LIST_ITEMS);
-        if (points.length < 2) {
-          return { geometry: geometryId, mesh: EMPTY_MESH, sourceType: geometry.type };
-        }
-        const distance = toNumber(
-          inputs.distance,
-          readNumberParameter(parameters, "distance", 0.1)
-        );
-        if (distance <= EPSILON) {
-          return { geometry: geometryId, mesh: EMPTY_MESH, sourceType: geometry.type };
-        }
-        const directionInput = resolveVectorInput(
-          inputs,
-          parameters,
-          "direction",
-          "direction",
-          UNIT_Y_VEC3
-        );
-        const direction = normalizeVec3Safe(directionInput, UNIT_Y_VEC3);
-        const capped = toBoolean(
-          inputs.capped,
-          readBooleanParameter(parameters, "capped", geometry.closed)
-        );
-        const mesh = generateExtrudeMesh(
-          [{ points, closed: geometry.closed }],
-          { direction, distance, capped }
-        );
-        return { geometry: geometryId, mesh, sourceType: geometry.type };
+      if (geometry.type !== "nurbsCurve" && geometry.type !== "nurbsSurface") {
+        return { geometry: geometryId, mesh: EMPTY_MESH, sourceType: geometry.type };
       }
-      if (geometry.type === "vertex") {
-        const radius = toNumber(
-          inputs.radius,
-          readNumberParameter(parameters, "radius", 0.1)
-        );
-        if (radius <= EPSILON) {
-          return { geometry: geometryId, mesh: EMPTY_MESH, sourceType: geometry.type };
-        }
-        const sphere = generateSphereMesh(radius, 24);
-        const mesh = translateMesh(sphere, geometry.position);
-        return { geometry: geometryId, mesh, sourceType: geometry.type };
+      const mesh = convertGeometryToMesh(geometry, inputs, parameters, context);
+      return { geometry: geometryId, mesh, sourceType: geometry.type };
+    },
+  },
+  {
+    type: "brepToMesh",
+    label: "B-Rep to Mesh",
+    shortLabel: "B2M",
+    description: "Tessellate a B-Rep into a renderable mesh.",
+    category: "mesh",
+    iconId: "surface",
+    inputs: [
+      { key: "geometry", label: "B-Rep", type: "geometry", required: true },
+    ],
+    outputs: [
+      { key: "geometry", label: "Mesh", type: "geometry", required: true },
+      { key: "mesh", label: "Mesh Data", type: "any" },
+      { key: "sourceType", label: "Source Type", type: "string" },
+    ],
+    parameters: [],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, parameters, context }) => {
+      const geometryId = typeof parameters.geometryId === "string" ? parameters.geometryId : null;
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      if (!geometry) {
+        return { geometry: geometryId, mesh: EMPTY_MESH, sourceType: "" };
       }
-      return { geometry: geometryId, mesh: EMPTY_MESH, sourceType: geometry.type };
+      if (geometry.type !== "brep") {
+        return { geometry: geometryId, mesh: EMPTY_MESH, sourceType: geometry.type };
+      }
+      const mesh = resolveMeshFromGeometry(geometry) ?? EMPTY_MESH;
+      return { geometry: geometryId, mesh, sourceType: geometry.type };
+    },
+  },
+  {
+    type: "meshToBrep",
+    label: "Mesh to B-Rep",
+    shortLabel: "M2B",
+    description: "Convert a mesh into a triangle-based B-Rep.",
+    category: "mesh",
+    iconId: "surface",
+    inputs: [
+      { key: "geometry", label: "Mesh", type: "geometry", required: true },
+    ],
+    outputs: [
+      { key: "geometry", label: "B-Rep", type: "geometry", required: true },
+      { key: "brep", label: "B-Rep Data", type: "any" },
+      { key: "mesh", label: "Mesh", type: "any" },
+      { key: "sourceType", label: "Source Type", type: "string" },
+    ],
+    parameters: [],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, parameters, context }) => {
+      const geometryId = typeof parameters.geometryId === "string" ? parameters.geometryId : null;
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      if (!geometry) {
+        return { geometry: geometryId, brep: null, mesh: EMPTY_MESH, sourceType: "" };
+      }
+      if (geometry.type === "brep") {
+        return {
+          geometry: geometryId,
+          brep: geometry.brep,
+          mesh: resolveMeshFromGeometry(geometry) ?? EMPTY_MESH,
+          sourceType: geometry.type,
+        };
+      }
+      const mesh = resolveMeshFromGeometry(geometry);
+      if (!mesh) {
+        return { geometry: geometryId, brep: null, mesh: EMPTY_MESH, sourceType: geometry.type };
+      }
+      const brep = brepFromMesh(mesh);
+      return { geometry: geometryId, brep, mesh, sourceType: geometry.type };
+    },
+  },
+  {
+    type: "subdivideMesh",
+    label: "Subdivide Mesh",
+    shortLabel: "SUBD",
+    description: "Subdivide a mesh using linear, Catmull-Clark, Loop, or adaptive schemes.",
+    category: "tessellation",
+    iconId: "tessellation:subdivideMesh",
+    inputs: [
+      { key: "geometry", label: "Mesh", type: "geometry", required: true },
+      {
+        key: "iterations",
+        label: "Iterations",
+        type: "number",
+        parameterKey: "iterations",
+        defaultValue: 1,
+      },
+      {
+        key: "scheme",
+        label: "Scheme",
+        type: "string",
+        parameterKey: "scheme",
+        defaultValue: "catmull-clark",
+      },
+      {
+        key: "preserveBoundary",
+        label: "Preserve Boundary",
+        type: "boolean",
+        parameterKey: "preserveBoundary",
+        defaultValue: true,
+      },
+      {
+        key: "maxEdgeLength",
+        label: "Max Edge",
+        type: "number",
+        parameterKey: "maxEdgeLength",
+        defaultValue: 0.5,
+      },
+      {
+        key: "curvatureAngle",
+        label: "Curvature Angle",
+        type: "number",
+        parameterKey: "curvatureAngle",
+        defaultValue: 15,
+      },
+    ],
+    outputs: [
+      { key: "geometry", label: "Mesh", type: "geometry" },
+      { key: "mesh", label: "Mesh Data", type: "any" },
+      { key: "tessellation", label: "Tessellation", type: "any" },
+      { key: "iterations", label: "Iterations", type: "number" },
+      { key: "scheme", label: "Scheme", type: "string" },
+    ],
+    parameters: [
+      { key: "iterations", label: "Iterations", type: "number", defaultValue: 1, min: 1, max: 6, step: 1 },
+      {
+        key: "scheme",
+        label: "Scheme",
+        type: "select",
+        defaultValue: "catmull-clark",
+        options: [
+          { value: "linear", label: "Linear" },
+          { value: "catmull-clark", label: "Catmull-Clark" },
+          { value: "loop", label: "Loop (Tri)" },
+          { value: "adaptive", label: "Adaptive" },
+        ],
+      },
+      { key: "preserveBoundary", label: "Preserve Boundary", type: "boolean", defaultValue: true },
+      { key: "maxEdgeLength", label: "Max Edge Length", type: "number", defaultValue: 0.5, min: 0, step: 0.05 },
+      { key: "curvatureAngle", label: "Curvature Angle (deg)", type: "number", defaultValue: 15, min: 0, max: 90, step: 1 },
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, parameters, context }) => {
+      const geometryId = typeof inputs.geometry === "string" ? inputs.geometry : null;
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      const iterations = clampInt(
+        Math.round(toNumber(inputs.iterations, readNumberParameter(parameters, "iterations", 1))),
+        1,
+        6,
+        1
+      );
+      const scheme = String(inputs.scheme ?? parameters.scheme ?? "catmull-clark");
+      const preserveBoundary = toBoolean(
+        inputs.preserveBoundary,
+        readBooleanParameter(parameters, "preserveBoundary", true)
+      );
+      const maxEdgeLength = Math.max(
+        0,
+        toNumber(inputs.maxEdgeLength, readNumberParameter(parameters, "maxEdgeLength", 0.5))
+      );
+      const curvatureAngle = toNumber(
+        inputs.curvatureAngle,
+        readNumberParameter(parameters, "curvatureAngle", 15)
+      );
+      if (!geometry) {
+        return {
+          geometry: geometryId,
+          mesh: EMPTY_MESH,
+          tessellation: null,
+          iterations,
+          scheme,
+        };
+      }
+      const mesh = resolveMeshFromGeometry(geometry);
+      if (!mesh) {
+        return {
+          geometry: geometryId,
+          mesh: EMPTY_MESH,
+          tessellation: null,
+          iterations,
+          scheme,
+        };
+      }
+      const tessellation = toTessellationMesh(mesh, getTessellationMetadata(geometry.metadata));
+      let result = tessellation;
+      for (let i = 0; i < iterations; i += 1) {
+        switch (scheme) {
+          case "linear":
+            result = subdivideLinear(result);
+            break;
+          case "loop":
+            result = subdivideLoop(result);
+            break;
+          case "adaptive":
+            result = subdivideAdaptive(result, {
+              maxEdgeLength,
+              curvatureTolerance: (curvatureAngle * Math.PI) / 180,
+            });
+            break;
+          case "catmull-clark":
+          default:
+            result = subdivideCatmullClark(result, { preserveBoundary });
+            break;
+        }
+      }
+      const renderMesh = tessellationMeshToRenderMesh(result);
+      return {
+        geometry: geometryId,
+        mesh: renderMesh,
+        tessellation: toTessellationMeshData(result),
+        iterations,
+        scheme,
+      };
+    },
+  },
+  {
+    type: "dualMesh",
+    label: "Dual Mesh",
+    shortLabel: "DUAL",
+    description: "Flip faces and vertices to create a dual mesh.",
+    category: "tessellation",
+    iconId: "tessellation:dualMesh",
+    inputs: [
+      { key: "geometry", label: "Mesh", type: "geometry", required: true },
+    ],
+    outputs: [
+      { key: "geometry", label: "Mesh", type: "geometry" },
+      { key: "mesh", label: "Mesh Data", type: "any" },
+      { key: "tessellation", label: "Tessellation", type: "any" },
+    ],
+    parameters: [],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, context }) => {
+      const geometryId = typeof inputs.geometry === "string" ? inputs.geometry : null;
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      if (!geometry) {
+        return { geometry: geometryId, mesh: EMPTY_MESH, tessellation: null };
+      }
+      const mesh = resolveMeshFromGeometry(geometry);
+      if (!mesh) {
+        return { geometry: geometryId, mesh: EMPTY_MESH, tessellation: null };
+      }
+      const tessellation = toTessellationMesh(mesh, getTessellationMetadata(geometry.metadata));
+      const result = dualMesh(tessellation);
+      return {
+        geometry: geometryId,
+        mesh: tessellationMeshToRenderMesh(result),
+        tessellation: toTessellationMeshData(result),
+      };
+    },
+  },
+  {
+    type: "insetFaces",
+    label: "Inset Faces",
+    shortLabel: "INSET",
+    description: "Inset mesh faces to create panels and borders.",
+    category: "tessellation",
+    iconId: "tessellation:insetFaces",
+    inputs: [
+      { key: "geometry", label: "Mesh", type: "geometry", required: true },
+      {
+        key: "amount",
+        label: "Amount",
+        type: "number",
+        parameterKey: "amount",
+        defaultValue: 0.1,
+      },
+      {
+        key: "mode",
+        label: "Mode",
+        type: "string",
+        parameterKey: "mode",
+        defaultValue: "uniform",
+      },
+      { key: "faces", label: "Faces", type: "any", required: false },
+    ],
+    outputs: [
+      { key: "geometry", label: "Mesh", type: "geometry" },
+      { key: "mesh", label: "Mesh Data", type: "any" },
+      { key: "innerFaces", label: "Inner Faces", type: "any" },
+      { key: "borderFaces", label: "Border Faces", type: "any" },
+      { key: "tessellation", label: "Tessellation", type: "any" },
+    ],
+    parameters: [
+      { key: "amount", label: "Amount", type: "number", defaultValue: 0.1, min: 0, max: 0.95, step: 0.01 },
+      {
+        key: "mode",
+        label: "Mode",
+        type: "select",
+        defaultValue: "uniform",
+        options: [
+          { value: "uniform", label: "Uniform" },
+          { value: "per-face", label: "Per Face" },
+        ],
+      },
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, parameters, context }) => {
+      const geometryId = typeof inputs.geometry === "string" ? inputs.geometry : null;
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      const mode = String(inputs.mode ?? parameters.mode ?? "uniform");
+      if (!geometry) {
+        return {
+          geometry: geometryId,
+          mesh: EMPTY_MESH,
+          innerFaces: [],
+          borderFaces: [],
+          tessellation: null,
+        };
+      }
+      const mesh = resolveMeshFromGeometry(geometry);
+      if (!mesh) {
+        return {
+          geometry: geometryId,
+          mesh: EMPTY_MESH,
+          innerFaces: [],
+          borderFaces: [],
+          tessellation: null,
+        };
+      }
+      const tessellation = toTessellationMesh(mesh, getTessellationMetadata(geometry.metadata));
+      const amountList = toNumericList(inputs.amount);
+      const amountValue =
+        mode === "per-face" && amountList.length > 0
+          ? amountList
+          : toNumber(inputs.amount, readNumberParameter(parameters, "amount", 0.1));
+      const faceIndices = toIndexList(inputs.faces);
+      const result = insetFaces(tessellation, amountValue, {
+        faceIndices: faceIndices.length > 0 ? faceIndices : undefined,
+      });
+      return {
+        geometry: geometryId,
+        mesh: tessellationMeshToRenderMesh(result.mesh),
+        innerFaces: result.innerFaces,
+        borderFaces: result.borderFaces,
+        tessellation: toTessellationMeshData(result.mesh),
+      };
+    },
+  },
+  {
+    type: "extrudeFaces",
+    label: "Extrude Faces",
+    shortLabel: "XTRD",
+    description: "Extrude selected faces along normals or a fixed axis.",
+    category: "tessellation",
+    iconId: "tessellation:extrudeFaces",
+    inputs: [
+      { key: "geometry", label: "Mesh", type: "geometry", required: true },
+      {
+        key: "distance",
+        label: "Distance",
+        type: "number",
+        parameterKey: "distance",
+        defaultValue: 0.1,
+      },
+      {
+        key: "mode",
+        label: "Mode",
+        type: "string",
+        parameterKey: "mode",
+        defaultValue: "normal",
+      },
+      { key: "direction", label: "Direction", type: "vector", required: false },
+      { key: "faces", label: "Faces", type: "any", required: false },
+    ],
+    outputs: [
+      { key: "geometry", label: "Mesh", type: "geometry" },
+      { key: "mesh", label: "Mesh Data", type: "any" },
+      { key: "tessellation", label: "Tessellation", type: "any" },
+    ],
+    parameters: [
+      { key: "distance", label: "Distance", type: "number", defaultValue: 0.1, step: 0.05 },
+      {
+        key: "mode",
+        label: "Mode",
+        type: "select",
+        defaultValue: "normal",
+        options: [
+          { value: "normal", label: "Normal" },
+          { value: "fixed-axis", label: "Fixed Axis" },
+        ],
+      },
+      ...vectorParameterSpecs("direction", "Direction", UNIT_Y_VEC3),
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, parameters, context }) => {
+      const geometryId = typeof inputs.geometry === "string" ? inputs.geometry : null;
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      const mode = String(inputs.mode ?? parameters.mode ?? "normal");
+      if (!geometry) {
+        return { geometry: geometryId, mesh: EMPTY_MESH, tessellation: null };
+      }
+      const mesh = resolveMeshFromGeometry(geometry);
+      if (!mesh) {
+        return { geometry: geometryId, mesh: EMPTY_MESH, tessellation: null };
+      }
+      const tessellation = toTessellationMesh(mesh, getTessellationMetadata(geometry.metadata));
+      const distanceList = toNumericList(inputs.distance);
+      const distanceValue =
+        distanceList.length > 1
+          ? distanceList
+          : toNumber(inputs.distance, readNumberParameter(parameters, "distance", 0.1));
+      const faceIndices = toIndexList(inputs.faces);
+      const direction = resolveVectorInput(
+        inputs,
+        parameters,
+        "direction",
+        "direction",
+        UNIT_Y_VEC3
+      );
+      const result = extrudeFaces(
+        tessellation,
+        faceIndices.length > 0 ? faceIndices : null,
+        distanceValue,
+        { mode: mode === "fixed-axis" ? "fixed-axis" : "normal", direction }
+      );
+      return {
+        geometry: geometryId,
+        mesh: tessellationMeshToRenderMesh(result),
+        tessellation: toTessellationMeshData(result),
+      };
+    },
+  },
+  {
+    type: "meshRelax",
+    label: "Mesh Relax",
+    shortLabel: "RELX",
+    description: "Smooth a mesh with Laplacian relaxation.",
+    category: "tessellation",
+    iconId: "tessellation:meshRelax",
+    inputs: [
+      { key: "geometry", label: "Mesh", type: "geometry", required: true },
+      {
+        key: "iterations",
+        label: "Iterations",
+        type: "number",
+        parameterKey: "iterations",
+        defaultValue: 2,
+      },
+      {
+        key: "strength",
+        label: "Strength",
+        type: "number",
+        parameterKey: "strength",
+        defaultValue: 0.5,
+      },
+      {
+        key: "preserveBoundary",
+        label: "Preserve Boundary",
+        type: "boolean",
+        parameterKey: "preserveBoundary",
+        defaultValue: true,
+      },
+    ],
+    outputs: [
+      { key: "geometry", label: "Mesh", type: "geometry" },
+      { key: "mesh", label: "Mesh Data", type: "any" },
+      { key: "tessellation", label: "Tessellation", type: "any" },
+    ],
+    parameters: [
+      { key: "iterations", label: "Iterations", type: "number", defaultValue: 2, min: 1, max: 20, step: 1 },
+      { key: "strength", label: "Strength", type: "number", defaultValue: 0.5, min: 0, max: 1, step: 0.05 },
+      { key: "preserveBoundary", label: "Preserve Boundary", type: "boolean", defaultValue: true },
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, parameters, context }) => {
+      const geometryId = typeof inputs.geometry === "string" ? inputs.geometry : null;
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      const iterations = clampInt(
+        Math.round(toNumber(inputs.iterations, readNumberParameter(parameters, "iterations", 2))),
+        1,
+        20,
+        2
+      );
+      const strength = clampNumber(
+        toNumber(inputs.strength, readNumberParameter(parameters, "strength", 0.5)),
+        0,
+        1
+      );
+      const preserveBoundary = toBoolean(
+        inputs.preserveBoundary,
+        readBooleanParameter(parameters, "preserveBoundary", true)
+      );
+      if (!geometry) {
+        return { geometry: geometryId, mesh: EMPTY_MESH, tessellation: null };
+      }
+      const mesh = resolveMeshFromGeometry(geometry);
+      if (!mesh) {
+        return { geometry: geometryId, mesh: EMPTY_MESH, tessellation: null };
+      }
+      const tessellation = toTessellationMesh(mesh, getTessellationMetadata(geometry.metadata));
+      const result = meshRelax(tessellation, iterations, strength, preserveBoundary);
+      return {
+        geometry: geometryId,
+        mesh: tessellationMeshToRenderMesh(result),
+        tessellation: toTessellationMeshData(result),
+      };
+    },
+  },
+  {
+    type: "selectFaces",
+    label: "Select Faces",
+    shortLabel: "SEL",
+    description: "Select mesh faces by area, normal direction, or index pattern.",
+    category: "tessellation",
+    iconId: "tessellation:selectFaces",
+    inputs: [
+      { key: "geometry", label: "Mesh", type: "geometry", required: true },
+      {
+        key: "criteria",
+        label: "Criteria",
+        type: "string",
+        parameterKey: "criteria",
+        defaultValue: "area",
+      },
+      {
+        key: "threshold",
+        label: "Threshold",
+        type: "number",
+        parameterKey: "threshold",
+        defaultValue: 0.1,
+      },
+      { key: "direction", label: "Direction", type: "vector", required: false },
+      { key: "step", label: "Step", type: "number", parameterKey: "step", defaultValue: 2 },
+      { key: "offset", label: "Offset", type: "number", parameterKey: "offset", defaultValue: 0 },
+    ],
+    outputs: [
+      { key: "faceIndices", label: "Faces", type: "any" },
+      { key: "count", label: "Count", type: "number" },
+    ],
+    parameters: [
+      {
+        key: "criteria",
+        label: "Criteria",
+        type: "select",
+        defaultValue: "area",
+        options: [
+          { value: "area", label: "Area" },
+          { value: "normal-direction", label: "Normal Direction" },
+          { value: "index-pattern", label: "Index Pattern" },
+        ],
+      },
+      { key: "threshold", label: "Threshold", type: "number", defaultValue: 0.1, step: 0.05 },
+      ...vectorParameterSpecs("direction", "Direction", UNIT_Y_VEC3),
+      { key: "step", label: "Step", type: "number", defaultValue: 2, min: 1, step: 1 },
+      { key: "offset", label: "Offset", type: "number", defaultValue: 0, min: 0, step: 1 },
+    ],
+    primaryOutputKey: "faceIndices",
+    compute: ({ inputs, parameters, context }) => {
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      const criteria = String(inputs.criteria ?? parameters.criteria ?? "area") as
+        | "area"
+        | "normal-direction"
+        | "index-pattern";
+      const threshold = toNumber(
+        inputs.threshold,
+        readNumberParameter(parameters, "threshold", 0.1)
+      );
+      const direction = resolveVectorInput(
+        inputs,
+        parameters,
+        "direction",
+        "direction",
+        UNIT_Y_VEC3
+      );
+      if (!geometry) {
+        return { faceIndices: [], count: 0 };
+      }
+      const mesh = resolveMeshFromGeometry(geometry);
+      if (!mesh) {
+        return { faceIndices: [], count: 0 };
+      }
+      const tessellation = toTessellationMesh(mesh, getTessellationMetadata(geometry.metadata));
+      const faces = selectFaces(tessellation, criteria, {
+        threshold: criteria === "normal-direction" ? clampNumber(threshold, -1, 1) : threshold,
+        direction,
+        step: toNumber(inputs.step, readNumberParameter(parameters, "step", 2)),
+        offset: toNumber(inputs.offset, readNumberParameter(parameters, "offset", 0)),
+      });
+      return { faceIndices: faces, count: faces.length };
+    },
+  },
+  {
+    type: "meshBoolean",
+    label: "Mesh Boolean",
+    shortLabel: "MBOOL",
+    description: "Combine two meshes with union, difference, or intersection.",
+    category: "tessellation",
+    iconId: "tessellation:meshBoolean",
+    inputs: [
+      { key: "geometryA", label: "A", type: "geometry", required: true },
+      { key: "geometryB", label: "B", type: "geometry", required: true },
+      {
+        key: "operation",
+        label: "Operation",
+        type: "string",
+        parameterKey: "operation",
+        defaultValue: "union",
+      },
+    ],
+    outputs: [
+      { key: "geometry", label: "Result", type: "geometry" },
+      { key: "mesh", label: "Mesh Data", type: "any" },
+      { key: "tessellation", label: "Tessellation", type: "any" },
+      { key: "operation", label: "Operation", type: "string" },
+    ],
+    parameters: [
+      {
+        key: "operation",
+        label: "Operation",
+        type: "select",
+        defaultValue: "union",
+        options: [
+          { value: "union", label: "Union" },
+          { value: "difference", label: "Difference" },
+          { value: "intersection", label: "Intersection" },
+        ],
+      },
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, parameters, context }) => {
+      const geometryId = typeof parameters.geometryId === "string" ? parameters.geometryId : null;
+      const geometryAId = typeof inputs.geometryA === "string" ? inputs.geometryA : null;
+      const geometryBId = typeof inputs.geometryB === "string" ? inputs.geometryB : null;
+      const geometryA = geometryAId ? context.geometryById.get(geometryAId) : null;
+      const geometryB = geometryBId ? context.geometryById.get(geometryBId) : null;
+      const operation = String(inputs.operation ?? parameters.operation ?? "union") as
+        | "union"
+        | "difference"
+        | "intersection";
+      const outputGeometryId = geometryId ?? geometryAId;
+      const meshA = geometryA ? resolveMeshFromGeometry(geometryA) : null;
+      const meshB = geometryB ? resolveMeshFromGeometry(geometryB) : null;
+      if (!outputGeometryId || !meshA || !meshB) {
+        return { geometry: outputGeometryId, mesh: EMPTY_MESH, operation, tessellation: null };
+      }
+      const resultMesh = meshBoolean(meshA, meshB, operation);
+      const tessellation = toTessellationMesh(resultMesh, null);
+      return {
+        geometry: outputGeometryId,
+        mesh: resultMesh,
+        tessellation: toTessellationMeshData(tessellation),
+        operation,
+      };
+    },
+  },
+  {
+    type: "triangulateMesh",
+    label: "Triangulate Mesh",
+    shortLabel: "TRI",
+    description: "Convert all faces to triangles.",
+    category: "tessellation",
+    iconId: "tessellation:triangulateMesh",
+    inputs: [{ key: "geometry", label: "Mesh", type: "geometry", required: true }],
+    outputs: [
+      { key: "geometry", label: "Mesh", type: "geometry" },
+      { key: "mesh", label: "Mesh Data", type: "any" },
+      { key: "tessellation", label: "Tessellation", type: "any" },
+    ],
+    parameters: [],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, context }) => {
+      const geometryId = typeof inputs.geometry === "string" ? inputs.geometry : null;
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      if (!geometry) {
+        return { geometry: geometryId, mesh: EMPTY_MESH, tessellation: null };
+      }
+      const mesh = resolveMeshFromGeometry(geometry);
+      if (!mesh) {
+        return { geometry: geometryId, mesh: EMPTY_MESH, tessellation: null };
+      }
+      const tessellation = toTessellationMesh(mesh, getTessellationMetadata(geometry.metadata));
+      const result = triangulateMesh(tessellation);
+      return {
+        geometry: geometryId,
+        mesh: tessellationMeshToRenderMesh(result),
+        tessellation: toTessellationMeshData(result),
+      };
+    },
+  },
+  {
+    type: "geodesicSphere",
+    label: "Geodesic Sphere",
+    shortLabel: "GEO",
+    description: "Generate a geodesic sphere mesh.",
+    category: "tessellation",
+    iconId: "tessellation:geodesicSphere",
+    inputs: [
+      { key: "radius", label: "Radius", type: "number", parameterKey: "radius", defaultValue: 1 },
+      { key: "frequency", label: "Frequency", type: "number", parameterKey: "frequency", defaultValue: 2 },
+      {
+        key: "method",
+        label: "Base",
+        type: "string",
+        parameterKey: "method",
+        defaultValue: "icosahedron",
+      },
+    ],
+    outputs: [
+      { key: "geometry", label: "Mesh", type: "geometry" },
+      { key: "mesh", label: "Mesh Data", type: "any" },
+      { key: "tessellation", label: "Tessellation", type: "any" },
+    ],
+    parameters: [
+      { key: "radius", label: "Radius", type: "number", defaultValue: 1, min: 0.01, step: 0.1 },
+      { key: "frequency", label: "Frequency", type: "number", defaultValue: 2, min: 1, max: 12, step: 1 },
+      {
+        key: "method",
+        label: "Base",
+        type: "select",
+        defaultValue: "icosahedron",
+        options: [
+          { value: "icosahedron", label: "Icosahedron" },
+          { value: "octahedron", label: "Octahedron" },
+        ],
+      },
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, parameters }) => {
+      const geometryId = typeof parameters.geometryId === "string" ? parameters.geometryId : null;
+      const radius = toNumber(inputs.radius, readNumberParameter(parameters, "radius", 1));
+      const frequency = toNumber(inputs.frequency, readNumberParameter(parameters, "frequency", 2));
+      const method = String(inputs.method ?? parameters.method ?? "icosahedron") as
+        | "icosahedron"
+        | "octahedron";
+      const result = generateGeodesicSphere(Math.max(0.01, radius), frequency, method);
+      return {
+        geometry: geometryId,
+        mesh: tessellationMeshToRenderMesh(result),
+        tessellation: toTessellationMeshData(result),
+      };
+    },
+  },
+  {
+    type: "voronoiPattern",
+    label: "Voronoi Pattern",
+    shortLabel: "VOR",
+    description: "Generate a Voronoi pattern from a boundary surface.",
+    category: "tessellation",
+    iconId: "tessellation:voronoiPattern",
+    inputs: [
+      { key: "geometry", label: "Boundary", type: "geometry", required: true },
+      { key: "numCells", label: "Cells", type: "number", parameterKey: "numCells", defaultValue: 30 },
+      { key: "relaxIterations", label: "Relax", type: "number", parameterKey: "relaxIterations", defaultValue: 2 },
+      { key: "seeds", label: "Seeds", type: "any", required: false },
+    ],
+    outputs: [
+      { key: "geometry", label: "Mesh", type: "geometry" },
+      { key: "mesh", label: "Mesh Data", type: "any" },
+      { key: "tessellation", label: "Tessellation", type: "any" },
+    ],
+    parameters: [
+      { key: "numCells", label: "Cells", type: "number", defaultValue: 30, min: 1, max: 200, step: 1 },
+      { key: "relaxIterations", label: "Relax Iterations", type: "number", defaultValue: 2, min: 0, max: 10, step: 1 },
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, parameters, context }) => {
+      const geometryId = typeof inputs.geometry === "string" ? inputs.geometry : null;
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      if (!geometry) {
+        return { geometry: geometryId, mesh: EMPTY_MESH, tessellation: null };
+      }
+      const mesh = resolveMeshFromGeometry(geometry);
+      if (!mesh) {
+        return { geometry: geometryId, mesh: EMPTY_MESH, tessellation: null };
+      }
+      const tessellation = toTessellationMesh(mesh, getTessellationMetadata(geometry.metadata));
+      if (tessellation.vertices.length === 0) {
+        return { geometry: geometryId, mesh: EMPTY_MESH, tessellation: null };
+      }
+      const plane = computeBestFitPlane(tessellation.vertices);
+      let minU = Number.POSITIVE_INFINITY;
+      let maxU = Number.NEGATIVE_INFINITY;
+      let minV = Number.POSITIVE_INFINITY;
+      let maxV = Number.NEGATIVE_INFINITY;
+      tessellation.vertices.forEach((vertex) => {
+        const projected = projectPointToPlane(vertex, plane);
+        minU = Math.min(minU, projected.u);
+        maxU = Math.max(maxU, projected.u);
+        minV = Math.min(minV, projected.v);
+        maxV = Math.max(maxV, projected.v);
+      });
+      const bounds = { min: { x: minU, y: minV }, max: { x: maxU, y: maxV } } as const;
+      const seedPoints = collectVec3List(inputs.seeds).map((point) => {
+        const projected = projectPointToPlane(point, plane);
+        return { x: projected.u, y: projected.v };
+      });
+      const numCells = clampInt(
+        Math.round(toNumber(inputs.numCells, readNumberParameter(parameters, "numCells", 30))),
+        1,
+        200,
+        30
+      );
+      const relaxIterations = clampInt(
+        Math.round(
+          toNumber(inputs.relaxIterations, readNumberParameter(parameters, "relaxIterations", 2))
+        ),
+        0,
+        10,
+        2
+      );
+      const random = createSeededRandom(hashStringToSeed(`${context.nodeId}:${geometryId ?? "voronoi"}`));
+      const seeds = seedPoints.length > 0 ? seedPoints : Array.from({ length: numCells }, () => ({
+        x: bounds.min.x + random() * (bounds.max.x - bounds.min.x || 1),
+        y: bounds.min.y + random() * (bounds.max.y - bounds.min.y || 1),
+      }));
+      const result = generateVoronoiPattern(
+        plane.origin,
+        plane.xAxis,
+        plane.yAxis,
+        bounds,
+        seeds,
+        relaxIterations
+      );
+      return {
+        geometry: geometryId,
+        mesh: tessellationMeshToRenderMesh(result),
+        tessellation: toTessellationMeshData(result),
+      };
+    },
+  },
+  {
+    type: "hexagonalTiling",
+    label: "Hexagonal Tiling",
+    shortLabel: "HEX",
+    description: "Generate a hexagonal tiling over a surface plane.",
+    category: "tessellation",
+    iconId: "tessellation:hexagonalTiling",
+    inputs: [
+      { key: "geometry", label: "Surface", type: "geometry", required: true },
+      { key: "cellSize", label: "Cell Size", type: "number", parameterKey: "cellSize", defaultValue: 0.5 },
+      { key: "orientation", label: "Orientation", type: "number", parameterKey: "orientation", defaultValue: 0 },
+    ],
+    outputs: [
+      { key: "geometry", label: "Mesh", type: "geometry" },
+      { key: "mesh", label: "Mesh Data", type: "any" },
+      { key: "tessellation", label: "Tessellation", type: "any" },
+    ],
+    parameters: [
+      { key: "cellSize", label: "Cell Size", type: "number", defaultValue: 0.5, min: 0.05, step: 0.05 },
+      { key: "orientation", label: "Orientation", type: "number", defaultValue: 0, step: 5 },
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, parameters, context }) => {
+      const geometryId = typeof inputs.geometry === "string" ? inputs.geometry : null;
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      if (!geometry) {
+        return { geometry: geometryId, mesh: EMPTY_MESH, tessellation: null };
+      }
+      const mesh = resolveMeshFromGeometry(geometry);
+      if (!mesh) {
+        return { geometry: geometryId, mesh: EMPTY_MESH, tessellation: null };
+      }
+      const tessellation = toTessellationMesh(mesh, getTessellationMetadata(geometry.metadata));
+      if (tessellation.vertices.length === 0) {
+        return { geometry: geometryId, mesh: EMPTY_MESH, tessellation: null };
+      }
+      const plane = computeBestFitPlane(tessellation.vertices);
+      let minU = Number.POSITIVE_INFINITY;
+      let maxU = Number.NEGATIVE_INFINITY;
+      let minV = Number.POSITIVE_INFINITY;
+      let maxV = Number.NEGATIVE_INFINITY;
+      tessellation.vertices.forEach((vertex) => {
+        const projected = projectPointToPlane(vertex, plane);
+        minU = Math.min(minU, projected.u);
+        maxU = Math.max(maxU, projected.u);
+        minV = Math.min(minV, projected.v);
+        maxV = Math.max(maxV, projected.v);
+      });
+      const bounds = { min: { x: minU, y: minV }, max: { x: maxU, y: maxV } } as const;
+      const cellSize = toNumber(inputs.cellSize, readNumberParameter(parameters, "cellSize", 0.5));
+      const orientation = toNumber(inputs.orientation, readNumberParameter(parameters, "orientation", 0));
+      const result = generateHexagonalTiling(
+        plane.origin,
+        plane.xAxis,
+        plane.yAxis,
+        bounds,
+        cellSize,
+        orientation
+      );
+      return {
+        geometry: geometryId,
+        mesh: tessellationMeshToRenderMesh(result),
+        tessellation: toTessellationMeshData(result),
+      };
+    },
+  },
+  {
+    type: "offsetPattern",
+    label: "Offset Pattern",
+    shortLabel: "OFST",
+    description: "Inset and extrude faces to create panelized patterns.",
+    category: "tessellation",
+    iconId: "tessellation:offsetPattern",
+    inputs: [
+      { key: "geometry", label: "Mesh", type: "geometry", required: true },
+      { key: "insetAmount", label: "Inset", type: "number", parameterKey: "insetAmount", defaultValue: 0.1 },
+      { key: "extrudeDepth", label: "Extrude", type: "number", parameterKey: "extrudeDepth", defaultValue: 0.1 },
+      { key: "borderWidth", label: "Border", type: "number", parameterKey: "borderWidth", defaultValue: 0 },
+    ],
+    outputs: [
+      { key: "geometry", label: "Mesh", type: "geometry" },
+      { key: "mesh", label: "Mesh Data", type: "any" },
+      { key: "tessellation", label: "Tessellation", type: "any" },
+    ],
+    parameters: [
+      { key: "insetAmount", label: "Inset Amount", type: "number", defaultValue: 0.1, min: 0, max: 0.95, step: 0.01 },
+      { key: "extrudeDepth", label: "Extrude Depth", type: "number", defaultValue: 0.1, step: 0.05 },
+      { key: "borderWidth", label: "Border Width", type: "number", defaultValue: 0, min: 0, max: 0.95, step: 0.01 },
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, parameters, context }) => {
+      const geometryId = typeof inputs.geometry === "string" ? inputs.geometry : null;
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      if (!geometry) {
+        return { geometry: geometryId, mesh: EMPTY_MESH, tessellation: null };
+      }
+      const mesh = resolveMeshFromGeometry(geometry);
+      if (!mesh) {
+        return { geometry: geometryId, mesh: EMPTY_MESH, tessellation: null };
+      }
+      const tessellation = toTessellationMesh(mesh, getTessellationMetadata(geometry.metadata));
+      const insetAmount = toNumber(
+        inputs.insetAmount,
+        readNumberParameter(parameters, "insetAmount", 0.1)
+      );
+      const extrudeDepth = toNumber(
+        inputs.extrudeDepth,
+        readNumberParameter(parameters, "extrudeDepth", 0.1)
+      );
+      const borderWidth = toNumber(
+        inputs.borderWidth,
+        readNumberParameter(parameters, "borderWidth", 0)
+      );
+      const result = offsetPattern(tessellation, insetAmount, extrudeDepth, borderWidth);
+      return {
+        geometry: geometryId,
+        mesh: tessellationMeshToRenderMesh(result),
+        tessellation: toTessellationMeshData(result),
+      };
+    },
+  },
+  {
+    type: "meshRepair",
+    label: "Mesh Repair",
+    shortLabel: "REPR",
+    description: "Repair holes and weld close vertices.",
+    category: "tessellation",
+    iconId: "tessellation:meshRepair",
+    inputs: [
+      { key: "geometry", label: "Mesh", type: "geometry", required: true },
+      { key: "fillHoles", label: "Fill Holes", type: "boolean", parameterKey: "fillHoles", defaultValue: true },
+      { key: "weldTolerance", label: "Weld Tol", type: "number", parameterKey: "weldTolerance", defaultValue: 0.001 },
+    ],
+    outputs: [
+      { key: "geometry", label: "Mesh", type: "geometry" },
+      { key: "mesh", label: "Mesh Data", type: "any" },
+      { key: "tessellation", label: "Tessellation", type: "any" },
+    ],
+    parameters: [
+      { key: "fillHoles", label: "Fill Holes", type: "boolean", defaultValue: true },
+      { key: "weldTolerance", label: "Weld Tolerance", type: "number", defaultValue: 0.001, min: 0, step: 0.0005 },
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, parameters, context }) => {
+      const geometryId = typeof inputs.geometry === "string" ? inputs.geometry : null;
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      if (!geometry) {
+        return { geometry: geometryId, mesh: EMPTY_MESH, tessellation: null };
+      }
+      const mesh = resolveMeshFromGeometry(geometry);
+      if (!mesh) {
+        return { geometry: geometryId, mesh: EMPTY_MESH, tessellation: null };
+      }
+      const tessellation = toTessellationMesh(mesh, getTessellationMetadata(geometry.metadata));
+      const fillHoles = toBoolean(inputs.fillHoles, readBooleanParameter(parameters, "fillHoles", true));
+      const weldTolerance = Math.max(
+        0,
+        toNumber(inputs.weldTolerance, readNumberParameter(parameters, "weldTolerance", 0.001))
+      );
+      const result = repairMesh(tessellation, { fillHoles, weldTolerance });
+      return {
+        geometry: geometryId,
+        mesh: tessellationMeshToRenderMesh(result),
+        tessellation: toTessellationMeshData(result),
+      };
+    },
+  },
+  {
+    type: "meshUVs",
+    label: "Generate UVs",
+    shortLabel: "UV",
+    description: "Generate UV coordinates for a mesh.",
+    category: "tessellation",
+    iconId: "tessellation:meshUVs",
+    inputs: [
+      { key: "geometry", label: "Mesh", type: "geometry", required: true },
+      { key: "mode", label: "Mode", type: "string", parameterKey: "mode", defaultValue: "planar" },
+      { key: "axis", label: "Axis", type: "vector", required: false },
+    ],
+    outputs: [
+      { key: "geometry", label: "Mesh", type: "geometry" },
+      { key: "mesh", label: "Mesh Data", type: "any" },
+      { key: "tessellation", label: "Tessellation", type: "any" },
+    ],
+    parameters: [
+      {
+        key: "mode",
+        label: "Mode",
+        type: "select",
+        defaultValue: "planar",
+        options: [
+          { value: "planar", label: "Planar" },
+          { value: "cylindrical", label: "Cylindrical" },
+          { value: "spherical", label: "Spherical" },
+        ],
+      },
+      ...vectorParameterSpecs("axis", "Axis", UNIT_Y_VEC3),
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, parameters, context }) => {
+      const geometryId = typeof inputs.geometry === "string" ? inputs.geometry : null;
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      if (!geometry) {
+        return { geometry: geometryId, mesh: EMPTY_MESH, tessellation: null };
+      }
+      const mesh = resolveMeshFromGeometry(geometry);
+      if (!mesh) {
+        return { geometry: geometryId, mesh: EMPTY_MESH, tessellation: null };
+      }
+      const tessellation = toTessellationMesh(mesh, getTessellationMetadata(geometry.metadata));
+      const mode = String(inputs.mode ?? parameters.mode ?? "planar") as
+        | "planar"
+        | "cylindrical"
+        | "spherical";
+      const axis = resolveVectorInput(inputs, parameters, "axis", "axis", UNIT_Y_VEC3);
+      const result = generateMeshUVs(tessellation, mode, axis);
+      return {
+        geometry: geometryId,
+        mesh: tessellationMeshToRenderMesh(result),
+        tessellation: toTessellationMeshData(result),
+      };
+    },
+  },
+  {
+    type: "meshDecimate",
+    label: "Mesh Decimate",
+    shortLabel: "DEC",
+    description: "Reduce mesh density via vertex clustering.",
+    category: "tessellation",
+    iconId: "tessellation:meshDecimate",
+    inputs: [
+      { key: "geometry", label: "Mesh", type: "geometry", required: true },
+      {
+        key: "targetFaceCount",
+        label: "Target Faces",
+        type: "number",
+        parameterKey: "targetFaceCount",
+        defaultValue: 1000,
+      },
+      { key: "cellSize", label: "Cell Size", type: "number", parameterKey: "cellSize", defaultValue: 0 },
+    ],
+    outputs: [
+      { key: "geometry", label: "Mesh", type: "geometry" },
+      { key: "mesh", label: "Mesh Data", type: "any" },
+      { key: "tessellation", label: "Tessellation", type: "any" },
+    ],
+    parameters: [
+      { key: "targetFaceCount", label: "Target Faces", type: "number", defaultValue: 1000, min: 10, step: 10 },
+      { key: "cellSize", label: "Cell Size", type: "number", defaultValue: 0, min: 0, step: 0.05 },
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, parameters, context }) => {
+      const geometryId = typeof inputs.geometry === "string" ? inputs.geometry : null;
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      if (!geometry) {
+        return { geometry: geometryId, mesh: EMPTY_MESH, tessellation: null };
+      }
+      const mesh = resolveMeshFromGeometry(geometry);
+      if (!mesh) {
+        return { geometry: geometryId, mesh: EMPTY_MESH, tessellation: null };
+      }
+      const tessellation = toTessellationMesh(mesh, getTessellationMetadata(geometry.metadata));
+      const targetFaceCount = Math.max(
+        10,
+        Math.round(toNumber(inputs.targetFaceCount, readNumberParameter(parameters, "targetFaceCount", 1000)))
+      );
+      const cellSize = Math.max(
+        0,
+        toNumber(inputs.cellSize, readNumberParameter(parameters, "cellSize", 0))
+      );
+      const result = decimateMesh(tessellation, { targetFaceCount, cellSize });
+      return {
+        geometry: geometryId,
+        mesh: tessellationMeshToRenderMesh(result),
+        tessellation: toTessellationMeshData(result),
+      };
+    },
+  },
+  {
+    type: "quadRemesh",
+    label: "Quad Remesh",
+    shortLabel: "QUAD",
+    description: "Merge adjacent triangles into quad-dominant faces.",
+    category: "tessellation",
+    iconId: "tessellation:quadRemesh",
+    inputs: [
+      { key: "geometry", label: "Mesh", type: "geometry", required: true },
+      { key: "maxAngle", label: "Max Angle", type: "number", parameterKey: "maxAngle", defaultValue: 15 },
+    ],
+    outputs: [
+      { key: "geometry", label: "Mesh", type: "geometry" },
+      { key: "mesh", label: "Mesh Data", type: "any" },
+      { key: "tessellation", label: "Tessellation", type: "any" },
+    ],
+    parameters: [
+      { key: "maxAngle", label: "Max Angle (deg)", type: "number", defaultValue: 15, min: 0, max: 90, step: 1 },
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, parameters, context }) => {
+      const geometryId = typeof inputs.geometry === "string" ? inputs.geometry : null;
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      if (!geometry) {
+        return { geometry: geometryId, mesh: EMPTY_MESH, tessellation: null };
+      }
+      const mesh = resolveMeshFromGeometry(geometry);
+      if (!mesh) {
+        return { geometry: geometryId, mesh: EMPTY_MESH, tessellation: null };
+      }
+      const tessellation = toTessellationMesh(mesh, getTessellationMetadata(geometry.metadata));
+      const maxAngle = toNumber(inputs.maxAngle, readNumberParameter(parameters, "maxAngle", 15));
+      const result = quadDominantRemesh(tessellation, maxAngle);
+      return {
+        geometry: geometryId,
+        mesh: tessellationMeshToRenderMesh(result),
+        tessellation: toTessellationMeshData(result),
+      };
     },
   },
   {
@@ -5140,7 +7990,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       { key: "value", label: "Value", type: "number" },
       { key: "t", label: "T", type: "number" },
     ],
-    parameters: baseWaveParameterSpecs(),
+    parameters: [],
     primaryOutputKey: "value",
     compute: ({ inputs, parameters }) => {
       const { t, amplitude, offset, angle } = resolveWaveInputs(inputs, parameters);
@@ -5162,7 +8012,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       { key: "value", label: "Value", type: "number" },
       { key: "t", label: "T", type: "number" },
     ],
-    parameters: baseWaveParameterSpecs(),
+    parameters: [],
     primaryOutputKey: "value",
     compute: ({ inputs, parameters }) => {
       const { t, amplitude, offset, angle } = resolveWaveInputs(inputs, parameters);
@@ -5184,7 +8034,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       { key: "value", label: "Value", type: "number" },
       { key: "t", label: "T", type: "number" },
     ],
-    parameters: baseWaveParameterSpecs(),
+    parameters: [],
     primaryOutputKey: "value",
     compute: ({ inputs, parameters }) => {
       const { t, amplitude, offset, cycle } = resolveWaveInputs(inputs, parameters);
@@ -5208,7 +8058,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       { key: "value", label: "Value", type: "number" },
       { key: "t", label: "T", type: "number" },
     ],
-    parameters: baseWaveParameterSpecs(),
+    parameters: [],
     primaryOutputKey: "value",
     compute: ({ inputs, parameters }) => {
       const { t, amplitude, offset, cycle } = resolveWaveInputs(inputs, parameters);
@@ -5233,7 +8083,6 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
         key: "duty",
         label: "Duty",
         type: "number",
-        parameterKey: "duty",
         defaultValue: 0.5,
       },
     ],
@@ -5241,10 +8090,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       { key: "value", label: "Value", type: "number" },
       { key: "t", label: "T", type: "number" },
     ],
-    parameters: [
-      ...baseWaveParameterSpecs(),
-      { key: "duty", label: "Duty", type: "number", defaultValue: 0.5, step: 0.05, min: 0, max: 1 },
-    ],
+    parameters: [],
     primaryOutputKey: "value",
     compute: ({ inputs, parameters }) => {
       const { t, amplitude, offset, cycle } = resolveWaveInputs(inputs, parameters);
@@ -5400,7 +8246,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "LN",
     description: "Create a straight line between two points.",
     category: "curves",
-    iconId: "polyline",
+    iconId: "line",
     inputs: [
       { key: "start", label: "Start", type: "any" },
       { key: "end", label: "End", type: "any" },
@@ -5731,7 +8577,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     label: "Surface",
     shortLabel: "SRF",
     description: "Generate a surface from boundary curves.",
-    category: "surfaces",
+    category: "brep",
     iconId: "surface",
     inputs: [
       { key: "points", label: "Boundary", type: "any", allowMultiple: true },
@@ -5791,7 +8637,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     label: "Loft",
     shortLabel: "LOFT",
     description: "Create a surface through a series of section curves.",
-    category: "surfaces",
+    category: "brep",
     iconId: "loft",
     inputs: [
       {
@@ -5857,7 +8703,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     label: "Extrude",
     shortLabel: "EXT",
     description: "Extrude a profile curve along a direction.",
-    category: "surfaces",
+    category: "brep",
     iconId: "extrude",
     inputs: [
       { key: "geometry", label: "Profile", type: "geometry", required: true },
@@ -5938,7 +8784,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     label: "Pipe",
     shortLabel: "PIPE",
     description: "Generate pipe meshes from segments, paths, or curve geometry.",
-    category: "surfaces",
+    category: "brep",
     iconId: "extrude",
     inputs: [
       { key: "segments", label: "Segments", type: "any", required: false },
@@ -6117,7 +8963,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     label: "Pipe Merge",
     shortLabel: "PMRG",
     description: "Merge multiple pipe meshes, with optional joint spheres.",
-    category: "modifiers",
+    category: "mesh",
     iconId: "boolean",
     inputs: [
       { key: "geometry", label: "Pipes", type: "geometry", required: true, allowMultiple: true },
@@ -6199,7 +9045,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     label: "Boolean",
     shortLabel: "BOOL",
     description: "Combine two solids with union, difference, or intersection.",
-    category: "modifiers",
+    category: "brep",
     iconId: "boolean",
     inputs: [
       { key: "geometryA", label: "A", type: "geometry", required: true },
@@ -6422,7 +9268,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     label: "Fillet Edges",
     shortLabel: "EDGE",
     description: "Round selected mesh edges by a given radius.",
-    category: "modifiers",
+    category: "mesh",
     iconId: "arc",
     inputs: [
       { key: "geometry", label: "Geometry", type: "geometry", required: true },
@@ -6470,7 +9316,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     label: "Offset Surface",
     shortLabel: "OSRF",
     description: "Offset a surface along its normals by a distance.",
-    category: "surfaces",
+    category: "brep",
     iconId: "surface",
     inputs: [
       { key: "geometry", label: "Surface", type: "geometry", required: true },
@@ -6501,7 +9347,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     label: "Thicken Mesh",
     shortLabel: "THK",
     description: "Add thickness to a mesh by offsetting inward/outward.",
-    category: "modifiers",
+    category: "mesh",
     iconId: "offset",
     inputs: [
       { key: "geometry", label: "Mesh", type: "geometry", required: true },
@@ -6606,7 +9452,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     label: "Solid",
     shortLabel: "CAP",
     description: "Cap a surface or open mesh into a closed solid.",
-    category: "modifiers",
+    category: "mesh",
     iconId: "extrude",
     inputs: [
       { key: "geometry", label: "Geometry", type: "geometry", required: true },
@@ -6661,7 +9507,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "PRIM",
     description: "Create a parametric primitive shape.",
     category: "primitives",
-    iconId: "primitive",
+    iconId: "primitive:generic",
     inputs: [
       {
         key: "kind",
@@ -6675,6 +9521,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     outputs: [
       { key: "geometry", label: "Geometry", type: "geometry", required: true },
       { key: "kind", label: "Kind", type: "string" },
+      { key: "representation", label: "Representation", type: "string" },
       { key: "params", label: "Params", type: "any" },
     ],
     parameters: [
@@ -6685,15 +9532,18 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
         defaultValue: "box",
         options: primitiveKindOptions,
       },
+      PRIMITIVE_REPRESENTATION_SPEC,
       ...PRIMITIVE_PARAMETER_SPECS,
     ],
     primaryOutputKey: "geometry",
     compute: ({ inputs, parameters }) => {
       const geometry = typeof parameters.geometryId === "string" ? parameters.geometryId : null;
       const kind = String(inputs.kind ?? parameters.kind ?? "box");
+      const representation = String(parameters.representation ?? "mesh");
       return {
         geometry,
         kind,
+        representation,
         params: resolvePrimitiveInputParameters(inputs, parameters),
       };
     },
@@ -6726,9 +9576,11 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       { key: "height", label: "Height", type: "number" },
       { key: "depth", label: "Depth", type: "number" },
       { key: "centerMode", label: "Center Mode", type: "boolean" },
+      { key: "representation", label: "Representation", type: "string" },
     ],
     parameters: [
       ...vectorParameterSpecs("boxOrigin", "Corner", ZERO_VEC3),
+      PRIMITIVE_REPRESENTATION_SPEC,
       { key: "boxWidth", label: "Width", type: "number", defaultValue: 1, min: 0.01, step: 0.1 },
       { key: "boxHeight", label: "Height", type: "number", defaultValue: 1, min: 0.01, step: 0.1 },
       { key: "boxDepth", label: "Depth", type: "number", defaultValue: 1, min: 0.01, step: 0.1 },
@@ -6758,6 +9610,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
         height,
         depth,
         centerMode,
+        representation: String(parameters.representation ?? "mesh"),
       };
     },
   },
@@ -6777,9 +9630,11 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       { key: "volume", label: "Volume", type: "number" },
       { key: "center", label: "Center", type: "vector" },
       { key: "radius", label: "Radius", type: "number" },
+      { key: "representation", label: "Representation", type: "string" },
     ],
     parameters: [
       ...vectorParameterSpecs("sphereCenter", "Center", ZERO_VEC3),
+      PRIMITIVE_REPRESENTATION_SPEC,
       { key: "sphereRadius", label: "Radius", type: "number", defaultValue: 0.5, min: 0.01, step: 0.1 },
     ],
     primaryOutputKey: "geometry",
@@ -6797,6 +9652,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
         volume: (4 / 3) * Math.PI * Math.pow(radius, 3),
         center,
         radius,
+        representation: String(parameters.representation ?? "mesh"),
       };
     },
   },
@@ -7185,46 +10041,6 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
         description:
           "Optional voxel grid domain. Bounds are reused; resolution snaps to cubic max.",
       },
-      {
-        key: "volumeFraction",
-        label: "VF",
-        type: "number",
-        parameterKey: "volumeFraction",
-        defaultValue: 0.4,
-        description: "Target solid volume fraction (0-1).",
-      },
-      {
-        key: "penaltyExponent",
-        label: "Penalty",
-        type: "number",
-        parameterKey: "penaltyExponent",
-        defaultValue: 3,
-        description: "SIMP penalty exponent for stiffness.",
-      },
-      {
-        key: "filterRadius",
-        label: "Radius",
-        type: "number",
-        parameterKey: "filterRadius",
-        defaultValue: 2,
-        description: "Neighborhood radius in voxels (0 disables filtering).",
-      },
-      {
-        key: "iterations",
-        label: "Iterations",
-        type: "number",
-        parameterKey: "iterations",
-        defaultValue: 40,
-        description: "Solver iterations to run.",
-      },
-      {
-        key: "resolution",
-        label: "Resolution",
-        type: "number",
-        parameterKey: "resolution",
-        defaultValue: 12,
-        description: "Grid resolution when no voxel grid input is provided.",
-      },
     ],
     outputs: [
       {
@@ -7446,57 +10262,30 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "biologicalSolver",
-    label: "Biological Solver",
-    shortLabel: "EVO",
-    description: "Evolutionary search over vector genomes with a fast fitness proxy.",
-    category: "voxel",
+    label: "Ἐπιλύτης Βιολογίας",
+    shortLabel: "Bio",
+    description: "Goal-weighted evolutionary search over vector genomes with a fast fitness proxy.",
+    category: "solver",
     iconId: "biologicalSolver",
+    display: {
+      nameGreek: "Ἐπιλύτης Βιολογίας",
+      nameEnglish: "Branching Growth",
+      romanization: "Epilýtēs Biologías",
+      description: "Goal-weighted evolutionary search over vector genomes with a fast fitness proxy.",
+    },
     inputs: [
+      {
+        key: "goals",
+        label: "Goals",
+        type: "goal",
+        allowMultiple: true,
+        description: "Biological goal specifications.",
+      },
       {
         key: "domain",
         label: "Domain",
         type: "geometry",
         description: "Optional geometry reference that seeds the search.",
-      },
-      {
-        key: "fitnessBias",
-        label: "Fitness Bias",
-        type: "number",
-        parameterKey: "fitnessBias",
-        defaultValue: 0,
-        description: "Bias term added to the fitness function.",
-      },
-      {
-        key: "populationSize",
-        label: "Population",
-        type: "number",
-        parameterKey: "populationSize",
-        defaultValue: 32,
-        description: "Number of genomes in the population.",
-      },
-      {
-        key: "generations",
-        label: "Generations",
-        type: "number",
-        parameterKey: "generations",
-        defaultValue: 24,
-        description: "Number of generations to evolve.",
-      },
-      {
-        key: "mutationRate",
-        label: "Mutation",
-        type: "number",
-        parameterKey: "mutationRate",
-        defaultValue: 0.18,
-        description: "Mutation probability per gene.",
-      },
-      {
-        key: "seed",
-        label: "Seed",
-        type: "number",
-        parameterKey: "seed",
-        defaultValue: 1,
-        description: "Deterministic seed for repeatable runs.",
       },
     ],
     outputs: [
@@ -7594,6 +10383,15 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     primaryOutputKey: "bestScore",
     compute: ({ inputs, parameters, context }) => {
       const domainId = typeof inputs.domain === "string" ? inputs.domain : "domain";
+      const rawGoals = Array.isArray(inputs.goals)
+        ? inputs.goals
+        : inputs.goals
+          ? [inputs.goals]
+          : [];
+      const goals = rawGoals.filter(
+        (goal): goal is GoalSpecification =>
+          Boolean(goal) && typeof goal === "object" && "goalType" in (goal as object)
+      );
       const fitnessBias = toNumber(
         inputs.fitnessBias,
         readNumberParameter(parameters, "fitnessBias", 0)
@@ -7612,12 +10410,31 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       );
       const seedValue = toNumber(inputs.seed, readNumberParameter(parameters, "seed", 1));
 
+      const goalValidation = validateBiologicalGoals(goals);
+      if (!goalValidation.valid) {
+        throw new Error(`Goal validation failed: ${goalValidation.errors.join(", ")}`);
+      }
+
+      const normalizedGoals = goalValidation.normalizedGoals ?? goals;
+      const tuning = deriveBiologicalProfile(normalizedGoals, fitnessBias);
+      const adjustedPopulation = clampInt(
+        Math.round(populationSize * tuning.populationScale),
+        8,
+        96,
+        Math.round(populationSize)
+      );
+      const adjustedMutationRate = clampNumber(
+        mutationRate * tuning.mutationRateScale,
+        0.01,
+        0.95
+      );
+
       const result = runBiologicalSolver({
-        seedKey: `${context.nodeId}:${domainId}:${seedValue}:${fitnessBias.toFixed(3)}`,
-        populationSize,
+        seedKey: `${context.nodeId}:${domainId}:${seedValue}:${tuning.fitnessProfile.bias.toFixed(3)}`,
+        populationSize: adjustedPopulation,
         generations,
-        mutationRate,
-        fitnessBias,
+        mutationRate: adjustedMutationRate,
+        fitnessProfile: tuning.fitnessProfile,
       });
 
       return {
@@ -7628,6 +10445,384 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
         generations: result.generations,
         mutationRate: result.mutationRate,
         status: "complete",
+      };
+    },
+  },
+  {
+    type: "chemistrySolver",
+    label: "Ἐπιλύτης Χημείας",
+    shortLabel: "Chem",
+    description: "Material transmutation solver for functionally graded blends.",
+    category: "solver",
+    iconId: "solver",
+    display: {
+      nameGreek: "Ἐπιλύτης Χημείας",
+      nameEnglish: "Chemistry Solver",
+      romanization: "Epilýtēs Chēmeías",
+      description: "Material transmutation solver for functionally graded blends.",
+    },
+    inputs: [
+      {
+        key: "domain",
+        label: "Domain",
+        type: "geometry",
+        required: true,
+        description: "Spatial domain for material distribution.",
+      },
+      {
+        key: "materials",
+        label: "Materials",
+        type: "any",
+        allowMultiple: true,
+        description: "Material assignment list or geometry ids.",
+      },
+      {
+        key: "materialsText",
+        label: "Materials Text",
+        type: "string",
+        description: "Optional JSON or line-based material assignments.",
+      },
+      {
+        key: "seeds",
+        label: "Seeds",
+        type: "any",
+        allowMultiple: true,
+        description: "Optional seed points or geometry ids to bias nucleation.",
+      },
+      {
+        key: "goals",
+        label: "Goals",
+        type: "goal",
+        allowMultiple: true,
+        description: "Chemistry goal specifications.",
+      },
+    ],
+    outputs: [
+      {
+        key: "geometry",
+        label: "Geometry",
+        type: "geometry",
+        description: "Preview geometry id.",
+      },
+      {
+        key: "mesh",
+        label: "Preview Mesh",
+        type: "any",
+        description: "Preview mesh generated from the material field.",
+      },
+      {
+        key: "materialParticles",
+        label: "Particles",
+        type: "any",
+        description: "Particle cloud with material concentrations.",
+      },
+      {
+        key: "materialField",
+        label: "Field",
+        type: "any",
+        description: "Voxel field with per-material channels.",
+      },
+      {
+        key: "history",
+        label: "History",
+        type: "any",
+        description: "Energy history per iteration.",
+      },
+      {
+        key: "bestState",
+        label: "Best State",
+        type: "any",
+        description: "Snapshot of the lowest-energy particle state.",
+      },
+      {
+        key: "materials",
+        label: "Materials",
+        type: "any",
+        description: "Resolved material library used for this solve.",
+      },
+      {
+        key: "totalEnergy",
+        label: "Energy",
+        type: "number",
+        description: "Total energy value from the latest iteration.",
+      },
+      {
+        key: "status",
+        label: "Status",
+        type: "string",
+        description: "Solver status string.",
+      },
+      {
+        key: "diagnostics",
+        label: "Diagnostics",
+        type: "any",
+        description: "Solver diagnostics and warnings.",
+      },
+    ],
+    parameters: [
+      {
+        key: "particleCount",
+        label: "Particle Count",
+        type: "number",
+        defaultValue: 2000,
+        min: 100,
+        max: 20000,
+        step: 50,
+      },
+      {
+        key: "iterations",
+        label: "Iterations",
+        type: "number",
+        defaultValue: 60,
+        min: 1,
+        max: 500,
+        step: 1,
+      },
+      {
+        key: "fieldResolution",
+        label: "Field Resolution",
+        type: "number",
+        defaultValue: 32,
+        min: 8,
+        max: 96,
+        step: 1,
+      },
+      {
+        key: "isoValue",
+        label: "Iso Value",
+        type: "number",
+        defaultValue: 0.35,
+        min: 0,
+        max: 1,
+        step: 0.05,
+      },
+      {
+        key: "convergenceTolerance",
+        label: "Convergence Tolerance",
+        type: "number",
+        defaultValue: 1e-3,
+        min: 1e-5,
+        max: 0.05,
+        step: 1e-4,
+      },
+      {
+        key: "blendStrength",
+        label: "Blend Strength",
+        type: "number",
+        defaultValue: 0.6,
+        min: 0,
+        max: 2,
+        step: 0.05,
+      },
+      {
+        key: "historyLimit",
+        label: "History Limit",
+        type: "number",
+        defaultValue: 200,
+        min: 10,
+        max: 1000,
+        step: 10,
+      },
+      {
+        key: "seed",
+        label: "Seed",
+        type: "number",
+        defaultValue: 1,
+        step: 1,
+      },
+      {
+        key: "materialOrder",
+        label: "Material Order",
+        type: "string",
+        defaultValue: "Steel, Ceramic, Glass",
+      },
+      {
+        key: "materialsText",
+        label: "Materials",
+        type: "textarea",
+        defaultValue: "",
+        description: "Optional JSON or line-based material assignments.",
+      },
+      {
+        key: "seedMaterial",
+        label: "Seed Material",
+        type: "string",
+        defaultValue: "Steel",
+      },
+      {
+        key: "seedStrength",
+        label: "Seed Strength",
+        type: "number",
+        defaultValue: 0.85,
+        min: 0,
+        max: 1,
+        step: 0.05,
+      },
+      {
+        key: "seedRadius",
+        label: "Seed Radius",
+        type: "number",
+        defaultValue: 0.25,
+        min: 0,
+        max: 10,
+        step: 0.05,
+      },
+      {
+        key: "seedsText",
+        label: "Seeds",
+        type: "textarea",
+        defaultValue: "",
+      },
+    ],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs, parameters, context }) => {
+      const geometryId =
+        typeof parameters.geometryId === "string" ? parameters.geometryId : null;
+      const domainId = typeof inputs.domain === "string" ? inputs.domain : null;
+      const domainGeometry = domainId ? context.geometryById.get(domainId) ?? null : null;
+      if (!domainGeometry) {
+        const status = domainId ? "missing-domain" : "waiting-for-domain";
+        return {
+          geometry: geometryId,
+          mesh: EMPTY_MESH,
+          materialParticles: [],
+          materialField: null,
+          history: [],
+          bestState: null,
+          materials: [],
+          totalEnergy: 0,
+          status,
+          diagnostics: {
+            warnings: ["Domain geometry is required for Chemistry Solver."],
+          },
+        };
+      }
+
+      const rawGoals = Array.isArray(inputs.goals)
+        ? inputs.goals
+        : inputs.goals
+          ? [inputs.goals]
+          : [];
+      const goals = rawGoals.filter(
+        (goal): goal is GoalSpecification =>
+          Boolean(goal) && typeof goal === "object" && "goalType" in (goal as object)
+      );
+      const validation = validateChemistryGoals(goals);
+      if (!validation.valid) {
+        throw new Error(`Goal validation failed: ${validation.errors.join(", ")}`);
+      }
+      const normalizedGoals = validation.normalizedGoals ?? goals;
+
+      const particleCount = clampInt(
+        Math.round(
+          toNumber(inputs.particleCount, readNumberParameter(parameters, "particleCount", 2000))
+        ),
+        100,
+        20000,
+        2000
+      );
+      const iterations = clampInt(
+        Math.round(
+          toNumber(inputs.iterations, readNumberParameter(parameters, "iterations", 60))
+        ),
+        1,
+        500,
+        60
+      );
+      const fieldResolution = clampInt(
+        Math.round(
+          toNumber(
+            inputs.fieldResolution,
+            readNumberParameter(parameters, "fieldResolution", 32)
+          )
+        ),
+        8,
+        96,
+        32
+      );
+      const isoValue = clampNumber(
+        toNumber(inputs.isoValue, readNumberParameter(parameters, "isoValue", 0.35)),
+        0,
+        1
+      );
+      const convergenceTolerance = clampNumber(
+        toNumber(
+          inputs.convergenceTolerance,
+          readNumberParameter(parameters, "convergenceTolerance", 1e-3)
+        ),
+        1e-5,
+        0.05
+      );
+      const blendStrength = clampNumber(
+        toNumber(inputs.blendStrength, readNumberParameter(parameters, "blendStrength", 0.6)),
+        0,
+        2
+      );
+      const historyLimit = clampInt(
+        Math.round(
+          toNumber(inputs.historyLimit, readNumberParameter(parameters, "historyLimit", 200))
+        ),
+        10,
+        1000,
+        200
+      );
+      const seedValue = toNumber(inputs.seed, readNumberParameter(parameters, "seed", 1));
+
+      const materialAssignments = resolveChemistryMaterialAssignments(
+        inputs.materials,
+        typeof inputs.materialsText === "string"
+          ? { ...parameters, materialsText: inputs.materialsText }
+          : parameters,
+        context,
+        domainId
+      );
+      const seeds = resolveChemistrySeeds(
+        inputs.seeds,
+        parameters,
+        context,
+        materialAssignments.materialNames[0] ?? "Steel"
+      );
+
+      const result = runChemistrySolver({
+        seedKey: `${context.nodeId}:${domainId}:${seedValue}`,
+        domainGeometryId: domainId,
+        domainGeometry,
+        goals: normalizedGoals,
+        assignments: materialAssignments.assignments,
+        materials: materialAssignments.materials,
+        materialNames: materialAssignments.materialNames,
+        seeds,
+        particleCount,
+        iterations,
+        fieldResolution,
+        isoValue,
+        convergenceTolerance,
+        blendStrength,
+        historyLimit,
+        context,
+      });
+
+      if (materialAssignments.warnings.length > 0) {
+        result.warnings.push(...materialAssignments.warnings);
+      }
+      if (validation.warnings.length > 0) {
+        result.warnings.push(...validation.warnings);
+      }
+
+      return {
+        geometry: geometryId,
+        mesh: result.mesh,
+        materialParticles: result.particles,
+        materialField: result.field,
+        history: result.history,
+        bestState: result.bestState,
+        materials: result.materials,
+        totalEnergy: result.totalEnergy,
+        status: result.status,
+        diagnostics: {
+          iterations: result.iterations,
+          warnings: result.warnings,
+        },
       };
     },
   },
@@ -8874,6 +12069,33 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
 ];
 
+NODE_DEFINITIONS.push(PhysicsSolverNode, BiologicalEvolutionSolverNode);
+const topologySolverDefinition = NODE_DEFINITIONS.find(
+  (definition) => definition.type === "topologySolver"
+);
+if (topologySolverDefinition) {
+  NODE_DEFINITIONS.push(createVoxelSolverNode(topologySolverDefinition));
+}
+NODE_DEFINITIONS.push(
+  StiffnessGoalNode,
+  VolumeGoalNode,
+  LoadGoalNode,
+  AnchorGoalNode,
+  GenomeCollectorNode,
+  GeometryPhenotypeNode,
+  PerformsFitnessNode,
+  GrowthGoalNode,
+  NutrientGoalNode,
+  MorphogenesisGoalNode,
+  HomeostasisGoalNode,
+  ChemistryMaterialGoalNode,
+  ChemistryStiffnessGoalNode,
+  ChemistryMassGoalNode,
+  ChemistryBlendGoalNode,
+  ChemistryTransparencyGoalNode,
+  ChemistryThermalGoalNode
+);
+
 export const NODE_DEFINITION_BY_TYPE = new Map<NodeType, WorkflowNodeDefinition>(
   NODE_DEFINITIONS.map((definition) => [definition.type, definition])
 );
@@ -8886,13 +12108,28 @@ export const PORT_TYPE_COLOR: Record<WorkflowPortType, string> = {
   any: "#c9c5c0",
   boolean: "#c9c5c0",
   geometry: "#c9c5c0",
+  goal: "#b8a6ff",
+  genomeSpec: "#7ccf9a",
+  phenotypeSpec: "#6fb4ff",
+  fitnessSpec: "#f2a76a",
   number: "#c9c5c0",
+  solverResult: "#7a5cff",
   string: "#c9c5c0",
   vector: "#c9c5c0",
+  animation: "#7a5cff",
 };
 
 export const isPortTypeCompatible = (source: WorkflowPortType, target: WorkflowPortType) => {
   if (source === target) return true;
+  const exclusive = source === "goal" ||
+    target === "goal" ||
+    source === "genomeSpec" ||
+    target === "genomeSpec" ||
+    source === "phenotypeSpec" ||
+    target === "phenotypeSpec" ||
+    source === "fitnessSpec" ||
+    target === "fitnessSpec";
+  if (exclusive) return false;
   if (source === "any" || target === "any") return true;
   if ((source === "number" && target === "boolean") || (source === "boolean" && target === "number")) {
     return true;
@@ -9029,6 +12266,12 @@ export const resolveNodeParameters = (node: Pick<WorkflowNode, "type" | "data">)
   if (type === "meshConvert") {
     if (node.data?.geometryId) parameters.geometryId = node.data.geometryId;
   }
+  if (type === "meshBoolean") {
+    if (node.data?.geometryId) parameters.geometryId = node.data.geometryId;
+  }
+  if (type === "geodesicSphere") {
+    if (node.data?.geometryId) parameters.geometryId = node.data.geometryId;
+  }
   if (type === "stlImport") {
     if (node.data?.geometryId) parameters.geometryId = node.data.geometryId;
   }
@@ -9087,6 +12330,12 @@ export const resolveNodeParameters = (node: Pick<WorkflowNode, "type" | "data">)
     }
   }
   if (type === "extractIsosurface") {
+    if (node.data?.geometryId) parameters.geometryId = node.data.geometryId;
+  }
+  if (type === "physicsSolver") {
+    if (node.data?.geometryId) parameters.geometryId = node.data.geometryId;
+  }
+  if (type === "chemistrySolver") {
     if (node.data?.geometryId) parameters.geometryId = node.data.geometryId;
   }
   if (type === "move") {

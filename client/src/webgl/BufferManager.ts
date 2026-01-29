@@ -37,7 +37,8 @@ export class BufferManager {
   updateBuffer(name: string, target: GLenum, data: ArrayBufferView | ArrayBuffer): void {
     const buffer = this.buffers.get(name);
     if (!buffer) {
-      throw new Error(`Buffer ${name} not found`);
+      this.createBuffer(name, target, data);
+      return;
     }
 
     const gl = this.gl;

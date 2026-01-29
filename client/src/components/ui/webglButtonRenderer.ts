@@ -1,5 +1,5 @@
 import { WebGLUIRenderer, type RGBA } from "../../webgl/ui/WebGLUIRenderer";
-import { WebGLIconRenderer, type IconId } from "../../webgl/ui/WebGLIconRenderer";
+import { renderIconDataUrl, type IconId } from "../../webgl/ui/WebGLIconRenderer";
 
 export type WebGLButtonVariant =
   | "primary"
@@ -61,6 +61,8 @@ type IconRenderOptions = {
   iconId: IconId;
   size: number;
   tint: RGBA;
+  style?: "tile" | "glyph" | "sticker" | "sticker2";
+  signature?: string;
 };
 
 type ButtonVisuals = {
@@ -85,7 +87,10 @@ const SIZE_SETTINGS: Record<WebGLButtonSize, SizeSettings> = {
   lg: { minHeight: 48, paddingX: 16, paddingY: 8, gap: 9, fontSize: 14, iconScale: 0.54 },
 };
 
-const BUTTON_SUPERSAMPLE = 1.35;
+const BUTTON_SUPERSAMPLE = 1.75;
+const ICON_SUPERSAMPLE = 12;
+const MAX_ICON_DPR = 16;
+const MAX_STICKER_DPR = 18;
 
 const rgb = (r: number, g: number, b: number, a = 1): RGBA => [r / 255, g / 255, b / 255, a];
 
@@ -208,7 +213,6 @@ type RendererHandles = {
   canvas: HTMLCanvasElement;
   gl: WebGLRenderingContext;
   ui: WebGLUIRenderer;
-  icons: WebGLIconRenderer;
 };
 
 let rendererHandles: RendererHandles | null = null;
@@ -226,7 +230,6 @@ const ensureRenderer = (width: number, height: number): RendererHandles | null =
       canvas,
       gl,
       ui: new WebGLUIRenderer(gl),
-      icons: new WebGLIconRenderer(gl),
     };
   }
 
@@ -472,7 +475,8 @@ const renderButtonBackground = (options: RenderOptions): string => {
   gl.clearColor(0, 0, 0, 0);
   gl.clear(gl.COLOR_BUFFER_BIT);
 
-  const stroke = Math.max(1, Math.round(1.6 * dpr));
+  const borderlessVariant = variant === "palette";
+  const stroke = borderlessVariant ? 0 : Math.max(1, Math.round(1.6 * dpr));
   const isFlatVariant = ["icon", "palette", "outliner", "command"].includes(variant);
   const baseShadowOffset = elevated ? 4 : 3;
   const stateFactor =
@@ -509,14 +513,16 @@ const renderButtonBackground = (options: RenderOptions): string => {
   );
 
   // Border shell.
-  ui.drawRoundedRect(0, 0, pixelWidth, pixelHeight, r, palette.border);
+  if (!borderlessVariant) {
+    ui.drawRoundedRect(0, 0, pixelWidth, pixelHeight, r, palette.border);
+  }
 
   // Inner fill.
   const innerX = stroke;
   const innerY = stroke;
-  const innerWidth = Math.max(1, pixelWidth - stroke * 2);
-  const innerHeight = Math.max(1, pixelHeight - stroke * 2);
-  const innerRadius = Math.max(1, r - stroke);
+  const innerWidth = borderlessVariant ? pixelWidth : Math.max(1, pixelWidth - stroke * 2);
+  const innerHeight = borderlessVariant ? pixelHeight : Math.max(1, pixelHeight - stroke * 2);
+  const innerRadius = borderlessVariant ? r : Math.max(1, r - stroke);
 
   ui.drawRoundedRect(innerX, innerY, innerWidth, innerHeight, innerRadius, palette.fill);
 
@@ -640,19 +646,23 @@ export const renderSliderOverlay = ({
   return url;
 };
 
-const renderIconImage = ({ iconId, size, tint }: IconRenderOptions): string => {
+const renderIconImage = ({ iconId, size, tint, style, signature }: IconRenderOptions): string => {
   const theme = getThemePalette();
   const themeKey = theme.themeKey;
-  const dpr =
-    typeof window === "undefined"
-      ? 1
-      : Math.min(3, (window.devicePixelRatio || 1) * BUTTON_SUPERSAMPLE);
-  const pixelSize = Math.max(16, Math.round(size * dpr));
+  const baseDpr =
+    typeof window === "undefined" ? 1 : Math.min(3, window.devicePixelRatio || 1);
+  const isStickerStyle = style === "sticker" || style === "sticker2";
+  const maxDpr = isStickerStyle ? MAX_STICKER_DPR : MAX_ICON_DPR;
+  const supersample = isStickerStyle ? ICON_SUPERSAMPLE * 1.2 : ICON_SUPERSAMPLE;
+  const dpr = Math.min(maxDpr, baseDpr * supersample);
+  const pixelSize = Math.max(64, Math.round(size * dpr));
 
   const cacheKey = [
     "icon",
     themeKey,
     iconId,
+    style ?? "glyph",
+    signature ?? "",
     pixelSize,
     Math.round(tint[0] * 255),
     Math.round(tint[1] * 255),
@@ -663,28 +673,13 @@ const renderIconImage = ({ iconId, size, tint }: IconRenderOptions): string => {
   const cached = iconCache.get(cacheKey);
   if (cached) return cached;
 
-  const handles = ensureRenderer(pixelSize, pixelSize);
-  if (!handles) return "";
-
-  const { gl, icons, canvas } = handles;
-  gl.clearColor(0, 0, 0, 0);
-  gl.clear(gl.COLOR_BUFFER_BIT);
-
-  icons.begin(canvas.width, canvas.height);
-  const inset = Math.round(canvas.width * 0.12);
-  icons.drawIcon(
-    {
-      x: inset,
-      y: inset,
-      width: canvas.width - inset * 2,
-      height: canvas.height - inset * 2,
-    },
-    iconId,
-    tint
-  );
-  icons.flush();
-
-  const url = canvas.toDataURL("image/png");
+  const url = renderIconDataUrl(iconId, pixelSize, {
+    tint,
+    style,
+    signature,
+    monochrome: isStickerStyle ? true : undefined,
+  });
+  if (!url) return "";
   iconCache.set(cacheKey, url);
   return url;
 };
@@ -738,11 +733,14 @@ export const resolveButtonVisuals = ({
     ? parseCssColor(iconTintOverride, palette.icon)
     : palette.icon;
 
-  const paddingX = iconOnly ? effectiveHeight * 0.32 : sizeSettings.paddingX;
-  const paddingY = iconOnly ? effectiveHeight * 0.2 : sizeSettings.paddingY;
+  const iconOnlyPadX = variant === "palette" ? effectiveHeight * 0.22 : effectiveHeight * 0.32;
+  const iconOnlyPadY = variant === "palette" ? effectiveHeight * 0.18 : effectiveHeight * 0.2;
+  const paddingX = iconOnly ? iconOnlyPadX : sizeSettings.paddingX;
+  const paddingY = iconOnly ? iconOnlyPadY : sizeSettings.paddingY;
   const gap = iconOnly ? 0 : sizeSettings.gap;
   const iconSizeBase = effectiveHeight * sizeSettings.iconScale;
-  const iconSize = iconOnly ? effectiveHeight * 0.62 : Math.max(16, iconSizeBase);
+  const iconOnlyScale = variant === "palette" ? 0.72 : 0.62;
+  const iconSize = iconOnly ? effectiveHeight * iconOnlyScale : Math.max(16, iconSizeBase);
 
   const backgroundUrl = renderButtonBackground({
     width: Math.max(1, width || effectiveHeight),
@@ -753,6 +751,8 @@ export const resolveButtonVisuals = ({
     accentColor,
     elevated,
   });
+
+  const fallbackBorder = variant === "palette" ? "transparent" : toCssColor(palette.border);
 
   return {
     backgroundUrl,
@@ -766,16 +766,23 @@ export const resolveButtonVisuals = ({
     fontSize: sizeSettings.fontSize,
     iconSize,
     fallbackFill: toCssColor(palette.fill),
-    fallbackBorder: toCssColor(palette.border),
+    fallbackBorder,
   };
 };
 
 export const resolveIconImageUrl = (
   iconId: IconId,
   size: number,
-  tint: RGBA
+  tint: RGBA,
+  options?: { style?: "tile" | "glyph" | "sticker" | "sticker2"; signature?: string }
 ): string => {
-  return renderIconImage({ iconId, size, tint });
+  return renderIconImage({
+    iconId,
+    size,
+    tint,
+    style: options?.style,
+    signature: options?.signature,
+  });
 };
 
 export const getDefaultMinHeight = (size: WebGLButtonSize) => SIZE_SETTINGS[size].minHeight;

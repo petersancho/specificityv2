@@ -139,3 +139,23 @@ The evolutionary design exploration workflow employs genetic algorithms not to f
 The iterative refinement workflow alternates between automated optimization and manual intervention where the designer examines optimization results, makes targeted modifications based on domain knowledge, and re-optimizes the modified design. This iterative process allows the designer to guide the optimization toward preferred regions of the design space through manual edits that are difficult to encode as explicit constraints. The optimization then refines the designer's modifications, correcting inefficiencies while preserving the essential characteristics the designer introduced. The alternation continues until the designer is satisfied with the result, combining algorithmic efficiency with human insight.
 
 The manufacturing-aware workflow incorporates fabrication constraints directly into the optimization formulation to ensure that optimized designs are producible through available manufacturing processes. For additive manufacturing, the workflow includes overhang constraints that limit unsupported angles, minimum feature size constraints that ensure printable detail levels, and support structure minimization that reduces post-processing requirements. For subtractive manufacturing, the workflow includes draft angle constraints that enable mold release, constant cross-section constraints along extraction directions, and accessibility constraints that ensure cutting tools can reach all material to be removed. These manufacturing constraints are implemented through specialized constraint functions in the optimization framework or through post-processing filters that modify optimization results to satisfy manufacturing requirements.
+
+## Implementation Anchors
+
+- `client/src/workflow/nodes/solver/VoxelSolver.ts` for solver node behavior.
+- `client/src/components/workflow/nodeCatalog.ts` for node descriptions and labels.
+- `client/src/components/workflow/workflowValidation.ts` for input validation and wiring rules.
+- `client/src/workflow/nodeTypes.ts` and `client/src/workflow/nodeRegistry.ts` for node registration.
+
+## Performance Constraints
+
+- Grid resolution drives memory and compute cost; keep interactive grids in a practical range (e.g., <= 256^3).
+- Prefer sparse or tiled storage when grids exceed interactive limits.
+- Avoid full-grid recomputation when only parameters change; cache voxelization and reuse where possible.
+
+## Validation Checklist
+
+- Voxelization bounds match input geometry extents and units.
+- Density values remain within [0, 1] for topology optimization workflows.
+- Isosurface extraction returns watertight meshes for closed domains.
+- Solver iterations converge or report explicit failure states.

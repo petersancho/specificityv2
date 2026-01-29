@@ -21,6 +21,27 @@ const PRIMITIVE_COMMAND_DEFINITIONS: CommandDefinition[] = PRIMITIVE_CATALOG.map
   prompt: primitivePrompt(entry.label),
 }));
 
+const NURBS_PRIMITIVE_DEFINITIONS: CommandDefinition[] = [
+  {
+    id: "nurbsbox",
+    label: "NURBS Box",
+    category: "geometry",
+    prompt: primitivePrompt("NURBS Box"),
+  },
+  {
+    id: "nurbssphere",
+    label: "NURBS Sphere",
+    category: "geometry",
+    prompt: primitivePrompt("NURBS Sphere"),
+  },
+  {
+    id: "nurbscylinder",
+    label: "NURBS Cylinder",
+    category: "geometry",
+    prompt: primitivePrompt("NURBS Cylinder"),
+  },
+];
+
 export const COMMAND_DEFINITIONS: CommandDefinition[] = [
   {
     id: "point",
@@ -72,6 +93,32 @@ export const COMMAND_DEFINITIONS: CommandDefinition[] = [
     prompt:
       "Curve: click points to shape the curve. Right-click or double-click to finish. Esc cancels.",
   },
+  ...NURBS_PRIMITIVE_DEFINITIONS,
+  {
+    id: "meshconvert",
+    label: "NURBS to Mesh",
+    category: "performs",
+    prompt: "NURBS to Mesh: select NURBS curves or surfaces, then click Run or press Enter.",
+  },
+  {
+    id: "breptomesh",
+    label: "B-Rep to Mesh",
+    category: "performs",
+    prompt: "B-Rep to Mesh: select B-Rep solids, then click Run or press Enter.",
+  },
+  {
+    id: "meshtobrep",
+    label: "Mesh to B-Rep",
+    category: "performs",
+    prompt: "Mesh to B-Rep: select meshes, then click Run or press Enter.",
+  },
+  {
+    id: "nurbsrestore",
+    label: "Mesh to NURBS",
+    category: "performs",
+    prompt:
+      "Mesh to NURBS: select a mesh converted from NURBS, then click Run or press Enter.",
+  },
   {
     id: "interpolate",
     label: "Interpolate",
@@ -103,6 +150,25 @@ export const COMMAND_DEFINITIONS: CommandDefinition[] = [
     category: "performs",
     prompt:
       "Extrude: select a profile, then drag to set distance or enter a value.",
+  },
+  {
+    id: "meshmerge",
+    label: "Mesh Merge",
+    category: "performs",
+    prompt: "Mesh Merge: select meshes, then click Run or press Enter to combine.",
+  },
+  {
+    id: "meshflip",
+    label: "Mesh Flip",
+    category: "performs",
+    prompt: "Mesh Flip: select meshes, then click Run or press Enter to flip normals.",
+  },
+  {
+    id: "meshthicken",
+    label: "Mesh Thicken",
+    category: "performs",
+    prompt:
+      "Mesh Thicken: select meshes, set thickness/sides, then click Run or press Enter.",
   },
   {
     id: "transform",
@@ -212,6 +278,12 @@ export const COMMAND_DEFINITIONS: CommandDefinition[] = [
     label: "Frame All",
     category: "performs",
     prompt: "Frame All: click to frame all visible geometry.",
+  },
+  {
+    id: "screenshot",
+    label: "Screenshot",
+    category: "performs",
+    prompt: "Screenshot: capture the current Roslyn viewport and open the export preview.",
   },
   {
     id: "view",
@@ -343,6 +415,37 @@ const BASE_COMMAND_ALIASES: Record<string, string> = {
   c: "circle",
   ext: "extrude",
   ex: "extrude",
+  nurbstomesh: "meshconvert",
+  nurbsmesh: "meshconvert",
+  "nurbs-to-mesh": "meshconvert",
+  nurbs2mesh: "meshconvert",
+  n2m: "meshconvert",
+  meshconvert: "meshconvert",
+  nurbsbox: "nurbsbox",
+  "nurbs-box": "nurbsbox",
+  nbox: "nurbsbox",
+  nurbssphere: "nurbssphere",
+  "nurbs-sphere": "nurbssphere",
+  nsphere: "nurbssphere",
+  nsph: "nurbssphere",
+  nurbscylinder: "nurbscylinder",
+  "nurbs-cylinder": "nurbscylinder",
+  ncylinder: "nurbscylinder",
+  ncyl: "nurbscylinder",
+  meshtonurbs: "nurbsrestore",
+  "mesh-to-nurbs": "nurbsrestore",
+  mesh2nurbs: "nurbsrestore",
+  m2n: "nurbsrestore",
+  nurbsrestore: "nurbsrestore",
+  meshmerge: "meshmerge",
+  "mesh-merge": "meshmerge",
+  mergemesh: "meshmerge",
+  meshflip: "meshflip",
+  "mesh-flip": "meshflip",
+  flipmesh: "meshflip",
+  meshthicken: "meshthicken",
+  "mesh-thicken": "meshthicken",
+  thickenmesh: "meshthicken",
   move: "move",
   mv: "move",
   m: "move",
@@ -378,6 +481,8 @@ const BASE_COMMAND_ALIASES: Record<string, string> = {
   zoom: "zoom",
   filter: "selectionfilter",
   select: "selectionfilter",
+  selection: "selectionfilter",
+  "selection-filter": "selectionfilter",
   snap: "snapping",
   snaps: "snapping",
   grid: "grid",
@@ -389,6 +494,17 @@ const BASE_COMMAND_ALIASES: Record<string, string> = {
   tolerance: "tolerance",
   precision: "tolerance",
   status: "status",
+  mesh: "meshconvert",
+  meshconvert: "meshconvert",
+  "mesh-convert": "meshconvert",
+  tomesh: "meshconvert",
+  "to-mesh": "meshconvert",
+  nurbs: "nurbsrestore",
+  nurbsrestore: "nurbsrestore",
+  "nurbs-restore": "nurbsrestore",
+  tonurbs: "nurbsrestore",
+  "to-nurbs": "nurbsrestore",
+  unmesh: "nurbsrestore",
 };
 
 const COMMAND_ALIASES: Record<string, string> = {
@@ -424,6 +540,21 @@ export const parseCommandInput = (input: string) => {
   }
   const withoutPrefix = normalized.replace(COMMAND_PREFIX, "");
   const [token, ...rest] = withoutPrefix.split(/\s+/);
-  const command = resolveCommandToken(token);
-  return { command, args: rest.join(" "), raw: trimmed };
+  let command = resolveCommandToken(token);
+  let args = rest.join(" ");
+
+  if (!command) {
+    const labelMatch = COMMAND_DEFINITIONS.map((definition) => ({
+      definition,
+      label: definition.label.toLowerCase(),
+    }))
+      .filter((entry) => withoutPrefix.startsWith(entry.label))
+      .sort((a, b) => b.label.length - a.label.length)[0];
+    if (labelMatch) {
+      command = labelMatch.definition;
+      args = withoutPrefix.slice(labelMatch.label.length).trim();
+    }
+  }
+
+  return { command, args, raw: trimmed };
 };

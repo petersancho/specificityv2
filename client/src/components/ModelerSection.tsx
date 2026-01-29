@@ -7,6 +7,7 @@ import {
   useState,
   type ChangeEvent,
   type CSSProperties,
+  type PointerEvent,
 } from "react";
 import { createPortal } from "react-dom";
 import WebGLViewerCanvas from "./WebGLViewerCanvas";
@@ -14,10 +15,13 @@ import { type WebGLTopBarAction, resolveTopBarShortLabel } from "./WebGLPanelTop
 import WebGLStatusFooter from "./WebGLStatusFooter";
 import WebGLTitleLogo from "./WebGLTitleLogo";
 import { NumericalCanvas } from "./workflow/NumericalCanvas";
+import { createIconSignature } from "./workflow/iconSignature";
+import { safeLocalStorageGet, safeLocalStorageSet } from "../utils/safeStorage";
 import WebGLButton from "./ui/WebGLButton";
 import WebGLSelect from "./ui/WebGLSelect";
 import IconButton from "./ui/IconButton";
 import WebGLSlider from "./ui/WebGLSlider";
+import TooltipCard from "./ui/TooltipCard";
 import { useProjectStore } from "../store/useProjectStore";
 import styles from "./ModelerSection.module.css";
 import {
@@ -26,13 +30,20 @@ import {
   parseCommandInput,
   type CommandDefinition,
 } from "../commands/registry";
-import { COMMAND_DESCRIPTIONS } from "../data/commandDescriptions";
+import { COMMAND_DESCRIPTIONS, COMMAND_SEMANTICS } from "../data/commandDescriptions";
 import type {
+  BRepCurve,
+  BRepData,
+  BRepSurface,
   CameraState,
   CPlane,
   Geometry,
+  NURBSCurve,
+  NURBSSurface,
+  PlaneDefinition,
   PolylineGeometry,
   PrimitiveKind,
+  RenderMesh,
   Vec3,
 } from "../types";
 import {
@@ -44,12 +55,28 @@ import {
   scale,
   sub,
 } from "../geometry/math";
-import { DEFAULT_PRIMITIVE_CONFIG } from "../geometry/mesh";
+import {
+  DEFAULT_PRIMITIVE_CONFIG,
+  computeMeshArea,
+  computeVertexNormals,
+  generateBoxMesh,
+  generateExtrudeMesh,
+  generateLoftMesh,
+  generateSurfaceMesh,
+} from "../geometry/mesh";
 import { PRIMITIVE_COMMAND_IDS, PRIMITIVE_KIND_BY_COMMAND } from "../data/primitiveCatalog";
 import { offsetPolyline2D } from "../geometry/booleans";
 import type { IconId } from "../webgl/ui/WebGLIconRenderer";
 import { VIEW_STYLE } from "../webgl/viewProfile";
-import { hexToRgb, normalizeHexColor, normalizeRgbInput, rgbToHex } from "../utils/color";
+import { hexToRgb, normalizeHexColor, normalizeRgbInput, rgbToHex, type RGB } from "../utils/color";
+import { resolvePaletteColor, type RenderPaletteId } from "../utils/renderPalette";
+import { mergeRenderMeshes } from "../utils/meshIo";
+import {
+  tessellateCurveAdaptive,
+  tessellateSurfaceAdaptive,
+} from "../geometry/tessellation";
+import { brepFromMesh, tessellateBRepToMesh } from "../geometry/brep";
+import { interpolateNurbsCurve } from "../geometry/nurbs";
 
 
 const selectionModeOptions = [
@@ -110,6 +137,193 @@ const transformOrientationOptions = [
 
 const DEFAULT_RENDER_MATERIAL_COLOR = VIEW_STYLE.mesh;
 const DEFAULT_RENDER_MATERIAL_HEX = rgbToHex(DEFAULT_RENDER_MATERIAL_COLOR);
+
+type RenderFilterId = RenderPaletteId | "silhouette";
+
+const RENDER_FILTER_OPTIONS = [
+  { value: "color", label: "SOLID" },
+  { value: "cmyk", label: "CMYK" },
+  { value: "pms", label: "PMS" },
+  { value: "hsl", label: "HSL" },
+  { value: "silhouette", label: "Silhouette" },
+] as const;
+
+type RenderPaletteSliderSpec = {
+  label: string;
+  tooltip: string;
+  min: number;
+  max: number;
+  step: number;
+  accentColor: string;
+  iconId: IconId;
+};
+
+type RenderPaletteSliderValues = Record<RenderPaletteId, [number, number]>;
+
+const RENDER_PALETTE_SLIDERS: Record<
+  RenderPaletteId,
+  [RenderPaletteSliderSpec, RenderPaletteSliderSpec]
+> = {
+  color: [
+    {
+      label: "solid",
+      tooltip: "Solid filter strength.",
+      min: 0,
+      max: 1,
+      step: 0.01,
+      accentColor: "#f97316",
+      iconId: "displayMode",
+    },
+    {
+      label: "white light",
+      tooltip: "Solid filter contrast.",
+      min: 0,
+      max: 1,
+      step: 0.01,
+      accentColor: "#2b2620",
+      iconId: "sphere",
+    },
+  ],
+  cmyk: [
+    {
+      label: "Ink Load",
+      tooltip: "CMYK ink load.",
+      min: 0,
+      max: 1,
+      step: 0.01,
+      accentColor: "#00b7eb",
+      iconId: "displayMode",
+    },
+    {
+      label: "Key",
+      tooltip: "CMYK key (black).",
+      min: 0,
+      max: 1,
+      step: 0.01,
+      accentColor: "#111111",
+      iconId: "sphere",
+    },
+  ],
+  pms: [
+    {
+      label: "Pantone Tint",
+      tooltip: "Pantone tint strength.",
+      min: 0,
+      max: 1,
+      step: 0.01,
+      accentColor: "#f97316",
+      iconId: "displayMode",
+    },
+    {
+      label: "Pantone Shade",
+      tooltip: "Pantone shade depth.",
+      min: 0,
+      max: 1,
+      step: 0.01,
+      accentColor: "#2b2620",
+      iconId: "sphere",
+    },
+  ],
+  hsl: [
+    {
+      label: "Hue",
+      tooltip: "Hue angle (0-360).",
+      min: 0,
+      max: 360,
+      step: 1,
+      accentColor: "#1f6a33",
+      iconId: "displayMode",
+    },
+    {
+      label: "Lightness",
+      tooltip: "Lightness level.",
+      min: 0,
+      max: 1,
+      step: 0.01,
+      accentColor: "#f7f3ea",
+      iconId: "sphere",
+    },
+  ],
+};
+
+const createDefaultRenderPaletteSliders = (): RenderPaletteSliderValues => ({
+  color: [0.62, 0.28],
+  cmyk: [0.7, 0.18],
+  pms: [0.6, 0.35],
+  hsl: [210, 0.55],
+});
+
+type ColorWheelPalette = RenderFilterId;
+type ColorWheelId = "material";
+
+const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+const lerpRgb = (a: RGB, b: RGB, t: number): RGB => [
+  lerp(a[0], b[0], t),
+  lerp(a[1], b[1], t),
+  lerp(a[2], b[2], t),
+];
+const mixWithWhite = (color: RGB, t: number): RGB => lerpRgb([1, 1, 1], color, t);
+const buildWheelStops = (hexes: string[]): RGB[] =>
+  hexes.map((hex) => hexToRgb(hex) ?? [0, 0, 0]);
+
+const COLOR_WHEEL_STOPS: Record<ColorWheelPalette, RGB[]> = {
+  color: buildWheelStops([
+    "#ff4b4b",
+    "#ffd84b",
+    "#7dff47",
+    "#47ffd6",
+    "#4b7dff",
+    "#c44bff",
+    "#ff4fa3",
+    "#ff4b4b",
+  ]),
+  hsl: buildWheelStops([
+    "#ff4b4b",
+    "#ffd84b",
+    "#7dff47",
+    "#47ffd6",
+    "#4b7dff",
+    "#c44bff",
+    "#ff4fa3",
+    "#ff4b4b",
+  ]),
+  cmyk: buildWheelStops(["#0b8a97", "#c2166b", "#c07a00", "#0b8a97"]),
+  pms: buildWheelStops(["#b3531c", "#f5f2ee", "#c9c5c0", "#0b8a97", "#b3531c"]),
+  silhouette: buildWheelStops(["#000000", "#000000"]),
+};
+
+type WheelSample = {
+  rgb: RGB;
+};
+
+const sampleWheel = (
+  palette: ColorWheelPalette,
+  x: number,
+  y: number,
+  size: number
+): WheelSample | null => {
+  if (palette === "silhouette") {
+    return { rgb: [0, 0, 0] };
+  }
+  const center = size / 2;
+  const dx = x - center;
+  const dy = y - center;
+  const rawRadius = Math.hypot(dx, dy) / center;
+  if (!Number.isFinite(rawRadius) || rawRadius > 1) return null;
+  const radius = clamp01(rawRadius);
+  const angle = (Math.atan2(dy, dx) + Math.PI * 2) % (Math.PI * 2);
+  const t = angle / (Math.PI * 2);
+  const stops = COLOR_WHEEL_STOPS[palette];
+  const segments = stops.length - 1;
+  const scaled = t * segments;
+  const index = Math.min(segments - 1, Math.max(0, Math.floor(scaled)));
+  const localT = scaled - index;
+  const hueColor = lerpRgb(stops[index], stops[index + 1], localT);
+  const rgb = mixWithWhite(hueColor, clamp01(radius));
+  return { rgb };
+};
+
 
 type ViewportKind = "axonometric" | "top" | "left" | "right";
 
@@ -230,8 +444,8 @@ const ROSLYN_PALETTE_SECTIONS: Array<{
   {
     id: "geometry",
     label: "Geometry",
-    description: "Primitives, curves, surfaces",
-    groups: ["Primitive", "Curve", "Mesh"],
+    description: "Primitives, curves, NURBS, BREP, meshes",
+    groups: ["Primitive", "Curve", "NURBS", "BREP", "Mesh"],
   },
   {
     id: "transform",
@@ -242,24 +456,49 @@ const ROSLYN_PALETTE_SECTIONS: Array<{
 ];
 
 const ROSLYN_GROUP_ACCENTS: Record<string, string> = {
-  Primitive: "#ff6040",
-  Curve: "#1eb8a0",
-  Mesh: "#4876ff",
-  Transform: "#935eff",
-  Edit: "#ff5c86",
-  Selection: "#f6ac38",
-  Orientation: "#42d28c",
-  Gumball: "#35beff",
-  Pivot: "#cc6aff",
-  "C-Plane": "#5cd2bc",
-  Workflow: "#9adb48",
-  Groups: "#00b6a6",
-  Camera: "#6299ff",
-  View: "#b078ff",
+  Primitive: "#FF00FF",
+  Curve: "#FF33FF",
+  NURBS: "#00FF80",
+  BREP: "#3300FF",
+  Mesh: "#1AB3FF",
+  Transform: "#661AFF",
+  Edit: "#FF4D66",
+  Selection: "#FFFF00",
+  Orientation: "#33FFCC",
+  Gumball: "#00FFFF",
+  Pivot: "#FFCC00",
+  "C-Plane": "#00FF00",
+  Workflow: "#80FFE6",
+  Groups: "#99FF80",
+  Camera: "#4DFFFF",
+  View: "#B200FF",
 };
 
 const resolveRoslynGroupAccent = (label: string) =>
   ROSLYN_GROUP_ACCENTS[label] ?? "#343c4a";
+
+const COMMAND_CATEGORY_LABELS: Record<string, string> = {
+  geometry: "Geometry",
+  transform: "Transform",
+  edit: "Edit",
+  view: "View",
+  performs: "Command",
+};
+
+const resolveCommandCategoryLabel = (category?: string) =>
+  (category && COMMAND_CATEGORY_LABELS[category]) ?? category ?? "Command";
+
+const resolveCommandSemantics = (category?: string) =>
+  (category && COMMAND_SEMANTICS[category]) ?? COMMAND_SEMANTICS.performs;
+
+const cleanCommandPrompt = (prompt?: string, label?: string) => {
+  if (!prompt) return label ?? "";
+  const prefix = new RegExp(`^${label}\\s*:\\s*`, "i");
+  return prompt.replace(prefix, "").trim();
+};
+
+const buildCommandDocsHref = (commandId: string) =>
+  `#/docs/roslyn/${encodeURIComponent(commandId)}`;
 
 type CommandRequest = {
   id: string;
@@ -282,6 +521,44 @@ type MinimapDragState = {
   startPointer: { x: number; y: number };
   startPosition: MinimapPosition;
   bounds: { minX: number; minY: number; maxX: number; maxY: number };
+};
+
+type NurbsConversionPayload =
+  | {
+      sourceType: "polyline";
+      vertexIds: string[];
+      vertexPositions: Record<string, Vec3>;
+      closed: boolean;
+      degree: 1 | 2 | 3;
+      nurbs?: NURBSCurve;
+    }
+  | {
+      sourceType: "surface";
+      loops: string[][];
+      vertexPositions: Record<string, Vec3>;
+      nurbs?: NURBSSurface;
+      plane?: PlaneDefinition;
+    }
+  | {
+      sourceType: "nurbsCurve";
+      closed: boolean;
+      nurbs?: NURBSCurve;
+    }
+  | {
+      sourceType: "nurbsSurface";
+      nurbs?: NURBSSurface;
+    };
+
+type BRepConversionPayload = {
+  sourceType: "brep";
+  brep: BRepData;
+};
+
+const cloneValue = <T,>(value: T): T => {
+  if (typeof structuredClone === "function") {
+    return structuredClone(value);
+  }
+  return JSON.parse(JSON.stringify(value)) as T;
 };
 
 const iconProps = {
@@ -309,6 +586,11 @@ const COMMAND_ICON_ID_MAP: Record<string, IconId> = {
   "box-builder": "boxBuilder",
   "transform-node": "transform",
   "extrude-node": "extrude",
+  meshconvert: "surface",
+  nurbsrestore: "interpolate",
+  nurbsbox: "box",
+  nurbssphere: "sphere",
+  nurbscylinder: "primitive",
   "selection-filter": "selectionFilter",
   "display-mode": "displayMode",
   selectionfilter: "selectionFilter",
@@ -339,34 +621,64 @@ const COMMAND_ICON_ID_MAP: Record<string, IconId> = {
   "cplane-xz": "cplaneXZ",
   "cplane-yz": "cplaneYZ",
   "cplane-align": "cplaneAlign",
+  meshmerge: "boolean",
+  meshflip: "rotate",
+  meshthicken: "offset",
+  breptomesh: "surface",
+  meshtobrep: "surface",
 };
 
 const PRIMITIVE_COMMAND_ID_SET = new Set(PRIMITIVE_COMMAND_IDS);
+const NURBS_PRIMITIVE_KIND_BY_COMMAND = new Map<string, PrimitiveKind>([
+  ["nurbsbox", "box"],
+  ["nurbssphere", "sphere"],
+  ["nurbscylinder", "cylinder"],
+]);
 
-const resolveCommandIconId = (commandId: string): IconId =>
-  COMMAND_ICON_ID_MAP[commandId] ??
-  (PRIMITIVE_COMMAND_ID_SET.has(commandId) ? "primitive" : (commandId as IconId));
+const resolveCommandIconId = (commandId: string): IconId => {
+  if (PRIMITIVE_COMMAND_ID_SET.has(commandId)) {
+    return `primitive:${commandId}`;
+  }
+  const nurbsKind = NURBS_PRIMITIVE_KIND_BY_COMMAND.get(commandId);
+  if (nurbsKind) {
+    return `primitive:${nurbsKind}`;
+  }
+  return COMMAND_ICON_ID_MAP[commandId] ?? (commandId as IconId);
+};
 
 const COMMAND_CATEGORY_TINTS = {
-  primitive: "#ff6040",
-  curve: "#1eb8a0",
-  mesh: "#4876ff",
-  neutral: "#343c4a",
+  primitive: "#FF00FF",
+  curve: "#FF33FF",
+  nurbs: "#00FF80",
+  brep: "#3300FF",
+  mesh: "#1AB3FF",
+  neutral: "#00FFFF",
 } as const;
 
 const PRIMITIVE_COMMANDS = new Set(["point", ...PRIMITIVE_COMMAND_IDS]);
 
-const CURVE_COMMANDS = new Set([
-  "line",
-  "polyline",
-  "rectangle",
+const CURVE_COMMANDS = new Set(["line", "polyline", "rectangle"]);
+
+const NURBS_COMMANDS = new Set([
   "circle",
   "arc",
   "curve",
   "interpolate",
+  "nurbsbox",
+  "nurbssphere",
+  "nurbscylinder",
 ]);
 
-const MESH_COMMANDS = new Set(["surface", "loft", "extrude", "boolean"]);
+const BREP_COMMANDS = new Set(["surface", "loft", "extrude", "boolean", "meshtobrep"]);
+
+const MESH_COMMANDS = new Set([
+  "meshconvert",
+  "breptomesh",
+  "nurbsrestore",
+  "meshmerge",
+  "meshflip",
+  "meshthicken",
+]);
 
 const TRANSFORM_COMMANDS = new Set([
   "transform",
@@ -419,6 +731,8 @@ const EDIT_COMMANDS = new Set([
 const resolveCommandGroupLabel = (commandId: string) => {
   if (PRIMITIVE_COMMANDS.has(commandId)) return "Primitive";
   if (CURVE_COMMANDS.has(commandId)) return "Curve";
+  if (NURBS_COMMANDS.has(commandId)) return "NURBS";
+  if (BREP_COMMANDS.has(commandId)) return "BREP";
   if (MESH_COMMANDS.has(commandId)) return "Mesh";
   if (GUMBALL_COMMANDS.has(commandId)) return "Gumball";
   if (PIVOT_COMMANDS.has(commandId)) return "Pivot";
@@ -437,6 +751,8 @@ const resolveCommandCategory = (
 ): keyof typeof COMMAND_CATEGORY_TINTS => {
   if (PRIMITIVE_COMMANDS.has(commandId)) return "primitive";
   if (CURVE_COMMANDS.has(commandId)) return "curve";
+  if (NURBS_COMMANDS.has(commandId)) return "nurbs";
+  if (BREP_COMMANDS.has(commandId)) return "brep";
   if (MESH_COMMANDS.has(commandId)) return "mesh";
   return "neutral";
 };
@@ -667,6 +983,23 @@ type ModelerSectionProps = {
   onToggleFullscreen?: () => void;
 };
 
+type MeshGeometry = Extract<Geometry, { type: "mesh" }>;
+
+const isMeshGeometry = (item?: Geometry | null): item is MeshGeometry =>
+  Boolean(item && item.type === "mesh");
+
+const collectMeshPoints = (mesh: RenderMesh): Vec3[] => {
+  const points: Vec3[] = [];
+  for (let i = 0; i < mesh.positions.length; i += 3) {
+    points.push({
+      x: mesh.positions[i],
+      y: mesh.positions[i + 1],
+      z: mesh.positions[i + 2],
+    });
+  }
+  return points;
+};
+
 const ModelerSection = ({
   onCaptureRequest,
   captureDisabled,
@@ -703,8 +1036,6 @@ const ModelerSection = ({
   const setShowRotationRings = useProjectStore((state) => state.setShowRotationRings);
   const showMoveArms = useProjectStore((state) => state.showMoveArms);
   const setShowMoveArms = useProjectStore((state) => state.setShowMoveArms);
-  const gumballStep = useProjectStore((state) => state.gumballStep);
-  const setGumballStep = useProjectStore((state) => state.setGumballStep);
   const pivot = useProjectStore((state) => state.pivot);
   const setPivotMode = useProjectStore((state) => state.setPivotMode);
   const setDisplayMode = useProjectStore((state) => state.setDisplayMode);
@@ -726,11 +1057,18 @@ const ModelerSection = ({
   const setCameraState = useProjectStore((state) => state.setCameraState);
   const undoModeler = useProjectStore((state) => state.undoModeler);
   const redoModeler = useProjectStore((state) => state.redoModeler);
+  const recordModelerHistory = useProjectStore((state) => state.recordModelerHistory);
   const clipboard = useProjectStore((state) => state.clipboard);
   const setClipboard = useProjectStore((state) => state.setClipboard);
   const addGeometryItems = useProjectStore((state) => state.addGeometryItems);
+  const addGeometryMesh = useProjectStore((state) => state.addGeometryMesh);
   const addGeometryPolylineFromPoints = useProjectStore(
     (state) => state.addGeometryPolylineFromPoints
+  );
+  const addGeometryLoft = useProjectStore((state) => state.addGeometryLoft);
+  const addGeometryExtrude = useProjectStore((state) => state.addGeometryExtrude);
+  const replaceGeometryBatch = useProjectStore(
+    (state) => state.replaceGeometryBatch
   );
   const updateGeometryBatch = useProjectStore((state) => state.updateGeometryBatch);
   const deleteGeometry = useProjectStore((state) => state.deleteGeometry);
@@ -757,7 +1095,7 @@ const ModelerSection = ({
   const [showStatusBar, setShowStatusBar] = useState(true);
   const [panelScale, setPanelScale] = useState(() => {
     if (typeof window === "undefined") return 0.85;
-    const stored = window.localStorage.getItem(ROSLYN_PANEL_SCALE_KEY);
+    const stored = safeLocalStorageGet(ROSLYN_PANEL_SCALE_KEY);
     const parsed = stored ? Number(stored) : 0.85;
     if (!Number.isFinite(parsed)) return 0.85;
     return Math.min(
@@ -767,14 +1105,16 @@ const ModelerSection = ({
   });
   const [paletteCollapsed, setPaletteCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
-    return window.localStorage.getItem(ROSLYN_PALETTE_COLLAPSED_KEY) === "true";
+    return safeLocalStorageGet(ROSLYN_PALETTE_COLLAPSED_KEY) === "true";
   });
   const [renderPanelOpen, setRenderPanelOpen] = useState(false);
+  const [renderFilter, setRenderFilter] = useState<RenderFilterId>("color");
+  const [renderPalette, setRenderPalette] = useState<RenderPaletteId>("color");
+  const [renderPaletteSliders, setRenderPaletteSliders] =
+    useState<RenderPaletteSliderValues>(() => createDefaultRenderPaletteSliders());
+  const [activeColorWheel, setActiveColorWheel] = useState<ColorWheelId | null>(null);
+  const colorWheelDragRef = useRef<ColorWheelId | null>(null);
   const [commandBarHeight, setCommandBarHeight] = useState(0);
-  const [gumballStepDraft, setGumballStepDraft] = useState(() => ({
-    distance: `${gumballStep.distance}`,
-    angle: `${gumballStep.angle}`,
-  }));
   const [primitiveSettings, setPrimitiveSettings] = useState(() => ({
     ...DEFAULT_PRIMITIVE_CONFIG,
   }));
@@ -786,12 +1126,6 @@ const ModelerSection = ({
     radius: 0.8,
     segments: 32,
   });
-  useEffect(() => {
-    setGumballStepDraft({
-      distance: `${gumballStep.distance}`,
-      angle: `${gumballStep.angle}`,
-    });
-  }, [gumballStep.distance, gumballStep.angle]);
   const [commandInput, setCommandInput] = useState("");
   const [commandError, setCommandError] = useState("");
   const [commandRequest, setCommandRequest] = useState<CommandRequest | null>(
@@ -814,6 +1148,7 @@ const ModelerSection = ({
   const commandInputRef = useRef<HTMLInputElement>(null);
   const [footerRoot, setFooterRoot] = useState<HTMLElement | null>(null);
   const viewerRef = useRef<HTMLDivElement>(null);
+  const viewerHoverRef = useRef(false);
   const minimapDockRef = useRef<HTMLDivElement>(null);
   const minimapRef = useRef<HTMLDivElement>(null);
   const minimapDragRef = useRef<MinimapDragState | null>(null);
@@ -823,7 +1158,6 @@ const ModelerSection = ({
   );
   const [minimapCollapsed, setMinimapCollapsed] = useState(false);
   const [minimapDragging, setMinimapDragging] = useState(false);
-  const [viewerModeCollapsed, setViewerModeCollapsed] = useState(false);
   const commandBarRef = useRef<HTMLDivElement>(null);
   const paletteRef = useRef<HTMLElement | null>(null);
   const renderPanelRef = useRef<HTMLDivElement | null>(null);
@@ -905,15 +1239,12 @@ const ModelerSection = ({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    window.localStorage.setItem(ROSLYN_PANEL_SCALE_KEY, panelScale.toFixed(3));
+    safeLocalStorageSet(ROSLYN_PANEL_SCALE_KEY, panelScale.toFixed(3));
   }, [panelScale]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    window.localStorage.setItem(
-      ROSLYN_PALETTE_COLLAPSED_KEY,
-      String(paletteCollapsed)
-    );
+    safeLocalStorageSet(ROSLYN_PALETTE_COLLAPSED_KEY, String(paletteCollapsed));
   }, [paletteCollapsed]);
 
   useEffect(() => {
@@ -1211,6 +1542,17 @@ const ModelerSection = ({
     [geometry, selectedGeometryIds]
   );
 
+  const selectedCurves = useMemo(
+    () =>
+      selectedGeometryIds
+        .map((id) => geometry.find((item) => item.id === id))
+        .filter(
+          (item): item is PolylineGeometry | Extract<Geometry, { type: "nurbsCurve" }> =>
+            item?.type === "polyline" || item?.type === "nurbsCurve"
+        ),
+    [geometry, selectedGeometryIds]
+  );
+
   const loftSelectionState = useMemo<{ ready: boolean; message: string }>(() => {
     if (selectionMode !== "object") {
       return {
@@ -1218,14 +1560,14 @@ const ModelerSection = ({
         message: "Switch the selection filter to Object to loft curves.",
       };
     }
-    if (selectedPolylines.length === 0) {
-      return { ready: false, message: "Select at least two polylines to loft." };
+    if (selectedCurves.length === 0) {
+      return { ready: false, message: "Select at least two curves to loft." };
     }
-    if (selectedPolylines.length === 1) {
-      return { ready: false, message: "Select one more polyline to loft." };
+    if (selectedCurves.length === 1) {
+      return { ready: false, message: "Select one more curve to loft." };
     }
     return { ready: true, message: "" };
-  }, [selectionMode, selectedPolylines.length]);
+  }, [selectionMode, selectedCurves.length]);
 
   const primarySelectedGeometryId =
     selectedGeometryIds[selectedGeometryIds.length - 1] ?? null;
@@ -1308,7 +1650,10 @@ const ModelerSection = ({
   const hasExtrudeProfile = useMemo(
     () =>
       selectedGeometryIds.some(
-        (id) => geometry.find((item) => item.id === id)?.type === "polyline"
+        (id) => {
+          const type = geometry.find((item) => item.id === id)?.type;
+          return type === "polyline" || type === "nurbsCurve";
+        }
       ),
     [geometry, selectedGeometryIds]
   );
@@ -1319,30 +1664,185 @@ const ModelerSection = ({
   );
   const materialPickerHex = customMaterial?.hex ?? DEFAULT_RENDER_MATERIAL_HEX;
   const materialPickerDisabled = selectedGeometryIds.length === 0;
+  type CustomMaterialMetadata = {
+    color?: RGB;
+    hex?: string;
+    palette?: RenderPaletteId;
+    paletteValues?: [number, number];
+    paletteSwatch?: string;
+  };
+  const updateSelectedCustomMaterial = useCallback(
+    (build: (current: CustomMaterialMetadata | null) => CustomMaterialMetadata) => {
+      if (selectedGeometryIds.length === 0) return;
+      const updates = selectedGeometryIds
+        .map((id) => {
+          const existing = geometryMap.get(id);
+          if (!existing) return null;
+          const metadata = existing.metadata ?? {};
+          const custom =
+            (metadata as { customMaterial?: unknown }).customMaterial;
+          const current =
+            custom && typeof custom === "object"
+              ? (custom as CustomMaterialMetadata)
+              : null;
+          return {
+            id,
+            data: {
+              metadata: {
+                ...metadata,
+                customMaterial: build(current),
+              },
+            },
+          };
+        })
+        .filter(Boolean) as Array<{ id: string; data: Partial<Geometry> }>;
+      if (updates.length === 0) return;
+      updateGeometryBatch(updates, { recordHistory: true });
+    },
+    [geometryMap, selectedGeometryIds, updateGeometryBatch]
+  );
   const handleMaterialColorChange = (nextHex: string) => {
     if (selectedGeometryIds.length === 0) return;
     const normalized =
       normalizeHexColor(nextHex) ?? normalizeHexColor(materialPickerHex) ?? DEFAULT_RENDER_MATERIAL_HEX;
     const rgb = hexToRgb(normalized) ?? DEFAULT_RENDER_MATERIAL_COLOR;
-    const updates = selectedGeometryIds
-      .map((id) => {
-        const existing = geometryMap.get(id);
-        if (!existing) return null;
-        const metadata = existing.metadata ?? {};
-        return {
-          id,
-          data: {
-            metadata: {
-              ...metadata,
-              customMaterial: { color: rgb, hex: normalized },
-            },
-          },
-        };
-      })
-      .filter(Boolean) as Array<{ id: string; data: Partial<Geometry> }>;
-    if (updates.length === 0) return;
-    updateGeometryBatch(updates, { recordHistory: true });
+    const palette = renderFilter === "silhouette" ? renderPalette : renderFilter;
+    if (renderFilter !== "silhouette") {
+      setRenderPalette(palette);
+    }
+    updateSelectedCustomMaterial((current) => ({
+      ...(current ?? {}),
+      color: rgb,
+      hex: normalized,
+      palette,
+      paletteValues: renderPaletteSliders[palette],
+    }));
   };
+  const applyRenderPaletteToSelection = useCallback(
+    (
+      palette: RenderPaletteId,
+      values: [number, number],
+      options?: { swatch?: string | null; updateColor?: boolean }
+    ) => {
+      if (selectedGeometryIds.length === 0) return;
+      const baseColor =
+        hexToRgb(materialPickerHex) ?? DEFAULT_RENDER_MATERIAL_COLOR;
+      const updateColor = options?.updateColor ?? true;
+      const paletteColor = updateColor
+        ? resolvePaletteColor({
+            palette,
+            values,
+            swatch: options?.swatch,
+            baseColor,
+          })
+        : null;
+      const nextHex = paletteColor ? rgbToHex(paletteColor) : null;
+      updateSelectedCustomMaterial((current) => {
+        const next: CustomMaterialMetadata = {
+          ...(current ?? {}),
+          palette,
+          paletteValues: values,
+        };
+        if (options?.swatch !== undefined) {
+          next.paletteSwatch = options.swatch ?? undefined;
+        }
+        if (updateColor && paletteColor && nextHex) {
+          next.color = paletteColor;
+          next.hex = nextHex;
+        }
+        return next;
+      });
+    },
+    [materialPickerHex, selectedGeometryIds.length, updateSelectedCustomMaterial]
+  );
+  const handleRenderFilterChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    const next = event.target.value as RenderFilterId;
+    setRenderFilter(next);
+    if (next === "silhouette") {
+      setDisplayMode("silhouette");
+      return;
+    }
+    setRenderPalette(next);
+    applyRenderPaletteToSelection(next, renderPaletteSliders[next], {
+      updateColor: false,
+    });
+    if (displayMode === "silhouette") {
+      setViewSolidity(viewSolidity, { overrideDisplayMode: true });
+    }
+  };
+  useEffect(() => {
+    if (!renderPanelOpen && activeColorWheel) {
+      setActiveColorWheel(null);
+    }
+  }, [activeColorWheel, renderPanelOpen]);
+  useEffect(() => {
+    if (materialPickerDisabled && activeColorWheel === "material") {
+      setActiveColorWheel(null);
+    }
+  }, [activeColorWheel, materialPickerDisabled]);
+
+  const updateWheelColor = (
+    id: ColorWheelId,
+    event: PointerEvent<HTMLDivElement>
+  ) => {
+    const palette = renderFilter as ColorWheelPalette;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const sample = sampleWheel(palette, x, y, Math.min(rect.width, rect.height));
+    if (!sample) return;
+    if (palette === "silhouette") {
+      setDisplayMode("silhouette");
+      return;
+    }
+    if (id === "material") {
+      handleMaterialColorChange(rgbToHex(sample.rgb));
+    }
+  };
+
+  const handleWheelPointerDown =
+    (id: ColorWheelId) => (event: PointerEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      colorWheelDragRef.current = id;
+      event.currentTarget.setPointerCapture(event.pointerId);
+      updateWheelColor(id, event);
+    };
+
+  const handleWheelPointerMove =
+    (id: ColorWheelId) => (event: PointerEvent<HTMLDivElement>) => {
+      if (colorWheelDragRef.current !== id) return;
+      event.preventDefault();
+      event.stopPropagation();
+      updateWheelColor(id, event);
+    };
+
+  const handleWheelPointerUp =
+    (id: ColorWheelId) => (event: PointerEvent<HTMLDivElement>) => {
+      if (colorWheelDragRef.current !== id) return;
+      colorWheelDragRef.current = null;
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+    };
+  const handleRenderPaletteSliderChange = (
+    palette: RenderPaletteId,
+    index: 0 | 1,
+    value: number
+  ) => {
+    const current = renderPaletteSliders[palette];
+    const nextValues: [number, number] = index === 0 ? [value, current[1]] : [current[0], value];
+    setRenderPaletteSliders((prev) => {
+      const current = prev[palette];
+      const next: [number, number] = index === 0 ? [value, current[1]] : [current[0], value];
+      return { ...prev, [palette]: next };
+    });
+    applyRenderPaletteToSelection(palette, nextValues, { updateColor: false });
+  };
+  const activeRenderPaletteSliders = RENDER_PALETTE_SLIDERS[renderPalette];
+  const activeRenderPaletteValues = renderPaletteSliders[renderPalette];
   const vertexMap = useMemo(
     () =>
       new Map(
@@ -1351,6 +1851,43 @@ const ModelerSection = ({
           .map((item) => [item.id, item])
       ),
     [geometry]
+  );
+
+  const collectGeometryPoints = useCallback(
+    (item: Geometry): Vec3[] => {
+      if (item.type === "vertex") {
+        return [item.position];
+      }
+      if (item.type === "polyline") {
+        return item.vertexIds
+          .map((vertexId) => vertexMap.get(vertexId)?.position)
+          .filter((point): point is Vec3 => Boolean(point));
+      }
+      if (item.type === "nurbsCurve") {
+        const points = item.nurbs.controlPoints;
+        return points.length > 0 ? points.map((point) => ({ ...point })) : [];
+      }
+      if (item.type === "nurbsSurface") {
+        if (item.mesh && item.mesh.positions.length > 0) {
+          return collectMeshPoints(item.mesh);
+        }
+        return item.nurbs.controlPoints.flat().map((point) => ({ ...point }));
+      }
+      if (item.type === "brep") {
+        if (item.brep.vertices.length > 0) {
+          return item.brep.vertices.map((vertex) => vertex.position);
+        }
+        if (item.mesh && item.mesh.positions.length > 0) {
+          return collectMeshPoints(item.mesh);
+        }
+        return [];
+      }
+      if ("mesh" in item && item.mesh) {
+        return collectMeshPoints(item.mesh);
+      }
+      return [];
+    },
+    [vertexMap]
   );
 
   const offsetSelectedPolylines = (distance: number) => {
@@ -1417,34 +1954,1076 @@ const ModelerSection = ({
     return { count: nextIds.length };
   };
 
+  const resolveNurbsConversionPayload = (
+    metadata?: Record<string, unknown> | null
+  ): NurbsConversionPayload | null => {
+    if (!metadata || typeof metadata !== "object") return null;
+    const payload = (metadata as { nurbsConversion?: unknown }).nurbsConversion;
+    if (!payload || typeof payload !== "object") return null;
+    const sourceType = (payload as { sourceType?: unknown }).sourceType;
+    if (
+      sourceType === "polyline" ||
+      sourceType === "surface" ||
+      sourceType === "nurbsCurve" ||
+      sourceType === "nurbsSurface"
+    ) {
+      return payload as NurbsConversionPayload;
+    }
+    return null;
+  };
+
+  const stripNurbsConversionMetadata = (metadata?: Record<string, unknown>) => {
+    if (!metadata) return undefined;
+    if (typeof metadata !== "object") return metadata;
+    const { nurbsConversion, ...rest } = metadata as Record<string, unknown>;
+    return Object.keys(rest).length > 0 ? rest : undefined;
+  };
+
+  const resolveBrepConversionPayload = (
+    metadata?: Record<string, unknown> | null
+  ): BRepConversionPayload | null => {
+    if (!metadata || typeof metadata !== "object") return null;
+    const payload = (metadata as { brepConversion?: unknown }).brepConversion;
+    if (!payload || typeof payload !== "object") return null;
+    const brep = (payload as { brep?: unknown }).brep;
+    if (!brep || typeof brep !== "object") return null;
+    return payload as BRepConversionPayload;
+  };
+
+  const stripBrepConversionMetadata = (metadata?: Record<string, unknown>) => {
+    if (!metadata) return undefined;
+    if (typeof metadata !== "object") return metadata;
+    const { brepConversion, ...rest } = metadata as Record<string, unknown>;
+    return Object.keys(rest).length > 0 ? rest : undefined;
+  };
+
+  const normalizeClosedLoop = (points: Vec3[]) => {
+    if (points.length < 2) return points;
+    const first = points[0];
+    const last = points[points.length - 1];
+    const dx = first.x - last.x;
+    const dy = first.y - last.y;
+    const dz = first.z - last.z;
+    if (Math.hypot(dx, dy, dz) < 1e-6) {
+      return points.slice(0, -1);
+    }
+    return points;
+  };
+
+  const collectCurveSamples = (item: Geometry) => {
+    if (item.type === "polyline") {
+      const points = item.vertexIds
+        .map((vertexId) => vertexMap.get(vertexId)?.position)
+        .filter((point): point is Vec3 => Boolean(point));
+      return points.length >= 2
+        ? { points: normalizeClosedLoop(points), closed: item.closed }
+        : null;
+    }
+    if (item.type === "nurbsCurve") {
+      const tessellated = tessellateCurveAdaptive(item.nurbs);
+      const points =
+        tessellated.points.length > 0
+          ? tessellated.points
+          : item.nurbs.controlPoints;
+      return points.length >= 2
+        ? { points: normalizeClosedLoop(points), closed: Boolean(item.closed) }
+        : null;
+    }
+    return null;
+  };
+
+  const convertSelectionToMesh = () => {
+    if (selectionMode !== "object") {
+      return { error: "Switch the selection filter to Object to convert geometry." };
+    }
+
+    const directionFallback = { x: 0, y: 1, z: 0 };
+    const direction = normalize(cPlane.normal);
+    const resolvedDirection =
+      Math.hypot(direction.x, direction.y, direction.z) > 1e-6
+        ? direction
+        : directionFallback;
+    const distance =
+      Number.isFinite(gridSettings.spacing) && gridSettings.spacing > 0
+        ? gridSettings.spacing
+        : 0.1;
+
+    const replacements: Geometry[] = [];
+    const conversionIds = new Set<string>();
+    const conversionPayloads = new Map<string, NurbsConversionPayload>();
+
+    selectedGeometryIds.forEach((id) => {
+      const item = geometryMap.get(id);
+      if (!item) return;
+      if (item.type === "polyline" && item.nurbs) {
+        const controlPositions: Record<string, Vec3> = {};
+        item.vertexIds.forEach((vertexId) => {
+          const vertex = vertexMap.get(vertexId);
+          if (vertex) {
+            controlPositions[vertexId] = vertex.position;
+          }
+        });
+        const tessellated = tessellateCurveAdaptive(item.nurbs);
+        const points = tessellated.points;
+        if (points.length < 2) return;
+        const mesh = generateExtrudeMesh(
+          [{ points, closed: item.closed }],
+          { direction: resolvedDirection, distance, capped: item.closed }
+        );
+        const payload: NurbsConversionPayload = {
+          sourceType: "polyline",
+          vertexIds: [...item.vertexIds],
+          vertexPositions: controlPositions,
+          closed: item.closed,
+          degree: item.degree,
+          nurbs: cloneValue(item.nurbs),
+        };
+        const metadata = {
+          ...(item.metadata ?? {}),
+          nurbsConversion: payload,
+        };
+        replacements.push({
+          id: item.id,
+          type: "mesh",
+          mesh,
+          layerId: item.layerId,
+          area_m2: computeMeshArea(mesh.positions, mesh.indices),
+          thickness_m: item.thickness_m,
+          sourceNodeId: item.sourceNodeId,
+          metadata,
+        });
+        conversionIds.add(item.id);
+        conversionPayloads.set(item.id, payload);
+      }
+      if (item.type === "surface" && item.nurbs) {
+        const surfacePositions: Record<string, Vec3> = {};
+        item.loops.forEach((loop) => {
+          loop.forEach((vertexId) => {
+            const vertex = vertexMap.get(vertexId);
+            if (vertex) {
+              surfacePositions[vertexId] = vertex.position;
+            }
+          });
+        });
+        const tessellated = tessellateSurfaceAdaptive(item.nurbs);
+        const mesh = {
+          positions: Array.from(tessellated.positions),
+          normals: Array.from(tessellated.normals),
+          uvs: Array.from(tessellated.uvs),
+          indices: Array.from(tessellated.indices),
+        };
+        const payload: NurbsConversionPayload = {
+          sourceType: "surface",
+          loops: item.loops.map((loop) => [...loop]),
+          vertexPositions: surfacePositions,
+          nurbs: cloneValue(item.nurbs),
+          plane: item.plane ? cloneValue(item.plane) : undefined,
+        };
+        const metadata = {
+          ...(item.metadata ?? {}),
+          nurbsConversion: payload,
+        };
+        replacements.push({
+          id: item.id,
+          type: "mesh",
+          mesh,
+          layerId: item.layerId,
+          area_m2: computeMeshArea(mesh.positions, mesh.indices),
+          thickness_m: item.thickness_m,
+          sourceNodeId: item.sourceNodeId,
+          metadata,
+        });
+        conversionIds.add(item.id);
+        conversionPayloads.set(item.id, payload);
+      }
+      if (item.type === "nurbsCurve") {
+        const tessellated = tessellateCurveAdaptive(item.nurbs);
+        const points = tessellated.points;
+        if (points.length < 2) return;
+        const closed = Boolean(item.closed);
+        const mesh = generateExtrudeMesh(
+          [{ points, closed }],
+          { direction: resolvedDirection, distance, capped: closed }
+        );
+        const payload: NurbsConversionPayload = {
+          sourceType: "nurbsCurve",
+          closed,
+          nurbs: cloneValue(item.nurbs),
+        };
+        const metadata = {
+          ...(item.metadata ?? {}),
+          nurbsConversion: payload,
+        };
+        replacements.push({
+          id: item.id,
+          type: "mesh",
+          mesh,
+          layerId: item.layerId,
+          area_m2: computeMeshArea(mesh.positions, mesh.indices),
+          thickness_m: item.thickness_m,
+          sourceNodeId: item.sourceNodeId,
+          metadata,
+        });
+        conversionIds.add(item.id);
+        conversionPayloads.set(item.id, payload);
+      }
+      if (item.type === "nurbsSurface") {
+        const tessellated = tessellateSurfaceAdaptive(item.nurbs);
+        const mesh = {
+          positions: Array.from(tessellated.positions),
+          normals: Array.from(tessellated.normals),
+          uvs: Array.from(tessellated.uvs),
+          indices: Array.from(tessellated.indices),
+        };
+        const payload: NurbsConversionPayload = {
+          sourceType: "nurbsSurface",
+          nurbs: cloneValue(item.nurbs),
+        };
+        const metadata = {
+          ...(item.metadata ?? {}),
+          nurbsConversion: payload,
+        };
+        replacements.push({
+          id: item.id,
+          type: "mesh",
+          mesh,
+          layerId: item.layerId,
+          area_m2: computeMeshArea(mesh.positions, mesh.indices),
+          thickness_m: item.thickness_m,
+          sourceNodeId: item.sourceNodeId,
+          metadata,
+        });
+        conversionIds.add(item.id);
+        conversionPayloads.set(item.id, payload);
+      }
+    });
+
+    if (replacements.length === 0) {
+      return { error: "Select NURBS curves or surfaces to convert." };
+    }
+
+    const protectedVertexIds = new Set<string>();
+    geometry.forEach((item) => {
+      if (conversionIds.has(item.id)) return;
+      const deps = collectGeometryDependencies([item.id]);
+      deps.forEach((depId) => {
+        if (geometryMap.get(depId)?.type === "vertex") {
+          protectedVertexIds.add(depId);
+        }
+      });
+    });
+
+    const verticesToDelete = new Set<string>();
+    conversionPayloads.forEach((payload) => {
+      if (payload.sourceType !== "polyline" && payload.sourceType !== "surface") {
+        return;
+      }
+      const vertexIds =
+        payload.sourceType === "polyline" ? payload.vertexIds : payload.loops.flat();
+      vertexIds.forEach((vertexId) => {
+        if (!protectedVertexIds.has(vertexId)) {
+          verticesToDelete.add(vertexId);
+        }
+      });
+    });
+
+    replaceGeometryBatch(replacements, { recordHistory: true });
+    if (verticesToDelete.size > 0) {
+      deleteGeometry(Array.from(verticesToDelete), { recordHistory: false });
+    }
+    setSelectedGeometryIds(Array.from(conversionIds));
+    return { count: replacements.length };
+  };
+
+  const restoreSelectionToNurbs = () => {
+    if (selectionMode !== "object") {
+      return { error: "Switch the selection filter to Object to restore NURBS." };
+    }
+
+    const replacements: Geometry[] = [];
+    const vertexItems: Geometry[] = [];
+    const vertexUpdates: Array<{ id: string; data: Partial<Geometry> }> = [];
+    const pendingVertexIds = new Set<string>();
+
+    selectedGeometryIds.forEach((id) => {
+      const item = geometryMap.get(id);
+      if (!item || item.type !== "mesh") return;
+      const payload = resolveNurbsConversionPayload(item.metadata);
+      if (!payload) return;
+      const metadata = stripNurbsConversionMetadata(item.metadata);
+
+      if (payload.sourceType === "polyline") {
+        payload.vertexIds.forEach((vertexId) => {
+          if (pendingVertexIds.has(vertexId)) return;
+          const position = payload.vertexPositions[vertexId];
+          if (!position) return;
+          const existing = geometryMap.get(vertexId);
+          if (!existing) {
+            pendingVertexIds.add(vertexId);
+            vertexItems.push({
+              id: vertexId,
+              type: "vertex",
+              position,
+              layerId: item.layerId,
+              area_m2: 1,
+              thickness_m: 0.1,
+            });
+          } else if (existing.type === "vertex") {
+            pendingVertexIds.add(vertexId);
+            vertexUpdates.push({ id: vertexId, data: { position } });
+          }
+        });
+        replacements.push({
+          id: item.id,
+          type: "polyline",
+          vertexIds: [...payload.vertexIds],
+          closed: payload.closed,
+          degree: payload.degree,
+          nurbs: payload.nurbs ? cloneValue(payload.nurbs) : undefined,
+          layerId: item.layerId,
+          area_m2: item.area_m2,
+          thickness_m: item.thickness_m,
+          sourceNodeId: item.sourceNodeId,
+          metadata,
+        });
+        return;
+      }
+
+      if (payload.sourceType === "surface") {
+        payload.loops.flat().forEach((vertexId) => {
+          if (pendingVertexIds.has(vertexId)) return;
+          const position = payload.vertexPositions[vertexId];
+          if (!position) return;
+          const existing = geometryMap.get(vertexId);
+          if (!existing) {
+            pendingVertexIds.add(vertexId);
+            vertexItems.push({
+              id: vertexId,
+              type: "vertex",
+              position,
+              layerId: item.layerId,
+              area_m2: 1,
+              thickness_m: 0.1,
+            });
+          } else if (existing.type === "vertex") {
+            pendingVertexIds.add(vertexId);
+            vertexUpdates.push({ id: vertexId, data: { position } });
+          }
+        });
+        const mesh = payload.nurbs
+          ? (() => {
+              const tessellated = tessellateSurfaceAdaptive(payload.nurbs);
+              return {
+                positions: Array.from(tessellated.positions),
+                normals: Array.from(tessellated.normals),
+                uvs: Array.from(tessellated.uvs),
+                indices: Array.from(tessellated.indices),
+              };
+            })()
+          : item.mesh;
+        replacements.push({
+          id: item.id,
+          type: "surface",
+          mesh,
+          nurbs: payload.nurbs ? cloneValue(payload.nurbs) : undefined,
+          loops: payload.loops.map((loop) => [...loop]),
+          plane: payload.plane ? cloneValue(payload.plane) : undefined,
+          layerId: item.layerId,
+          area_m2: computeMeshArea(mesh.positions, mesh.indices),
+          thickness_m: item.thickness_m,
+          sourceNodeId: item.sourceNodeId,
+          metadata,
+        });
+      }
+
+      if (payload.sourceType === "nurbsCurve") {
+        if (!payload.nurbs) {
+          return;
+        }
+        replacements.push({
+          id: item.id,
+          type: "nurbsCurve",
+          nurbs: cloneValue(payload.nurbs),
+          closed: payload.closed,
+          layerId: item.layerId,
+          area_m2: item.area_m2,
+          thickness_m: item.thickness_m,
+          sourceNodeId: item.sourceNodeId,
+          metadata,
+        });
+      }
+
+      if (payload.sourceType === "nurbsSurface") {
+        if (!payload.nurbs) {
+          return;
+        }
+        const mesh = payload.nurbs
+          ? (() => {
+              const tessellated = tessellateSurfaceAdaptive(payload.nurbs);
+              return {
+                positions: Array.from(tessellated.positions),
+                normals: Array.from(tessellated.normals),
+                uvs: Array.from(tessellated.uvs),
+                indices: Array.from(tessellated.indices),
+              };
+            })()
+          : item.mesh;
+        replacements.push({
+          id: item.id,
+          type: "nurbsSurface",
+          mesh,
+          nurbs: cloneValue(payload.nurbs),
+          layerId: item.layerId,
+          area_m2: mesh ? computeMeshArea(mesh.positions, mesh.indices) : item.area_m2,
+          thickness_m: item.thickness_m,
+          sourceNodeId: item.sourceNodeId,
+          metadata,
+        });
+      }
+    });
+
+    if (replacements.length === 0) {
+      return { error: "Select meshes created from NURBS to restore." };
+    }
+
+    replaceGeometryBatch(replacements, { recordHistory: true });
+    if (vertexItems.length > 0) {
+      addGeometryItems(vertexItems, {
+        recordHistory: false,
+        selectIds: replacements.map((item) => item.id),
+      });
+    }
+    if (vertexUpdates.length > 0) {
+      updateGeometryBatch(vertexUpdates, { recordHistory: false });
+    }
+    setSelectedGeometryIds(replacements.map((item) => item.id));
+    return { count: replacements.length };
+  };
+
+  const resolveMeshFromGeometry = (item: Geometry): RenderMesh | null => {
+    if (item.type === "nurbsSurface") {
+      if (item.mesh && item.mesh.positions.length > 0) {
+        return item.mesh;
+      }
+      const tessellated = tessellateSurfaceAdaptive(item.nurbs);
+      return {
+        positions: Array.from(tessellated.positions),
+        normals: Array.from(tessellated.normals),
+        uvs: Array.from(tessellated.uvs),
+        indices: Array.from(tessellated.indices),
+      };
+    }
+    if (item.type === "brep") {
+      if (item.mesh && item.mesh.positions.length > 0) {
+        return item.mesh;
+      }
+      return tessellateBRepToMesh(item.brep);
+    }
+    if ("mesh" in item && item.mesh) {
+      if (item.type === "surface" && item.nurbs) {
+        const tessellated = tessellateSurfaceAdaptive(item.nurbs);
+        return {
+          positions: Array.from(tessellated.positions),
+          normals: Array.from(tessellated.normals),
+          uvs: Array.from(tessellated.uvs),
+          indices: Array.from(tessellated.indices),
+        };
+      }
+      return item.mesh;
+    }
+    return null;
+  };
+
+  const convertSelectionToMeshFromBrep = () => {
+    if (selectionMode !== "object") {
+      return { error: "Switch the selection filter to Object to convert B-Reps." };
+    }
+
+    const replacements: Geometry[] = [];
+    const conversionIds = new Set<string>();
+
+    selectedGeometryIds.forEach((id) => {
+      const item = geometryMap.get(id);
+      if (!item || item.type !== "brep") return;
+      const mesh = resolveMeshFromGeometry(item);
+      if (!mesh) return;
+      const payload: BRepConversionPayload = {
+        sourceType: "brep",
+        brep: cloneValue(item.brep),
+      };
+      const metadata = {
+        ...(item.metadata ?? {}),
+        brepConversion: payload,
+      };
+      replacements.push({
+        id: item.id,
+        type: "mesh",
+        mesh,
+        layerId: item.layerId,
+        area_m2: computeMeshArea(mesh.positions, mesh.indices),
+        thickness_m: item.thickness_m,
+        sourceNodeId: item.sourceNodeId,
+        metadata,
+      });
+      conversionIds.add(item.id);
+    });
+
+    if (replacements.length === 0) {
+      return { error: "Select one or more B-Rep solids to convert." };
+    }
+
+    replaceGeometryBatch(replacements, { recordHistory: true });
+    setSelectedGeometryIds(Array.from(conversionIds));
+    return { count: replacements.length };
+  };
+
+  const convertSelectionToBrep = () => {
+    if (selectionMode !== "object") {
+      return { error: "Switch the selection filter to Object to convert meshes." };
+    }
+
+    const replacements: Geometry[] = [];
+
+    selectedGeometryIds.forEach((id) => {
+      const item = geometryMap.get(id);
+      if (!item || item.type === "brep") return;
+      const mesh = resolveMeshFromGeometry(item);
+      if (!mesh) return;
+      const conversionPayload = resolveBrepConversionPayload(item.metadata);
+      const brep = conversionPayload?.brep ?? brepFromMesh(mesh);
+      const metadata = stripBrepConversionMetadata(item.metadata);
+      replacements.push({
+        id: item.id,
+        type: "brep",
+        brep: cloneValue(brep),
+        mesh,
+        layerId: item.layerId,
+        area_m2: computeMeshArea(mesh.positions, mesh.indices),
+        thickness_m: item.thickness_m,
+        sourceNodeId: item.sourceNodeId,
+        metadata,
+      });
+    });
+
+    if (replacements.length === 0) {
+      return { error: "Select one or more meshes to convert to B-Rep." };
+    }
+
+    replaceGeometryBatch(replacements, { recordHistory: true });
+    setSelectedGeometryIds(replacements.map((item) => item.id));
+    return { count: replacements.length };
+  };
+
+  const interpolateSelectedPolylines = () => {
+    if (selectionMode !== "object") {
+      return { error: "Switch the selection filter to Object to interpolate." };
+    }
+
+    const replacements: Geometry[] = [];
+    const conversionIds = new Set<string>();
+    const polylineVertexIds = new Map<string, string[]>();
+
+    selectedGeometryIds.forEach((id) => {
+      const item = geometryMap.get(id);
+      if (!item || item.type !== "polyline") return;
+      const points = item.vertexIds
+        .map((vertexId) => vertexMap.get(vertexId)?.position)
+        .filter((point): point is Vec3 => Boolean(point));
+      if (points.length < 2) return;
+      const degree = Math.min(3, Math.max(1, item.degree)) as 1 | 2 | 3;
+      const nurbs = interpolateNurbsCurve(points, degree, {
+        parameterization: "chord",
+      });
+      replacements.push({
+        id: item.id,
+        type: "nurbsCurve",
+        nurbs,
+        closed: item.closed,
+        layerId: item.layerId,
+        area_m2: item.area_m2,
+        thickness_m: item.thickness_m,
+        sourceNodeId: item.sourceNodeId,
+        metadata: item.metadata,
+      });
+      conversionIds.add(item.id);
+      polylineVertexIds.set(item.id, [...item.vertexIds]);
+    });
+
+    if (replacements.length === 0) {
+      return { error: "Select one or more polylines to interpolate." };
+    }
+
+    const protectedVertexIds = new Set<string>();
+    geometry.forEach((item) => {
+      if (conversionIds.has(item.id)) return;
+      const deps = collectGeometryDependencies([item.id]);
+      deps.forEach((depId) => {
+        if (geometryMap.get(depId)?.type === "vertex") {
+          protectedVertexIds.add(depId);
+        }
+      });
+    });
+
+    const verticesToDelete = new Set<string>();
+    polylineVertexIds.forEach((vertexIds) => {
+      vertexIds.forEach((vertexId) => {
+        if (!protectedVertexIds.has(vertexId)) {
+          verticesToDelete.add(vertexId);
+        }
+      });
+    });
+
+    replaceGeometryBatch(replacements, { recordHistory: true });
+    if (verticesToDelete.size > 0) {
+      deleteGeometry(Array.from(verticesToDelete), { recordHistory: false });
+    }
+    setSelectedGeometryIds(Array.from(conversionIds));
+    return { count: replacements.length };
+  };
+
+  const createSurfaceFromSelection = () => {
+    if (selectionMode !== "object") {
+      return { error: "Switch the selection filter to Object to create a surface." };
+    }
+
+    const selectedCurves = selectedGeometryIds
+      .map((id) => geometryMap.get(id))
+      .filter((item): item is Geometry => Boolean(item))
+      .map((item) => ({ item, sample: collectCurveSamples(item) }))
+      .filter((entry) => Boolean(entry.sample));
+
+    const closedLoops = selectedCurves
+      .filter((entry) => entry.sample?.closed)
+      .map((entry) => entry.sample as { points: Vec3[]; closed: boolean });
+
+    if (closedLoops.length === 0) {
+      return { error: "Select at least one closed curve to create a surface." };
+    }
+
+    const loopPoints = closedLoops
+      .map((entry) => normalizeClosedLoop(entry.points))
+      .filter((points) => points.length >= 3);
+
+    if (loopPoints.length === 0) {
+      return { error: "Surface boundaries must have at least 3 points." };
+    }
+
+    const layerId =
+      selectedCurves[0]?.item.layerId ?? geometry[0]?.layerId ?? "layer-default";
+    const loops: string[][] = [];
+    const vertexItems: Geometry[] = [];
+    loopPoints.forEach((loop) => {
+      const vertexIds = loop.map(() => createGeometryId("vertex"));
+      loops.push(vertexIds);
+      loop.forEach((point, index) => {
+        vertexItems.push({
+          id: vertexIds[index],
+          type: "vertex",
+          position: point,
+          layerId,
+          area_m2: 1,
+          thickness_m: 0.1,
+        });
+      });
+    });
+
+    const { mesh, plane } = generateSurfaceMesh(loopPoints);
+    if (mesh.positions.length < 3) {
+      return { error: "Surface generation failed for the selected curves." };
+    }
+
+    const surfaceId = createGeometryId("surface");
+    const surfaceItem: Geometry = {
+      id: surfaceId,
+      type: "surface",
+      mesh,
+      loops,
+      plane,
+      layerId,
+      metadata: {
+        sourceCurveIds: selectedCurves.map((entry) => entry.item.id),
+      },
+    };
+
+    addGeometryItems([...vertexItems, surfaceItem], {
+      selectIds: [surfaceId],
+      recordHistory: true,
+    });
+    return { id: surfaceId };
+  };
+
+  const loftSelection = (input: string) => {
+    if (selectionMode !== "object") {
+      return { error: "Switch the selection filter to Object to loft curves." };
+    }
+
+    const sections = selectedGeometryIds
+      .map((id) => geometryMap.get(id))
+      .filter((item): item is Geometry => Boolean(item))
+      .map((item) => ({ item, sample: collectCurveSamples(item) }))
+      .filter((entry) => Boolean(entry.sample));
+
+    if (sections.length < 2) {
+      return { error: "Select at least two curves to loft." };
+    }
+
+    const points = sections
+      .map((entry) => entry.sample as { points: Vec3[]; closed: boolean })
+      .map((entry) => entry.points)
+      .filter((entry) => entry.length >= 2);
+
+    if (points.length < 2) {
+      return { error: "Selected curves need at least two points to loft." };
+    }
+
+    const degreeMatch = input.match(/degree\s*=?\s*(\d+)/i);
+    const samplesMatch = input.match(/samples?\s*=?\s*(\d+)/i);
+    const degreeRaw = degreeMatch ? Number(degreeMatch[1]) : 3;
+    const degree = Math.min(3, Math.max(1, Math.round(degreeRaw))) as 1 | 2 | 3;
+    const samplesRaw = samplesMatch ? Number(samplesMatch[1]) : 24;
+    const samples = Math.max(8, Math.round(samplesRaw));
+    const sectionClosed = sections.every((entry) => entry.sample?.closed);
+    const closed = /\bclosed\b/i.test(input);
+    const mesh = generateLoftMesh(points, {
+      degree,
+      sectionClosed,
+      closed,
+      samples,
+    });
+
+    if (mesh.positions.length < 3) {
+      return { error: "Loft failed for the selected curves." };
+    }
+
+    const sectionIds = sections.map((entry) => entry.item.id);
+    const loftId = addGeometryLoft(mesh, sectionIds, {
+      degree,
+      closed,
+      sectionClosed,
+      samples,
+      layerId: sections[0]?.item.layerId,
+      metadata: { sectionClosed, samples },
+    });
+    return { id: loftId };
+  };
+
+  const extrudeSelection = (input: string) => {
+    if (selectionMode !== "object") {
+      return { error: "Switch the selection filter to Object to extrude." };
+    }
+
+    const profiles = selectedGeometryIds
+      .map((id) => geometryMap.get(id))
+      .filter((item): item is Geometry => Boolean(item))
+      .map((item) => ({ item, sample: collectCurveSamples(item) }))
+      .filter((entry) => Boolean(entry.sample));
+
+    if (profiles.length === 0) {
+      return { error: "Select one or more curves to extrude." };
+    }
+
+    const lower = input.toLowerCase();
+    const spacingFallback =
+      Number.isFinite(gridSettings.spacing) && gridSettings.spacing !== 0
+        ? gridSettings.spacing
+        : 1;
+    const distance = parseFirstNumber(input) ?? spacingFallback;
+    const axisMatch = input.match(/axis\s*=?\s*([xyz])/i) ?? input.match(/\b([xyz])\b/i);
+    const axisKey = axisMatch ? (axisMatch[1].toLowerCase() as "x" | "y" | "z") : null;
+    const baseDirection = normalize(cPlane.normal);
+    const direction =
+      axisKey != null
+        ? resolveAxisVector(axisKey)
+        : Math.hypot(baseDirection.x, baseDirection.y, baseDirection.z) > 1e-6
+          ? baseDirection
+          : { x: 0, y: 1, z: 0 };
+    const capped = lower.includes("nocap") ? false : !lower.includes("open");
+
+    const createdIds: string[] = [];
+    recordModelerHistory();
+
+    profiles.forEach((entry) => {
+      const sample = entry.sample as { points: Vec3[]; closed: boolean };
+      if (sample.points.length < 2) return;
+      const profileClosed = sample.closed;
+      const mesh = generateExtrudeMesh(
+        [{ points: sample.points, closed: profileClosed }],
+        {
+          direction,
+          distance,
+          capped: capped && profileClosed,
+        }
+      );
+      if (mesh.positions.length < 3) return;
+      const extrudeId = addGeometryExtrude(mesh, [entry.item.id], {
+        distance,
+        direction,
+        capped: capped && profileClosed,
+        layerId: entry.item.layerId,
+        recordHistory: false,
+      });
+      createdIds.push(extrudeId);
+    });
+
+    if (createdIds.length === 0) {
+      return { error: "Extrude failed for the selected curves." };
+    }
+
+    setSelectedGeometryIds(createdIds);
+    return { count: createdIds.length };
+  };
+
+  const booleanSelection = () => {
+    if (selectionMode !== "object") {
+      return { error: "Switch the selection filter to Object to boolean." };
+    }
+
+    const sources = selectedGeometryIds
+      .map((id) => ({ id, item: geometryMap.get(id) }))
+      .filter((entry) => Boolean(entry.item))
+      .map((entry) => ({
+        id: entry.id,
+        mesh: entry.item ? resolveMeshFromGeometry(entry.item) : null,
+      }))
+      .filter((entry) => Boolean(entry.mesh)) as Array<{ id: string; mesh: RenderMesh }>;
+
+    const meshes = sources.map((entry) => entry.mesh);
+
+    if (meshes.length < 2) {
+      return { error: "Select at least two solids to boolean." };
+    }
+
+    const merged = mergeRenderMeshes(meshes);
+    recordModelerHistory();
+    const mergedId = addGeometryMesh(merged, {
+      recordHistory: false,
+      metadata: { booleanSourceIds: sources.map((entry) => entry.id) },
+    });
+    deleteGeometry(
+      sources.map((entry) => entry.id),
+      { recordHistory: false }
+    );
+    setSelectedGeometryIds([mergedId]);
+    return { count: 1 };
+  };
+
+  const ensureMeshIndices = (mesh: RenderMesh) =>
+    mesh.indices.length > 0
+      ? mesh.indices
+      : Array.from({ length: Math.floor(mesh.positions.length / 3) }, (_, i) => i);
+
+  const flipMesh = (mesh: RenderMesh): RenderMesh => {
+    const indices = ensureMeshIndices(mesh);
+    const flippedIndices: number[] = [];
+    for (let i = 0; i + 2 < indices.length; i += 3) {
+      flippedIndices.push(indices[i], indices[i + 2], indices[i + 1]);
+    }
+    const normals =
+      mesh.normals.length === mesh.positions.length
+        ? mesh.normals.map((value) => -value)
+        : computeVertexNormals(mesh.positions, flippedIndices);
+    return { ...mesh, indices: flippedIndices, normals };
+  };
+
+  const mergeSelectedMeshes = () => {
+    if (selectionMode !== "object") {
+      return { error: "Switch the selection filter to Object to merge meshes." };
+    }
+    const meshes = selectedGeometryIds
+      .map((id) => geometryMap.get(id))
+      .filter(isMeshGeometry);
+    if (meshes.length < 2) {
+      return { error: "Select at least two meshes to merge." };
+    }
+    const merged = mergeRenderMeshes(meshes.map((item) => item.mesh));
+    const lastMesh = meshes[meshes.length - 1];
+    const metadata = stripNurbsConversionMetadata(lastMesh?.metadata);
+    recordModelerHistory();
+    const mergedId = addGeometryMesh(merged, {
+      recordHistory: false,
+      layerId: lastMesh?.layerId,
+      thickness_m: lastMesh?.thickness_m,
+      metadata,
+    });
+    deleteGeometry(
+      meshes.map((item) => item.id),
+      { recordHistory: false }
+    );
+    setSelectedGeometryIds([mergedId]);
+    return { count: 1 };
+  };
+
+  const flipSelectedMeshes = () => {
+    if (selectionMode !== "object") {
+      return { error: "Switch the selection filter to Object to flip meshes." };
+    }
+    const meshes = selectedGeometryIds
+      .map((id) => geometryMap.get(id))
+      .filter(isMeshGeometry);
+    if (meshes.length === 0) {
+      return { error: "Select one or more meshes to flip." };
+    }
+    const updates = meshes.map((item) => {
+      const nextMesh = flipMesh(item.mesh);
+      return {
+        id: item.id,
+        data: {
+          mesh: nextMesh,
+          area_m2: computeMeshArea(nextMesh.positions, nextMesh.indices),
+        },
+      };
+    });
+    updateGeometryBatch(updates, { recordHistory: true });
+    return { count: updates.length };
+  };
+
+  const collectBoundaryEdges = (indices: number[]) => {
+    const edgeMap = new Map<string, { a: number; b: number; count: number }>();
+    for (let i = 0; i + 2 < indices.length; i += 3) {
+      const tri = [indices[i], indices[i + 1], indices[i + 2]];
+      for (let e = 0; e < 3; e += 1) {
+        const a = tri[e];
+        const b = tri[(e + 1) % 3];
+        const min = Math.min(a, b);
+        const max = Math.max(a, b);
+        const key = `${min}-${max}`;
+        const existing = edgeMap.get(key);
+        if (existing) {
+          existing.count += 1;
+        } else {
+          edgeMap.set(key, { a, b, count: 1 });
+        }
+      }
+    }
+    return Array.from(edgeMap.values()).filter((edge) => edge.count === 1);
+  };
+
+  const buildThickenedMesh = (
+    basePositions: number[],
+    baseIndices: number[],
+    baseUvs: number[],
+    thickness: number,
+    sides: string
+  ): RenderMesh => {
+    if (!Number.isFinite(thickness) || thickness === 0) {
+      const indices =
+        baseIndices.length > 0
+          ? baseIndices
+          : Array.from({ length: basePositions.length / 3 }, (_, i) => i);
+      const normals = computeVertexNormals(basePositions, indices);
+      return {
+        positions: basePositions.slice(),
+        normals,
+        uvs: baseUvs.slice(),
+        indices,
+      };
+    }
+
+    const vertexCount = Math.floor(basePositions.length / 3);
+    const indices =
+      baseIndices.length > 0
+        ? baseIndices
+        : Array.from({ length: vertexCount }, (_, i) => i);
+    const normals = computeVertexNormals(basePositions, indices);
+
+    const mode = sides.toLowerCase();
+    const offsetOuter = mode === "inward" ? 0 : mode === "both" ? thickness * 0.5 : thickness;
+    const offsetInner = mode === "outward" ? 0 : mode === "both" ? -thickness * 0.5 : -thickness;
+
+    const positions: number[] = [];
+    const outerPositions: number[] = [];
+    const innerPositions: number[] = [];
+    for (let i = 0; i < vertexCount; i += 1) {
+      const x = basePositions[i * 3] ?? 0;
+      const y = basePositions[i * 3 + 1] ?? 0;
+      const z = basePositions[i * 3 + 2] ?? 0;
+      const nx = normals[i * 3] ?? 0;
+      const ny = normals[i * 3 + 1] ?? 0;
+      const nz = normals[i * 3 + 2] ?? 0;
+      outerPositions.push(x + nx * offsetOuter, y + ny * offsetOuter, z + nz * offsetOuter);
+      innerPositions.push(x + nx * offsetInner, y + ny * offsetInner, z + nz * offsetInner);
+    }
+    positions.push(...outerPositions, ...innerPositions);
+
+    const uvCount = Math.floor(baseUvs.length / 2);
+    const uvs: number[] = [];
+    if (uvCount === vertexCount) {
+      uvs.push(...baseUvs, ...baseUvs);
+    } else if (vertexCount > 0) {
+      uvs.push(...new Array(vertexCount * 2).fill(0), ...new Array(vertexCount * 2).fill(0));
+    }
+
+    const combinedIndices: number[] = [];
+    combinedIndices.push(...indices);
+    for (let i = 0; i + 2 < indices.length; i += 3) {
+      const a = indices[i];
+      const b = indices[i + 1];
+      const c = indices[i + 2];
+      combinedIndices.push(a + vertexCount, c + vertexCount, b + vertexCount);
+    }
+
+    const boundaryEdges = collectBoundaryEdges(indices);
+    boundaryEdges.forEach((edge) => {
+      const a = edge.a;
+      const b = edge.b;
+      const aInner = a + vertexCount;
+      const bInner = b + vertexCount;
+      combinedIndices.push(a, b, bInner);
+      combinedIndices.push(a, bInner, aInner);
+    });
+
+    const finalNormals = computeVertexNormals(positions, combinedIndices);
+    return {
+      positions,
+      normals: finalNormals,
+      uvs,
+      indices: combinedIndices,
+    };
+  };
+
+  const thickenSelectedMeshes = (thickness: number, sides: string) => {
+    if (selectionMode !== "object") {
+      return { error: "Switch the selection filter to Object to thicken meshes." };
+    }
+    if (!Number.isFinite(thickness) || thickness <= 0) {
+      return { error: "Provide a positive thickness for mesh thicken." };
+    }
+    const meshes = selectedGeometryIds
+      .map((id) => geometryMap.get(id))
+      .filter(isMeshGeometry);
+    if (meshes.length === 0) {
+      return { error: "Select one or more meshes to thicken." };
+    }
+    const updates = meshes.map((item) => {
+      const indices = ensureMeshIndices(item.mesh);
+      const nextMesh = buildThickenedMesh(
+        item.mesh.positions,
+        indices,
+        item.mesh.uvs ?? [],
+        thickness,
+        sides
+      );
+      return {
+        id: item.id,
+        data: {
+          mesh: nextMesh,
+          area_m2: computeMeshArea(nextMesh.positions, nextMesh.indices),
+        },
+      };
+    });
+    updateGeometryBatch(updates, { recordHistory: true });
+    return { count: updates.length };
+  };
+
   const selectionPoints = useMemo(() => {
     const points: Vec3[] = [];
     selectedGeometryIds.forEach((id) => {
       const item = geometryMap.get(id);
       if (!item) return;
-      if (item.type === "vertex") {
-        points.push(item.position);
-        return;
-      }
-      if (item.type === "polyline") {
-        item.vertexIds.forEach((vertexId) => {
-          const vertex = vertexMap.get(vertexId);
-          if (vertex) points.push(vertex.position);
-        });
-        return;
-      }
-      if ("mesh" in item) {
-        for (let i = 0; i < item.mesh.positions.length; i += 3) {
-          points.push({
-            x: item.mesh.positions[i],
-            y: item.mesh.positions[i + 1],
-            z: item.mesh.positions[i + 2],
-          });
-        }
-      }
+      points.push(...collectGeometryPoints(item));
     });
     return points;
-  }, [geometryMap, vertexMap, selectedGeometryIds]);
+  }, [collectGeometryPoints, geometryMap, selectedGeometryIds]);
 
   const canAlignSelectionPlane = selectionPoints.length >= 3;
 
@@ -1480,6 +3059,152 @@ const ModelerSection = ({
   const createGeometryId = (prefix: string) =>
     `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
 
+  const translateControlPoints = (points: Vec3[], delta: Vec3) =>
+    points.map((point) => add(point, delta));
+
+  const translateControlPointGrid = (grid: Vec3[][], delta: Vec3) =>
+    grid.map((row) => row.map((point) => add(point, delta)));
+
+  const translateBRepCurve = (curve: BRepCurve, delta: Vec3): BRepCurve => {
+    if (curve.kind === "line") {
+      return {
+        ...curve,
+        start: add(curve.start, delta),
+        end: add(curve.end, delta),
+      };
+    }
+    if (curve.kind === "nurbs") {
+      return {
+        ...curve,
+        curve: {
+          ...curve.curve,
+          controlPoints: translateControlPoints(curve.curve.controlPoints, delta),
+        },
+      };
+    }
+    return curve;
+  };
+
+  const translateBRepSurface = (surface: BRepSurface, delta: Vec3): BRepSurface => {
+    if (surface.kind === "plane") {
+      return {
+        ...surface,
+        plane: {
+          ...surface.plane,
+          origin: add(surface.plane.origin, delta),
+        },
+      };
+    }
+    if (surface.kind === "nurbs") {
+      return {
+        ...surface,
+        surface: {
+          ...surface.surface,
+          controlPoints: translateControlPointGrid(surface.surface.controlPoints, delta),
+        },
+      };
+    }
+    return surface;
+  };
+
+  const translateBRepData = (brep: BRepData, delta: Vec3): BRepData => ({
+    ...brep,
+    vertices: brep.vertices.map((vertex) => ({
+      ...vertex,
+      position: add(vertex.position, delta),
+    })),
+    edges: brep.edges.map((edge) => ({
+      ...edge,
+      curve: translateBRepCurve(edge.curve, delta),
+    })),
+    faces: brep.faces.map((face) => ({
+      ...face,
+      surface: translateBRepSurface(face.surface, delta),
+    })),
+  });
+
+  const transformControlPoints = (
+    points: Vec3[],
+    transformPoint: (point: Vec3) => Vec3
+  ) => points.map((point) => transformPoint(point));
+
+  const transformControlPointGrid = (
+    grid: Vec3[][],
+    transformPoint: (point: Vec3) => Vec3
+  ) => grid.map((row) => row.map((point) => transformPoint(point)));
+
+  const transformBRepCurve = (
+    curve: BRepCurve,
+    transformPoint: (point: Vec3) => Vec3
+  ): BRepCurve => {
+    if (curve.kind === "line") {
+      return {
+        ...curve,
+        start: transformPoint(curve.start),
+        end: transformPoint(curve.end),
+      };
+    }
+    if (curve.kind === "nurbs") {
+      return {
+        ...curve,
+        curve: {
+          ...curve.curve,
+          controlPoints: transformControlPoints(curve.curve.controlPoints, transformPoint),
+        },
+      };
+    }
+    return curve;
+  };
+
+  const transformBRepSurface = (
+    surface: BRepSurface,
+    transformPoint: (point: Vec3) => Vec3,
+    transformVector: (vector: Vec3) => Vec3
+  ): BRepSurface => {
+    if (surface.kind === "plane") {
+      return {
+        ...surface,
+        plane: {
+          ...surface.plane,
+          origin: transformPoint(surface.plane.origin),
+          xAxis: transformVector(surface.plane.xAxis),
+          yAxis: transformVector(surface.plane.yAxis),
+          normal: normalize(transformVector(surface.plane.normal)),
+        },
+      };
+    }
+    if (surface.kind === "nurbs") {
+      return {
+        ...surface,
+        surface: {
+          ...surface.surface,
+          controlPoints: transformControlPointGrid(surface.surface.controlPoints, transformPoint),
+        },
+      };
+    }
+    return surface;
+  };
+
+  const transformBRepData = (
+    brep: BRepData,
+    transformPoint: (point: Vec3) => Vec3,
+    transformVector: (vector: Vec3) => Vec3
+  ): BRepData => ({
+    ...brep,
+    vertices: brep.vertices.map((vertex) => ({
+      ...vertex,
+      position: transformPoint(vertex.position),
+    })),
+    edges: brep.edges.map((edge) => ({
+      ...edge,
+      curve: transformBRepCurve(edge.curve, transformPoint),
+    })),
+    faces: brep.faces.map((face) => ({
+      ...face,
+      surface: transformBRepSurface(face.surface, transformPoint, transformVector),
+    })),
+  });
+
   const collectGeometryDependencies = (ids: string[]) => {
     const collected = new Set<string>();
     const stack = [...ids];
@@ -1510,26 +3235,7 @@ const ModelerSection = ({
     ids.forEach((id) => {
       const item = geometryMap.get(id);
       if (!item) return;
-      if (item.type === "vertex") {
-        points.push(item.position);
-        return;
-      }
-      if (item.type === "polyline") {
-        item.vertexIds.forEach((vertexId) => {
-          const vertex = vertexMap.get(vertexId);
-          if (vertex) points.push(vertex.position);
-        });
-        return;
-      }
-      if ("mesh" in item) {
-        for (let i = 0; i < item.mesh.positions.length; i += 3) {
-          points.push({
-            x: item.mesh.positions[i],
-            y: item.mesh.positions[i + 1],
-            z: item.mesh.positions[i + 2],
-          });
-        }
-      }
+      points.push(...collectGeometryPoints(item));
     });
     return points.length > 0 ? centroid(points) : { x: 0, y: 0, z: 0 };
   };
@@ -1612,6 +3318,52 @@ const ModelerSection = ({
           ...item,
           position: add(item.position, delta),
         };
+      }
+      if (item.type === "nurbsCurve") {
+        return {
+          ...item,
+          nurbs: {
+            ...item.nurbs,
+            controlPoints: translateControlPoints(item.nurbs.controlPoints, delta),
+          },
+        };
+      }
+      if (item.type === "nurbsSurface") {
+        const nextNurbs = {
+          ...item.nurbs,
+          controlPoints: translateControlPointGrid(item.nurbs.controlPoints, delta),
+        };
+        if (item.mesh) {
+          const positions = item.mesh.positions.slice();
+          for (let i = 0; i < positions.length; i += 3) {
+            positions[i] += delta.x;
+            positions[i + 1] += delta.y;
+            positions[i + 2] += delta.z;
+          }
+          return {
+            ...item,
+            nurbs: nextNurbs,
+            mesh: { ...item.mesh, positions },
+          };
+        }
+        return { ...item, nurbs: nextNurbs };
+      }
+      if (item.type === "brep") {
+        const nextBrep = translateBRepData(item.brep, delta);
+        if (item.mesh) {
+          const positions = item.mesh.positions.slice();
+          for (let i = 0; i < positions.length; i += 3) {
+            positions[i] += delta.x;
+            positions[i + 1] += delta.y;
+            positions[i + 2] += delta.z;
+          }
+          return {
+            ...item,
+            brep: nextBrep,
+            mesh: { ...item.mesh, positions },
+          };
+        }
+        return { ...item, brep: nextBrep };
       }
       if ("mesh" in item) {
         const positions = item.mesh.positions.slice();
@@ -1701,6 +3453,88 @@ const ModelerSection = ({
           ...item,
           position: transform.point(item.position),
         };
+      }
+      if (item.type === "nurbsCurve") {
+        return {
+          ...item,
+          nurbs: {
+            ...item.nurbs,
+            controlPoints: transformControlPoints(item.nurbs.controlPoints, transform.point),
+          },
+        };
+      }
+      if (item.type === "nurbsSurface") {
+        const nextNurbs = {
+          ...item.nurbs,
+          controlPoints: transformControlPointGrid(item.nurbs.controlPoints, transform.point),
+        };
+        if (item.mesh) {
+          const positions = item.mesh.positions.slice();
+          for (let i = 0; i < positions.length; i += 3) {
+            const point = {
+              x: positions[i],
+              y: positions[i + 1],
+              z: positions[i + 2],
+            };
+            const next = transform.point(point);
+            positions[i] = next.x;
+            positions[i + 1] = next.y;
+            positions[i + 2] = next.z;
+          }
+          const normals = item.mesh.normals.slice();
+          for (let i = 0; i < normals.length; i += 3) {
+            const normal = {
+              x: normals[i],
+              y: normals[i + 1],
+              z: normals[i + 2],
+            };
+            const next = normalize(vectorTransform(normal));
+            normals[i] = next.x;
+            normals[i + 1] = next.y;
+            normals[i + 2] = next.z;
+          }
+          return {
+            ...item,
+            nurbs: nextNurbs,
+            mesh: { ...item.mesh, positions, normals },
+          };
+        }
+        return { ...item, nurbs: nextNurbs };
+      }
+      if (item.type === "brep") {
+        const nextBrep = transformBRepData(item.brep, transform.point, vectorTransform);
+        if (item.mesh) {
+          const positions = item.mesh.positions.slice();
+          for (let i = 0; i < positions.length; i += 3) {
+            const point = {
+              x: positions[i],
+              y: positions[i + 1],
+              z: positions[i + 2],
+            };
+            const next = transform.point(point);
+            positions[i] = next.x;
+            positions[i + 1] = next.y;
+            positions[i + 2] = next.z;
+          }
+          const normals = item.mesh.normals.slice();
+          for (let i = 0; i < normals.length; i += 3) {
+            const normal = {
+              x: normals[i],
+              y: normals[i + 1],
+              z: normals[i + 2],
+            };
+            const next = normalize(vectorTransform(normal));
+            normals[i] = next.x;
+            normals[i + 1] = next.y;
+            normals[i + 2] = next.z;
+          }
+          return {
+            ...item,
+            brep: nextBrep,
+            mesh: { ...item.mesh, positions, normals },
+          };
+        }
+        return { ...item, brep: nextBrep };
       }
       if ("mesh" in item) {
         const positions = item.mesh.positions.slice();
@@ -1894,16 +3728,62 @@ const ModelerSection = ({
     };
   };
 
+  const parseMeshThickenSettings = (input: string) => {
+    const lower = input.toLowerCase();
+    const thicknessMatch =
+      lower.match(/thickness\s*=?\s*(-?\d*\.?\d+)/i) ??
+      lower.match(/distance\s*=?\s*(-?\d*\.?\d+)/i);
+    const fallbackNumber = parseFirstNumber(input);
+    const thickness = thicknessMatch ? Number(thicknessMatch[1]) : fallbackNumber ?? 1;
+    const sides = lower.includes("inward")
+      ? "inward"
+      : lower.includes("outward")
+        ? "outward"
+        : "both";
+    return { thickness, sides };
+  };
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      const isEditableElement = (element: HTMLElement | null) =>
+        Boolean(
+          element &&
+            (element.tagName === "INPUT" ||
+              element.tagName === "TEXTAREA" ||
+              element.isContentEditable)
+        );
       const target = event.target as HTMLElement | null;
-      if (
-        target &&
-        (target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.isContentEditable)
-      ) {
+      const activeElement =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      if (isEditableElement(target) || isEditableElement(activeElement)) {
         return;
+      }
+      if (
+        viewerHoverRef.current &&
+        !event.defaultPrevented &&
+        !event.isComposing &&
+        !event.altKey &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        event.key.length === 1 &&
+        event.key !== " "
+      ) {
+        const input = commandInputRef.current;
+        if (input && !input.disabled && !input.readOnly) {
+          event.preventDefault();
+          const nextChar = event.key;
+          setCommandInput((prev) => `${prev}${nextChar}`);
+          if (commandError) {
+            setCommandError("");
+          }
+          input.focus({ preventScroll: true });
+          requestAnimationFrame(() => {
+            if (!commandInputRef.current) return;
+            const length = commandInputRef.current.value.length;
+            commandInputRef.current.setSelectionRange(length, length);
+          });
+          return;
+        }
       }
       const key = event.key.toLowerCase();
       if ((event.ctrlKey || event.metaKey) && key === "z") {
@@ -1986,6 +3866,9 @@ const ModelerSection = ({
     transformOrientation,
     setTransformOrientation,
     setSelectionMode,
+    commandError,
+    setCommandInput,
+    setCommandError,
   ]);
 
   const sceneNodeMap = useMemo(
@@ -2217,6 +4100,7 @@ const ModelerSection = ({
       ensurePlanarDefaults();
     }
     handleCommandSubmit(command.id);
+    setPaletteCollapsed(true);
   };
 
   const dispatchCommandRequest = (id: string, input: string) => {
@@ -2433,10 +4317,20 @@ const ModelerSection = ({
       const commandId = parsed.command.id;
       const args = parsed.args ?? "";
       const lower = args.toLowerCase();
+      setPaletteCollapsed(true);
       const commandKind = PRIMITIVE_KIND_BY_COMMAND.get(commandId);
       if (commandKind) {
         ensurePlanarDefaults();
         updatePrimitiveFromInput(rawInput, commandKind);
+        activateCommand(parsed.command);
+        setCommandInput("");
+        setCommandError("");
+        return;
+      }
+      const nurbsPrimitiveKind = NURBS_PRIMITIVE_KIND_BY_COMMAND.get(commandId);
+      if (nurbsPrimitiveKind) {
+        ensurePlanarDefaults();
+        updatePrimitiveFromInput(rawInput, nurbsPrimitiveKind);
         activateCommand(parsed.command);
         setCommandInput("");
         setCommandError("");
@@ -2469,6 +4363,91 @@ const ModelerSection = ({
           settings.spacing,
           settings.count
         );
+        setActiveCommand(null);
+        setCommandInput("");
+        setCommandError(result.error ?? "");
+        return;
+      }
+      if (commandId === "meshconvert") {
+        const result = convertSelectionToMesh();
+        setActiveCommand(null);
+        setCommandInput("");
+        setCommandError(result.error ?? "");
+        return;
+      }
+      if (commandId === "breptomesh") {
+        const result = convertSelectionToMeshFromBrep();
+        setActiveCommand(null);
+        setCommandInput("");
+        setCommandError(result.error ?? "");
+        return;
+      }
+      if (commandId === "meshtobrep") {
+        const result = convertSelectionToBrep();
+        setActiveCommand(null);
+        setCommandInput("");
+        setCommandError(result.error ?? "");
+        return;
+      }
+      if (commandId === "nurbsrestore") {
+        const result = restoreSelectionToNurbs();
+        setActiveCommand(null);
+        setCommandInput("");
+        setCommandError(result.error ?? "");
+        return;
+      }
+      if (commandId === "interpolate") {
+        const result = interpolateSelectedPolylines();
+        setActiveCommand(null);
+        setCommandInput("");
+        setCommandError(result.error ?? "");
+        return;
+      }
+      if (commandId === "surface") {
+        const result = createSurfaceFromSelection();
+        setActiveCommand(null);
+        setCommandInput("");
+        setCommandError(result.error ?? "");
+        return;
+      }
+      if (commandId === "loft") {
+        const result = loftSelection(args || rawInput);
+        setActiveCommand(null);
+        setCommandInput("");
+        setCommandError(result.error ?? "");
+        return;
+      }
+      if (commandId === "extrude") {
+        const result = extrudeSelection(args || rawInput);
+        setActiveCommand(null);
+        setCommandInput("");
+        setCommandError(result.error ?? "");
+        return;
+      }
+      if (commandId === "boolean") {
+        const result = booleanSelection();
+        setActiveCommand(null);
+        setCommandInput("");
+        setCommandError(result.error ?? "");
+        return;
+      }
+      if (commandId === "meshmerge") {
+        const result = mergeSelectedMeshes();
+        setActiveCommand(null);
+        setCommandInput("");
+        setCommandError(result.error ?? "");
+        return;
+      }
+      if (commandId === "meshflip") {
+        const result = flipSelectedMeshes();
+        setActiveCommand(null);
+        setCommandInput("");
+        setCommandError(result.error ?? "");
+        return;
+      }
+      if (commandId === "meshthicken") {
+        const settings = parseMeshThickenSettings(args || rawInput);
+        const result = thickenSelectedMeshes(settings.thickness, settings.sides);
         setActiveCommand(null);
         setCommandInput("");
         setCommandError(result.error ?? "");
@@ -2530,6 +4509,14 @@ const ModelerSection = ({
         setCommandError("");
         return;
       }
+      if (commandId === "screenshot") {
+        if (!captureDisabled) {
+          void handleCapture();
+        }
+        setCommandInput("");
+        setCommandError("");
+        return;
+      }
       if (commandId === "delete") {
         if (selectedGeometryIds.length > 0) {
           const shouldDelete =
@@ -2547,10 +4534,22 @@ const ModelerSection = ({
         return;
       }
       if (commandId === "selectionfilter") {
-        if (lower.includes("vertex")) setSelectionMode("vertex");
-        else if (lower.includes("edge")) setSelectionMode("edge");
-        else if (lower.includes("face")) setSelectionMode("face");
-        else setSelectionMode("object");
+        const resolveMode = (value: string) => {
+          if (/\b(object|obj)\b/.test(value)) return "object";
+          if (/\b(vertex|vert|vtx|point)\b/.test(value)) return "vertex";
+          if (/\b(edge|edg)\b/.test(value)) return "edge";
+          if (/\b(face|fce)\b/.test(value)) return "face";
+          return null;
+        };
+        const explicit = resolveMode(lower);
+        if (explicit) {
+          setSelectionMode(explicit);
+        } else {
+          const order = ["object", "vertex", "edge", "face"] as const;
+          const currentIndex = Math.max(0, order.indexOf(selectionMode as (typeof order)[number]));
+          const nextMode = order[(currentIndex + 1) % order.length];
+          setSelectionMode(nextMode);
+        }
         setCommandInput("");
         setCommandError("");
         return;
@@ -2781,12 +4780,20 @@ const ModelerSection = ({
         return "Point";
       case "polyline":
         return "Polyline";
+      case "nurbsCurve":
+        return "NURBS Curve";
+      case "nurbsSurface":
+        return "NURBS Surface";
       case "surface":
         return "Surface";
       case "loft":
         return "Loft";
       case "extrude":
         return "Extrude";
+      case "mesh":
+        return "Mesh";
+      case "brep":
+        return "B-Rep";
       default:
         return "Geometry";
     }
@@ -2815,44 +4822,11 @@ const ModelerSection = ({
   const handleGumballAlignmentToggle = (next: boolean) => {
     setGumballAlignment(next ? "cplane" : "boundingBox");
   };
-  const clampStep = (value: number, min: number, max: number) =>
-    Math.min(max, Math.max(min, value));
-  const handleGumballStepDistanceChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const value = event.target.value;
-    setGumballStepDraft((prev) => ({ ...prev, distance: value }));
-  };
-  const handleGumballStepAngleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const value = event.target.value;
-    setGumballStepDraft((prev) => ({ ...prev, angle: value }));
-  };
-  const commitGumballStepDistance = () => {
-    const next = Number(gumballStepDraft.distance);
-    if (Number.isFinite(next)) {
-      setGumballStep({ distance: clampStep(next, 0.001, 1000) });
-      return;
-    }
-    setGumballStepDraft((prev) => ({ ...prev, distance: `${gumballStep.distance}` }));
-  };
-  const commitGumballStepAngle = () => {
-    const next = Number(gumballStepDraft.angle);
-    if (Number.isFinite(next)) {
-      setGumballStep({ angle: clampStep(next, 0.1, 180) });
-      return;
-    }
-    setGumballStepDraft((prev) => ({ ...prev, angle: `${gumballStep.angle}` }));
-  };
-  const handleSilhouetteToggle = () => {
-    if (displayMode === "silhouette") {
-      setViewSolidity(viewSolidity, { overrideDisplayMode: true });
-      return;
-    }
-    setDisplayMode("silhouette");
-  };
-  const viewSliderLabel = displayMode === "silhouette" ? "Silhouette" : "View";
-  const viewSliderTooltip =
-    displayMode === "silhouette"
-      ? "Blend from dashed edges to solid silhouette."
-      : "Slide between Solid, Ghosted, and Wireframe.";
+  const isSilhouetteFilter = renderFilter === "silhouette";
+  const viewSliderLabel = isSilhouetteFilter ? "Silhouette" : "View";
+  const viewSliderTooltip = isSilhouetteFilter
+    ? "Blend from dashed edges to solid silhouette."
+    : "Slide between Solid, Ghosted, and Wireframe.";
 
   const footerContent = isFullscreenStatusHidden ? null : (
       <WebGLStatusFooter
@@ -2896,13 +4870,31 @@ const ModelerSection = ({
       />
     );
 
-  const commandActions: WebGLTopBarAction[] = COMMAND_DEFINITIONS.map((command) => {
+  const commandActions: WebGLTopBarAction[] = COMMAND_DEFINITIONS.filter(
+    (command) => command.id !== "screenshot"
+  ).map((command) => {
     const meta = COMMAND_DESCRIPTIONS[command.id];
+    const category = meta?.category ?? command.category ?? "performs";
+    const description =
+      meta?.description ?? cleanCommandPrompt(command.prompt, command.label);
     const shortcut = meta?.shortcut ? ` (${meta.shortcut})` : "";
+    const accent = resolveRoslynGroupAccent(resolveCommandGroupLabel(command.id));
     return {
       id: command.id,
       label: command.label,
-      tooltip: `${meta?.description ?? command.prompt}${shortcut}`,
+      tooltip: `${description}${shortcut}`,
+      tooltipContent: (
+        <TooltipCard
+          title={command.label}
+          kindLabel="Roslyn Command"
+          categoryLabel={resolveCommandCategoryLabel(category)}
+          semantic={resolveCommandSemantics(category)}
+          description={description}
+          href={buildCommandDocsHref(command.id)}
+          accentColor={accent}
+          shortcut={meta?.shortcut}
+        />
+      ),
       onClick: () => handleCommandClick(command),
       isActive: activeCommand?.id === command.id,
       icon: resolveCommandIconId(command.id),
@@ -2974,7 +4966,10 @@ const ModelerSection = ({
       id: `selection-${option.value}`,
       label: option.label,
       tooltip: option.tooltip,
-      onClick: () => setSelectionMode(option.value as typeof selectionMode),
+      onClick: () => {
+        setSelectionMode(option.value as typeof selectionMode);
+        setPaletteCollapsed(true);
+      },
       isActive: selectionMode === option.value,
       icon: option.iconId as IconId,
       iconTint: COMMAND_CATEGORY_TINTS.neutral,
@@ -3130,18 +5125,6 @@ const ModelerSection = ({
     },
   ];
 
-  const captureAction: WebGLTopBarAction = {
-    id: "capture",
-    label: "Capture",
-    tooltip: "Capture a render of the current viewport.",
-    shortLabel: "CAP",
-    onClick: handleCapture,
-    isDisabled: captureDisabled,
-    icon: "capture",
-    iconTint: COMMAND_CATEGORY_TINTS.neutral,
-    groupLabel: "View",
-  };
-
   const paletteActions: WebGLTopBarAction[] = [
     ...commandActions,
     ...selectionModeActions,
@@ -3151,7 +5134,6 @@ const ModelerSection = ({
     ...workflowActions,
     ...groupActions,
     ...cameraActions,
-    captureAction,
   ];
 
   const paletteGroups = useMemo(() => {
@@ -3231,22 +5213,13 @@ const ModelerSection = ({
                 )}
               </div>
             </div>
-          </div>
-          <div className={styles.headerCluster}>
+        </div>
+        <div className={styles.headerCluster}>
+          {onToggleFullscreen && (
             <IconButton
               size="sm"
-              label="Capture viewport"
-              iconId="capture"
-              tooltip="Capture a render of the current viewport"
-              tooltipPosition="bottom"
-              onClick={handleCapture}
-              disabled={captureDisabled}
-            />
-            {onToggleFullscreen && (
-              <IconButton
-                size="sm"
-                label={isFullscreen ? "Exit full screen" : "Enter full screen"}
-                iconId={isFullscreen ? "close" : "frameAll"}
+              label={isFullscreen ? "Exit full screen" : "Enter full screen"}
+              iconId={isFullscreen ? "close" : "frameAll"}
                 tooltip={isFullscreen ? "Exit full screen" : "Full screen"}
                 tooltipPosition="bottom"
                 onClick={onToggleFullscreen}
@@ -3341,13 +5314,21 @@ const ModelerSection = ({
                                         : undefined
                                     }
                                     label={action.label}
-                                    shortLabel={resolveTopBarShortLabel(action)}
                                     iconId={action.icon ?? "primitive"}
+                                    iconStyle="sticker"
+                                    iconTintOverride={group.accent}
+                                    iconSignature={createIconSignature(action.id)}
+                                    hideLabel
                                     variant="palette"
+                                    size="lg"
                                     shape="square"
                                     accentColor={group.accent}
-                                    tooltip={action.tooltip}
+                                    tooltip={action.tooltipContent ?? action.tooltip}
                                     tooltipPosition="bottom"
+                                    tooltipMaxWidth={action.tooltipContent ? 300 : undefined}
+                                    tooltipInteractive={Boolean(action.tooltipContent)}
+                                    tooltipBoundaryRef={paletteRef}
+                                    tooltipBoundaryPadding={8}
                                     disabled={action.isDisabled}
                                     onClick={action.onClick}
                                   />
@@ -3365,6 +5346,12 @@ const ModelerSection = ({
             <div
               className={styles.viewerInner}
               onContextMenu={(event) => event.preventDefault()}
+              onPointerEnter={() => {
+                viewerHoverRef.current = true;
+              }}
+              onPointerLeave={() => {
+                viewerHoverRef.current = false;
+              }}
               data-no-workspace-pan
               data-panel-drag="true"
               data-fullscreen={isFullscreen ? "true" : "false"}
@@ -3522,159 +5509,163 @@ const ModelerSection = ({
                       : `${selectedGeometryIds.length} selected`}
                   </span>
                 </div>
-                <label className={styles.renderMaterialRow}>
+                <div className={styles.renderMaterialRow}>
                   <span className={styles.renderMaterialLabel}>Color</span>
-                  <input
-                    className={styles.renderMaterialColorInput}
-                    type="color"
-                    value={materialPickerHex}
-                    disabled={materialPickerDisabled}
-                    onChange={(event) =>
-                      handleMaterialColorChange(event.target.value)
-                    }
-                    onPointerDown={(event) => event.stopPropagation()}
-                    onPointerUp={(event) => event.stopPropagation()}
-                    onPointerCancel={(event) => event.stopPropagation()}
-                  />
-                </label>
-                <div className={styles.renderMaterialHex}>{materialPickerHex}</div>
-              </div>
-            </div>
-            <div
-              className={styles.viewerModeCorner}
-              data-no-workspace-pan
-              data-collapsed={viewerModeCollapsed ? "true" : "false"}
-            >
-              <div className={styles.viewerModeHeader}>
-                <span className={styles.viewerModeTitle}>View Controls</span>
-                <IconButton
-                  className={styles.viewerModeToggle}
-                  size="sm"
-                  iconId="chevronDown"
-                  label={viewerModeCollapsed ? "Expand view controls" : "Collapse view controls"}
-                  tooltip={viewerModeCollapsed ? "Expand view controls" : "Collapse view controls"}
-                  tooltipPosition="left"
-                  style={{ width: 26, height: 26 }}
-                  onClick={() => setViewerModeCollapsed((prev) => !prev)}
-                  data-collapsed={viewerModeCollapsed ? "true" : "false"}
-                  onPointerDown={(event) => event.stopPropagation()}
-                  onPointerUp={(event) => event.stopPropagation()}
-                  onPointerCancel={(event) => event.stopPropagation()}
-                />
-              </div>
-              {!viewerModeCollapsed && (
-                <div className={styles.viewerModeBody}>
-                  <WebGLButton
-                    label="Silhouette"
-                    tooltip="Silhouette view: crisp outline with adjustable fill."
-                    iconId="displayMode"
-                    variant="command"
-                    size="sm"
-                    shape="rounded"
-                    accentColor="#111111"
-                    active={displayMode === "silhouette"}
-                    className={styles.viewerModeControl}
-                    onClick={handleSilhouetteToggle}
-                    onPointerDown={(event) => event.stopPropagation()}
-                    onPointerUp={(event) => event.stopPropagation()}
-                    onPointerCancel={(event) => event.stopPropagation()}
-                  />
-                  <div className={styles.viewerStepRow}>
-                    <span className={styles.viewerStepLabel}>Gumball Step</span>
-                <label className={styles.viewerStepField}>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={gumballStepDraft.distance}
-                    onChange={handleGumballStepDistanceChange}
-                    onBlur={commitGumballStepDistance}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.currentTarget.blur();
-                      }
-                    }}
-                    className={styles.viewerStepInput}
-                    title="Move/Extrude step size"
-                    onPointerDown={(event) => event.stopPropagation()}
-                  />
-                  <span className={styles.viewerStepUnit}>u</span>
-                </label>
-                <label className={styles.viewerStepField}>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={gumballStepDraft.angle}
-                    onChange={handleGumballStepAngleChange}
-                    onBlur={commitGumballStepAngle}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.currentTarget.blur();
-                      }
-                    }}
-                    className={styles.viewerStepInput}
-                    title="Rotate step size (deg)"
-                    onPointerDown={(event) => event.stopPropagation()}
-                  />
-                      <span className={styles.viewerStepUnit}>deg</span>
-                    </label>
+                  <div className={styles.renderMaterialInlineControls}>
+                    <div className={styles.renderMaterialWheelWrap}>
+                      <button
+                        type="button"
+                        className={styles.renderMaterialWheel}
+                        data-palette={renderFilter}
+                        disabled={materialPickerDisabled}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (materialPickerDisabled) return;
+                          setActiveColorWheel((prev) =>
+                            prev === "material" ? null : "material"
+                          );
+                        }}
+                        onPointerDown={(event) => event.stopPropagation()}
+                        onPointerUp={(event) => event.stopPropagation()}
+                        onPointerCancel={(event) => event.stopPropagation()}
+                        aria-label="Pick material color"
+                      >
+                        <span
+                          className={styles.renderMaterialWheelDot}
+                          style={{
+                            background:
+                              renderFilter === "silhouette"
+                                ? "#000000"
+                                : materialPickerHex,
+                          }}
+                        />
+                      </button>
+                      {activeColorWheel === "material" && (
+                        <div
+                          className={styles.renderMaterialWheelPopover}
+                          data-palette={renderFilter}
+                          onPointerDown={handleWheelPointerDown("material")}
+                          onPointerMove={handleWheelPointerMove("material")}
+                          onPointerUp={handleWheelPointerUp("material")}
+                          onPointerCancel={handleWheelPointerUp("material")}
+                        />
+                      )}
+                    </div>
                   </div>
-                  <WebGLSlider
-                    label={viewSliderLabel}
-                    tooltip={viewSliderTooltip}
-                    iconId="displayMode"
-                    value={viewSolidity}
-                    min={0}
-                    max={1}
-                    step={0.00025}
-                    onChange={setViewSolidity}
-                    variant="command"
-                    size="sm"
-                    shape="rounded"
-                    accentColor="#00c2d1"
-                    className={styles.viewerModeControl}
-                    onPointerDown={(event) => event.stopPropagation()}
-                    onPointerUp={(event) => event.stopPropagation()}
-                    onPointerCancel={(event) => event.stopPropagation()}
-                  />
-                  <WebGLSlider
-                    label="Sheen"
-                    tooltip="Glossy highlight intensity (white light)."
-                    iconId="sphere"
-                    value={viewSettings.sheen ?? 0.08}
-                    min={0}
-                    max={0.15}
-                    step={0.005}
-                    onChange={(value) => setViewSettings({ sheen: value })}
-                    variant="command"
-                    size="sm"
-                    shape="rounded"
-                    accentColor="#f7f3ea"
-                    className={styles.viewerModeControl}
-                    onPointerDown={(event) => event.stopPropagation()}
-                    onPointerUp={(event) => event.stopPropagation()}
-                    onPointerCancel={(event) => event.stopPropagation()}
-                  />
-                  <WebGLButton
-                    label="Pick Debug"
-                    tooltip="Toggle point pick radius and hovered id overlay."
-                    iconId="point"
-                    variant="command"
-                    size="sm"
-                    shape="rounded"
-                    accentColor="#f0c452"
-                    active={Boolean(viewSettings.showPointPickDebug)}
-                    className={styles.viewerModeControl}
-                    onClick={() =>
-                      setViewSettings({
-                        showPointPickDebug: !viewSettings.showPointPickDebug,
-                      })
-                    }
-                    onPointerDown={(event) => event.stopPropagation()}
-                    onPointerUp={(event) => event.stopPropagation()}
-                    onPointerCancel={(event) => event.stopPropagation()}
-                  />
                 </div>
-              )}
+                <div className={styles.renderMaterialHex}>{materialPickerHex}</div>
+                <div className={styles.renderMaterialDivider} />
+                <div className={styles.renderMaterialGroup}>
+                  <span className={styles.renderMaterialGroupLabel}>Filters</span>
+                  <WebGLSelect
+                    label="Filter"
+                    iconId="displayMode"
+                    value={renderFilter}
+                    size="sm"
+                    variant="command"
+                    className={styles.renderMaterialControl}
+                    onChange={handleRenderFilterChange}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onPointerUp={(event) => event.stopPropagation()}
+                    onPointerCancel={(event) => event.stopPropagation()}
+                  >
+                    {RENDER_FILTER_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </WebGLSelect>
+                </div>
+                <div className={styles.renderMaterialGroup}>
+                  {renderFilter === "silhouette" ? (
+                    <>
+                      <div className={styles.renderMaterialSliderRow}>
+                        <span className={styles.renderMaterialFieldLabel}>
+                          {viewSliderLabel}
+                        </span>
+                        <WebGLSlider
+                          label={viewSliderLabel}
+                          tooltip={viewSliderTooltip}
+                          iconId="displayMode"
+                          value={viewSolidity}
+                          min={0}
+                          max={1}
+                          step={0.00025}
+                          onChange={setViewSolidity}
+                          variant="command"
+                          size="sm"
+                          shape="rounded"
+                          accentColor="#0b8a97"
+                          className={styles.renderMaterialControl}
+                          onPointerDown={(event) => event.stopPropagation()}
+                          onPointerUp={(event) => event.stopPropagation()}
+                          onPointerCancel={(event) => event.stopPropagation()}
+                        />
+                      </div>
+                      <div className={styles.renderMaterialSliderRow}>
+                        <span className={styles.renderMaterialFieldLabel}>Sheen</span>
+                        <WebGLSlider
+                          label="Sheen"
+                          tooltip="Glossy highlight intensity (white light)."
+                          iconId="sphere"
+                          value={viewSettings.sheen ?? 0.08}
+                          min={0}
+                          max={0.15}
+                          step={0.005}
+                          onChange={(value) => setViewSettings({ sheen: value })}
+                          variant="command"
+                          size="sm"
+                          shape="rounded"
+                          accentColor="#f7f3ea"
+                          className={styles.renderMaterialControl}
+                          onPointerDown={(event) => event.stopPropagation()}
+                          onPointerUp={(event) => event.stopPropagation()}
+                          onPointerCancel={(event) => event.stopPropagation()}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    activeRenderPaletteSliders.map((slider, index) => {
+                      const sliderIndex = index as 0 | 1;
+                      return (
+                        <div
+                          key={slider.label}
+                          className={styles.renderMaterialSliderRow}
+                        >
+                          <span className={styles.renderMaterialFieldLabel}>
+                            {slider.label}
+                          </span>
+                          <WebGLSlider
+                            label={slider.label}
+                            tooltip={slider.tooltip}
+                            iconId={slider.iconId}
+                            value={activeRenderPaletteValues[sliderIndex]}
+                            min={slider.min}
+                            max={slider.max}
+                            step={slider.step}
+                            onChange={(value) =>
+                              handleRenderPaletteSliderChange(
+                                renderPalette,
+                                sliderIndex,
+                                value
+                              )
+                            }
+                            variant="command"
+                            size="sm"
+                            shape="rounded"
+                            accentColor={slider.accentColor}
+                            className={styles.renderMaterialControl}
+                            disabled={materialPickerDisabled}
+                            onPointerDown={(event) => event.stopPropagation()}
+                            onPointerUp={(event) => event.stopPropagation()}
+                            onPointerCancel={(event) => event.stopPropagation()}
+                          />
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>

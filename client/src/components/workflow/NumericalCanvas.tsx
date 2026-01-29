@@ -1,9 +1,22 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ChangeEvent,
+  type RefObject,
+} from "react";
 import { useProjectStore, type NodeType } from "../../store/useProjectStore";
+import type { DisplayMode, ViewSettings } from "../../types";
+import { arrayBufferToBase64 } from "../../utils/binary";
+import { safeLocalStorageGet, safeLocalStorageSet } from "../../utils/safeStorage";
 import { renderIconDataUrl, type IconId } from "../../webgl/ui/WebGLIconRenderer";
-import type { RGBA } from "../../webgl/ui/WebGLUIRenderer";
+import { WebGLUIRenderer, type RGBA } from "../../webgl/ui/WebGLUIRenderer";
 import WebGLButton from "../ui/WebGLButton";
 import WorkflowGeometryViewer from "./WorkflowGeometryViewer";
+import BiologicalSolverPopup from "./biological/BiologicalSolverPopup";
+import ChemistryMaterialPopup from "./chemistry/ChemistryMaterialPopup";
 import { isWorkflowNodeInvalid } from "./workflowValidation";
 import {
   buildPanelLines,
@@ -12,6 +25,7 @@ import {
 } from "./panelFormat";
 import {
   NODE_CATEGORY_BY_ID,
+  NODE_DEFINITIONS,
   PORT_TYPE_COLOR,
   buildNodeTooltipLines,
   getNodeDefinition,
@@ -47,6 +61,17 @@ type ContextMenuAction = {
   onSelect: () => void;
   disabled?: boolean;
   danger?: boolean;
+};
+
+type NodeSearchPopupState = {
+  screen: Vec2;
+  world: Vec2;
+};
+
+type PreviewFilterSpec = {
+  displayMode?: DisplayMode;
+  viewSolidity?: number;
+  viewSettings?: Partial<ViewSettings>;
 };
 
 type TooltipData = {
@@ -98,7 +123,7 @@ type DragState =
 type InlineEditorState =
   | { type: "group"; nodeId: string; value: string; original: string }
   | { type: "note"; nodeId: string; value: string; original: string }
-  | { type: "slider"; nodeId: string; value: string; original: string };
+  | { type: "text"; nodeId: string; value: string; original: string };
 
 type NumericalCanvasProps = {
   width: number;
@@ -125,10 +150,8 @@ type CanvasPalette = {
   nodeStrokeHover: string;
   nodeShadow: string;
   nodeErrorBorder: string;
-  nodeErrorOverlay: string;
   nodeErrorFill: string;
   nodeWarningBorder: string;
-  nodeWarningOverlay: string;
   nodeWarningFill: string;
   text: string;
   textMuted: string;
@@ -137,50 +160,52 @@ type CanvasPalette = {
   portStroke: string;
 };
 
-const NODE_WIDTH = 198;
-const NODE_MIN_HEIGHT = 108;
-const NODE_BORDER_RADIUS = 10;
-const NODE_BAND_HEIGHT = 18;
-const NODE_SHADOW_OFFSET = 4;
-const PORT_RADIUS = 6;
-const PORT_ROW_HEIGHT = 18;
-const PORTS_START_OFFSET = 72;
+const NODE_WIDTH = 180;
+const NODE_MIN_HEIGHT = 98;
+const SLIDER_NODE_MIN_HEIGHT = 76;
+const NODE_BORDER_RADIUS = 3;
+const NODE_BAND_HEIGHT = 16;
+const NODE_SHADOW_OFFSET = 3;
+const PORT_RADIUS = 5;
+const PORT_ROW_HEIGHT = 16;
+const PORTS_START_OFFSET = 64;
 const PORTS_BOTTOM_PADDING = 18;
-const VIEWER_NODE_MIN_HEIGHT = 230;
-const VIEWER_INSET = 12;
-const VIEWER_TOP_OFFSET = PORTS_START_OFFSET + PORT_ROW_HEIGHT + 8;
-const VIEWER_BOTTOM_OFFSET = 14;
-const PANEL_CONTENT_TOP = NODE_BAND_HEIGHT + 32;
-const PANEL_CONTENT_BOTTOM = 16;
-const PANEL_LINE_HEIGHT = 14;
-const PANEL_TEXT_INSET_X = 16;
-const PANEL_MAX_HEIGHT = 220;
-const GROUP_MIN_WIDTH = 260;
-const GROUP_MIN_HEIGHT = 180;
-const GROUP_PADDING = 18;
-const GROUP_HEADER_HEIGHT = 24;
-const GROUP_BORDER_RADIUS = 16;
-const GROUP_RESIZE_HANDLE = 16;
-const NOTE_WIDTH = 240;
-const NOTE_MIN_HEIGHT = 120;
-const NOTE_BORDER_RADIUS = 12;
-const NOTE_LINE_HEIGHT = 14;
-const NOTE_TEXT_INSET_X = 14;
-const NOTE_PADDING_TOP = 14;
-const NOTE_PADDING_BOTTOM = 16;
+const VIEWER_NODE_MIN_HEIGHT = 210;
+const VIEWER_INSET = 10;
+const VIEWER_BOTTOM_OFFSET = 12;
+const PANEL_CONTENT_TOP = NODE_BAND_HEIGHT + 28;
+const PANEL_CONTENT_BOTTOM = 12;
+const PANEL_LINE_HEIGHT = 13;
+const PANEL_TEXT_INSET_X = 12;
+const PANEL_MAX_HEIGHT = 200;
+const GROUP_MIN_WIDTH = 230;
+const GROUP_MIN_HEIGHT = 160;
+const GROUP_PADDING = 14;
+const GROUP_HEADER_HEIGHT = 20;
+const GROUP_BORDER_RADIUS = 3;
+const GROUP_RESIZE_HANDLE = 14;
+const TEXT_NODE_DEFAULT_SIZE = 24;
+const TEXT_NODE_LINE_HEIGHT = 1.12;
+const TEXT_NODE_HIT_PADDING = 6;
+const TEXT_NODE_MIN_WIDTH = 14;
+const TEXT_NODE_MIN_HEIGHT = 14;
+const TEXT_NODE_FONT_FAMILY =
+  '"Caveat", "Kalam", "Patrick Hand", "Bradley Hand", "Segoe Print", cursive';
+const NOTE_WIDTH = 210;
+const NOTE_MIN_HEIGHT = 100;
+const NOTE_BORDER_RADIUS = 3;
+const NOTE_LINE_HEIGHT = 13;
+const NOTE_TEXT_INSET_X = 12;
+const NOTE_PADDING_TOP = 10;
+const NOTE_PADDING_BOTTOM = 12;
 const SLIDER_PORT_OFFSET = 6;
-const SLIDER_TRACK_HEIGHT = 8;
-const SLIDER_TRACK_INSET_X = 16;
-const SLIDER_THUMB_RADIUS = 7;
-const SLIDER_LABEL_HEIGHT = 20;
-const SLIDER_HEADER_TOP = 8;
-const SLIDER_HEADER_PADDING_X = 14;
-const SLIDER_SETTINGS_SIZE = 12;
-const SLIDER_SETTINGS_GAP = 6;
-const SLIDER_VALUE_WIDTH = 62;
-const SLIDER_VALUE_HEIGHT = 16;
-const ICON_SIZE = 26;
+const SLIDER_TRACK_HEIGHT = 7;
+const SLIDER_TRACK_INSET_X = 14;
+const SLIDER_THUMB_RADIUS = 6;
+const ICON_SIZE = 28;
 const ICON_PADDING = 10;
+const DETAIL_BOTTOM_PADDING = 10;
+const DETAIL_LINE_HEIGHT = 13;
 const EDGE_HIT_RADIUS = 6;
 const EDGE_SAMPLE_COUNT = 24;
 const MIN_SCALE = 0.35;
@@ -192,13 +217,80 @@ const MINIMAP_PADDING_MAX = 56;
 const ZOOM_SPEED = 0.0012;
 const ZOOM_STEP = 1.12;
 const RIGHT_CLICK_HOLD_MS = 240;
+const RIGHT_DOUBLE_CLICK_MS = 320;
+const RIGHT_DOUBLE_CLICK_DISTANCE = 8;
 const GRID_MINOR_BASE = 24;
 const GRID_MAJOR_FACTOR = 5;
 const GRID_SNAP_KEY = "lingua.numericaGridSnap";
 const SHORTCUT_OVERLAY_KEY = "lingua.numericaShortcutOverlay";
+const SOLVER_NODE_FILL_TOP = "#7a5cff";
+const SOLVER_NODE_FILL_BOTTOM = "#6b4fe8";
+const SOLVER_NODE_FILL_TOP_HOVER = "#846dff";
+const SOLVER_NODE_FILL_BOTTOM_HOVER = "#7760f0";
+const SOLVER_NODE_BORDER = "#5940c9";
+const GOAL_NODE_FILL_TOP = "#b8a6ff";
+const GOAL_NODE_FILL_BOTTOM = "#a895f7";
+const GOAL_NODE_FILL_TOP_HOVER = "#c3b2ff";
+const GOAL_NODE_FILL_BOTTOM_HOVER = "#b1a0f8";
+const GOAL_NODE_BORDER = "#9780e8";
+const SOLVER_NODE_TEXT = "#ffffff";
+const SOLVER_NODE_TEXT_MUTED = "rgba(255, 255, 255, 0.78)";
+const GOAL_NODE_TEXT = "#2a2a2a";
+const GOAL_NODE_TEXT_MUTED = "#444444";
+const SOLVER_BAND_TINT = "rgba(255, 255, 255, 0.16)";
+const GOAL_BAND_TINT = "rgba(255, 255, 255, 0.45)";
+const SOLVER_BAND_ACCENT = "rgba(255, 255, 255, 0.6)";
+const GOAL_BAND_ACCENT = "rgba(151, 128, 232, 0.7)";
 
 const clampValue = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
+
+const DISPLAY_MODE_OPTIONS: DisplayMode[] = [
+  "shaded",
+  "wireframe",
+  "shaded_edges",
+  "ghosted",
+  "silhouette",
+];
+
+const coercePreviewFilter = (value: unknown): PreviewFilterSpec | null => {
+  if (!value || typeof value !== "object") return null;
+  const record = value as Record<string, unknown>;
+  const displayModeRaw = record.displayMode;
+  const displayMode =
+    typeof displayModeRaw === "string" &&
+    (DISPLAY_MODE_OPTIONS as string[]).includes(displayModeRaw)
+      ? (displayModeRaw as DisplayMode)
+      : undefined;
+
+  const viewSolidityRaw = record.viewSolidity;
+  const viewSolidity =
+    typeof viewSolidityRaw === "number" && Number.isFinite(viewSolidityRaw)
+      ? clampValue(viewSolidityRaw, 0, 1)
+      : undefined;
+
+  const viewSettingsRaw = record.viewSettings;
+  let viewSettings: Partial<ViewSettings> | undefined;
+  if (viewSettingsRaw && typeof viewSettingsRaw === "object") {
+    const settings = viewSettingsRaw as Record<string, unknown>;
+    viewSettings = {};
+    if (typeof settings.backfaceCulling === "boolean") {
+      viewSettings.backfaceCulling = settings.backfaceCulling;
+    }
+    if (typeof settings.showNormals === "boolean") {
+      viewSettings.showNormals = settings.showNormals;
+    }
+    if (typeof settings.sheen === "number" && Number.isFinite(settings.sheen)) {
+      viewSettings.sheen = clampValue(settings.sheen, 0, 1);
+    }
+    if (Object.keys(viewSettings).length === 0) {
+      viewSettings = undefined;
+    }
+  }
+
+  if (!displayMode && viewSolidity == null && !viewSettings) return null;
+  return { displayMode, viewSolidity, viewSettings };
+};
 
 const isEditableTarget = (target: EventTarget | null) => {
   const element = target as HTMLElement | null;
@@ -246,6 +338,28 @@ const readNumber = (value: unknown, fallback: number) => {
   }
   if (typeof value === "boolean") return value ? 1 : 0;
   return fallback;
+};
+
+let textMeasureContext: CanvasRenderingContext2D | null = null;
+
+const getTextMeasureContext = () => {
+  if (textMeasureContext) return textMeasureContext;
+  if (typeof document === "undefined") return null;
+  const canvas = document.createElement("canvas");
+  textMeasureContext = canvas.getContext("2d");
+  return textMeasureContext;
+};
+
+const resolveTextFont = (size: number, weight = 500) =>
+  `${weight} ${size}px ${TEXT_NODE_FONT_FAMILY}`;
+
+const measureTextWidth = (text: string, font: string, size: number) => {
+  const ctx = getTextMeasureContext();
+  if (!ctx) {
+    return Math.max(TEXT_NODE_MIN_WIDTH, size * 0.6 * Math.max(1, text.length));
+  }
+  ctx.font = font;
+  return ctx.measureText(text).width;
 };
 
 const resolveStepDecimals = (step: number) => {
@@ -339,12 +453,10 @@ const getPalette = (): CanvasPalette => {
   const portFill = readCssVar("--sp-divider", "#c9c5c0");
   const portFillHover = readCssVar("--sp-divider", "#c9c5c0");
   const portStroke = readCssVar("--sp-ink", "#1f1f22");
-  const nodeErrorBorder = readCssVar("--node-error-border", "#dc3545");
-  const nodeErrorOverlay = readCssVar("--node-error-overlay", "rgba(128, 128, 128, 0.3)");
-  const nodeErrorFill = readCssVar("--node-error-bg", "rgba(220, 53, 69, 0.15)");
-  const nodeWarningBorder = readCssVar("--node-warning-border", "#d97706");
-  const nodeWarningOverlay = readCssVar("--node-warning-overlay", "rgba(217, 119, 6, 0.18)");
-  const nodeWarningFill = readCssVar("--node-warning-bg", "rgba(245, 158, 11, 0.12)");
+  const nodeErrorBorder = readCssVar("--sp-pink", "#c2166b");
+  const nodeErrorFill = readCssVar("--sp-pink", "#c2166b");
+  const nodeWarningBorder = readCssVar("--sp-yellow", "#c07a00");
+  const nodeWarningFill = readCssVar("--sp-yellow", "#c07a00");
 
   return {
     canvasBg: bg,
@@ -358,12 +470,10 @@ const getPalette = (): CanvasPalette => {
     nodeFillHover: surfaceMuted,
     nodeStroke: border,
     nodeStrokeHover: accent,
-    nodeShadow: "rgba(0, 0, 0, 0.32)",
+    nodeShadow: "#000000",
     nodeErrorBorder,
-    nodeErrorOverlay,
     nodeErrorFill,
     nodeWarningBorder,
-    nodeWarningOverlay,
     nodeWarningFill,
     text,
     textMuted: muted,
@@ -371,6 +481,21 @@ const getPalette = (): CanvasPalette => {
     portFillHover,
     portStroke,
   };
+};
+
+const createNodeGradient = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  top: string,
+  bottom: string
+) => {
+  const gradient = ctx.createLinearGradient(x, y, x + width, y + height);
+  gradient.addColorStop(0, top);
+  gradient.addColorStop(1, bottom);
+  return gradient;
 };
 
 const distanceToSegment = (point: Vec2, start: Vec2, end: Vec2) => {
@@ -426,7 +551,16 @@ type NodeLayout = {
   defaultOutputKey?: string;
   panelLines?: string[];
   noteLines?: string[];
+  textLines?: string[];
+  textFontSize?: number;
+  textLineHeight?: number;
   portsStartOffset: number;
+};
+
+type PortRenderState = {
+  hovered: boolean;
+  active: boolean;
+  connected: boolean;
 };
 
 type SliderConfig = {
@@ -446,7 +580,7 @@ type SliderInteractionConfig = Pick<
 
 const ICON_DATA_URL_CACHE = new Map<string, string>();
 const ICON_IMAGE_CACHE = new Map<string, HTMLImageElement>();
-const ICON_RESOLUTION = 96;
+const ICON_RESOLUTION = 1024;
 const COLOR_CACHE = new Map<string, RGBA>();
 let colorParseCtx: CanvasRenderingContext2D | null = null;
 
@@ -491,6 +625,26 @@ const rgbaToCss = (rgba: RGBA, alphaOverride?: number) => {
     rgba[2] * 255
   )}, ${alpha})`;
 };
+
+const mixColor = (from: RGBA, to: RGBA, t: number): RGBA => [
+  from[0] + (to[0] - from[0]) * t,
+  from[1] + (to[1] - from[1]) * t,
+  from[2] + (to[2] - from[2]) * t,
+  from[3] + (to[3] - from[3]) * t,
+];
+
+const withAlpha = (color: RGBA, alpha: number): RGBA => [
+  color[0],
+  color[1],
+  color[2],
+  alpha,
+];
+
+const darken = (color: RGBA, amount: number): RGBA =>
+  mixColor(color, [0, 0, 0, color[3]], amount);
+
+const lighten = (color: RGBA, amount: number): RGBA =>
+  mixColor(color, [1, 1, 1, color[3]], amount);
 
 const getTintKey = (tint?: RGBA) =>
   tint ? tint.map((value) => Math.round(value * 255)).join("-") : "default";
@@ -567,30 +721,6 @@ const getSliderBounds = (layout: NodeLayout) => {
   };
 };
 
-const getSliderSettingsBounds = (layout: NodeLayout) => {
-  const headerTop = layout.y + SLIDER_HEADER_TOP;
-  const headerHeight = SLIDER_LABEL_HEIGHT;
-  return {
-    x: layout.x + layout.width - SLIDER_HEADER_PADDING_X - SLIDER_SETTINGS_SIZE,
-    y: headerTop + (headerHeight - SLIDER_SETTINGS_SIZE) / 2,
-    width: SLIDER_SETTINGS_SIZE,
-    height: SLIDER_SETTINGS_SIZE,
-  };
-};
-
-const getSliderValueBounds = (layout: NodeLayout) => {
-  const headerTop = layout.y + SLIDER_HEADER_TOP;
-  const headerHeight = SLIDER_LABEL_HEIGHT;
-  const settings = getSliderSettingsBounds(layout);
-  const rightEdge = settings.x - SLIDER_SETTINGS_GAP;
-  return {
-    x: rightEdge - SLIDER_VALUE_WIDTH,
-    y: headerTop + (headerHeight - SLIDER_VALUE_HEIGHT) / 2,
-    width: SLIDER_VALUE_WIDTH,
-    height: SLIDER_VALUE_HEIGHT,
-  };
-};
-
 const getPanelContentBounds = (layout: NodeLayout) => ({
   x: layout.x + PANEL_TEXT_INSET_X,
   y: layout.y + PANEL_CONTENT_TOP,
@@ -619,9 +749,19 @@ const isPointInRect = (point: Vec2, rect: { x: number; y: number; width: number;
   point.y >= rect.y &&
   point.y <= rect.y + rect.height;
 
-const isPointInGroupResizeHandle = (point: Vec2, layout: NodeLayout) => {
-  const handleX = layout.x + layout.width - GROUP_RESIZE_HANDLE;
-  const handleY = layout.y + layout.height - GROUP_RESIZE_HANDLE;
+const resolveGroupResizeHandleSize = (scale: number) => {
+  if (!Number.isFinite(scale) || scale <= 0) return GROUP_RESIZE_HANDLE;
+  return Math.max(GROUP_RESIZE_HANDLE, GROUP_RESIZE_HANDLE / scale);
+};
+
+const isPointInGroupResizeHandle = (
+  point: Vec2,
+  layout: NodeLayout,
+  scale: number
+) => {
+  const handleSize = resolveGroupResizeHandleSize(scale);
+  const handleX = layout.x + layout.width - handleSize;
+  const handleY = layout.y + layout.height - handleSize;
   return (
     point.x >= handleX &&
     point.x <= layout.x + layout.width &&
@@ -633,6 +773,37 @@ const isPointInGroupResizeHandle = (point: Vec2, layout: NodeLayout) => {
 const computeNodeLayout = (node: any): NodeLayout => {
   const definition = getNodeDefinition(node.type);
   const parameters = resolveNodeParameters(node);
+  if (node.type === "text") {
+    const rawText = typeof parameters.text === "string" ? parameters.text : "";
+    const text = rawText.trim().length > 0 ? rawText : "Text";
+    const size = Math.min(96, Math.max(8, readNumber(parameters.size, TEXT_NODE_DEFAULT_SIZE)));
+    const font = resolveTextFont(size);
+    const lines = text.split("\n");
+    const lineHeight = size * TEXT_NODE_LINE_HEIGHT;
+    const maxWidth = Math.max(
+      TEXT_NODE_MIN_WIDTH,
+      ...lines.map((line) => measureTextWidth(line || " ", font, size))
+    );
+    const width = Math.max(TEXT_NODE_MIN_WIDTH, maxWidth);
+    const height = Math.max(TEXT_NODE_MIN_HEIGHT, lineHeight * lines.length);
+    return {
+      nodeId: node.id,
+      x: node.position.x,
+      y: node.position.y,
+      width,
+      height,
+      definition,
+      parameters,
+      inputs: [],
+      outputs: [],
+      inputByKey: new Map(),
+      outputByKey: new Map(),
+      portsStartOffset: 0,
+      textLines: lines,
+      textFontSize: size,
+      textLineHeight: lineHeight,
+    };
+  }
   if (node.type === "group") {
     const size = node.data?.groupSize;
     const width = Math.max(GROUP_MIN_WIDTH, readNumber(size?.width, GROUP_MIN_WIDTH));
@@ -726,7 +897,12 @@ const computeNodeLayout = (node: any): NodeLayout => {
   const portsHeight = rowCount * PORT_ROW_HEIGHT;
   const portsStartOffset =
     node.type === "slider" ? PORTS_START_OFFSET + SLIDER_PORT_OFFSET : PORTS_START_OFFSET;
-  const minHeight = node.type === "geometryViewer" ? VIEWER_NODE_MIN_HEIGHT : NODE_MIN_HEIGHT;
+  const isViewerNode = node.type === "geometryViewer" || node.type === "customPreview";
+  const minHeight = isViewerNode
+    ? VIEWER_NODE_MIN_HEIGHT
+    : node.type === "slider"
+      ? SLIDER_NODE_MIN_HEIGHT
+      : NODE_MIN_HEIGHT;
   const nodeOutputs = node.data?.outputs ?? {};
   const panelOutputKey = definition?.primaryOutputKey ?? ports.outputs[0]?.key ?? "data";
   const panelFallback =
@@ -814,6 +990,22 @@ const buildConnectedInputSet = (edges: any[], layouts: Map<string, NodeLayout>) 
   return connectedByNode;
 };
 
+const buildConnectedOutputSet = (edges: any[], layouts: Map<string, NodeLayout>) => {
+  const connectedByNode = new Map<string, Set<string>>();
+  edges.forEach((edge) => {
+    const sourceLayout = layouts.get(edge.source);
+    const sourceKey = edge.sourceHandle ?? sourceLayout?.defaultOutputKey;
+    if (!sourceKey) return;
+    const set = connectedByNode.get(edge.source);
+    if (set) {
+      set.add(sourceKey);
+      return;
+    }
+    connectedByNode.set(edge.source, new Set([sourceKey]));
+  });
+  return connectedByNode;
+};
+
 const getMissingRequiredInputs = (
   layout: NodeLayout,
   connectedInputs: Set<string> | undefined
@@ -870,6 +1062,9 @@ export const NumericalCanvas = ({
   const minScale = isMinimap ? MINIMAP_MIN_SCALE : MIN_SCALE;
   const maxScale = isMinimap ? MINIMAP_MAX_SCALE : MAX_SCALE;
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const portCanvasRef = useRef<HTMLCanvasElement>(null);
+  const portGlRef = useRef<WebGLRenderingContext | null>(null);
+  const portUiRef = useRef<WebGLUIRenderer | null>(null);
   const paletteRef = useRef<CanvasPalette>(getPalette());
   const layoutRef = useRef<Map<string, NodeLayout>>(new Map());
   const [viewTransform, setViewTransform] = useState<ViewTransform>({
@@ -879,24 +1074,31 @@ export const NumericalCanvas = ({
   });
   const [dragState, setDragState] = useState<DragState>({ type: "none" });
   const [hoveredTarget, setHoveredTarget] = useState<HitTarget>({ type: "none" });
+  const [groupResizeHoverId, setGroupResizeHoverId] = useState<string | null>(null);
   const [sliderHover, setSliderHover] = useState<{
     nodeId: string;
-    part: "track" | "value" | "settings";
+    part: "track";
   } | null>(null);
   const [focusedSliderId, setFocusedSliderId] = useState<string | null>(null);
   const [inlineEditor, setInlineEditor] = useState<InlineEditorState | null>(null);
   const [sliderPopoverId, setSliderPopoverId] = useState<string | null>(null);
   const inlineEditorRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [nodeSearchPopup, setNodeSearchPopup] = useState<NodeSearchPopupState | null>(null);
+  const [nodeSearchQuery, setNodeSearchQuery] = useState("");
+  const [nodeSearchIndex, setNodeSearchIndex] = useState(0);
+  const [biologicalSolverPopupNodeId, setBiologicalSolverPopupNodeId] = useState<string | null>(null);
+  const [chemistryMaterialPopupNodeId, setChemistryMaterialPopupNodeId] = useState<string | null>(null);
+  const nodeSearchInputRef = useRef<HTMLInputElement | null>(null);
   const [gridSnapEnabled, setGridSnapEnabled] = useState(() => {
     if (typeof window === "undefined") return true;
-    const stored = window.localStorage.getItem(GRID_SNAP_KEY);
+    const stored = safeLocalStorageGet(GRID_SNAP_KEY);
     if (stored === null) return true;
     return stored === "true";
   });
   const [showShortcutOverlay, setShowShortcutOverlay] = useState(() => {
     if (typeof window === "undefined" || isMinimap) return false;
-    return window.localStorage.getItem(SHORTCUT_OVERLAY_KEY) === "true";
+    return safeLocalStorageGet(SHORTCUT_OVERLAY_KEY) === "true";
   });
   const spacePanRef = useRef(false);
   const [spacePan, setSpacePan] = useState(false);
@@ -908,6 +1110,10 @@ export const NumericalCanvas = ({
   const suppressContextMenuRef = useRef(false);
   const rightHoldTimeoutRef = useRef<number | null>(null);
   const rightClickHeldRef = useRef(false);
+  const lastRightClickRef = useRef<{ time: number; screen: Vec2 } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const pendingFileAddRef = useRef<Vec2 | null>(null);
+  const pendingFileTargetRef = useRef<string | null>(null);
 
   const nodes = useProjectStore((state) => state.workflow.nodes);
   const edges = useProjectStore((state) => state.workflow.edges);
@@ -924,7 +1130,9 @@ export const NumericalCanvas = ({
   const updateNodeData = useProjectStore((state) => state.updateNodeData);
 
   const viewerNodes = useMemo(() => {
-    const targets = nodes.filter((node) => node.type === "geometryViewer");
+    const targets = nodes.filter(
+      (node) => node.type === "geometryViewer" || node.type === "customPreview"
+    );
     if (targets.length === 0) return [];
     const layouts = computeNodeLayouts(nodes);
     const availableGeometryIds = new Set(geometry.map((item) => item.id));
@@ -942,6 +1150,7 @@ export const NumericalCanvas = ({
           (entry.targetHandle ?? inputKey) === inputKey
       );
       let geometryIds = fallbackGeometryId ? [fallbackGeometryId] : [];
+      let filterSpec: PreviewFilterSpec | null = null;
 
       if (edge) {
         const sourceLayout = layouts.get(edge.source);
@@ -956,12 +1165,67 @@ export const NumericalCanvas = ({
         geometryIds = uniqueIds.length > 0 ? uniqueIds : geometryIds;
       }
 
-      return { nodeId: node.id, layout, geometryIds };
+      if (node.type === "customPreview" || node.type === "geometryViewer") {
+        const filterEdge = edges.find(
+          (entry) =>
+            entry.target === node.id &&
+            (entry.targetHandle ?? "filter") === "filter"
+        );
+        if (filterEdge) {
+          const sourceLayout = layouts.get(filterEdge.source);
+          const outputKey = filterEdge.sourceHandle ?? sourceLayout?.defaultOutputKey;
+          const sourceNode = nodeById.get(filterEdge.source);
+          const outputValue = outputKey
+            ? sourceNode?.data?.outputs?.[outputKey]
+            : undefined;
+          filterSpec = coercePreviewFilter(outputValue);
+        }
+      }
+
+      return { nodeId: node.id, layout, geometryIds, filter: filterSpec };
     });
   }, [nodes, edges, geometry, selectedGeometryIds]);
 
+  const searchableNodeOptions = useMemo(
+    () => NODE_DEFINITIONS.filter((definition) => definition.type !== "primitive"),
+    []
+  );
+
+  const nodeSearchResults = useMemo(() => {
+    const normalized = nodeSearchQuery.trim().toLowerCase();
+    const list =
+      normalized.length === 0
+        ? searchableNodeOptions
+        : searchableNodeOptions.filter((definition) => {
+            const categoryLabel =
+              NODE_CATEGORY_BY_ID.get(definition.category)?.label.toLowerCase() ?? "";
+            const displayEnglish = definition.display?.nameEnglish ?? "";
+            const displayGreek = definition.display?.nameGreek ?? "";
+            const displayRoman = definition.display?.romanization ?? "";
+            const haystack = [
+              definition.label,
+              definition.shortLabel,
+              definition.description,
+              definition.type,
+              categoryLabel,
+              displayEnglish,
+              displayGreek,
+              displayRoman,
+            ]
+              .filter(Boolean)
+              .map((value) => String(value).toLowerCase())
+              .join(" ");
+            return haystack.includes(normalized);
+          });
+    return list.slice(0, 8);
+  }, [nodeSearchQuery, searchableNodeOptions]);
+
+  const inlineEditorKey = inlineEditor
+    ? `${inlineEditor.type}:${inlineEditor.nodeId}`
+    : null;
+
   useEffect(() => {
-    if (!inlineEditor) return;
+    if (!inlineEditorKey) return;
     const id = requestAnimationFrame(() => {
       const element = inlineEditorRef.current;
       if (!element) return;
@@ -971,7 +1235,20 @@ export const NumericalCanvas = ({
       }
     });
     return () => cancelAnimationFrame(id);
-  }, [inlineEditor]);
+  }, [inlineEditorKey]);
+
+  useEffect(() => {
+    if (!nodeSearchPopup) return;
+    const id = requestAnimationFrame(() => {
+      nodeSearchInputRef.current?.focus();
+      nodeSearchInputRef.current?.select();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [nodeSearchPopup]);
+
+  useEffect(() => {
+    setNodeSearchIndex(0);
+  }, [nodeSearchQuery]);
 
   useEffect(() => {
     if (!isMinimap) return;
@@ -1053,13 +1330,25 @@ export const NumericalCanvas = ({
   }, [canvasInteractive]);
 
   useEffect(() => {
+    const canvas = portCanvasRef.current;
+    if (!canvas) return;
+    const gl = canvas.getContext("webgl", { antialias: true, alpha: true });
+    if (!gl) return;
+    gl.disable(gl.DEPTH_TEST);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    portGlRef.current = gl;
+    portUiRef.current = new WebGLUIRenderer(gl);
+  }, []);
+
+  useEffect(() => {
     if (!interactionsEnabled || typeof window === "undefined") return;
-    window.localStorage.setItem(GRID_SNAP_KEY, String(gridSnapEnabled));
+    safeLocalStorageSet(GRID_SNAP_KEY, String(gridSnapEnabled));
   }, [gridSnapEnabled, interactionsEnabled]);
 
   useEffect(() => {
     if (!interactionsEnabled || typeof window === "undefined") return;
-    window.localStorage.setItem(SHORTCUT_OVERLAY_KEY, String(showShortcutOverlay));
+    safeLocalStorageSet(SHORTCUT_OVERLAY_KEY, String(showShortcutOverlay));
   }, [showShortcutOverlay, interactionsEnabled]);
 
   useEffect(() => {
@@ -1133,11 +1422,29 @@ export const NumericalCanvas = ({
         setPendingReference(null);
         setSliderPopoverId(null);
         setInlineEditor(null);
+        setNodeSearchPopup(null);
       }
     };
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
   }, [interactionsEnabled]);
+
+  useEffect(() => {
+    if (!pendingNodeType) return;
+    setHoveredTarget({ type: "none" });
+    setSliderHover(null);
+    const handlePointerMove = (event: PointerEvent) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      pointerScreenRef.current = {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      };
+    };
+    window.addEventListener("pointermove", handlePointerMove);
+    return () => window.removeEventListener("pointermove", handlePointerMove);
+  }, [pendingNodeType]);
 
   useEffect(() => {
     if (!interactionsEnabled || !focusedSliderId) return;
@@ -1232,6 +1539,11 @@ export const NumericalCanvas = ({
       drawBackground(ctx, width, height, viewTransform, palette, backgroundMode);
       drawGroupNodes(ctx, nodes, layouts, hoveredTarget, palette);
       drawConnections(ctx, edges, layouts, hoveredTarget, palette, viewTransform);
+      const renderPortBodies =
+        captureActive ||
+        !portUiRef.current ||
+        !portGlRef.current ||
+        !portCanvasRef.current;
       drawNodes(
         ctx,
         nodes,
@@ -1243,9 +1555,65 @@ export const NumericalCanvas = ({
         palette,
         sliderHover,
         focusedSliderId,
-        sliderPopoverId,
-        dragState
+        dragState,
+        renderPortBodies
       );
+
+      if (!renderPortBodies && portCanvasRef.current && portGlRef.current && portUiRef.current) {
+        renderWebGLPorts({
+          gl: portGlRef.current,
+          ui: portUiRef.current,
+          canvas: portCanvasRef.current,
+          width,
+          height,
+          dpr,
+          viewTransform,
+          layouts,
+          edges,
+          hoveredTarget,
+          dragState,
+          palette,
+          connectedInputs,
+          isMinimap,
+          captureActive,
+        });
+      }
+
+      if (pendingNodeType && !captureActive) {
+        const pointer = pointerScreenRef.current;
+        const pendingWorld = screenToWorld(pointer.x, pointer.y);
+        const ghostNode = {
+          id: "__pending-node",
+          type: pendingNodeType,
+          position: { x: pendingWorld.x, y: pendingWorld.y },
+          data: {},
+          selected: false,
+        };
+        const ghostLayouts = new Map<string, NodeLayout>();
+        const ghostLayout = computeNodeLayout(ghostNode);
+        ghostLayouts.set(ghostNode.id, ghostLayout);
+        const ghostConnectedInputs = new Map<string, Set<string>>();
+        const requiredInputs = ghostLayout.inputs
+          .filter((portLayout) => portLayout.port.required)
+          .map((portLayout) => portLayout.port.key);
+        ghostConnectedInputs.set(ghostNode.id, new Set(requiredInputs));
+        drawNodes(
+          ctx,
+          [ghostNode],
+          [],
+          ghostLayouts,
+          ghostConnectedInputs,
+          geometry,
+          { type: "none" },
+          palette,
+          null,
+          null,
+          { type: "none" },
+          true,
+          new Set([ghostNode.id]),
+          0.45
+        );
+      }
 
       if (dragState.type === "edge" && !captureActive) {
         drawEdgePreview(ctx, dragState, layouts, palette, viewTransform);
@@ -1288,6 +1656,7 @@ export const NumericalCanvas = ({
     sliderHover,
     focusedSliderId,
     sliderPopoverId,
+    pendingNodeType,
     pendingReference,
     shortcutOverlayEnabled,
     gridSnapEnabled,
@@ -1472,28 +1841,6 @@ export const NumericalCanvas = ({
     setNodeSelection(nodeId, false);
   };
 
-  const beginSliderValueEdit = (nodeId: string) => {
-    const node = nodes.find((entry) => entry.id === nodeId);
-    if (!node || node.type !== "slider") return;
-    const parameters = resolveNodeParameters(node);
-    const sliderConfig = resolveSliderConfig(node);
-    const rawValue = parameters.value;
-    const initial =
-      typeof rawValue === "number" || typeof rawValue === "string"
-        ? String(rawValue)
-        : formatSliderValue(
-            sliderConfig.value,
-            sliderConfig.step,
-            sliderConfig.snapMode,
-            sliderConfig.precisionOverride
-          );
-    setInlineEditor({ type: "slider", nodeId, value: initial, original: initial });
-    setSliderPopoverId(null);
-    setContextMenu(null);
-    setNodeSelection(nodeId, false);
-    setFocusedSliderId(nodeId);
-  };
-
   const commitInlineEdit = () => {
     if (!inlineEditor) return;
     if (inlineEditor.type === "group") {
@@ -1508,17 +1855,14 @@ export const NumericalCanvas = ({
       updateNodeData(inlineEditor.nodeId, {
         parameters: { text: inlineEditor.value },
       });
-    } else {
-      const node = nodes.find((entry) => entry.id === inlineEditor.nodeId);
-      if (node && node.type === "slider") {
-        const trimmed = inlineEditor.value.trim();
-        const parsed = trimmed.length > 0 ? Number(trimmed) : Number.NaN;
-        if (Number.isFinite(parsed)) {
-          const config = resolveSliderConfig(node);
-          const nextValue = resolveSliderValue(parsed, config, config.step);
-          updateNodeData(node.id, { parameters: { value: nextValue } });
-        }
-      }
+    } else if (inlineEditor.type === "text") {
+      const trimmed = inlineEditor.value.trim();
+      const nextText = trimmed.length > 0 ? inlineEditor.value : "Text";
+      const nextLabel = nextText.split("\n")[0].trim().slice(0, 40) || "Text";
+      updateNodeData(inlineEditor.nodeId, {
+        label: nextLabel,
+        parameters: { text: nextText },
+      });
     }
     setInlineEditor(null);
   };
@@ -1561,6 +1905,13 @@ export const NumericalCanvas = ({
         .map((node) => ({ id: node.id, type: "select" as const, selected: false })),
       { id: noteId, type: "select" as const, selected: true },
     ]);
+  };
+
+  const handleNodeSearchSelect = (type: NodeType) => {
+    if (!nodeSearchPopup) return;
+    addNodeAt(type, { x: nodeSearchPopup.world.x, y: nodeSearchPopup.world.y });
+    setNodeSearchPopup(null);
+    setNodeSearchQuery("");
   };
 
   const createGroupFromSelection = () => {
@@ -1609,6 +1960,66 @@ export const NumericalCanvas = ({
       { id: groupId, type: "select" as const, selected: true },
     ];
     onNodesChange(changes);
+  };
+
+  const openStlFilePicker = (world: Vec2 | null, targetNodeId?: string | null) => {
+    pendingFileAddRef.current = world;
+    pendingFileTargetRef.current = targetNodeId ?? null;
+    const input = fileInputRef.current;
+    if (!input) return;
+    input.value = "";
+    input.click();
+  };
+
+  const handleStlFileSelect = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const world = pendingFileAddRef.current ?? { x: 0, y: 0 };
+    const targetNodeId = pendingFileTargetRef.current;
+    pendingFileAddRef.current = null;
+    pendingFileTargetRef.current = null;
+    try {
+      const buffer = await file.arrayBuffer();
+      if (targetNodeId) {
+        const targetNode = nodes.find((entry) => entry.id === targetNodeId);
+        if (targetNode?.type === "stlImport") {
+          const nextParameters = {
+            ...(targetNode.data?.parameters ?? {}),
+            file: {
+              name: file.name,
+              type: file.type,
+              data: arrayBufferToBase64(buffer),
+            },
+            importNow: true,
+          };
+          updateNodeData(targetNodeId, { parameters: nextParameters });
+          return;
+        }
+      }
+      const importNodeId = addNodeAt("stlImport", { x: world.x, y: world.y });
+      const viewerNodeId = addNodeAt("geometryViewer", {
+        x: world.x + NODE_WIDTH + 80,
+        y: world.y,
+      });
+      updateNodeData(importNodeId, {
+        parameters: {
+          file: {
+            name: file.name,
+            type: file.type,
+            data: arrayBufferToBase64(buffer),
+          },
+          importNow: true,
+        },
+      });
+      onConnect({
+        source: importNodeId,
+        target: viewerNodeId,
+        sourceHandle: "geometry",
+        targetHandle: "geometry",
+      });
+    } catch (error) {
+      console.error("Failed to import STL from context menu.", error);
+    }
   };
 
   const setNodeSelection = (nodeId: string, isMultiSelect: boolean) => {
@@ -1884,26 +2295,34 @@ export const NumericalCanvas = ({
   useEffect(() => {
     if (!pendingReference) return;
     if (!selectedGeometryId) return;
-
-    if (pendingReference.kind === "port") {
-      connectReferenceToPort(
-        selectedGeometryId,
-        pendingReference.world,
-        pendingReference.nodeId,
-        pendingReference.portKey
-      );
-    } else if (pendingReference.kind === "node") {
-      referenceGeometryToNode(
-        selectedGeometryId,
-        pendingReference.world,
-        pendingReference.nodeId
-      );
-    } else {
-      ensureGeometryReferenceAt(selectedGeometryId, pendingReference.world);
-      setSelectedGeometryIds([selectedGeometryId]);
+    const hasGeometry = geometry.some((item) => item.id === selectedGeometryId);
+    if (!hasGeometry) {
+      setPendingReference(null);
+      return;
     }
-
-    setPendingReference(null);
+    try {
+      if (pendingReference.kind === "port") {
+        connectReferenceToPort(
+          selectedGeometryId,
+          pendingReference.world,
+          pendingReference.nodeId,
+          pendingReference.portKey
+        );
+      } else if (pendingReference.kind === "node") {
+        referenceGeometryToNode(
+          selectedGeometryId,
+          pendingReference.world,
+          pendingReference.nodeId
+        );
+      } else {
+        ensureGeometryReferenceAt(selectedGeometryId, pendingReference.world);
+        setSelectedGeometryIds([selectedGeometryId]);
+      }
+    } catch (error) {
+      console.error("Numerica reference failed.", error);
+    } finally {
+      setPendingReference(null);
+    }
   }, [
     pendingReference,
     selectedGeometryId,
@@ -1942,8 +2361,13 @@ export const NumericalCanvas = ({
     if (!contextMenu) return [];
     const actions: ContextMenuAction[] = [];
     const closeMenu = (action: () => void) => () => {
-      action();
-      setContextMenu(null);
+      try {
+        action();
+      } catch (error) {
+        console.error("Numerica menu action failed.", error);
+      } finally {
+        setContextMenu(null);
+      }
     };
     const geometryLabel = selectedGeometryId
       ? `Reference Selected Geometry (${selectedGeometryId})`
@@ -2027,6 +2451,39 @@ export const NumericalCanvas = ({
         onSelect: closeMenu(() => frameNodes(new Set([target.nodeId]))),
       });
 
+      if (node?.type === "biologicalEvolutionSolver") {
+        actions.push({
+          label: "Open Biological Solver",
+          onSelect: closeMenu(() => setBiologicalSolverPopupNodeId(target.nodeId)),
+        });
+      }
+
+      if (node?.type === "chemistryMaterialGoal") {
+        actions.push({
+          label: "Assign Materials",
+          onSelect: closeMenu(() => setChemistryMaterialPopupNodeId(target.nodeId)),
+        });
+      }
+
+      if (node?.type === "stlImport") {
+        actions.push({
+          label: "Select STL File…",
+          onSelect: closeMenu(() => openStlFilePicker(null, target.nodeId)),
+        });
+        actions.push({
+          label: "Reference Selected Mesh",
+          disabled: !selectedGeometryId || selectedGeometryType !== "mesh",
+          onSelect: closeMenu(() => {
+            if (!selectedGeometryId || selectedGeometryType !== "mesh") return;
+            updateNodeData(target.nodeId, {
+              geometryId: selectedGeometryId,
+              geometryType: selectedGeometryType,
+              isLinked: true,
+            });
+          }),
+        });
+      }
+
       if (node?.type === "group") {
         actions.push({
           label: "Rename Group",
@@ -2045,6 +2502,15 @@ export const NumericalCanvas = ({
         });
       }
 
+      if (node?.type === "text") {
+        actions.push({
+          label: "Edit Text",
+          onSelect: closeMenu(() => {
+            beginInlineEdit("text", target.nodeId);
+          }),
+        });
+      }
+
       if (groupSelectionCount > 1) {
         actions.push({
           label: "Group Selection",
@@ -2054,9 +2520,30 @@ export const NumericalCanvas = ({
 
       if (node?.type === "slider") {
         actions.push({
-          label: "Slider Settings",
+          label: "Edit Settings",
           onSelect: closeMenu(() => {
             setSliderPopoverId(target.nodeId);
+            setFocusedSliderId(target.nodeId);
+          }),
+        });
+      }
+
+      if (node?.type === "genomeCollector") {
+        const selectedSliders = nodes.filter(
+          (entry) => entry.selected && entry.type === "slider"
+        );
+        actions.push({
+          label: "Add Selected Sliders",
+          disabled: selectedSliders.length === 0,
+          onSelect: closeMenu(() => {
+            selectedSliders.forEach((slider) => {
+              onConnect({
+                source: slider.id,
+                sourceHandle: "value",
+                target: target.nodeId,
+                targetHandle: "sliders",
+              });
+            });
           }),
         });
       }
@@ -2167,6 +2654,10 @@ export const NumericalCanvas = ({
       });
     }
     actions.push({
+      label: "Add File (STL)",
+      onSelect: closeMenu(() => openStlFilePicker(world, null)),
+    });
+    actions.push({
       label: "Add Text Note",
       onSelect: closeMenu(() => addTextNoteAt(world)),
     });
@@ -2226,9 +2717,11 @@ export const NumericalCanvas = ({
     interactionsEnabled,
     shortcutOverlayEnabled,
     addTextNoteAt,
+    openStlFilePicker,
     beginInlineEdit,
     createGroupFromSelection,
     setSliderPopoverId,
+    setFocusedSliderId,
     width,
     height,
   ]);
@@ -2260,6 +2753,8 @@ export const NumericalCanvas = ({
     if (label.includes("grid snap")) return "selectionFilter";
     if (label.includes("snap")) return "selectionFilter";
     if (label.includes("shortcuts")) return "advanced";
+    if (label.includes("add file")) return "load";
+    if (label.includes("select stl")) return "load";
     if (label.includes("refer to object")) return "referenceActive";
     if (label.includes("reference")) return "geometryReference";
     if (label.includes("ontologize")) return "brandRoslyn";
@@ -2275,6 +2770,13 @@ export const NumericalCanvas = ({
       const shortId = selectedGeometryId.slice(0, 6);
       return `Ref ${shortId}`;
     }
+    if (label.startsWith("Reference Selected Mesh")) {
+      if (!selectedGeometryId) return "Reference";
+      const shortId = selectedGeometryId.slice(0, 6);
+      return `Ref ${shortId}`;
+    }
+    if (label.startsWith("Add File")) return "Add File";
+    if (label.startsWith("Select STL")) return "Select STL";
     if (label.startsWith("Delete")) return "Delete";
     if (label.startsWith("Frame Selection")) return "Frame Sel";
     if (label.startsWith("Frame All")) return "Frame All";
@@ -2288,6 +2790,7 @@ export const NumericalCanvas = ({
     if (label.startsWith("Hide Shortcuts")) return "Help Off";
     if (label.startsWith("Disconnect")) return "Disconnect";
     if (label.startsWith("Ontologize")) return "Ontologize";
+    if (label.startsWith("Edit Settings")) return "Settings";
     return label;
   };
 
@@ -2445,11 +2948,12 @@ export const NumericalCanvas = ({
         }
       }
 
+      const hitPadding = node.type === "text" ? TEXT_NODE_HIT_PADDING : 0;
       const withinNode =
-        worldX >= layout.x &&
-        worldX <= layout.x + layout.width &&
-        worldY >= layout.y &&
-        worldY <= layout.y + layout.height;
+        worldX >= layout.x - hitPadding &&
+        worldX <= layout.x + layout.width + hitPadding &&
+        worldY >= layout.y - hitPadding &&
+        worldY <= layout.y + layout.height + hitPadding;
       if (withinNode) {
         return { type: "node", nodeId: node.id };
       }
@@ -2464,6 +2968,11 @@ export const NumericalCanvas = ({
     const canvas = canvasRef.current;
     if (!canvas) return;
     canvas.focus();
+
+    if (nodeSearchPopup) {
+      setNodeSearchPopup(null);
+      setNodeSearchQuery("");
+    }
 
     if (panZoomEnabled) {
       const rect = canvas.getBoundingClientRect();
@@ -2496,6 +3005,12 @@ export const NumericalCanvas = ({
     const screenY = e.clientY - rect.top;
     pointerScreenRef.current = { x: screenX, y: screenY };
     const world = screenToWorld(screenX, screenY);
+
+    if (pendingNodeType && e.button === 0) {
+      setHoveredTarget({ type: "none" });
+      e.preventDefault();
+      return;
+    }
     const target = hitTest(world.x, world.y);
     const isMultiSelect = e.metaKey || e.ctrlKey;
     const targetNode =
@@ -2579,7 +3094,10 @@ export const NumericalCanvas = ({
           if (!layouts.has(node.id)) {
             layouts.set(node.id, layout);
           }
-          if (isPointInGroupResizeHandle(world, layout) && e.button === 0) {
+          if (
+            isPointInGroupResizeHandle(world, layout, viewTransform.scale) &&
+            e.button === 0
+          ) {
             if (e.button === 0) {
               setNodeSelection(target.nodeId, isMultiSelect);
             }
@@ -2600,23 +3118,7 @@ export const NumericalCanvas = ({
             layouts.set(node.id, layout);
           }
           const sliderBounds = getSliderBounds(layout);
-          const valueBounds = getSliderValueBounds(layout);
-          const settingsBounds = getSliderSettingsBounds(layout);
           if (!isMultiSelect) {
-            if (isPointInRect(world, settingsBounds) && e.button === 0) {
-              setNodeSelection(target.nodeId, isMultiSelect);
-              setFocusedSliderId(node.id);
-              setSliderPopoverId((prev) => (prev === node.id ? null : node.id));
-              e.preventDefault();
-              e.stopPropagation();
-              return;
-            }
-            if (isPointInRect(world, valueBounds) && e.button === 0) {
-              beginSliderValueEdit(node.id);
-              e.preventDefault();
-              e.stopPropagation();
-              return;
-            }
             if (isPointInRect(world, sliderBounds)) {
               if (e.button === 0) {
                 setNodeSelection(target.nodeId, isMultiSelect);
@@ -2731,13 +3233,13 @@ export const NumericalCanvas = ({
       }
       return;
     }
+    if (node.type === "text") {
+      beginInlineEdit("text", node.id);
+      return;
+    }
     if (node.type === "textNote") {
       beginInlineEdit("note", node.id);
       return;
-    }
-    if (node.type === "slider") {
-      setSliderPopoverId(node.id);
-      setFocusedSliderId(node.id);
     }
   };
 
@@ -2773,6 +3275,10 @@ export const NumericalCanvas = ({
     }
 
     if (panZoomEnabled) {
+      return;
+    }
+
+    if (pendingNodeType && dragState.type === "none") {
       return;
     }
 
@@ -2854,10 +3360,20 @@ export const NumericalCanvas = ({
 
     const target = hitTest(world.x, world.y);
     setHoveredTarget(target);
-    let nextSliderHover: { nodeId: string; part: "track" | "value" | "settings" } | null =
-      null;
+    let nextSliderHover: { nodeId: string; part: "track" } | null = null;
+    let nextGroupResizeHoverId: string | null = null;
     if (target.type === "node") {
       const node = nodes.find((entry) => entry.id === target.nodeId);
+      if (node?.type === "group") {
+        const layouts = getLayouts();
+        const layout = layouts.get(node.id) ?? computeNodeLayout(node);
+        if (!layouts.has(node.id)) {
+          layouts.set(node.id, layout);
+        }
+        if (isPointInGroupResizeHandle(world, layout, viewTransform.scale)) {
+          nextGroupResizeHoverId = node.id;
+        }
+      }
       if (node?.type === "slider") {
         const layouts = getLayouts();
         const layout = layouts.get(node.id) ?? computeNodeLayout(node);
@@ -2865,18 +3381,15 @@ export const NumericalCanvas = ({
           layouts.set(node.id, layout);
         }
         const sliderBounds = getSliderBounds(layout);
-        const valueBounds = getSliderValueBounds(layout);
-        const settingsBounds = getSliderSettingsBounds(layout);
-        if (isPointInRect(world, settingsBounds)) {
-          nextSliderHover = { nodeId: node.id, part: "settings" };
-        } else if (isPointInRect(world, valueBounds)) {
-          nextSliderHover = { nodeId: node.id, part: "value" };
-        } else if (isPointInRect(world, sliderBounds)) {
+        if (isPointInRect(world, sliderBounds)) {
           nextSliderHover = { nodeId: node.id, part: "track" };
         }
       }
     }
     setSliderHover(nextSliderHover);
+    if (nextGroupResizeHoverId !== groupResizeHoverId) {
+      setGroupResizeHoverId(nextGroupResizeHoverId);
+    }
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -3022,9 +3535,7 @@ export const NumericalCanvas = ({
           layouts.set(node.id, layout);
         }
         const sliderBounds = getSliderBounds(layout);
-        const valueBounds = getSliderValueBounds(layout);
-        const isOverSlider =
-          isPointInRect(world, sliderBounds) || isPointInRect(world, valueBounds);
+        const isOverSlider = isPointInRect(world, sliderBounds);
         if (isOverSlider && (focusedSliderId === node.id || e.altKey)) {
           const config = resolveSliderConfig(node);
           const baseStep = config.step > 0 ? config.step : 1;
@@ -3091,6 +3602,10 @@ export const NumericalCanvas = ({
     if (!canvas) return;
     event.preventDefault();
     if (panZoomEnabled) return;
+    if (nodeSearchPopup) {
+      setNodeSearchPopup(null);
+      setNodeSearchQuery("");
+    }
     if (suppressContextMenuRef.current || rightClickHeldRef.current) {
       suppressContextMenuRef.current = false;
       rightClickHeldRef.current = false;
@@ -3102,6 +3617,34 @@ export const NumericalCanvas = ({
     const screenY = event.clientY - rect.top;
     const world = screenToWorld(screenX, screenY);
     const target = hitTest(world.x, world.y);
+
+    const now = typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
+    const lastRightClick = lastRightClickRef.current;
+    const isDoubleRightClick =
+      Boolean(lastRightClick) &&
+      now - (lastRightClick?.time ?? 0) < RIGHT_DOUBLE_CLICK_MS &&
+      Math.hypot(
+        screenX - (lastRightClick?.screen.x ?? 0),
+        screenY - (lastRightClick?.screen.y ?? 0)
+      ) < RIGHT_DOUBLE_CLICK_DISTANCE;
+    lastRightClickRef.current = { time: now, screen: { x: screenX, y: screenY } };
+
+    if (isDoubleRightClick) {
+      if (target.type === "node") {
+        const node = nodes.find((entry) => entry.id === target.nodeId);
+        if (node?.type === "biologicalEvolutionSolver") {
+          setContextMenu(null);
+          setNodeSearchPopup(null);
+          setBiologicalSolverPopupNodeId(node.id);
+          return;
+        }
+      }
+      setContextMenu(null);
+      setNodeSearchPopup({ screen: { x: screenX, y: screenY }, world });
+      setNodeSearchQuery("");
+      setNodeSearchIndex(0);
+      return;
+    }
 
     if (target.type === "edge") {
       setEdgeSelection(target.edgeId, false);
@@ -3121,6 +3664,11 @@ export const NumericalCanvas = ({
     });
   };
 
+  const activeSearchResult =
+    nodeSearchResults.length > 0
+      ? nodeSearchResults[Math.min(nodeSearchIndex, nodeSearchResults.length - 1)]
+      : null;
+
   const canvasBackground = captureActive
     ? captureMode === "white"
       ? "#ffffff"
@@ -3134,25 +3682,13 @@ export const NumericalCanvas = ({
     ? getLayouts().get(inlineEditorNode.id) ?? computeNodeLayout(inlineEditorNode)
     : null;
   const inlineEditorScreen =
-    inlineEditorLayout && inlineEditor?.type !== "slider"
+    inlineEditorLayout
       ? {
           left: inlineEditorLayout.x * viewTransform.scale + viewTransform.x,
           top: inlineEditorLayout.y * viewTransform.scale + viewTransform.y,
           width: inlineEditorLayout.width * viewTransform.scale,
           height: inlineEditorLayout.height * viewTransform.scale,
         }
-      : null;
-  const sliderValueScreen =
-    inlineEditorLayout && inlineEditor?.type === "slider"
-      ? (() => {
-          const bounds = getSliderValueBounds(inlineEditorLayout);
-          return {
-            left: bounds.x * viewTransform.scale + viewTransform.x,
-            top: bounds.y * viewTransform.scale + viewTransform.y,
-            width: bounds.width * viewTransform.scale,
-            height: bounds.height * viewTransform.scale,
-          };
-        })()
       : null;
 
   const sliderPopoverNode = sliderPopoverId
@@ -3241,13 +3777,11 @@ export const NumericalCanvas = ({
                 ? "nwse-resize"
                 : dragState.type === "slider"
                 ? "ew-resize"
-                : sliderHover?.part === "value"
-                  ? "text"
-                  : sliderHover?.part === "settings"
-                    ? "pointer"
-                    : sliderHover?.part === "track"
-                      ? "ew-resize"
-                  : dragState.type === "node"
+                : sliderHover?.part === "track"
+                  ? "ew-resize"
+                  : groupResizeHoverId
+                    ? "nwse-resize"
+                    : dragState.type === "node"
                 ? "move"
                 : hoveredTarget.type === "node"
                   ? "grab"
@@ -3259,6 +3793,25 @@ export const NumericalCanvas = ({
           touchAction: "none",
         }}
       />
+      <canvas
+        ref={portCanvasRef}
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          pointerEvents: "none",
+          zIndex: 1,
+        }}
+      />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".stl"
+        onChange={handleStlFileSelect}
+        style={{ display: "none" }}
+      />
       <div
         style={{
           position: "absolute",
@@ -3269,14 +3822,21 @@ export const NumericalCanvas = ({
       >
         {viewerNodes.map((viewer) => {
           const scale = viewTransform.scale;
+          const rowCount = Math.max(
+            viewer.layout.inputs.length,
+            viewer.layout.outputs.length,
+            1
+          );
+          const viewerTopOffset =
+            viewer.layout.portsStartOffset + rowCount * PORT_ROW_HEIGHT + 6;
           const frameLeft =
             viewer.layout.x * scale + viewTransform.x + VIEWER_INSET * scale;
           const frameTop =
-            viewer.layout.y * scale + viewTransform.y + VIEWER_TOP_OFFSET * scale;
+            viewer.layout.y * scale + viewTransform.y + viewerTopOffset * scale;
           const frameWidth =
             (viewer.layout.width - VIEWER_INSET * 2) * scale;
           const frameHeight =
-            (viewer.layout.height - VIEWER_TOP_OFFSET - VIEWER_BOTTOM_OFFSET) * scale;
+            (viewer.layout.height - viewerTopOffset - VIEWER_BOTTOM_OFFSET) * scale;
           if (frameWidth < 4 || frameHeight < 4) return null;
           if (
             frameLeft > width ||
@@ -3298,56 +3858,16 @@ export const NumericalCanvas = ({
                 pointerEvents: "auto",
               }}
             >
-              <WorkflowGeometryViewer geometryIds={viewer.geometryIds} />
+              <WorkflowGeometryViewer
+                geometryIds={viewer.geometryIds}
+                displayMode={viewer.filter?.displayMode}
+                viewSolidity={viewer.filter?.viewSolidity}
+                viewSettings={viewer.filter?.viewSettings}
+              />
             </div>
           );
         })}
-        {inlineEditor && inlineEditor.type === "slider" && sliderValueScreen ? (
-          <input
-            ref={inlineEditorRef as RefObject<HTMLInputElement>}
-            type="text"
-            value={inlineEditor.value}
-            onChange={(event) =>
-              setInlineEditor((prev) =>
-                prev ? { ...prev, value: event.target.value } : prev
-              )
-            }
-            onBlur={() => commitInlineEdit()}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                commitInlineEdit();
-              } else if (event.key === "Escape") {
-                event.preventDefault();
-                cancelInlineEdit();
-              } else if (event.key === "Tab") {
-                event.preventDefault();
-                commitInlineEdit();
-                canvasRef.current?.focus();
-              }
-            }}
-            onPointerDown={(event) => event.stopPropagation()}
-            style={{
-              position: "absolute",
-              left: sliderValueScreen.left,
-              top: sliderValueScreen.top,
-              width: Math.max(48, sliderValueScreen.width),
-              height: Math.max(16, sliderValueScreen.height),
-              padding: "2px 6px",
-              borderRadius: 6,
-              border: "1px solid var(--sp-divider, #c9c5c0)",
-              background: "var(--sp-porcelain, #f5f2ee)",
-              color: "var(--sp-ink, #1f1f22)",
-              font: `600 ${Math.max(
-                10,
-                11 * viewTransform.scale
-              )}px \"Proxima Nova\", \"Helvetica Neue\", Arial, sans-serif`,
-              textAlign: "right",
-              pointerEvents: "auto",
-              zIndex: 4,
-            }}
-          />
-        ) : inlineEditor && inlineEditorScreen && inlineEditorLayout ? (
+        {inlineEditor && inlineEditorScreen && inlineEditorLayout ? (
           inlineEditor.type === "group" ? (
             <input
               ref={inlineEditorRef as RefObject<HTMLInputElement>}
@@ -3375,14 +3895,61 @@ export const NumericalCanvas = ({
                 width: Math.max(120, inlineEditorScreen.width - 24),
                 height: Math.max(18, 18 * viewTransform.scale),
                 padding: "2px 6px",
-                borderRadius: 6,
+                borderRadius: 4,
                 border: "1px solid rgba(31, 31, 34, 0.25)",
                 background: "rgba(255, 255, 255, 0.98)",
                 color: "#1f1f22",
                 font: `600 ${Math.max(
                   10,
                   11 * viewTransform.scale
-                )}px \"Proxima Nova\", \"Helvetica Neue\", Arial, sans-serif`,
+                )}px \"Montreal Neue\", \"Space Grotesk\", sans-serif`,
+                pointerEvents: "auto",
+                zIndex: 4,
+              }}
+            />
+          ) : inlineEditor.type === "text" ? (
+            <input
+              ref={inlineEditorRef as RefObject<HTMLInputElement>}
+              value={inlineEditor.value}
+              onChange={(event) =>
+                setInlineEditor((prev) =>
+                  prev ? { ...prev, value: event.target.value } : prev
+                )
+              }
+              onBlur={() => commitInlineEdit()}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  commitInlineEdit();
+                } else if (event.key === "Escape") {
+                  event.preventDefault();
+                  cancelInlineEdit();
+                }
+              }}
+              onPointerDown={(event) => event.stopPropagation()}
+              style={{
+                position: "absolute",
+                left: inlineEditorScreen.left,
+                top: inlineEditorScreen.top,
+                width: Math.max(160, inlineEditorScreen.width + 80),
+                height: Math.max(24, inlineEditorScreen.height + 6),
+                padding: 0,
+                border: "none",
+                borderBottom: "1px dashed rgba(31, 31, 34, 0.35)",
+                background: "transparent",
+                color: "#1f1f22",
+                font: `500 ${Math.max(
+                  12,
+                  (inlineEditorLayout.textFontSize ?? TEXT_NODE_DEFAULT_SIZE) *
+                    viewTransform.scale
+                )}px ${TEXT_NODE_FONT_FAMILY}`,
+                lineHeight: `${Math.max(
+                  12,
+                  (inlineEditorLayout.textLineHeight ??
+                    TEXT_NODE_DEFAULT_SIZE * TEXT_NODE_LINE_HEIGHT) *
+                    viewTransform.scale
+                )}px`,
+                outline: "none",
                 pointerEvents: "auto",
                 zIndex: 4,
               }}
@@ -3426,13 +3993,13 @@ export const NumericalCanvas = ({
                   (NOTE_PADDING_TOP + NOTE_PADDING_BOTTOM) * viewTransform.scale,
                 padding: 0,
                 border: "1px solid rgba(191, 143, 69, 0.35)",
-                borderRadius: 8,
+                borderRadius: 5,
                 background: "rgba(255, 255, 255, 0.35)",
                 color: "#3b332d",
                 font: `500 ${Math.max(
                   10,
                   11 * viewTransform.scale
-                )}px \"Proxima Nova\", \"Helvetica Neue\", Arial, sans-serif`,
+                )}px \"Montreal Neue\", \"Space Grotesk\", sans-serif`,
                 lineHeight: `${Math.max(
                   Math.max(10, 11 * viewTransform.scale) * 1.3,
                   NOTE_LINE_HEIGHT * viewTransform.scale
@@ -3459,12 +4026,12 @@ export const NumericalCanvas = ({
               top: `${Math.max(8, Math.min(height - 240, sliderPopoverScreen.top))}px`,
               width: `${sliderPopoverScreen.width}px`,
               padding: "10px",
-              borderRadius: "10px",
+              borderRadius: "7px",
               border: "1px solid var(--sp-divider, #c9c5c0)",
               background: "var(--sp-porcelain, #f5f2ee)",
               boxShadow: "var(--shadow-panel, 0 10px 24px rgba(0, 0, 0, 0.18))",
               color: "var(--sp-ink, #1f1f22)",
-              font: '500 11px "Proxima Nova", "Helvetica Neue", Arial, sans-serif',
+              font: '500 11px "Montreal Neue", "Space Grotesk", sans-serif',
               display: "grid",
               gap: "8px",
               pointerEvents: "auto",
@@ -3512,7 +4079,7 @@ export const NumericalCanvas = ({
                     padding: "4px 6px",
                     width: "100%",
                     boxSizing: "border-box",
-                    borderRadius: 6,
+                    borderRadius: 4,
                     border: "1px solid var(--sp-divider, #c9c5c0)",
                     background: "var(--sp-porcelain, #f5f2ee)",
                   }}
@@ -3542,7 +4109,7 @@ export const NumericalCanvas = ({
                     padding: "4px 6px",
                     width: "100%",
                     boxSizing: "border-box",
-                    borderRadius: 6,
+                    borderRadius: 4,
                     border: "1px solid var(--sp-divider, #c9c5c0)",
                     background: "var(--sp-porcelain, #f5f2ee)",
                   }}
@@ -3566,7 +4133,7 @@ export const NumericalCanvas = ({
                     padding: "4px 6px",
                     width: "100%",
                     boxSizing: "border-box",
-                    borderRadius: 6,
+                    borderRadius: 4,
                     border: "1px solid var(--sp-divider, #c9c5c0)",
                     background: "var(--sp-porcelain, #f5f2ee)",
                   }}
@@ -3604,7 +4171,7 @@ export const NumericalCanvas = ({
             top: `${contextMenu.screen.y}px`,
             minWidth: "196px",
             padding: "6px",
-            borderRadius: "6px",
+            borderRadius: "4px",
             border: "1px solid rgba(0, 0, 0, 0.2)",
             background: "var(--roslyn-cream, #f7f3ea)",
             boxShadow: "2px 6px 16px rgba(0, 0, 0, 0.28)",
@@ -3638,6 +4205,166 @@ export const NumericalCanvas = ({
               />
             );
           })}
+        </div>
+      ) : null}
+      {interactionsEnabled && nodeSearchPopup ? (() => {
+        const popupWidth = 260;
+        const popupHeight = 220;
+        const left = Math.max(8, Math.min(width - popupWidth - 8, nodeSearchPopup.screen.x));
+        const top = Math.max(8, Math.min(height - popupHeight - 8, nodeSearchPopup.screen.y));
+        return (
+          <div
+            role="dialog"
+            style={{
+              position: "absolute",
+              left: `${left}px`,
+              top: `${top}px`,
+              width: `${popupWidth}px`,
+              padding: "10px",
+              borderRadius: "10px",
+              border: "1px solid rgba(0, 0, 0, 0.2)",
+              background: "var(--roslyn-cream, #f7f3ea)",
+              boxShadow: "0 10px 24px rgba(0, 0, 0, 0.24)",
+              display: "grid",
+              gap: "8px",
+              pointerEvents: "auto",
+              zIndex: 6,
+            }}
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            <div
+              style={{
+                fontSize: "10px",
+                fontWeight: 700,
+                letterSpacing: "0.16em",
+                textTransform: "uppercase",
+                color: "rgba(31, 31, 34, 0.7)",
+              }}
+            >
+              Node Search
+            </div>
+            <input
+              ref={nodeSearchInputRef}
+              type="search"
+              placeholder="Type to search…"
+              value={nodeSearchQuery}
+              onChange={(event) => setNodeSearchQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "ArrowDown") {
+                  event.preventDefault();
+                  setNodeSearchIndex((prev) =>
+                    Math.min(prev + 1, Math.max(0, nodeSearchResults.length - 1))
+                  );
+                } else if (event.key === "ArrowUp") {
+                  event.preventDefault();
+                  setNodeSearchIndex((prev) => Math.max(0, prev - 1));
+                } else if (event.key === "Enter") {
+                  event.preventDefault();
+                  if (activeSearchResult) {
+                    handleNodeSearchSelect(activeSearchResult.type as NodeType);
+                  }
+                } else if (event.key === "Escape") {
+                  event.preventDefault();
+                  setNodeSearchPopup(null);
+                  setNodeSearchQuery("");
+                }
+              }}
+              style={{
+                width: "100%",
+                padding: "6px 8px",
+                borderRadius: 6,
+                border: "1px solid rgba(0, 0, 0, 0.2)",
+                background: "#ffffff",
+                font: '500 11px "Montreal Neue", "Space Grotesk", sans-serif',
+              }}
+            />
+            <div
+              style={{
+                display: "grid",
+                gap: "4px",
+                maxHeight: `${popupHeight - 96}px`,
+                overflowY: "auto",
+                paddingRight: "2px",
+              }}
+            >
+              {nodeSearchResults.length === 0 ? (
+                <div
+                  style={{
+                    fontSize: "11px",
+                    color: "rgba(31, 31, 34, 0.55)",
+                    padding: "4px 2px",
+                  }}
+                >
+                  No matches.
+                </div>
+              ) : (
+                nodeSearchResults.map((definition, index) => {
+                  const isActive = index === nodeSearchIndex;
+                  const category =
+                    NODE_CATEGORY_BY_ID.get(definition.category)?.label ?? definition.category;
+                  const greek = definition.display?.nameGreek ?? definition.label;
+                  const english = definition.display?.nameEnglish ?? definition.label;
+                  return (
+                    <button
+                      key={definition.type}
+                      type="button"
+                      onClick={() => handleNodeSearchSelect(definition.type as NodeType)}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "2px",
+                        padding: "6px 8px",
+                        borderRadius: 8,
+                        border: isActive
+                          ? "1px solid rgba(122, 92, 255, 0.6)"
+                          : "1px solid transparent",
+                        background: isActive ? "rgba(122, 92, 255, 0.12)" : "transparent",
+                        textAlign: "left",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          color: "#1f1f22",
+                        }}
+                      >
+                        {greek}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: "9px",
+                          letterSpacing: "0.08em",
+                          textTransform: "uppercase",
+                          color: "rgba(31, 31, 34, 0.6)",
+                        }}
+                      >
+                        {english} · {category}
+                      </span>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        );
+      })() : null}
+      {interactionsEnabled && biologicalSolverPopupNodeId ? (
+        <div data-capture-hide="true">
+          <BiologicalSolverPopup
+            nodeId={biologicalSolverPopupNodeId}
+            onClose={() => setBiologicalSolverPopupNodeId(null)}
+          />
+        </div>
+      ) : null}
+      {interactionsEnabled && chemistryMaterialPopupNodeId ? (
+        <div data-capture-hide="true">
+          <ChemistryMaterialPopup
+            nodeId={chemistryMaterialPopupNodeId}
+            onClose={() => setChemistryMaterialPopupNodeId(null)}
+          />
         </div>
       ) : null}
     </div>
@@ -3821,6 +4548,340 @@ function drawEdgePreview(
   ctx.setLineDash([]);
 }
 
+const drawCapsule = (
+  ui: WebGLUIRenderer,
+  scale: number,
+  start: Vec2,
+  end: Vec2,
+  radius: number,
+  color: RGBA
+) => {
+  ui.drawLine(start.x * scale, start.y * scale, end.x * scale, end.y * scale, radius * 2 * scale, color);
+  ui.drawFilledCircle(start.x * scale, start.y * scale, radius * scale, color);
+  ui.drawFilledCircle(end.x * scale, end.y * scale, radius * scale, color);
+};
+
+const drawPortOutlet = (
+  ui: WebGLUIRenderer,
+  scale: number,
+  position: Vec2,
+  radius: number,
+  baseColor: RGBA,
+  state: PortRenderState,
+  shadowColor: RGBA,
+  time: number,
+  isMinimap: boolean
+) => {
+  const px = position.x * scale;
+  const py = position.y * scale;
+  const r = radius * scale;
+
+  if (radius <= 2 || isMinimap) {
+    ui.drawFilledCircle(px, py, Math.max(1, r), withAlpha(baseColor, 0.9));
+    return;
+  }
+
+  if (state.hovered || state.active) {
+    const pulse = 0.5 + 0.5 * Math.sin(time * 0.006);
+    const glowAlpha = state.hovered ? 0.28 + pulse * 0.08 : 0.2 + pulse * 0.06;
+    ui.drawFilledCircle(px, py, r * 1.7, withAlpha(baseColor, glowAlpha));
+  }
+
+  ui.drawFilledCircle(px + r * 0.18, py + r * 0.24, r * 1.12, withAlpha(shadowColor, 0.3));
+  ui.drawFilledCircle(px, py, r * 1.03, darken(baseColor, 0.34));
+  ui.drawFilledCircle(px, py, r * 0.82, lighten(baseColor, 0.18));
+  ui.drawFilledCircle(px - r * 0.05, py + r * 0.06, r * 0.48, darken(baseColor, 0.65));
+
+  const slotWidth = r * 0.7;
+  const slotHeight = Math.max(1, r * 0.14);
+  ui.drawRect(px - slotWidth / 2, py - slotHeight / 2, slotWidth, slotHeight, withAlpha(darken(baseColor, 0.78), 0.92));
+
+  if (state.connected) {
+    ui.drawFilledCircle(px, py, r * 0.22, withAlpha(lighten(baseColor, 0.35), 0.95));
+  }
+
+  ui.drawFilledCircle(px - r * 0.3, py - r * 0.3, r * 0.18, withAlpha([1, 1, 1, 1], 0.35));
+};
+
+const drawPortPlug = (
+  ui: WebGLUIRenderer,
+  scale: number,
+  position: Vec2,
+  direction: Vec2,
+  radius: number,
+  baseColor: RGBA,
+  state: PortRenderState,
+  time: number
+) => {
+  if (radius <= 2) return;
+  const bodyRadius = Math.max(1.2, radius * 0.45);
+  const bodyLength = radius * 2.2;
+  const collarLength = radius * 0.9;
+  const insert = state.hovered || state.active ? 0.16 : 0.3;
+  const base = {
+    x: position.x + direction.x * radius * insert,
+    y: position.y + direction.y * radius * insert,
+  };
+  const tip = {
+    x: base.x + direction.x * bodyLength,
+    y: base.y + direction.y * bodyLength,
+  };
+
+  const bodyColor = mixColor([0.08, 0.08, 0.09, 1], baseColor, 0.35);
+  const collarColor = mixColor([0.2, 0.2, 0.22, 1], baseColor, 0.45);
+  const ringColor = lighten(baseColor, 0.22);
+
+  if (state.hovered || state.active) {
+    const pulse = 0.5 + 0.5 * Math.sin(time * 0.007);
+    const glowAlpha = state.hovered ? 0.22 + pulse * 0.08 : 0.16 + pulse * 0.06;
+    drawCapsule(
+      ui,
+      scale,
+      base,
+      { x: tip.x + direction.x * bodyRadius * 0.6, y: tip.y + direction.y * bodyRadius * 0.6 },
+      bodyRadius * 0.95,
+      withAlpha(baseColor, glowAlpha)
+    );
+  }
+
+  drawCapsule(ui, scale, base, tip, bodyRadius, bodyColor);
+
+  const collarStart = {
+    x: base.x - direction.x * collarLength * 0.2,
+    y: base.y - direction.y * collarLength * 0.2,
+  };
+  const collarEnd = {
+    x: base.x + direction.x * collarLength,
+    y: base.y + direction.y * collarLength,
+  };
+  drawCapsule(ui, scale, collarStart, collarEnd, bodyRadius * 1.05, collarColor);
+
+  const ringStart = {
+    x: tip.x - direction.x * bodyRadius * 0.2,
+    y: tip.y - direction.y * bodyRadius * 0.2,
+  };
+  const ringEnd = {
+    x: tip.x + direction.x * bodyRadius * 0.65,
+    y: tip.y + direction.y * bodyRadius * 0.65,
+  };
+  drawCapsule(ui, scale, ringStart, ringEnd, bodyRadius * 0.7, ringColor);
+
+  const highlight = {
+    x: tip.x - direction.y * bodyRadius * 0.35 + direction.x * bodyRadius * 0.2,
+    y: tip.y + direction.x * bodyRadius * 0.35 + direction.y * bodyRadius * 0.2,
+  };
+  ui.drawFilledCircle(highlight.x * scale, highlight.y * scale, bodyRadius * 0.38 * scale, withAlpha([1, 1, 1, 1], 0.32));
+};
+
+const renderWebGLPorts = ({
+  gl,
+  ui,
+  canvas,
+  width,
+  height,
+  dpr,
+  viewTransform,
+  layouts,
+  edges,
+  hoveredTarget,
+  dragState,
+  palette,
+  connectedInputs,
+  isMinimap,
+  captureActive,
+}: {
+  gl: WebGLRenderingContext;
+  ui: WebGLUIRenderer;
+  canvas: HTMLCanvasElement;
+  width: number;
+  height: number;
+  dpr: number;
+  viewTransform: ViewTransform;
+  layouts: Map<string, NodeLayout>;
+  edges: any[];
+  hoveredTarget: HitTarget;
+  dragState: DragState;
+  palette: CanvasPalette;
+  connectedInputs: Map<string, Set<string>>;
+  isMinimap: boolean;
+  captureActive: boolean;
+}) => {
+  const pixelWidth = Math.max(1, Math.floor(width * dpr));
+  const pixelHeight = Math.max(1, Math.floor(height * dpr));
+  if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+    canvas.width = pixelWidth;
+    canvas.height = pixelHeight;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+  }
+
+  gl.viewport(0, 0, pixelWidth, pixelHeight);
+  gl.clearColor(0, 0, 0, 0);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+
+  ui.begin(pixelWidth, pixelHeight);
+
+  const scale = viewTransform.scale;
+  const portRadius = PORT_RADIUS * scale;
+  const fallbackPortColor = parseCssColor(palette.portFill, [0.15, 0.15, 0.16, 1]);
+  const shadowColor = parseCssColor(palette.nodeShadow, [0, 0, 0, 0.35]);
+  const time = captureActive ? 0 : performance.now();
+  const connectedOutputs = buildConnectedOutputSet(edges, layouts);
+
+  const worldToScreen = (pos: Vec2) => ({
+    x: pos.x * scale + viewTransform.x,
+    y: pos.y * scale + viewTransform.y,
+  });
+
+  const activePort =
+    dragState.type === "edge"
+      ? {
+          nodeId: dragState.sourceNodeId,
+          portKey: dragState.sourcePort,
+          isOutput: true,
+        }
+      : null;
+
+  layouts.forEach((layout) => {
+    const nodeId = layout.nodeId;
+    const inputConnections = connectedInputs.get(nodeId);
+    const outputConnections = connectedOutputs.get(nodeId);
+
+    const drawPort = (portLayout: PortLayout) => {
+      const port = portLayout.port;
+      const portColor = resolvePortColor(port, palette.portFill);
+      const baseColor = parseCssColor(portColor, fallbackPortColor);
+      const isHovered =
+        hoveredTarget.type === "port" &&
+        hoveredTarget.nodeId === nodeId &&
+        hoveredTarget.portKey === port.key &&
+        hoveredTarget.isOutput === portLayout.isOutput;
+      const isActive =
+        Boolean(activePort) &&
+        activePort.nodeId === nodeId &&
+        activePort.portKey === port.key &&
+        activePort.isOutput === portLayout.isOutput;
+      const connected = portLayout.isOutput
+        ? outputConnections?.has(port.key) ?? false
+        : inputConnections?.has(port.key) ?? false;
+
+      const screenPos = worldToScreen({ x: portLayout.x, y: portLayout.y });
+      drawPortOutlet(
+        ui,
+        dpr,
+        screenPos,
+        portRadius,
+        baseColor,
+        { hovered: isHovered, active: isActive, connected },
+        shadowColor,
+        time,
+        isMinimap
+      );
+    };
+
+    layout.inputs.forEach(drawPort);
+    layout.outputs.forEach(drawPort);
+  });
+
+  const portCounts = new Map<string, number>();
+  const registerPort = (layout: NodeLayout, portLayout: PortLayout) => {
+    const key = `${layout.nodeId}:${portLayout.port.key}:${portLayout.isOutput ? "o" : "i"}`;
+    portCounts.set(key, (portCounts.get(key) ?? 0) + 1);
+  };
+
+  edges.forEach((edge) => {
+    const endpoints = resolveEdgeEndpoints(edge, layouts);
+    if (!endpoints) return;
+    registerPort(endpoints.sourceLayout, endpoints.sourcePort);
+    registerPort(endpoints.targetLayout, endpoints.targetPort);
+  });
+
+  const portUsage = new Map<string, number>();
+  const nextPortOffset = (layout: NodeLayout, portLayout: PortLayout) => {
+    const key = `${layout.nodeId}:${portLayout.port.key}:${portLayout.isOutput ? "o" : "i"}`;
+    const total = portCounts.get(key) ?? 1;
+    const index = portUsage.get(key) ?? 0;
+    portUsage.set(key, index + 1);
+    const offsetIndex = index - (total - 1) / 2;
+    return offsetIndex * portRadius * 0.9;
+  };
+
+  edges.forEach((edge) => {
+    const endpoints = resolveEdgeEndpoints(edge, layouts);
+    if (!endpoints) return;
+
+    const sourceColor = parseCssColor(
+      resolvePortColor(endpoints.sourcePort.port, palette.portFill),
+      fallbackPortColor
+    );
+
+    const drawPlugAt = (layout: NodeLayout, portLayout: PortLayout) => {
+      const offset = nextPortOffset(layout, portLayout);
+      const screenPos = worldToScreen({ x: portLayout.x, y: portLayout.y });
+      screenPos.y += offset;
+      const direction = portLayout.isOutput ? { x: 1, y: 0 } : { x: -1, y: 0 };
+      const isHovered =
+        hoveredTarget.type === "port" &&
+        hoveredTarget.nodeId === layout.nodeId &&
+        hoveredTarget.portKey === portLayout.port.key &&
+        hoveredTarget.isOutput === portLayout.isOutput;
+      drawPortPlug(
+        ui,
+        dpr,
+        screenPos,
+        direction,
+        portRadius,
+        sourceColor,
+        { hovered: isHovered, active: false, connected: true },
+        time
+      );
+    };
+
+    drawPlugAt(endpoints.sourceLayout, endpoints.sourcePort);
+    drawPlugAt(endpoints.targetLayout, endpoints.targetPort);
+  });
+
+  if (dragState.type === "edge") {
+    const sourceLayout = layouts.get(dragState.sourceNodeId);
+    const sourcePort = resolvePortLayout(sourceLayout, dragState.sourcePort, true);
+    if (sourceLayout && sourcePort) {
+      const sourceColor = parseCssColor(
+        resolvePortColor(sourcePort.port, palette.portFill),
+        fallbackPortColor
+      );
+      const sourcePos = worldToScreen({ x: sourcePort.x, y: sourcePort.y });
+      drawPortPlug(
+        ui,
+        dpr,
+        sourcePos,
+        { x: 1, y: 0 },
+        portRadius,
+        sourceColor,
+        { hovered: true, active: true, connected: true },
+        time
+      );
+
+      const targetPos = worldToScreen(dragState.currentPos);
+      const dx = targetPos.x - sourcePos.x;
+      const dy = targetPos.y - sourcePos.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const direction = { x: dx / len, y: dy / len };
+      drawPortPlug(
+        ui,
+        dpr,
+        targetPos,
+        direction,
+        portRadius,
+        sourceColor,
+        { hovered: true, active: true, connected: false },
+        time
+      );
+    }
+  }
+
+  ui.flush();
+};
+
 function drawGroupNodes(
   ctx: CanvasRenderingContext2D,
   nodes: any[],
@@ -3857,6 +4918,13 @@ function drawGroupNodes(
     const fill = rgbaToCss(parseCssColor(rawFill, fallbackFill), 1);
 
     ctx.save();
+    ctx.fillStyle = palette.nodeShadow;
+    ctx.beginPath();
+    ctx.roundRect(x, y + NODE_SHADOW_OFFSET, width, height, GROUP_BORDER_RADIUS);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
     ctx.fillStyle = fill;
     ctx.strokeStyle = isHovered || isSelected ? palette.nodeStrokeHover : palette.nodeStroke;
     ctx.lineWidth = isSelected ? 2 : 1.5;
@@ -3871,15 +4939,15 @@ function drawGroupNodes(
     ctx.restore();
 
     ctx.fillStyle = palette.text;
-    ctx.font = '600 11px "Proxima Nova", "Helvetica Neue", Arial, sans-serif';
+    ctx.font = '600 11px "Montreal Neue", "Space Grotesk", sans-serif';
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
     const titleText = truncateToWidth(ctx, title, width - 80);
-    ctx.fillText(titleText, x + 12, y + 6);
+    ctx.fillText(titleText, x + 10, y + 5);
 
     if (memberCount > 0) {
       const badgeLabel = `${memberCount} node${memberCount === 1 ? "" : "s"}`;
-      ctx.font = '600 9px "Proxima Nova", "Helvetica Neue", Arial, sans-serif';
+      ctx.font = '600 9px "Montreal Neue", "Space Grotesk", sans-serif';
       const textWidth = ctx.measureText(badgeLabel).width;
       const badgeWidth = Math.max(40, textWidth + 10);
       const badgeHeight = GROUP_HEADER_HEIGHT - 8;
@@ -3919,14 +4987,21 @@ function drawNodes(
   geometry: any[],
   hoveredTarget: HitTarget,
   palette: CanvasPalette,
-  sliderHover: { nodeId: string; part: "track" | "value" | "settings" } | null,
+  sliderHover: { nodeId: string; part: "track" } | null,
   focusedSliderId: string | null,
-  sliderPopoverId: string | null,
-  dragState: DragState
+  dragState: DragState,
+  renderPortBodies: boolean,
+  ghostNodeIds?: Set<string>,
+  ghostAlpha = 0.45
 ) {
   const defaultIconTint = parseCssColor(palette.text, [0.12, 0.12, 0.13, 1]);
 
   nodes.forEach((node) => {
+    const isGhost = ghostNodeIds?.has(node.id) ?? false;
+    if (isGhost) {
+      ctx.save();
+      ctx.globalAlpha *= ghostAlpha;
+    }
     const layout = layouts.get(node.id) ?? computeNodeLayout(node);
     if (!layouts.has(node.id)) {
       layouts.set(node.id, layout);
@@ -3936,30 +5011,89 @@ function drawNodes(
     const y = layout.y;
     const height = layout.height;
 
-    const isHovered = hoveredTarget.type === "node" && hoveredTarget.nodeId === node.id;
-    const isInvalid = isWorkflowNodeInvalid(node.type, node.data, geometry);
-    const missingRequiredInputs = getMissingRequiredInputs(
-      layout,
-      connectedInputsByNode.get(node.id)
-    );
-    const showWarning = missingRequiredInputs.length > 0 && !isInvalid;
+    const isHovered =
+      !isGhost && hoveredTarget.type === "node" && hoveredTarget.nodeId === node.id;
+    const isInvalid = isGhost ? false : isWorkflowNodeInvalid(node.type, node.data, geometry);
+    const missingRequiredInputs = isGhost
+      ? []
+      : getMissingRequiredInputs(layout, connectedInputsByNode.get(node.id));
+    const showWarning = !isGhost && missingRequiredInputs.length > 0 && !isInvalid;
     const definition = layout.definition ?? getNodeDefinition(node.type);
     const category = definition ? NODE_CATEGORY_BY_ID.get(definition.category) : undefined;
-    const categoryBand = category?.band ?? "#ece8e2";
+    const baseCategoryBand = category?.band ?? "#ece8e2";
     const categoryAccent = category?.accent ?? palette.nodeStroke;
     const fallbackPortColor = category?.port ?? palette.portFill;
+    const isSolverNode = definition?.category === "solver";
+    const isGoalNode = definition?.category === "goal";
+    const categoryBand = isSolverNode
+      ? SOLVER_BAND_TINT
+      : isGoalNode
+        ? GOAL_BAND_TINT
+        : baseCategoryBand;
+    const categoryBandAccent = isSolverNode
+      ? SOLVER_BAND_ACCENT
+      : isGoalNode
+        ? GOAL_BAND_ACCENT
+        : categoryAccent;
+    const categoryLabelColor = isSolverNode
+      ? "rgba(255, 255, 255, 0.85)"
+      : isGoalNode
+        ? "#4b3f73"
+        : categoryAccent;
+    const nodeTextColor = isSolverNode
+      ? SOLVER_NODE_TEXT
+      : isGoalNode
+        ? GOAL_NODE_TEXT
+        : palette.text;
+    const nodeMutedTextColor = isSolverNode
+      ? SOLVER_NODE_TEXT_MUTED
+      : isGoalNode
+        ? GOAL_NODE_TEXT_MUTED
+        : palette.textMuted;
     const iconTint = parseCssColor(categoryAccent, defaultIconTint);
     const baseLabel = node.data?.label ?? definition?.label ?? node.type ?? "Node";
     const label = node.type === "panel" ? "DATA" : baseLabel;
     const isSlider = node.type === "slider";
     const sliderHoverPart =
-      isSlider && sliderHover?.nodeId === node.id ? sliderHover.part : null;
-    const isSliderFocused = isSlider && focusedSliderId === node.id;
+      isGhost || !isSlider || sliderHover?.nodeId !== node.id ? null : sliderHover.part;
+    const isSliderFocused = !isGhost && isSlider && focusedSliderId === node.id;
     const isSliderActive =
-      isSlider && dragState.type === "slider" && dragState.nodeId === node.id;
-    const isSliderSettingsOpen = isSlider && sliderPopoverId === node.id;
+      !isGhost && isSlider && dragState.type === "slider" && dragState.nodeId === node.id;
+
+    if (node.type === "text") {
+      const textLines =
+        layout.textLines ??
+        (typeof layout.parameters.text === "string"
+          ? layout.parameters.text.split("\n")
+          : ["Text"]);
+      const fontSize = Math.min(
+        96,
+        Math.max(8, readNumber(layout.parameters.size, TEXT_NODE_DEFAULT_SIZE))
+      );
+      const lineHeight = layout.textLineHeight ?? fontSize * TEXT_NODE_LINE_HEIGHT;
+      const font = resolveTextFont(fontSize);
+      const textColor = palette.text;
+
+      ctx.save();
+      ctx.font = font;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      ctx.fillStyle = textColor;
+      textLines.forEach((line, index) => {
+        ctx.fillText(line, x, y + index * lineHeight);
+      });
+
+      ctx.restore();
+      if (isGhost) {
+        ctx.restore();
+      }
+      return;
+    }
 
     if (node.type === "group") {
+      if (isGhost) {
+        ctx.restore();
+      }
       return;
     }
 
@@ -3975,12 +5109,12 @@ function drawNodes(
       const linesToDraw = layout.noteLines ?? ["Edit me!"];
       const isSelected = Boolean(node.selected);
       const fill = isHovered ? "#fff5d8" : "#fff1c6";
-      const border = isSelected ? "#f59e0b" : "rgba(191, 143, 69, 0.55)";
+      const border = isSelected ? "#f59e0b" : "#bf8f45";
 
       ctx.save();
-      ctx.fillStyle = "rgba(0, 0, 0, 0.16)";
+      ctx.fillStyle = palette.nodeShadow;
       ctx.beginPath();
-      ctx.roundRect(x, y + 3, layout.width, layout.height, NOTE_BORDER_RADIUS);
+      ctx.roundRect(x, y + NODE_SHADOW_OFFSET, layout.width, layout.height, NOTE_BORDER_RADIUS);
       ctx.fill();
       ctx.restore();
 
@@ -3999,7 +5133,7 @@ function drawNodes(
       ctx.roundRect(x, y, layout.width, layout.height, NOTE_BORDER_RADIUS);
       ctx.clip();
       ctx.fillStyle = hasContent ? "#3b332d" : "#8c7a5f";
-      ctx.font = '500 11px "Proxima Nova", "Helvetica Neue", Arial, sans-serif';
+      ctx.font = '500 11px "Montreal Neue", "Space Grotesk", sans-serif';
       ctx.textAlign = "left";
       ctx.textBaseline = "top";
       linesToDraw.forEach((line, index) => {
@@ -4009,7 +5143,7 @@ function drawNodes(
       });
       ctx.restore();
 
-      const portFont = '600 9px "Proxima Nova", "Helvetica Neue", Arial, sans-serif';
+      const portFont = '600 9px "Montreal Neue", "Space Grotesk", sans-serif';
       const noteWidth = layout.width;
       const portLabelMaxWidth = noteWidth - 48;
       const drawPort = (portLayout: PortLayout) => {
@@ -4029,10 +5163,14 @@ function drawNodes(
           ctx.fillStyle = portColor;
           ctx.globalAlpha = isPortHovered ? 1 : 0.86;
           const labelText = truncateToWidth(ctx, port.label, portLabelMaxWidth);
-          const labelX = portLayout.isOutput ? x + noteWidth - 14 : x + 12;
+          const labelX = portLayout.isOutput ? x + noteWidth - 12 : x + 10;
           ctx.fillText(labelText, labelX, portLayout.y);
         }
         ctx.restore();
+
+        if (!renderPortBodies) {
+          return;
+        }
 
         ctx.fillStyle = portColor;
         ctx.beginPath();
@@ -4057,59 +5195,70 @@ function drawNodes(
 
       layout.inputs.forEach(drawPort);
       layout.outputs.forEach(drawPort);
+      if (isGhost) {
+        ctx.restore();
+      }
       return;
     }
 
-    const iconSpace =
-      !isSlider && definition?.iconId ? ICON_SIZE + ICON_PADDING + 4 : 0;
-    const labelMaxWidth = isSlider ? NODE_WIDTH - 72 : NODE_WIDTH - 24 - iconSpace;
-    const detailMaxWidth = NODE_WIDTH - 24;
-    const nodeRadius = isSlider ? height / 2 : NODE_BORDER_RADIUS;
+    const labelMaxWidth = isSlider ? NODE_WIDTH - 64 : NODE_WIDTH - 20;
+    const detailMaxWidth = NODE_WIDTH - 20;
+    const nodeRadius = isSlider ? 0 : NODE_BORDER_RADIUS;
 
-    // Draw a crisp offset shadow to help the nodes read as buttons.
-    ctx.save();
-    ctx.fillStyle = palette.nodeShadow;
-    ctx.beginPath();
-    ctx.roundRect(x, y + NODE_SHADOW_OFFSET, NODE_WIDTH, height, nodeRadius);
-    ctx.fill();
-    ctx.restore();
-
-    const baseFill = isHovered ? palette.nodeFillHover : palette.nodeFill;
-    ctx.fillStyle = isInvalid
-      ? palette.nodeErrorFill
-      : showWarning
-        ? palette.nodeWarningFill
-        : baseFill;
-    ctx.strokeStyle = isInvalid
-      ? palette.nodeErrorBorder
-      : showWarning
-        ? palette.nodeWarningBorder
-        : isHovered
-          ? palette.nodeStrokeHover
-          : palette.nodeStroke;
-    ctx.lineWidth = 2;
-
-    ctx.beginPath();
-    ctx.roundRect(x, y, NODE_WIDTH, height, nodeRadius);
-    ctx.fill();
-    ctx.stroke();
-
-    if (isInvalid) {
+    if (!isSlider) {
+      // Draw a crisp offset shadow to help the nodes read as buttons.
       ctx.save();
-      ctx.fillStyle = palette.nodeErrorOverlay;
+      ctx.fillStyle = palette.nodeShadow;
+      ctx.beginPath();
+      ctx.roundRect(x, y + NODE_SHADOW_OFFSET, NODE_WIDTH, height, nodeRadius);
+      ctx.fill();
+      ctx.restore();
+
+      const baseFill = isSolverNode
+        ? createNodeGradient(
+            ctx,
+            x,
+            y,
+            NODE_WIDTH,
+            height,
+            isHovered ? SOLVER_NODE_FILL_TOP_HOVER : SOLVER_NODE_FILL_TOP,
+            isHovered ? SOLVER_NODE_FILL_BOTTOM_HOVER : SOLVER_NODE_FILL_BOTTOM
+          )
+        : isGoalNode
+          ? createNodeGradient(
+              ctx,
+              x,
+              y,
+              NODE_WIDTH,
+              height,
+              isHovered ? GOAL_NODE_FILL_TOP_HOVER : GOAL_NODE_FILL_TOP,
+              isHovered ? GOAL_NODE_FILL_BOTTOM_HOVER : GOAL_NODE_FILL_BOTTOM
+            )
+          : isHovered
+            ? palette.nodeFillHover
+            : palette.nodeFill;
+      ctx.fillStyle = isInvalid
+        ? palette.nodeErrorFill
+        : showWarning
+          ? palette.nodeWarningFill
+          : baseFill;
+      ctx.strokeStyle = isInvalid
+        ? palette.nodeErrorBorder
+        : showWarning
+          ? palette.nodeWarningBorder
+          : isSolverNode
+            ? SOLVER_NODE_BORDER
+            : isGoalNode
+              ? GOAL_NODE_BORDER
+              : isHovered
+                ? palette.nodeStrokeHover
+                : palette.nodeStroke;
+      ctx.lineWidth = 2;
+
       ctx.beginPath();
       ctx.roundRect(x, y, NODE_WIDTH, height, nodeRadius);
       ctx.fill();
-      ctx.restore();
-    }
-
-    if (showWarning) {
-      ctx.save();
-      ctx.fillStyle = palette.nodeWarningOverlay;
-      ctx.beginPath();
-      ctx.roundRect(x, y, NODE_WIDTH, height, nodeRadius);
-      ctx.fill();
-      ctx.restore();
+      ctx.stroke();
     }
 
     if (!isSlider) {
@@ -4119,39 +5268,58 @@ function drawNodes(
       ctx.clip();
       ctx.fillStyle = categoryBand;
       ctx.fillRect(x, y, NODE_WIDTH, NODE_BAND_HEIGHT);
-      ctx.fillStyle = categoryAccent;
+      ctx.fillStyle = categoryBandAccent;
       ctx.fillRect(x, y + NODE_BAND_HEIGHT - 1.5, NODE_WIDTH, 1.5);
       ctx.restore();
 
       if (category) {
-        ctx.fillStyle = categoryAccent;
-        ctx.font = '600 9px "Proxima Nova", "Helvetica Neue", Arial, sans-serif';
+        ctx.fillStyle = categoryLabelColor;
+        ctx.font = '600 9px "Montreal Neue", "Space Grotesk", sans-serif';
         ctx.textAlign = "left";
         ctx.textBaseline = "top";
-        ctx.fillText(category.label.toUpperCase(), x + 10, y + 4);
+        ctx.fillText(category.label.toUpperCase(), x + 9, y + 3);
       }
     }
 
     const iconImage = !isSlider ? getIconImage(definition?.iconId, iconTint) : null;
     if (!isSlider && definition?.iconId && iconImage && iconImage.complete && iconImage.naturalWidth > 0) {
-      const iconX = x + NODE_WIDTH - ICON_PADDING - ICON_SIZE;
-      const iconY = y + NODE_BAND_HEIGHT + 6;
+      const iconIsSoft =
+        node.type === "panel" ||
+        node.type === "geometryViewer" ||
+        node.type === "customPreview";
+      const iconScale = iconIsSoft ? 0.78 : 1;
+      const iconLimit = Math.min(
+        ICON_SIZE,
+        NODE_WIDTH - ICON_PADDING * 2,
+        height - NODE_BAND_HEIGHT - ICON_PADDING * 2
+      );
+      const iconSize = Math.max(0, iconLimit * iconScale);
+      const iconX = x + (NODE_WIDTH - iconSize) / 2;
+      const iconY = y + height * 0.5 - iconSize * 0.5;
       ctx.save();
-      ctx.globalAlpha = 0.98;
-      ctx.drawImage(iconImage, iconX, iconY, ICON_SIZE, ICON_SIZE);
+      ctx.globalAlpha = iconIsSoft ? 0.16 : 0.98;
+      ctx.drawImage(iconImage, iconX, iconY, iconSize, iconSize);
       ctx.restore();
     }
 
     if (!isSlider) {
-      ctx.fillStyle = palette.text;
-      ctx.font = '600 13px "Proxima Nova", "Helvetica Neue", Arial, sans-serif';
+      ctx.fillStyle = nodeTextColor;
+      const labelFont =
+        definition?.category === "solver" || definition?.category === "goal"
+          ? '600 13px "Noto Serif", "GFS Didot", serif'
+          : '600 13px "Montreal Neue", "Space Grotesk", sans-serif';
+      ctx.font = labelFont;
       ctx.textAlign = "left";
       ctx.textBaseline = "top";
       const labelText = truncateToWidth(ctx, label, labelMaxWidth);
-      ctx.fillText(labelText, x + 12, y + NODE_BAND_HEIGHT + 8);
+      ctx.fillText(labelText, x + 10, y + NODE_BAND_HEIGHT + 6);
     }
 
-    const detailY = isSlider ? y + 34 : y + NODE_BAND_HEIGHT + 32;
+    const detailBlockHeight =
+      node.type === "topologyOptimize" ? DETAIL_LINE_HEIGHT * 2 : DETAIL_LINE_HEIGHT;
+    const detailY = isSlider
+      ? y + 34
+      : y + height - DETAIL_BOTTOM_PADDING - detailBlockHeight;
     const evaluationError = node.data?.evaluationError;
     const outputs = node.data?.outputs ?? {};
     const primaryOutputKey = definition?.primaryOutputKey ?? layout.defaultOutputKey;
@@ -4194,76 +5362,6 @@ function drawNodes(
         typeof outputValue === "number" && Number.isFinite(outputValue)
           ? outputValue
           : sliderConfig.value;
-      const valueText = formatSliderValue(
-        value,
-        sliderConfig.step,
-        sliderConfig.snapMode,
-        sliderConfig.precisionOverride
-      );
-
-      ctx.fillStyle = palette.text;
-      ctx.font = '600 12px "Proxima Nova", "Helvetica Neue", Arial, sans-serif';
-      ctx.textAlign = "left";
-      ctx.textBaseline = "top";
-      const valueBounds = getSliderValueBounds(layout);
-      const settingsBounds = getSliderSettingsBounds(layout);
-      const sliderLabelMaxWidth = Math.max(
-        0,
-        valueBounds.x - (x + SLIDER_HEADER_PADDING_X) - 6
-      );
-      const labelText = truncateToWidth(ctx, label, sliderLabelMaxWidth);
-      ctx.fillText(labelText, x + SLIDER_HEADER_PADDING_X, y + SLIDER_HEADER_TOP + 2);
-
-      ctx.fillStyle = palette.textMuted;
-      ctx.font = '600 11px "Proxima Nova", "Helvetica Neue", Arial, sans-serif';
-      ctx.textAlign = "right";
-      const valueLabel = truncateToWidth(ctx, valueText, valueBounds.width);
-      ctx.fillText(
-        valueLabel,
-        valueBounds.x + valueBounds.width,
-        valueBounds.y + 1
-      );
-
-      const settingsActive = sliderHoverPart === "settings" || isSliderSettingsOpen;
-      const settingsTint = parseCssColor(
-        settingsActive ? categoryAccent : palette.textMuted,
-        defaultIconTint
-      );
-      if (settingsActive) {
-        ctx.save();
-        ctx.fillStyle = rgbaToCss(settingsTint, 0.14);
-        ctx.beginPath();
-        ctx.roundRect(
-          settingsBounds.x - 3,
-          settingsBounds.y - 3,
-          settingsBounds.width + 6,
-          settingsBounds.height + 6,
-          6
-        );
-        ctx.fill();
-        ctx.restore();
-      }
-      ctx.save();
-      ctx.fillStyle = rgbaToCss(settingsTint);
-      const dotGap = 3.6;
-      const dotRadius = settingsActive ? 1.7 : 1.4;
-      const dotCenterX = settingsBounds.x + settingsBounds.width / 2;
-      const dotCenterY = settingsBounds.y + settingsBounds.height / 2;
-      ctx.beginPath();
-      ctx.arc(dotCenterX - dotGap, dotCenterY, dotRadius, 0, Math.PI * 2);
-      ctx.arc(dotCenterX, dotCenterY, dotRadius, 0, Math.PI * 2);
-      ctx.arc(dotCenterX + dotGap, dotCenterY, dotRadius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-
-      if (evaluationError && isHovered) {
-        ctx.fillStyle = palette.nodeErrorBorder;
-        ctx.font = '600 10px "Proxima Nova", "Helvetica Neue", Arial, sans-serif';
-        ctx.textAlign = "left";
-        const errorText = truncateToWidth(ctx, `Error: ${evaluationError}`, detailMaxWidth);
-        ctx.fillText(errorText, x + 14, detailY);
-      }
-
       const sliderBounds = getSliderBounds(layout);
       const normalized =
         sliderConfig.max <= sliderConfig.min
@@ -4280,60 +5378,71 @@ function drawNodes(
         SLIDER_THUMB_RADIUS +
         (isTrackHover || isSliderActive ? 2 : 0) +
         (node.selected ? 1 : 0);
-      const tubeHeight = sliderBounds.height + 8;
-      const tubeY = trackY - tubeHeight / 2;
-      const tubeRadius = tubeHeight / 2;
+      const barHeight = sliderBounds.height;
+      const barY = sliderBounds.y;
       const fillWidth = Math.min(
         sliderBounds.width,
-        Math.max(tubeHeight, sliderBounds.width * normalized)
+        Math.max(barHeight, sliderBounds.width * normalized)
       );
-      const trackTint = parseCssColor(palette.nodeStroke, defaultIconTint);
-      const trackBg = rgbaToCss(trackTint, isTrackHover || isSliderActive ? 0.22 : 0.14);
-      const outlineTint = parseCssColor(palette.nodeFill, defaultIconTint);
-      const outlineColor = rgbaToCss(outlineTint, 0.7);
-
       ctx.save();
-      ctx.fillStyle = trackBg;
+      ctx.fillStyle = palette.nodeStroke;
       ctx.beginPath();
-      ctx.roundRect(sliderBounds.x, tubeY, sliderBounds.width, tubeHeight, tubeRadius);
+      ctx.rect(sliderBounds.x, barY, sliderBounds.width, barHeight);
       ctx.fill();
       ctx.restore();
 
       ctx.save();
       ctx.fillStyle = categoryAccent;
-      ctx.globalAlpha = isTrackHover || isSliderActive ? 0.95 : 0.85;
       ctx.beginPath();
-      ctx.roundRect(sliderBounds.x, tubeY, fillWidth, tubeHeight, tubeRadius);
+      ctx.rect(sliderBounds.x, barY, fillWidth, barHeight);
       ctx.fill();
       ctx.restore();
 
-      ctx.save();
-      ctx.strokeStyle = outlineColor;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.roundRect(
-        sliderBounds.x + 1,
-        tubeY + 1,
-        sliderBounds.width - 2,
-        tubeHeight - 2,
-        tubeRadius - 1
-      );
-      ctx.stroke();
-      ctx.restore();
+      const range = sliderConfig.max - sliderConfig.min;
+      if (range > 1e-6) {
+        const maxTicks = 24;
+        const tickPositions: number[] = [];
+        if (sliderConfig.snapMode === "step" && sliderConfig.step > 0) {
+          const stepCount = Math.max(1, Math.round(range / sliderConfig.step));
+          const desiredTicks = Math.min(maxTicks, stepCount + 1);
+          const interval = Math.max(1, Math.ceil(stepCount / Math.max(1, desiredTicks - 1)));
+          for (let i = 0; i <= stepCount; i += interval) {
+            const t = i / stepCount;
+            tickPositions.push(sliderBounds.x + sliderBounds.width * t);
+          }
+          const endX = sliderBounds.x + sliderBounds.width;
+          if (tickPositions.length === 0 || Math.abs(tickPositions[tickPositions.length - 1] - endX) > 0.5) {
+            tickPositions.push(endX);
+          }
+        } else {
+          const tickCount = 7;
+          for (let i = 0; i < tickCount; i += 1) {
+            const t = tickCount === 1 ? 0.5 : i / (tickCount - 1);
+            tickPositions.push(sliderBounds.x + sliderBounds.width * t);
+          }
+        }
+
+        const tickInset = 1;
+        const tickHeight = Math.max(3, barHeight - tickInset * 2);
+        const tickTop = trackY - tickHeight / 2;
+        const tickWidth = 2;
+
+        ctx.save();
+        ctx.fillStyle = palette.text;
+        tickPositions.forEach((position) => {
+          const x = Math.round(position) - tickWidth / 2;
+          ctx.fillRect(x, tickTop, tickWidth, tickHeight);
+        });
+        ctx.restore();
+      }
 
       if (isSliderFocused) {
         ctx.save();
         ctx.strokeStyle = categoryAccent;
-        ctx.globalAlpha = 0.35;
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.roundRect(
-          sliderBounds.x - 2,
-          tubeY - 4,
-          sliderBounds.width + 4,
-          tubeHeight + 8,
-          (tubeHeight + 8) / 2
-        );
+        ctx.moveTo(sliderBounds.x, barY + barHeight + 4);
+        ctx.lineTo(sliderBounds.x + sliderBounds.width, barY + barHeight + 4);
         ctx.stroke();
         ctx.restore();
       }
@@ -4347,23 +5456,31 @@ function drawNodes(
       ctx.fill();
       ctx.stroke();
       ctx.restore();
+
+      if (evaluationError && isHovered) {
+        ctx.fillStyle = palette.nodeErrorBorder;
+        ctx.font = '600 10px "Montreal Neue", "Space Grotesk", sans-serif';
+        ctx.textAlign = "left";
+        const errorText = truncateToWidth(ctx, `Error: ${evaluationError}`, detailMaxWidth);
+        ctx.fillText(errorText, x + 10, detailY);
+      }
     } else if (evaluationError && isHovered) {
       ctx.fillStyle = palette.nodeErrorBorder;
-      ctx.font = '600 10px "Proxima Nova", "Helvetica Neue", Arial, sans-serif';
+      ctx.font = '600 10px "Montreal Neue", "Space Grotesk", sans-serif';
       const errorText = truncateToWidth(ctx, `Error: ${evaluationError}`, detailMaxWidth);
-      ctx.fillText(errorText, x + 12, detailY);
+      ctx.fillText(errorText, x + 10, detailY);
     } else if (showWarning && isHovered) {
       ctx.fillStyle = palette.nodeWarningBorder;
-      ctx.font = '600 10px "Proxima Nova", "Helvetica Neue", Arial, sans-serif';
+      ctx.font = '600 10px "Montreal Neue", "Space Grotesk", sans-serif';
       const warningText = truncateToWidth(
         ctx,
         `Needs: ${missingRequiredInputs.join(", ")}`,
         detailMaxWidth
       );
-      ctx.fillText(warningText, x + 12, detailY);
+      ctx.fillText(warningText, x + 10, detailY);
     } else if (node.type === "topologyOptimize") {
-      ctx.fillStyle = palette.textMuted;
-      ctx.font = '500 11px "Proxima Nova", "Helvetica Neue", Arial, sans-serif';
+      ctx.fillStyle = nodeMutedTextColor;
+      ctx.font = '500 11px "Montreal Neue", "Space Grotesk", sans-serif';
       const settings = node.data?.topologySettings ?? {
         volumeFraction: 0.4,
         penaltyExponent: 3,
@@ -4379,28 +5496,28 @@ function drawNodes(
         `${vfLabel} | ${penaltyLabel} | ${radiusLabel}`,
         detailMaxWidth
       );
-      ctx.fillText(settingsText, x + 12, detailY);
-      ctx.font = '500 10px "Proxima Nova", "Helvetica Neue", Arial, sans-serif';
+      ctx.fillText(settingsText, x + 10, detailY);
+      ctx.font = '500 10px "Montreal Neue", "Space Grotesk", sans-serif';
       const progressText = truncateToWidth(
         ctx,
         `Iter ${progress.iteration}/${settings.maxIterations} · ${String(progress.status)}`,
         detailMaxWidth
       );
-      ctx.fillText(progressText, x + 12, detailY + 16);
+      ctx.fillText(progressText, x + 10, detailY + DETAIL_LINE_HEIGHT + 2);
     } else {
       const detailText =
         primaryOutputValue != null
           ? `= ${formatInlineValue(primaryOutputValue)}`
           : definition?.description ??
             (node.type ? `Type: ${node.type}` : `ID: ${node.id.slice(0, 8)}`);
-      ctx.fillStyle = palette.textMuted;
-      ctx.font = '500 11px "Proxima Nova", "Helvetica Neue", Arial, sans-serif';
+      ctx.fillStyle = nodeMutedTextColor;
+      ctx.font = '500 11px "Montreal Neue", "Space Grotesk", sans-serif';
       const detailLabel = truncateToWidth(ctx, detailText, detailMaxWidth);
-      ctx.fillText(detailLabel, x + 12, detailY);
+      ctx.fillText(detailLabel, x + 10, detailY);
     }
 
-    const portFont = '600 9px "Proxima Nova", "Helvetica Neue", Arial, sans-serif';
-    const portLabelMaxWidth = NODE_WIDTH - 48;
+    const portFont = '600 9px "Montreal Neue", "Space Grotesk", sans-serif';
+    const portLabelMaxWidth = NODE_WIDTH - 40;
 
     const drawPort = (portLayout: PortLayout) => {
       const port = portLayout.port;
@@ -4419,10 +5536,14 @@ function drawNodes(
         ctx.fillStyle = portColor;
         ctx.globalAlpha = isPortHovered ? 1 : 0.86;
         const labelText = truncateToWidth(ctx, port.label, portLabelMaxWidth);
-        const labelX = portLayout.isOutput ? x + NODE_WIDTH - 14 : x + 12;
+        const labelX = portLayout.isOutput ? x + NODE_WIDTH - 12 : x + 10;
         ctx.fillText(labelText, labelX, portLayout.y);
       }
       ctx.restore();
+
+      if (!renderPortBodies) {
+        return;
+      }
 
       ctx.fillStyle = portColor;
       ctx.beginPath();
@@ -4447,6 +5568,9 @@ function drawNodes(
 
     layout.inputs.forEach(drawPort);
     layout.outputs.forEach(drawPort);
+    if (isGhost) {
+      ctx.restore();
+    }
   });
 }
 
@@ -4561,8 +5685,8 @@ function drawTooltip(
     const paddingX = basePaddingX * scale;
     const paddingY = basePaddingY * scale;
     const lineHeight = baseLineHeight * scale;
-    const titleFont = `600 ${titleSize}px "Proxima Nova", "Helvetica Neue", Arial, sans-serif`;
-    const bodyFont = `500 ${bodySize}px "Proxima Nova", "Helvetica Neue", Arial, sans-serif`;
+    const titleFont = `600 ${titleSize}px "Montreal Neue", "Space Grotesk", sans-serif`;
+    const bodyFont = `500 ${bodySize}px "Montreal Neue", "Space Grotesk", sans-serif`;
     const lines = buildTooltipLines(ctx, rawLines, maxWidth, titleFont, bodyFont);
     const widths = lines.map((line) => {
       ctx.font = line.isTitle ? titleFont : bodyFont;
@@ -4636,7 +5760,7 @@ function drawPendingReferenceHint(
 ) {
   const text = "Select geometry in Roslyn to complete reference.";
   ctx.save();
-  ctx.font = '600 11px "Proxima Nova", "Helvetica Neue", Arial, sans-serif';
+  ctx.font = '600 11px "Montreal Neue", "Space Grotesk", sans-serif';
   const paddingX = 10;
   const paddingY = 6;
   const textWidth = ctx.measureText(text).width;
@@ -4684,8 +5808,8 @@ function drawShortcutOverlay(
   const paddingX = 12;
   const paddingY = 10;
   const lineHeight = 16;
-  const titleFont = '600 12px "Proxima Nova", "Helvetica Neue", Arial, sans-serif';
-  const lineFont = '500 11px "Proxima Nova", "Helvetica Neue", Arial, sans-serif';
+  const titleFont = '600 12px "Montreal Neue", "Space Grotesk", sans-serif';
+  const lineFont = '500 11px "Montreal Neue", "Space Grotesk", sans-serif';
 
   ctx.save();
   ctx.font = titleFont;

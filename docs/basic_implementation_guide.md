@@ -5,6 +5,18 @@
 > `client/src/webgl`. Use this guide for conceptual grounding rather than a
 > drop-in implementation.
 
+## Modern Anchors
+
+- Viewport: `client/src/components/WebGLViewerCanvas.tsx`
+- Renderer: `client/src/webgl/WebGLRenderer.ts`
+- Buffers: `client/src/webgl/BufferManager.ts` and `client/src/webgl/GeometryBuffer.ts`
+- Geometry mapping: `client/src/geometry/renderAdapter.ts`
+
+## Scope Notes
+
+- This guide omits the current command system, selection model, and workflow graph.
+- Use it for WebGL fundamentals; rely on the architecture docs for system integration.
+
 ## Setup: Pure WebGL Context
 
 First, initialize WebGL without any libraries. This goes in a minimal

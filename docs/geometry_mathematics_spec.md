@@ -149,3 +149,20 @@ The principal component analysis of point clouds identifies the directions of ma
 The convex hull computation for point sets identifies the minimal convex polytope containing all points, providing the geometric boundary that encloses the configuration. The quickhull algorithm employs divide-and-conquer strategies to construct the convex hull incrementally, maintaining a partial hull and identifying points outside the hull that extend the boundary. The algorithm selects the point farthest from the current hull boundary, adds this point to the hull by creating new facets connecting it to visible boundary edges, and recurses on the remaining outside points. The geometric operations involve signed distance calculations to determine point positions relative to hull facets and visibility tests to identify which facets are visible from each outside point.
 
 The Voronoi diagram and Delaunay triangulation provide dual geometric structures that partition space based on proximity to point sets. The Voronoi diagram divides space into cells where each cell contains points closer to a particular site than to any other site, with the cell boundaries forming a network of hyperplanes bisecting site pairs. The Delaunay triangulation connects sites whose Voronoi cells share boundaries, producing a triangulation that maximizes the minimum angle among all possible triangulations and avoids the creation of sliver triangles. These structures enable efficient proximity queries and provide natural coordinate systems for interpolation and meshing.
+
+## Implementation Notes
+
+- Math primitives live in `client/src/math` and must remain geometry-agnostic.
+- Geometry-specific algorithms live in `client/src/geometry` and should wrap math primitives.
+- Keep vector and matrix operations allocation-light; prefer typed arrays where hot.
+
+## Numerical Stability Checklist
+
+- Guard normalization and division with EPSILON thresholds.
+- Clamp trigonometric inputs to valid ranges to avoid NaNs.
+- Prefer stable formulations (e.g., quaternion slerp with linear fallback).
+
+## Related Docs
+
+- `geometry_math_v2_implementation.md`
+- `geometry_types.md`

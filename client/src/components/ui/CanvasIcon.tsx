@@ -17,7 +17,7 @@ const CanvasIcon = ({
   alt = "",
   tint,
 }: CanvasIconProps) => {
-  const iconSize = Math.max(48, Math.round(size * 2));
+  const iconSize = Math.max(128, Math.round(size * 6));
   const tintKey = tint ? tint.map((value) => Math.round(value * 255)).join("-") : "default";
   const src = useMemo(
     () => renderIconDataUrl(iconId, iconSize, { tint }),

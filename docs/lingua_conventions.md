@@ -111,3 +111,10 @@ Public APIs, including store actions and exported utility functions, include JSD
 TODO comments are used sparingly and include context about why the work is deferred and what conditions would trigger completing it. TODOs should not be used for wish-list features but only for identified technical debt or incomplete implementations that affect correctness.
 
 Architecture decisions are documented in this conventions file and in the architecture document rather than scattered through code comments. When code implements a specific architectural pattern, a brief comment may reference the relevant section of the architecture documentation rather than duplicating the explanation.
+
+## Documentation Update Workflow
+
+- Update `docs/README.md` when adding, removing, or renaming docs.
+- Generated docs (`commands_nodes_reference.md`, `numerica_nodes_reference.md`) should be regenerated from their registries and not hand-edited line-by-line.
+- When subsystem behavior changes, update both the spec doc and any implementation guide that references it.
+- Prefer short, explicit notes about changed invariants over sweeping rewrites that can drift from the code.
