@@ -278,6 +278,7 @@ export const generateTorusMesh = (
     radialSegments,
     tubularSegments
   );
+  geometry.rotateX(-Math.PI / 2);
   return bufferGeometryToRenderMesh(geometry);
 };
 
@@ -629,6 +630,7 @@ export const generateTorusKnotMesh = (
     p,
     q
   );
+  geometry.rotateX(-Math.PI / 2);
   return bufferGeometryToRenderMesh(geometry);
 };
 

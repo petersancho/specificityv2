@@ -5,6 +5,7 @@ export const SOLIDITY_PRESETS: Record<DisplayMode, number> = {
   shaded_edges: 1,
   ghosted: 0.35,
   wireframe: 0,
+  silhouette: 1,
 };
 
 export const SOLIDITY_WIREFRAME_THRESHOLD = 0.08;

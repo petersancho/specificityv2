@@ -102,7 +102,7 @@ Replace React Three Fiber (R3F) abstractions with direct WebGL control while mai
 
 ## Architecture Alignment
 
-Per `docs/specificity_conventions.md:60-69`:
+Per `docs/lingua_conventions.md:60-69`:
 - ✅ Explicit WebGL buffer control
 - ✅ Custom GLSL shaders
 - ✅ Material caching via shader programs
@@ -178,5 +178,5 @@ No additional Phase 3 work remaining. Proceed with Phase 4+ enhancements or UI p
 
 - Implementation follows `docs/PHASE1_AUDIT.md` migration strategy
 - Shaders per `docs/SHADER_INVENTORY.md` specifications
-- WebGL patterns per `docs/specificity_conventions.md:60-69`
-- Architecture per `docs/specificity_architecture.md:40-50`
+- WebGL patterns per `docs/lingua_conventions.md:60-69`
+- Architecture per `docs/lingua_architecture.md:40-50`

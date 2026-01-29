@@ -1,4 +1,4 @@
-import logoSpecificitySymbol from "../assets/logo-specificity-symbol.svg";
+import logoLinguaSymbol from "../assets/logo-lingua-symbol.svg";
 import WebGLButton from "./ui/WebGLButton";
 import styles from "./TopBar.module.css";
 
@@ -122,11 +122,11 @@ const TopBar = ({
       <div className={styles.brand}>
         <img
           className={styles.brandSymbol}
-          src={logoSpecificitySymbol}
-          alt="Specificity symbol"
+          src={logoLinguaSymbol}
+          alt="Lingua symbol"
         />
         <span className={styles.brandTagline}>CREATIVITY</span>
-        <span className={styles.brandName}>Specificity</span>
+        <span className={styles.brandName}>Lingua</span>
       </div>
     </header>
   );

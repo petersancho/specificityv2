@@ -230,12 +230,23 @@ export type TransformOrientation = "world" | "local" | "view" | "cplane";
 export type GumballAlignment = "boundingBox" | "cplane";
 export type PivotMode = "world" | "selection" | "cursor" | "picked" | "origin";
 
-export type DisplayMode = "shaded" | "wireframe" | "shaded_edges" | "ghosted";
+export type GumballStepSettings = {
+  distance: number;
+  angle: number;
+};
+
+export type DisplayMode =
+  | "shaded"
+  | "wireframe"
+  | "shaded_edges"
+  | "ghosted"
+  | "silhouette";
 
 export type ViewSettings = {
   backfaceCulling: boolean;
   showNormals: boolean;
   sheen: number;
+  showPointPickDebug?: boolean;
 };
 
 export type SnapSettings = {
@@ -312,6 +323,7 @@ export type ModelerSnapshot = {
   transformOrientation: TransformOrientation;
   gumballAlignment: GumballAlignment;
   showRotationRings: boolean;
+  showMoveArms: boolean;
   displayMode: DisplayMode;
   viewSolidity: number;
   viewSettings: ViewSettings;
@@ -380,9 +392,30 @@ export type WorkflowNodeData = {
   scaleGeometryId?: string;
   scaleVector?: Vec3;
   scalePivot?: Vec3;
+  offsetSurfaceGeometryId?: string;
+  offsetSurfaceDistance?: number;
+  filletGeometryId?: string;
+  filletBasePoints?: Vec3[];
+  filletEdgesGeometryId?: string;
+  filletEdgesBasePositions?: number[];
+  filletEdgesBaseIndices?: number[];
+  filletEdgesBaseUvs?: number[];
+  thickenGeometryId?: string;
+  thickenOffset?: number;
+  thickenBasePositions?: number[];
+  thickenBaseIndices?: number[];
+  thickenBaseUvs?: number[];
+  plasticwrapGeometryId?: string;
+  plasticwrapBasePositions?: number[];
+  solidGeometryId?: string;
+  fieldTransformGeometryId?: string;
+  fieldTransformBasePositions?: number[];
   arraySourceGeometryId?: string;
   topologySettings?: TopologyOptimizationSettings;
   topologyProgress?: TopologyOptimizationProgress;
+  groupSize?: { width: number; height: number };
+  groupNodeIds?: string[];
+  panelScroll?: number;
   parameters?: Record<string, unknown>;
   evaluationError?: string;
   outputs?: Record<string, WorkflowValue>;

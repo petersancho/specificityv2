@@ -1,10 +1,17 @@
 export type NodeType =
   | "geometryReference"
+  | "group"
+  | "panel"
+  | "textNote"
+  | "slider"
+  | "colorPicker"
+  | "customMaterial"
   | "geometryViewer"
   | "meshConvert"
   | "stlExport"
   | "stlImport"
   | "point"
+  | "pointCloud"
   | "line"
   | "rectangle"
   | "circle"
@@ -105,6 +112,9 @@ export type NodeType =
   | "movePointByVector"
   | "rotateVectorAxis"
   | "mirrorVector"
+  | "proximity2d"
+  | "proximity3d"
+  | "curveProximity"
   | "listCreate"
   | "listLength"
   | "listItem"
@@ -139,15 +149,24 @@ export type NodeType =
   | "cosineWave"
   | "sawtoothWave"
   | "triangleWave"
-  | "squareWave";
+  | "squareWave"
+  | "pipeSweep"
+  | "pipeMerge";
 
 export const SUPPORTED_WORKFLOW_NODE_TYPES: NodeType[] = [
   "geometryReference",
+  "group",
+  "panel",
+  "textNote",
+  "slider",
+  "colorPicker",
+  "customMaterial",
   "geometryViewer",
   "meshConvert",
   "stlExport",
   "stlImport",
   "point",
+  "pointCloud",
   "line",
   "rectangle",
   "circle",
@@ -248,6 +267,9 @@ export const SUPPORTED_WORKFLOW_NODE_TYPES: NodeType[] = [
   "movePointByVector",
   "rotateVectorAxis",
   "mirrorVector",
+  "proximity2d",
+  "proximity3d",
+  "curveProximity",
   "listCreate",
   "listLength",
   "listItem",
@@ -283,6 +305,8 @@ export const SUPPORTED_WORKFLOW_NODE_TYPES: NodeType[] = [
   "sawtoothWave",
   "triangleWave",
   "squareWave",
+  "pipeSweep",
+  "pipeMerge",
 ];
 
 export const isSupportedNodeType = (type: string | undefined): type is NodeType =>

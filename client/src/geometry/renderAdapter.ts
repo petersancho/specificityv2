@@ -8,7 +8,6 @@ import type {
 import type { GeometryBuffer } from "../webgl/BufferManager";
 import type { WebGLRenderer } from "../webgl/WebGLRenderer";
 import type { NURBSCurve, NURBSSurface } from "./nurbs";
-import { generateSphereMesh } from "./mesh";
 import { tessellateCurveAdaptive, tessellateSurfaceAdaptive } from "./tessellation";
 import { createNurbsCurveFromPoints } from "./nurbs";
 
@@ -16,6 +15,7 @@ export type RenderableGeometry = {
   id: string;
   buffer: GeometryBuffer;
   edgeBuffer?: GeometryBuffer;
+  edgeJoinBuffer?: GeometryBuffer;
   edgeLineBuffers?: GeometryBuffer[];
   type: "vertex" | "polyline" | "surface" | "mesh";
   needsUpdate: boolean;
@@ -53,7 +53,6 @@ export class GeometryRenderAdapter {
   private renderables: Map<string, RenderableGeometry> = new Map();
   private renderer: WebGLRenderer;
   private getGeometryById?: (id: string) => Geometry | undefined;
-  private vertexTemplate: RenderMesh | null = null;
 
   constructor(renderer: WebGLRenderer, getGeometryById?: (id: string) => Geometry | undefined) {
     this.renderer = renderer;
@@ -81,18 +80,17 @@ export class GeometryRenderAdapter {
       buffer = this.renderer.createGeometryBuffer(geometry.id);
     }
 
-    const template = this.getVertexTemplate();
-    const positions = new Float32Array(template.positions.length);
-    for (let i = 0; i < template.positions.length; i += 3) {
-      positions[i] = template.positions[i] + geometry.position.x;
-      positions[i + 1] = template.positions[i + 1] + geometry.position.y;
-      positions[i + 2] = template.positions[i + 2] + geometry.position.z;
+    if (existing?.edgeBuffer) {
+      this.renderer.deleteGeometryBuffer(existing.edgeBuffer.id);
     }
 
     buffer.setData({
-      positions,
-      normals: new Float32Array(template.normals),
-      indices: new Uint16Array(template.indices),
+      positions: new Float32Array([
+        geometry.position.x,
+        geometry.position.y,
+        geometry.position.z,
+      ]),
+      indices: new Uint16Array(),
     });
 
     this.renderables.set(geometry.id, {
@@ -141,12 +139,14 @@ export class GeometryRenderAdapter {
       const lineData = createLineBufferData(renderPoints);
       buffer.setData({
         positions: lineData.positions,
+        prevPositions: lineData.prevPositions,
         nextPositions: lineData.nextPositions,
         sides: lineData.sides,
       });
     } else {
       buffer.setData({
         positions: new Float32Array(),
+        prevPositions: new Float32Array(),
         nextPositions: new Float32Array(),
         sides: new Float32Array(),
       });
@@ -164,8 +164,10 @@ export class GeometryRenderAdapter {
     let buffer: GeometryBuffer;
     const edgeBufferId = `${geometry.id}__edges`;
     const edgeLineBufferBaseId = `${geometry.id}__edge_lines`;
+    const edgeJoinBufferId = `${geometry.id}__edge_joins`;
     let edgeBuffer: GeometryBuffer | undefined = existing?.edgeBuffer;
     let edgeLineBuffers: GeometryBuffer[] = existing?.edgeLineBuffers ?? [];
+    let edgeJoinBuffer: GeometryBuffer | undefined = existing?.edgeJoinBuffer;
 
     if (existing) {
       buffer = existing.buffer;
@@ -214,6 +216,7 @@ export class GeometryRenderAdapter {
           }
           buffer.setData({
             positions: chunk.positions,
+            prevPositions: chunk.prevPositions,
             nextPositions: chunk.nextPositions,
             sides: chunk.sides,
             edgeKinds: chunk.edgeKinds,
@@ -230,12 +233,26 @@ export class GeometryRenderAdapter {
         edgeLineBuffers.forEach((buffer) => this.renderer.deleteGeometryBuffer(buffer.id));
         edgeLineBuffers = [];
       }
+
+      const edgeJoinData = buildEdgeJoinBuffer(meshSource, edgeSegments);
+      if (!edgeJoinBuffer) {
+        edgeJoinBuffer = this.renderer.createGeometryBuffer(edgeJoinBufferId);
+      }
+      edgeJoinBuffer.setData({
+        positions: edgeJoinData.positions,
+        prevPositions: edgeJoinData.prevPositions,
+        nextPositions: edgeJoinData.nextPositions,
+        corners: edgeJoinData.corners,
+        edgeKinds: edgeJoinData.edgeKinds,
+        indices: edgeJoinData.indices,
+      });
     }
 
     this.renderables.set(geometry.id, {
       id: geometry.id,
       buffer,
       edgeBuffer,
+      edgeJoinBuffer,
       edgeLineBuffers,
       type: "mesh",
       needsUpdate: false,
@@ -248,6 +265,9 @@ export class GeometryRenderAdapter {
       this.renderer.deleteGeometryBuffer(id);
       if (renderable.edgeBuffer) {
         this.renderer.deleteGeometryBuffer(renderable.edgeBuffer.id);
+      }
+      if (renderable.edgeJoinBuffer) {
+        this.renderer.deleteGeometryBuffer(renderable.edgeJoinBuffer.id);
       }
       if (renderable.edgeLineBuffers) {
         renderable.edgeLineBuffers.forEach((buffer) => {
@@ -279,6 +299,9 @@ export class GeometryRenderAdapter {
       if (renderable.edgeBuffer) {
         this.renderer.deleteGeometryBuffer(renderable.edgeBuffer.id);
       }
+      if (renderable.edgeJoinBuffer) {
+        this.renderer.deleteGeometryBuffer(renderable.edgeJoinBuffer.id);
+      }
       if (renderable.edgeLineBuffers) {
         renderable.edgeLineBuffers.forEach((buffer) => {
           this.renderer.deleteGeometryBuffer(buffer.id);
@@ -288,12 +311,6 @@ export class GeometryRenderAdapter {
     this.renderables.clear();
   }
 
-  private getVertexTemplate(): RenderMesh {
-    if (!this.vertexTemplate) {
-      this.vertexTemplate = generateSphereMesh(0.02, 12);
-    }
-    return this.vertexTemplate;
-  }
 }
 
 export function convertVertexArrayToNURBSCurve(
@@ -307,28 +324,51 @@ export function createLineBufferData(
   points: { x: number; y: number; z: number }[]
 ): {
   positions: Float32Array;
+  prevPositions: Float32Array;
   nextPositions: Float32Array;
   sides: Float32Array;
 } {
+  const isClosed =
+    points.length > 2 &&
+    points[0].x === points[points.length - 1].x &&
+    points[0].y === points[points.length - 1].y &&
+    points[0].z === points[points.length - 1].z;
+  const path = isClosed ? points.slice(0, -1) : points;
+  const count = path.length;
   const positions: number[] = [];
+  const prevPositions: number[] = [];
   const nextPositions: number[] = [];
   const sides: number[] = [];
 
-  for (let i = 0; i < points.length - 1; i++) {
-    const curr = points[i];
-    const next = points[i + 1];
+  if (count < 2) {
+    return {
+      positions: new Float32Array(),
+      prevPositions: new Float32Array(),
+      nextPositions: new Float32Array(),
+      sides: new Float32Array(),
+    };
+  }
+
+  for (let i = 0; i < count; i += 1) {
+    const prev = path[i === 0 ? (isClosed ? count - 1 : 0) : i - 1];
+    const curr = path[i];
+    const next = path[i === count - 1 ? (isClosed ? 0 : count - 1) : i + 1];
 
     positions.push(curr.x, curr.y, curr.z);
-    nextPositions.push(next.x, next.y, next.z);
-    sides.push(-1);
-
     positions.push(curr.x, curr.y, curr.z);
+
+    prevPositions.push(prev.x, prev.y, prev.z);
+    prevPositions.push(prev.x, prev.y, prev.z);
+
     nextPositions.push(next.x, next.y, next.z);
-    sides.push(1);
+    nextPositions.push(next.x, next.y, next.z);
+
+    sides.push(-1, 1);
   }
 
   return {
     positions: new Float32Array(positions),
+    prevPositions: new Float32Array(prevPositions),
     nextPositions: new Float32Array(nextPositions),
     sides: new Float32Array(sides),
   };
@@ -535,22 +575,427 @@ const buildEdgeIndexBuffer = (segments: EdgeSegment[]): Uint16Array => {
   return new Uint16Array(edgeIndices);
 };
 
+const buildEdgeJoinBuffer = (
+  mesh: RenderMesh,
+  edgeSegments: EdgeSegment[]
+): {
+  positions: Float32Array;
+  prevPositions: Float32Array;
+  nextPositions: Float32Array;
+  corners: Float32Array;
+  edgeKinds: Float32Array;
+  indices: Uint16Array;
+} => {
+  if (edgeSegments.length === 0) {
+    return {
+      positions: new Float32Array(),
+      prevPositions: new Float32Array(),
+      nextPositions: new Float32Array(),
+      corners: new Float32Array(),
+      edgeKinds: new Float32Array(),
+      indices: new Uint16Array(),
+    };
+  }
+
+  const positions = mesh.positions;
+  const normals = mesh.normals ?? [];
+  const vertexCount = Math.floor(positions.length / 3);
+  const groupForVertex = new Array<number>(vertexCount);
+  const groupLookup = new Map<string, number>();
+  let groupCursor = 0;
+  for (let i = 0; i < vertexCount; i += 1) {
+    const offset = i * 3;
+    const key = `${Math.round(positions[offset] * 1e5)}:${Math.round(
+      positions[offset + 1] * 1e5
+    )}:${Math.round(positions[offset + 2] * 1e5)}`;
+    let groupId = groupLookup.get(key);
+    if (groupId == null) {
+      groupId = groupCursor;
+      groupLookup.set(key, groupCursor);
+      groupCursor += 1;
+    }
+    groupForVertex[i] = groupId;
+  }
+
+  const edgesByVertex = new Map<string, Array<{ vertex: number; neighbor: number; kind: number }>>();
+  const pushEntry = (vertex: number, neighbor: number, kind: number) => {
+    const key = `${groupForVertex[vertex]}:${kind}`;
+    const list = edgesByVertex.get(key) ?? [];
+    list.push({ vertex, neighbor, kind });
+    edgesByVertex.set(key, list);
+  };
+  edgeSegments.forEach((edge) => {
+    pushEntry(edge.a, edge.b, edge.kind);
+    pushEntry(edge.b, edge.a, edge.kind);
+  });
+
+  const getVertexNormal = (entries: Array<{ vertex: number; neighbor: number }>) => {
+    let nx = 0;
+    let ny = 0;
+    let nz = 0;
+    entries.forEach((entry) => {
+      const offset = entry.vertex * 3;
+      nx += normals[offset] ?? 0;
+      ny += normals[offset + 1] ?? 0;
+      nz += normals[offset + 2] ?? 0;
+    });
+    let len = Math.hypot(nx, ny, nz);
+    if (len < 1e-4 && entries.length >= 2) {
+      const vertex = entries[0].vertex;
+      const a = entries[0].neighbor * 3;
+      const b = entries[1].neighbor * 3;
+      const vx = positions[a] - positions[vertex * 3];
+      const vy = positions[a + 1] - positions[vertex * 3 + 1];
+      const vz = positions[a + 2] - positions[vertex * 3 + 2];
+      const wx = positions[b] - positions[vertex * 3];
+      const wy = positions[b + 1] - positions[vertex * 3 + 1];
+      const wz = positions[b + 2] - positions[vertex * 3 + 2];
+      nx = vy * wz - vz * wy;
+      ny = vz * wx - vx * wz;
+      nz = vx * wy - vy * wx;
+      len = Math.hypot(nx, ny, nz);
+    }
+    if (len < 1e-4) {
+      nx = 0;
+      ny = 1;
+      nz = 0;
+      len = 1;
+    }
+    return { x: nx / len, y: ny / len, z: nz / len };
+  };
+
+  const buildBasis = (normal: { x: number; y: number; z: number }) => {
+    let rx = 0;
+    let ry = 1;
+    let rz = 0;
+    if (Math.abs(normal.y) > 0.9) {
+      rx = 1;
+      ry = 0;
+      rz = 0;
+    }
+    let ux = normal.y * rz - normal.z * ry;
+    let uy = normal.z * rx - normal.x * rz;
+    let uz = normal.x * ry - normal.y * rx;
+    let len = Math.hypot(ux, uy, uz);
+    if (len < 1e-4) {
+      rx = 0;
+      ry = 0;
+      rz = 1;
+      ux = normal.y * rz - normal.z * ry;
+      uy = normal.z * rx - normal.x * rz;
+      uz = normal.x * ry - normal.y * rx;
+      len = Math.hypot(ux, uy, uz);
+    }
+    ux /= len;
+    uy /= len;
+    uz /= len;
+    const vx = normal.y * uz - normal.z * uy;
+    const vy = normal.z * ux - normal.x * uz;
+    const vz = normal.x * uy - normal.y * ux;
+    return { ux, uy, uz, vx, vy, vz };
+  };
+
+  const joinRecords: Array<{
+    vertex: number;
+    prevNeighbor: number;
+    nextNeighbor: number;
+    kind: number;
+  }> = [];
+
+  edgesByVertex.forEach((entries) => {
+    if (entries.length < 2) return;
+    const normal = getVertexNormal(entries);
+    const basis = buildBasis(normal);
+    const withAngles = entries.map((entry) => {
+      const vOffset = entry.neighbor * 3;
+      const cx = positions[entry.vertex * 3];
+      const cy = positions[entry.vertex * 3 + 1];
+      const cz = positions[entry.vertex * 3 + 2];
+      const vx = positions[vOffset] - cx;
+      const vy = positions[vOffset + 1] - cy;
+      const vz = positions[vOffset + 2] - cz;
+      const dot = vx * normal.x + vy * normal.y + vz * normal.z;
+      let px = vx - normal.x * dot;
+      let py = vy - normal.y * dot;
+      let pz = vz - normal.z * dot;
+      let plen = Math.hypot(px, py, pz);
+      if (plen < 1e-4) {
+        px = basis.ux;
+        py = basis.uy;
+        pz = basis.uz;
+        plen = 1;
+      } else {
+        px /= plen;
+        py /= plen;
+        pz /= plen;
+      }
+      const angle = Math.atan2(
+        px * basis.vx + py * basis.vy + pz * basis.vz,
+        px * basis.ux + py * basis.uy + pz * basis.uz
+      );
+      return { ...entry, angle, dir: { x: px, y: py, z: pz } };
+    });
+
+    withAngles.sort((a, b) => a.angle - b.angle);
+    const count = withAngles.length;
+    for (let i = 0; i < count; i += 1) {
+      const current = withAngles[i];
+      const next = withAngles[(i + 1) % count];
+      const dot =
+        current.dir.x * next.dir.x +
+        current.dir.y * next.dir.y +
+        current.dir.z * next.dir.z;
+      if (dot > 0.999) continue;
+      joinRecords.push({
+        vertex: current.vertex,
+        prevNeighbor: current.neighbor,
+        nextNeighbor: next.neighbor,
+        kind: current.kind,
+      });
+    }
+  });
+
+  if (joinRecords.length === 0) {
+    return {
+      positions: new Float32Array(),
+      prevPositions: new Float32Array(),
+      nextPositions: new Float32Array(),
+      corners: new Float32Array(),
+      edgeKinds: new Float32Array(),
+      indices: new Uint16Array(),
+    };
+  }
+
+  const quadCount = joinRecords.length;
+  const positionsOut = new Float32Array(quadCount * 12);
+  const prevPositionsOut = new Float32Array(quadCount * 12);
+  const nextPositionsOut = new Float32Array(quadCount * 12);
+  const cornersOut = new Float32Array(quadCount * 8);
+  const edgeKindsOut = new Float32Array(quadCount * 4);
+  const indicesOut = new Uint16Array(quadCount * 6);
+
+  const cornerCoords = [
+    [-1, -1],
+    [1, -1],
+    [-1, 1],
+    [1, 1],
+  ];
+
+  joinRecords.forEach((join, index) => {
+    const vertexOffset = index * 12;
+    const cornerOffset = index * 8;
+    const kindOffset = index * 4;
+    const indexOffset = index * 6;
+    const base = index * 4;
+
+    const center = join.vertex * 3;
+    const prev = join.prevNeighbor * 3;
+    const next = join.nextNeighbor * 3;
+
+    for (let i = 0; i < 4; i += 1) {
+      const vOffset = vertexOffset + i * 3;
+      positionsOut[vOffset] = positions[center];
+      positionsOut[vOffset + 1] = positions[center + 1];
+      positionsOut[vOffset + 2] = positions[center + 2];
+
+      prevPositionsOut[vOffset] = positions[prev];
+      prevPositionsOut[vOffset + 1] = positions[prev + 1];
+      prevPositionsOut[vOffset + 2] = positions[prev + 2];
+
+      nextPositionsOut[vOffset] = positions[next];
+      nextPositionsOut[vOffset + 1] = positions[next + 1];
+      nextPositionsOut[vOffset + 2] = positions[next + 2];
+
+      const cOffset = cornerOffset + i * 2;
+      cornersOut[cOffset] = cornerCoords[i][0];
+      cornersOut[cOffset + 1] = cornerCoords[i][1];
+
+      edgeKindsOut[kindOffset + i] = join.kind;
+    }
+
+    indicesOut[indexOffset] = base;
+    indicesOut[indexOffset + 1] = base + 1;
+    indicesOut[indexOffset + 2] = base + 2;
+    indicesOut[indexOffset + 3] = base + 1;
+    indicesOut[indexOffset + 4] = base + 3;
+    indicesOut[indexOffset + 5] = base + 2;
+  });
+
+  return {
+    positions: positionsOut,
+    prevPositions: prevPositionsOut,
+    nextPositions: nextPositionsOut,
+    corners: cornersOut,
+    edgeKinds: edgeKindsOut,
+    indices: indicesOut,
+  };
+};
+
 const buildEdgeLineBufferChunks = (
   mesh: RenderMesh,
   edgeSegments: EdgeSegment[]
 ): Array<{
   positions: Float32Array;
+  prevPositions: Float32Array;
   nextPositions: Float32Array;
   sides: Float32Array;
   edgeKinds: Float32Array;
   indices: Uint16Array;
 }> => {
-  const segments = edgeSegments.length;
-  if (segments === 0) return [];
+  if (edgeSegments.length === 0) return [];
 
+  const positions = mesh.positions;
+  const normals = mesh.normals ?? [];
+  const vertexCount = Math.floor(positions.length / 3);
+  const groupForVertex = new Array<number>(vertexCount);
+  const groupLookup = new Map<string, number>();
+  let groupCursor = 0;
+  for (let i = 0; i < vertexCount; i += 1) {
+    const offset = i * 3;
+    const key = `${Math.round(positions[offset] * 1e5)}:${Math.round(
+      positions[offset + 1] * 1e5
+    )}:${Math.round(positions[offset + 2] * 1e5)}`;
+    let groupId = groupLookup.get(key);
+    if (groupId == null) {
+      groupId = groupCursor;
+      groupLookup.set(key, groupCursor);
+      groupCursor += 1;
+    }
+    groupForVertex[i] = groupId;
+  }
+  const joinForA = new Array(edgeSegments.length).fill(-1);
+  const joinForB = new Array(edgeSegments.length).fill(-1);
+  const edgesByVertex = new Map<string, Array<{ edgeIndex: number; vertex: number; neighbor: number }>>();
+
+  const pushEntry = (vertex: number, neighbor: number, edgeIndex: number, kind: number) => {
+    const key = `${groupForVertex[vertex]}:${kind}`;
+    const list = edgesByVertex.get(key) ?? [];
+    list.push({ edgeIndex, vertex, neighbor });
+    edgesByVertex.set(key, list);
+  };
+
+  edgeSegments.forEach((edge, index) => {
+    pushEntry(edge.a, edge.b, index, edge.kind);
+    pushEntry(edge.b, edge.a, index, edge.kind);
+  });
+
+  const getVertexNormal = (entries: Array<{ vertex: number; neighbor: number }>) => {
+    let nx = 0;
+    let ny = 0;
+    let nz = 0;
+    entries.forEach((entry) => {
+      const offset = entry.vertex * 3;
+      nx += normals[offset] ?? 0;
+      ny += normals[offset + 1] ?? 0;
+      nz += normals[offset + 2] ?? 0;
+    });
+    let len = Math.hypot(nx, ny, nz);
+    if (len < 1e-4 && entries.length >= 2) {
+      const vertex = entries[0].vertex;
+      const a = entries[0].neighbor * 3;
+      const b = entries[1].neighbor * 3;
+      const vx = positions[a] - positions[vertex * 3];
+      const vy = positions[a + 1] - positions[vertex * 3 + 1];
+      const vz = positions[a + 2] - positions[vertex * 3 + 2];
+      const wx = positions[b] - positions[vertex * 3];
+      const wy = positions[b + 1] - positions[vertex * 3 + 1];
+      const wz = positions[b + 2] - positions[vertex * 3 + 2];
+      nx = vy * wz - vz * wy;
+      ny = vz * wx - vx * wz;
+      nz = vx * wy - vy * wx;
+      len = Math.hypot(nx, ny, nz);
+    }
+    if (len < 1e-4) {
+      nx = 0;
+      ny = 1;
+      nz = 0;
+      len = 1;
+    }
+    return { x: nx / len, y: ny / len, z: nz / len };
+  };
+
+  const buildBasis = (normal: { x: number; y: number; z: number }) => {
+    let rx = 0;
+    let ry = 1;
+    let rz = 0;
+    if (Math.abs(normal.y) > 0.9) {
+      rx = 1;
+      ry = 0;
+      rz = 0;
+    }
+    let ux = normal.y * rz - normal.z * ry;
+    let uy = normal.z * rx - normal.x * rz;
+    let uz = normal.x * ry - normal.y * rx;
+    let len = Math.hypot(ux, uy, uz);
+    if (len < 1e-4) {
+      rx = 0;
+      ry = 0;
+      rz = 1;
+      ux = normal.y * rz - normal.z * ry;
+      uy = normal.z * rx - normal.x * rz;
+      uz = normal.x * ry - normal.y * rx;
+      len = Math.hypot(ux, uy, uz);
+    }
+    ux /= len;
+    uy /= len;
+    uz /= len;
+    const vx = normal.y * uz - normal.z * uy;
+    const vy = normal.z * ux - normal.x * uz;
+    const vz = normal.x * uy - normal.y * ux;
+    return { ux, uy, uz, vx, vy, vz };
+  };
+
+  edgesByVertex.forEach((entries) => {
+    if (entries.length < 2) return;
+    const vertex = entries[0].vertex;
+    const normal = getVertexNormal(entries);
+    const basis = buildBasis(normal);
+    const withAngles = entries.map((entry) => {
+      const vOffset = entry.neighbor * 3;
+      const vx = positions[vOffset] - positions[vertex * 3];
+      const vy = positions[vOffset + 1] - positions[vertex * 3 + 1];
+      const vz = positions[vOffset + 2] - positions[vertex * 3 + 2];
+      const dot = vx * normal.x + vy * normal.y + vz * normal.z;
+      let px = vx - normal.x * dot;
+      let py = vy - normal.y * dot;
+      let pz = vz - normal.z * dot;
+      let plen = Math.hypot(px, py, pz);
+      if (plen < 1e-4) {
+        px = basis.ux;
+        py = basis.uy;
+        pz = basis.uz;
+        plen = 1;
+      } else {
+        px /= plen;
+        py /= plen;
+        pz /= plen;
+      }
+      const angle = Math.atan2(
+        px * basis.vx + py * basis.vy + pz * basis.vz,
+        px * basis.ux + py * basis.uy + pz * basis.uz
+      );
+      return { ...entry, angle };
+    });
+
+    withAngles.sort((a, b) => a.angle - b.angle);
+    const count = withAngles.length;
+    for (let i = 0; i < count; i += 1) {
+      const current = withAngles[i];
+      const next = withAngles[(i + 1) % count];
+      const edge = edgeSegments[current.edgeIndex];
+      if (current.vertex === edge.a) {
+        joinForA[current.edgeIndex] = next.neighbor;
+      } else {
+        joinForB[current.edgeIndex] = next.neighbor;
+      }
+    }
+  });
+
+  const segments = edgeSegments.length;
   const maxSegments = Math.floor(65535 / 4);
   const chunks: Array<{
     positions: Float32Array;
+    prevPositions: Float32Array;
     nextPositions: Float32Array;
     sides: Float32Array;
     edgeKinds: Float32Array;
@@ -559,51 +1004,71 @@ const buildEdgeLineBufferChunks = (
 
   for (let start = 0; start < segments; start += maxSegments) {
     const chunkSegments = Math.min(maxSegments, segments - start);
-    const positions = new Float32Array(chunkSegments * 12);
-    const nextPositions = new Float32Array(chunkSegments * 12);
+    const positionsOut = new Float32Array(chunkSegments * 12);
+    const prevPositionsOut = new Float32Array(chunkSegments * 12);
+    const nextPositionsOut = new Float32Array(chunkSegments * 12);
     const sides = new Float32Array(chunkSegments * 4);
     const edgeKinds = new Float32Array(chunkSegments * 4);
-    const indices = new Uint16Array(chunkSegments * 6);
+    const indicesOut = new Uint16Array(chunkSegments * 6);
 
     for (let i = 0; i < chunkSegments; i += 1) {
-      const edge = edgeSegments[start + i];
+      const edgeIndex = start + i;
+      const edge = edgeSegments[edgeIndex];
       const a = edge.a;
       const b = edge.b;
       const ai = a * 3;
       const bi = b * 3;
-      const ax = mesh.positions[ai];
-      const ay = mesh.positions[ai + 1];
-      const az = mesh.positions[ai + 2];
-      const bx = mesh.positions[bi];
-      const by = mesh.positions[bi + 1];
-      const bz = mesh.positions[bi + 2];
+      const ax = positions[ai];
+      const ay = positions[ai + 1];
+      const az = positions[ai + 2];
+      const bx = positions[bi];
+      const by = positions[bi + 1];
+      const bz = positions[bi + 2];
+
+      const joinA = joinForA[edgeIndex];
+      const joinB = joinForB[edgeIndex];
+      const joinAi = joinA >= 0 ? joinA * 3 : ai;
+      const joinBi = joinB >= 0 ? joinB * 3 : bi;
 
       const vertexOffset = i * 12;
-      positions[vertexOffset] = ax;
-      positions[vertexOffset + 1] = ay;
-      positions[vertexOffset + 2] = az;
-      positions[vertexOffset + 3] = ax;
-      positions[vertexOffset + 4] = ay;
-      positions[vertexOffset + 5] = az;
-      positions[vertexOffset + 6] = bx;
-      positions[vertexOffset + 7] = by;
-      positions[vertexOffset + 8] = bz;
-      positions[vertexOffset + 9] = bx;
-      positions[vertexOffset + 10] = by;
-      positions[vertexOffset + 11] = bz;
+      positionsOut[vertexOffset] = ax;
+      positionsOut[vertexOffset + 1] = ay;
+      positionsOut[vertexOffset + 2] = az;
+      positionsOut[vertexOffset + 3] = ax;
+      positionsOut[vertexOffset + 4] = ay;
+      positionsOut[vertexOffset + 5] = az;
+      positionsOut[vertexOffset + 6] = bx;
+      positionsOut[vertexOffset + 7] = by;
+      positionsOut[vertexOffset + 8] = bz;
+      positionsOut[vertexOffset + 9] = bx;
+      positionsOut[vertexOffset + 10] = by;
+      positionsOut[vertexOffset + 11] = bz;
 
-      nextPositions[vertexOffset] = bx;
-      nextPositions[vertexOffset + 1] = by;
-      nextPositions[vertexOffset + 2] = bz;
-      nextPositions[vertexOffset + 3] = bx;
-      nextPositions[vertexOffset + 4] = by;
-      nextPositions[vertexOffset + 5] = bz;
-      nextPositions[vertexOffset + 6] = ax;
-      nextPositions[vertexOffset + 7] = ay;
-      nextPositions[vertexOffset + 8] = az;
-      nextPositions[vertexOffset + 9] = ax;
-      nextPositions[vertexOffset + 10] = ay;
-      nextPositions[vertexOffset + 11] = az;
+      prevPositionsOut[vertexOffset] = positions[joinAi];
+      prevPositionsOut[vertexOffset + 1] = positions[joinAi + 1];
+      prevPositionsOut[vertexOffset + 2] = positions[joinAi + 2];
+      prevPositionsOut[vertexOffset + 3] = positions[joinAi];
+      prevPositionsOut[vertexOffset + 4] = positions[joinAi + 1];
+      prevPositionsOut[vertexOffset + 5] = positions[joinAi + 2];
+      prevPositionsOut[vertexOffset + 6] = ax;
+      prevPositionsOut[vertexOffset + 7] = ay;
+      prevPositionsOut[vertexOffset + 8] = az;
+      prevPositionsOut[vertexOffset + 9] = ax;
+      prevPositionsOut[vertexOffset + 10] = ay;
+      prevPositionsOut[vertexOffset + 11] = az;
+
+      nextPositionsOut[vertexOffset] = bx;
+      nextPositionsOut[vertexOffset + 1] = by;
+      nextPositionsOut[vertexOffset + 2] = bz;
+      nextPositionsOut[vertexOffset + 3] = bx;
+      nextPositionsOut[vertexOffset + 4] = by;
+      nextPositionsOut[vertexOffset + 5] = bz;
+      nextPositionsOut[vertexOffset + 6] = positions[joinBi];
+      nextPositionsOut[vertexOffset + 7] = positions[joinBi + 1];
+      nextPositionsOut[vertexOffset + 8] = positions[joinBi + 2];
+      nextPositionsOut[vertexOffset + 9] = positions[joinBi];
+      nextPositionsOut[vertexOffset + 10] = positions[joinBi + 1];
+      nextPositionsOut[vertexOffset + 11] = positions[joinBi + 2];
 
       const sideOffset = i * 4;
       sides[sideOffset] = -1;
@@ -618,20 +1083,21 @@ const buildEdgeLineBufferChunks = (
 
       const indexOffset = i * 6;
       const v = i * 4;
-      indices[indexOffset] = v;
-      indices[indexOffset + 1] = v + 1;
-      indices[indexOffset + 2] = v + 2;
-      indices[indexOffset + 3] = v + 1;
-      indices[indexOffset + 4] = v + 3;
-      indices[indexOffset + 5] = v + 2;
+      indicesOut[indexOffset] = v;
+      indicesOut[indexOffset + 1] = v + 1;
+      indicesOut[indexOffset + 2] = v + 2;
+      indicesOut[indexOffset + 3] = v + 1;
+      indicesOut[indexOffset + 4] = v + 3;
+      indicesOut[indexOffset + 5] = v + 2;
     }
 
     chunks.push({
-      positions,
-      nextPositions,
+      positions: positionsOut,
+      prevPositions: prevPositionsOut,
+      nextPositions: nextPositionsOut,
       sides,
       edgeKinds,
-      indices,
+      indices: indicesOut,
     });
   }
 

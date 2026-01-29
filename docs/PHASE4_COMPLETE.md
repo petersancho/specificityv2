@@ -138,7 +138,7 @@ type NURBSSurface = {
 
 ## Architecture Compliance
 
-Per `docs/specificity_conventions.md:80-85`:
+Per `docs/lingua_conventions.md:80-85`:
 - ✅ Pure functions for all geometry operations
 - ✅ Discriminated union types maintained
 - ✅ No mutations (return new records)
@@ -261,7 +261,7 @@ Per `docs/subsystems_guide.md:3-46`:
 ## Documentation References
 
 - Implementation follows `docs/subsystems_guide.md:3-46` NURBS specifications
-- Pure functional patterns per `docs/specificity_conventions.md:80-85`
+- Pure functional patterns per `docs/lingua_conventions.md:80-85`
 - Tessellation strategy per `docs/PHASE1_AUDIT.md` kernel expansion plan
 - Integration with WebGL per `docs/PHASE3_PROGRESS.md`
 

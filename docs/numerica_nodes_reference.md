@@ -1,12 +1,14 @@
 # Numerica Node Reference
 
-Updated: 2026-01-27
+Updated: 2026-01-28
 
 This document is generated from the node registry to keep behavior and documentation aligned.
 Each node lists its display name, type id, and short description.
 
 ## Data
 - Geometry Reference (`geometryReference`): Reference existing geometry into the graph.
+- Panel (`panel`): Display incoming data as a multiline list.
+- Slider (`slider`): Emit a numeric value from a slider.
 
 ## Basics
 - Origin (`origin`): Emit the world origin vector (0, 0, 0).
@@ -29,6 +31,7 @@ Each node lists its display name, type id, and short description.
 
 ## Primitives
 - Point Generator (`point`): Create a point from coordinates.
+- Point Cloud (`pointCloud`): Create a point cloud from a list of points or geometry.
 - Box Builder (`box`): Create a box primitive.
 - Sphere (`sphere`): Create a sphere primitive.
 
@@ -110,4 +113,3 @@ Each node lists its display name, type id, and short description.
 
 ## Logic
 - Conditional (`conditional`): Select between two values using a condition.
-

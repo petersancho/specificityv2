@@ -29,16 +29,16 @@ export type GumballHandleId =
   | "pivot";
 
 export const GUMBALL_METRICS = {
-  axisLength: 1.05,
-  axisRadius: 0.03,
+  axisLength: 1.25,
+  axisRadius: 0.04,
   planeSize: 0.28,
   planeDepth: 0.018,
   planeOffset: 0.46,
   rotateRadius: 0.82,
-  rotateTube: 0.035,
+  rotateTube: 0.045,
   rotateOffset: 0.25,
-  scaleHandleOffset: 0.95,
-  scaleHandleSize: 0.16,
+  scaleHandleOffset: 1.45,
+  scaleHandleSize: 0.2,
   scaleCenterRadius: 0.12,
   uniformScaleOffset: 0.7,
   pivotScale: 0.5,
@@ -57,6 +57,14 @@ export type GumballBuffers = {
   scaleCenterEdgeLines: GeometryBuffer[];
 };
 
+export type GumballPickMeshes = {
+  axis: RenderMesh;
+  plane: RenderMesh;
+  ring: RenderMesh;
+  scale: RenderMesh;
+  scaleCenter: RenderMesh;
+};
+
 export type GumballRenderState = {
   position: Vec3;
   orientation: Basis;
@@ -72,23 +80,27 @@ export type GumballRenderOptions = {
   axisOpacity?: number;
   planeOpacity?: number;
   showRotate?: boolean;
+  showMove?: boolean;
   sheenIntensity?: number;
   ambientStrength?: number;
+  highlightColor?: [number, number, number];
+  solidColor?: [number, number, number];
+  solidMode?: boolean;
 };
 
 const AXIS_COLORS: Record<"x" | "y" | "z", [number, number, number]> = {
-  x: [0.95, 0.25, 0.25],
-  y: [0.25, 0.85, 0.35],
-  z: [0.2, 0.5, 0.95],
+  x: [0.22, 0.95, 0.92], // cyan
+  y: [1.0, 0.42, 0.78], // pink
+  z: [0.99, 0.86, 0.28], // yellow
 };
 
 const PLANE_COLORS: Record<"xy" | "yz" | "xz", [number, number, number]> = {
-  xy: [0.95, 0.85, 0.25],
-  yz: [0.25, 0.9, 0.85],
-  xz: [0.9, 0.35, 0.9],
+  xy: [0.3, 0.98, 0.95], // cyan
+  yz: [1.0, 0.55, 0.83], // pink
+  xz: [1.0, 0.9, 0.4], // yellow
 };
 
-const UNIFORM_SCALE_COLOR: [number, number, number] = [0.94, 0.94, 0.94];
+const UNIFORM_SCALE_COLOR: [number, number, number] = [1.0, 0.92, 0.45];
 
 export const GUMBALL_AXIS_COLORS = AXIS_COLORS;
 export const GUMBALL_PLANE_COLORS = PLANE_COLORS;
@@ -240,17 +252,166 @@ const buildEdgeLineBufferChunks = (
   edgeSegments: EdgeSegment[]
 ): Array<{
   positions: Float32Array;
+  prevPositions: Float32Array;
   nextPositions: Float32Array;
   sides: Float32Array;
   edgeKinds: Float32Array;
   indices: Uint16Array;
 }> => {
-  const segments = edgeSegments.length;
-  if (segments === 0) return [];
+  if (edgeSegments.length === 0) return [];
 
+  const positions = mesh.positions;
+  const normals = mesh.normals ?? [];
+  const vertexCount = Math.floor(positions.length / 3);
+  const groupForVertex = new Array<number>(vertexCount);
+  const groupLookup = new Map<string, number>();
+  let groupCursor = 0;
+  for (let i = 0; i < vertexCount; i += 1) {
+    const offset = i * 3;
+    const key = `${Math.round(positions[offset] * 1e5)}:${Math.round(
+      positions[offset + 1] * 1e5
+    )}:${Math.round(positions[offset + 2] * 1e5)}`;
+    let groupId = groupLookup.get(key);
+    if (groupId == null) {
+      groupId = groupCursor;
+      groupLookup.set(key, groupCursor);
+      groupCursor += 1;
+    }
+    groupForVertex[i] = groupId;
+  }
+  const joinForA = new Array(edgeSegments.length).fill(-1);
+  const joinForB = new Array(edgeSegments.length).fill(-1);
+  const edgesByVertex = new Map<string, Array<{ edgeIndex: number; vertex: number; neighbor: number }>>();
+
+  const pushEntry = (vertex: number, neighbor: number, edgeIndex: number, kind: number) => {
+    const key = `${groupForVertex[vertex]}:${kind}`;
+    const list = edgesByVertex.get(key) ?? [];
+    list.push({ edgeIndex, vertex, neighbor });
+    edgesByVertex.set(key, list);
+  };
+
+  edgeSegments.forEach((edge, index) => {
+    pushEntry(edge.a, edge.b, index, edge.kind);
+    pushEntry(edge.b, edge.a, index, edge.kind);
+  });
+
+  const getVertexNormal = (entries: Array<{ vertex: number; neighbor: number }>) => {
+    let nx = 0;
+    let ny = 0;
+    let nz = 0;
+    entries.forEach((entry) => {
+      const offset = entry.vertex * 3;
+      nx += normals[offset] ?? 0;
+      ny += normals[offset + 1] ?? 0;
+      nz += normals[offset + 2] ?? 0;
+    });
+    let len = Math.hypot(nx, ny, nz);
+    if (len < 1e-4 && entries.length >= 2) {
+      const vertex = entries[0].vertex;
+      const a = entries[0].neighbor * 3;
+      const b = entries[1].neighbor * 3;
+      const vx = positions[a] - positions[vertex * 3];
+      const vy = positions[a + 1] - positions[vertex * 3 + 1];
+      const vz = positions[a + 2] - positions[vertex * 3 + 2];
+      const wx = positions[b] - positions[vertex * 3];
+      const wy = positions[b + 1] - positions[vertex * 3 + 1];
+      const wz = positions[b + 2] - positions[vertex * 3 + 2];
+      nx = vy * wz - vz * wy;
+      ny = vz * wx - vx * wz;
+      nz = vx * wy - vy * wx;
+      len = Math.hypot(nx, ny, nz);
+    }
+    if (len < 1e-4) {
+      nx = 0;
+      ny = 1;
+      nz = 0;
+      len = 1;
+    }
+    return { x: nx / len, y: ny / len, z: nz / len };
+  };
+
+  const buildBasis = (normal: { x: number; y: number; z: number }) => {
+    let rx = 0;
+    let ry = 1;
+    let rz = 0;
+    if (Math.abs(normal.y) > 0.9) {
+      rx = 1;
+      ry = 0;
+      rz = 0;
+    }
+    let ux = normal.y * rz - normal.z * ry;
+    let uy = normal.z * rx - normal.x * rz;
+    let uz = normal.x * ry - normal.y * rx;
+    let len = Math.hypot(ux, uy, uz);
+    if (len < 1e-4) {
+      rx = 0;
+      ry = 0;
+      rz = 1;
+      ux = normal.y * rz - normal.z * ry;
+      uy = normal.z * rx - normal.x * rz;
+      uz = normal.x * ry - normal.y * rx;
+      len = Math.hypot(ux, uy, uz);
+    }
+    ux /= len;
+    uy /= len;
+    uz /= len;
+    const vx = normal.y * uz - normal.z * uy;
+    const vy = normal.z * ux - normal.x * uz;
+    const vz = normal.x * uy - normal.y * ux;
+    return { ux, uy, uz, vx, vy, vz };
+  };
+
+  edgesByVertex.forEach((entries) => {
+    if (entries.length < 2) return;
+    const vertex = entries[0].vertex;
+    const normal = getVertexNormal(entries);
+    const basis = buildBasis(normal);
+    const withAngles = entries.map((entry) => {
+      const vOffset = entry.neighbor * 3;
+      const vx = positions[vOffset] - positions[vertex * 3];
+      const vy = positions[vOffset + 1] - positions[vertex * 3 + 1];
+      const vz = positions[vOffset + 2] - positions[vertex * 3 + 2];
+      const dot = vx * normal.x + vy * normal.y + vz * normal.z;
+      let px = vx - normal.x * dot;
+      let py = vy - normal.y * dot;
+      let pz = vz - normal.z * dot;
+      let plen = Math.hypot(px, py, pz);
+      if (plen < 1e-4) {
+        px = basis.ux;
+        py = basis.uy;
+        pz = basis.uz;
+        plen = 1;
+      } else {
+        px /= plen;
+        py /= plen;
+        pz /= plen;
+      }
+      const angle = Math.atan2(
+        px * basis.vx + py * basis.vy + pz * basis.vz,
+        px * basis.ux + py * basis.uy + pz * basis.uz
+      );
+      return { ...entry, angle };
+    });
+
+    withAngles.sort((a, b) => a.angle - b.angle);
+    const count = withAngles.length;
+    for (let i = 0; i < count; i += 1) {
+      const current = withAngles[i];
+      const next = withAngles[(i + 1) % count];
+      const edge = edgeSegments[current.edgeIndex];
+      if (current.vertex === edge.a) {
+        joinForA[current.edgeIndex] = next.neighbor;
+      } else {
+        joinForB[current.edgeIndex] = next.neighbor;
+      }
+    }
+  });
+
+  const segments = edgeSegments.length;
   const maxSegments = Math.floor(65535 / 4);
   const chunks: Array<{
     positions: Float32Array;
+    prevPositions: Float32Array;
     nextPositions: Float32Array;
     sides: Float32Array;
     edgeKinds: Float32Array;
@@ -259,51 +420,71 @@ const buildEdgeLineBufferChunks = (
 
   for (let start = 0; start < segments; start += maxSegments) {
     const chunkSegments = Math.min(maxSegments, segments - start);
-    const positions = new Float32Array(chunkSegments * 12);
-    const nextPositions = new Float32Array(chunkSegments * 12);
+    const positionsOut = new Float32Array(chunkSegments * 12);
+    const prevPositionsOut = new Float32Array(chunkSegments * 12);
+    const nextPositionsOut = new Float32Array(chunkSegments * 12);
     const sides = new Float32Array(chunkSegments * 4);
     const edgeKinds = new Float32Array(chunkSegments * 4);
-    const indices = new Uint16Array(chunkSegments * 6);
+    const indicesOut = new Uint16Array(chunkSegments * 6);
 
     for (let i = 0; i < chunkSegments; i += 1) {
-      const edge = edgeSegments[start + i];
+      const edgeIndex = start + i;
+      const edge = edgeSegments[edgeIndex];
       const a = edge.a;
       const b = edge.b;
       const ai = a * 3;
       const bi = b * 3;
-      const ax = mesh.positions[ai];
-      const ay = mesh.positions[ai + 1];
-      const az = mesh.positions[ai + 2];
-      const bx = mesh.positions[bi];
-      const by = mesh.positions[bi + 1];
-      const bz = mesh.positions[bi + 2];
+      const ax = positions[ai];
+      const ay = positions[ai + 1];
+      const az = positions[ai + 2];
+      const bx = positions[bi];
+      const by = positions[bi + 1];
+      const bz = positions[bi + 2];
+
+      const joinA = joinForA[edgeIndex];
+      const joinB = joinForB[edgeIndex];
+      const joinAi = joinA >= 0 ? joinA * 3 : ai;
+      const joinBi = joinB >= 0 ? joinB * 3 : bi;
 
       const vertexOffset = i * 12;
-      positions[vertexOffset] = ax;
-      positions[vertexOffset + 1] = ay;
-      positions[vertexOffset + 2] = az;
-      positions[vertexOffset + 3] = ax;
-      positions[vertexOffset + 4] = ay;
-      positions[vertexOffset + 5] = az;
-      positions[vertexOffset + 6] = bx;
-      positions[vertexOffset + 7] = by;
-      positions[vertexOffset + 8] = bz;
-      positions[vertexOffset + 9] = bx;
-      positions[vertexOffset + 10] = by;
-      positions[vertexOffset + 11] = bz;
+      positionsOut[vertexOffset] = ax;
+      positionsOut[vertexOffset + 1] = ay;
+      positionsOut[vertexOffset + 2] = az;
+      positionsOut[vertexOffset + 3] = ax;
+      positionsOut[vertexOffset + 4] = ay;
+      positionsOut[vertexOffset + 5] = az;
+      positionsOut[vertexOffset + 6] = bx;
+      positionsOut[vertexOffset + 7] = by;
+      positionsOut[vertexOffset + 8] = bz;
+      positionsOut[vertexOffset + 9] = bx;
+      positionsOut[vertexOffset + 10] = by;
+      positionsOut[vertexOffset + 11] = bz;
 
-      nextPositions[vertexOffset] = bx;
-      nextPositions[vertexOffset + 1] = by;
-      nextPositions[vertexOffset + 2] = bz;
-      nextPositions[vertexOffset + 3] = bx;
-      nextPositions[vertexOffset + 4] = by;
-      nextPositions[vertexOffset + 5] = bz;
-      nextPositions[vertexOffset + 6] = ax;
-      nextPositions[vertexOffset + 7] = ay;
-      nextPositions[vertexOffset + 8] = az;
-      nextPositions[vertexOffset + 9] = ax;
-      nextPositions[vertexOffset + 10] = ay;
-      nextPositions[vertexOffset + 11] = az;
+      prevPositionsOut[vertexOffset] = positions[joinAi];
+      prevPositionsOut[vertexOffset + 1] = positions[joinAi + 1];
+      prevPositionsOut[vertexOffset + 2] = positions[joinAi + 2];
+      prevPositionsOut[vertexOffset + 3] = positions[joinAi];
+      prevPositionsOut[vertexOffset + 4] = positions[joinAi + 1];
+      prevPositionsOut[vertexOffset + 5] = positions[joinAi + 2];
+      prevPositionsOut[vertexOffset + 6] = ax;
+      prevPositionsOut[vertexOffset + 7] = ay;
+      prevPositionsOut[vertexOffset + 8] = az;
+      prevPositionsOut[vertexOffset + 9] = ax;
+      prevPositionsOut[vertexOffset + 10] = ay;
+      prevPositionsOut[vertexOffset + 11] = az;
+
+      nextPositionsOut[vertexOffset] = bx;
+      nextPositionsOut[vertexOffset + 1] = by;
+      nextPositionsOut[vertexOffset + 2] = bz;
+      nextPositionsOut[vertexOffset + 3] = bx;
+      nextPositionsOut[vertexOffset + 4] = by;
+      nextPositionsOut[vertexOffset + 5] = bz;
+      nextPositionsOut[vertexOffset + 6] = positions[joinBi];
+      nextPositionsOut[vertexOffset + 7] = positions[joinBi + 1];
+      nextPositionsOut[vertexOffset + 8] = positions[joinBi + 2];
+      nextPositionsOut[vertexOffset + 9] = positions[joinBi];
+      nextPositionsOut[vertexOffset + 10] = positions[joinBi + 1];
+      nextPositionsOut[vertexOffset + 11] = positions[joinBi + 2];
 
       const sideOffset = i * 4;
       sides[sideOffset] = -1;
@@ -318,20 +499,21 @@ const buildEdgeLineBufferChunks = (
 
       const indexOffset = i * 6;
       const v = i * 4;
-      indices[indexOffset] = v;
-      indices[indexOffset + 1] = v + 1;
-      indices[indexOffset + 2] = v + 2;
-      indices[indexOffset + 3] = v + 1;
-      indices[indexOffset + 4] = v + 3;
-      indices[indexOffset + 5] = v + 2;
+      indicesOut[indexOffset] = v;
+      indicesOut[indexOffset + 1] = v + 1;
+      indicesOut[indexOffset + 2] = v + 2;
+      indicesOut[indexOffset + 3] = v + 1;
+      indicesOut[indexOffset + 4] = v + 3;
+      indicesOut[indexOffset + 5] = v + 2;
     }
 
     chunks.push({
-      positions,
-      nextPositions,
+      positions: positionsOut,
+      prevPositions: prevPositionsOut,
+      nextPositions: nextPositionsOut,
       sides,
       edgeKinds,
-      indices,
+      indices: indicesOut,
     });
   }
 
@@ -350,6 +532,7 @@ const createEdgeLineBuffers = (
     const buffer = renderer.createGeometryBuffer(`${baseId}_${index}`);
     buffer.setData({
       positions: chunk.positions,
+      prevPositions: chunk.prevPositions,
       nextPositions: chunk.nextPositions,
       sides: chunk.sides,
       edgeKinds: chunk.edgeKinds,
@@ -472,9 +655,9 @@ const createArrowMesh = (
   length = GUMBALL_METRICS.axisLength,
   radius = GUMBALL_METRICS.axisRadius
 ) => {
-  const shaftLength = length * 0.68;
+  const shaftLength = length * 0.72;
   const headLength = length - shaftLength;
-  const headRadius = radius * 1.8;
+  const headRadius = radius * 1.55;
   const segments = 16;
 
   const shaft = translateMesh(
@@ -487,6 +670,34 @@ const createArrowMesh = (
   );
 
   return mergeMeshes([shaft, head]);
+};
+
+export const createGumballPickMeshes = (): GumballPickMeshes => {
+  const axis = createArrowMesh();
+  const plane = generateBoxMesh(
+    {
+      width: GUMBALL_METRICS.planeSize,
+      height: GUMBALL_METRICS.planeSize,
+      depth: GUMBALL_METRICS.planeDepth,
+    },
+    1
+  );
+  const ring = generateTorusMesh(
+    GUMBALL_METRICS.rotateRadius,
+    GUMBALL_METRICS.rotateTube,
+    24,
+    96
+  );
+  const scale = generateBoxMesh(
+    {
+      width: GUMBALL_METRICS.scaleHandleSize,
+      height: GUMBALL_METRICS.scaleHandleSize,
+      depth: GUMBALL_METRICS.scaleHandleSize,
+    },
+    1
+  );
+  const scaleCenter = generateSphereMesh(GUMBALL_METRICS.scaleCenterRadius, 18);
+  return { axis, plane, ring, scale, scaleCenter };
 };
 
 export const createGumballBuffers = (renderer: WebGLRenderer): GumballBuffers => {
@@ -677,7 +888,8 @@ export const renderGumball = (
 ) => {
   const transforms = getGumballTransforms(state);
   const activeHandle = state.activeHandle ?? null;
-  const showMove = state.mode === "move" || state.mode === "gumball";
+  const showMove =
+    (options.showMove ?? true) && (state.mode === "move" || state.mode === "gumball");
   const showRotate = (state.mode === "rotate" || state.mode === "gumball") &&
     (options.showRotate ?? true);
   const showScale = state.mode === "scale" || state.mode === "gumball";
@@ -688,57 +900,70 @@ export const renderGumball = (
   const sheenIntensity = options.sheenIntensity ?? 0.08;
   const axisOpacity = options.axisOpacity ?? 1;
   const planeOpacity = options.planeOpacity ?? 0.65;
-  const ringOpacity = Math.min(axisOpacity, 0.92);
-  const scaleOpacity = Math.min(axisOpacity, 0.95);
+  const solidMode = options.solidMode ?? false;
+  const ringOpacity = solidMode ? axisOpacity : Math.min(axisOpacity, 0.92);
+  const scaleOpacity = solidMode ? axisOpacity : Math.min(axisOpacity, 0.95);
   const lighting = { lightPosition, lightColor, ambientColor, ambientStrength, sheenIntensity };
+  const highlightColor = options.highlightColor;
+  const solidColor = options.solidColor;
+
+  const resolveHandleColor = (
+    base: [number, number, number],
+    handleId: GumballHandleId
+  ) => {
+    if (activeHandle === handleId) {
+      return highlightColor ?? lightenColor(base, 0.2);
+    }
+    return base;
+  };
+
+  const axisColors = {
+    x: solidColor ?? AXIS_COLORS.x,
+    y: solidColor ?? AXIS_COLORS.y,
+    z: solidColor ?? AXIS_COLORS.z,
+  };
+  const planeColors = {
+    xy: solidColor ?? PLANE_COLORS.xy,
+    yz: solidColor ?? PLANE_COLORS.yz,
+    xz: solidColor ?? PLANE_COLORS.xz,
+  };
+  const uniformScaleColor = solidColor ?? UNIFORM_SCALE_COLOR;
 
   const renderMoveHandles = () => {
     renderer.renderGeometry(buffers.axis, camera, {
       modelMatrix: transforms.xAxis,
-      materialColor:
-        activeHandle === "axis-x" ? lightenColor(AXIS_COLORS.x, 0.2) : AXIS_COLORS.x,
+      materialColor: resolveHandleColor(axisColors.x, "axis-x"),
       ...lighting,
       opacity: axisOpacity,
     });
     renderer.renderGeometry(buffers.axis, camera, {
       modelMatrix: transforms.yAxis,
-      materialColor:
-        activeHandle === "axis-y" ? lightenColor(AXIS_COLORS.y, 0.2) : AXIS_COLORS.y,
+      materialColor: resolveHandleColor(axisColors.y, "axis-y"),
       ...lighting,
       opacity: axisOpacity,
     });
     renderer.renderGeometry(buffers.axis, camera, {
       modelMatrix: transforms.zAxis,
-      materialColor:
-        activeHandle === "axis-z" ? lightenColor(AXIS_COLORS.z, 0.2) : AXIS_COLORS.z,
+      materialColor: resolveHandleColor(axisColors.z, "axis-z"),
       ...lighting,
       opacity: axisOpacity,
     });
 
     renderer.renderGeometry(buffers.plane, camera, {
       modelMatrix: transforms.xy,
-      materialColor:
-        activeHandle === "plane-xy"
-          ? lightenColor(PLANE_COLORS.xy, 0.2)
-          : PLANE_COLORS.xy,
+      materialColor: resolveHandleColor(planeColors.xy, "plane-xy"),
       ...lighting,
       opacity: planeOpacity,
     });
     renderer.renderGeometry(buffers.plane, camera, {
       modelMatrix: transforms.yz,
-      materialColor:
-        activeHandle === "plane-yz"
-          ? lightenColor(PLANE_COLORS.yz, 0.2)
-          : PLANE_COLORS.yz,
+      materialColor: resolveHandleColor(planeColors.yz, "plane-yz"),
       ...lighting,
       opacity: planeOpacity,
     });
     renderer.renderGeometry(buffers.plane, camera, {
       modelMatrix: transforms.xz,
-      materialColor:
-        activeHandle === "plane-xz"
-          ? lightenColor(PLANE_COLORS.xz, 0.2)
-          : PLANE_COLORS.xz,
+      materialColor: resolveHandleColor(planeColors.xz, "plane-xz"),
       ...lighting,
       opacity: planeOpacity,
     });
@@ -747,31 +972,25 @@ export const renderGumball = (
   const renderScaleHandles = () => {
     renderer.renderGeometry(buffers.scale, camera, {
       modelMatrix: transforms.scaleX,
-      materialColor:
-        activeHandle === "scale-x" ? lightenColor(AXIS_COLORS.x, 0.25) : AXIS_COLORS.x,
+      materialColor: resolveHandleColor(axisColors.x, "scale-x"),
       ...lighting,
       opacity: scaleOpacity,
     });
     renderer.renderGeometry(buffers.scale, camera, {
       modelMatrix: transforms.scaleY,
-      materialColor:
-        activeHandle === "scale-y" ? lightenColor(AXIS_COLORS.y, 0.25) : AXIS_COLORS.y,
+      materialColor: resolveHandleColor(axisColors.y, "scale-y"),
       ...lighting,
       opacity: scaleOpacity,
     });
     renderer.renderGeometry(buffers.scale, camera, {
       modelMatrix: transforms.scaleZ,
-      materialColor:
-        activeHandle === "scale-z" ? lightenColor(AXIS_COLORS.z, 0.25) : AXIS_COLORS.z,
+      materialColor: resolveHandleColor(axisColors.z, "scale-z"),
       ...lighting,
       opacity: scaleOpacity,
     });
     renderer.renderGeometry(buffers.scale, camera, {
       modelMatrix: transforms.scaleUniform,
-      materialColor:
-        activeHandle === "scale-uniform"
-          ? lightenColor(UNIFORM_SCALE_COLOR, 0.25)
-          : UNIFORM_SCALE_COLOR,
+      materialColor: resolveHandleColor(uniformScaleColor, "scale-uniform"),
       ...lighting,
       opacity: scaleOpacity,
     });
@@ -788,22 +1007,19 @@ export const renderGumball = (
   if (showRotate) {
     renderer.renderGeometry(buffers.ring, camera, {
       modelMatrix: transforms.rotateX,
-      materialColor:
-        activeHandle === "rotate-x" ? lightenColor(AXIS_COLORS.x, 0.25) : AXIS_COLORS.x,
+      materialColor: resolveHandleColor(axisColors.x, "rotate-x"),
       ...lighting,
       opacity: ringOpacity,
     });
     renderer.renderGeometry(buffers.ring, camera, {
       modelMatrix: transforms.rotateY,
-      materialColor:
-        activeHandle === "rotate-y" ? lightenColor(AXIS_COLORS.y, 0.25) : AXIS_COLORS.y,
+      materialColor: resolveHandleColor(axisColors.y, "rotate-y"),
       ...lighting,
       opacity: ringOpacity,
     });
     renderer.renderGeometry(buffers.ring, camera, {
       modelMatrix: transforms.rotateZ,
-      materialColor:
-        activeHandle === "rotate-z" ? lightenColor(AXIS_COLORS.z, 0.25) : AXIS_COLORS.z,
+      materialColor: resolveHandleColor(axisColors.z, "rotate-z"),
       ...lighting,
       opacity: ringOpacity,
     });
@@ -815,7 +1031,7 @@ export const renderGumball = (
 
   renderer.renderGeometry(buffers.scaleCenter, camera, {
     modelMatrix: transforms.pivot,
-    materialColor: activeHandle === "pivot" ? lightenColor([1, 1, 1], 0.2) : [0.98, 0.98, 0.96],
+    materialColor: resolveHandleColor([0.98, 0.98, 0.96], "pivot"),
     ...lighting,
     opacity: 0.95,
   });

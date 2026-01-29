@@ -66,28 +66,43 @@ const rgb = (r: number, g: number, b: number, a = 1): RGBA => [
   a,
 ];
 
+const mix = (a: RGBA, b: RGBA, t: number): RGBA => [
+  a[0] + (b[0] - a[0]) * t,
+  a[1] + (b[1] - a[1]) * t,
+  a[2] + (b[2] - a[2]) * t,
+  a[3] + (b[3] - a[3]) * t,
+];
+
+const UI_FONT_FAMILY =
+  '"Helvetica Neue", "Montreal Neue", "Space Grotesk", Helvetica, Arial, sans-serif';
+
 const PALETTE = {
-  background: rgb(248, 246, 242, 0.96),
+  bgTop: rgb(250, 248, 244, 1),
+  bgBottom: rgb(244, 242, 238, 1),
   border: rgb(18, 16, 12, 0.12),
+  topAccent: rgb(18, 16, 12, 0.32),
+  topAccentSoft: rgb(18, 16, 12, 0.18),
   dotStrong: rgb(18, 16, 12, 0.06),
-  dotSoft: rgb(18, 16, 12, 0.025),
-  shadow: rgb(0, 0, 0, 0.08),
-  chipFill: rgb(252, 251, 248, 0.98),
-  chipBorder: rgb(18, 16, 12, 0.16),
-  chipText: rgb(18, 16, 12, 0.94),
-  keyLabel: rgb(18, 16, 12, 0.55),
-  toggleFill: rgb(252, 251, 248, 0.98),
-  toggleBorder: rgb(18, 16, 12, 0.2),
-  toggleActive: rgb(18, 16, 12, 0.9),
-  toggleText: rgb(18, 16, 12, 0.88),
+  dotSoft: rgb(18, 16, 12, 0.02),
+  chipFill: rgb(250, 248, 244, 0.98),
+  chipHighlight: rgb(255, 255, 255, 0.55),
+  chipBorder: rgb(18, 16, 12, 0.2),
+  chipShadow: rgb(0, 0, 0, 0.08),
+  chipText: rgb(18, 16, 12, 0.92),
+  keyLabel: rgb(18, 16, 12, 0.6),
+  toggleFill: rgb(248, 246, 242, 1),
+  toggleHighlight: rgb(255, 255, 255, 0.6),
+  toggleBorder: rgb(18, 16, 12, 0.22),
+  toggleActive: rgb(18, 16, 12, 0.92),
+  toggleText: rgb(18, 16, 12, 0.9),
 };
 
 const TITLE_PALETTE = {
-  fill: rgb(248, 246, 242, 1),
-  stroke: rgb(190, 186, 181, 1),
-  text: rgb(18, 16, 12, 0.92),
-  shadow: rgb(0, 0, 0, 0.18),
-  glow: rgb(255, 255, 255, 0.25),
+  fill: rgb(246, 243, 238, 1),
+  stroke: rgb(198, 193, 187, 1),
+  text: rgb(24, 24, 28, 0.95),
+  shadow: rgb(0, 0, 0, 0.22),
+  glow: rgb(255, 255, 255, 0.35),
 };
 
 const TITLE_ACCENTS: Record<LogoTone, RGBA> = {
@@ -96,38 +111,45 @@ const TITLE_ACCENTS: Record<LogoTone, RGBA> = {
   neutral: rgb(255, 138, 61, 1),
 };
 
-const FOOTER_HEIGHT = 54;
-const PADDING_X = 18;
-const ITEM_GAP = 8;
-const GROUP_GAP = 16;
-const CHIP_HEIGHT = 32;
-const KEY_HEIGHT = 36;
-const CHIP_PAD_X = 14;
-const KEY_PAD_X = 12;
+const FOOTER_HEIGHT = 64;
+const PADDING_X = 20;
+const ITEM_GAP = 10;
+const GROUP_GAP = 18;
+const CHIP_HEIGHT = 34;
+const KEY_HEIGHT = 38;
+const CHIP_PAD_X = 16;
+const KEY_PAD_X = 13;
+const CHIP_RADIUS = 8;
+const CHIP_STROKE = 1.1;
 const DOT_SPACING = 26;
-const DOT_SIZE = 1.4;
+const DOT_SIZE = 1.1;
 const DOT_STRONG_EVERY = 4;
+const GRADIENT_STEPS = 12;
+const RENDER_SCALE = 1.35;
+const MAX_DPR = 3;
 
-const TITLE_FONT_SIZE = 10;
-const TITLE_PAD_X = 8;
-const TITLE_PAD_Y = 4;
-const TITLE_BAR_WIDTH = 2;
-const TITLE_BAR_GAP = 5;
-const TITLE_GAP = 2;
-const TITLE_RADIUS = 5;
-const TITLE_STROKE = 1;
-const TITLE_SHADOW_OFFSET = 1;
-const TITLE_UNDERLINE_HEIGHT = 1.4;
-const TITLE_UNDERLINE_INSET = 2;
+const TITLE_FONT_SIZE = 12;
+const TITLE_PAD_X = 10;
+const TITLE_PAD_Y = 5;
+const TITLE_BAR_WIDTH = 3;
+const TITLE_BAR_GAP = 6;
+const TITLE_GAP = 3;
+const TITLE_RADIUS = 7;
+const TITLE_STROKE = 1.2;
+const TITLE_SHADOW_OFFSET = 1.4;
+const TITLE_UNDERLINE_HEIGHT = 1.8;
+const TITLE_UNDERLINE_INSET = 3;
 
-const KEY_FONT_SIZE = 11;
-const LABEL_FONT_SIZE = 9;
-const CHIP_FONT_SIZE = 11;
-const TOGGLE_FONT_SIZE = 10;
-const TOGGLE_HEIGHT = 24;
-const TOGGLE_BOX_SIZE = 14;
-const TOGGLE_LABEL_GAP = 6;
-const TOGGLE_ITEM_GAP = 12;
+const KEY_FONT_SIZE = 12;
+const LABEL_FONT_SIZE = 9.5;
+const CHIP_FONT_SIZE = 11.5;
+const TOGGLE_FONT_SIZE = 10.5;
+const TOGGLE_HEIGHT = 26;
+const TOGGLE_BOX_SIZE = 15;
+const TOGGLE_LABEL_GAP = 7;
+const TOGGLE_ITEM_GAP = 14;
+const KEY_TEXT_OFFSET = -KEY_HEIGHT * 0.18;
+const KEY_LABEL_OFFSET = KEY_HEIGHT * 0.22;
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
@@ -141,7 +163,7 @@ const createMeasureContext = () => {
 const measureTextWidth = (text: string, fontSize: number, weight: number) => {
   const ctx = createMeasureContext();
   if (!ctx) return text.length * fontSize * 0.6;
-  ctx.font = `normal ${weight} ${fontSize}px "Helvetica Neue", Helvetica, Arial, sans-serif`;
+  ctx.font = `normal ${weight} ${fontSize}px ${UI_FONT_FAMILY}`;
   return ctx.measureText(text).width;
 };
 
@@ -275,7 +297,7 @@ const WebGLStatusFooter = ({
     textRenderer.setText(text, {
       fontSize: fontSize * dpr,
       fontWeight,
-      fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+      fontFamily: UI_FONT_FAMILY,
       paddingX: 0,
       paddingY: 0,
       color: "#14120f",
@@ -294,23 +316,42 @@ const WebGLStatusFooter = ({
     const ui = uiRef.current;
     if (!ui) return;
     const dpr = dprRef.current;
+    const radius = Math.min(CHIP_RADIUS, rect.height * 0.5);
+    const shadowOffset = { x: 1.2, y: 2.2 };
 
-    const shadowOffsetX = 1.2 * dpr;
-    const shadowOffsetY = 2 * dpr;
-    ui.drawRect(
-      (rect.x + shadowOffsetX) * dpr,
-      (rect.y + shadowOffsetY) * dpr,
+    ui.drawRoundedRect(
+      (rect.x + shadowOffset.x) * dpr,
+      (rect.y + shadowOffset.y) * dpr,
       rect.width * dpr,
       rect.height * dpr,
-      PALETTE.shadow
+      radius * dpr,
+      PALETTE.chipShadow
     );
-    ui.drawRect(rect.x * dpr, rect.y * dpr, rect.width * dpr, rect.height * dpr, PALETTE.chipFill);
+    ui.drawRoundedRect(
+      rect.x * dpr,
+      rect.y * dpr,
+      rect.width * dpr,
+      rect.height * dpr,
+      radius * dpr,
+      PALETTE.chipFill
+    );
+
+    const highlightInset = CHIP_STROKE;
+    ui.drawRoundedRect(
+      (rect.x + highlightInset) * dpr,
+      (rect.y + highlightInset) * dpr,
+      (rect.width - highlightInset * 2) * dpr,
+      rect.height * 0.48 * dpr,
+      Math.max(2, radius - highlightInset) * dpr,
+      mix(PALETTE.chipHighlight, PALETTE.chipFill, 0.35)
+    );
+
     ui.drawRectStroke(
       rect.x * dpr,
       rect.y * dpr,
       rect.width * dpr,
       rect.height * dpr,
-      1 * dpr,
+      CHIP_STROKE * dpr,
       PALETTE.chipBorder
     );
   };
@@ -339,6 +380,14 @@ const WebGLStatusFooter = ({
       TITLE_RADIUS * dpr,
       TITLE_PALETTE.fill
     );
+    ui.drawRoundedRect(
+      (rect.x + TITLE_STROKE) * dpr,
+      (rect.y + TITLE_STROKE) * dpr,
+      (rect.width - TITLE_STROKE * 2) * dpr,
+      rect.height * 0.52 * dpr,
+      Math.max(2, TITLE_RADIUS - TITLE_STROKE) * dpr,
+      mix(TITLE_PALETTE.glow, TITLE_PALETTE.fill, 0.4)
+    );
     ui.drawRectStroke(
       rect.x * dpr,
       rect.y * dpr,
@@ -352,7 +401,7 @@ const WebGLStatusFooter = ({
       (rect.y + TITLE_STROKE) * dpr,
       TITLE_BAR_WIDTH * dpr,
       (rect.height - TITLE_STROKE * 2) * dpr,
-      3 * dpr,
+      Math.min(4.5, (rect.height - TITLE_STROKE * 2) * 0.5) * dpr,
       accent
     );
 
@@ -474,6 +523,54 @@ const WebGLStatusFooter = ({
     setLayoutVersion((version) => version + 1);
   };
 
+  const drawGradientBackground = (
+    ui: WebGLUIRenderer,
+    widthCss: number,
+    heightCss: number,
+    dpr: number
+  ) => {
+    const stepHeightCss = heightCss / GRADIENT_STEPS;
+    for (let i = 0; i < GRADIENT_STEPS; i += 1) {
+      const t0 = i / (GRADIENT_STEPS - 1);
+      const color = mix(PALETTE.bgTop, PALETTE.bgBottom, t0);
+      ui.drawRect(
+        0,
+        i * stepHeightCss * dpr,
+        widthCss * dpr,
+        stepHeightCss * dpr + 1,
+        color
+      );
+    }
+
+    ui.drawRect(0, 0, widthCss * dpr, 1.5 * dpr, PALETTE.topAccent);
+    ui.drawRect(0, 1.5 * dpr, widthCss * 0.38 * dpr, 1 * dpr, PALETTE.topAccentSoft);
+  };
+
+  const drawDotGrid = (
+    ui: WebGLUIRenderer,
+    widthCss: number,
+    heightCss: number,
+    dpr: number
+  ) => {
+    const cols = Math.ceil(widthCss / DOT_SPACING) + 1;
+    const rows = Math.ceil(heightCss / DOT_SPACING) + 1;
+
+    for (let row = 0; row < rows; row += 1) {
+      for (let col = 0; col < cols; col += 1) {
+        const xCss = col * DOT_SPACING + (row % 2) * (DOT_SPACING * 0.5);
+        const yCss = row * DOT_SPACING;
+        const isStrong = row % DOT_STRONG_EVERY === 0 || col % DOT_STRONG_EVERY === 0;
+        ui.drawRect(
+          xCss * dpr,
+          yCss * dpr,
+          DOT_SIZE * dpr,
+          DOT_SIZE * dpr,
+          isStrong ? PALETTE.dotStrong : PALETTE.dotSoft
+        );
+      }
+    }
+  };
+
   const draw = () => {
     const canvas = canvasRef.current;
     const gl = glRef.current;
@@ -481,6 +578,8 @@ const WebGLStatusFooter = ({
     if (!canvas || !gl || !ui) return;
 
     const dpr = dprRef.current;
+    const widthCss = canvas.width / dpr;
+    const heightCss = canvas.height / dpr;
     const {
       leftKeys,
       centerChips: centerLayout,
@@ -495,23 +594,9 @@ const WebGLStatusFooter = ({
     gl.clear(gl.COLOR_BUFFER_BIT);
 
     ui.begin(canvas.width, canvas.height);
-    ui.drawRect(0, 0, canvas.width, canvas.height, PALETTE.background);
-
-    const dotSpacing = DOT_SPACING * dpr;
-    const dotSize = DOT_SIZE * dpr;
-    const cols = Math.ceil(canvas.width / dotSpacing) + 1;
-    const rows = Math.ceil(canvas.height / dotSpacing) + 1;
-
-    for (let row = 0; row < rows; row += 1) {
-      for (let col = 0; col < cols; col += 1) {
-        const x = col * dotSpacing + (row % 2) * (dotSpacing * 0.5);
-        const y = row * dotSpacing;
-        const isStrong = row % DOT_STRONG_EVERY === 0 || col % DOT_STRONG_EVERY === 0;
-        ui.drawRect(x, y, dotSize, dotSize, isStrong ? PALETTE.dotStrong : PALETTE.dotSoft);
-      }
-    }
-
-    ui.drawRect(0, 0, canvas.width, 2 * dpr, PALETTE.border);
+    drawGradientBackground(ui, widthCss, heightCss, dpr);
+    drawDotGrid(ui, widthCss, heightCss, dpr);
+    ui.drawRect(0, 0, canvas.width, 1 * dpr, PALETTE.border);
 
     if (titleRect && titleParts) {
       drawTitleBadge(titleRect, titleParts);
@@ -522,13 +607,22 @@ const WebGLStatusFooter = ({
 
     toggleLayout.forEach((toggleItem) => {
       const box = toggleItem.boxRect;
+      const toggleRadius = Math.min(4.5, box.height * 0.4);
       ui.drawRoundedRect(
         box.x * dpr,
         box.y * dpr,
         box.width * dpr,
         box.height * dpr,
-        4 * dpr,
+        toggleRadius * dpr,
         PALETTE.toggleFill
+      );
+      ui.drawRoundedRect(
+        (box.x + 1) * dpr,
+        (box.y + 1) * dpr,
+        (box.width - 2) * dpr,
+        box.height * 0.5 * dpr,
+        Math.max(2, toggleRadius - 1) * dpr,
+        mix(PALETTE.toggleHighlight, PALETTE.toggleFill, 0.4)
       );
       ui.drawRectStroke(
         box.x * dpr,
@@ -545,8 +639,8 @@ const WebGLStatusFooter = ({
         const y2 = (box.y + box.height - 3) * dpr;
         const x3 = (box.x + box.width - 2.5) * dpr;
         const y3 = (box.y + 3) * dpr;
-        ui.drawLine(x1, y1, x2, y2, 2 * dpr, PALETTE.toggleActive);
-        ui.drawLine(x2, y2, x3, y3, 2 * dpr, PALETTE.toggleActive);
+        ui.drawLine(x1, y1, x2, y2, 2.2 * dpr, PALETTE.toggleActive);
+        ui.drawLine(x2, y2, x3, y3, 2.2 * dpr, PALETTE.toggleActive);
       }
     });
 
@@ -577,8 +671,22 @@ const WebGLStatusFooter = ({
     });
 
     leftKeys.forEach((keyLayout) => {
-      drawCenteredText(keyLayout.key, keyLayout.rect, KEY_FONT_SIZE, 700, PALETTE.chipText, -6);
-      drawCenteredText(keyLayout.label, keyLayout.rect, LABEL_FONT_SIZE, 600, PALETTE.keyLabel, 8);
+      drawCenteredText(
+        keyLayout.key,
+        keyLayout.rect,
+        KEY_FONT_SIZE,
+        700,
+        PALETTE.chipText,
+        KEY_TEXT_OFFSET
+      );
+      drawCenteredText(
+        keyLayout.label,
+        keyLayout.rect,
+        LABEL_FONT_SIZE,
+        600,
+        PALETTE.keyLabel,
+        KEY_LABEL_OFFSET
+      );
     });
 
     toggleLayout.forEach((toggleItem) => {
@@ -639,7 +747,8 @@ const WebGLStatusFooter = ({
 
     const updateSize = () => {
       const rect = container.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
+      const baseDpr = window.devicePixelRatio || 1;
+      const dpr = Math.min(MAX_DPR, baseDpr * RENDER_SCALE);
       dprRef.current = dpr;
       containerWidthRef.current = rect.width;
       updateLayout(rect.width);

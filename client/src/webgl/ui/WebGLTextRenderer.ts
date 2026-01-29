@@ -6,6 +6,8 @@ export type TextStyle = {
   color: string;
   paddingX?: number;
   paddingY?: number;
+  maxWidth?: number;
+  lineHeight?: number;
 };
 
 type ShaderHandles = {
@@ -155,9 +157,70 @@ export class WebGLTextRenderer {
     const fontSpec = `${fontStyle} ${fontWeight} ${resolved.fontSize}px ${resolved.fontFamily}`;
 
     this.ctx.font = fontSpec;
-    const metrics = this.ctx.measureText(text);
-    const textWidth = Math.ceil(metrics.width);
-    const textHeight = Math.ceil(resolved.fontSize * 1.3);
+    const maxWidth = resolved.maxWidth;
+    const lineHeight = resolved.lineHeight ?? Math.ceil(resolved.fontSize * 1.3);
+    const lines: string[] = [];
+
+    const wrapLine = (line: string) => {
+      if (!maxWidth || maxWidth <= 0) {
+        lines.push(line);
+        return;
+      }
+      if (this.ctx.measureText(line).width <= maxWidth) {
+        lines.push(line);
+        return;
+      }
+      const words = line.split(/\s+/).filter((word) => word.length > 0);
+      if (words.length === 0) {
+        lines.push("");
+        return;
+      }
+      let current = "";
+      words.forEach((word) => {
+        const test = current ? `${current} ${word}` : word;
+        if (this.ctx.measureText(test).width <= maxWidth) {
+          current = test;
+          return;
+        }
+        if (current) {
+          lines.push(current);
+        }
+        if (this.ctx.measureText(word).width <= maxWidth) {
+          current = word;
+          return;
+        }
+        let chunk = "";
+        for (const char of word) {
+          const next = chunk + char;
+          if (this.ctx.measureText(next).width <= maxWidth || chunk.length === 0) {
+            chunk = next;
+          } else {
+            lines.push(chunk);
+            chunk = char;
+          }
+        }
+        current = chunk;
+      });
+      if (current) lines.push(current);
+    };
+
+    const rawLines = text.split(/\r?\n/);
+    rawLines.forEach((line) => {
+      if (line.length === 0) {
+        lines.push("");
+        return;
+      }
+      wrapLine(line);
+    });
+
+    if (lines.length === 0) {
+      lines.push("");
+    }
+
+    const textWidth = Math.ceil(
+      lines.reduce((max, line) => Math.max(max, this.ctx.measureText(line).width), 0)
+    );
+    const textHeight = Math.ceil(lines.length * lineHeight);
 
     this.width = textWidth + paddingX * 2;
     this.height = textHeight + paddingY * 2;
@@ -169,7 +232,9 @@ export class WebGLTextRenderer {
     this.ctx.font = fontSpec;
     this.ctx.fillStyle = resolved.color;
     this.ctx.textBaseline = "top";
-    this.ctx.fillText(text, paddingX, paddingY);
+    lines.forEach((line, index) => {
+      this.ctx.fillText(line, paddingX, paddingY + index * lineHeight);
+    });
 
     const gl = this.gl;
     gl.bindTexture(gl.TEXTURE_2D, this.texture);

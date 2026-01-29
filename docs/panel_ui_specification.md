@@ -1,8 +1,8 @@
-# Specificity Panel Interface Design Specification
+# Lingua Panel Interface Design Specification
 
 ## Design Philosophy and Visual Language
 
-The Specificity interface prioritizes visual communication through iconography over textual labels, enabling a condensed workspace that maximizes canvas and viewport area while maintaining full functional access. The design system employs a monochromatic palette with high contrast ratios to ensure clarity under various lighting conditions and to reduce visual noise that would distract from the primary modeling and computational work. All interactive elements render through WebGL where technically feasible, ensuring visual consistency with the geometry viewport and node graph canvas while leveraging GPU acceleration for smooth interaction feedback.
+The Lingua interface prioritizes visual communication through iconography over textual labels, enabling a condensed workspace that maximizes canvas and viewport area while maintaining full functional access. The design system employs a monochromatic palette with high contrast ratios to ensure clarity under various lighting conditions and to reduce visual noise that would distract from the primary modeling and computational work. All interactive elements render through WebGL where technically feasible, ensuring visual consistency with the geometry viewport and node graph canvas while leveraging GPU acceleration for smooth interaction feedback.
 
 The panel architecture implements a collapsible sidebar pattern where tool panels attach to the edges of the workspace and can be toggled between visible, collapsed, and hidden states. The visible state presents the full panel with all controls accessible. The collapsed state shows only a thin vertical strip displaying essential icons that expand on hover to reveal grouped controls. The hidden state removes the panel entirely, dedicating the full window area to the modeling viewport or node canvas. This progressive disclosure approach accommodates both learning workflows where users benefit from visible controls and expert workflows where users rely on keyboard shortcuts and contextual interactions.
 

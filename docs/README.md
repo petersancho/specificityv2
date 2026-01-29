@@ -1,4 +1,4 @@
-# Specificity Documentation
+# Lingua Documentation
 
 This folder contains architecture docs, specs, implementation guides, and
 historical phase notes. Start with the overview and architecture documents, then
@@ -6,9 +6,9 @@ branch into the subsystem or reference docs you need.
 
 ## Start Here
 
-- Overview: `specificity_readme.md`
-- Architecture: `specificity_architecture.md`
-- Conventions: `specificity_conventions.md`
+- Overview: `lingua_readme.md`
+- Architecture: `lingua_architecture.md`
+- Conventions: `lingua_conventions.md`
 - AI agent guide: `ai_agent_guide.md`
 
 ## Core References
@@ -16,6 +16,7 @@ branch into the subsystem or reference docs you need.
 - Subsystems deep dive: `subsystems_guide.md`
 - Commands + nodes reference: `commands_nodes_reference.md`
 - Numerica spec: `numerica_technical_spec.md`
+- Numerica workflow implementation map: `Semantics and Ontology - Numerica - Roslyn/IMPLEMENTATION_MAP.md`
 - Panel UI spec: `panel_ui_specification.md`
 
 ## Rendering + Geometry

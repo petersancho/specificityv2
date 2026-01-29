@@ -2,7 +2,7 @@
 
 ## Understanding This Codebase
 
-When you are asked to work on Specificity, you are working on a custom-built parametric design system that avoids third-party CAD libraries and owns its rendering stack. Roslyn renders geometry through a custom WebGL pipeline (`client/src/webgl`) and the `WebGLViewerCanvas` component, while Numerica renders the workflow graph with a 2D HTML canvas (`client/src/components/workflow/NumericalCanvas.tsx`). Three.js is still used for math utilities and primitive mesh generation, but persisted geometry stays in plain TypeScript records.
+When you are asked to work on Lingua, you are working on a custom-built parametric design system that avoids third-party CAD libraries and owns its rendering stack. Roslyn renders geometry through a custom WebGL pipeline (`client/src/webgl`) and the `WebGLViewerCanvas` component, while Numerica renders the workflow graph with a 2D HTML canvas (`client/src/components/workflow/NumericalCanvas.tsx`). Three.js is still used for math utilities and primitive mesh generation, but persisted geometry stays in plain TypeScript records.
 
 The system consists of two major interaction surfaces that share unified state. Roslyn is the direct manipulation 3D modeling environment where users create and edit geometry through viewport interactions and command-driven workflows. Numerica is the visual programming interface where users construct parametric definitions and computational graphs. Both panels operate on the same Zustand store, enabling bidirectional workflows where models inform graphs and graphs generate geometry.
 

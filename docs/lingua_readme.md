@@ -1,6 +1,6 @@
-# Specificity
+# Lingua
 
-Specificity is a custom-built parametric design environment that combines direct
+Lingua is a custom-built parametric design environment that combines direct
 3D modeling with visual programming through a dual-panel workspace:
 
 - **Roslyn**: a WebGL-based 3D modeling panel.
@@ -11,7 +11,7 @@ stay in sync across direct and parametric tools.
 
 ## Project Philosophy
 
-Specificity prioritizes ownership of core systems over third-party convenience.
+Lingua prioritizes ownership of core systems over third-party convenience.
 The geometry kernel is authored in TypeScript without external CAD libraries.
 The viewport uses a custom WebGL renderer with explicit control over buffers and
 shaders. The workflow editor is a bespoke HTML canvas implementation optimized
@@ -45,8 +45,8 @@ Key entry points for orientation:
 
 Start with `docs/README.md` for the full map. Core references:
 
-- Architecture: `specificity_architecture.md`
-- Conventions: `specificity_conventions.md`
+- Architecture: `lingua_architecture.md`
+- Conventions: `lingua_conventions.md`
 - Subsystems: `subsystems_guide.md`
 - Commands and nodes: `commands_nodes_reference.md`
 - Workflow spec: `numerica_technical_spec.md`

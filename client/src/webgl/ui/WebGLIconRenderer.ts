@@ -135,7 +135,7 @@ const ICON_IDS = [
   "extrude",
   "boolean",
   "offset",
-  "specificitySymbol",
+  "linguaSymbol",
   "selectionFilter",
   "displayMode",
   "referenceActive",
@@ -1502,7 +1502,7 @@ const drawOffsetIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, siz
   );
 };
 
-const drawSpecificitySymbolIcon = (
+const drawLinguaSymbolIcon = (
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
@@ -4826,8 +4826,8 @@ const drawIconToTile = (
     case "offset":
       drawOffsetIcon(ctx, x, y, size);
       break;
-    case "specificitySymbol":
-      drawSpecificitySymbolIcon(ctx, x, y, size);
+    case "linguaSymbol":
+      drawLinguaSymbolIcon(ctx, x, y, size);
       break;
     case "selectionFilter":
       drawSelectionFilterIcon(ctx, x, y, size);

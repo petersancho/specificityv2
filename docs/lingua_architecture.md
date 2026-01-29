@@ -1,8 +1,8 @@
-# Specificity Architecture
+# Lingua Architecture
 
 ## System Overview
 
-Specificity is a custom-built parametric design environment that combines direct 3D modeling with visual programming through a dual-panel workspace architecture. The system is intentionally designed without reliance on third-party geometry libraries or node editor frameworks, providing complete control over the modeling kernel and computational graph execution.
+Lingua is a custom-built parametric design environment that combines direct 3D modeling with visual programming through a dual-panel workspace architecture. The system is intentionally designed without reliance on third-party geometry libraries or node editor frameworks, providing complete control over the modeling kernel and computational graph execution.
 
 The application presents two primary interaction surfaces that share a unified state model. Roslyn serves as the direct manipulation 3D modeling environment where users create and edit geometry through viewport interactions and command-driven workflows. Numerica provides the visual programming interface where users construct parametric definitions and computational graphs. Both panels operate on the same underlying geometry and project state, enabling bidirectional workflows where models can inform graph definitions and graphs can generate or modify geometry.
 

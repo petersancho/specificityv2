@@ -1,5 +1,6 @@
 export type BufferData = {
   positions?: Float32Array;
+  prevPositions?: Float32Array;
   normals?: Float32Array;
   indices?: Uint16Array;
   colors?: Float32Array;
@@ -7,6 +8,7 @@ export type BufferData = {
   sides?: Float32Array;
   edgeKinds?: Float32Array;
   edgeWeights?: Float32Array;
+  corners?: Float32Array;
 };
 
 export class BufferManager {
@@ -66,6 +68,7 @@ export class BufferManager {
 
 export class GeometryBuffer {
   public positionBuffer?: WebGLBuffer;
+  public prevPositionBuffer?: WebGLBuffer;
   public normalBuffer?: WebGLBuffer;
   public indexBuffer?: WebGLBuffer;
   public colorBuffer?: WebGLBuffer;
@@ -73,6 +76,7 @@ export class GeometryBuffer {
   public sideBuffer?: WebGLBuffer;
   public edgeKindBuffer?: WebGLBuffer;
   public edgeWeightBuffer?: WebGLBuffer;
+  public cornerBuffer?: WebGLBuffer;
   public vertexCount: number = 0;
   public indexCount: number = 0;
 
@@ -96,6 +100,22 @@ export class GeometryBuffer {
         );
       }
       this.vertexCount = data.positions.length / 3;
+    }
+
+    if (data.prevPositions) {
+      if (this.prevPositionBuffer) {
+        this.bufferManager.updateBuffer(
+          `${this.id}_prev_position`,
+          gl.ARRAY_BUFFER,
+          data.prevPositions
+        );
+      } else {
+        this.prevPositionBuffer = this.bufferManager.createBuffer(
+          `${this.id}_prev_position`,
+          gl.ARRAY_BUFFER,
+          data.prevPositions
+        );
+      }
     }
 
     if (data.normals) {
@@ -194,6 +214,22 @@ export class GeometryBuffer {
         );
       }
     }
+
+    if (data.corners) {
+      if (this.cornerBuffer) {
+        this.bufferManager.updateBuffer(
+          `${this.id}_corner`,
+          gl.ARRAY_BUFFER,
+          data.corners
+        );
+      } else {
+        this.cornerBuffer = this.bufferManager.createBuffer(
+          `${this.id}_corner`,
+          gl.ARRAY_BUFFER,
+          data.corners
+        );
+      }
+    }
   }
 
   bind(program: WebGLProgram): void {
@@ -223,6 +259,15 @@ export class GeometryBuffer {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.colorBuffer);
         gl.enableVertexAttribArray(colorLoc);
         gl.vertexAttribPointer(colorLoc, 3, gl.FLOAT, false, 0, 0);
+      }
+    }
+
+    if (this.prevPositionBuffer) {
+      const prevPositionLoc = gl.getAttribLocation(program, "prevPosition");
+      if (prevPositionLoc !== -1) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.prevPositionBuffer);
+        gl.enableVertexAttribArray(prevPositionLoc);
+        gl.vertexAttribPointer(prevPositionLoc, 3, gl.FLOAT, false, 0, 0);
       }
     }
 
@@ -262,6 +307,15 @@ export class GeometryBuffer {
       }
     }
 
+    if (this.cornerBuffer) {
+      const cornerLoc = gl.getAttribLocation(program, "corner");
+      if (cornerLoc !== -1) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.cornerBuffer);
+        gl.enableVertexAttribArray(cornerLoc);
+        gl.vertexAttribPointer(cornerLoc, 2, gl.FLOAT, false, 0, 0);
+      }
+    }
+
     if (this.indexBuffer) {
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
     }
@@ -279,6 +333,9 @@ export class GeometryBuffer {
   dispose(): void {
     if (this.positionBuffer) {
       this.bufferManager.deleteBuffer(`${this.id}_position`);
+    }
+    if (this.prevPositionBuffer) {
+      this.bufferManager.deleteBuffer(`${this.id}_prev_position`);
     }
     if (this.normalBuffer) {
       this.bufferManager.deleteBuffer(`${this.id}_normal`);
@@ -300,6 +357,9 @@ export class GeometryBuffer {
     }
     if (this.edgeWeightBuffer) {
       this.bufferManager.deleteBuffer(`${this.id}_edge_weight`);
+    }
+    if (this.cornerBuffer) {
+      this.bufferManager.deleteBuffer(`${this.id}_corner`);
     }
   }
 }

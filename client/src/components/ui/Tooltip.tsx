@@ -18,6 +18,10 @@ export type TooltipProps = {
   disabled?: boolean;
   shortcut?: string;
   className?: string;
+  maxWidth?: number;
+  contentClassName?: string;
+  triggerClassName?: string;
+  triggerStyle?: CSSProperties;
 };
 
 const transformMap: Record<TooltipPosition, string> = {
@@ -35,6 +39,10 @@ export const Tooltip = ({
   disabled = false,
   shortcut,
   className,
+  maxWidth,
+  contentClassName,
+  triggerClassName,
+  triggerStyle,
 }: TooltipProps) => {
   const [visible, setVisible] = useState(false);
   const [coords, setCoords] = useState({ x: 0, y: 0 });
@@ -83,12 +91,15 @@ export const Tooltip = ({
     top: coords.y,
     transform: transformMap[position],
   };
+  const contentStyle: CSSProperties | undefined =
+    typeof maxWidth === "number" ? { maxWidth: `${maxWidth}px` } : undefined;
 
   return (
     <>
       <div
         ref={triggerRef}
-        className={styles.trigger}
+        className={`${styles.trigger} ${triggerClassName ?? ""}`}
+        style={triggerStyle}
         onMouseEnter={show}
         onMouseLeave={hide}
         onFocus={show}
@@ -105,7 +116,12 @@ export const Tooltip = ({
             aria-hidden={!visible}
           >
             <div className={styles.content}>
-              <span className={styles.text}>{content}</span>
+              <span
+                className={`${styles.text} ${contentClassName ?? ""}`}
+                style={contentStyle}
+              >
+                {content}
+              </span>
               {shortcut && <kbd className={styles.shortcut}>{shortcut}</kbd>}
             </div>
           </div>,

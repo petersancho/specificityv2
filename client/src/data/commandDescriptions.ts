@@ -4,7 +4,7 @@ const PRIMITIVE_COMMAND_DESCRIPTIONS = Object.fromEntries(
   PRIMITIVE_CATALOG.map((entry) => [
     entry.id,
     {
-      description: `Create a ${entry.label} primitive.`,
+      description: `Click to set the base on the C-Plane, then click to set the size of the ${entry.label}.`,
       category: "geometry",
     },
   ])
@@ -15,127 +15,127 @@ export const COMMAND_DESCRIPTIONS: Record<
   { description: string; shortcut?: string; category: string }
 > = {
   point: {
-    description: "Place a point vertex in 3D space. Click to position.",
+    description: "Click to place a point.",
     shortcut: "V",
     category: "geometry",
   },
   line: {
-    description: "Draw a single straight line segment between two points.",
+    description: "Click start and end points; double-click to finish.",
     category: "geometry",
   },
   polyline: {
-    description: "Draw connected line segments. Click points, Enter to finish.",
+    description: "Click points to draw. Right-click or double-click to finish.",
     shortcut: "P",
     category: "geometry",
   },
   rectangle: {
-    description: "Create a rectangular closed curve from two corner points.",
+    description: "Click first corner, then click the opposite corner.",
     shortcut: "R",
     category: "geometry",
   },
   circle: {
-    description: "Draw a circle. Click center, drag for radius.",
+    description: "Click the center, then click the radius.",
     shortcut: "C",
     category: "geometry",
   },
   arc: {
-    description: "Create a circular arc through start, end, and a third point.",
+    description: "Click start, click end, then click a point on the arc.",
     category: "geometry",
   },
   curve: {
-    description: "Draw a smooth interpolated curve through control points.",
+    description: "Click points to shape the curve. Right-click or double-click to finish.",
     category: "geometry",
   },
   ...PRIMITIVE_COMMAND_DESCRIPTIONS,
   interpolate: {
-    description: "Create a smooth NURBS curve through control points.",
+    description: "Select polylines, then click Run or press Enter to convert.",
     shortcut: "I",
     category: "geometry",
   },
   surface: {
-    description: "Create a planar surface from a closed boundary curve.",
+    description: "Select a closed curve, then click Run or press Enter.",
     shortcut: "S",
     category: "geometry",
   },
   loft: {
-    description: "Generate a surface between two or more profile curves.",
+    description: "Select two or more curves, then click Run or press Enter.",
     shortcut: "L",
     category: "geometry",
   },
   extrude: {
-    description: "Extrude a profile curve into a 3D solid. Set distance in options.",
+    description: "Select a profile, then drag to set distance or enter a value.",
     shortcut: "E",
     category: "geometry",
   },
   move: {
-    description: "Translate selected geometry. Drag or enter coordinates.",
+    description: "Drag a gumball handle or enter XYZ values.",
     shortcut: "G",
     category: "transform",
   },
   rotate: {
-    description: "Rotate selection around an axis. Click center, set angle.",
+    description: "Drag a rotation ring or enter an angle.",
     shortcut: "⌘R",
     category: "transform",
   },
   scale: {
-    description: "Scale geometry uniformly or per-axis from a reference point.",
+    description: "Drag a scale handle or enter values.",
     shortcut: "⌘S",
     category: "transform",
   },
   offset: {
-    description: "Create offset copies of selected polylines in the C-plane.",
+    description: "Select curves, then click to set distance.",
     category: "transform",
   },
   mirror: {
-    description: "Mirror the selection across a pivot plane aligned to an axis.",
+    description: "Select geometry, then click to define the mirror line or plane.",
     category: "transform",
   },
   array: {
-    description: "Duplicate the selection multiple times along an axis.",
+    description: "Select geometry, then set direction, spacing, and count.",
     category: "transform",
   },
   gumball: {
-    description: "Interactive transform widget for move/rotate/scale.",
+    description: "Click handles to move, rotate, or scale.",
     shortcut: "W",
     category: "transform",
   },
   undo: {
-    description: "Revert the last action.",
+    description: "Click to undo the last action.",
     shortcut: "⌘Z",
     category: "edit",
   },
   redo: {
-    description: "Reapply the last undone action.",
+    description: "Click to redo the last undone action.",
     shortcut: "⌘⇧Z",
     category: "edit",
   },
   copy: {
-    description: "Copy selected geometry to clipboard.",
+    description: "Click to copy the selected geometry.",
     shortcut: "⌘C",
     category: "edit",
   },
   paste: {
-    description: "Paste geometry from clipboard at cursor position.",
+    description: "Click to paste geometry from the clipboard.",
     shortcut: "⌘V",
     category: "edit",
   },
   duplicate: {
-    description: "Create a duplicate of selected geometry in place.",
+    description: "Click to duplicate the current selection.",
     shortcut: "⌘D",
     category: "edit",
   },
   delete: {
-    description: "Remove selected geometry from the scene.",
+    description: "Click to delete the selected geometry.",
     shortcut: "⌫",
     category: "edit",
   },
   focus: {
-    description: "Center view on selected geometry.",
+    description: "Click to frame the current selection.",
     shortcut: "F",
     category: "view",
   },
   frameall: {
-    description: "Fit all geometry in the viewport.",
+    description: "Click to frame all visible geometry.",
     shortcut: "⇧F",
     category: "view",
   },

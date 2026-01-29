@@ -1,5 +1,6 @@
 export const edgeLineVertexShader = `
 attribute vec3 position;
+attribute vec3 prevPosition;
 attribute vec3 nextPosition;
 attribute float side;
 attribute float edgeKind;
@@ -14,32 +15,45 @@ uniform float edgePixelSnap;
 
 varying float vSide;
 varying float vEdgeKind;
+varying float vMiterLen;
 
 void main() {
+  vec4 prevClip = projectionMatrix * viewMatrix * modelMatrix * vec4(prevPosition, 1.0);
   vec4 currentClip = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
   vec4 nextClip = projectionMatrix * viewMatrix * modelMatrix * vec4(nextPosition, 1.0);
 
-  vec2 currentNdc = currentClip.xy / currentClip.w;
-  vec2 nextNdc = nextClip.xy / nextClip.w;
-
   vec2 pixelScale = resolution * 0.5;
-  vec2 currentScreen = currentNdc * pixelScale;
-  vec2 nextScreen = nextNdc * pixelScale;
+  vec2 prevScreen = (prevClip.xy / prevClip.w) * pixelScale;
+  vec2 currentScreen = (currentClip.xy / currentClip.w) * pixelScale;
+  vec2 nextScreen = (nextClip.xy / nextClip.w) * pixelScale;
 
-  vec2 dir = nextScreen - currentScreen;
-  float len = length(dir);
-  if (len < 1e-5) {
-    dir = vec2(1.0, 0.0);
+  vec2 dirA = currentScreen - prevScreen;
+  vec2 dirB = nextScreen - currentScreen;
+  float lenA = length(dirA);
+  float lenB = length(dirB);
+  if (lenA < 1e-4) {
+    dirA = dirB;
+    lenA = lenB;
+  }
+  if (lenB < 1e-4) {
+    dirB = dirA;
+    lenB = lenA;
+  }
+  dirA = lenA < 1e-4 ? vec2(1.0, 0.0) : dirA / lenA;
+  dirB = lenB < 1e-4 ? vec2(1.0, 0.0) : dirB / lenB;
+
+  vec2 normalA = vec2(-dirA.y, dirA.x);
+  vec2 normalB = vec2(-dirB.y, dirB.x);
+
+  vec2 miter = normalA + normalB;
+  float miterLen = length(miter);
+  if (miterLen < 1e-4) {
+    miter = normalB;
+    miterLen = 1.0;
   } else {
-    dir /= len;
+    miter /= miterLen;
+    miterLen = 1.0 / max(0.2, dot(miter, normalB));
   }
-  // Keep a consistent direction across the segment to avoid quad tapering.
-  if (abs(dir.x) < 1e-4) {
-    if (dir.y < 0.0) dir = -dir;
-  } else if (dir.x < 0.0) {
-    dir = -dir;
-  }
-  vec2 normal = vec2(-dir.y, dir.x);
 
   float lineWidth = edgeWidths.x;
   if (edgeKind > 1.5) {
@@ -48,7 +62,10 @@ void main() {
     lineWidth = edgeWidths.y;
   }
 
-  vec2 offset = normal * lineWidth * 0.5 * side;
+  float limit = 1.6;
+  miterLen = min(miterLen, limit);
+
+  vec2 offset = miter * (lineWidth * 0.5 * side) * miterLen;
   vec2 finalScreen = currentScreen + offset;
   if (edgePixelSnap > 0.0) {
     vec2 snapped = floor(finalScreen) + vec2(0.5);
@@ -57,10 +74,17 @@ void main() {
   vec2 finalNdc = finalScreen / pixelScale;
 
   vec4 positionOut = vec4(finalNdc * currentClip.w, currentClip.z, currentClip.w);
-  positionOut.z -= depthBias * positionOut.w;
+  float biasScale = 1.0;
+  if (edgeKind < 0.5) {
+    biasScale = 0.55;
+  } else if (edgeKind < 1.5) {
+    biasScale = 0.8;
+  }
+  positionOut.z -= depthBias * biasScale * positionOut.w;
   gl_Position = positionOut;
 
   vSide = side;
   vEdgeKind = edgeKind;
+  vMiterLen = miterLen;
 }
 `;

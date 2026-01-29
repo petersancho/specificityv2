@@ -104,10 +104,11 @@
 
   /* Layout */
   --max-w: 1600px;
-  --radius: 10px;
-  --radius-sm: 6px;
-  --radius-lg: 16px;
-  --radius-node: 8px;
+  --radius: 6px;
+  --radius-sm: 4px;
+  --radius-lg: 10px;
+  --radius-node: 6px;
+  --radius-pill: 6px;
   --gap: clamp(12px, 2vw, 24px);
   --pad: clamp(12px, 2vw, 24px);
 
@@ -230,7 +231,7 @@
     transparent
   );
   --radius-container: var(--radius-lg);
-  --radius-panel: calc(var(--radius-lg) + 8px);
+  --radius-panel: var(--radius-lg);
   --radius-card: var(--radius);
   --radius-input: var(--radius-sm);
   --shadow-panel: var(--shadow-xl);

@@ -7,9 +7,9 @@
   width: 100%;
   display: block;
   overflow: hidden;
-  background: var(--roslyn-instrument-cream, #f7f4ef);
+  background: linear-gradient(180deg, #faf8f4 0%, #f4f2ee 100%);
   border-bottom: 1px solid rgba(18, 16, 12, 0.12);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
 }
 
 .canvas {
@@ -19,4 +19,46 @@
   height: 100%;
   display: block;
   pointer-events: none;
+}
+
+.docsLink {
+  position: absolute;
+  top: 50%;
+  right: 24px;
+  transform: translateY(-50%);
+  z-index: 2;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(18, 16, 12, 0.22);
+  background: rgba(250, 248, 244, 0.92);
+  color: rgba(18, 16, 12, 0.92);
+  font-family: "Montreal Neue", "Helvetica Neue", "Space Grotesk", Helvetica, Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-decoration: none;
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.85);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+  pointer-events: auto;
+}
+
+.docsLink:hover {
+  transform: translateY(calc(-50% - 1px));
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.75);
+}
+
+.docsLinkActive {
+  background: rgba(0, 194, 209, 0.12);
+  border-color: rgba(0, 194, 209, 0.6);
+  color: rgba(8, 40, 46, 0.95);
+}
+
+@media (max-width: 640px) {
+  .docsLink {
+    right: 12px;
+    padding: 6px 10px;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+  }
 }

@@ -1,8 +1,8 @@
-# Specificity Command and Node Reference Guide
+# Lingua Command and Node Reference Guide
 
 ## Introduction to the Command System
 
-The Specificity modeling environment provides two complementary interaction paradigms for creating and manipulating geometry. The Roslyn panel offers direct manipulation through geometry commands that create primitives, curves, and surfaces, plus perform commands that execute transformations and modifications on selected geometry. The Numerica panel provides equivalent functionality through computational nodes that can be wired into parametric graphs for procedural modeling workflows.
+The Lingua modeling environment provides two complementary interaction paradigms for creating and manipulating geometry. The Roslyn panel offers direct manipulation through geometry commands that create primitives, curves, and surfaces, plus perform commands that execute transformations and modifications on selected geometry. The Numerica panel provides equivalent functionality through computational nodes that can be wired into parametric graphs for procedural modeling workflows.
 
 Every geometry creation and modification operation in Roslyn has a corresponding node type in Numerica, ensuring that users can choose between direct interactive modeling and parametric procedural approaches based on their workflow requirements. The command system integrates with command bar input prompts that appear when commands require coordinate input, enabling precise numeric entry while maintaining the fluidity of interactive modeling. All geometry created through either commands or nodes renders through the WebGL pipeline using custom shaders that provide consistent visual quality and selection highlighting.
 

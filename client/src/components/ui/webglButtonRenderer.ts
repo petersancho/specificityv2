@@ -694,12 +694,12 @@ const computeRadius = (
   variant: WebGLButtonVariant,
   shape: WebGLButtonShape
 ): number => {
-  if (shape === "pill") return height / 2;
-  if (shape === "square") return Math.min(14, height * 0.28);
-  if (shape === "rounded") return Math.min(18, height * 0.34);
-  if (variant === "chip" || variant === "outliner") return height / 2;
-  if (variant === "icon" || variant === "palette") return Math.min(14, height * 0.32);
-  return Math.min(16, height * 0.34);
+  if (shape === "pill") return Math.min(height / 2, 6);
+  if (shape === "square") return Math.min(5, height * 0.14);
+  if (shape === "rounded") return Math.min(6, height * 0.2);
+  if (variant === "chip" || variant === "outliner") return Math.min(6, height * 0.2);
+  if (variant === "icon" || variant === "palette") return Math.min(5, height * 0.18);
+  return Math.min(6, height * 0.2);
 };
 
 export const resolveButtonVisuals = ({

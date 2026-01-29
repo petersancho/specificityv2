@@ -9,25 +9,6 @@ const isValidVec3 = (point?: Vec3) =>
   isFiniteNumber(point?.y) &&
   isFiniteNumber(point?.z);
 
-const parsePointsText = (input?: string): Vec3[] => {
-  if (!input) return [];
-  const numbers = input
-    .split(/[\s,]+/)
-    .map((value) => Number(value))
-    .filter((value) => Number.isFinite(value));
-  if (numbers.length < 2) return [];
-  const groupSize = numbers.length % 3 === 0 ? 3 : 2;
-  const points: Vec3[] = [];
-  for (let i = 0; i + groupSize - 1 < numbers.length; i += groupSize) {
-    if (groupSize === 3) {
-      points.push({ x: numbers[i], y: numbers[i + 1], z: numbers[i + 2] });
-    } else {
-      points.push({ x: numbers[i], y: 0, z: numbers[i + 1] });
-    }
-  }
-  return points;
-};
-
 const hasParameter = (parameters: Record<string, unknown> | undefined, key: string) =>
   Boolean(parameters && Object.prototype.hasOwnProperty.call(parameters, key));
 
@@ -81,47 +62,56 @@ export const isWorkflowNodeInvalid = (
       if (!geometry) return false;
       return !geometry.some((item) => item.id === geometryId);
     }
-    case "point":
-      return !isValidVec3(safeData.point);
-    case "line":
-      return parsePointsText(safeData.pointsText).length < 2;
-    case "arc":
-      return parsePointsText(safeData.pointsText).length < 3;
-    case "curve":
-      return parsePointsText(safeData.pointsText).length < 2;
-    case "polyline":
-      return parsePointsText(safeData.pointsText).length < 2;
-    case "surface":
-      return parsePointsText(safeData.pointsText).length < 3;
+    case "point": {
+      const position = safeData.outputs?.position as Vec3 | undefined;
+      return !isValidVec3(position ?? safeData.point);
+    }
+    case "pointCloud": {
+      const points = safeData.outputs?.points;
+      return !Array.isArray(points) || points.length === 0;
+    }
+    case "line": {
+      const points = safeData.outputs?.points;
+      return !Array.isArray(points) || points.length < 2;
+    }
+    case "arc": {
+      const points = safeData.outputs?.points;
+      return !Array.isArray(points) || points.length < 3;
+    }
+    case "curve": {
+      const points = safeData.outputs?.points;
+      return !Array.isArray(points) || points.length < 2;
+    }
+    case "polyline": {
+      const points = safeData.outputs?.points;
+      return !Array.isArray(points) || points.length < 2;
+    }
+    case "surface": {
+      const points = safeData.outputs?.points;
+      return !Array.isArray(points) || points.length < 3;
+    }
     case "rectangle": {
-      const parameters = safeData.parameters;
-      if (!parameters) return false;
-      const width = parseFiniteNumber(parameters.width) ?? 0;
-      const height = parseFiniteNumber(parameters.height) ?? 0;
+      const width = parseFiniteNumber(safeData.outputs?.width ?? safeData.parameters?.width) ?? 0;
+      const height = parseFiniteNumber(safeData.outputs?.height ?? safeData.parameters?.height) ?? 0;
       return width <= 0 || height <= 0;
     }
     case "circle": {
-      const parameters = safeData.parameters;
-      if (!parameters) return false;
-      const radius = parseFiniteNumber(parameters.radius) ?? 0;
-      const segments = parseFiniteNumber(parameters.segments) ?? 0;
+      const radius = parseFiniteNumber(safeData.outputs?.radius ?? safeData.parameters?.radius) ?? 0;
+      const segments = parseFiniteNumber(safeData.outputs?.segments ?? safeData.parameters?.segments) ?? 0;
       return radius <= 0 || segments < 8;
     }
     case "box": {
-      const dims = safeData.boxDimensions;
-      if (!dims) return true;
-      return (
-        !isFiniteNumber(dims.width) ||
-        dims.width <= 0 ||
-        !isFiniteNumber(dims.height) ||
-        dims.height <= 0 ||
-        !isFiniteNumber(dims.depth) ||
-        dims.depth <= 0
-      );
+      const width = parseFiniteNumber(safeData.outputs?.width ?? safeData.parameters?.boxWidth) ?? safeData.boxDimensions?.width ?? 0;
+      const height = parseFiniteNumber(safeData.outputs?.height ?? safeData.parameters?.boxHeight) ?? safeData.boxDimensions?.height ?? 0;
+      const depth = parseFiniteNumber(safeData.outputs?.depth ?? safeData.parameters?.boxDepth) ?? safeData.boxDimensions?.depth ?? 0;
+      return width <= 0 || height <= 0 || depth <= 0;
     }
     case "sphere": {
-      const radius = safeData.sphereRadius;
-      return !isFiniteNumber(radius) || radius <= 0;
+      const radius =
+        parseFiniteNumber(safeData.outputs?.radius ?? safeData.parameters?.sphereRadius) ??
+        safeData.sphereRadius ??
+        0;
+      return radius <= 0;
     }
     case "meshConvert": {
       const parameters = safeData.parameters;
@@ -187,6 +177,13 @@ export const isWorkflowNodeInvalid = (
       const sz = parseFiniteNumber(parameters.scaleZ) ?? 1;
       return sx === 0 || sy === 0 || sz === 0;
     }
+    case "customMaterial": {
+      const geometryId =
+        typeof safeData.outputs?.geometry === "string"
+          ? safeData.outputs.geometry
+          : safeData.geometryId;
+      return !geometryId;
+    }
     case "loft": {
       const geometryId =
         typeof safeData.outputs?.geometry === "string"
@@ -217,6 +214,96 @@ export const isWorkflowNodeInvalid = (
       return (
         isInvalidNumberParameter(parameters, "distance") ||
         isInvalidNumberParameter(parameters, "samples")
+      );
+    }
+    case "offsetSurface": {
+      const geometryId =
+        typeof safeData.outputs?.geometry === "string"
+          ? safeData.outputs.geometry
+          : safeData.geometryId;
+      if (!geometryId) return true;
+      const parameters = safeData.parameters;
+      if (!parameters) return false;
+      return isInvalidNumberParameter(parameters, "distance");
+    }
+    case "fillet": {
+      const geometryId =
+        typeof safeData.outputs?.geometry === "string"
+          ? safeData.outputs.geometry
+          : safeData.geometryId;
+      if (!geometryId) return true;
+      const parameters = safeData.parameters;
+      if (!parameters) return false;
+      return (
+        isInvalidNumberParameter(parameters, "radius") ||
+        isInvalidNumberParameter(parameters, "segments")
+      );
+    }
+    case "filletEdges": {
+      const geometryId =
+        typeof safeData.outputs?.geometry === "string"
+          ? safeData.outputs.geometry
+          : safeData.geometryId;
+      if (!geometryId) return true;
+      const parameters = safeData.parameters;
+      if (!parameters) return false;
+      return (
+        isInvalidNumberParameter(parameters, "radius") ||
+        isInvalidNumberParameter(parameters, "segments")
+      );
+    }
+    case "thickenMesh": {
+      const geometryId =
+        typeof safeData.outputs?.geometry === "string"
+          ? safeData.outputs.geometry
+          : safeData.geometryId;
+      if (!geometryId) return true;
+      const parameters = safeData.parameters;
+      if (!parameters) return false;
+      if (isInvalidNumberParameter(parameters, "thickness")) return true;
+      const sides = String(parameters.sides ?? "both");
+      return !["both", "outward", "inward"].includes(sides);
+    }
+    case "plasticwrap": {
+      const geometryId =
+        typeof safeData.outputs?.geometry === "string"
+          ? safeData.outputs.geometry
+          : safeData.geometryId;
+      const targetId =
+        typeof safeData.outputs?.target === "string"
+          ? safeData.outputs.target
+          : null;
+      if (!geometryId || !targetId) return true;
+      const parameters = safeData.parameters;
+      if (!parameters) return false;
+      return (
+        isInvalidNumberParameter(parameters, "distance") ||
+        isInvalidNumberParameter(parameters, "smooth")
+      );
+    }
+    case "solid": {
+      const geometryId =
+        typeof safeData.outputs?.geometry === "string"
+          ? safeData.outputs.geometry
+          : safeData.geometryId;
+      if (!geometryId) return true;
+      const parameters = safeData.parameters;
+      if (!parameters) return false;
+      if (isInvalidNumberParameter(parameters, "tolerance")) return true;
+      const capMode = String(parameters.capMode ?? "auto");
+      return !["auto", "planar", "triangulate"].includes(capMode);
+    }
+    case "fieldTransformation": {
+      const geometryId =
+        typeof safeData.outputs?.geometry === "string"
+          ? safeData.outputs.geometry
+          : safeData.geometryId;
+      if (!geometryId) return true;
+      const parameters = safeData.parameters;
+      if (!parameters) return false;
+      return (
+        isInvalidNumberParameter(parameters, "strength") ||
+        isInvalidNumberParameter(parameters, "falloff")
       );
     }
     case "boolean": {
@@ -537,13 +624,7 @@ export const isWorkflowNodeInvalid = (
       ) {
         return true;
       }
-      const min = hasParameter(parameters, "min")
-        ? parseFiniteNumber(parameters.min)
-        : null;
-      const max = hasParameter(parameters, "max")
-        ? parseFiniteNumber(parameters.max)
-        : null;
-      return min != null && max != null ? min > max : false;
+      return false;
     }
     case "expression": {
       const expression = safeData.parameters?.expression;

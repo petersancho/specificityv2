@@ -1,6 +1,6 @@
-# Specificity
+# Lingua
 
-Specificity is a custom parametric design environment that pairs direct 3D
+Lingua is a custom parametric design environment that pairs direct 3D
 modeling (Roslyn) with a visual programming canvas (Numerica). Both panels share
 one Zustand store so geometry, selection, and workflows stay in sync.
 
@@ -77,7 +77,7 @@ CLIENT_PORT=5173
 
 Start with `docs/README.md` for the full documentation map. Core references:
 
-- Overview: `docs/specificity_readme.md`
-- Architecture: `docs/specificity_architecture.md`
-- Conventions: `docs/specificity_conventions.md`
+- Overview: `docs/lingua_readme.md`
+- Architecture: `docs/lingua_architecture.md`
+- Conventions: `docs/lingua_conventions.md`
 - AI agent notes: `docs/ai_agent_guide.md`

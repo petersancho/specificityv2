@@ -9,7 +9,7 @@ Replace ReactFlow with custom ETO.forms canvas-based rendering for Numerica work
 
 **Location:** `client/src/components/workflow/NumericalCanvas.tsx`
 
-**Architecture Pattern:** Immediate-mode canvas rendering per `docs/specificity_conventions.md:70-80`
+**Architecture Pattern:** Immediate-mode canvas rendering per `docs/lingua_conventions.md:70-80`
 
 #### Core Features Implemented
 
@@ -216,13 +216,13 @@ grep -r "import.*reactflow" client/src/
 ### Update Documentation
 
 **Files to Update:**
-1. `docs/specificity_architecture.md` - Update workflow system section
+1. `docs/lingua_architecture.md` - Update workflow system section
 2. `docs/subsystems_guide.md` - Update custom node editor section
 3. `docs/IMPLEMENTATION_STATUS.md` - Mark ReactFlow migration complete
 
 ## References
 
-- Implementation follows `docs/specificity_conventions.md:70-80` (ETO.forms patterns)
+- Implementation follows `docs/lingua_conventions.md:70-80` (ETO.forms patterns)
 - Architecture per `docs/subsystems_guide.md:185-194` (Custom node editor)
 - Immediate-mode rendering per `docs/ai_agent_guide.md` (Canvas-based workflow)
 - Monochrome aesthetic per user requirements, with a deliberate exception for colorful WebGL toolbar icons

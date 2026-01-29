@@ -96,7 +96,7 @@ Audit current Three.js and ReactFlow usage to establish migration path for total
 
 ### ETO.forms Architecture Specification
 
-Per `docs/specificity_conventions.md:70-80` and `docs/subsystems_guide.md:185-194`:
+Per `docs/lingua_conventions.md:70-80` and `docs/subsystems_guide.md:185-194`:
 
 **Rendering Pipeline:**
 ```
@@ -246,7 +246,7 @@ Per `docs/subsystems_guide.md:3-46`:
 
 ## References
 
-- `docs/specificity_architecture.md` - System architecture and integration
-- `docs/specificity_conventions.md` - Code patterns and standards
+- `docs/lingua_architecture.md` - System architecture and integration
+- `docs/lingua_conventions.md` - Code patterns and standards
 - `docs/subsystems_guide.md` - Detailed subsystem implementations
 - `docs/ai_agent_guide.md` - Development guidance and patterns

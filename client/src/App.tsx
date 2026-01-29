@@ -1,12 +1,13 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
 import WebGLAppTopBar from "./components/WebGLAppTopBar";
+import DocumentationPage from "./components/DocumentationPage";
 import ModelerSection from "./components/ModelerSection";
 import WorkflowSection from "./components/workflow/WorkflowSection";
 import WebGLButton from "./components/ui/WebGLButton";
 import { useProjectStore } from "./store/useProjectStore";
 import { buildApiUrl, SOCKET_URL } from "./config/runtime";
-import logoSpecificitySymbol from "./assets/logo-specificity-symbol.svg";
+import logoLinguaSymbol from "./assets/logo-lingua-symbol.svg";
 import styles from "./App.module.css";
 
 type PanelId = "roslyn" | "numerica";
@@ -109,6 +110,14 @@ const computeRoslynCenteredOffset = (
 
 const getInitialWorkspaceOffset = () => computeRoslynCenteredOffset(INITIAL_PANELS);
 
+type AppPage = "workspace" | "docs";
+
+const resolvePageFromHash = (hash: string): AppPage => {
+  const normalized = hash.toLowerCase();
+  if (normalized.includes("docs")) return "docs";
+  return "workspace";
+};
+
 type DragState =
   | {
       kind: "pan";
@@ -147,6 +156,10 @@ const PANEL_DRAG_SELECTOR = "[data-panel-drag='true']";
 
 const App = () => {
   const [status, setStatus] = useState("Ready");
+  const [currentHash, setCurrentHash] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return window.location.hash;
+  });
   const [workspaceScale, setWorkspaceScale] = useState(1);
   const [workspaceOffset, setWorkspaceOffset] = useState(getInitialWorkspaceOffset);
   const [panels, setPanels] = useState<Record<PanelId, PanelState>>(INITIAL_PANELS);
@@ -204,6 +217,16 @@ const App = () => {
       const root = document.documentElement;
       root.dataset.theme = "light";
     }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const handleHashChange = () => {
+      setCurrentHash(window.location.hash);
+    };
+    handleHashChange();
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
 
   useEffect(() => {
@@ -423,16 +446,222 @@ const App = () => {
     setIsCapturing(true);
     try {
       const html2canvas = (await import("html2canvas")).default;
-      const exportScale = Math.min(4, (window.devicePixelRatio || 1) * 2);
-      const canvas = await html2canvas(target, {
-        backgroundColor: null,
+      const scaleOverride = Number(target.dataset.captureScale);
+      const defaultScale = Math.min(4, (window.devicePixelRatio || 1) * 2);
+      const exportScale =
+        Number.isFinite(scaleOverride) && scaleOverride > 0
+          ? scaleOverride
+          : defaultScale;
+      const backgroundMode = target.dataset.captureBackground;
+      const backgroundColor =
+        backgroundMode === "white" ? "#ffffff" : null;
+      const captureMode = target.dataset.captureMode;
+      const hiddenCanvases: Array<{
+        element: HTMLCanvasElement;
+        previousVisibility: string;
+        previousCaptureHide?: string;
+      }> = [];
+      if (captureMode === "roslyn") {
+        target.querySelectorAll<HTMLCanvasElement>("canvas").forEach((canvas) => {
+          hiddenCanvases.push({
+            element: canvas,
+            previousVisibility: canvas.style.visibility,
+            previousCaptureHide: canvas.dataset.captureHide,
+          });
+          canvas.style.visibility = "hidden";
+          canvas.dataset.captureHide = "true";
+        });
+      }
+
+      const loadImage = (src: string) =>
+        new Promise<HTMLImageElement>((resolve, reject) => {
+          const image = new Image();
+          image.onload = () => resolve(image);
+          image.onerror = reject;
+          image.src = src;
+        });
+
+      const captureWebGLCanvases =
+        captureMode === "roslyn"
+          ? Array.from(target.querySelectorAll("canvas"))
+          : [];
+      const targetRect = target.getBoundingClientRect();
+      const webglSnapshots = await Promise.all(
+        captureWebGLCanvases.map(async (canvas) => {
+          try {
+            const rect = canvas.getBoundingClientRect();
+            const url = canvas.toDataURL("image/png");
+            return {
+              url,
+              x: rect.left - targetRect.left,
+              y: rect.top - targetRect.top,
+              width: rect.width,
+              height: rect.height,
+            };
+          } catch (error) {
+            console.warn("Failed to capture WebGL canvas", error);
+            return null;
+          }
+        })
+      );
+      const validSnapshots = webglSnapshots.filter(
+        (snapshot): snapshot is {
+          url: string;
+          x: number;
+          y: number;
+          width: number;
+          height: number;
+        } => Boolean(snapshot)
+      );
+
+      const skipCanvas = captureMode === "roslyn";
+      const captureRootId = `${label.toLowerCase()}-${Date.now()}`;
+      target.dataset.captureRoot = captureRootId;
+
+      let colorResolveCtx: CanvasRenderingContext2D | null = null;
+      const resolveColorValue = (value: string) => {
+        if (typeof document === "undefined") return null;
+        if (!colorResolveCtx) {
+          const canvas = document.createElement("canvas");
+          canvas.width = 2;
+          canvas.height = 2;
+          colorResolveCtx = canvas.getContext("2d");
+        }
+        if (!colorResolveCtx) return null;
+        const prev = colorResolveCtx.fillStyle;
+        colorResolveCtx.fillStyle = "#000";
+        colorResolveCtx.fillStyle = value;
+        const resolved = colorResolveCtx.fillStyle;
+        colorResolveCtx.fillStyle = prev;
+        if (resolved === "#000" && value.trim() !== "#000" && value.trim() !== "rgb(0, 0, 0)") {
+          return null;
+        }
+        return resolved;
+      };
+
+      const sanitizeCloneColors = (doc: Document) => {
+        if (captureMode !== "roslyn") return;
+        const root = doc.querySelector<HTMLElement>(`[data-capture-root="${captureRootId}"]`);
+        if (!root) return;
+        const view = doc.defaultView;
+        if (!view) return;
+        const COLOR_PROPS = [
+          "color",
+          "background-color",
+          "border-top-color",
+          "border-right-color",
+          "border-bottom-color",
+          "border-left-color",
+          "outline-color",
+          "text-decoration-color",
+          "caret-color",
+          "column-rule-color",
+        ];
+        const SHADOW_PROPS = ["box-shadow", "text-shadow"];
+        const BG_PROPS = ["background-image", "border-image-source"];
+        const elements = root.querySelectorAll<HTMLElement>("*");
+        elements.forEach((el) => {
+          const styles = view.getComputedStyle(el);
+          COLOR_PROPS.forEach((prop) => {
+            const value = styles.getPropertyValue(prop);
+            if (!value) return;
+            if (value.includes("color(") || value.includes("color-mix(")) {
+              const resolved = resolveColorValue(value);
+              el.style.setProperty(prop, resolved ?? "transparent", "important");
+            }
+          });
+          SHADOW_PROPS.forEach((prop) => {
+            const value = styles.getPropertyValue(prop);
+            if (!value) return;
+            if (value.includes("color(") || value.includes("color-mix(")) {
+              el.style.setProperty(prop, "none", "important");
+            }
+          });
+          BG_PROPS.forEach((prop) => {
+            const value = styles.getPropertyValue(prop);
+            if (!value) return;
+            if (value.includes("color(") || value.includes("color-mix(")) {
+              el.style.setProperty(prop, "none", "important");
+            }
+          });
+        });
+      };
+
+      const overlayCanvas = await html2canvas(target, {
+        backgroundColor: captureMode === "roslyn" ? null : backgroundColor,
         scale: exportScale,
+        foreignObjectRendering: captureMode === "roslyn",
+        useCORS: true,
+        onclone: sanitizeCloneColors,
+        ignoreElements: (element) =>
+          element instanceof HTMLElement &&
+          (element.dataset.captureHide === "true" ||
+            (skipCanvas && element.tagName === "CANVAS")),
       });
-      const dataUrl = canvas.toDataURL("image/png", 1.0);
+
+      let outputCanvas = overlayCanvas;
+      if (captureMode === "roslyn" && validSnapshots.length > 0) {
+        const composite = document.createElement("canvas");
+        composite.width = overlayCanvas.width;
+        composite.height = overlayCanvas.height;
+        const ctx = composite.getContext("2d");
+        if (ctx) {
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = "high";
+          if (backgroundColor) {
+            ctx.fillStyle = backgroundColor;
+            ctx.fillRect(0, 0, composite.width, composite.height);
+          }
+          const imageResults = await Promise.allSettled(
+            validSnapshots.map(async (snapshot) => ({
+              image: await loadImage(snapshot.url),
+              snapshot,
+            }))
+          );
+          const images = imageResults
+            .filter(
+              (
+                result
+              ): result is PromiseFulfilledResult<{
+                image: HTMLImageElement;
+                snapshot: {
+                  url: string;
+                  x: number;
+                  y: number;
+                  width: number;
+                  height: number;
+                };
+              }> => result.status === "fulfilled"
+            )
+            .map((result) => result.value);
+          images.forEach(({ image, snapshot }) => {
+            ctx.drawImage(
+              image,
+              snapshot.x * exportScale,
+              snapshot.y * exportScale,
+              snapshot.width * exportScale,
+              snapshot.height * exportScale
+            );
+          });
+          ctx.drawImage(overlayCanvas, 0, 0);
+          outputCanvas = composite;
+        }
+      }
+
+      const dataUrl = outputCanvas.toDataURL("image/png", 1.0);
       setCapturePreview({ url: dataUrl, label });
     } catch (error) {
       console.error("Failed to capture screenshot", error);
     } finally {
+      hiddenCanvases.forEach(({ element, previousVisibility, previousCaptureHide }) => {
+        element.style.visibility = previousVisibility;
+        if (previousCaptureHide !== undefined) {
+          element.dataset.captureHide = previousCaptureHide;
+        } else {
+          delete element.dataset.captureHide;
+        }
+      });
+      delete target.dataset.captureRoot;
       setIsCapturing(false);
     }
   };
@@ -450,46 +679,60 @@ const App = () => {
   };
 
   const isFullscreen = fullscreenPanel !== null;
+  const activePage = resolvePageFromHash(currentHash);
+  const isDocsPage = activePage === "docs";
 
   return (
-    <div className={styles.app}>
+    <div className={styles.app} data-page={activePage}>
       {showIntroOverlay && (
         <div className={styles.introOverlay} aria-hidden="true">
           <img
-            src={logoSpecificitySymbol}
+            src={logoLinguaSymbol}
             alt=""
             className={styles.introOverlaySymbol}
           />
         </div>
       )}
-      {!isFullscreen && <WebGLAppTopBar status={status} />}
+      {!isFullscreen && (
+        <WebGLAppTopBar
+          status={status}
+          docsHref="#/docs"
+          docsActive={isDocsPage}
+        />
+      )}
 
-      <main className={styles.workspace}>
-        <div className={styles.stackLayout} data-fullscreen={fullscreenPanel ?? "none"}>
-          <div
-            className={`${styles.fullPanel} ${styles.roslynPanel}`}
-            data-panel="roslyn"
-          >
-            <ModelerSection
-              onCaptureRequest={(element) => captureElement(element, "Roslyn")}
-              captureDisabled={isCapturing}
-              isFullscreen={fullscreenPanel === "roslyn"}
-              onToggleFullscreen={() => toggleFullscreen("roslyn")}
-            />
+      {isDocsPage ? (
+        <main className={styles.docsMain}>
+          <DocumentationPage hash={currentHash} />
+        </main>
+      ) : (
+        <main className={styles.workspace}>
+          <div className={styles.stackLayout} data-fullscreen={fullscreenPanel ?? "none"}>
+            <div
+              className={`${styles.fullPanel} ${styles.roslynPanel}`}
+              data-panel="roslyn"
+            >
+              <ModelerSection
+                onCaptureRequest={(element) => captureElement(element, "Roslyn")}
+                captureDisabled={isCapturing}
+                isFullscreen={fullscreenPanel === "roslyn"}
+                onToggleFullscreen={() => toggleFullscreen("roslyn")}
+              />
+            </div>
+            <div
+              className={`${styles.fullPanel} ${styles.numericaPanel}`}
+              data-panel="numerica"
+            >
+              <WorkflowSection
+                onCaptureRequest={(element) => captureElement(element, "Numerica")}
+                captureDisabled={isCapturing}
+                isFullscreen={fullscreenPanel === "numerica"}
+                onToggleFullscreen={() => toggleFullscreen("numerica")}
+              />
+            </div>
           </div>
-          <div
-            className={`${styles.fullPanel} ${styles.numericaPanel}`}
-            data-panel="numerica"
-          >
-            <WorkflowSection
-              onCaptureRequest={(element) => captureElement(element, "Numerica")}
-              captureDisabled={isCapturing}
-              isFullscreen={fullscreenPanel === "numerica"}
-              onToggleFullscreen={() => toggleFullscreen("numerica")}
-            />
-          </div>
-        </div>
-      </main>
+        </main>
+      )}
       {capturePreview && (
         <div className={styles.captureModal} role="dialog" aria-modal="true">
           <div className={styles.captureModalContent}>

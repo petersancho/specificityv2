@@ -7,6 +7,8 @@ import styles from "./WebGLAppTopBar.module.css";
 type WebGLAppTopBarProps = {
   status?: string;
   className?: string;
+  docsHref?: string;
+  docsActive?: boolean;
 };
 
 type Rect = { x: number; y: number; width: number; height: number };
@@ -56,8 +58,8 @@ const mix = (a: RGBA, b: RGBA, t: number): RGBA => [
 ];
 
 const PALETTE = {
-  bgTop: rgb(250, 248, 246, 1),
-  bgBottom: rgb(246, 244, 240, 1),
+  bgTop: rgb(250, 248, 244, 1),
+  bgBottom: rgb(244, 242, 238, 1),
   border: rgb(18, 16, 12, 0.12),
   topAccent: rgb(18, 16, 12, 0.35),
   topAccentSoft: rgb(18, 16, 12, 0.18),
@@ -102,8 +104,8 @@ const CHIP_TONES: Record<
 };
 
 const BAR_HEIGHT = 96;
-const BRAND_TEXT_BASE = "SPECIFI";
-const BRAND_TEXT_ACCENT = "CITY";
+const BRAND_TEXT_BASE = "LING";
+const BRAND_TEXT_ACCENT = "UA";
 const CHIP_SPECS: ChipSpec[] = [];
 
 const PADDING_X = 24;
@@ -117,7 +119,7 @@ const BRAND_BADGE_PAD_X = 14;
 const BRAND_BADGE_PAD_Y = 7;
 const BRAND_BADGE_BAR_WIDTH = 4;
 const BRAND_BADGE_BAR_GAP = 10;
-const BRAND_BADGE_RADIUS = 11;
+const BRAND_BADGE_RADIUS = 6;
 const BRAND_BADGE_STROKE = 1.1;
 const BRAND_TO_CHIPS_GAP = 18;
 const CHIP_HEIGHT = 34;
@@ -126,7 +128,7 @@ const CHIP_GAP = 8;
 const CHIP_DOT_SIZE = 6;
 const CHIP_DOT_GAP = 7;
 const CHIP_BAR_WIDTH = 3;
-const CHIP_RADIUS = 7;
+const CHIP_RADIUS = 4;
 const CHIP_FONT_SIZE = 11.5;
 const STATUS_FONT_SIZE = 12.5;
 const STATUS_PAD_X = 14;
@@ -136,9 +138,12 @@ const DOT_SPACING = 26;
 const DOT_SIZE = 1.1;
 const DOT_STRONG_EVERY = 4;
 
-const GRADIENT_STEPS = 10;
+const GRADIENT_STEPS = 12;
+const RENDER_SCALE = 1.35;
+const MAX_DPR = 3;
 
-const UI_FONT_FAMILY = '"Helvetica Neue", Helvetica, Arial, sans-serif';
+const UI_FONT_FAMILY =
+  '"Helvetica Neue", "Montreal Neue", "Space Grotesk", Helvetica, Arial, sans-serif';
 const BRAND_FONT_FAMILY = '"Montreal Neue", "Helvetica Neue", Helvetica, Arial, sans-serif';
 const BRAND_WEIGHT = 700;
 const BRAND_ACCENT_WEIGHT = 800;
@@ -213,7 +218,12 @@ const measureStatusWidth = (statusText: string, fontSize: number, padX: number, 
   return textWidth + padX * 2 + dotSize + dotGap;
 };
 
-const WebGLAppTopBar = ({ status, className }: WebGLAppTopBarProps) => {
+const WebGLAppTopBar = ({
+  status,
+  className,
+  docsHref,
+  docsActive = false,
+}: WebGLAppTopBarProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const glRef = useRef<WebGLRenderingContext | null>(null);
@@ -747,7 +757,7 @@ const WebGLAppTopBar = ({ status, className }: WebGLAppTopBarProps) => {
           width: (brandSymbolRect.width + symbolPad * 2) * dpr,
           height: (brandSymbolRect.height + symbolPad * 2) * dpr,
         },
-        "specificitySymbol",
+        "linguaSymbol",
         PALETTE.brandAccentGlow
       );
       iconRenderer.drawIcon(
@@ -757,7 +767,7 @@ const WebGLAppTopBar = ({ status, className }: WebGLAppTopBarProps) => {
           width: brandSymbolRect.width * dpr,
           height: brandSymbolRect.height * dpr,
         },
-        "specificitySymbol",
+        "linguaSymbol",
         PALETTE.brandText
       );
       iconRenderer.flush();
@@ -848,7 +858,8 @@ const WebGLAppTopBar = ({ status, className }: WebGLAppTopBarProps) => {
 
     const updateSize = () => {
       const rect = container.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
+      const baseDpr = window.devicePixelRatio || 1;
+      const dpr = Math.min(MAX_DPR, baseDpr * RENDER_SCALE);
       dprRef.current = dpr;
       updateLayout(rect.width);
       canvas.width = Math.max(1, Math.floor(rect.width * dpr));
@@ -872,6 +883,15 @@ const WebGLAppTopBar = ({ status, className }: WebGLAppTopBarProps) => {
   return (
     <header ref={containerRef} className={rootClassName}>
       <canvas ref={canvasRef} className={styles.canvas} aria-hidden="true" />
+      {docsHref && (
+        <a
+          className={`${styles.docsLink} ${docsActive ? styles.docsLinkActive : ""}`}
+          href={docsHref}
+          aria-current={docsActive ? "page" : undefined}
+        >
+          Documentation
+        </a>
+      )}
     </header>
   );
 };

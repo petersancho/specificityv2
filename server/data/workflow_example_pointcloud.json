@@ -1,0 +1,91 @@
+{
+  "nodes": [
+    {
+      "id": "node-slider",
+      "type": "slider",
+      "position": { "x": 20, "y": 20 },
+      "data": {
+        "label": "Point Count",
+        "parameters": {
+          "value": 19,
+          "min": 9,
+          "max": 49,
+          "step": 2
+        }
+      }
+    },
+    {
+      "id": "node-range",
+      "type": "range",
+      "position": { "x": 220, "y": 20 },
+      "data": {
+        "label": "Range",
+        "parameters": {
+          "start": 0,
+          "end": 19,
+          "step": 1
+        }
+      }
+    },
+    {
+      "id": "node-expression",
+      "type": "expression",
+      "position": { "x": 420, "y": 20 },
+      "data": {
+        "label": "Wave",
+        "parameters": {
+          "expression": "sin(a * 0.35) * 4 + a * 0.1"
+        }
+      }
+    },
+    {
+      "id": "node-pointcloud",
+      "type": "pointCloud",
+      "position": { "x": 640, "y": 20 },
+      "data": {
+        "label": "Point Cloud",
+        "parameters": {
+          "maxPoints": 256
+        }
+      }
+    },
+    {
+      "id": "node-viewer",
+      "type": "geometryViewer",
+      "position": { "x": 860, "y": 0 },
+      "data": {
+        "label": "Preview"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-1",
+      "source": "node-slider",
+      "sourceHandle": "value",
+      "target": "node-range",
+      "targetHandle": "end"
+    },
+    {
+      "id": "edge-2",
+      "source": "node-range",
+      "sourceHandle": "list",
+      "target": "node-expression",
+      "targetHandle": "a"
+    },
+    {
+      "id": "edge-3",
+      "source": "node-expression",
+      "sourceHandle": "result",
+      "target": "node-pointcloud",
+      "targetHandle": "points"
+    },
+    {
+      "id": "edge-4",
+      "source": "node-pointcloud",
+      "sourceHandle": "geometryList",
+      "target": "node-viewer",
+      "targetHandle": "geometry"
+    }
+  ]
+}

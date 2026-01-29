@@ -1,6 +1,6 @@
 .button {
   --icon-button-size: 44px;
-  --icon-button-radius: 12px;
+  --icon-button-radius: var(--radius);
   --icon-button-bg: var(--roslyn-cream, #f7f3ea);
   --icon-button-fg: var(--ink-1000, #0d0d0d);
   --icon-button-border: color-mix(in srgb, var(--icon-button-fg) 92%, transparent);
@@ -55,12 +55,12 @@
 
 .sizeSm {
   --icon-button-size: 40px;
-  --icon-button-radius: 10px;
+  --icon-button-radius: var(--radius-sm);
 }
 
 .sizeLg {
   --icon-button-size: 48px;
-  --icon-button-radius: 14px;
+  --icon-button-radius: var(--radius-lg);
 }
 
 .icon {
@@ -80,4 +80,3 @@
   width: 24px;
   height: 24px;
 }
-

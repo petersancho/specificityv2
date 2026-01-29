@@ -1,11 +1,11 @@
 .root {
   position: relative;
   width: 100%;
-  min-height: 54px;
+  min-height: 64px;
   overflow: hidden;
-  background: var(--roslyn-instrument-cream, #f7f4ef);
+  background: linear-gradient(180deg, #faf8f4 0%, #f4f2ee 100%);
   border-top: 1px solid rgba(18, 16, 12, 0.12);
-  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 -6px 14px rgba(0, 0, 0, 0.12);
 }
 
 .canvas {
@@ -34,7 +34,7 @@
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(252, 251, 248, 0.98);
   border: 1px solid rgba(18, 16, 12, 0.16);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);

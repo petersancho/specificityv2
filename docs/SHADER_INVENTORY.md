@@ -381,4 +381,4 @@ client/src/shaders/
 - Current implementation: `client/src/components/ViewerCanvas.tsx:295-324`
 - Three.js shader reference: https://threejs.org/docs/#api/en/materials/ShaderMaterial
 - WebGL shader compilation: https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Adding_2D_content_to_a_WebGL_context
-- Per `docs/specificity_conventions.md:60-69` - Explicit WebGL control patterns
+- Per `docs/lingua_conventions.md:60-69` - Explicit WebGL control patterns

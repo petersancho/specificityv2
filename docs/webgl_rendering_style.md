@@ -1,6 +1,6 @@
-# Specificity WebGL Rendering Style Spec
+# Lingua WebGL Rendering Style Spec
 
-This document defines the rendering and UI style for Specificity across both
+This document defines the rendering and UI style for Lingua across both
 panels:
 
 - Roslyn: the 3D modeling viewport.
@@ -11,7 +11,7 @@ and a TypeScript-first geometry kernel.
 
 ## Design Intent
 
-Specificity prioritizes legibility and precision over realism. The rendering
+Lingua prioritizes legibility and precision over realism. The rendering
 style should make geometric structure obvious at a glance while keeping the
 workspace calm and non-distracting.
 

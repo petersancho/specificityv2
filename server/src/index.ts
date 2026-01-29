@@ -112,7 +112,7 @@ app.use(express.json({ limit: "2mb" }));
 const port = Number(process.env.PORT) || 3001;
 
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, name: "specificity-backend", port });
+  res.json({ ok: true, name: "lingua-backend", port });
 });
 
 const readJson = async <T>(filePath: string): Promise<T> => {
@@ -455,5 +455,5 @@ io.on("connection", (socket) => {
 });
 
 httpServer.listen(port, () => {
-  console.log(`Specificity server running on http://localhost:${port}`);
+  console.log(`Lingua server running on http://localhost:${port}`);
 });

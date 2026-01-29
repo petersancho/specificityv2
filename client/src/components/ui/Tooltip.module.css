@@ -16,7 +16,7 @@
   background: var(--ink-1000);
   color: var(--fog-100);
   padding: 7px 11px;
-  border-radius: 8px;
+  border-radius: var(--radius);
   border: 1px solid color-mix(in srgb, var(--fog-100) 12%, transparent);
   font-family: var(--font-primary);
   font-size: var(--text-xs);
@@ -28,7 +28,7 @@
 
 .text {
   max-width: 240px;
-  white-space: normal;
+  white-space: pre-line;
   line-height: 1.4;
 }
 
@@ -40,7 +40,7 @@
   height: 18px;
   padding: 0 4px;
   background: var(--ink-700);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
   font-weight: var(--font-weight-semibold);

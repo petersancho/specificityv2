@@ -9,11 +9,14 @@ uniform float lineOpacity;
 uniform vec3 selectionHighlight;
 uniform float isSelected;
 varying float vSide;
+varying float vMiterLen;
 
 void main() {
   float dist = abs(vSide);
 #ifdef GL_OES_standard_derivatives
-  float aa = fwidth(dist) * 1.1;
+  float cornerBoost = clamp((vMiterLen - 1.0) / 0.6, 0.0, 1.0);
+  float aaScale = mix(1.0, 0.65, cornerBoost);
+  float aa = fwidth(dist) * 1.1 * aaScale;
   float alpha = 1.0 - smoothstep(1.0 - aa, 1.0 + aa, dist);
 #else
   float alpha = 1.0 - smoothstep(0.7, 1.0, dist);

@@ -1,9 +1,11 @@
 import {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
+  type ChangeEvent,
   type CSSProperties,
 } from "react";
 import { createPortal } from "react-dom";
@@ -13,6 +15,7 @@ import WebGLStatusFooter from "./WebGLStatusFooter";
 import WebGLTitleLogo from "./WebGLTitleLogo";
 import { NumericalCanvas } from "./workflow/NumericalCanvas";
 import WebGLButton from "./ui/WebGLButton";
+import WebGLSelect from "./ui/WebGLSelect";
 import IconButton from "./ui/IconButton";
 import WebGLSlider from "./ui/WebGLSlider";
 import { useProjectStore } from "../store/useProjectStore";
@@ -28,7 +31,6 @@ import type {
   CameraState,
   CPlane,
   Geometry,
-  GumballAlignment,
   PolylineGeometry,
   PrimitiveKind,
   Vec3,
@@ -46,6 +48,8 @@ import { DEFAULT_PRIMITIVE_CONFIG } from "../geometry/mesh";
 import { PRIMITIVE_COMMAND_IDS, PRIMITIVE_KIND_BY_COMMAND } from "../data/primitiveCatalog";
 import { offsetPolyline2D } from "../geometry/booleans";
 import type { IconId } from "../webgl/ui/WebGLIconRenderer";
+import { VIEW_STYLE } from "../webgl/viewProfile";
+import { hexToRgb, normalizeHexColor, normalizeRgbInput, rgbToHex } from "../utils/color";
 
 
 const selectionModeOptions = [
@@ -104,20 +108,78 @@ const transformOrientationOptions = [
   },
 ] as const;
 
-const gumballAlignmentOptions = [
-  {
-    value: "boundingBox",
-    label: "Bounding Box",
-    iconId: "gumball",
-    tooltip: "Align the gumball to the selection's bounding box.",
-  },
-  {
-    value: "cplane",
-    label: "C-Plane",
-    iconId: "cplaneXY",
-    tooltip: "Align the gumball to the active construction plane.",
-  },
-] as const;
+const DEFAULT_RENDER_MATERIAL_COLOR = VIEW_STYLE.mesh;
+const DEFAULT_RENDER_MATERIAL_HEX = rgbToHex(DEFAULT_RENDER_MATERIAL_COLOR);
+
+type ViewportKind = "axonometric" | "top" | "left" | "right";
+
+const VIEWPORT_OPTIONS: Array<{ id: ViewportKind; label: string }> = [
+  { id: "axonometric", label: "Axonometric" },
+  { id: "top", label: "Top" },
+  { id: "left", label: "Left" },
+  { id: "right", label: "Right" },
+];
+
+const cloneCameraState = (camera: CameraState): CameraState => ({
+  ...camera,
+  position: { ...camera.position },
+  target: { ...camera.target },
+  up: { ...camera.up },
+});
+
+const computeViewDistance = (camera: CameraState) => {
+  const dx = camera.position.x - camera.target.x;
+  const dy = camera.position.y - camera.target.y;
+  const dz = camera.position.z - camera.target.z;
+  return Math.max(0.1, Math.hypot(dx, dy, dz));
+};
+
+const buildViewportCamera = (base: CameraState, viewport: ViewportKind): CameraState => {
+  const viewDistance = computeViewDistance(base);
+  const next = cloneCameraState(base);
+  switch (viewport) {
+    case "top":
+      return {
+        ...next,
+        position: {
+          x: base.target.x,
+          y: base.target.y + viewDistance,
+          z: base.target.z,
+        },
+        up: { x: 0, y: 0, z: 1 },
+      };
+    case "left":
+      return {
+        ...next,
+        position: {
+          x: base.target.x - viewDistance,
+          y: base.target.y,
+          z: base.target.z,
+        },
+        up: { x: 0, y: 1, z: 0 },
+      };
+    case "right":
+      return {
+        ...next,
+        position: {
+          x: base.target.x + viewDistance,
+          y: base.target.y,
+          z: base.target.z,
+        },
+        up: { x: 0, y: 1, z: 0 },
+      };
+    case "axonometric":
+    default:
+      return next;
+  }
+};
+
+const buildViewportCameras = (base: CameraState): Record<ViewportKind, CameraState> => ({
+  axonometric: buildViewportCamera(base, "axonometric"),
+  top: buildViewportCamera(base, "top"),
+  left: buildViewportCamera(base, "left"),
+  right: buildViewportCamera(base, "right"),
+});
 
 const pivotModeOptions = [
   {
@@ -152,11 +214,12 @@ const pivotModeOptions = [
   },
 ] as const;
 
-const ROSLYN_PANEL_SCALE_KEY = "specificity.webglPanelScale";
+const ROSLYN_PANEL_SCALE_KEY = "lingua.webglPanelScale";
 const MIN_ROSLYN_PANEL_SCALE = 0.4;
 const MAX_ROSLYN_PANEL_SCALE = 1.05;
 const PANEL_SCALE_SPEED = 0.0015;
-const ROSLYN_PALETTE_COLLAPSED_KEY = "specificity.roslynPaletteCollapsed";
+const ROSLYN_PALETTE_COLLAPSED_KEY = "lingua.roslynPaletteCollapsed";
+const MINIMAP_MARGIN = 12;
 
 const ROSLYN_PALETTE_SECTIONS: Array<{
   id: string;
@@ -173,32 +236,8 @@ const ROSLYN_PALETTE_SECTIONS: Array<{
   {
     id: "transform",
     label: "Transform",
-    description: "Move, rotate, orient, pivot",
-    groups: ["Transform", "Orientation", "Gumball", "Pivot"],
-  },
-  {
-    id: "selection",
-    label: "Selection",
-    description: "Selection modes + C-Plane",
-    groups: ["Selection", "C-Plane"],
-  },
-  {
-    id: "workflow",
-    label: "Workflow",
-    description: "Reference + groups",
-    groups: ["Workflow", "Groups"],
-  },
-  {
-    id: "view",
-    label: "View",
-    description: "Camera + capture",
-    groups: ["Camera", "View"],
-  },
-  {
-    id: "edit",
-    label: "Edit",
-    description: "Undo, redo, duplicate",
-    groups: ["Edit"],
+    description: "Move, rotate, scale, gumball",
+    groups: ["Transform", "Gumball"],
   },
 ];
 
@@ -231,6 +270,18 @@ type CommandRequest = {
 type CommandSuggestion = {
   command: CommandDefinition;
   input: string;
+};
+
+type MinimapPosition = {
+  x: number;
+  y: number;
+};
+
+type MinimapDragState = {
+  pointerId: number;
+  startPointer: { x: number; y: number };
+  startPosition: MinimapPosition;
+  bounds: { minX: number; minY: number; maxX: number; maxY: number };
 };
 
 const iconProps = {
@@ -650,9 +701,14 @@ const ModelerSection = ({
   const setGumballAlignment = useProjectStore((state) => state.setGumballAlignment);
   const showRotationRings = useProjectStore((state) => state.showRotationRings);
   const setShowRotationRings = useProjectStore((state) => state.setShowRotationRings);
+  const showMoveArms = useProjectStore((state) => state.showMoveArms);
+  const setShowMoveArms = useProjectStore((state) => state.setShowMoveArms);
+  const gumballStep = useProjectStore((state) => state.gumballStep);
+  const setGumballStep = useProjectStore((state) => state.setGumballStep);
   const pivot = useProjectStore((state) => state.pivot);
   const setPivotMode = useProjectStore((state) => state.setPivotMode);
   const setDisplayMode = useProjectStore((state) => state.setDisplayMode);
+  const displayMode = useProjectStore((state) => state.displayMode);
   const viewSolidity = useProjectStore((state) => state.viewSolidity);
   const setViewSolidity = useProjectStore((state) => state.setViewSolidity);
   const viewSettings = useProjectStore((state) => state.viewSettings);
@@ -676,6 +732,7 @@ const ModelerSection = ({
   const addGeometryPolylineFromPoints = useProjectStore(
     (state) => state.addGeometryPolylineFromPoints
   );
+  const updateGeometryBatch = useProjectStore((state) => state.updateGeometryBatch);
   const deleteGeometry = useProjectStore((state) => state.deleteGeometry);
   const hiddenGeometryIds = useProjectStore((state) => state.hiddenGeometryIds);
   const lockedGeometryIds = useProjectStore((state) => state.lockedGeometryIds);
@@ -712,7 +769,12 @@ const ModelerSection = ({
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem(ROSLYN_PALETTE_COLLAPSED_KEY) === "true";
   });
+  const [renderPanelOpen, setRenderPanelOpen] = useState(false);
   const [commandBarHeight, setCommandBarHeight] = useState(0);
+  const [gumballStepDraft, setGumballStepDraft] = useState(() => ({
+    distance: `${gumballStep.distance}`,
+    angle: `${gumballStep.angle}`,
+  }));
   const [primitiveSettings, setPrimitiveSettings] = useState(() => ({
     ...DEFAULT_PRIMITIVE_CONFIG,
   }));
@@ -724,47 +786,48 @@ const ModelerSection = ({
     radius: 0.8,
     segments: 32,
   });
+  useEffect(() => {
+    setGumballStepDraft({
+      distance: `${gumballStep.distance}`,
+      angle: `${gumballStep.angle}`,
+    });
+  }, [gumballStep.distance, gumballStep.angle]);
   const [commandInput, setCommandInput] = useState("");
   const [commandError, setCommandError] = useState("");
   const [commandRequest, setCommandRequest] = useState<CommandRequest | null>(
     null
   );
+  const [fullscreenViewports, setFullscreenViewports] = useState<ViewportKind[]>([
+    "axonometric",
+    "top",
+    "left",
+    "right",
+  ]);
+  const [fullscreenCameras, setFullscreenCameras] = useState<
+    Record<ViewportKind, CameraState>
+  >(() => buildViewportCameras(cameraState));
+  const fullscreenCamerasRef = useRef(fullscreenCameras);
+  const lastActiveViewportRef = useRef<ViewportKind>("axonometric");
+  const wasFullscreenRef = useRef(isFullscreen);
+  const isFullscreenStatusHidden = isFullscreen;
   const commandRequestIdRef = useRef(0);
   const commandInputRef = useRef<HTMLInputElement>(null);
   const [footerRoot, setFooterRoot] = useState<HTMLElement | null>(null);
   const viewerRef = useRef<HTMLDivElement>(null);
+  const minimapDockRef = useRef<HTMLDivElement>(null);
   const minimapRef = useRef<HTMLDivElement>(null);
+  const minimapDragRef = useRef<MinimapDragState | null>(null);
   const [minimapSize, setMinimapSize] = useState({ width: 0, height: 0 });
+  const [minimapPosition, setMinimapPosition] = useState<MinimapPosition | null>(
+    null
+  );
+  const [minimapCollapsed, setMinimapCollapsed] = useState(false);
+  const [minimapDragging, setMinimapDragging] = useState(false);
+  const [viewerModeCollapsed, setViewerModeCollapsed] = useState(false);
   const commandBarRef = useRef<HTMLDivElement>(null);
   const paletteRef = useRef<HTMLElement | null>(null);
-
-  const commandSuggestion = useMemo<CommandSuggestion | null>(() => {
-    const raw = commandInput.trim();
-    if (!raw) return null;
-    const parsed = parseCommandInput(commandInput);
-    if (parsed.command) return null;
-
-    const normalized = raw.toLowerCase();
-    const prefixMatch = normalized.match(COMMAND_PREFIX);
-    const prefixLength = prefixMatch ? prefixMatch[0].length : 0;
-    const prefix = prefixLength ? raw.slice(0, prefixLength) : "";
-    const withoutPrefix = raw.slice(prefixLength).trim();
-    if (!withoutPrefix) return null;
-
-    const [token, ...rest] = withoutPrefix.split(/\s+/);
-    if (!token) return null;
-    const normalizedToken = token.toLowerCase();
-    const match = COMMAND_DEFINITIONS.find(
-      (command) =>
-        command.id.startsWith(normalizedToken) ||
-        command.label.toLowerCase().startsWith(normalizedToken)
-    );
-    if (!match) return null;
-
-    const args = rest.join(" ");
-    const suggestionInput = `${prefix}${match.id}${args ? ` ${args}` : ""}`.trim();
-    return { command: match, input: suggestionInput };
-  }, [commandInput]);
+  const renderPanelRef = useRef<HTMLDivElement | null>(null);
+  const renderTabRef = useRef<HTMLButtonElement | null>(null);
 
   const buildSuggestionInput = (command: CommandDefinition) => {
     const raw = commandInput.trim();
@@ -813,6 +876,28 @@ const ModelerSection = ({
       .map((entry) => entry.command);
   }, [commandInput]);
 
+  const commandPrimarySuggestion = useMemo<CommandSuggestion | null>(() => {
+    const raw = commandInput.trim();
+    if (!raw) return null;
+    const parsed = parseCommandInput(commandInput);
+    if (parsed.command) {
+      return { command: parsed.command, input: raw };
+    }
+    const primary = commandMatches[0];
+    if (!primary) return null;
+    return { command: primary, input: buildSuggestionInput(primary) };
+  }, [commandInput, commandMatches]);
+
+  const commandMeta = useMemo(() => {
+    if (commandError) return null;
+    const trimmed = commandInput.trim();
+    if (!trimmed) return "Type to search";
+    if (commandPrimarySuggestion) {
+      return `Run: ${commandPrimarySuggestion.command.label}`;
+    }
+    return "No matches";
+  }, [commandError, commandInput, commandPrimarySuggestion]);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     setFooterRoot(document.getElementById("workspace-footer-root"));
@@ -843,6 +928,19 @@ const ModelerSection = ({
       window.removeEventListener("pointerdown", handlePointerDown, { capture: true });
   }, [paletteCollapsed]);
 
+  useEffect(() => {
+    if (!renderPanelOpen) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (target && renderPanelRef.current?.contains(target)) return;
+      if (target && renderTabRef.current?.contains(target)) return;
+      setRenderPanelOpen(false);
+    };
+    window.addEventListener("pointerdown", handlePointerDown, { capture: true });
+    return () =>
+      window.removeEventListener("pointerdown", handlePointerDown, { capture: true });
+  }, [renderPanelOpen]);
+
   useLayoutEffect(() => {
     const node = commandBarRef.current;
     if (!node) return;
@@ -856,7 +954,7 @@ const ModelerSection = ({
   }, []);
 
   useLayoutEffect(() => {
-    if (!isFullscreen || typeof window === "undefined") return;
+    if (!isFullscreen || minimapCollapsed || typeof window === "undefined") return;
     const node = minimapRef.current;
     if (!node) return;
     const measure = () => {
@@ -867,10 +965,115 @@ const ModelerSection = ({
     const observer = new ResizeObserver(measure);
     observer.observe(node);
     return () => observer.disconnect();
-  }, [isFullscreen]);
+  }, [isFullscreen, minimapCollapsed]);
+
+  useEffect(() => {
+    if (isFullscreen && !minimapCollapsed) return;
+    setMinimapSize({ width: 0, height: 0 });
+    minimapDragRef.current = null;
+    setMinimapDragging(false);
+  }, [isFullscreen, minimapCollapsed]);
 
   const clampPanelScale = (value: number) =>
     Math.min(MAX_ROSLYN_PANEL_SCALE, Math.max(MIN_ROSLYN_PANEL_SCALE, value));
+
+  const resolveMinimapMetrics = () => {
+    const container = viewerRef.current;
+    const minimap = minimapDockRef.current;
+    if (!container || !minimap) return null;
+    const containerRect = container.getBoundingClientRect();
+    const minimapRect = minimap.getBoundingClientRect();
+    const minX = MINIMAP_MARGIN;
+    const minY = MINIMAP_MARGIN;
+    const maxX = Math.max(
+      minX,
+      containerRect.width - minimapRect.width - MINIMAP_MARGIN
+    );
+    const maxY = Math.max(
+      minY,
+      containerRect.height - minimapRect.height - MINIMAP_MARGIN
+    );
+
+    return {
+      position: {
+        x: minimapRect.left - containerRect.left,
+        y: minimapRect.top - containerRect.top,
+      },
+      bounds: { minX, minY, maxX, maxY },
+    };
+  };
+
+  const clampMinimapPosition = (
+    position: MinimapPosition,
+    bounds: MinimapDragState["bounds"]
+  ) => ({
+    x: Math.min(bounds.maxX, Math.max(bounds.minX, position.x)),
+    y: Math.min(bounds.maxY, Math.max(bounds.minY, position.y)),
+  });
+
+  const handleMinimapPointerDown = (
+    event: React.PointerEvent<HTMLDivElement>
+  ) => {
+    if (event.button !== 0) return;
+    const target = event.target as HTMLElement | null;
+    if (target?.closest("[data-minimap-action='true']")) return;
+    if (!target?.closest("[data-minimap-drag-handle='true']")) return;
+
+    const metrics = resolveMinimapMetrics();
+    if (!metrics) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const startPosition = clampMinimapPosition(
+      minimapPosition ?? metrics.position,
+      metrics.bounds
+    );
+
+    if (!minimapPosition) {
+      setMinimapPosition(startPosition);
+    }
+
+    minimapDragRef.current = {
+      pointerId: event.pointerId,
+      startPointer: { x: event.clientX, y: event.clientY },
+      startPosition,
+      bounds: metrics.bounds,
+    };
+    setMinimapDragging(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handleMinimapPointerMove = (
+    event: React.PointerEvent<HTMLDivElement>
+  ) => {
+    const dragState = minimapDragRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) return;
+    const deltaX = event.clientX - dragState.startPointer.x;
+    const deltaY = event.clientY - dragState.startPointer.y;
+    const next = clampMinimapPosition(
+      {
+        x: dragState.startPosition.x + deltaX,
+        y: dragState.startPosition.y + deltaY,
+      },
+      dragState.bounds
+    );
+    setMinimapPosition((prev) =>
+      prev && Math.abs(prev.x - next.x) < 0.5 && Math.abs(prev.y - next.y) < 0.5
+        ? prev
+        : next
+    );
+  };
+
+  const handleMinimapPointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    const dragState = minimapDragRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) return;
+    minimapDragRef.current = null;
+    setMinimapDragging(false);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  };
 
   const handleCommandBarWheel = (
     event: React.WheelEvent<HTMLDivElement>
@@ -901,51 +1104,104 @@ const ModelerSection = ({
     [panelScale]
   );
 
-  const viewDistance = useMemo(() => {
-    const dx = cameraState.position.x - cameraState.target.x;
-    const dy = cameraState.position.y - cameraState.target.y;
-    const dz = cameraState.position.z - cameraState.target.z;
-    return Math.max(0.1, Math.hypot(dx, dy, dz));
-  }, [cameraState.position, cameraState.target]);
+  useEffect(() => {
+    fullscreenCamerasRef.current = fullscreenCameras;
+  }, [fullscreenCameras]);
 
-  const topCamera = useMemo<CameraState>(
+  useEffect(() => {
+    if (isFullscreen && !wasFullscreenRef.current) {
+      setFullscreenCameras(buildViewportCameras(cameraState));
+      lastActiveViewportRef.current = fullscreenViewports[0] ?? "axonometric";
+    }
+    wasFullscreenRef.current = isFullscreen;
+  }, [isFullscreen, cameraState, fullscreenViewports]);
+
+  const cameraPreferences = useMemo(
     () => ({
-      ...cameraState,
-      position: {
-        x: cameraState.target.x,
-        y: cameraState.target.y + viewDistance,
-        z: cameraState.target.z,
-      },
-      up: { x: 0, y: 0, z: 1 },
+      preset: cameraState.preset,
+      zoomToCursor: cameraState.zoomToCursor,
+      invertZoom: cameraState.invertZoom,
+      upright: cameraState.upright,
+      orbitSpeed: cameraState.orbitSpeed,
+      panSpeed: cameraState.panSpeed,
+      zoomSpeed: cameraState.zoomSpeed,
     }),
-    [cameraState, viewDistance]
+    [
+      cameraState.preset,
+      cameraState.zoomToCursor,
+      cameraState.invertZoom,
+      cameraState.upright,
+      cameraState.orbitSpeed,
+      cameraState.panSpeed,
+      cameraState.zoomSpeed,
+    ]
   );
 
-  const leftCamera = useMemo<CameraState>(
-    () => ({
-      ...cameraState,
-      position: {
-        x: cameraState.target.x - viewDistance,
-        y: cameraState.target.y,
-        z: cameraState.target.z,
-      },
-      up: { x: 0, y: 1, z: 0 },
-    }),
-    [cameraState, viewDistance]
+  useEffect(() => {
+    if (!isFullscreen) return;
+    setFullscreenCameras((prev) => ({
+      axonometric: { ...prev.axonometric, ...cameraPreferences },
+      top: { ...prev.top, ...cameraPreferences },
+      left: { ...prev.left, ...cameraPreferences },
+      right: { ...prev.right, ...cameraPreferences },
+    }));
+  }, [isFullscreen, cameraPreferences]);
+
+  const resolveViewportCamera = (viewport: ViewportKind): CameraState =>
+    fullscreenCameras[viewport];
+
+  const handleViewportCameraChange = useCallback(
+    (viewport: ViewportKind, update: Partial<CameraState>) => {
+      const current = fullscreenCamerasRef.current[viewport];
+      const nextCamera = { ...current, ...update };
+      setFullscreenCameras((prev) => ({
+        ...prev,
+        [viewport]: nextCamera,
+      }));
+      lastActiveViewportRef.current = viewport;
+      setCameraState({
+        position: nextCamera.position,
+        target: nextCamera.target,
+        up: nextCamera.up,
+        fov: nextCamera.fov,
+      });
+    },
+    [setCameraState]
   );
 
-  const rightCamera = useMemo<CameraState>(
+  const viewportCameraHandlers = useMemo(
     () => ({
-      ...cameraState,
-      position: {
-        x: cameraState.target.x + viewDistance,
-        y: cameraState.target.y,
-        z: cameraState.target.z,
-      },
-      up: { x: 0, y: 1, z: 0 },
+      axonometric: (update: Partial<CameraState>) =>
+        handleViewportCameraChange("axonometric", update),
+      top: (update: Partial<CameraState>) =>
+        handleViewportCameraChange("top", update),
+      left: (update: Partial<CameraState>) =>
+        handleViewportCameraChange("left", update),
+      right: (update: Partial<CameraState>) =>
+        handleViewportCameraChange("right", update),
     }),
-    [cameraState, viewDistance]
+    [handleViewportCameraChange]
   );
+
+  const resolveActiveViewport = () =>
+    lastActiveViewportRef.current ?? fullscreenViewports[0] ?? "axonometric";
+
+  const applyActiveViewportCameraUpdate = (update: Partial<CameraState>) => {
+    if (isFullscreen) {
+      handleViewportCameraChange(resolveActiveViewport(), update);
+      return;
+    }
+    setCameraState(update);
+  };
+
+  const updateViewportSlot = (index: number, next: ViewportKind) => {
+    setFullscreenViewports((prev) => {
+      const nextSlots = prev.slice();
+      nextSlots[index] = next;
+      return nextSlots;
+    });
+    lastActiveViewportRef.current = next;
+  };
 
   const selectedPolylines = useMemo(
     () =>
@@ -997,6 +1253,23 @@ const ModelerSection = ({
   const selectedLayer = layers.find(
     (layer) => layer.id === selectedGeometry?.layerId
   );
+  const customMaterial = useMemo(() => {
+    const metadata = selectedGeometry?.metadata;
+    if (!metadata || typeof metadata !== "object") return null;
+    const custom = (metadata as { customMaterial?: unknown }).customMaterial;
+    if (!custom || typeof custom !== "object") return null;
+    const customRecord = custom as { color?: unknown; hex?: unknown };
+    const color = normalizeRgbInput(customRecord.color);
+    const hex =
+      typeof customRecord.hex === "string"
+        ? normalizeHexColor(customRecord.hex)
+        : color
+          ? rgbToHex(color)
+          : null;
+    const resolvedColor = color ?? (hex ? hexToRgb(hex) : null);
+    if (!resolvedColor) return null;
+    return { color: resolvedColor, hex: hex ?? rgbToHex(resolvedColor) };
+  }, [selectedGeometry]);
   const assignedGeometryMaterialId = assignments.find(
     (assignment) => assignment.geometryId === selectedGeometry?.id
   )?.materialId;
@@ -1009,7 +1282,10 @@ const ModelerSection = ({
     (material) => material.id === assignedMaterialId
   );
   const selectedMaterialLabel =
-    selectedMaterial?.name ?? (materials.length === 0 ? "Loading..." : "Unassigned");
+    customMaterial
+      ? "Custom"
+      : selectedMaterial?.name ??
+        (materials.length === 0 ? "Loading..." : "Unassigned");
 
   const extrudeCommand = useMemo(
     () => COMMAND_DEFINITIONS.find((command) => command.id === "extrude") ?? null,
@@ -1041,6 +1317,32 @@ const ModelerSection = ({
     () => new Map(geometry.map((item) => [item.id, item])),
     [geometry]
   );
+  const materialPickerHex = customMaterial?.hex ?? DEFAULT_RENDER_MATERIAL_HEX;
+  const materialPickerDisabled = selectedGeometryIds.length === 0;
+  const handleMaterialColorChange = (nextHex: string) => {
+    if (selectedGeometryIds.length === 0) return;
+    const normalized =
+      normalizeHexColor(nextHex) ?? normalizeHexColor(materialPickerHex) ?? DEFAULT_RENDER_MATERIAL_HEX;
+    const rgb = hexToRgb(normalized) ?? DEFAULT_RENDER_MATERIAL_COLOR;
+    const updates = selectedGeometryIds
+      .map((id) => {
+        const existing = geometryMap.get(id);
+        if (!existing) return null;
+        const metadata = existing.metadata ?? {};
+        return {
+          id,
+          data: {
+            metadata: {
+              ...metadata,
+              customMaterial: { color: rgb, hex: normalized },
+            },
+          },
+        };
+      })
+      .filter(Boolean) as Array<{ id: string; data: Partial<Geometry> }>;
+    if (updates.length === 0) return;
+    updateGeometryBatch(updates, { recordHistory: true });
+  };
   const vertexMap = useMemo(
     () =>
       new Map(
@@ -1694,6 +1996,19 @@ const ModelerSection = ({
   const handleCapture = async () => {
     if (!viewerRef.current || !onCaptureRequest) return;
     const container = viewerRef.current;
+    const rect = container.getBoundingClientRect();
+    const maxEdge = 2400;
+    const maxOutputEdge = 8192;
+    const baseEdge = Math.max(rect.width, rect.height, 1);
+    const scale = Math.max(1, maxEdge / baseEdge);
+    const captureWidth = Math.round(rect.width * scale);
+    const captureHeight = Math.round(rect.height * scale);
+    const desiredScale = Math.min(4, (window.devicePixelRatio || 1) * 2);
+    const safeScale = Math.min(
+      desiredScale,
+      maxOutputEdge / Math.max(captureWidth, captureHeight, 1)
+    );
+    const exportScale = Math.max(1, safeScale);
     const prevStyles = {
       width: container.style.width,
       height: container.style.height,
@@ -1702,13 +2017,20 @@ const ModelerSection = ({
       top: container.style.top,
       zIndex: container.style.zIndex,
     };
+    const prevDataset = {
+      captureMode: container.dataset.captureMode,
+      captureScale: container.dataset.captureScale,
+    };
+    container.dataset.captureMode = "roslyn";
+    container.dataset.captureScale = String(exportScale);
     container.classList.add(styles.captureActive);
-    container.style.width = "1600px";
-    container.style.height = "900px";
+    container.style.width = `${captureWidth}px`;
+    container.style.height = `${captureHeight}px`;
     container.style.position = "absolute";
     container.style.left = "-9999px";
     container.style.top = "0";
     container.style.zIndex = "-1";
+    await new Promise((resolve) => requestAnimationFrame(resolve));
     await new Promise((resolve) => requestAnimationFrame(resolve));
     try {
       await onCaptureRequest(container);
@@ -1720,6 +2042,16 @@ const ModelerSection = ({
       container.style.left = prevStyles.left;
       container.style.top = prevStyles.top;
       container.style.zIndex = prevStyles.zIndex;
+      if (prevDataset.captureMode) {
+        container.dataset.captureMode = prevDataset.captureMode;
+      } else {
+        delete container.dataset.captureMode;
+      }
+      if (prevDataset.captureScale) {
+        container.dataset.captureScale = prevDataset.captureScale;
+      } else {
+        delete container.dataset.captureScale;
+      }
     }
   };
 
@@ -1876,7 +2208,6 @@ const ModelerSection = ({
   };
 
   const ensurePlanarDefaults = () => {
-    resetCPlane(undefined, { recordHistory: false });
     setSnapSettings({ grid: true });
     setTransformOrientation("cplane");
   };
@@ -2265,7 +2596,8 @@ const ModelerSection = ({
         return;
       }
       if (commandId === "display") {
-        if (lower.includes("wire")) setDisplayMode("wireframe");
+        if (lower.includes("silhouette")) setDisplayMode("silhouette");
+        else if (lower.includes("wire")) setDisplayMode("wireframe");
         else if (lower.includes("ghost")) setDisplayMode("ghosted");
         else setDisplayMode("shaded");
         if (lower.includes("backface")) {
@@ -2301,42 +2633,38 @@ const ModelerSection = ({
         return;
       }
       if (commandId === "view") {
-        const dist = Math.max(
-          0.1,
-          Math.sqrt(
-            Math.pow(cameraState.position.x - cameraState.target.x, 2) +
-              Math.pow(cameraState.position.y - cameraState.target.y, 2) +
-              Math.pow(cameraState.position.z - cameraState.target.z, 2)
-          )
-        );
+        const activeCamera = isFullscreen
+          ? fullscreenCameras[resolveActiveViewport()]
+          : cameraState;
+        const dist = computeViewDistance(activeCamera);
         if (lower.includes("top")) {
-          setCameraState({
+          applyActiveViewportCameraUpdate({
             position: {
-              x: cameraState.target.x,
-              y: cameraState.target.y + dist,
-              z: cameraState.target.z,
+              x: activeCamera.target.x,
+              y: activeCamera.target.y + dist,
+              z: activeCamera.target.z,
             },
           });
         } else if (lower.includes("front")) {
-          setCameraState({
+          applyActiveViewportCameraUpdate({
             position: {
-              x: cameraState.target.x,
-              y: cameraState.target.y,
-              z: cameraState.target.z + dist,
+              x: activeCamera.target.x,
+              y: activeCamera.target.y,
+              z: activeCamera.target.z + dist,
             },
           });
         } else if (lower.includes("right")) {
-          setCameraState({
+          applyActiveViewportCameraUpdate({
             position: {
-              x: cameraState.target.x + dist,
-              y: cameraState.target.y,
-              z: cameraState.target.z,
+              x: activeCamera.target.x + dist,
+              y: activeCamera.target.y,
+              z: activeCamera.target.z,
             },
           });
         } else if (lower.includes("persp")) {
-          setCameraState({ fov: 28 });
+          applyActiveViewportCameraUpdate({ fov: 28 });
         } else if (lower.includes("ortho")) {
-          setCameraState({ fov: 20 });
+          applyActiveViewportCameraUpdate({ fov: 20 });
         }
         setCommandInput("");
         setCommandError("");
@@ -2483,38 +2811,90 @@ const ModelerSection = ({
   const handleRotationSnapToggle = (next: boolean) => {
     setSnapSettings({ angleStep: next ? 90 : 0 });
   };
+  const gumballAlignmentIsCPlane = gumballAlignment === "cplane";
+  const handleGumballAlignmentToggle = (next: boolean) => {
+    setGumballAlignment(next ? "cplane" : "boundingBox");
+  };
+  const clampStep = (value: number, min: number, max: number) =>
+    Math.min(max, Math.max(min, value));
+  const handleGumballStepDistanceChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+    setGumballStepDraft((prev) => ({ ...prev, distance: value }));
+  };
+  const handleGumballStepAngleChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+    setGumballStepDraft((prev) => ({ ...prev, angle: value }));
+  };
+  const commitGumballStepDistance = () => {
+    const next = Number(gumballStepDraft.distance);
+    if (Number.isFinite(next)) {
+      setGumballStep({ distance: clampStep(next, 0.001, 1000) });
+      return;
+    }
+    setGumballStepDraft((prev) => ({ ...prev, distance: `${gumballStep.distance}` }));
+  };
+  const commitGumballStepAngle = () => {
+    const next = Number(gumballStepDraft.angle);
+    if (Number.isFinite(next)) {
+      setGumballStep({ angle: clampStep(next, 0.1, 180) });
+      return;
+    }
+    setGumballStepDraft((prev) => ({ ...prev, angle: `${gumballStep.angle}` }));
+  };
+  const handleSilhouetteToggle = () => {
+    if (displayMode === "silhouette") {
+      setViewSolidity(viewSolidity, { overrideDisplayMode: true });
+      return;
+    }
+    setDisplayMode("silhouette");
+  };
+  const viewSliderLabel = displayMode === "silhouette" ? "Silhouette" : "View";
+  const viewSliderTooltip =
+    displayMode === "silhouette"
+      ? "Blend from dashed edges to solid silhouette."
+      : "Slide between Solid, Ghosted, and Wireframe.";
 
-  const footerContent = (
-    <WebGLStatusFooter
-      shortcuts={[
-        { key: "⌘Z", label: "Undo" },
-        { key: "⌘⇧Z", label: "Redo" },
-      ]}
-      title="Roslyn"
-      titleTone="roslyn"
-      centerChips={[
-        `Grid: ${gridSettings.spacing}${gridSettings.units}`,
-        `Snaps: ${activeSnapsLabel}`,
-      ]}
-      rightChips={[
-        `Selected: ${selectedGeometryLabel}`,
-        `Mode: ${activeCommand?.label ?? "Idle"}`,
-        `Filter: ${selectionMode}`,
-      ]}
-      toggles={[
-        {
-          label: "Rotation Rings",
-          checked: showRotationRings,
-          onChange: setShowRotationRings,
-        },
-        {
-          label: "90° Snap",
-          checked: rotationSnapEnabled,
-          onChange: handleRotationSnapToggle,
-        },
-      ]}
-    />
-  );
+  const footerContent = isFullscreenStatusHidden ? null : (
+      <WebGLStatusFooter
+        shortcuts={[
+          { key: "⌘Z", label: "Undo" },
+          { key: "⌘⇧Z", label: "Redo" },
+        ]}
+        title="Roslyn"
+        titleTone="roslyn"
+        centerChips={[
+          `Grid: ${gridSettings.spacing}${gridSettings.units}`,
+          `Snaps: ${activeSnapsLabel}`,
+        ]}
+        rightChips={[
+          `Selected: ${selectedGeometryLabel}`,
+          `Mode: ${activeCommand?.label ?? "Idle"}`,
+          `Filter: ${selectionMode}`,
+        ]}
+        toggles={[
+          {
+            label: "Move Arms",
+            checked: showMoveArms,
+            onChange: setShowMoveArms,
+          },
+          {
+            label: "Rotation Rings",
+            checked: showRotationRings,
+            onChange: setShowRotationRings,
+          },
+          {
+            label: "C-Plane Align",
+            checked: gumballAlignmentIsCPlane,
+            onChange: handleGumballAlignmentToggle,
+          },
+          {
+            label: "90° Snap",
+            checked: rotationSnapEnabled,
+            onChange: handleRotationSnapToggle,
+          },
+        ]}
+      />
+    );
 
   const commandActions: WebGLTopBarAction[] = COMMAND_DEFINITIONS.map((command) => {
     const meta = COMMAND_DESCRIPTIONS[command.id];
@@ -2613,20 +2993,6 @@ const ModelerSection = ({
       icon: option.iconId as IconId,
       iconTint: COMMAND_CATEGORY_TINTS.neutral,
       groupLabel: "Orientation",
-    })
-  );
-
-  const gumballAlignmentActions: WebGLTopBarAction[] = gumballAlignmentOptions.map(
-    (option) => ({
-      id: `gumball-align-${option.value}`,
-      label: option.label,
-      tooltip: option.tooltip,
-      onClick: () =>
-        setGumballAlignment(option.value as typeof gumballAlignment),
-      isActive: gumballAlignment === option.value,
-      icon: option.iconId as IconId,
-      iconTint: COMMAND_CATEGORY_TINTS.neutral,
-      groupLabel: "Gumball",
     })
   );
 
@@ -2780,7 +3146,6 @@ const ModelerSection = ({
     ...commandActions,
     ...selectionModeActions,
     ...transformOrientationActions,
-    ...gumballAlignmentActions,
     ...pivotModeActions,
     ...cplaneActions,
     ...workflowActions,
@@ -2820,7 +3185,7 @@ const ModelerSection = ({
 
   return (
     <>
-      <section className={styles.section}>
+      <section className={styles.section} data-fullscreen={isFullscreen ? "true" : "false"}>
         <div className={styles.header}>
           <div className={styles.headerCluster}>
             <WebGLTitleLogo title="Roslyn" tone="roslyn" />
@@ -2836,9 +3201,11 @@ const ModelerSection = ({
                 style={commandBarScaleStyle}
               >
                 <div className={styles.commandInputRow}>
+                  <span className={styles.srOnly}>Search commands</span>
                   <input
                     ref={commandInputRef}
                     className={styles.commandInput}
+                    type="search"
                     value={commandInput}
                     onChange={(event) => {
                       setCommandInput(event.target.value);
@@ -2847,64 +3214,20 @@ const ModelerSection = ({
                     onKeyDown={(event) => {
                       if (event.key === "Enter") {
                         event.preventDefault();
-                        handleCommandSubmit(commandSuggestion?.input);
+                        handleCommandSubmit(commandPrimarySuggestion?.input);
                       }
                     }}
-                    placeholder="Command…"
+                    placeholder="Search commands…"
+                    aria-label="Search commands"
                   />
-                  <WebGLButton
-                    type="button"
-                    className={styles.commandActionPrimary}
-                    onClick={() => handleCommandSubmit(commandSuggestion?.input)}
-                    label="Run command"
-                    shortLabel="Run"
-                    iconId="run"
-                    variant="primary"
-                    accentColor="#00c2d1"
-                    elevated
-                    size="sm"
-                    tooltip="Run command"
-                  />
+                  {commandMeta && (
+                    <span className={styles.commandMeta} aria-live="polite">
+                      {commandMeta}
+                    </span>
+                  )}
                 </div>
                 {commandError && (
                   <span className={styles.commandErrorText}>{commandError}</span>
-                )}
-                {!commandError && commandMatches.length > 0 && (
-                  <div className={styles.commandSuggestions}>
-                    <div className={styles.commandSuggestionsHeader}>
-                      <span className={styles.commandSuggestionsLabel}>Suggestions</span>
-                      {commandSuggestion && (
-                        <span className={styles.commandSuggestionsHint}>
-                          Enter to run {commandSuggestion.command.label}
-                        </span>
-                      )}
-                    </div>
-                    <div className={styles.commandSuggestionList}>
-                      {commandMatches.map((command) => (
-                        <button
-                          key={command.id}
-                          type="button"
-                          className={styles.commandSuggestionItem}
-                          onClick={() => {
-                            const nextInput = buildSuggestionInput(command);
-                            setCommandError("");
-                            handleCommandSubmit(nextInput);
-                            commandInputRef.current?.focus();
-                          }}
-                        >
-                          <span className={styles.commandSuggestionName}>
-                            {command.label}
-                          </span>
-                          <span className={styles.commandSuggestionMeta}>
-                            {command.id}
-                          </span>
-                          <span className={styles.commandSuggestionPrompt}>
-                            {command.prompt}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
                 )}
               </div>
             </div>
@@ -3048,56 +3371,49 @@ const ModelerSection = ({
             >
               {isFullscreen ? (
                 <div className={styles.viewerGrid}>
-                  <div className={styles.viewerCell}>
-                    <div className={styles.viewerCellLabel}>Axonometric</div>
-                    <WebGLViewerCanvas
-                      activeCommandId={activeCommand?.id ?? null}
-                      commandRequest={commandRequest}
-                      primitiveSettings={primitiveSettings}
-                      rectangleSettings={rectangleSettings}
-                      circleSettings={circleSettings}
-                      onCommandComplete={handleCommandComplete}
-                    />
-                  </div>
-                  <div className={`${styles.viewerCell} ${styles.viewerCellPassive}`}>
-                    <div className={styles.viewerCellLabel}>Top</div>
-                    <WebGLViewerCanvas
-                      activeCommandId={activeCommand?.id ?? null}
-                      commandRequest={commandRequest}
-                      primitiveSettings={primitiveSettings}
-                      rectangleSettings={rectangleSettings}
-                      circleSettings={circleSettings}
-                      onCommandComplete={handleCommandComplete}
-                      cameraOverride={topCamera}
-                      interactionsEnabled={false}
-                    />
-                  </div>
-                  <div className={`${styles.viewerCell} ${styles.viewerCellPassive}`}>
-                    <div className={styles.viewerCellLabel}>Left</div>
-                    <WebGLViewerCanvas
-                      activeCommandId={activeCommand?.id ?? null}
-                      commandRequest={commandRequest}
-                      primitiveSettings={primitiveSettings}
-                      rectangleSettings={rectangleSettings}
-                      circleSettings={circleSettings}
-                      onCommandComplete={handleCommandComplete}
-                      cameraOverride={leftCamera}
-                      interactionsEnabled={false}
-                    />
-                  </div>
-                  <div className={`${styles.viewerCell} ${styles.viewerCellPassive}`}>
-                    <div className={styles.viewerCellLabel}>Right</div>
-                    <WebGLViewerCanvas
-                      activeCommandId={activeCommand?.id ?? null}
-                      commandRequest={commandRequest}
-                      primitiveSettings={primitiveSettings}
-                      rectangleSettings={rectangleSettings}
-                      circleSettings={circleSettings}
-                      onCommandComplete={handleCommandComplete}
-                      cameraOverride={rightCamera}
-                      interactionsEnabled={false}
-                    />
-                  </div>
+                  {fullscreenViewports.map((viewport, index) => {
+                    const cameraOverride = resolveViewportCamera(viewport);
+                    return (
+                      <div key={`${viewport}-${index}`} className={styles.viewerCell}>
+                        <div className={styles.viewerCellLabel}>
+                          <WebGLSelect
+                            label="Viewport"
+                            iconId="displayMode"
+                            value={viewport}
+                            size="xs"
+                            variant="ghost"
+                            className={styles.viewerCellSelect}
+                            onChange={(event) =>
+                              updateViewportSlot(
+                                index,
+                                event.target.value as ViewportKind
+                              )
+                            }
+                            onPointerDown={(event) => event.stopPropagation()}
+                            onPointerUp={(event) => event.stopPropagation()}
+                            onPointerCancel={(event) => event.stopPropagation()}
+                          >
+                            {VIEWPORT_OPTIONS.map((option) => (
+                              <option key={option.id} value={option.id}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </WebGLSelect>
+                        </div>
+                        <WebGLViewerCanvas
+                          activeCommandId={activeCommand?.id ?? null}
+                          commandRequest={commandRequest}
+                          primitiveSettings={primitiveSettings}
+                          rectangleSettings={rectangleSettings}
+                          circleSettings={circleSettings}
+                          onCommandComplete={handleCommandComplete}
+                          cameraOverride={cameraOverride ?? undefined}
+                          onCameraStateChange={viewportCameraHandlers[viewport]}
+                          isFullscreen={isFullscreen}
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <WebGLViewerCanvas
@@ -3107,60 +3423,258 @@ const ModelerSection = ({
                   rectangleSettings={rectangleSettings}
                   circleSettings={circleSettings}
                   onCommandComplete={handleCommandComplete}
+                  isFullscreen={isFullscreen}
                 />
               )}
             </div>
             {isFullscreen && (
-              <div className={styles.numericaMinimap} aria-hidden="true">
-                <div className={styles.numericaMinimapLabel}>Numerica</div>
-                <div className={styles.numericaMinimapCanvas} ref={minimapRef}>
-                  {minimapSize.width > 0 && minimapSize.height > 0 && (
-                    <NumericalCanvas
-                      width={minimapSize.width}
-                      height={minimapSize.height}
-                      mode="minimap"
-                    />
-                  )}
-                </div>
-              </div>
+              <>
+                {!minimapCollapsed ? (
+                  <div
+                    ref={minimapDockRef}
+                    className={styles.numericaMinimap}
+                    data-dragging={minimapDragging ? "true" : "false"}
+                    data-no-workspace-pan
+                    style={
+                      minimapPosition
+                        ? {
+                            left: `${minimapPosition.x}px`,
+                            top: `${minimapPosition.y}px`,
+                            right: "auto",
+                            bottom: "auto",
+                          }
+                        : undefined
+                    }
+                    onPointerDown={handleMinimapPointerDown}
+                    onPointerMove={handleMinimapPointerMove}
+                    onPointerUp={handleMinimapPointerUp}
+                    onPointerCancel={handleMinimapPointerUp}
+                  >
+                    <div
+                      className={styles.numericaMinimapHeader}
+                      data-minimap-drag-handle="true"
+                    >
+                      <div className={styles.numericaMinimapLabel}>Numerica</div>
+                      <IconButton
+                        className={styles.numericaMinimapCollapse}
+                        size="sm"
+                        iconId="close"
+                        label="Hide Numerica minimap"
+                        tooltip="Hide Numerica minimap"
+                        tooltipPosition="left"
+                        onClick={() => setMinimapCollapsed(true)}
+                        onPointerDown={(event) => event.stopPropagation()}
+                        data-minimap-action="true"
+                        style={{ width: 28, height: 28 }}
+                      />
+                    </div>
+                    <div className={styles.numericaMinimapCanvas} ref={minimapRef}>
+                      {minimapSize.width > 0 && minimapSize.height > 0 && (
+                        <NumericalCanvas
+                          width={minimapSize.width}
+                          height={minimapSize.height}
+                          mode="minimap"
+                          enableMinimapPanZoom
+                        />
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <WebGLButton
+                    className={styles.numericaMinimapToggle}
+                    label="Show Numerica minimap"
+                    shortLabel="Numerica"
+                    iconId="brandNumerica"
+                    size="sm"
+                    variant="chip"
+                    shape="pill"
+                    tooltip="Show Numerica minimap"
+                    tooltipPosition="left"
+                    onClick={() => setMinimapCollapsed(false)}
+                  />
+                )}
+              </>
             )}
-            <div className={styles.viewerModeCorner} data-no-workspace-pan>
-              <WebGLSlider
-                label="View"
-                tooltip="Slide between Solid, Ghosted, and Wireframe."
-                iconId="displayMode"
-                value={viewSolidity}
-                min={0}
-                max={1}
-                step={0.00025}
-                onChange={setViewSolidity}
-                variant="command"
-                size="sm"
-                shape="rounded"
-                accentColor="#00c2d1"
-                className={styles.viewerModeControl}
-                onPointerDown={(event) => event.stopPropagation()}
-                onPointerUp={(event) => event.stopPropagation()}
-                onPointerCancel={(event) => event.stopPropagation()}
-              />
-              <WebGLSlider
-                label="Sheen"
-                tooltip="Glossy highlight intensity (white light)."
-                iconId="sphere"
-                value={viewSettings.sheen ?? 0.08}
-                min={0}
-                max={0.15}
-                step={0.005}
-                onChange={(value) => setViewSettings({ sheen: value })}
-                variant="command"
-                size="sm"
-                shape="rounded"
-                accentColor="#f7f3ea"
-                className={styles.viewerModeControl}
-                onPointerDown={(event) => event.stopPropagation()}
-                onPointerUp={(event) => event.stopPropagation()}
-                onPointerCancel={(event) => event.stopPropagation()}
-              />
+            <div
+              className={styles.renderMaterialDock}
+              data-open={renderPanelOpen ? "true" : "false"}
+              data-no-workspace-pan
+            >
+              <button
+                ref={renderTabRef}
+                type="button"
+                className={styles.renderMaterialTab}
+                data-open={renderPanelOpen ? "true" : "false"}
+                onClick={() => setRenderPanelOpen((prev) => !prev)}
+              >
+                Render/Material
+              </button>
+              <div
+                ref={renderPanelRef}
+                className={styles.renderMaterialPanel}
+                data-open={renderPanelOpen ? "true" : "false"}
+              >
+                <div className={styles.renderMaterialHeader}>
+                  <span>Render/Material</span>
+                  <span className={styles.renderMaterialMeta}>
+                    {materialPickerDisabled
+                      ? "No selection"
+                      : `${selectedGeometryIds.length} selected`}
+                  </span>
+                </div>
+                <label className={styles.renderMaterialRow}>
+                  <span className={styles.renderMaterialLabel}>Color</span>
+                  <input
+                    className={styles.renderMaterialColorInput}
+                    type="color"
+                    value={materialPickerHex}
+                    disabled={materialPickerDisabled}
+                    onChange={(event) =>
+                      handleMaterialColorChange(event.target.value)
+                    }
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onPointerUp={(event) => event.stopPropagation()}
+                    onPointerCancel={(event) => event.stopPropagation()}
+                  />
+                </label>
+                <div className={styles.renderMaterialHex}>{materialPickerHex}</div>
+              </div>
+            </div>
+            <div
+              className={styles.viewerModeCorner}
+              data-no-workspace-pan
+              data-collapsed={viewerModeCollapsed ? "true" : "false"}
+            >
+              <div className={styles.viewerModeHeader}>
+                <span className={styles.viewerModeTitle}>View Controls</span>
+                <IconButton
+                  className={styles.viewerModeToggle}
+                  size="sm"
+                  iconId="chevronDown"
+                  label={viewerModeCollapsed ? "Expand view controls" : "Collapse view controls"}
+                  tooltip={viewerModeCollapsed ? "Expand view controls" : "Collapse view controls"}
+                  tooltipPosition="left"
+                  style={{ width: 26, height: 26 }}
+                  onClick={() => setViewerModeCollapsed((prev) => !prev)}
+                  data-collapsed={viewerModeCollapsed ? "true" : "false"}
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onPointerUp={(event) => event.stopPropagation()}
+                  onPointerCancel={(event) => event.stopPropagation()}
+                />
+              </div>
+              {!viewerModeCollapsed && (
+                <div className={styles.viewerModeBody}>
+                  <WebGLButton
+                    label="Silhouette"
+                    tooltip="Silhouette view: crisp outline with adjustable fill."
+                    iconId="displayMode"
+                    variant="command"
+                    size="sm"
+                    shape="rounded"
+                    accentColor="#111111"
+                    active={displayMode === "silhouette"}
+                    className={styles.viewerModeControl}
+                    onClick={handleSilhouetteToggle}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onPointerUp={(event) => event.stopPropagation()}
+                    onPointerCancel={(event) => event.stopPropagation()}
+                  />
+                  <div className={styles.viewerStepRow}>
+                    <span className={styles.viewerStepLabel}>Gumball Step</span>
+                <label className={styles.viewerStepField}>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={gumballStepDraft.distance}
+                    onChange={handleGumballStepDistanceChange}
+                    onBlur={commitGumballStepDistance}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.currentTarget.blur();
+                      }
+                    }}
+                    className={styles.viewerStepInput}
+                    title="Move/Extrude step size"
+                    onPointerDown={(event) => event.stopPropagation()}
+                  />
+                  <span className={styles.viewerStepUnit}>u</span>
+                </label>
+                <label className={styles.viewerStepField}>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={gumballStepDraft.angle}
+                    onChange={handleGumballStepAngleChange}
+                    onBlur={commitGumballStepAngle}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.currentTarget.blur();
+                      }
+                    }}
+                    className={styles.viewerStepInput}
+                    title="Rotate step size (deg)"
+                    onPointerDown={(event) => event.stopPropagation()}
+                  />
+                      <span className={styles.viewerStepUnit}>deg</span>
+                    </label>
+                  </div>
+                  <WebGLSlider
+                    label={viewSliderLabel}
+                    tooltip={viewSliderTooltip}
+                    iconId="displayMode"
+                    value={viewSolidity}
+                    min={0}
+                    max={1}
+                    step={0.00025}
+                    onChange={setViewSolidity}
+                    variant="command"
+                    size="sm"
+                    shape="rounded"
+                    accentColor="#00c2d1"
+                    className={styles.viewerModeControl}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onPointerUp={(event) => event.stopPropagation()}
+                    onPointerCancel={(event) => event.stopPropagation()}
+                  />
+                  <WebGLSlider
+                    label="Sheen"
+                    tooltip="Glossy highlight intensity (white light)."
+                    iconId="sphere"
+                    value={viewSettings.sheen ?? 0.08}
+                    min={0}
+                    max={0.15}
+                    step={0.005}
+                    onChange={(value) => setViewSettings({ sheen: value })}
+                    variant="command"
+                    size="sm"
+                    shape="rounded"
+                    accentColor="#f7f3ea"
+                    className={styles.viewerModeControl}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onPointerUp={(event) => event.stopPropagation()}
+                    onPointerCancel={(event) => event.stopPropagation()}
+                  />
+                  <WebGLButton
+                    label="Pick Debug"
+                    tooltip="Toggle point pick radius and hovered id overlay."
+                    iconId="point"
+                    variant="command"
+                    size="sm"
+                    shape="rounded"
+                    accentColor="#f0c452"
+                    active={Boolean(viewSettings.showPointPickDebug)}
+                    className={styles.viewerModeControl}
+                    onClick={() =>
+                      setViewSettings({
+                        showPointPickDebug: !viewSettings.showPointPickDebug,
+                      })
+                    }
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onPointerUp={(event) => event.stopPropagation()}
+                    onPointerCancel={(event) => event.stopPropagation()}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>

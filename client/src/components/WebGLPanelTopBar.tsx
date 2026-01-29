@@ -147,12 +147,12 @@ const PADDING_Y = 8;
 const LABEL_HEIGHT = 10;
 const LABEL_GAP = 4;
 const SHADOW_OFFSET = 3;
-const BUTTON_RADIUS = 12;
+const BUTTON_RADIUS = 6;
 const BUTTON_STROKE = 1.5;
 const ICON_INSET = 6;
 const SEPARATOR_GAP = 10;
 const SEPARATOR_WIDTH = 2;
-const PANEL_SCALE_KEY = "specificity.webglPanelScale";
+const PANEL_SCALE_KEY = "lingua.webglPanelScale";
 const MIN_PANEL_SCALE = 0.4;
 const MAX_PANEL_SCALE = 1.05;
 const PANEL_SCALE_SPEED = 0.0015;
@@ -491,7 +491,7 @@ const WebGLPanelTopBar = ({
       logoPadX,
       logoPadY,
       logoAccentGap: 4 * effectiveScale,
-      logoRadius: 8 * effectiveScale,
+      logoRadius: 5 * effectiveScale,
       logoStroke: Math.max(1, effectiveScale),
       logoShadowOffset: 1.1 * effectiveScale,
       logoUnderlineHeight: Math.max(1, 1.6 * effectiveScale),
@@ -1345,11 +1345,16 @@ const WebGLPanelTopBar = ({
     const paddingX = metrics.tooltipPaddingX;
     const paddingY = metrics.tooltipPaddingY;
     const fontSize = metrics.tooltipFontSize;
+    const canvasWidth = canvas.width / dpr;
+    const canvasHeight = canvas.height / dpr;
+    const maxTooltipWidth = Math.min(360, Math.max(1, canvasWidth - 24));
 
     textRenderer.setText(tooltipText, {
       fontSize: fontSize * dpr,
       paddingX: paddingX * dpr,
       paddingY: paddingY * dpr,
+      maxWidth: maxTooltipWidth * dpr,
+      lineHeight: Math.round(fontSize * 1.35 * dpr),
       color: "#ffffff",
     });
     const textSize = textRenderer.getSize();
@@ -1364,8 +1369,6 @@ const WebGLPanelTopBar = ({
       tooltipY = focusRect.y + focusRect.height / 2 - tooltipHeight / 2;
     }
 
-    const canvasWidth = canvas.width / dpr;
-    const canvasHeight = canvas.height / dpr;
     tooltipX = clamp(tooltipX, 6, Math.max(6, canvasWidth - tooltipWidth - 6));
     tooltipY = clamp(tooltipY, 6, Math.max(6, canvasHeight - tooltipHeight - 6));
     const rect = {

@@ -10,6 +10,10 @@ import { edgeVertexShader } from "./shaders/edge.vert";
 import { edgeFragmentShader } from "./shaders/edge.frag";
 import { edgeLineVertexShader } from "./shaders/edgeLine.vert";
 import { edgeLineFragmentShader } from "./shaders/edgeLine.frag";
+import { edgeJoinVertexShader } from "./shaders/edgeJoin.vert";
+import { edgeJoinFragmentShader } from "./shaders/edgeJoin.frag";
+import { pointVertexShader } from "./shaders/point.vert";
+import { pointFragmentShader } from "./shaders/point.frag";
 
 export type Camera = {
   position: [number, number, number];
@@ -33,6 +37,7 @@ export class WebGLRenderer {
   private blendingEnabled = false;
   private depthMaskEnabled = true;
   private cullingEnabled = true;
+  private colorMask: [boolean, boolean, boolean, boolean] = [true, true, true, true];
   private depthFunc: GLenum;
   private clearColor: [number, number, number, number];
 
@@ -60,6 +65,8 @@ export class WebGLRenderer {
     this.shaderManager.createProgram("atmosphere", atmosphereVertexShader, atmosphereFragmentShader);
     this.shaderManager.createProgram("edge", edgeVertexShader, edgeFragmentShader);
     this.shaderManager.createProgram("edgeLine", edgeLineVertexShader, edgeLineFragmentShader);
+    this.shaderManager.createProgram("edgeJoin", edgeJoinVertexShader, edgeJoinFragmentShader);
+    this.shaderManager.createProgram("point", pointVertexShader, pointFragmentShader);
   }
 
   private initializeGL(): void {
@@ -72,6 +79,7 @@ export class WebGLRenderer {
     this.cullingEnabled = true;
     gl.disable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.colorMask(true, true, true, true);
     gl.clearColor(
       this.clearColor[0],
       this.clearColor[1],
@@ -145,6 +153,7 @@ export class WebGLRenderer {
     const isTransparent = opacity < 0.999;
     this.setBlending(isTransparent);
     this.setDepthMask(!isTransparent);
+    this.setColorMask(true, true, true, true);
 
     this.gl.useProgram(program);
 
@@ -172,6 +181,57 @@ export class WebGLRenderer {
 
     buffer.bind(program);
     buffer.draw(this.gl.TRIANGLES);
+  }
+
+  renderGeometryDepth(
+    buffer: GeometryBuffer,
+    camera: Camera,
+    uniforms: Record<string, any>
+  ): void {
+    const program = this.shaderManager.getProgram("geometry");
+    if (!program) return;
+
+    const previousBlending = this.blendingEnabled;
+    const previousDepthMask = this.depthMaskEnabled;
+    const previousDepthFunc = this.depthFunc;
+    const [prevR, prevG, prevB, prevA] = this.colorMask;
+
+    this.setDepthFunc(this.gl.LEQUAL);
+    this.setBlending(false);
+    this.setDepthMask(true);
+    this.setColorMask(false, false, false, false);
+
+    this.gl.useProgram(program);
+
+    const viewMatrix = this.computeViewMatrix(camera);
+    const projectionMatrix = this.computeProjectionMatrix(camera);
+    const modelMatrix = uniforms.modelMatrix || this.identityMatrix();
+    const normalMatrix = this.computeNormalMatrix(modelMatrix);
+
+    this.shaderManager.setUniforms(program, {
+      modelMatrix,
+      viewMatrix,
+      projectionMatrix,
+      normalMatrix,
+      lightPosition: uniforms.lightPosition || [10, 10, 10],
+      lightColor: uniforms.lightColor || [1, 1, 1],
+      ambientColor: uniforms.ambientColor || [0.2, 0.2, 0.2],
+      materialColor: uniforms.materialColor || [0.5, 0.5, 0.5],
+      cameraPosition: uniforms.cameraPosition || camera.position,
+      selectionHighlight: uniforms.selectionHighlight || [0, 0, 0],
+      isSelected: uniforms.isSelected || 0,
+      sheenIntensity: uniforms.sheenIntensity ?? 0.08,
+      ambientStrength: uniforms.ambientStrength ?? 0.68,
+      opacity: uniforms.opacity ?? 1.0,
+    });
+
+    buffer.bind(program);
+    buffer.draw(this.gl.TRIANGLES);
+
+    this.setColorMask(prevR, prevG, prevB, prevA);
+    this.setDepthFunc(previousDepthFunc);
+    this.setDepthMask(previousDepthMask);
+    this.setBlending(previousBlending);
   }
 
   renderLine(
@@ -217,6 +277,7 @@ export class WebGLRenderer {
       depthBias: uniforms.depthBias ?? 0,
       selectionHighlight: uniforms.selectionHighlight ?? [0, 0, 0],
       isSelected: uniforms.isSelected ?? 0,
+      linePixelSnap: uniforms.linePixelSnap ?? 0,
     });
 
     buffer.bind(program);
@@ -225,6 +286,53 @@ export class WebGLRenderer {
         ? this.gl.TRIANGLES
         : this.gl.TRIANGLE_STRIP;
     buffer.draw(mode);
+
+    this.setDepthFunc(previousDepthFunc);
+    this.setDepthMask(previousDepthMask);
+    this.setBlending(previousBlending);
+  }
+
+  renderPoints(
+    buffer: GeometryBuffer,
+    camera: Camera,
+    uniforms: Record<string, any>,
+    options?: { depthFunc?: DepthFuncMode; depthMask?: boolean; blend?: boolean }
+  ): void {
+    const program = this.shaderManager.getProgram("point");
+    if (!program) return;
+
+    const previousBlending = this.blendingEnabled;
+    const previousDepthMask = this.depthMaskEnabled;
+    const previousDepthFunc = this.depthFunc;
+
+    const nextDepthFunc = this.mapDepthFunc(options?.depthFunc);
+    const nextBlend = options?.blend ?? true;
+    const nextDepthMask = options?.depthMask ?? false;
+
+    this.setDepthFunc(nextDepthFunc);
+    this.setBlending(nextBlend);
+    this.setDepthMask(nextDepthMask);
+
+    this.gl.useProgram(program);
+
+    const viewMatrix = this.computeViewMatrix(camera);
+    const projectionMatrix = this.computeProjectionMatrix(camera);
+    const modelMatrix = uniforms.modelMatrix || this.identityMatrix();
+
+    this.shaderManager.setUniforms(program, {
+      modelMatrix,
+      viewMatrix,
+      projectionMatrix,
+      pointRadius: uniforms.pointRadius ?? 6.0,
+      outlineWidth: uniforms.outlineWidth ?? 1.0,
+      fillColor: uniforms.fillColor ?? [1, 1, 0],
+      outlineColor: uniforms.outlineColor ?? [0, 0, 0],
+      depthBias: uniforms.depthBias ?? 0,
+      opacity: uniforms.opacity ?? 1.0,
+    });
+
+    buffer.bind(program);
+    buffer.draw(this.gl.POINTS);
 
     this.setDepthFunc(previousDepthFunc);
     this.setDepthMask(previousDepthMask);
@@ -275,6 +383,56 @@ export class WebGLRenderer {
       edgeColorSilhouette: uniforms.edgeColorSilhouette ?? [0.1, 0.1, 0.1],
       edgeAAStrength: uniforms.edgeAAStrength ?? 1.0,
       edgePixelSnap: uniforms.edgePixelSnap ?? 0.0,
+    });
+
+    buffer.bind(program);
+    buffer.draw(this.gl.TRIANGLES);
+
+    this.setDepthFunc(previousDepthFunc);
+    this.setDepthMask(previousDepthMask);
+    this.setBlending(previousBlending);
+  }
+
+  renderEdgeJoins(
+    buffer: GeometryBuffer,
+    camera: Camera,
+    uniforms: Record<string, any>,
+    options?: { depthFunc?: DepthFuncMode; depthMask?: boolean; blend?: boolean }
+  ): void {
+    const program = this.shaderManager.getProgram("edgeJoin");
+    if (!program) return;
+
+    const previousBlending = this.blendingEnabled;
+    const previousDepthMask = this.depthMaskEnabled;
+    const previousDepthFunc = this.depthFunc;
+
+    const nextDepthFunc = this.mapDepthFunc(options?.depthFunc);
+    const nextBlend = options?.blend ?? true;
+    const nextDepthMask = options?.depthMask ?? false;
+
+    this.setDepthFunc(nextDepthFunc);
+    this.setBlending(nextBlend);
+    this.setDepthMask(nextDepthMask);
+
+    this.gl.useProgram(program);
+
+    const viewMatrix = this.computeViewMatrix(camera);
+    const projectionMatrix = this.computeProjectionMatrix(camera);
+    const modelMatrix = uniforms.modelMatrix || this.identityMatrix();
+
+    this.shaderManager.setUniforms(program, {
+      modelMatrix,
+      viewMatrix,
+      projectionMatrix,
+      resolution: uniforms.resolution ?? [this.width, this.height],
+      edgeWidths: uniforms.edgeWidths ?? [1.25, 1.75, 2.25],
+      edgeOpacities: uniforms.edgeOpacities ?? [0.4, 0.65, 0.85],
+      edgeColorInternal: uniforms.edgeColorInternal ?? [0.25, 0.25, 0.25],
+      edgeColorCrease: uniforms.edgeColorCrease ?? [0.18, 0.18, 0.18],
+      edgeColorSilhouette: uniforms.edgeColorSilhouette ?? [0.1, 0.1, 0.1],
+      edgeAAStrength: uniforms.edgeAAStrength ?? 1.0,
+      depthBias: uniforms.depthBias ?? 0,
+      edgePixelSnap: uniforms.edgePixelSnap ?? 0,
     });
 
     buffer.bind(program);
@@ -387,6 +545,19 @@ export class WebGLRenderer {
     if (this.depthMaskEnabled === enabled) return;
     this.depthMaskEnabled = enabled;
     this.gl.depthMask(enabled);
+  }
+
+  private setColorMask(r: boolean, g: boolean, b: boolean, a: boolean): void {
+    if (
+      this.colorMask[0] === r &&
+      this.colorMask[1] === g &&
+      this.colorMask[2] === b &&
+      this.colorMask[3] === a
+    ) {
+      return;
+    }
+    this.colorMask = [r, g, b, a];
+    this.gl.colorMask(r, g, b, a);
   }
 
   private setDepthFunc(depthFunc: GLenum): void {

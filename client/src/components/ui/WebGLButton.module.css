@@ -1,5 +1,5 @@
 .button {
-  --webgl-button-radius: 12px;
+  --webgl-button-radius: var(--radius);
   --webgl-button-padding-x: 14px;
   --webgl-button-padding-y: 7px;
   --webgl-button-gap: 8px;
@@ -72,7 +72,7 @@
 }
 
 .pill {
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .icon {

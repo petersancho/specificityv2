@@ -3,17 +3,27 @@ import { useProjectStore, type NodeType } from "../../store/useProjectStore";
 import { NumericalCanvas } from "./NumericalCanvas";
 import IconButton from "../ui/IconButton";
 import WebGLButton from "../ui/WebGLButton";
+import WebGLSlider from "../ui/WebGLSlider";
+import Tooltip from "../ui/Tooltip";
 import WebGLTitleLogo from "../WebGLTitleLogo";
 import { arrayBufferToBase64 } from "../../utils/binary";
+import { downloadBlob } from "../../utils/download";
+import { normalizeHexColor } from "../../utils/color";
 import {
   NODE_CATEGORIES,
   NODE_CATEGORY_BY_ID,
   NODE_DEFINITIONS,
+  buildNodeTooltipLines,
   getNodeDefinition,
+  getDefaultNodePorts,
   resolveNodeParameters,
   resolveNodePorts,
   type NodeCategory,
 } from "./nodeCatalog";
+import {
+  buildPanelLines,
+  resolvePanelFormatOptions,
+} from "./panelFormat";
 import styles from "./WorkflowSection.module.css";
 
 const nodeOptions = NODE_DEFINITIONS.filter(
@@ -21,7 +31,10 @@ const nodeOptions = NODE_DEFINITIONS.filter(
 );
 const legacyNodeTypes = new Set<NodeType>(["primitive"]);
 
-const PALETTE_COLLAPSED_KEY = "specificity.numericaPaletteCollapsed";
+const PALETTE_COLLAPSED_KEY = "lingua.numericaPaletteCollapsed";
+const CAPTURE_BACKGROUND_KEY = "lingua.numericaCaptureBackground";
+
+type CaptureBackground = "transparent" | "white";
 
 const PALETTE_SECTIONS: Array<{
   id: string;
@@ -73,6 +86,17 @@ const PALETTE_SECTIONS: Array<{
   },
 ];
 
+const renderParameterLabel = (label: string, description?: string) => {
+  if (!description) {
+    return <span className={styles.parameterLabel}>{label}</span>;
+  }
+  return (
+    <Tooltip content={description} position="right">
+      <span className={styles.parameterLabel}>{label}</span>
+    </Tooltip>
+  );
+};
+
 type WorkflowSectionProps = {
   onCaptureRequest?: (element: HTMLElement) => Promise<void> | void;
   captureDisabled?: boolean;
@@ -88,6 +112,7 @@ const WorkflowSection = ({
 }: WorkflowSectionProps) => {
   const [selectedType, setSelectedType] = useState<NodeType>("number");
   const [nodeQuery, setNodeQuery] = useState("");
+  const parameterPanelRef = useRef<HTMLDivElement>(null);
   const nodes = useProjectStore((state) => state.workflow.nodes);
   const edges = useProjectStore((state) => state.workflow.edges);
   const addNode = useProjectStore((state) => state.addNode);
@@ -99,6 +124,12 @@ const WorkflowSection = ({
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem(PALETTE_COLLAPSED_KEY) === "true";
   });
+  const [captureBackground, setCaptureBackground] = useState<CaptureBackground>(() => {
+    if (typeof window === "undefined") return "transparent";
+    const stored = window.localStorage.getItem(CAPTURE_BACKGROUND_KEY);
+    return stored === "white" ? "white" : "transparent";
+  });
+  const [captureMode, setCaptureMode] = useState<CaptureBackground | null>(null);
   const paletteRef = useRef<HTMLElement | null>(null);
 
   const supportedTypes = useMemo(() => {
@@ -113,6 +144,18 @@ const WorkflowSection = ({
       ),
     [nodes, supportedTypes]
   );
+
+  const paletteTooltipByType = useMemo(() => {
+    const map = new Map<string, string>();
+    nodeOptions.forEach((definition) => {
+      const ports = getDefaultNodePorts(definition);
+      const lines = buildNodeTooltipLines(definition, ports);
+      if (lines.length > 0) {
+        map.set(definition.type, lines.join("\n"));
+      }
+    });
+    return map;
+  }, []);
   const filteredEdges = useMemo(() => {
     const nodeIds = new Set(filteredNodes.map((node) => node.id));
     return edges.filter(
@@ -289,10 +332,81 @@ const WorkflowSection = ({
     });
   };
 
+  const handleRequestNodeSettings = (_nodeId: string) => {
+    const panel = parameterPanelRef.current;
+    if (!panel) return;
+    panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  };
+
+  const panelExportText = useMemo(() => {
+    if (!selectedNodeContext || selectedNodeContext.node.type !== "panel") return "";
+    const outputs = selectedNodeContext.node.data?.outputs ?? {};
+    const fallback =
+      typeof selectedNodeContext.parameters.text === "string"
+        ? selectedNodeContext.parameters.text
+        : "";
+    const value = outputs.data ?? (fallback.length > 0 ? fallback : null);
+    const options = resolvePanelFormatOptions(selectedNodeContext.parameters ?? {});
+    return buildPanelLines(value, options).join("\n");
+  }, [selectedNodeContext]);
+
+  const panelFilename = useMemo(() => {
+    if (!selectedNodeContext || selectedNodeContext.node.type !== "panel") {
+      return "panel-output.txt";
+    }
+    const base =
+      selectedNodeContext.node.data?.label ??
+      selectedNodeContext.definition?.label ??
+      "panel";
+    const slug = base
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+    const idSuffix = selectedNodeContext.node.id.slice(0, 6);
+    const name = slug.length > 0 ? slug : "panel";
+    return `${name}-${idSuffix}.txt`;
+  }, [selectedNodeContext]);
+
+  const copyPanelText = async () => {
+    if (!panelExportText) return;
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(panelExportText);
+        return;
+      } catch {
+        // fall back to execCommand
+      }
+    }
+    if (typeof document === "undefined") return;
+    const textarea = document.createElement("textarea");
+    textarea.value = panelExportText;
+    textarea.style.position = "fixed";
+    textarea.style.left = "-1000px";
+    textarea.style.top = "-1000px";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    try {
+      document.execCommand("copy");
+    } finally {
+      document.body.removeChild(textarea);
+    }
+  };
+
+  const exportPanelText = () => {
+    if (!panelExportText) return;
+    downloadBlob(new Blob([panelExportText], { type: "text/plain" }), panelFilename);
+  };
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.localStorage.setItem(PALETTE_COLLAPSED_KEY, String(paletteCollapsed));
   }, [paletteCollapsed]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(CAPTURE_BACKGROUND_KEY, captureBackground);
+  }, [captureBackground]);
 
   useEffect(() => {
     if (paletteCollapsed) return;
@@ -312,6 +426,12 @@ const WorkflowSection = ({
   const canvasRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
 
+  useEffect(() => {
+    const node = canvasRef.current;
+    if (!node) return;
+    node.dataset.captureBackground = captureBackground;
+  }, [captureBackground]);
+
   const paletteDragRef = useRef<{
     type: NodeType | null;
     startX: number;
@@ -330,7 +450,18 @@ const WorkflowSection = ({
   const handleCapture = async () => {
     if (!canvasRef.current || !onCaptureRequest) return;
     const container = canvasRef.current;
-    await onCaptureRequest(container);
+    const mode = captureBackground;
+    setCaptureMode(mode);
+    container.dataset.captureBackground = mode;
+    const nextFrame = () =>
+      new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await nextFrame();
+    await nextFrame();
+    try {
+      await onCaptureRequest(container);
+    } finally {
+      setCaptureMode(null);
+    }
   };
 
   const handleAddType = (type: NodeType) => {
@@ -379,16 +510,22 @@ const WorkflowSection = ({
   }, [paletteDrag.type]);
 
   useEffect(() => {
+    const node = canvasRef.current;
+    if (!node) return;
+
     const updateSize = () => {
-      if (canvasRef.current) {
-        const rect = canvasRef.current.getBoundingClientRect();
-        setCanvasSize({ width: rect.width, height: rect.height });
-      }
+      const rect = node.getBoundingClientRect();
+      setCanvasSize((prev) =>
+        prev.width === rect.width && prev.height === rect.height
+          ? prev
+          : { width: rect.width, height: rect.height }
+      );
     };
 
     updateSize();
-    window.addEventListener("resize", updateSize);
-    return () => window.removeEventListener("resize", updateSize);
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(node);
+    return () => observer.disconnect();
   }, []);
 
   const handleCanvasDrop = (type: NodeType, world: { x: number; y: number }) => {
@@ -428,7 +565,7 @@ const WorkflowSection = ({
   }, [filteredNodes.length, filteredEdges.length, nodes.length, edges.length, pruneWorkflow]);
 
   return (
-    <section className={styles.section}>
+    <section className={styles.section} data-fullscreen={isFullscreen ? "true" : "false"}>
       <div className={styles.header}>
         <div className={styles.headerCluster}>
           <WebGLTitleLogo title="Numerica" tone="numerica" />
@@ -467,6 +604,23 @@ const WorkflowSection = ({
             onClick={handleCapture}
             disabled={captureDisabled}
           />
+          <IconButton
+            size="sm"
+            label={`Capture background: ${
+              captureBackground === "white" ? "White" : "Transparent"
+            }`}
+            iconId={captureBackground === "white" ? "themeLight" : "displayMode"}
+            tooltip={`Capture background: ${
+              captureBackground === "white" ? "White" : "Transparent"
+            }`}
+            tooltipPosition="bottom"
+            onClick={() =>
+              setCaptureBackground((prev) =>
+                prev === "white" ? "transparent" : "white"
+              )
+            }
+            active={captureBackground === "white"}
+          />
           {onToggleFullscreen && (
             <IconButton
               size="sm"
@@ -488,6 +642,8 @@ const WorkflowSection = ({
               height={canvasSize.height}
               pendingNodeType={paletteDrag.dragging ? paletteDrag.type : null}
               onDropNode={handleCanvasDrop}
+              onRequestNodeSettings={handleRequestNodeSettings}
+              captureMode={captureMode}
             />
           </div>
           <div
@@ -580,7 +736,10 @@ const WorkflowSection = ({
                                       variant="palette"
                                       shape="square"
                                       accentColor={accent}
-                                      tooltip={option.description}
+                                      tooltip={
+                                        paletteTooltipByType.get(option.type) ??
+                                        option.description
+                                      }
                                       tooltipPosition="bottom"
                                       onPointerDown={(event) =>
                                         startPaletteDrag(option.type, event)
@@ -597,7 +756,7 @@ const WorkflowSection = ({
                     </div>
                   ))}
                 </div>
-                <div className={styles.parameterPanel}>
+                <div className={styles.parameterPanel} ref={parameterPanelRef}>
                   {selectedNodeContext ? (
                     <>
                       <div className={styles.parameterHeader}>
@@ -624,9 +783,10 @@ const WorkflowSection = ({
                             if (parameter.type === "file") {
                               return (
                                 <label key={parameter.key} className={styles.parameterRow}>
-                                  <span className={styles.parameterLabel}>
-                                    {parameter.label}
-                                  </span>
+                                  {renderParameterLabel(
+                                    parameter.label,
+                                    parameter.description
+                                  )}
                                   <input
                                     className={styles.parameterControl}
                                     type="file"
@@ -650,7 +810,10 @@ const WorkflowSection = ({
                               const selectedValue = String(value ?? parameter.defaultValue);
                               return (
                                 <label key={parameter.key} className={styles.parameterRow}>
-                                  <span className={styles.parameterLabel}>{parameter.label}</span>
+                                  {renderParameterLabel(
+                                    parameter.label,
+                                    parameter.description
+                                  )}
                                   <select
                                     className={styles.parameterControl}
                                     value={selectedValue}
@@ -682,8 +845,143 @@ const WorkflowSection = ({
                                       setParameter(parameter.key, event.target.checked)
                                     }
                                   />
-                                  <span className={styles.parameterLabel}>{parameter.label}</span>
+                                  {renderParameterLabel(
+                                    parameter.label,
+                                    parameter.description
+                                  )}
                                 </label>
+                              );
+                            }
+
+                            if (parameter.type === "textarea") {
+                              const stringValue = readString(
+                                value,
+                                String(parameter.defaultValue ?? "")
+                              );
+                              return (
+                                <label key={parameter.key} className={styles.parameterRow}>
+                                  {renderParameterLabel(
+                                    parameter.label,
+                                    parameter.description
+                                  )}
+                                  <textarea
+                                    className={`${styles.parameterControl} ${styles.parameterTextArea}`}
+                                    value={stringValue}
+                                    rows={4}
+                                    onChange={(event) =>
+                                      setParameter(parameter.key, event.target.value)
+                                    }
+                                  />
+                                </label>
+                              );
+                            }
+
+                            if (parameter.type === "color") {
+                              const stringValue = readString(
+                                value,
+                                String(parameter.defaultValue ?? "#2EA3A8")
+                              );
+                              const fallbackHex =
+                                normalizeHexColor(
+                                  String(parameter.defaultValue ?? "#2EA3A8")
+                                ) ?? "#2EA3A8";
+                              const normalized =
+                                normalizeHexColor(stringValue) ?? fallbackHex;
+                              return (
+                                <label key={parameter.key} className={styles.parameterRow}>
+                                  {renderParameterLabel(
+                                    parameter.label,
+                                    parameter.description
+                                  )}
+                                  <div className={styles.parameterColorRow}>
+                                    <input
+                                      className={styles.parameterColorInput}
+                                      type="color"
+                                      value={normalized}
+                                      onChange={(event) =>
+                                        setParameter(parameter.key, event.target.value)
+                                      }
+                                    />
+                                    <input
+                                      className={`${styles.parameterControl} ${styles.parameterColorValue}`}
+                                      type="text"
+                                      value={stringValue}
+                                      onChange={(event) =>
+                                        setParameter(parameter.key, event.target.value)
+                                      }
+                                    />
+                                  </div>
+                                </label>
+                              );
+                            }
+
+                            if (parameter.type === "slider") {
+                              const currentValue = readNumber(
+                                value,
+                                Number(parameter.defaultValue) || 0
+                              );
+                              const rawMin = readNumber(
+                                (parameter.minKey
+                                  ? selectedNodeContext.parameters[parameter.minKey]
+                                  : undefined) ?? parameter.min ?? 0,
+                                parameter.min ?? 0
+                              );
+                              const rawMax = readNumber(
+                                (parameter.maxKey
+                                  ? selectedNodeContext.parameters[parameter.maxKey]
+                                  : undefined) ?? parameter.max ?? rawMin + 1,
+                                parameter.max ?? rawMin + 1
+                              );
+                              const minValue = Math.min(rawMin, rawMax);
+                              const maxValue = Math.max(rawMin, rawMax);
+                              const rawStep = readNumber(
+                                (parameter.stepKey
+                                  ? selectedNodeContext.parameters[parameter.stepKey]
+                                  : undefined) ?? parameter.step ?? 0.01,
+                                parameter.step ?? 0.01
+                              );
+                              const stepValue = rawStep > 0 ? rawStep : 0.01;
+                              const clampedValue = Math.min(
+                                maxValue,
+                                Math.max(minValue, currentValue)
+                              );
+
+                              return (
+                                <div
+                                  key={parameter.key}
+                                  className={`${styles.parameterRow} ${styles.parameterRowSlider}`}
+                                >
+                                  {renderParameterLabel(
+                                    parameter.label,
+                                    parameter.description
+                                  )}
+                                  <div className={styles.parameterSliderWrap}>
+                                    <WebGLSlider
+                                      label={parameter.label}
+                                      tooltip={`${parameter.label}: ${clampedValue}`}
+                                      value={clampedValue}
+                                      min={minValue}
+                                      max={maxValue}
+                                      step={stepValue}
+                                      onChange={(next) => setParameter(parameter.key, next)}
+                                      className={styles.parameterSlider}
+                                    />
+                                    <input
+                                      className={`${styles.parameterControl} ${styles.parameterSliderInput}`}
+                                      type="number"
+                                      value={clampedValue}
+                                      min={minValue}
+                                      max={maxValue}
+                                      step={stepValue}
+                                      onChange={(event) => {
+                                        const nextValue = Number(event.target.value);
+                                        if (Number.isFinite(nextValue)) {
+                                          setParameter(parameter.key, nextValue);
+                                        }
+                                      }}
+                                    />
+                                  </div>
+                                </div>
                               );
                             }
 
@@ -694,7 +992,10 @@ const WorkflowSection = ({
                               );
                               return (
                                 <label key={parameter.key} className={styles.parameterRow}>
-                                  <span className={styles.parameterLabel}>{parameter.label}</span>
+                                  {renderParameterLabel(
+                                    parameter.label,
+                                    parameter.description
+                                  )}
                                   <input
                                     className={styles.parameterControl}
                                     type="number"
@@ -719,7 +1020,10 @@ const WorkflowSection = ({
                             );
                             return (
                               <label key={parameter.key} className={styles.parameterRow}>
-                                <span className={styles.parameterLabel}>{parameter.label}</span>
+                                {renderParameterLabel(
+                                  parameter.label,
+                                  parameter.description
+                                )}
                                 <input
                                   className={styles.parameterControl}
                                   type="text"
@@ -740,6 +1044,9 @@ const WorkflowSection = ({
                               "";
                             const isConnected = connectedInputs.has(port.key);
                             const rowKey = `${selectedNodeContext.node.id}-${port.key}`;
+                            const portLabel = `${port.label}${
+                              isConnected ? " (connected)" : ""
+                            }`;
 
                             if (port.type === "boolean") {
                               const checked = readBoolean(rawValue, false);
@@ -753,10 +1060,7 @@ const WorkflowSection = ({
                                       setParameter(paramKey, event.target.checked)
                                     }
                                   />
-                                  <span className={styles.parameterLabel}>
-                                    {port.label}
-                                    {isConnected ? " (connected)" : ""}
-                                  </span>
+                                  {renderParameterLabel(portLabel, port.description)}
                                 </label>
                               );
                             }
@@ -768,10 +1072,7 @@ const WorkflowSection = ({
                               );
                               return (
                                 <label key={rowKey} className={styles.parameterRow}>
-                                  <span className={styles.parameterLabel}>
-                                    {port.label}
-                                    {isConnected ? " (connected)" : ""}
-                                  </span>
+                                  {renderParameterLabel(portLabel, port.description)}
                                   <input
                                     className={styles.parameterControl}
                                     type="number"
@@ -792,10 +1093,7 @@ const WorkflowSection = ({
                             const stringValue = String(rawValue ?? "");
                             return (
                               <label key={rowKey} className={styles.parameterRow}>
-                                <span className={styles.parameterLabel}>
-                                  {port.label}
-                                  {isConnected ? " (connected)" : ""}
-                                </span>
+                                {renderParameterLabel(portLabel, port.description)}
                                 <input
                                   className={styles.parameterControl}
                                   type="text"
@@ -810,6 +1108,29 @@ const WorkflowSection = ({
                           })}
                         </div>
                       )}
+
+                      {selectedNodeContext.node.type === "panel" ? (
+                        <div className={styles.parameterActions}>
+                          <WebGLButton
+                            type="button"
+                            label="Copy"
+                            iconId="copy"
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => void copyPanelText()}
+                            disabled={!panelExportText}
+                          />
+                          <WebGLButton
+                            type="button"
+                            label="Export"
+                            iconId="download"
+                            size="sm"
+                            variant="secondary"
+                            onClick={exportPanelText}
+                            disabled={!panelExportText}
+                          />
+                        </div>
+                      ) : null}
                     </>
                   ) : (
                     <p className={styles.parameterEmpty}>

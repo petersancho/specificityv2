@@ -36,6 +36,7 @@ type ObjectHitTestArgs = {
   locked?: Set<string>;
   context: HitTestContext;
   pickPixelThreshold?: number;
+  pointPixelThreshold?: number;
   getSurfacePickMesh: (item: Geometry) => RenderMesh | null;
   getPolylineRenderData: (
     points: Vec3[],
@@ -59,6 +60,7 @@ type ComponentHitTestArgs = {
   locked?: Set<string>;
   context: HitTestContext;
   pickPixelThreshold?: number;
+  pointPixelThreshold?: number;
   edgePixelThreshold?: number;
   mode?: "vertex" | "edge" | "face";
   getSurfacePickMesh: (item: Geometry) => RenderMesh | null;
@@ -226,6 +228,7 @@ export const hitTestObject = ({
   locked,
   context,
   pickPixelThreshold = 16,
+  pointPixelThreshold,
   getSurfacePickMesh,
   getPolylineRenderData,
   refineSurfaceIntersection,
@@ -238,11 +241,23 @@ export const hitTestObject = ({
   const viewProjection = context.viewProjection;
   let best: HitTestResult | null = null;
   let bestDepth = Number.POSITIVE_INFINITY;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  const depthEpsilon = 1e-6;
+  const pointThreshold = pointPixelThreshold ?? pickPixelThreshold;
 
-  const consider = (geometryId: string, depth: number, point: Vec3 | null) => {
+  const consider = (
+    geometryId: string,
+    depth: number,
+    point: Vec3 | null,
+    distance = Number.POSITIVE_INFINITY
+  ) => {
     if (!Number.isFinite(depth)) return;
-    if (depth < bestDepth) {
+    if (
+      depth < bestDepth - depthEpsilon ||
+      (Math.abs(depth - bestDepth) <= depthEpsilon && distance < bestDistance)
+    ) {
       bestDepth = depth;
+      bestDistance = distance;
       best = { kind: "object", geometryId, depth, point };
     }
   };
@@ -255,8 +270,8 @@ export const hitTestObject = ({
       const screen = projectPointToScreen(item.position, viewProjection, rect);
       if (!screen) return;
       const distance = Math.hypot(pointer.x - screen.x, pointer.y - screen.y);
-      if (distance <= pickPixelThreshold) {
-        consider(item.id, screen.depth, item.position);
+      if (distance <= pointThreshold) {
+        consider(item.id, screen.depth, item.position, distance);
       }
       return;
     }
@@ -368,6 +383,7 @@ export const hitTestComponent = ({
   locked,
   context,
   pickPixelThreshold = 16,
+  pointPixelThreshold,
   edgePixelThreshold = 12,
   mode,
   getSurfacePickMesh,
@@ -381,11 +397,23 @@ export const hitTestComponent = ({
   const viewProjection = context.viewProjection;
   let best: HitTestResult | null = null;
   let bestDepth = Number.POSITIVE_INFINITY;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  const depthEpsilon = 1e-6;
+  const pointThreshold = pointPixelThreshold ?? pickPixelThreshold;
 
-  const consider = (selection: ComponentSelection, depth: number, point: Vec3 | null) => {
+  const consider = (
+    selection: ComponentSelection,
+    depth: number,
+    point: Vec3 | null,
+    distance = Number.POSITIVE_INFINITY
+  ) => {
     if (!Number.isFinite(depth)) return;
-    if (depth < bestDepth) {
+    if (
+      depth < bestDepth - depthEpsilon ||
+      (Math.abs(depth - bestDepth) <= depthEpsilon && distance < bestDistance)
+    ) {
       bestDepth = depth;
+      bestDistance = distance;
       best = { kind: "component", selection, depth, point };
     }
   };
@@ -405,7 +433,7 @@ export const hitTestComponent = ({
           const screen = projectPointToScreen(vertex.position, viewProjection, rect);
           if (!screen) return;
           const distance = Math.hypot(pointer.x - screen.x, pointer.y - screen.y);
-          if (distance <= pickPixelThreshold) {
+          if (distance <= pointThreshold) {
             consider(
               {
                 kind: "vertex",
@@ -413,7 +441,8 @@ export const hitTestComponent = ({
                 vertexId,
               },
               screen.depth,
-              vertex.position
+              vertex.position,
+              distance
             );
           }
         });
@@ -559,7 +588,7 @@ export const hitTestComponent = ({
       );
       const candidate = vertexCandidates[0];
       const distance = Math.hypot(pointer.x - candidate.screen.x, pointer.y - candidate.screen.y);
-      if (distance > pickPixelThreshold) return;
+      if (distance > pointThreshold) return;
       consider(
         {
           kind: "vertex",
@@ -567,7 +596,8 @@ export const hitTestComponent = ({
           vertexIndex: candidate.index,
         },
         candidate.screen.depth,
-        candidate.point
+        candidate.point,
+        distance
       );
       return;
     }

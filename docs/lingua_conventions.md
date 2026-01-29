@@ -1,4 +1,4 @@
-# Specificity Code Conventions
+# Lingua Code Conventions
 
 ## File Organization Principles
 

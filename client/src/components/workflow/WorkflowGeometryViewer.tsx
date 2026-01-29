@@ -12,6 +12,7 @@ import {
   mixColor,
   smoothstep,
 } from "../../webgl/viewProfile";
+import { hexToRgb, normalizeRgbInput } from "../../utils/color";
 import type { Geometry, Vec3 } from "../../types";
 import type { GeometryBuffer } from "../../webgl/BufferManager";
 
@@ -23,6 +24,25 @@ const MAX_DISTANCE = 120;
 const GRID_EXTENT_MULTIPLIER = 120;
 const GRID_MINOR_STEP = 1;
 const GRID_OFFSET_Y = -0.002;
+const SILHOUETTE_BASE_COLOR: [number, number, number] = [0.02, 0.02, 0.02];
+const SILHOUETTE_SELECTED_COLOR: [number, number, number] = [0.2, 0.2, 0.2];
+const POINT_FILL_COLOR: [number, number, number] = [1, 0.82, 0.16];
+const POINT_OUTLINE_COLOR: [number, number, number] = [0, 0, 0];
+const POINT_HANDLE_RADIUS_PX = 6;
+const POINT_HANDLE_OUTLINE_PX = 1.5;
+
+const resolveCustomMaterialColor = (metadata?: Geometry["metadata"]) => {
+  if (!metadata || typeof metadata !== "object") return null;
+  const custom = (metadata as { customMaterial?: unknown }).customMaterial;
+  if (!custom || typeof custom !== "object") return null;
+  const record = custom as { color?: unknown; hex?: unknown };
+  const color = normalizeRgbInput(record.color);
+  if (color) return color;
+  if (typeof record.hex === "string") {
+    return hexToRgb(record.hex);
+  }
+  return null;
+};
 
 type CameraState = {
   position: Vec3;
@@ -192,10 +212,10 @@ const buildGridGeometry = (spacing: number, majorLinesEvery: number) => {
 };
 
 type WorkflowGeometryViewerProps = {
-  geometryId: string | null;
+  geometryIds: string[];
 };
 
-const WorkflowGeometryViewer = ({ geometryId }: WorkflowGeometryViewerProps) => {
+const WorkflowGeometryViewer = ({ geometryIds }: WorkflowGeometryViewerProps) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rendererRef = useRef<WebGLRenderer | null>(null);
@@ -203,23 +223,38 @@ const WorkflowGeometryViewer = ({ geometryId }: WorkflowGeometryViewerProps) => 
   const gridMinorBufferRef = useRef<GeometryBuffer | null>(null);
   const gridMajorBufferRef = useRef<GeometryBuffer | null>(null);
   const resizeRef = useRef<(() => void) | null>(null);
-  const activeGeometryIdRef = useRef<string | null>(null);
+  const activeGeometryIdsRef = useRef<Set<string>>(new Set());
   const cameraRef = useRef<CameraState>({ ...DEFAULT_CAMERA });
 
   const geometry = useProjectStore((state) => state.geometry);
   const gridSettings = useProjectStore((state) => state.gridSettings);
+  const displayMode = useProjectStore((state) => state.displayMode);
   const viewSolidity = useProjectStore((state) => state.viewSolidity);
   const viewSettings = useProjectStore((state) => state.viewSettings);
   const selectedGeometryIds = useProjectStore((state) => state.selectedGeometryIds);
   const hiddenGeometryIds = useProjectStore((state) => state.hiddenGeometryIds);
 
+  const customMaterialMap = useMemo(() => {
+    const map = new Map<string, [number, number, number]>();
+    geometry.forEach((item) => {
+      const color = resolveCustomMaterialColor(item.metadata);
+      if (color) {
+        map.set(item.id, color);
+      }
+    });
+    return map;
+  }, [geometry]);
+
   const geometryRef = useRef(geometry);
+  const customMaterialMapRef = useRef(new Map<string, [number, number, number]>());
 
   useEffect(() => {
     geometryRef.current = geometry;
-  }, [geometry]);
+    customMaterialMapRef.current = customMaterialMap;
+  }, [geometry, customMaterialMap]);
 
   const viewSolidityRef = useRef(viewSolidity);
+  const displayModeRef = useRef(displayMode);
   const viewSettingsRef = useRef(viewSettings);
   const selectedRef = useRef(selectedGeometryIds);
   const hiddenRef = useRef(hiddenGeometryIds);
@@ -230,7 +265,11 @@ const WorkflowGeometryViewer = ({ geometryId }: WorkflowGeometryViewerProps) => 
 
   useEffect(() => {
     resizeRef.current?.();
-  }, [viewSolidity]);
+  }, [viewSolidity, displayMode]);
+
+  useEffect(() => {
+    displayModeRef.current = displayMode;
+  }, [displayMode]);
 
   useEffect(() => {
     viewSettingsRef.current = viewSettings;
@@ -249,7 +288,13 @@ const WorkflowGeometryViewer = ({ geometryId }: WorkflowGeometryViewerProps) => 
     [geometry]
   );
 
-  const resolvedGeometry = geometryId ? geometryById.get(geometryId) ?? null : null;
+  const resolvedGeometries = useMemo(() => {
+    if (!geometryIds || geometryIds.length === 0) return [];
+    const unique = Array.from(new Set(geometryIds));
+    return unique
+      .map((id) => geometryById.get(id))
+      .filter((item): item is Geometry => Boolean(item));
+  }, [geometryById, geometryIds]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -266,8 +311,9 @@ const WorkflowGeometryViewer = ({ geometryId }: WorkflowGeometryViewerProps) => 
     const resize = () => {
       const rect = container.getBoundingClientRect();
       const baseDpr = window.devicePixelRatio || 1;
+      const isSilhouette = displayModeRef.current === "silhouette";
       const solidity = clamp01(viewSolidityRef.current);
-      const solidBlend = smoothstep(0.55, 1, solidity);
+      const solidBlend = isSilhouette ? 1 : smoothstep(0.55, 1, solidity);
       const renderScale = lerp(1, VIEW_STYLE.solidRenderScale, solidBlend);
       const dpr = baseDpr * renderScale;
       canvas.width = Math.max(1, rect.width * dpr);
@@ -328,34 +374,58 @@ const WorkflowGeometryViewer = ({ geometryId }: WorkflowGeometryViewerProps) => 
     const adapter = adapterRef.current;
     if (!adapter) return;
 
-    if (!geometryId) {
-      if (activeGeometryIdRef.current) {
-        adapter.removeGeometry(activeGeometryIdRef.current);
-        activeGeometryIdRef.current = null;
+    const nextIds = new Set(
+      (geometryIds ?? []).filter((id) => geometryById.has(id))
+    );
+    const activeIds = activeGeometryIdsRef.current;
+
+    if (nextIds.size === 0) {
+      if (activeIds.size > 0) {
+        activeIds.forEach((id) => adapter.removeGeometry(id));
+        activeIds.clear();
       }
       return;
     }
 
-    const item = geometryById.get(geometryId);
-    if (!item) {
-      if (activeGeometryIdRef.current) {
-        adapter.removeGeometry(activeGeometryIdRef.current);
-        activeGeometryIdRef.current = null;
+    activeIds.forEach((id) => {
+      if (!nextIds.has(id)) {
+        adapter.removeGeometry(id);
       }
-      return;
-    }
+    });
 
-    if (activeGeometryIdRef.current && activeGeometryIdRef.current !== item.id) {
-      adapter.removeGeometry(activeGeometryIdRef.current);
-    }
+    nextIds.forEach((id) => {
+      const item = geometryById.get(id);
+      if (item) {
+        adapter.updateGeometry(item);
+      }
+    });
 
-    adapter.updateGeometry(item);
-    activeGeometryIdRef.current = item.id;
-  }, [geometryById, geometryId, geometry]);
+    activeGeometryIdsRef.current = nextIds;
+  }, [geometryById, geometryIds, geometry]);
 
   useEffect(() => {
-    if (!resolvedGeometry) return;
-    const bounds = computeBoundsForGeometry(resolvedGeometry, geometryById);
+    if (resolvedGeometries.length === 0) return;
+    let bounds: Bounds | null = null;
+    resolvedGeometries.forEach((item) => {
+      const nextBounds = computeBoundsForGeometry(item, geometryById);
+      if (!nextBounds) return;
+      if (!bounds) {
+        bounds = nextBounds;
+        return;
+      }
+      bounds = {
+        min: {
+          x: Math.min(bounds.min.x, nextBounds.min.x),
+          y: Math.min(bounds.min.y, nextBounds.min.y),
+          z: Math.min(bounds.min.z, nextBounds.min.z),
+        },
+        max: {
+          x: Math.max(bounds.max.x, nextBounds.max.x),
+          y: Math.max(bounds.max.y, nextBounds.max.y),
+          z: Math.max(bounds.max.z, nextBounds.max.z),
+        },
+      };
+    });
     if (!bounds) return;
 
     const size = {
@@ -381,7 +451,7 @@ const WorkflowGeometryViewer = ({ geometryId }: WorkflowGeometryViewerProps) => 
       position: add(center, scale(safeDirection, distance)),
       target: center,
     };
-  }, [geometryById, resolvedGeometry]);
+  }, [geometryById, resolvedGeometries]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -500,22 +570,32 @@ const WorkflowGeometryViewer = ({ geometryId }: WorkflowGeometryViewerProps) => 
         aspect: canvas.width / canvas.height,
       });
 
+      const isSilhouette = displayModeRef.current === "silhouette";
       const viewSolidity = clamp01(viewSolidityRef.current);
       const smoothSolidity = smoothstep(0, 1, viewSolidity);
-      const solidBlend = smoothSolidity;
-      const baseMeshOpacity = Math.pow(smoothSolidity, 1.12);
-      const showMesh = baseMeshOpacity > 0.02;
-      const nonSolidBlend = 1 - smoothSolidity;
-      const edgeFade = smoothSolidity;
-      const wireframeBoost = Math.pow(1 - smoothSolidity, 1.25);
+      const silhouetteBlend = smoothstep(0.12, 1, viewSolidity);
+      const silhouetteFill = Math.pow(silhouetteBlend, 1.35);
+      const silhouetteDash = Math.pow(1 - silhouetteBlend, 1.15);
+      const solidBlend = isSilhouette ? 1 : smoothSolidity;
+      const baseMeshOpacity = isSilhouette ? 1 : Math.pow(smoothSolidity, 1.12);
+      const showMesh = isSilhouette ? true : baseMeshOpacity > 0.02;
+      const nonSolidBlend = isSilhouette ? 0 : 1 - smoothSolidity;
+      const edgeFade = isSilhouette ? 1 : smoothSolidity;
+      const wireframeBoost = isSilhouette ? 0 : Math.pow(1 - smoothSolidity, 1.25);
       renderer.setBackfaceCulling(false);
-      const showEdges = true;
+      const showEdges = !isSilhouette;
       const renderScale = lerp(1, VIEW_STYLE.solidRenderScale, solidBlend);
-      const dpr = (window.devicePixelRatio || 1) * renderScale;
+      const baseDpr = window.devicePixelRatio || 1;
+      const dpr = baseDpr * renderScale;
       const edgePrimaryWidth = VIEW_STYLE.edgePrimaryWidth * dpr;
       const edgeSecondaryWidth = VIEW_STYLE.edgeSecondaryWidth * dpr;
       const edgeTertiaryWidth = VIEW_STYLE.edgeTertiaryWidth * dpr;
       const edgeBias = lerp(0.00022, 0.00045, edgeFade);
+      const edgeDepthBias = edgeBias * 1.5;
+      const lineDepthBias = edgeBias * 1.15;
+      const pointDepthBias = edgeBias * 1.8;
+      const pointRadius = POINT_HANDLE_RADIUS_PX * baseDpr;
+      const pointOutline = POINT_HANDLE_OUTLINE_PX * baseDpr;
       const edgeOpacityScale = lerp(1, 0.8, edgeFade);
       const edgeInternalScale = lerp(1, 0.7, edgeFade);
       const edgeAAStrength = lerp(0.22, 1.0, smoothSolidity);
@@ -590,46 +670,220 @@ const WorkflowGeometryViewer = ({ geometryId }: WorkflowGeometryViewerProps) => 
         })
         .sort((a, b) => b.depth - a.depth);
 
+      const renderPointHandle = (renderable: RenderableGeometry, isSelected: boolean) => {
+        const fillColor = adjustForSelection(
+          POINT_FILL_COLOR,
+          isSelected,
+          hasSelection
+        );
+        renderer.renderPoints(
+          renderable.buffer,
+          cameraPayload,
+          {
+            pointRadius,
+            outlineWidth: pointOutline,
+            fillColor,
+            outlineColor: POINT_OUTLINE_COLOR,
+            depthBias: pointDepthBias,
+            opacity: 1,
+          },
+          { depthFunc: "lequal", depthMask: false, blend: true }
+        );
+      };
+
       const renderMesh = (renderable: RenderableGeometry, isSelected: boolean) => {
-        if (showMesh && baseMeshOpacity > 0) {
-          const materialColor = adjustForSelection(VIEW_STYLE.mesh, isSelected, hasSelection);
-          const selectionFactor = hasSelection
-            ? lerp(
-                1,
-                isSelected
-                  ? 1.02
-                  : baseMeshOpacity > 0.7
-                    ? 0.9
-                    : 0.75,
-                clamp01(nonSolidBlend)
-              )
-            : 1;
-          const opacity = clamp(
-            baseMeshOpacity * selectionFactor,
-            0.2,
-            1
-          );
+        if (renderable.type === "vertex") return;
+        if (!showMesh || baseMeshOpacity <= 0) return;
+        if (isSilhouette) {
+          const fillOpacity = clamp01(silhouetteFill);
+          if (fillOpacity <= 0.01) return;
+          const materialColor = isSelected
+            ? SILHOUETTE_SELECTED_COLOR
+            : SILHOUETTE_BASE_COLOR;
           renderer.renderGeometry(renderable.buffer, cameraPayload, {
             materialColor,
             lightPosition: VIEW_STYLE.lightPosition,
             lightColor: VIEW_STYLE.light,
             ambientColor: VIEW_STYLE.ambient,
             cameraPosition: cameraPayload.position,
-            ambientStrength: VIEW_STYLE.ambientStrength,
+            ambientStrength: 1,
             selectionHighlight: VIEW_STYLE.selection,
             isSelected: isSelected ? 0.6 : 0,
-            sheenIntensity: viewSettingsRef.current.sheen ?? 0.08,
-            opacity,
+            sheenIntensity: 0,
+            opacity: fillOpacity,
           });
+          return;
         }
+
+        const baseColor =
+          customMaterialMapRef.current.get(renderable.id) ?? VIEW_STYLE.mesh;
+        const materialColor = adjustForSelection(baseColor, isSelected, hasSelection);
+        const selectionFactor = hasSelection
+          ? lerp(
+              1,
+              isSelected
+                ? 1.02
+                : baseMeshOpacity > 0.7
+                  ? 0.9
+                  : 0.75,
+              clamp01(nonSolidBlend)
+            )
+          : 1;
+        const opacity = clamp(
+          baseMeshOpacity * selectionFactor,
+          0.2,
+          1
+        );
+        const geometryUniforms = {
+          materialColor,
+          lightPosition: VIEW_STYLE.lightPosition,
+          lightColor: VIEW_STYLE.light,
+          ambientColor: VIEW_STYLE.ambient,
+          cameraPosition: cameraPayload.position,
+          ambientStrength: VIEW_STYLE.ambientStrength,
+          selectionHighlight: VIEW_STYLE.selection,
+          isSelected: isSelected ? 0.6 : 0,
+          sheenIntensity: viewSettingsRef.current.sheen ?? 0.08,
+          opacity,
+        };
+        if (opacity < 0.999 && (showEdges || isSilhouette)) {
+          renderer.renderGeometryDepth(renderable.buffer, cameraPayload, geometryUniforms);
+        }
+        renderer.renderGeometry(renderable.buffer, cameraPayload, geometryUniforms);
       };
 
       const renderMeshEdges = (renderable: RenderableGeometry, isSelected: boolean) => {
-        if (!showEdges) return;
         const edgeBuffer = renderable.edgeBuffer;
+        const edgeJoinBuffer = renderable.edgeJoinBuffer;
+        if (renderable.type === "vertex") {
+          return;
+        }
+
+        if (isSilhouette) {
+          const edgeLineBuffers = renderable.edgeLineBuffers;
+          const silhouetteColor = isSelected
+            ? SILHOUETTE_SELECTED_COLOR
+            : SILHOUETTE_BASE_COLOR;
+          const dashOpacity = Math.min(1, silhouetteDash * 0.9);
+          if (edgeBuffer && dashOpacity > 0.02) {
+            const dashColor = mixColor(silhouetteColor, [1, 1, 1], 0.25);
+            renderer.renderEdges(
+              edgeBuffer,
+              cameraPayload,
+              {
+                edgeColor: dashColor,
+                opacity: dashOpacity,
+                dashEnabled: 1,
+                dashScale: 0.06,
+                depthBias: edgeDepthBias,
+                lineWidth: 1.7 * dpr,
+              },
+              { depthFunc: "lequal" }
+            );
+          }
+
+          if (edgeLineBuffers && edgeLineBuffers.length > 0) {
+            const edgeWidths: [number, number, number] = [
+              edgeTertiaryWidth * 0.6,
+              edgeSecondaryWidth * 0.7,
+              edgePrimaryWidth * 1.6,
+            ];
+            const edgeOpacities: [number, number, number] = [0, 0, 1];
+            edgeLineBuffers.forEach((edgeLineBuffer) => {
+              renderer.renderEdgeLines(
+                edgeLineBuffer,
+                cameraPayload,
+                {
+                  resolution: [canvas.width, canvas.height],
+                  edgeWidths,
+                  edgeOpacities,
+                  edgeColorInternal: silhouetteColor,
+                  edgeColorCrease: silhouetteColor,
+                  edgeColorSilhouette: silhouetteColor,
+                  depthBias: edgeDepthBias,
+                  edgeAAStrength: 1,
+                  edgePixelSnap: 0.9,
+                },
+                {
+                  depthFunc: "lequal",
+                  depthMask: false,
+                  blend: true,
+                }
+              );
+            });
+            if (edgeJoinBuffer) {
+              renderer.renderEdgeJoins(
+                edgeJoinBuffer,
+                cameraPayload,
+                {
+                  resolution: [canvas.width, canvas.height],
+                  edgeWidths,
+                  edgeOpacities,
+                  edgeColorInternal: silhouetteColor,
+                  edgeColorCrease: silhouetteColor,
+                  edgeColorSilhouette: silhouetteColor,
+                  depthBias: edgeDepthBias,
+                  edgeAAStrength: 1,
+                  edgePixelSnap,
+                },
+                {
+                  depthFunc: "lequal",
+                  depthMask: false,
+                  blend: true,
+                }
+              );
+            }
+          } else if (edgeBuffer) {
+            renderer.renderEdges(
+              edgeBuffer,
+              cameraPayload,
+              {
+                edgeColor: silhouetteColor,
+                opacity: 1,
+                dashEnabled: 0,
+                depthBias: edgeDepthBias,
+                lineWidth: edgePrimaryWidth * 1.6,
+              },
+              { depthFunc: "lequal" }
+            );
+            if (edgeJoinBuffer) {
+              const edgeWidths: [number, number, number] = [
+                edgeTertiaryWidth * 0.6,
+                edgeSecondaryWidth * 0.7,
+                edgePrimaryWidth * 1.6,
+              ];
+              const edgeOpacities: [number, number, number] = [0, 0, 1];
+              renderer.renderEdgeJoins(
+                edgeJoinBuffer,
+                cameraPayload,
+                {
+                  resolution: [canvas.width, canvas.height],
+                  edgeWidths,
+                  edgeOpacities,
+                  edgeColorInternal: silhouetteColor,
+                  edgeColorCrease: silhouetteColor,
+                  edgeColorSilhouette: silhouetteColor,
+                  depthBias: edgeDepthBias,
+                  edgeAAStrength: 1,
+                  edgePixelSnap,
+                },
+                {
+                  depthFunc: "lequal",
+                  depthMask: false,
+                  blend: true,
+                }
+              );
+            }
+          }
+          return;
+        }
+
+        if (!showEdges) return;
+        const baseColor =
+          customMaterialMapRef.current.get(renderable.id) ?? VIEW_STYLE.mesh;
         const edgeLineBuffers = renderable.edgeLineBuffers;
         const edgeBase = darkenColor(
-          adjustForSelection(VIEW_STYLE.mesh, isSelected, hasSelection),
+          adjustForSelection(baseColor, isSelected, hasSelection),
           0.22
         );
         const edgeInternalColor = mixColor(edgeBase, [1, 1, 1], 0.28);
@@ -680,7 +934,7 @@ const WorkflowGeometryViewer = ({ geometryId }: WorkflowGeometryViewerProps) => 
                 edgeColorInternal: edgeInternalColor,
                 edgeColorCrease: edgeCreaseColor,
                 edgeColorSilhouette: edgeSilhouetteColor,
-                depthBias: edgeBias,
+                depthBias: edgeDepthBias,
                 edgeAAStrength,
                 edgePixelSnap,
               },
@@ -691,6 +945,28 @@ const WorkflowGeometryViewer = ({ geometryId }: WorkflowGeometryViewerProps) => 
               }
             );
           });
+          if (edgeJoinBuffer) {
+            renderer.renderEdgeJoins(
+              edgeJoinBuffer,
+              cameraPayload,
+              {
+                resolution: [canvas.width, canvas.height],
+                edgeWidths,
+                edgeOpacities,
+                edgeColorInternal: edgeInternalColor,
+                edgeColorCrease: edgeCreaseColor,
+                edgeColorSilhouette: edgeSilhouetteColor,
+                depthBias: edgeDepthBias,
+                edgeAAStrength,
+                edgePixelSnap,
+              },
+              {
+                depthFunc: "lequal",
+                depthMask: false,
+                blend: true,
+              }
+            );
+          }
         } else if (edgeBuffer) {
           renderer.renderEdges(
             edgeBuffer,
@@ -699,11 +975,33 @@ const WorkflowGeometryViewer = ({ geometryId }: WorkflowGeometryViewerProps) => 
               edgeColor: edgeCreaseColor,
               opacity: 1,
               dashEnabled: 0,
-              depthBias: edgeBias,
+              depthBias: edgeDepthBias,
               lineWidth: 3.2 * dpr,
             },
             { depthFunc: "lequal" }
           );
+          if (edgeJoinBuffer) {
+            renderer.renderEdgeJoins(
+              edgeJoinBuffer,
+              cameraPayload,
+              {
+                resolution: [canvas.width, canvas.height],
+                edgeWidths,
+                edgeOpacities,
+                edgeColorInternal: edgeInternalColor,
+                edgeColorCrease: edgeCreaseColor,
+                edgeColorSilhouette: edgeSilhouetteColor,
+                depthBias: edgeDepthBias,
+                edgeAAStrength,
+                edgePixelSnap,
+              },
+              {
+                depthFunc: "lequal",
+                depthMask: false,
+                blend: true,
+              }
+            );
+          }
         }
       };
 
@@ -711,10 +1009,18 @@ const WorkflowGeometryViewer = ({ geometryId }: WorkflowGeometryViewerProps) => 
         (renderable) => renderable.type === "polyline"
       );
       const renderPolyline = (renderable: RenderableGeometry, isSelected: boolean) => {
-        const lineColor = darkenColor(
-          adjustForSelection(VIEW_STYLE.mesh, isSelected, hasSelection),
-          0.22
-        );
+        const lineColor = isSilhouette
+          ? isSelected
+            ? SILHOUETTE_SELECTED_COLOR
+            : SILHOUETTE_BASE_COLOR
+          : darkenColor(
+              adjustForSelection(
+                customMaterialMapRef.current.get(renderable.id) ?? VIEW_STYLE.mesh,
+                isSelected,
+                hasSelection
+              ),
+              0.22
+            );
         renderer.renderLine(
           renderable.buffer,
           cameraPayload,
@@ -723,9 +1029,10 @@ const WorkflowGeometryViewer = ({ geometryId }: WorkflowGeometryViewerProps) => 
             resolution: [canvas.width, canvas.height],
             lineColor,
             lineOpacity: 1,
-            depthBias: edgeBias,
+            depthBias: lineDepthBias,
             selectionHighlight: [0, 0, 0],
             isSelected: 0,
+            linePixelSnap: edgePixelSnap,
           },
           { depthFunc: "lequal", depthMask: false }
         );
@@ -740,6 +1047,11 @@ const WorkflowGeometryViewer = ({ geometryId }: WorkflowGeometryViewerProps) => 
         const isSelected = selected.has(renderable.id);
         renderPolyline(renderable, isSelected);
       });
+      meshRenderables.forEach(({ renderable }) => {
+        if (renderable.type !== "vertex") return;
+        const isSelected = selected.has(renderable.id);
+        renderPointHandle(renderable, isSelected);
+      });
 
       frameId = requestAnimationFrame(render);
     };
@@ -748,7 +1060,7 @@ const WorkflowGeometryViewer = ({ geometryId }: WorkflowGeometryViewerProps) => 
     return () => cancelAnimationFrame(frameId);
   }, []);
 
-  const showPlaceholder = !resolvedGeometry;
+  const showPlaceholder = resolvedGeometries.length === 0;
 
   return (
     <div
@@ -757,12 +1069,30 @@ const WorkflowGeometryViewer = ({ geometryId }: WorkflowGeometryViewerProps) => 
         position: "relative",
         width: "100%",
         height: "100%",
-        borderRadius: "8px",
+        borderRadius: "6px",
         overflow: "hidden",
         background: "rgba(245, 244, 241, 0.9)",
       }}
     >
       <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block" }} />
+      {resolvedGeometries.length > 1 ? (
+        <div
+          style={{
+            position: "absolute",
+            top: "8px",
+            left: "8px",
+            padding: "2px 6px",
+            borderRadius: "999px",
+            background: "rgba(31, 31, 34, 0.85)",
+            color: "#f5f2ee",
+            fontSize: "9px",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+          }}
+        >
+          LIST · {resolvedGeometries.length}
+        </div>
+      ) : null}
       {showPlaceholder ? (
         <div
           style={{

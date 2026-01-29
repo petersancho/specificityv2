@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useProjectStore } from "../store/useProjectStore";
 import { GeometryRenderAdapter, createLineBufferData, type RenderableGeometry } from "../geometry/renderAdapter";
 import { computeArcPolyline, createArcNurbs, createCircleNurbs } from "../geometry/arc";
@@ -42,6 +42,7 @@ import {
   generatePrimitiveMesh,
   type PrimitiveMeshConfig,
 } from "../geometry/mesh";
+import { hexToRgb, normalizeRgbInput } from "../utils/color";
 import { PRIMITIVE_COMMAND_IDS } from "../data/primitiveCatalog";
 import { WebGLRenderer, type Camera } from "../webgl/WebGLRenderer";
 import {
@@ -54,6 +55,7 @@ import {
   smoothstep,
 } from "../webgl/viewProfile";
 import {
+  createGumballPickMeshes,
   createGumballBuffers,
   disposeGumballBuffers,
   GUMBALL_AXIS_COLORS,
@@ -93,20 +95,29 @@ const GRID_OFFSET_Y = -0.002;
 const SELECTION_DRAG_THRESHOLD = 8;
 const PICK_PIXEL_THRESHOLD = 20;
 const EDGE_PIXEL_THRESHOLD = 16;
+const POINT_HANDLE_RADIUS_PX = 6;
+const POINT_HANDLE_OUTLINE_PX = 1.5;
+const POINT_HANDLE_PICK_RADIUS_PX = 11;
+const POINT_DRAG_THRESHOLD = 4;
 const PREVIEW_LINE_ID = "__preview-line";
 const PREVIEW_MESH_ID = "__preview-mesh";
 const PREVIEW_EDGE_ID = "__preview-mesh-edges";
 const HOVER_LINE_ID = "__hover-line";
 const HOVER_FACE_ID = "__hover-face";
-const GUMBALL_PIXEL_SIZE = 110;
-const GUMBALL_SCALE_MIN = 0.05;
-const GUMBALL_SCALE_MAX = 48;
+const GUMBALL_PIXEL_SIZE = 96;
+const GUMBALL_FULLSCREEN_SCALE = 0.9;
 const GUMBALL_VIEWPORT_ZOOM_MIN = 0.45;
 const GUMBALL_VIEWPORT_ZOOM_MAX = 2.6;
-const GUMBALL_VIEWPORT_ZOOM_SPEED = 0.0012;
 const GUMBALL_PROMPT_FADE_DELAY = 520;
 const GUMBALL_PROMPT_REMOVE_DELAY = 820;
+const GUMBALL_CLICK_THRESHOLD = 4;
+const GUMBALL_STEP_DEFAULT_DISTANCE = 1;
+const GUMBALL_STEP_DEFAULT_ANGLE = 1;
 const BOUNDING_BOX_COLOR: [number, number, number] = [0.95, 0.86, 0.35];
+const SILHOUETTE_BASE_COLOR: [number, number, number] = [0.02, 0.02, 0.02];
+const SILHOUETTE_SELECTED_COLOR: [number, number, number] = [0.2, 0.2, 0.2];
+const POINT_FILL_COLOR: [number, number, number] = [1, 0.82, 0.16];
+const POINT_OUTLINE_COLOR: [number, number, number] = [0, 0, 0];
 
 const SNAP_COLORS: Record<string, string> = {
   grid: "#9a9a96",
@@ -118,6 +129,20 @@ const SNAP_COLORS: Record<string, string> = {
   tangent: "#efefed",
 };
 
+const GUMBALL_PICK_MESHES = createGumballPickMeshes();
+
+const resolveCustomMaterialColor = (metadata?: Geometry["metadata"]) => {
+  if (!metadata || typeof metadata !== "object") return null;
+  const custom = (metadata as { customMaterial?: unknown }).customMaterial;
+  if (!custom || typeof custom !== "object") return null;
+  const record = custom as { color?: unknown; hex?: unknown };
+  const color = normalizeRgbInput(record.color);
+  if (color) return color;
+  if (typeof record.hex === "string") {
+    return hexToRgb(record.hex);
+  }
+  return null;
+};
 
 type PrimitiveSettings = PrimitiveMeshConfig;
 
@@ -170,7 +195,9 @@ type ViewerCanvasProps = {
   circleSettings?: unknown;
   onCommandComplete?: (commandId: string) => void;
   cameraOverride?: CameraState | null;
+  onCameraStateChange?: (stateUpdate: Partial<CameraState>) => void;
   interactionsEnabled?: boolean;
+  isFullscreen?: boolean;
 };
 
 type DragState =
@@ -197,6 +224,19 @@ type SelectionDragState = {
   componentKind?: "vertex" | "edge" | "face";
 };
 
+type PointDragState = {
+  pointerId: number;
+  startPointer: { x: number; y: number };
+  moved: boolean;
+};
+
+type PointHandleHover = {
+  id: string;
+  position: Vec3;
+  screen: { x: number; y: number; depth: number };
+  distance: number;
+};
+
 type SelectionBounds = {
   corners: Vec3[];
 };
@@ -219,6 +259,14 @@ type GumballHandle =
       center: Vec3;
       normal: Vec3;
     };
+
+type GumballDragState = {
+  pointerId: number;
+  handle: GumballHandle;
+  handleId: GumballHandleId | null;
+  startPointer: { x: number; y: number };
+  moved: boolean;
+};
 
 type TransformConstraint =
   | { kind: "axis"; axis: "x" | "y" | "z" }
@@ -333,23 +381,25 @@ const clamp = (value: number, min: number, max: number) =>
 const computeGumballScale = (
   camera: { position: Vec3; fov: number },
   pivot: Vec3,
-  viewportHeight: number
+  viewportHeight: number,
+  pixelSize = GUMBALL_PIXEL_SIZE
 ) => {
   const distanceValue = length(sub(camera.position, pivot));
   const safeDistance = Math.max(distanceValue, 0.01);
   const fovRad = toRadians(camera.fov);
   const height = 2 * Math.tan(fovRad * 0.5) * safeDistance;
   const worldPerPixel = height / Math.max(viewportHeight, 1);
-  return clamp(worldPerPixel * GUMBALL_PIXEL_SIZE, GUMBALL_SCALE_MIN, GUMBALL_SCALE_MAX);
+  return worldPerPixel * pixelSize;
 };
 
-const GUMBALL_WIDGET_SCALE = 0.6;
-const GUMBALL_WIDGET_PADDING = 0.18;
+const GUMBALL_WIDGET_SCALE = 0.82;
+const GUMBALL_WIDGET_PADDING = 0.24;
 
 const computeCornerGumballViewport = (
   camera: { position: Vec3; target: Vec3; up: Vec3; fov: number },
   canvas: HTMLCanvasElement,
-  zoom = 1
+  zoom = 1,
+  pixelSize = GUMBALL_PIXEL_SIZE
 ) => {
   const viewDir = normalize(sub(camera.target, camera.position));
   const depth = Math.max(length(sub(camera.position, camera.target)), 0.1);
@@ -370,11 +420,7 @@ const computeCornerGumballViewport = (
   const viewBasis = { xAxis: right, yAxis: screenUp, zAxis: viewDir };
 
   const worldPerPixel = viewHeight / Math.max(canvas.height, 1);
-  const baseScale = clamp(
-    worldPerPixel * GUMBALL_PIXEL_SIZE,
-    GUMBALL_SCALE_MIN,
-    GUMBALL_SCALE_MAX
-  ) * GUMBALL_WIDGET_SCALE;
+  const baseScale = worldPerPixel * pixelSize * GUMBALL_WIDGET_SCALE;
   const safeZoom = clamp(zoom, GUMBALL_VIEWPORT_ZOOM_MIN, GUMBALL_VIEWPORT_ZOOM_MAX);
   const scaleValue = baseScale * safeZoom;
 
@@ -397,7 +443,8 @@ const computeCornerGumballViewport = (
 const computeGumballViewportScreenRect = (
   camera: { position: Vec3; target: Vec3; up: Vec3; fov: number },
   canvas: HTMLCanvasElement,
-  zoom: number
+  zoom: number,
+  pixelSize = GUMBALL_PIXEL_SIZE
 ): ScreenRect | null => {
   const rect = canvas.getBoundingClientRect();
   if (rect.width <= 0 || rect.height <= 0) return null;
@@ -414,9 +461,9 @@ const computeGumballViewportScreenRect = (
     computeViewMatrix(cameraPayload)
   );
 
-  const widgetState = computeCornerGumballViewport(camera, canvas, zoom);
-  const worldPerPixel = widgetState.scale / GUMBALL_PIXEL_SIZE;
-  const panelPadding = worldPerPixel * 12;
+  const widgetState = computeCornerGumballViewport(camera, canvas, zoom, pixelSize);
+  const worldPerPixel = widgetState.scale / pixelSize;
+  const panelPadding = worldPerPixel * 6;
   const panelScale = widgetState.radius + panelPadding;
   const panelDepth = worldPerPixel * 6;
   const panelCenter = add(widgetState.center, scale(widgetState.basis.zAxis, panelDepth));
@@ -777,24 +824,103 @@ const projectPointToScreen = (
   return { x: screenX, y: screenY, depth };
 };
 
-const distancePointToSegment2d = (
-  point: { x: number; y: number },
-  a: { x: number; y: number },
-  b: { x: number; y: number }
-) => {
-  const abx = b.x - a.x;
-  const aby = b.y - a.y;
-  const denom = abx * abx + aby * aby;
-  if (denom <= 1e-12) {
-    const dx = point.x - a.x;
-    const dy = point.y - a.y;
-    return Math.hypot(dx, dy);
-  }
-  const t = clamp(((point.x - a.x) * abx + (point.y - a.y) * aby) / denom, 0, 1);
-  const px = a.x + abx * t;
-  const py = a.y + aby * t;
-  return Math.hypot(point.x - px, point.y - py);
+const isVec3 = (value: unknown): value is Vec3 =>
+  Boolean(value) &&
+  typeof (value as Vec3).x === "number" &&
+  typeof (value as Vec3).y === "number" &&
+  typeof (value as Vec3).z === "number" &&
+  Number.isFinite((value as Vec3).x) &&
+  Number.isFinite((value as Vec3).y) &&
+  Number.isFinite((value as Vec3).z);
+
+const isZeroVec3 = (value: Vec3) =>
+  Math.abs(value.x) < 1e-6 && Math.abs(value.y) < 1e-6 && Math.abs(value.z) < 1e-6;
+
+const formatDimensionValue = (value: number) => {
+  if (!Number.isFinite(value)) return "—";
+  const abs = Math.abs(value);
+  const decimals = abs >= 10 ? 1 : abs >= 1 ? 2 : 3;
+  const rounded = Number(value.toFixed(decimals));
+  return Number.isInteger(rounded) ? String(Math.trunc(rounded)) : String(rounded);
 };
+
+const transformPoint = (matrix: Float32Array, point: Vec3): Vec3 => ({
+  x: matrix[0] * point.x + matrix[4] * point.y + matrix[8] * point.z + matrix[12],
+  y: matrix[1] * point.x + matrix[5] * point.y + matrix[9] * point.z + matrix[13],
+  z: matrix[2] * point.x + matrix[6] * point.y + matrix[10] * point.z + matrix[14],
+});
+
+const intersectRayTriangle = (ray: Ray, a: Vec3, b: Vec3, c: Vec3) => {
+  const EPS = 1e-7;
+  const edge1 = sub(b, a);
+  const edge2 = sub(c, a);
+  const pvec = cross(ray.dir, edge2);
+  const det = dot(edge1, pvec);
+  if (Math.abs(det) < EPS) return null;
+  const invDet = 1 / det;
+  const tvec = sub(ray.origin, a);
+  const u = dot(tvec, pvec) * invDet;
+  if (u < 0 || u > 1) return null;
+  const qvec = cross(tvec, edge1);
+  const v = dot(ray.dir, qvec) * invDet;
+  if (v < 0 || u + v > 1) return null;
+  const t = dot(edge2, qvec) * invDet;
+  if (t < 0) return null;
+  return { t };
+};
+
+const intersectRayMesh = (
+  ray: Ray,
+  mesh: RenderMesh,
+  modelMatrix: Float32Array
+) => {
+  const { positions, indices } = mesh;
+  if (!positions || positions.length < 9) return null;
+  const indexList = indices.length > 0 ? indices : null;
+  let bestT = Number.POSITIVE_INFINITY;
+  const getVertex = (index: number) =>
+    transformPoint(modelMatrix, {
+      x: positions[index * 3],
+      y: positions[index * 3 + 1],
+      z: positions[index * 3 + 2],
+    });
+  if (indexList) {
+    for (let i = 0; i + 2 < indexList.length; i += 3) {
+      const a = getVertex(indexList[i]);
+      const b = getVertex(indexList[i + 1]);
+      const c = getVertex(indexList[i + 2]);
+      const hit = intersectRayTriangle(ray, a, b, c);
+      if (hit && hit.t < bestT) {
+        bestT = hit.t;
+      }
+    }
+  } else {
+    for (let i = 0; i + 8 < positions.length; i += 9) {
+      const a = transformPoint(modelMatrix, {
+        x: positions[i],
+        y: positions[i + 1],
+        z: positions[i + 2],
+      });
+      const b = transformPoint(modelMatrix, {
+        x: positions[i + 3],
+        y: positions[i + 4],
+        z: positions[i + 5],
+      });
+      const c = transformPoint(modelMatrix, {
+        x: positions[i + 6],
+        y: positions[i + 7],
+        z: positions[i + 8],
+      });
+      const hit = intersectRayTriangle(ray, a, b, c);
+      if (hit && hit.t < bestT) {
+        bestT = hit.t;
+      }
+    }
+  }
+  return Number.isFinite(bestT) ? bestT : null;
+};
+
+
 
 const normalizeRect = (start: { x: number; y: number }, end: { x: number; y: number }) => {
   const x0 = Math.min(start.x, end.x);
@@ -839,8 +965,13 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     commandRequest = null,
     onCommandComplete,
     cameraOverride = null,
+    onCameraStateChange,
     interactionsEnabled = true,
+    isFullscreen = false,
   } = _props;
+  const gumballPixelSize = isFullscreen
+    ? GUMBALL_PIXEL_SIZE * GUMBALL_FULLSCREEN_SCALE
+    : GUMBALL_PIXEL_SIZE;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<WebGLRenderer | null>(null);
   const gumballBuffersRef = useRef<GumballBuffers | null>(null);
@@ -849,13 +980,17 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
   const gumballPanelGridBufferRef = useRef<GeometryBuffer | null>(null);
   const adapterRef = useRef<GeometryRenderAdapter | null>(null);
   const geometryRef = useRef<Geometry[]>([]);
+  const customMaterialMapRef = useRef(new Map<string, [number, number, number]>());
   const cameraRef = useRef(cameraOverride ?? useProjectStore.getState().camera);
   const selectionRef = useRef(useProjectStore.getState().selectedGeometryIds);
   const selectionModeRef = useRef(useProjectStore.getState().selectionMode);
   const hiddenRef = useRef(useProjectStore.getState().hiddenGeometryIds);
   const viewSettingsRef = useRef(useProjectStore.getState().viewSettings);
   const viewSolidityRef = useRef(useProjectStore.getState().viewSolidity);
+  const displayModeRef = useRef(useProjectStore.getState().displayMode);
+  const gumballStepRef = useRef(useProjectStore.getState().gumballStep);
   const showRotationRingsRef = useRef(useProjectStore.getState().showRotationRings);
+  const showMoveArmsRef = useRef(useProjectStore.getState().showMoveArms);
   const dragRef = useRef<DragState>({ mode: "none" });
   const gridMinorBufferRef = useRef<GeometryBuffer | null>(null);
   const gridMajorBufferRef = useRef<GeometryBuffer | null>(null);
@@ -866,11 +1001,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     mode: null,
     visible: false,
   });
-  const gumballDragRef = useRef<{
-    pointerId: number;
-    handle: GumballHandle;
-    handleId: GumballHandleId | null;
-  } | null>(null);
+  const gumballDragRef = useRef<GumballDragState | null>(null);
   const gumballHoverRef = useRef<GumballHandleId | null>(null);
   const gumballViewportZoomRef = useRef(1);
   const extrudeHoverRef = useRef<ExtrudeHandle | null>(null);
@@ -941,6 +1072,10 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
   const hoverDirtyRef = useRef(true);
   const hoverLineBufferRef = useRef<GeometryBuffer | null>(null);
   const hoverMeshBufferRef = useRef<GeometryBuffer | null>(null);
+  const pointDragRef = useRef<PointDragState | null>(null);
+  const pointHoverRef = useRef<PointHandleHover | null>(null);
+  const [pointHoverDebug, setPointHoverDebug] = useState<PointHandleHover | null>(null);
+  const pointHoverDebugRef = useRef<PointHandleHover | null>(null);
   const [selectionBox, setSelectionBox] = useState<{
     x: number;
     y: number;
@@ -949,6 +1084,18 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
   } | null>(null);
 
   const geometry = useProjectStore((state) => state.geometry);
+  const workflowNodes = useProjectStore((state) => state.workflow.nodes);
+  const workflowEdges = useProjectStore((state) => state.workflow.edges);
+  const customMaterialMap = useMemo(() => {
+    const map = new Map<string, [number, number, number]>();
+    geometry.forEach((item) => {
+      const color = resolveCustomMaterialColor(item.metadata);
+      if (color) {
+        map.set(item.id, color);
+      }
+    });
+    return map;
+  }, [geometry]);
   const storeCamera = useProjectStore((state) => state.camera);
   const camera = cameraOverride ?? storeCamera;
   const selectedGeometryIds = useProjectStore((state) => state.selectedGeometryIds);
@@ -957,15 +1104,18 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
   const viewSettings = useProjectStore((state) => state.viewSettings);
   const gridSettings = useProjectStore((state) => state.gridSettings);
   const snapSettings = useProjectStore((state) => state.snapSettings);
+  const displayMode = useProjectStore((state) => state.displayMode);
   const viewSolidity = useProjectStore((state) => state.viewSolidity);
+  const gumballStep = useProjectStore((state) => state.gumballStep);
   const selectionMode = useProjectStore((state) => state.selectionMode);
   const componentSelection = useProjectStore((state) => state.componentSelection);
   const transformOrientation = useProjectStore((state) => state.transformOrientation);
   const gumballAlignment = useProjectStore((state) => state.gumballAlignment);
   const showRotationRings = useProjectStore((state) => state.showRotationRings);
+  const showMoveArms = useProjectStore((state) => state.showMoveArms);
   const cPlane = useProjectStore((state) => state.cPlane);
   const pivot = useProjectStore((state) => state.pivot);
-  const setCameraState = useProjectStore((state) => state.setCameraState);
+  const setStoreCameraState = useProjectStore((state) => state.setCameraState);
   const setPivotMode = useProjectStore((state) => state.setPivotMode);
   const setPivotPosition = useProjectStore((state) => state.setPivotPosition);
   const setPivotPickedPosition = useProjectStore((state) => state.setPivotPickedPosition);
@@ -1013,6 +1163,17 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
   const completeActiveCommand = () => {
     notifyCommandComplete(activeCommandIdRef.current);
   };
+
+  const applyCameraState = useCallback(
+    (stateUpdate: Partial<CameraState>) => {
+      if (onCameraStateChange) {
+        onCameraStateChange(stateUpdate);
+        return;
+      }
+      setStoreCameraState(stateUpdate);
+    },
+    [onCameraStateChange, setStoreCameraState]
+  );
 
   const showGumballPrompt = (text: string) => {
     if (!text) return;
@@ -1203,11 +1364,18 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
 
   useEffect(() => {
     if (pivot.mode !== "selection") return;
-    if (selectionPoints.length === 0) {
-      setPivotPosition({ x: 0, y: 0, z: 0 });
+    const next =
+      selectionPoints.length === 0
+        ? { x: 0, y: 0, z: 0 }
+        : centroid(selectionPoints);
+    if (
+      pivot.position.x === next.x &&
+      pivot.position.y === next.y &&
+      pivot.position.z === next.z
+    ) {
       return;
     }
-    setPivotPosition(centroid(selectionPoints));
+    setPivotPosition(next);
   }, [pivot.mode, selectionPoints, setPivotPosition]);
 
   const getGridStep = () => {
@@ -1216,10 +1384,22 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     return Math.max(1e-6, snap.gridStep || grid.spacing || 1);
   };
 
+  const resolveGumballStep = (value: number | undefined, fallback: number) => {
+    if (!Number.isFinite(value)) return fallback;
+    if (value <= 0) return fallback;
+    return value;
+  };
+
   const snapValue = (value: number) => {
     const step = getGridStep();
     const precision = Math.max(0, `${step}`.split(".")[1]?.length ?? 0);
     return Number((Math.round(value / step) * step).toFixed(precision));
+  };
+
+  const snapToStep = (value: number, step: number) => {
+    const safeStep = Math.max(1e-6, step);
+    const precision = Math.max(0, `${safeStep}`.split(".")[1]?.length ?? 0);
+    return Number((Math.round(value / safeStep) * safeStep).toFixed(precision));
   };
 
   const segmentCandidates = useMemo(() => {
@@ -1463,7 +1643,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     const safeDirection =
       length(currentDirection) > 0.0001 ? currentDirection : { x: 1, y: 1, z: 1 };
     const nextPosition = add(center, scale(safeDirection, distance));
-    setCameraState({ position: nextPosition, target: center });
+    applyCameraState({ position: nextPosition, target: center });
   };
 
   const clampNonZero = (value: number, fallback: number) => {
@@ -1596,6 +1776,20 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     return { positions, normals, uvs: mesh.uvs, indices: mesh.indices } satisfies RenderMesh;
   };
 
+  const seatMeshOnPlane = (mesh: RenderMesh) => {
+    if (mesh.positions.length === 0) return mesh;
+    let minY = Number.POSITIVE_INFINITY;
+    for (let i = 1; i < mesh.positions.length; i += 3) {
+      minY = Math.min(minY, mesh.positions[i]);
+    }
+    if (!Number.isFinite(minY) || Math.abs(minY) < 1e-6) return mesh;
+    const positions = mesh.positions.slice();
+    for (let i = 1; i < positions.length; i += 3) {
+      positions[i] -= minY;
+    }
+    return { ...mesh, positions };
+  };
+
   const createRectangleAt = (origin: Vec3) => {
     const { xAxis, yAxis } = getPlaneAxes();
     const config = rectangleConfigRef.current;
@@ -1676,8 +1870,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
       DEFAULT_PRIMITIVE_SETTINGS.exponent2
     );
 
-    const mesh = transformMeshToPlane(
-      generatePrimitiveMesh({
+    const localMesh = generatePrimitiveMesh({
         kind: config.kind,
         size,
         radius,
@@ -1691,9 +1884,8 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         detail,
         exponent1,
         exponent2,
-      }),
-      origin
-    );
+      });
+    const mesh = transformMeshToPlane(seatMeshOnPlane(localMesh), origin);
 
     return {
       mesh,
@@ -2123,6 +2315,55 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     nurbs?: NURBSCurve | null
   ) => getPolylineRenderData(points, degree, closed, nurbs).points;
 
+  const pickPointHandle = (
+    context: NonNullable<ReturnType<typeof getPointerContext>>,
+    options?: { includeReferenced?: boolean; pickRadius?: number }
+  ): PointHandleHover | null => {
+    const hidden = new Set(hiddenRef.current);
+    const locked = new Set(lockedRef.current);
+    const allowReferenced = options?.includeReferenced ?? false;
+    const pickRadius = options?.pickRadius ?? POINT_HANDLE_PICK_RADIUS_PX;
+    const depthEpsilon = 1e-6;
+    let best: PointHandleHover | null = null;
+    let bestDepth = Number.POSITIVE_INFINITY;
+    let bestDistance = Number.POSITIVE_INFINITY;
+
+    geometryRef.current.forEach((item) => {
+      if (item.type !== "vertex") return;
+      if (hidden.has(item.id) || locked.has(item.id)) return;
+      if (!allowReferenced && referencedVertexIds.has(item.id)) return;
+      const screen = projectPointToScreen(item.position, context.viewProjection, context.rect);
+      if (!screen) return;
+      const distance = Math.hypot(context.pointer.x - screen.x, context.pointer.y - screen.y);
+      if (distance > pickRadius) return;
+      if (
+        screen.depth < bestDepth - depthEpsilon ||
+        (Math.abs(screen.depth - bestDepth) <= depthEpsilon && distance < bestDistance)
+      ) {
+        bestDepth = screen.depth;
+        bestDistance = distance;
+        best = { id: item.id, position: item.position, screen, distance };
+      }
+    });
+
+    return best;
+  };
+
+  const resolveVertexSelectionPosition = (
+    selection: Extract<ComponentSelection, { kind: "vertex" }>
+  ): Vec3 | null => {
+    if (selection.vertexId) {
+      return vertexMap.get(selection.vertexId)?.position ?? null;
+    }
+    if (selection.vertexIndex != null) {
+      const item = geometryRef.current.find((entry) => entry.id === selection.geometryId);
+      if (item && "mesh" in item) {
+        return getMeshPoint(item.mesh, selection.vertexIndex);
+      }
+    }
+    return null;
+  };
+
   const computeBarycentric = (p: Vec3, a: Vec3, b: Vec3, c: Vec3) => {
     const v0 = sub(b, a);
     const v1 = sub(c, a);
@@ -2196,6 +2437,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
       locked: new Set(lockedRef.current),
       context,
       pickPixelThreshold: PICK_PIXEL_THRESHOLD,
+      pointPixelThreshold: POINT_HANDLE_PICK_RADIUS_PX,
       getSurfacePickMesh,
       getPolylineRenderData,
       refineSurfaceIntersection: refineNurbsIntersection,
@@ -2213,6 +2455,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
       locked: new Set(lockedRef.current),
       context,
       pickPixelThreshold: PICK_PIXEL_THRESHOLD,
+      pointPixelThreshold: POINT_HANDLE_PICK_RADIUS_PX,
       edgePixelThreshold: EDGE_PIXEL_THRESHOLD,
       mode,
       getSurfacePickMesh,
@@ -2614,6 +2857,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
       transformOrientation: state.transformOrientation,
       gumballAlignment: state.gumballAlignment,
       showRotationRings: state.showRotationRings,
+      showMoveArms: state.showMoveArms,
       displayMode: state.displayMode,
       viewSolidity: state.viewSolidity,
       viewSettings: state.viewSettings,
@@ -2908,11 +3152,12 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     mode: TransformMode,
     constraint: TransformConstraint,
     context: NonNullable<ReturnType<typeof getPointerContext>>,
-    options?: { basis?: Basis }
+    options?: { basis?: Basis; pivot?: Vec3; planeOrigin?: Vec3 }
   ) => {
     resetSnapCycle();
     const basis = options?.basis ?? orientationBasisRef.current;
-    const pivotPoint = resolvedPivotRef.current;
+    const pivotPoint = options?.pivot ?? resolvedPivotRef.current;
+    const planeOrigin = options?.planeOrigin ?? pivotPoint;
     const orientationMode = transformOrientationRef.current;
     const targets = buildTransformTargets();
     if (targets.vertexIds.length === 0 && targets.meshTargets.size === 0) return false;
@@ -2973,13 +3218,13 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
           : constraint.plane === "yz"
             ? basis.xAxis
             : basis.yAxis;
-      plane = { origin: pivotPoint, normal };
+      plane = { origin: planeOrigin, normal };
     } else if (constraint.kind === "axis" && axis) {
-      plane = buildAxisDragPlane(axis, pivotPoint, cameraDirection, basis);
+      plane = buildAxisDragPlane(axis, planeOrigin, cameraDirection, basis);
     } else if (constraint.kind === "screen") {
-      plane = { origin: pivotPoint, normal: cameraDirection };
+      plane = { origin: planeOrigin, normal: cameraDirection };
     } else if (mode === "rotate" && axis) {
-      plane = { origin: pivotPoint, normal: axis };
+      plane = { origin: planeOrigin, normal: axis };
     }
 
     let startPoint = plane
@@ -3057,6 +3302,44 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     return "Move: drag handle or type X/Y/Z, Enter";
   };
 
+  const applyGumballClickStep = (handle: GumballHandle) => {
+    const stepDistance = resolveGumballStep(
+      gumballStepRef.current.distance,
+      GUMBALL_STEP_DEFAULT_DISTANCE
+    );
+    const stepAngleDeg = resolveGumballStep(
+      gumballStepRef.current.angle,
+      GUMBALL_STEP_DEFAULT_ANGLE
+    );
+    if (handle.kind === "axis") {
+      const session = transformSessionRef.current;
+      const axis = session?.axis;
+      if (!session || !axis || length(axis) < 1e-6) return false;
+      const delta = scale(normalize(axis), stepDistance);
+      updateTransformSession(session, { delta });
+      commitTransformSession();
+      return true;
+    }
+    if (handle.kind === "rotate") {
+      const session = transformSessionRef.current;
+      if (!session) return false;
+      const angle = (stepAngleDeg * Math.PI) / 180;
+      updateTransformSession(session, { angle });
+      commitTransformSession();
+      return true;
+    }
+    if (handle.kind === "extrude") {
+      const session = extrudeSessionRef.current;
+      if (!session) return false;
+      const distanceValue = stepDistance;
+      applyExtrudeToMeshes(session, distanceValue);
+      scheduleTransformPreview({ distance: distanceValue });
+      commitExtrudeSession();
+      return true;
+    }
+    return false;
+  };
+
   const updateTransformFromPointer = (
     context: NonNullable<ReturnType<typeof getPointerContext>>,
     event: PointerEvent
@@ -3073,9 +3356,19 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     }
     if (!hitPoint) return;
 
-    const allowSnap = !(event.ctrlKey || event.metaKey);
+    const snapDisabled = event.ctrlKey || event.metaKey;
+    const useStep = event.shiftKey && !snapDisabled;
+    const allowSnap = !snapDisabled;
     const snapSettings = snapSettingsRef.current;
     const gridStep = getGridStep();
+    const stepDistance = resolveGumballStep(
+      gumballStepRef.current.distance,
+      GUMBALL_STEP_DEFAULT_DISTANCE
+    );
+    const stepAngleDeg = resolveGumballStep(
+      gumballStepRef.current.angle,
+      GUMBALL_STEP_DEFAULT_ANGLE
+    );
 
     if (session.mode === "move") {
       let delta = session.startPoint
@@ -3085,7 +3378,14 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
       if (session.constraint.kind === "axis" && session.axis) {
         const axis = normalize(session.axis);
         let axisDistance = dot(delta, axis);
-        if (allowSnap) {
+        if (useStep) {
+          axisDistance = snapToStep(axisDistance, stepDistance);
+          resetSnapCycle();
+          setSnapIndicator({
+            point: add(session.pivot, scale(axis, axisDistance)),
+            type: "grid",
+          });
+        } else if (allowSnap) {
           const rawCandidates = collectSnapCandidates(basePoint, { includeGrid: false });
           const axisCandidates = rawCandidates
             .map((candidate) => {
@@ -3119,7 +3419,23 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         }
         delta = scale(axis, axisDistance);
       } else if (session.constraint.kind === "plane") {
-        if (allowSnap) {
+        if (useStep) {
+          const planeAxes =
+            session.constraint.plane === "xy"
+              ? [session.basis.xAxis, session.basis.yAxis]
+              : session.constraint.plane === "yz"
+                ? [session.basis.yAxis, session.basis.zAxis]
+                : [session.basis.xAxis, session.basis.zAxis];
+          const [axisA, axisB] = planeAxes;
+          const distanceA = snapToStep(dot(delta, axisA), stepDistance);
+          const distanceB = snapToStep(dot(delta, axisB), stepDistance);
+          delta = add(scale(axisA, distanceA), scale(axisB, distanceB));
+          resetSnapCycle();
+          setSnapIndicator({
+            point: add(session.pivot, delta),
+            type: "grid",
+          });
+        } else if (allowSnap) {
           const rawCandidates = collectSnapCandidates(basePoint, { includeGrid: true });
           const planeCandidates = rawCandidates.filter((candidate) => {
             const planeDistance = Math.abs(
@@ -3169,7 +3485,12 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
       );
       const sign = dot(cross(session.startVector, currentVector), session.axis) < 0 ? -1 : 1;
       let signedAngle = angle * sign;
-      if (snapSettings.angleStep > 0 && !event.shiftKey) {
+      if (useStep) {
+        const step = (stepAngleDeg * Math.PI) / 180;
+        if (step > 0) {
+          signedAngle = Math.round(signedAngle / step) * step;
+        }
+      } else if (!snapDisabled && snapSettings.angleStep > 0) {
         const step = (snapSettings.angleStep * Math.PI) / 180;
         signedAngle = Math.round(signedAngle / step) * step;
       }
@@ -3375,16 +3696,19 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
 
   const startExtrudeSession = (
     handle: ExtrudeHandle,
-    context: NonNullable<ReturnType<typeof getPointerContext>>
+    context: NonNullable<ReturnType<typeof getPointerContext>>,
+    handlesOverride?: ExtrudeHandle[]
   ) => {
     resetSnapCycle();
+    const handles = handlesOverride ?? extrudeHandles;
+    if (handles.length === 0) return false;
     const axis = normalize(handle.normal);
     if (length(axis) < 1e-6) return false;
     const baseMeshes = new Map<
       string,
       { positions: number[]; indices: number[]; normals: number[]; uvs: number[] }
     >();
-    extrudeHandles.forEach((entry) => {
+    handles.forEach((entry) => {
       if (baseMeshes.has(entry.geometryId)) return;
       const item = geometryRef.current.find((geom) => geom.id === entry.geometryId);
       if (!item || !("mesh" in item)) return;
@@ -3413,7 +3737,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     const startPoint = intersectRayWithPlane(context.ray, plane.origin, plane.normal);
     if (!startPoint) return false;
     extrudeSessionRef.current = {
-      handles: extrudeHandles,
+      handles,
       axis,
       plane,
       startPoint,
@@ -3438,7 +3762,22 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     const delta = sub(intersection, session.startPoint);
     let distanceValue = session.startDistance + dot(delta, session.axis);
     const snapSettings = snapSettingsRef.current;
-    if (!(event.ctrlKey || event.metaKey) && snapSettings.grid) {
+    const snapDisabled = event.ctrlKey || event.metaKey;
+    const useStep = event.shiftKey && !snapDisabled;
+    const stepDistance = resolveGumballStep(
+      gumballStepRef.current.distance,
+      GUMBALL_STEP_DEFAULT_DISTANCE
+    );
+    if (useStep) {
+      distanceValue = snapToStep(distanceValue, stepDistance);
+      const handle = session.handles[0];
+      if (handle) {
+        setSnapIndicator({
+          point: add(handle.center, scale(session.axis, distanceValue)),
+          type: "grid",
+        });
+      }
+    } else if (!snapDisabled && snapSettings.grid) {
       distanceValue = snapValue(distanceValue);
       const handle = session.handles[0];
       if (handle) {
@@ -3520,26 +3859,18 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     const widgetState = computeCornerGumballViewport(
       cameraRef.current,
       canvas,
-      gumballViewportZoomRef.current
+      gumballViewportZoomRef.current,
+      gumballPixelSize
     );
-    const worldPerPixel = widgetState.scale / GUMBALL_PIXEL_SIZE;
-    const axisLength = GUMBALL_METRICS.axisLength * widgetState.scale;
-    const planeOffset = GUMBALL_METRICS.planeOffset * widgetState.scale;
-    const planeHalfSize = (GUMBALL_METRICS.planeSize * widgetState.scale) / 2;
-    const scaleHandleOffset = GUMBALL_METRICS.scaleHandleOffset * widgetState.scale;
-    const ringRadius = GUMBALL_METRICS.rotateRadius * widgetState.scale;
-    const uniformScaleOffset = GUMBALL_METRICS.uniformScaleOffset * widgetState.scale;
-
     const pointer = context.pointer;
-    const viewProjection = context.viewProjection;
-    const rect = context.rect;
     const viewportRect = computeGumballViewportScreenRect(
       cameraRef.current,
       canvas,
-      gumballViewportZoomRef.current
+      gumballViewportZoomRef.current,
+      gumballPixelSize
     );
     if (!viewportRect) return null;
-    const viewportPadding = 6;
+    const viewportPadding = 2;
     if (
       pointer.x < viewportRect.x - viewportPadding ||
       pointer.x > viewportRect.x + viewportRect.width + viewportPadding ||
@@ -3548,15 +3879,29 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     ) {
       return null;
     }
-    const pixelRatio = rect.height > 0 ? canvas.height / rect.height : 1;
-    const safePixelRatio =
-      Number.isFinite(pixelRatio) && pixelRatio > 0 ? pixelRatio : 1;
-    const worldPerCssPixel = worldPerPixel * safePixelRatio;
     const pivot = widgetState.center;
-    const orientation = gumballState.orientation;
-    const ringCenter = widgetState.center;
+    const gumballTransforms = getGumballTransforms({
+      position: widgetState.center,
+      orientation: gumballState.orientation,
+      scale: widgetState.scale,
+      mode: gumballState.mode,
+    });
+    const addMeshCandidate = (
+      handle: GumballHandle,
+      handleId: GumballHandleId | null,
+      mesh: RenderMesh,
+      modelMatrix: Float32Array
+    ) => {
+      const tRay = intersectRayMesh(context.ray, mesh, modelMatrix);
+      if (tRay == null) return false;
+      addCandidate(handle, handleId, 0, 0, 0, tRay);
+      return true;
+    };
+    let scaleHit = false;
 
-    const showMove = gumballState.mode === "move" || gumballState.mode === "gumball";
+    const showMove =
+      showMoveArmsRef.current &&
+      (gumballState.mode === "move" || gumballState.mode === "gumball");
     const showRotate = (gumballState.mode === "rotate" || gumballState.mode === "gumball") &&
       showRotationRingsRef.current;
     const showScale = gumballState.mode === "scale" || gumballState.mode === "gumball";
@@ -3568,6 +3913,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
       handleId: GumballHandleId | null;
       distance: number;
       score: number;
+      depth: number;
     }> = [];
 
     const addCandidate = (
@@ -3575,154 +3921,130 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
       handleId: GumballHandleId | null,
       distance: number,
       maxDistance: number,
-      bias = 0
+      bias = 0,
+      depth?: number
     ) => {
       if (distance <= maxDistance) {
-        candidates.push({ handle, handleId, distance, score: distance - bias });
-      }
-    };
-
-    const project = (point: Vec3) => projectPointToScreen(point, viewProjection, rect);
-    const ringScreenDistance = (axis: Vec3, center: Vec3) => {
-      const normal = safeAxis(axis, { x: 0, y: 1, z: 0 });
-      const reference =
-        Math.abs(normal.y) < 0.9 ? { x: 0, y: 1, z: 0 } : { x: 1, y: 0, z: 0 };
-      const u = safeAxis(cross(normal, reference), { x: 1, y: 0, z: 0 });
-      const v = safeAxis(cross(normal, u), { x: 0, y: 0, z: 1 });
-      const segments = 32;
-      let first: ScreenPoint | null = null;
-      let prev: ScreenPoint | null = null;
-      let best = Number.POSITIVE_INFINITY;
-      for (let i = 0; i <= segments; i += 1) {
-        const t = (i / segments) * Math.PI * 2;
-        const point = add(
-          center,
-          add(scale(u, ringRadius * Math.cos(t)), scale(v, ringRadius * Math.sin(t)))
-        );
-        const screen = project(point);
-        if (screen) {
-          if (!first) first = screen;
-          if (prev) {
-            best = Math.min(best, distancePointToSegment2d(pointer, prev, screen));
-          }
-          prev = screen;
-        } else {
-          prev = null;
-        }
-      }
-      if (prev && first) {
-        best = Math.min(best, distancePointToSegment2d(pointer, prev, first));
-      }
-      return best;
-    };
-
-    const axes: Record<"x" | "y" | "z", Vec3> = {
-      x: orientation.xAxis,
-      y: orientation.yAxis,
-      z: orientation.zAxis,
-    };
-
-    if (showMove) {
-      (["x", "y", "z"] as const).forEach((axisId) => {
-        const axis = axes[axisId];
-        const end = add(pivot, scale(axis, axisLength));
-        const aScreen = project(pivot);
-        const bScreen = project(end);
-        if (!aScreen || !bScreen) return;
-        const distancePx = distancePointToSegment2d(pointer, aScreen, bScreen);
-        addCandidate(
-          { kind: "axis", axis: axisId },
-          `axis-${axisId}`,
-          distancePx,
-          16,
-          4
-        );
-        const capDistance = Math.hypot(pointer.x - bScreen.x, pointer.y - bScreen.y);
-        addCandidate(
-          { kind: "axis", axis: axisId },
-          `axis-${axisId}`,
-          capDistance,
-          22,
-          2
-        );
-      });
-
-      const planeDefs: Array<{
-        plane: "xy" | "yz" | "xz";
-        u: Vec3;
-        v: Vec3;
-        normal: Vec3;
-      }> = [
-        { plane: "xy", u: orientation.xAxis, v: orientation.yAxis, normal: orientation.zAxis },
-        { plane: "yz", u: orientation.yAxis, v: orientation.zAxis, normal: orientation.xAxis },
-        { plane: "xz", u: orientation.xAxis, v: orientation.zAxis, normal: orientation.yAxis },
-      ];
-      planeDefs.forEach((def) => {
-        const center = add(pivot, add(scale(def.u, planeOffset), scale(def.v, planeOffset)));
-        const hit = intersectRayWithPlane(context.ray, center, def.normal);
-        if (!hit) return;
-        const local = sub(hit, center);
-        const uDist = dot(local, def.u);
-        const vDist = dot(local, def.v);
-        if (Math.abs(uDist) > planeHalfSize || Math.abs(vDist) > planeHalfSize) return;
         candidates.push({
-          handle: { kind: "plane", plane: def.plane },
-          handleId: `plane-${def.plane}`,
-          distance: 0,
-          score: -2,
+          handle,
+          handleId,
+          distance,
+          score: distance - bias,
+          depth: depth ?? Number.POSITIVE_INFINITY,
         });
-      });
-    }
-
-    if (showRotate) {
-      (["x", "y", "z"] as const).forEach((axisId) => {
-        const axis = axes[axisId];
-        const hit = intersectRayWithPlane(context.ray, ringCenter, axis);
-        const diffPx = hit
-          ? Math.abs(distance(hit, ringCenter) - ringRadius) / worldPerCssPixel
-          : ringScreenDistance(axis, ringCenter);
-        if (!Number.isFinite(diffPx)) return;
-        addCandidate(
-          { kind: "rotate", axis: axisId },
-          `rotate-${axisId}`,
-          diffPx,
-          18
-        );
-      });
-    }
+      }
+    };
 
     if (showScale) {
-      (["x", "y", "z"] as const).forEach((axisId) => {
-        const axis = axes[axisId];
-        const center = add(pivot, scale(axis, scaleHandleOffset));
-        const screen = project(center);
-        if (!screen) return;
-        const distancePx = Math.hypot(pointer.x - screen.x, pointer.y - screen.y);
-        addCandidate(
-          { kind: "scale", axis: axisId },
-          `scale-${axisId}`,
-          distancePx,
-          16,
-          1
-        );
-      });
-      const uniformAxis = normalize(
-        add(add(orientation.xAxis, orientation.yAxis), orientation.zAxis)
-      );
-      const uniformCenter = add(pivot, scale(uniformAxis, uniformScaleOffset));
-      const uniformScreen = project(uniformCenter);
-      if (uniformScreen) {
-        const distancePx = Math.hypot(pointer.x - uniformScreen.x, pointer.y - uniformScreen.y);
-        addCandidate({ kind: "scale", uniform: true }, "scale-uniform", distancePx, 18, 1);
+      if (
+        addMeshCandidate(
+          { kind: "scale", axis: "x" },
+          "scale-x",
+          GUMBALL_PICK_MESHES.scale,
+          gumballTransforms.scaleX
+        )
+      ) {
+        scaleHit = true;
       }
+      if (
+        addMeshCandidate(
+          { kind: "scale", axis: "y" },
+          "scale-y",
+          GUMBALL_PICK_MESHES.scale,
+          gumballTransforms.scaleY
+        )
+      ) {
+        scaleHit = true;
+      }
+      if (
+        addMeshCandidate(
+          { kind: "scale", axis: "z" },
+          "scale-z",
+          GUMBALL_PICK_MESHES.scale,
+          gumballTransforms.scaleZ
+        )
+      ) {
+        scaleHit = true;
+      }
+      if (
+        addMeshCandidate(
+          { kind: "scale", uniform: true },
+          "scale-uniform",
+          GUMBALL_PICK_MESHES.scale,
+          gumballTransforms.scaleUniform
+        )
+      ) {
+        scaleHit = true;
+      }
+    }
+
+    if (showMove && !scaleHit) {
+      addMeshCandidate(
+        { kind: "axis", axis: "x" },
+        "axis-x",
+        GUMBALL_PICK_MESHES.axis,
+        gumballTransforms.xAxis
+      );
+      addMeshCandidate(
+        { kind: "axis", axis: "y" },
+        "axis-y",
+        GUMBALL_PICK_MESHES.axis,
+        gumballTransforms.yAxis
+      );
+      addMeshCandidate(
+        { kind: "axis", axis: "z" },
+        "axis-z",
+        GUMBALL_PICK_MESHES.axis,
+        gumballTransforms.zAxis
+      );
+      addMeshCandidate(
+        { kind: "plane", plane: "xy" },
+        "plane-xy",
+        GUMBALL_PICK_MESHES.plane,
+        gumballTransforms.xy
+      );
+      addMeshCandidate(
+        { kind: "plane", plane: "yz" },
+        "plane-yz",
+        GUMBALL_PICK_MESHES.plane,
+        gumballTransforms.yz
+      );
+      addMeshCandidate(
+        { kind: "plane", plane: "xz" },
+        "plane-xz",
+        GUMBALL_PICK_MESHES.plane,
+        gumballTransforms.xz
+      );
+    }
+
+    if (showRotate && !scaleHit) {
+      addMeshCandidate(
+        { kind: "rotate", axis: "x" },
+        "rotate-x",
+        GUMBALL_PICK_MESHES.ring,
+        gumballTransforms.rotateX
+      );
+      addMeshCandidate(
+        { kind: "rotate", axis: "y" },
+        "rotate-y",
+        GUMBALL_PICK_MESHES.ring,
+        gumballTransforms.rotateY
+      );
+      addMeshCandidate(
+        { kind: "rotate", axis: "z" },
+        "rotate-z",
+        GUMBALL_PICK_MESHES.ring,
+        gumballTransforms.rotateZ
+      );
     }
 
     if (allowPivot) {
-      const pivotScreen = project(pivot);
-      if (pivotScreen) {
-        const distancePx = Math.hypot(pointer.x - pivotScreen.x, pointer.y - pivotScreen.y);
-        addCandidate({ kind: "pivot" }, "pivot", distancePx, 12);
-      }
+      addMeshCandidate(
+        { kind: "pivot" },
+        "pivot",
+        GUMBALL_PICK_MESHES.scaleCenter,
+        gumballTransforms.pivot
+      );
     }
 
     if (showExtrude) {
@@ -3737,9 +4059,10 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
           (GUMBALL_METRICS.axisLength + GUMBALL_METRICS.scaleHandleSize * 0.45) *
           widgetState.scale;
         const proxyCenter = add(pivot, scale(axis, extrudeOffset));
-        const screen = project(proxyCenter);
-        if (screen) {
-          const distancePx = Math.hypot(pointer.x - screen.x, pointer.y - screen.y);
+        const basis = buildBasisFromNormal(axis);
+        const modelMatrix = buildModelMatrix(basis, proxyCenter, widgetState.scale * 0.28);
+        const tRay = intersectRayMesh(context.ray, GUMBALL_PICK_MESHES.scale, modelMatrix);
+        if (tRay != null) {
           addCandidate(
             {
               kind: "extrude",
@@ -3750,16 +4073,21 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
               normal: axis,
             },
             null,
-            distancePx,
-            18,
-            1.5
+            0,
+            0,
+            0,
+            tRay
           );
         }
       }
     }
 
     if (candidates.length === 0) return null;
-    candidates.sort((a, b) => a.score - b.score);
+    candidates.sort((a, b) => {
+      const scoreDelta = a.score - b.score;
+      if (Math.abs(scoreDelta) > 1e-6) return scoreDelta;
+      return a.depth - b.depth;
+    });
     return candidates[0];
   };
 
@@ -3957,13 +4285,23 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     if (!transformInputs || transformInputEditingRef.current) return;
     if (!transformPreview) return;
     if (transformInputs.mode === "move" && transformPreview.delta) {
+      const nextX = formatInputValue(transformPreview.delta?.x ?? 0);
+      const nextY = formatInputValue(transformPreview.delta?.y ?? 0);
+      const nextZ = formatInputValue(transformPreview.delta?.z ?? 0);
+      if (
+        transformInputs.x === nextX &&
+        transformInputs.y === nextY &&
+        transformInputs.z === nextZ
+      ) {
+        return;
+      }
       setTransformInputs((prev) =>
         prev && prev.mode === "move"
           ? {
               ...prev,
-              x: formatInputValue(transformPreview.delta?.x ?? 0),
-              y: formatInputValue(transformPreview.delta?.y ?? 0),
-              z: formatInputValue(transformPreview.delta?.z ?? 0),
+              x: nextX,
+              y: nextY,
+              z: nextZ,
             }
           : prev
       );
@@ -3971,11 +4309,15 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     }
     if (transformInputs.mode === "rotate" && typeof transformPreview.angle === "number") {
       const angleDeg = (transformPreview.angle * 180) / Math.PI;
+      const nextAngle = formatInputValue(angleDeg, 2);
+      if (transformInputs.angle === nextAngle) {
+        return;
+      }
       setTransformInputs((prev) =>
         prev && prev.mode === "rotate"
           ? {
               ...prev,
-              angle: formatInputValue(angleDeg, 2),
+              angle: nextAngle,
             }
           : prev
       );
@@ -3983,34 +4325,52 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     }
     if (transformInputs.mode === "scale" && transformPreview.scale) {
       if (transformInputs.scaleMode === "uniform") {
+        const nextScale = formatInputValue(transformPreview.scale?.x ?? 1);
+        if (transformInputs.scale === nextScale) {
+          return;
+        }
         setTransformInputs((prev) =>
           prev && prev.mode === "scale"
             ? {
                 ...prev,
-                scale: formatInputValue(transformPreview.scale?.x ?? 1),
+                scale: nextScale,
               }
             : prev
         );
+        return;
+      }
+      const nextX = formatInputValue(transformPreview.scale?.x ?? 1);
+      const nextY = formatInputValue(transformPreview.scale?.y ?? 1);
+      const nextZ = formatInputValue(transformPreview.scale?.z ?? 1);
+      if (
+        transformInputs.x === nextX &&
+        transformInputs.y === nextY &&
+        transformInputs.z === nextZ
+      ) {
         return;
       }
       setTransformInputs((prev) =>
         prev && prev.mode === "scale"
           ? {
               ...prev,
-              x: formatInputValue(transformPreview.scale?.x ?? 1),
-              y: formatInputValue(transformPreview.scale?.y ?? 1),
-              z: formatInputValue(transformPreview.scale?.z ?? 1),
+              x: nextX,
+              y: nextY,
+              z: nextZ,
             }
           : prev
       );
       return;
     }
     if (transformInputs.mode === "extrude" && typeof transformPreview.distance === "number") {
+      const nextDistance = formatInputValue(transformPreview.distance ?? 0);
+      if (transformInputs.distance === nextDistance) {
+        return;
+      }
       setTransformInputs((prev) =>
         prev && prev.mode === "extrude"
           ? {
               ...prev,
-              distance: formatInputValue(transformPreview.distance ?? 0),
+              distance: nextDistance,
             }
           : prev
       );
@@ -4036,7 +4396,12 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     previewEdgeBufferRef.current = edgeBuffer;
 
     if (!preview) {
-      lineBuffer.setData({ positions: emptyFloat, nextPositions: emptyFloat, sides: emptyFloat });
+      lineBuffer.setData({
+        positions: emptyFloat,
+        prevPositions: emptyFloat,
+        nextPositions: emptyFloat,
+        sides: emptyFloat,
+      });
       meshBuffer.setData({ positions: emptyFloat, normals: emptyFloat, indices: new Uint16Array() });
       edgeBuffer.setData({ positions: emptyFloat, indices: new Uint16Array() });
       previewDirtyRef.current = false;
@@ -4047,6 +4412,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
       const lineData = createLineBufferData(preview.points);
       lineBuffer.setData({
         positions: lineData.positions,
+        prevPositions: lineData.prevPositions,
         nextPositions: lineData.nextPositions,
         sides: lineData.sides,
       });
@@ -4065,7 +4431,12 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
       positions: new Float32Array(preview.mesh.positions),
       indices: buildEdgeIndexBuffer(preview.mesh),
     });
-    lineBuffer.setData({ positions: emptyFloat, nextPositions: emptyFloat, sides: emptyFloat });
+    lineBuffer.setData({
+      positions: emptyFloat,
+      prevPositions: emptyFloat,
+      nextPositions: emptyFloat,
+      sides: emptyFloat,
+    });
     previewDirtyRef.current = false;
   };
 
@@ -4084,7 +4455,12 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     hoverMeshBufferRef.current = meshBuffer;
 
     const clearBuffers = () => {
-      lineBuffer.setData({ positions: emptyFloat, nextPositions: emptyFloat, sides: emptyFloat });
+      lineBuffer.setData({
+        positions: emptyFloat,
+        prevPositions: emptyFloat,
+        nextPositions: emptyFloat,
+        sides: emptyFloat,
+      });
       meshBuffer.setData({ positions: emptyFloat, normals: emptyFloat, indices: new Uint16Array() });
     };
 
@@ -4096,12 +4472,18 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
 
     const setLinePoints = (points: Vec3[]) => {
       if (points.length < 2) {
-        lineBuffer.setData({ positions: emptyFloat, nextPositions: emptyFloat, sides: emptyFloat });
+        lineBuffer.setData({
+          positions: emptyFloat,
+          prevPositions: emptyFloat,
+          nextPositions: emptyFloat,
+          sides: emptyFloat,
+        });
         return;
       }
       const lineData = createLineBufferData(points);
       lineBuffer.setData({
         positions: lineData.positions,
+        prevPositions: lineData.prevPositions,
         nextPositions: lineData.nextPositions,
         sides: lineData.sides,
       });
@@ -4185,8 +4567,13 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
 
       const canvas = canvasRef.current;
       if (position && canvas) {
-        const scaleValue = computeGumballScale(cameraRef.current, position, canvas.height);
-        const worldPerPixel = scaleValue / GUMBALL_PIXEL_SIZE;
+        const scaleValue = computeGumballScale(
+          cameraRef.current,
+          position,
+          canvas.height,
+          gumballPixelSize
+        );
+        const worldPerPixel = scaleValue / gumballPixelSize;
         const size = worldPerPixel * 6;
         const basis = buildViewBasis(cameraRef.current);
         const right = basis.xAxis;
@@ -4311,10 +4698,11 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
 
   useEffect(() => {
     geometryRef.current = geometry;
+    customMaterialMapRef.current = customMaterialMap;
     if (hoverSelectionRef.current) {
       hoverDirtyRef.current = true;
     }
-  }, [geometry]);
+  }, [geometry, customMaterialMap]);
 
   useEffect(() => {
     cameraRef.current = camera;
@@ -4340,16 +4728,34 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
   }, [viewSettings]);
 
   useEffect(() => {
+    if (!viewSettings.showPointPickDebug) {
+      setPointHoverDebug(null);
+    }
+  }, [viewSettings.showPointPickDebug]);
+
+  useEffect(() => {
+    pointHoverDebugRef.current = pointHoverDebug;
+  }, [pointHoverDebug]);
+
+  useEffect(() => {
     viewSolidityRef.current = viewSolidity;
   }, [viewSolidity]);
+
+  useEffect(() => {
+    displayModeRef.current = displayMode;
+  }, [displayMode]);
+
+  useEffect(() => {
+    gumballStepRef.current = gumballStep;
+  }, [gumballStep]);
 
   useEffect(() => {
     showRotationRingsRef.current = showRotationRings;
   }, [showRotationRings]);
 
   useEffect(() => {
-    resizeCanvasRef.current?.();
-  }, [viewSolidity]);
+    showMoveArmsRef.current = showMoveArms;
+  }, [showMoveArms]);
 
   useEffect(() => {
     activeCommandIdRef.current = activeCommandId;
@@ -4401,11 +4807,14 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
 
   useEffect(() => {
     if (pivotInputEditingRef.current) return;
-    setPivotInputs({
+    const next = {
       x: formatInputValue(resolvedPivot.x),
       y: formatInputValue(resolvedPivot.y),
       z: formatInputValue(resolvedPivot.z),
-    });
+    };
+    setPivotInputs((prev) =>
+      prev.x === next.x && prev.y === next.y && prev.z === next.z ? prev : next
+    );
   }, [resolvedPivot]);
 
   useEffect(() => {
@@ -4606,7 +5015,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !interactionsEnabled) return;
+    if (!canvas) return;
 
     const renderer = new WebGLRenderer(canvas);
     const adapter = new GeometryRenderAdapter(renderer, (id) =>
@@ -4621,6 +5030,8 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     previewLineBufferRef.current = null;
     previewMeshBufferRef.current = null;
     previewEdgeBufferRef.current = null;
+    selectionBoundsBufferRef.current = null;
+    selectionBoundsRef.current = null;
     previewDirtyRef.current = true;
 
     if (
@@ -4710,6 +5121,8 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
       previewLineBufferRef.current = null;
       previewMeshBufferRef.current = null;
       previewEdgeBufferRef.current = null;
+      selectionBoundsBufferRef.current = null;
+      selectionBoundsRef.current = null;
     };
   }, []);
 
@@ -4836,10 +5249,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
 
     const resizeWith = (width: number, height: number) => {
       const baseDpr = window.devicePixelRatio || 1;
-      const solidity = clamp01(viewSolidityRef.current);
-      const solidBlend = smoothstep(0.55, 1, solidity);
-      const renderScale = lerp(1, VIEW_STYLE.solidRenderScale, solidBlend);
-      const dpr = baseDpr * renderScale;
+      const dpr = baseDpr;
       canvas.width = Math.max(1, Math.floor(width * dpr));
       canvas.height = Math.max(1, Math.floor(height * dpr));
       canvas.style.width = `${width}px`;
@@ -4933,6 +5343,8 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
                 pointerId: event.pointerId,
                 handle,
                 handleId,
+                startPointer: { x: context.pointer.x, y: context.pointer.y },
+                moved: false,
               };
               canvas.setPointerCapture(event.pointerId);
               updatePivotFromPointer(context);
@@ -4945,11 +5357,55 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
                 pointerId: event.pointerId,
                 handle,
                 handleId: null,
+                startPointer: { x: context.pointer.x, y: context.pointer.y },
+                moved: false,
               };
               canvas.setPointerCapture(event.pointerId);
               showGumballPrompt(resolveGumballPrompt(handle, "extrude"));
             }
             return;
+          }
+          if (
+            handle.kind === "scale" &&
+            !event.shiftKey &&
+            handle.axis &&
+            gumballStateRef.current.mode === "gumball" &&
+            extrudeHandles.length > 0
+          ) {
+            const basis = gumballStateRef.current.orientation;
+            const axis =
+              handle.axis === "x"
+                ? basis.xAxis
+                : handle.axis === "y"
+                  ? basis.yAxis
+                  : basis.zAxis;
+            if (length(axis) > 1e-6) {
+              const handlesOverride = extrudeHandles.map((entry) => ({
+                ...entry,
+                normal: axis,
+              }));
+              const primary = handlesOverride[0];
+              if (primary && startExtrudeSession(primary, context, handlesOverride)) {
+                const extrudeHandle: GumballHandle = {
+                  kind: "extrude",
+                  geometryId: primary.geometryId,
+                  faceIndex: primary.faceIndex,
+                  vertexIndices: primary.vertexIndices,
+                  center: primary.center,
+                  normal: axis,
+                };
+                gumballDragRef.current = {
+                  pointerId: event.pointerId,
+                  handle: extrudeHandle,
+                  handleId: null,
+                  startPointer: { x: context.pointer.x, y: context.pointer.y },
+                  moved: false,
+                };
+                canvas.setPointerCapture(event.pointerId);
+                showGumballPrompt(resolveGumballPrompt(extrudeHandle, "extrude"));
+                return;
+              }
+            }
           }
           const modeFromHandle: TransformMode =
             handle.kind === "rotate"
@@ -4977,12 +5433,31 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
               pointerId: event.pointerId,
               handle,
               handleId,
+              startPointer: { x: context.pointer.x, y: context.pointer.y },
+              moved: false,
             };
             canvas.setPointerCapture(event.pointerId);
             updateTransformFromPointer(context, event);
             showGumballPrompt(resolveGumballPrompt(handle, modeFromHandle));
           }
           return;
+        }
+        const gumballViewport = computeGumballViewportScreenRect(
+          cameraRef.current,
+          canvas,
+          gumballViewportZoomRef.current,
+          gumballPixelSize
+        );
+        if (gumballViewport) {
+          const padding = 6;
+          const insideViewport =
+            x >= gumballViewport.x - padding &&
+            x <= gumballViewport.x + gumballViewport.width + padding &&
+            y >= gumballViewport.y - padding &&
+            y <= gumballViewport.y + gumballViewport.height + padding;
+          if (insideViewport) {
+            return;
+          }
         }
 
         if (event.altKey) {
@@ -4994,6 +5469,58 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
             setPivotPickedPosition(snapped.point);
           }
           return;
+        }
+
+        if (!commandId) {
+          if (event.shiftKey && componentKind === "vertex") {
+            const componentPick = pickComponent(context, "vertex");
+            if (componentPick?.kind === "component" && componentPick.selection.kind === "vertex") {
+              const selectionPoint =
+                componentPick.point ?? resolveVertexSelectionPosition(componentPick.selection);
+              if (selectionPoint) {
+                setSelectionState([componentPick.selection.geometryId], [componentPick.selection]);
+                const started = startTransformSession(
+                  "move",
+                  { kind: "screen" },
+                  context,
+                  { pivot: selectionPoint }
+                );
+                if (started) {
+                  pointDragRef.current = {
+                    pointerId: event.pointerId,
+                    startPointer: { x: context.pointer.x, y: context.pointer.y },
+                    moved: false,
+                  };
+                  canvas.setPointerCapture(event.pointerId);
+                  event.preventDefault();
+                  event.stopPropagation();
+                  return;
+                }
+              }
+            }
+          } else if (!event.shiftKey) {
+            const pointPick = pickPointHandle(context, { includeReferenced: true });
+            if (pointPick) {
+              setSelectionState([pointPick.id], []);
+              const started = startTransformSession(
+                "move",
+                { kind: "screen" },
+                context,
+                { pivot: pointPick.position }
+              );
+              if (started) {
+                pointDragRef.current = {
+                  pointerId: event.pointerId,
+                  startPointer: { x: context.pointer.x, y: context.pointer.y },
+                  moved: false,
+                };
+                canvas.setPointerCapture(event.pointerId);
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+              }
+            }
+          }
         }
       }
 
@@ -5143,7 +5670,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
             nextTheta,
             nextPhi
           );
-          setCameraState({ position: nextPosition });
+          applyCameraState({ position: nextPosition });
           return;
         }
 
@@ -5155,7 +5682,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
           cameraRef.current.up
         );
         const offset = add(scale(right, -dx * panScale), scale(up, dy * panScale));
-        setCameraState({
+        applyCameraState({
           position: add(drag.startCamera.position, offset),
           target: add(drag.startCamera.target, offset),
         });
@@ -5166,6 +5693,13 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
       if (gumballDrag && gumballDrag.pointerId === event.pointerId) {
         const context = getPointerContext(event);
         if (!context) return;
+        if (!gumballDrag.moved) {
+          const dx = context.pointer.x - gumballDrag.startPointer.x;
+          const dy = context.pointer.y - gumballDrag.startPointer.y;
+          if (Math.hypot(dx, dy) > GUMBALL_CLICK_THRESHOLD) {
+            gumballDrag.moved = true;
+          }
+        }
         if (gumballDrag.handle.kind === "pivot") {
           updatePivotFromPointer(context);
         } else if (gumballDrag.handle.kind === "extrude") {
@@ -5173,6 +5707,21 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         } else {
           updateTransformFromPointer(context, event);
         }
+        return;
+      }
+
+      const pointDrag = pointDragRef.current;
+      if (pointDrag && pointDrag.pointerId === event.pointerId) {
+        const context = getPointerContext(event);
+        if (!context) return;
+        if (!pointDrag.moved) {
+          const dx = context.pointer.x - pointDrag.startPointer.x;
+          const dy = context.pointer.y - pointDrag.startPointer.y;
+          if (Math.hypot(dx, dy) > POINT_DRAG_THRESHOLD) {
+            pointDrag.moved = true;
+          }
+        }
+        updateTransformFromPointer(context, event);
         return;
       }
 
@@ -5201,6 +5750,16 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
           );
         } else {
           setHoverSelection(null);
+        }
+
+        const pointHover = pickPointHandle(context, { includeReferenced: true });
+        pointHoverRef.current = pointHover;
+        if (viewSettingsRef.current.showPointPickDebug) {
+          const prevId = pointHoverDebugRef.current?.id ?? null;
+          const nextId = pointHover?.id ?? null;
+          if (prevId !== nextId) {
+            setPointHoverDebug(pointHover);
+          }
         }
       }
 
@@ -5233,6 +5792,10 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
 
       const gumballDrag = gumballDragRef.current;
       if (gumballDrag && gumballDrag.pointerId === event.pointerId) {
+        if (!gumballDrag.moved && applyGumballClickStep(gumballDrag.handle)) {
+          safeReleasePointerCapture(event.pointerId);
+          return;
+        }
         if (gumballDrag.handle.kind === "pivot") {
           gumballDragRef.current = null;
           pivotDragPlaneRef.current = null;
@@ -5262,6 +5825,18 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
           completeActiveCommand();
         }
         safeReleasePointerCapture(event.pointerId);
+        return;
+      }
+
+      const pointDrag = pointDragRef.current;
+      if (pointDrag && pointDrag.pointerId === event.pointerId) {
+        pointDragRef.current = null;
+        safeReleasePointerCapture(event.pointerId);
+        if (pointDrag.moved) {
+          commitTransformSession();
+        } else {
+          cancelTransformSession();
+        }
         return;
       }
 
@@ -5297,37 +5872,6 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
 
     const handleWheel = (event: WheelEvent) => {
       event.preventDefault();
-      const canvas = canvasRef.current;
-      const gumballState = gumballStateRef.current;
-      if (canvas && gumballState.visible && gumballState.mode) {
-        const viewportRect = computeGumballViewportScreenRect(
-          cameraRef.current,
-          canvas,
-          gumballViewportZoomRef.current
-        );
-        if (viewportRect) {
-          const rect = canvas.getBoundingClientRect();
-          const pointer = {
-            x: event.clientX - rect.left,
-            y: event.clientY - rect.top,
-          };
-          const insideViewport =
-            pointer.x >= viewportRect.x &&
-            pointer.x <= viewportRect.x + viewportRect.width &&
-            pointer.y >= viewportRect.y &&
-            pointer.y <= viewportRect.y + viewportRect.height;
-          if (insideViewport) {
-            const delta = event.deltaY;
-            const zoomFactor = Math.exp(-delta * GUMBALL_VIEWPORT_ZOOM_SPEED);
-            gumballViewportZoomRef.current = clamp(
-              gumballViewportZoomRef.current * zoomFactor,
-              GUMBALL_VIEWPORT_ZOOM_MIN,
-              GUMBALL_VIEWPORT_ZOOM_MAX
-            );
-            return;
-          }
-        }
-      }
 
       const delta = event.deltaY;
       const current = cameraRef.current;
@@ -5336,7 +5880,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
       const nextRadius = clamp(radius * (1 + delta * ZOOM_SPEED * current.zoomSpeed), MIN_DISTANCE, MAX_DISTANCE);
       const direction = normalize(offset);
       const nextPosition = add(current.target, scale(direction, nextRadius));
-      setCameraState({ position: nextPosition });
+      applyCameraState({ position: nextPosition });
     };
 
     const handleDoubleClick = () => {
@@ -5368,7 +5912,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     geometryBoundsMap,
     interactionsEnabled,
     referencedVertexIds,
-    setCameraState,
+    applyCameraState,
     setPivotCursorPosition,
     setPivotPickedPosition,
     vertexMap,
@@ -5569,22 +6113,32 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
       componentSelectionRef.current.forEach((entry) => selection.add(entry.geometryId));
       const hasSelection = selection.size > 0;
       const hidden = new Set(hiddenRef.current);
+      const isSilhouette = displayModeRef.current === "silhouette";
       const viewSolidity = clamp01(viewSolidityRef.current);
       const smoothSolidity = smoothstep(0, 1, viewSolidity);
-      const solidBlend = smoothSolidity;
-      const baseMeshOpacity = Math.pow(smoothSolidity, 1.12);
-      const showMesh = baseMeshOpacity > 0.02;
-      const nonSolidBlend = 1 - smoothSolidity;
-      const edgeFade = smoothSolidity;
-      const wireframeBoost = Math.pow(1 - smoothSolidity, 1.25);
+      const silhouetteBlend = smoothstep(0.12, 1, viewSolidity);
+      const silhouetteFill = Math.pow(silhouetteBlend, 1.35);
+      const silhouetteDash = Math.pow(1 - silhouetteBlend, 1.15);
+      const solidBlend = isSilhouette ? 1 : smoothSolidity;
+      const baseMeshOpacity = isSilhouette ? 1 : Math.pow(smoothSolidity, 1.12);
+      const showMesh = isSilhouette ? true : baseMeshOpacity > 0.02;
+      const nonSolidBlend = isSilhouette ? 0 : 1 - smoothSolidity;
+      const edgeFade = isSilhouette ? 1 : smoothSolidity;
+      const wireframeBoost = isSilhouette ? 0 : Math.pow(1 - smoothSolidity, 1.25);
       renderer.setBackfaceCulling(false);
-      const showEdges = true;
+      const showEdges = !isSilhouette;
       const renderScale = lerp(1, VIEW_STYLE.solidRenderScale, solidBlend);
-      const dpr = (window.devicePixelRatio || 1) * renderScale;
+      const baseDpr = window.devicePixelRatio || 1;
+      const dpr = baseDpr * renderScale;
       const edgePrimaryWidth = VIEW_STYLE.edgePrimaryWidth * dpr;
       const edgeSecondaryWidth = VIEW_STYLE.edgeSecondaryWidth * dpr;
       const edgeTertiaryWidth = VIEW_STYLE.edgeTertiaryWidth * dpr;
       const edgeBias = lerp(0.00022, 0.00045, edgeFade);
+      const edgeDepthBias = edgeBias * 1.5;
+      const lineDepthBias = edgeBias * 1.15;
+      const pointDepthBias = edgeBias * 1.8;
+      const pointRadius = POINT_HANDLE_RADIUS_PX * baseDpr;
+      const pointOutline = POINT_HANDLE_OUTLINE_PX * baseDpr;
       const edgeOpacityScale = lerp(1, 0.8, edgeFade);
       const edgeInternalScale = lerp(1, 0.7, edgeFade);
       const edgeAAStrength = lerp(0.22, 1.0, smoothSolidity);
@@ -5627,46 +6181,220 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         })
         .sort((a, b) => b.depth - a.depth);
 
+      const renderPointHandle = (renderable: RenderableGeometry, isSelected: boolean) => {
+        const fillColor = adjustForSelection(
+          POINT_FILL_COLOR,
+          isSelected,
+          hasSelection
+        );
+        renderer.renderPoints(
+          renderable.buffer,
+          cameraPayload,
+          {
+            pointRadius,
+            outlineWidth: pointOutline,
+            fillColor,
+            outlineColor: POINT_OUTLINE_COLOR,
+            depthBias: pointDepthBias,
+            opacity: 1,
+          },
+          { depthFunc: "lequal", depthMask: false, blend: true }
+        );
+      };
+
       const renderMesh = (renderable: RenderableGeometry, isSelected: boolean) => {
-      if (showMesh && baseMeshOpacity > 0) {
-        const materialColor = adjustForSelection(VIEW_STYLE.mesh, isSelected, hasSelection);
-          const selectionFactor = hasSelection
-            ? lerp(
-                1,
-                isSelected
-                  ? 1.02
-                  : baseMeshOpacity > 0.7
-                    ? 0.9
-                    : 0.75,
-                clamp01(nonSolidBlend)
-              )
-            : 1;
-          const opacity = clamp(
-            baseMeshOpacity * selectionFactor,
-            0.2,
-            1
-          );
+        if (renderable.type === "vertex") return;
+        if (!showMesh || baseMeshOpacity <= 0) return;
+        if (isSilhouette) {
+          const fillOpacity = clamp01(silhouetteFill);
+          if (fillOpacity <= 0.01) return;
+          const materialColor = isSelected
+            ? SILHOUETTE_SELECTED_COLOR
+            : SILHOUETTE_BASE_COLOR;
           renderer.renderGeometry(renderable.buffer, cameraPayload, {
             materialColor,
             lightPosition: VIEW_STYLE.lightPosition,
             lightColor: VIEW_STYLE.light,
             ambientColor: VIEW_STYLE.ambient,
-            ambientStrength: VIEW_STYLE.ambientStrength,
+            ambientStrength: 1,
             cameraPosition: cameraPayload.position,
             selectionHighlight: VIEW_STYLE.selection,
             isSelected: isSelected ? 0.6 : 0,
-            sheenIntensity: viewSettingsRef.current.sheen ?? 0.08,
-            opacity,
+            sheenIntensity: 0,
+            opacity: fillOpacity,
           });
+          return;
         }
+
+        const baseColor =
+          customMaterialMapRef.current.get(renderable.id) ?? VIEW_STYLE.mesh;
+        const materialColor = adjustForSelection(baseColor, isSelected, hasSelection);
+        const selectionFactor = hasSelection
+          ? lerp(
+              1,
+              isSelected
+                ? 1.02
+                : baseMeshOpacity > 0.7
+                  ? 0.9
+                  : 0.75,
+              clamp01(nonSolidBlend)
+            )
+          : 1;
+        const opacity = clamp(
+          baseMeshOpacity * selectionFactor,
+          0.2,
+          1
+        );
+        const geometryUniforms = {
+          materialColor,
+          lightPosition: VIEW_STYLE.lightPosition,
+          lightColor: VIEW_STYLE.light,
+          ambientColor: VIEW_STYLE.ambient,
+          ambientStrength: VIEW_STYLE.ambientStrength,
+          cameraPosition: cameraPayload.position,
+          selectionHighlight: VIEW_STYLE.selection,
+          isSelected: isSelected ? 0.6 : 0,
+          sheenIntensity: viewSettingsRef.current.sheen ?? 0.08,
+          opacity,
+        };
+        if (opacity < 0.999 && (showEdges || isSilhouette)) {
+          renderer.renderGeometryDepth(renderable.buffer, cameraPayload, geometryUniforms);
+        }
+        renderer.renderGeometry(renderable.buffer, cameraPayload, geometryUniforms);
       };
 
       const renderMeshEdges = (renderable: RenderableGeometry, isSelected: boolean) => {
-        if (!showEdges) return;
         const edgeBuffer = renderable.edgeBuffer;
+        const edgeJoinBuffer = renderable.edgeJoinBuffer;
+        if (renderable.type === "vertex") {
+          return;
+        }
+
+        if (isSilhouette) {
+          const edgeLineBuffers = renderable.edgeLineBuffers;
+          const silhouetteColor = isSelected
+            ? SILHOUETTE_SELECTED_COLOR
+            : SILHOUETTE_BASE_COLOR;
+          const dashOpacity = Math.min(1, silhouetteDash * 0.9);
+          if (edgeBuffer && dashOpacity > 0.02) {
+            const dashColor = mixColor(silhouetteColor, [1, 1, 1], 0.25);
+            renderer.renderEdges(
+              edgeBuffer,
+              cameraPayload,
+              {
+                edgeColor: dashColor,
+                opacity: dashOpacity,
+                dashEnabled: 1,
+                dashScale: 0.06,
+                depthBias: edgeDepthBias,
+                lineWidth: 1.7 * dpr,
+              },
+              { depthFunc: "lequal" }
+            );
+          }
+
+          if (edgeLineBuffers && edgeLineBuffers.length > 0) {
+            const edgeWidths: [number, number, number] = [
+              edgeTertiaryWidth * 0.6,
+              edgeSecondaryWidth * 0.7,
+              edgePrimaryWidth * 1.6,
+            ];
+            const edgeOpacities: [number, number, number] = [0, 0, 1];
+            edgeLineBuffers.forEach((edgeLineBuffer) => {
+              renderer.renderEdgeLines(
+                edgeLineBuffer,
+                cameraPayload,
+                {
+                  resolution: [canvas.width, canvas.height],
+                  edgeWidths,
+                  edgeOpacities,
+                  edgeColorInternal: silhouetteColor,
+                  edgeColorCrease: silhouetteColor,
+                  edgeColorSilhouette: silhouetteColor,
+                  depthBias: edgeDepthBias,
+                  edgeAAStrength: 1,
+                  edgePixelSnap: 0.9,
+                },
+                {
+                  depthFunc: "lequal",
+                  depthMask: false,
+                  blend: true,
+                }
+              );
+            });
+            if (edgeJoinBuffer) {
+              renderer.renderEdgeJoins(
+                edgeJoinBuffer,
+                cameraPayload,
+                {
+                  resolution: [canvas.width, canvas.height],
+                  edgeWidths,
+                  edgeOpacities,
+                  edgeColorInternal: silhouetteColor,
+                  edgeColorCrease: silhouetteColor,
+                  edgeColorSilhouette: silhouetteColor,
+                  depthBias: edgeDepthBias,
+                  edgeAAStrength: 1,
+                  edgePixelSnap,
+                },
+                {
+                  depthFunc: "lequal",
+                  depthMask: false,
+                  blend: true,
+                }
+              );
+            }
+          } else if (edgeBuffer) {
+            renderer.renderEdges(
+              edgeBuffer,
+              cameraPayload,
+              {
+                edgeColor: silhouetteColor,
+                opacity: 1,
+                dashEnabled: 0,
+                depthBias: edgeDepthBias,
+                lineWidth: edgePrimaryWidth * 1.6,
+              },
+              { depthFunc: "lequal" }
+            );
+            if (edgeJoinBuffer) {
+              const edgeWidths: [number, number, number] = [
+                edgeTertiaryWidth * 0.6,
+                edgeSecondaryWidth * 0.7,
+                edgePrimaryWidth * 1.6,
+              ];
+              const edgeOpacities: [number, number, number] = [0, 0, 1];
+              renderer.renderEdgeJoins(
+                edgeJoinBuffer,
+                cameraPayload,
+                {
+                  resolution: [canvas.width, canvas.height],
+                  edgeWidths,
+                  edgeOpacities,
+                  edgeColorInternal: silhouetteColor,
+                  edgeColorCrease: silhouetteColor,
+                  edgeColorSilhouette: silhouetteColor,
+                  depthBias: edgeDepthBias,
+                  edgeAAStrength: 1,
+                  edgePixelSnap,
+                },
+                {
+                  depthFunc: "lequal",
+                  depthMask: false,
+                  blend: true,
+                }
+              );
+            }
+          }
+          return;
+        }
+
+        if (!showEdges) return;
+        const baseColor =
+          customMaterialMapRef.current.get(renderable.id) ?? VIEW_STYLE.mesh;
         const edgeLineBuffers = renderable.edgeLineBuffers;
         const edgeBase = darkenColor(
-          adjustForSelection(VIEW_STYLE.mesh, isSelected, hasSelection),
+          adjustForSelection(baseColor, isSelected, hasSelection),
           0.22
         );
         const edgeInternalColor = mixColor(edgeBase, [1, 1, 1], 0.28);
@@ -5717,7 +6445,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
                 edgeColorInternal: edgeInternalColor,
                 edgeColorCrease: edgeCreaseColor,
                 edgeColorSilhouette: edgeSilhouetteColor,
-                depthBias: edgeBias,
+                depthBias: edgeDepthBias,
                 edgeAAStrength,
                 edgePixelSnap,
               },
@@ -5728,6 +6456,28 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
               }
             );
           });
+          if (edgeJoinBuffer) {
+            renderer.renderEdgeJoins(
+              edgeJoinBuffer,
+              cameraPayload,
+              {
+                resolution: [canvas.width, canvas.height],
+                edgeWidths,
+                edgeOpacities,
+                edgeColorInternal: edgeInternalColor,
+                edgeColorCrease: edgeCreaseColor,
+                edgeColorSilhouette: edgeSilhouetteColor,
+                depthBias: edgeDepthBias,
+                edgeAAStrength,
+                edgePixelSnap,
+              },
+              {
+                depthFunc: "lequal",
+                depthMask: false,
+                blend: true,
+              }
+            );
+          }
         } else if (edgeBuffer) {
           renderer.renderEdges(
             edgeBuffer,
@@ -5736,11 +6486,33 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
               edgeColor: edgeCreaseColor,
               opacity: 1,
               dashEnabled: 0,
-              depthBias: edgeBias,
+              depthBias: edgeDepthBias,
               lineWidth: 3.2 * dpr,
             },
             { depthFunc: "lequal" }
           );
+          if (edgeJoinBuffer) {
+            renderer.renderEdgeJoins(
+              edgeJoinBuffer,
+              cameraPayload,
+              {
+                resolution: [canvas.width, canvas.height],
+                edgeWidths,
+                edgeOpacities,
+                edgeColorInternal: edgeInternalColor,
+                edgeColorCrease: edgeCreaseColor,
+                edgeColorSilhouette: edgeSilhouetteColor,
+                depthBias: edgeDepthBias,
+                edgeAAStrength,
+                edgePixelSnap,
+              },
+              {
+                depthFunc: "lequal",
+                depthMask: false,
+                blend: true,
+              }
+            );
+          }
         }
       };
 
@@ -5748,10 +6520,18 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         (renderable) => renderable.type === "polyline"
       );
       const renderPolyline = (renderable: RenderableGeometry, isSelected: boolean) => {
-        const lineColor = darkenColor(
-          adjustForSelection(VIEW_STYLE.mesh, isSelected, hasSelection),
-          0.22
-        );
+        const lineColor = isSilhouette
+          ? isSelected
+            ? SILHOUETTE_SELECTED_COLOR
+            : SILHOUETTE_BASE_COLOR
+          : darkenColor(
+              adjustForSelection(
+                customMaterialMapRef.current.get(renderable.id) ?? VIEW_STYLE.mesh,
+                isSelected,
+                hasSelection
+              ),
+              0.22
+            );
         renderer.renderLine(
           renderable.buffer,
           cameraPayload,
@@ -5760,9 +6540,10 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
             resolution: [canvas.width, canvas.height],
             lineColor,
             lineOpacity: 1,
-            depthBias: edgeBias,
+            depthBias: lineDepthBias,
             selectionHighlight: [0, 0, 0],
             isSelected: 0,
+            linePixelSnap: edgePixelSnap,
           },
           { depthFunc: "lequal", depthMask: false }
         );
@@ -5777,6 +6558,11 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         const isSelected = selection.has(renderable.id);
         renderPolyline(renderable, isSelected);
       });
+      meshRenderables.forEach(({ renderable }) => {
+        if (renderable.type !== "vertex") return;
+        const isSelected = selection.has(renderable.id);
+        renderPointHandle(renderable, isSelected);
+      });
 
       const preview = previewStateRef.current;
       const previewLineBuffer = previewLineBufferRef.current;
@@ -5790,6 +6576,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
           lineOpacity: 0.75,
           selectionHighlight: VIEW_STYLE.selection,
           isSelected: 0,
+          linePixelSnap: edgePixelSnap,
         }, { depthFunc: "always", depthMask: false });
       } else if (preview?.kind === "mesh" && previewMeshBuffer) {
         renderer.renderGeometry(previewMeshBuffer, cameraPayload, {
@@ -5837,9 +6624,10 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
             resolution: [canvas.width, canvas.height],
             lineColor: [0.2, 0.64, 0.66],
             lineOpacity: 0.9,
-            depthBias: edgeBias,
+            depthBias: lineDepthBias,
             selectionHighlight: [0, 0, 0],
             isSelected: 0,
+            linePixelSnap: edgePixelSnap,
           },
           { depthFunc: "lequal", depthMask: false }
         );
@@ -5865,11 +6653,17 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         const widgetState = computeCornerGumballViewport(
           cameraState,
           canvas,
-          gumballViewportZoomRef.current
+          gumballViewportZoomRef.current,
+          gumballPixelSize
         );
         const activeHandle =
           gumballDragRef.current?.handleId ?? gumballHoverRef.current ?? null;
-        const gumballOpacityScale = lerp(0.65, 1, smoothSolidity);
+        const gumballOpacityScale = isSilhouette ? 1 : lerp(0.65, 1, smoothSolidity);
+        const gumballSolid = true;
+        const gumballHighlight = isSilhouette
+          ? undefined
+          : ([0.05, 0.05, 0.05] as [number, number, number]);
+        const gumballSolidColor = isSilhouette ? SILHOUETTE_BASE_COLOR : undefined;
         const gumballTransforms = getGumballTransforms({
           position: widgetState.center,
           orientation: gumballState.orientation,
@@ -5878,70 +6672,14 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
           activeHandle,
         });
 
-        const showMove = gumballState.mode === "move" || gumballState.mode === "gumball";
+        const showMove =
+          showMoveArmsRef.current &&
+          (gumballState.mode === "move" || gumballState.mode === "gumball");
         const showScale = gumballState.mode === "scale" || gumballState.mode === "gumball";
         const showRings =
           showRotationRingsRef.current &&
           (gumballState.mode === "rotate" || gumballState.mode === "gumball");
         const showRotate = showRings;
-        const panelBuffer = gumballPanelBufferRef.current;
-        const panelEdgeBuffer = gumballPanelEdgeBufferRef.current;
-        const panelGridBuffer = gumballPanelGridBufferRef.current;
-        if (panelBuffer && panelEdgeBuffer) {
-          const worldPerPixel = widgetState.scale / GUMBALL_PIXEL_SIZE;
-          const panelPadding = worldPerPixel * 12;
-          const panelScale = widgetState.radius + panelPadding;
-          const panelDepth = worldPerPixel * 6;
-          const panelCenter = add(
-            widgetState.center,
-            scale(widgetState.basis.zAxis, panelDepth)
-          );
-          const panelBasis = {
-            xAxis: widgetState.basis.xAxis,
-            yAxis: widgetState.basis.yAxis,
-            zAxis: scale(widgetState.basis.zAxis, -1),
-          };
-          const panelModelMatrix = buildModelMatrix(panelBasis, panelCenter, panelScale);
-          const panelColor: [number, number, number] = [0.58, 0.6, 0.62];
-          renderer.renderGeometry(panelBuffer, cameraPayload, {
-            modelMatrix: panelModelMatrix,
-            materialColor: panelColor,
-            lightPosition: VIEW_STYLE.lightPosition,
-            lightColor: VIEW_STYLE.light,
-            ambientColor: VIEW_STYLE.ambient,
-            ambientStrength: VIEW_STYLE.ambientStrength,
-            sheenIntensity: viewSettingsRef.current.sheen ?? 0.08,
-            opacity: 0.94,
-          });
-          if (panelGridBuffer) {
-            renderer.renderEdges(
-              panelGridBuffer,
-              cameraPayload,
-              {
-                modelMatrix: panelModelMatrix,
-                edgeColor: [0, 0, 0],
-                opacity: 0.14,
-                dashEnabled: 0,
-                depthBias: -0.00018,
-                lineWidth: 1.1 * dpr,
-              },
-              { depthFunc: "lequal" }
-            );
-          }
-          renderer.renderEdges(
-            panelEdgeBuffer,
-            cameraPayload,
-            {
-              modelMatrix: panelModelMatrix,
-              edgeColor: darkenColor(panelColor, 0.3),
-              opacity: 0.6,
-              depthBias: -0.00015,
-              dashEnabled: 0,
-            },
-            { depthFunc: "lequal" }
-          );
-        }
-
         renderGumball(
           renderer,
           cameraPayload,
@@ -5960,15 +6698,24 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
             ambientStrength: VIEW_STYLE.ambientStrength,
             sheenIntensity: viewSettingsRef.current.sheen ?? 0.08,
             showRotate: showRings,
-            axisOpacity: 0.95 * gumballOpacityScale,
-            planeOpacity: 0.6 * gumballOpacityScale,
+            showMove: showMoveArmsRef.current,
+            axisOpacity: (gumballSolid ? 1 : 0.95) * gumballOpacityScale,
+            planeOpacity: (gumballSolid ? 0.85 : 0.6) * gumballOpacityScale,
+            highlightColor: gumballHighlight,
+            solidMode: gumballSolid,
+            solidColor: gumballSolidColor,
           }
         );
 
         const gumballEdgeOpacities: [number, number, number] = [
-          edgeOpacities[0] * gumballOpacityScale,
-          edgeOpacities[1] * gumballOpacityScale,
-          edgeOpacities[2] * gumballOpacityScale,
+          Math.min(
+            1,
+            VIEW_STYLE.edgeTertiaryOpacity * edgeOpacityScale * edgeInternalScale
+          ) * gumballOpacityScale,
+          Math.min(1, VIEW_STYLE.edgeSecondaryOpacity * edgeOpacityScale) *
+            gumballOpacityScale,
+          Math.min(1, VIEW_STYLE.edgePrimaryOpacity * edgeOpacityScale) *
+            gumballOpacityScale,
         ];
         const renderGumballEdges = (
           buffers: GeometryBuffer[] | undefined,
@@ -5976,6 +6723,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
           baseColor: [number, number, number],
           opacityScale = 1
         ) => {
+          if (gumballSolid) return;
           if (!buffers || buffers.length === 0) return;
           const edgeBase = darkenColor(baseColor, 0.28);
           const edgeInternalColor = mixColor(edgeBase, [1, 1, 1], 0.25);
@@ -6002,7 +6750,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
                 edgeColorInternal: edgeInternalColor,
                 edgeColorCrease: edgeCreaseColor,
                 edgeColorSilhouette: edgeSilhouetteColor,
-                depthBias: edgeBias,
+                depthBias: edgeDepthBias,
                 edgeAAStrength,
                 edgePixelSnap,
               },
@@ -6115,7 +6863,8 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
               widgetState.scale * 0.28
             );
             const isActive = gumballDragRef.current?.handle.kind === "extrude";
-            const color = isActive ? [1, 0.98, 0.92] : [0.94, 0.94, 0.94];
+            const isHover = Boolean(extrudeHoverRef.current);
+            const color = isActive || isHover ? gumballHighlight : [0.94, 0.94, 0.94];
             renderer.renderGeometry(gumballBuffers.scale, cameraPayload, {
               modelMatrix,
               materialColor: color,
@@ -6174,6 +6923,124 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     isGizmoVisible && overlayViewProjection && canvasRect
       ? projectPointToScreen(resolvedPivot, overlayViewProjection, canvasRect)
       : null;
+  const anchorLinkedNodes = useMemo(() => {
+    const linked = new Set<string>();
+    workflowEdges.forEach((edge) => {
+      if (edge.targetHandle === "anchor") {
+        linked.add(edge.target);
+      }
+    });
+    return linked;
+  }, [workflowEdges]);
+  const annotationOverlays =
+    overlayViewProjection && canvasRect
+      ? workflowNodes.flatMap((node) => {
+          if (node.type !== "annotations") return [];
+          const outputs = node.data?.outputs ?? {};
+          const annotation = outputs.annotation as
+            | { geometry?: unknown; anchor?: unknown; text?: unknown; size?: unknown }
+            | undefined;
+          const geometryId =
+            typeof outputs.geometry === "string"
+              ? outputs.geometry
+              : typeof annotation?.geometry === "string"
+                ? annotation.geometry
+                : null;
+          const outputAnchor = isVec3(outputs.anchor)
+            ? outputs.anchor
+            : isVec3(annotation?.anchor)
+              ? annotation?.anchor
+              : null;
+          const hasAnchorInput = anchorLinkedNodes.has(node.id);
+          let anchor = outputAnchor;
+          if (
+            (!anchor || (!hasAnchorInput && isZeroVec3(anchor))) &&
+            geometryId &&
+            geometryBoundsMap.has(geometryId)
+          ) {
+            const bounds = geometryBoundsMap.get(geometryId);
+            if (bounds) {
+              anchor = {
+                x: (bounds.min.x + bounds.max.x) * 0.5,
+                y: (bounds.min.y + bounds.max.y) * 0.5,
+                z: (bounds.min.z + bounds.max.z) * 0.5,
+              };
+            }
+          }
+          if (!anchor) return [];
+          const text =
+            typeof outputs.text === "string"
+              ? outputs.text
+              : typeof annotation?.text === "string"
+                ? annotation.text
+                : "Annotation";
+          if (String(text).trim().length === 0) return [];
+          const size =
+            typeof outputs.size === "number"
+              ? outputs.size
+              : typeof annotation?.size === "number"
+                ? annotation.size
+                : 1;
+          const screen = projectPointToScreen(anchor, overlayViewProjection, canvasRect);
+          if (!screen) return [];
+          return [
+            {
+              id: node.id,
+              x: screen.x,
+              y: screen.y,
+              depth: screen.depth,
+              text,
+              size,
+            },
+          ];
+        })
+      : [];
+  const dimensionOverlays =
+    overlayViewProjection && canvasRect
+      ? workflowNodes.flatMap((node) => {
+          if (node.type !== "dimensions") return [];
+          const outputs = node.data?.outputs ?? {};
+          const min = outputs.boundsMin;
+          const max = outputs.boundsMax;
+          if (!isVec3(min) || !isVec3(max)) return [];
+          const width =
+            typeof outputs.width === "number" ? outputs.width : max.x - min.x;
+          const height =
+            typeof outputs.height === "number" ? outputs.height : max.y - min.y;
+          const depthValue =
+            typeof outputs.depth === "number" ? outputs.depth : max.z - min.z;
+          if (
+            !Number.isFinite(width) ||
+            !Number.isFinite(height) ||
+            !Number.isFinite(depthValue)
+          ) {
+            return [];
+          }
+          const hasDimension =
+            Math.abs(width) > 1e-6 ||
+            Math.abs(height) > 1e-6 ||
+            Math.abs(depthValue) > 1e-6;
+          if (!hasDimension) return [];
+          const center = {
+            x: (min.x + max.x) * 0.5,
+            y: (min.y + max.y) * 0.5,
+            z: (min.z + max.z) * 0.5,
+          };
+          const screen = projectPointToScreen(center, overlayViewProjection, canvasRect);
+          if (!screen) return [];
+          return [
+            {
+              id: node.id,
+              x: screen.x,
+              y: screen.y,
+              depth: screen.depth,
+              width,
+              height,
+              depthValue,
+            },
+          ];
+        })
+      : [];
   const orientationBadge =
     transformOrientation === "world"
       ? "W"
@@ -6207,6 +7074,43 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
           }}
         />
       )}
+      {viewSettings.showPointPickDebug && pointHoverDebug && (
+        <>
+          <div
+            style={{
+              position: "absolute",
+              left: pointHoverDebug.screen.x - POINT_HANDLE_PICK_RADIUS_PX,
+              top: pointHoverDebug.screen.y - POINT_HANDLE_PICK_RADIUS_PX,
+              width: POINT_HANDLE_PICK_RADIUS_PX * 2,
+              height: POINT_HANDLE_PICK_RADIUS_PX * 2,
+              borderRadius: "50%",
+              border: "1px dashed rgba(0, 0, 0, 0.65)",
+              boxShadow: "0 0 0 1px rgba(255, 210, 96, 0.35)",
+              pointerEvents: "none",
+              zIndex: 5,
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              left: pointHoverDebug.screen.x + POINT_HANDLE_PICK_RADIUS_PX + 6,
+              top: pointHoverDebug.screen.y - POINT_HANDLE_PICK_RADIUS_PX - 6,
+              padding: "2px 6px",
+              borderRadius: 4,
+              background: "rgba(24, 22, 20, 0.86)",
+              border: "1px solid rgba(0, 0, 0, 0.4)",
+              color: "#f7f3ea",
+              fontSize: 10,
+              fontWeight: 600,
+              letterSpacing: "0.04em",
+              pointerEvents: "none",
+              zIndex: 6,
+            }}
+          >
+            {pointHoverDebug.id}
+          </div>
+        </>
+      )}
       {gumballScreen && (
         <div
           style={{
@@ -6214,7 +7118,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
             left: gumballScreen.x + 12,
             top: gumballScreen.y - 12,
             padding: "2px 6px",
-            borderRadius: 8,
+            borderRadius: 4,
             background: "rgba(250, 246, 240, 0.9)",
             border: "1px solid rgba(0, 0, 0, 0.2)",
             color: "#2b2620",
@@ -6236,7 +7140,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
             right: 12,
             top: 12,
             padding: "4px 8px",
-            borderRadius: 8,
+            borderRadius: 4,
             background: "rgba(24, 22, 20, 0.86)",
             border: "1px solid rgba(0, 0, 0, 0.35)",
             color: "#f7f3ea",
@@ -6254,6 +7158,87 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
           {gumballPrompt.text}
         </div>
       )}
+      {annotationOverlays.map((item) => {
+        const size = Number.isFinite(item.size) ? item.size : 1;
+        const fontSize = Math.max(10, Math.min(16, 10 + size * 2));
+        const dotSize = Math.max(5, Math.min(10, 4 + size * 1.6));
+        return (
+          <div
+            key={item.id}
+            style={{
+              position: "absolute",
+              left: item.x,
+              top: item.y,
+              transform: "translate(-50%, -100%)",
+              pointerEvents: "none",
+              zIndex: 4,
+            }}
+          >
+            <div
+              style={{
+                width: dotSize,
+                height: dotSize,
+                borderRadius: "50%",
+                background: "#fdfbf6",
+                border: "1px solid rgba(0, 0, 0, 0.35)",
+                boxShadow: "0 2px 6px rgba(0, 0, 0, 0.3)",
+                margin: "0 auto",
+              }}
+            />
+            <div
+              style={{
+                marginTop: 6,
+                padding: "6px 8px",
+                borderRadius: 6,
+                background: "rgba(252, 249, 244, 0.95)",
+                border: "1px solid rgba(0, 0, 0, 0.18)",
+                boxShadow: "0 8px 16px rgba(0, 0, 0, 0.18)",
+                color: "#2b2620",
+                fontSize,
+                fontWeight: 600,
+                whiteSpace: "pre-line",
+                maxWidth: 240,
+              }}
+            >
+              {String(item.text ?? "")}
+            </div>
+          </div>
+        );
+      })}
+      {dimensionOverlays.map((item) => (
+        <div
+          key={item.id}
+          style={{
+            position: "absolute",
+            left: item.x,
+            top: item.y,
+            transform: "translate(-50%, -100%)",
+            pointerEvents: "none",
+            zIndex: 4,
+          }}
+        >
+          <div
+            style={{
+              padding: "6px 8px",
+              borderRadius: 6,
+              background: "rgba(24, 22, 20, 0.86)",
+              border: "1px solid rgba(0, 0, 0, 0.4)",
+              color: "#f7f3ea",
+              fontSize: 10,
+              fontWeight: 600,
+              letterSpacing: "0.04em",
+              textTransform: "uppercase",
+              display: "flex",
+              gap: 8,
+              boxShadow: "0 8px 18px rgba(0, 0, 0, 0.24)",
+            }}
+          >
+            <span>W {formatDimensionValue(item.width)}</span>
+            <span>H {formatDimensionValue(item.height)}</span>
+            <span>D {formatDimensionValue(item.depthValue)}</span>
+          </div>
+        </div>
+      ))}
       {transformInputs && (
         <div
           style={{
@@ -6261,7 +7246,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
             left: 12,
             top: 12,
             padding: "10px 12px",
-            borderRadius: 12,
+            borderRadius: 6,
             background: "rgba(252, 249, 244, 0.96)",
             border: "1px solid rgba(0, 0, 0, 0.12)",
             boxShadow: "0 10px 24px rgba(0, 0, 0, 0.14)",
@@ -6284,7 +7269,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
                   type="button"
                   onClick={() => nudgeRotateInput(-15)}
                   style={{
-                    borderRadius: 6,
+                    borderRadius: 4,
                     border: "1px solid rgba(0, 0, 0, 0.2)",
                     background: "#f1ece4",
                     padding: "2px 6px",
@@ -6298,7 +7283,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
                   type="button"
                   onClick={() => nudgeRotateInput(15)}
                   style={{
-                    borderRadius: 6,
+                    borderRadius: 4,
                     border: "1px solid rgba(0, 0, 0, 0.2)",
                     background: "#f1ece4",
                     padding: "2px 6px",
@@ -6312,7 +7297,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
                   type="button"
                   onClick={() => nudgeRotateInput(45)}
                   style={{
-                    borderRadius: 6,
+                    borderRadius: 4,
                     border: "1px solid rgba(0, 0, 0, 0.2)",
                     background: "#f1ece4",
                     padding: "2px 6px",
@@ -6358,7 +7343,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
                     style={{
                       width: 64,
                       padding: "4px 6px",
-                      borderRadius: 6,
+                      borderRadius: 4,
                       border: "1px solid rgba(0, 0, 0, 0.2)",
                       background: "#fff",
                       color: "#2b2620",
@@ -6388,7 +7373,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
                 style={{
                   width: 72,
                   padding: "4px 6px",
-                  borderRadius: 6,
+                  borderRadius: 4,
                   border: "1px solid rgba(0, 0, 0, 0.2)",
                   background: "#fff",
                   color: "#2b2620",
@@ -6417,7 +7402,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
                 style={{
                   width: 72,
                   padding: "4px 6px",
-                  borderRadius: 6,
+                  borderRadius: 4,
                   border: "1px solid rgba(0, 0, 0, 0.2)",
                   background: "#fff",
                   color: "#2b2620",
@@ -6463,7 +7448,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
                       style={{
                         width: 64,
                         padding: "4px 6px",
-                        borderRadius: 6,
+                        borderRadius: 4,
                         border: isActive
                           ? `2px solid ${axisLabelColors[axis]}`
                           : "1px solid rgba(0, 0, 0, 0.2)",
@@ -6496,7 +7481,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
                 style={{
                   width: 80,
                   padding: "4px 6px",
-                  borderRadius: 6,
+                  borderRadius: 4,
                   border: "1px solid rgba(0, 0, 0, 0.2)",
                   background: "#fff",
                   color: "#2b2620",
@@ -6510,7 +7495,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
               type="button"
               onClick={() => setShowPivotPanel((prev) => !prev)}
               style={{
-                borderRadius: 6,
+                borderRadius: 4,
                 border: "1px solid rgba(0, 0, 0, 0.2)",
                 background: showPivotPanel ? "#ede6db" : "#f6f1e9",
                 padding: "2px 6px",
@@ -6555,7 +7540,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
                       style={{
                         width: 64,
                         padding: "4px 6px",
-                        borderRadius: 6,
+                        borderRadius: 4,
                         border: "1px solid rgba(0, 0, 0, 0.2)",
                         background: "#fff",
                         color: "#2b2620",
@@ -6568,7 +7553,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
                   type="button"
                   onClick={() => setPivotPreset("centroid")}
                   style={{
-                    borderRadius: 6,
+                    borderRadius: 4,
                     border: "1px solid rgba(0, 0, 0, 0.2)",
                     background: "#f1ece4",
                     padding: "2px 6px",
@@ -6582,7 +7567,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
                   type="button"
                   onClick={() => setPivotPreset("origin")}
                   style={{
-                    borderRadius: 6,
+                    borderRadius: 4,
                     border: "1px solid rgba(0, 0, 0, 0.2)",
                     background: "#f1ece4",
                     padding: "2px 6px",
@@ -6596,7 +7581,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
                   type="button"
                   onClick={() => setPivotPreset("bbox")}
                   style={{
-                    borderRadius: 6,
+                    borderRadius: 4,
                     border: "1px solid rgba(0, 0, 0, 0.2)",
                     background: "#f1ece4",
                     padding: "2px 6px",
@@ -6622,7 +7607,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
             border: "1.5px solid rgba(9, 92, 138, 0.95)",
             background: "rgba(24, 156, 226, 0.16)",
             boxShadow: "2px 4px 0 rgba(0, 0, 0, 0.24)",
-            borderRadius: 8,
+            borderRadius: 4,
             pointerEvents: "none",
           }}
         />

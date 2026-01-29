@@ -1,7 +1,7 @@
 import type { RenderMesh } from "../types";
 import { computeVertexNormals } from "../geometry/mesh";
 
-const DEFAULT_STL_NAME = "specificity";
+const DEFAULT_STL_NAME = "lingua";
 
 const ensureIndices = (mesh: RenderMesh) => {
   if (mesh.indices.length > 0) return mesh.indices;
