@@ -1125,6 +1125,7 @@ export const NumericalCanvas = ({
   const deleteSelectedNodes = useProjectStore((state) => state.deleteSelectedNodes);
   const addNodeAt = useProjectStore((state) => state.addNodeAt);
   const addGeometryReferenceNode = useProjectStore((state) => state.addGeometryReferenceNode);
+  const addPhysicsSolverRig = useProjectStore((state) => state.addPhysicsSolverRig);
   const syncWorkflowGeometryToRoslyn = useProjectStore((state) => state.syncWorkflowGeometryToRoslyn);
   const setSelectedGeometryIds = useProjectStore((state) => state.setSelectedGeometryIds);
   const updateNodeData = useProjectStore((state) => state.updateNodeData);
@@ -2662,6 +2663,10 @@ export const NumericalCanvas = ({
       onSelect: closeMenu(() => addTextNoteAt(world)),
     });
     actions.push({
+      label: "Add Physics Solver Rig",
+      onSelect: closeMenu(() => addPhysicsSolverRig(world)),
+    });
+    actions.push({
       label: "Frame All Nodes",
       onSelect: closeMenu(() => frameNodes()),
     });
@@ -2717,6 +2722,7 @@ export const NumericalCanvas = ({
     interactionsEnabled,
     shortcutOverlayEnabled,
     addTextNoteAt,
+    addPhysicsSolverRig,
     openStlFilePicker,
     beginInlineEdit,
     createGroupFromSelection,
@@ -2755,6 +2761,7 @@ export const NumericalCanvas = ({
     if (label.includes("shortcuts")) return "advanced";
     if (label.includes("add file")) return "load";
     if (label.includes("select stl")) return "load";
+    if (label.includes("physics solver rig")) return "solver";
     if (label.includes("refer to object")) return "referenceActive";
     if (label.includes("reference")) return "geometryReference";
     if (label.includes("ontologize")) return "brandRoslyn";
