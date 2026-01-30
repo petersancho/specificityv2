@@ -547,11 +547,27 @@ export const NODE_DOCUMENTATION: Record<string, NodeDocumentation> = {
   // === DATA ===
   geometryReference: {
     tips: [
-      "Select geometry in Roslyn before using",
-      "Updates automatically when Roslyn geometry changes",
-      "Use for bringing modeled shapes into parametric workflows",
+      "Select geometry in Roslyn before adding this node to capture the reference",
+      "Changes to referenced Roslyn geometry automatically propagate through the graph",
+      "Essential bridge between direct modeling (Roslyn) and parametric workflows (Numerica)",
+      "Multiple Geometry Reference nodes can reference different Roslyn objects",
+      "Reference persists across save/load—geometry ID is stored, not geometry data",
     ],
-    relatedNodes: ["geometryViewer", "geometryInfo"],
+    examples: [
+      "Reference a Roslyn box → connect to Transform node → apply parametric rotation",
+      "Reference building massing → connect to solver for structural optimization",
+      "Reference curve profile → connect to Extrude with parametric height slider",
+    ],
+    pitfalls: [
+      "Deleting Roslyn geometry breaks the reference—downstream nodes show errors",
+      "Node appears empty if no geometry was selected when it was created",
+    ],
+    bestPractices: [
+      "Name Roslyn geometry clearly before referencing for easier identification",
+      "Use Group node to organize multiple geometry references visually",
+    ],
+    relatedNodes: ["geometryViewer", "geometryInfo", "meshConvert"],
+    workflowNotes: "Geometry Reference is the primary way to bring Roslyn geometry into Numerica. Select the geometry you want to parametrize, add this node, then connect downstream nodes to build your parametric workflow.",
   },
   text: {
     tips: [
@@ -570,11 +586,27 @@ export const NODE_DOCUMENTATION: Record<string, NodeDocumentation> = {
   },
   panel: {
     tips: [
-      "Connect any output to inspect values",
-      "Shows lists with indices",
-      "Edit fallback text when disconnected",
+      "Connect any output port to inspect its current value in real-time",
+      "Lists display with indices for easy element identification",
+      "Vectors show as {x, y, z} components; numbers show formatted values",
+      "Edit fallback text when disconnected—useful for documentation",
+      "Supports multi-line display with configurable max lines",
     ],
-    relatedNodes: ["textNote", "geometryInfo"],
+    examples: [
+      "Debug mesh vertex count: Geometry Vertices → List Length → Panel",
+      "Inspect solver output: Physics Solver → diagnostics → Panel",
+      "Display calculated area: Mesh Area → Panel",
+    ],
+    pitfalls: [
+      "Very long lists may be truncated—increase Max Lines parameter if needed",
+      "Complex nested data may display as [Object]—use specific extraction nodes",
+    ],
+    bestPractices: [
+      "Use multiple Panel nodes at key points to trace data flow through graph",
+      "Add Index Start offset to show specific list ranges",
+    ],
+    relatedNodes: ["textNote", "geometryInfo", "metadataPanel"],
+    workflowNotes: "Panel is the primary debugging and inspection node. Connect any output to see its current value. The display updates live as upstream parameters change.",
   },
   textNote: {
     tips: [
@@ -585,15 +617,31 @@ export const NODE_DOCUMENTATION: Record<string, NodeDocumentation> = {
   },
   slider: {
     tips: [
-      "Drag handle or click to set value",
-      "Set min/max to constrain range",
-      "Connect to parameters for real-time control",
+      "Drag the handle or click anywhere on the track to set the value",
+      "Configure Min/Max to define meaningful parameter ranges for your design",
+      "Step parameter controls increment precision (0.1 for decimals, 1 for integers)",
+      "Connect to any numeric input for real-time interactive control",
+      "Multiple sliders can drive complex parametric relationships",
+      "Sliders define the search space when connected to Genome Collector for evolution",
     ],
     examples: [
-      "Control sphere radius parametrically",
-      "Drive array count interactively",
+      "Control building height: Slider(0-100m) → Extrude(distance)",
+      "Parametric facade: Slider(0.1-0.9) → Panel Opening Ratio",
+      "Array spacing: Slider(1-5) → Linear Array(spacing)",
+      "Material thickness: Slider(0.01-0.1) → Mesh Thicken(distance)",
     ],
-    relatedNodes: ["number", "remap"],
+    pitfalls: [
+      "Very small step values with large ranges create many possible values—may slow evolution",
+      "Min > Max or equal values produce no output range",
+    ],
+    bestPractices: [
+      "Name sliders descriptively: 'Panel Width' instead of 'Slider1'",
+      "Set realistic architectural ranges (e.g., 2.4-4m for ceiling heights)",
+      "Use integer steps for countable things (array count, floor levels)",
+      "Use decimal steps for continuous measures (dimensions, angles)",
+    ],
+    relatedNodes: ["number", "remap", "expression", "genomeCollector"],
+    workflowNotes: "Slider is the fundamental interactive control node. It outputs a numeric value that drives downstream parameters. Connect multiple sliders for multi-parameter design exploration.",
   },
   colorPicker: {
     tips: [
@@ -620,10 +668,28 @@ export const NODE_DOCUMENTATION: Record<string, NodeDocumentation> = {
   // === PREVIEW ===
   geometryViewer: {
     tips: [
-      "Embedded mini viewport",
-      "Accepts Filter input for display modes",
+      "Embedded mini viewport that displays connected geometry in 3D",
+      "Rotate, pan, and zoom within the thumbnail for inspection",
+      "Accepts optional Filter input for custom display modes (wireframe, ghosted, etc.)",
+      "Outputs detected geometry type string for conditional logic",
+      "Updates live as upstream parameters change—ideal for design iteration",
     ],
-    relatedNodes: ["customPreview", "previewFilter"],
+    examples: [
+      "Preview mesh before export: Mesh Convert → Geometry Viewer",
+      "Inspect solver result: Physics Solver → deformedMesh → Geometry Viewer",
+      "Compare display modes: Geometry → Geometry Viewer (with different filters)",
+    ],
+    pitfalls: [
+      "Very heavy geometry may render slowly in preview",
+      "Hidden geometry in Roslyn still appears in Geometry Viewer",
+    ],
+    bestPractices: [
+      "Place Geometry Viewers at key workflow stages to monitor results",
+      "Use Preview Filter node for ghosted/wireframe views of internal structure",
+      "Minimize viewport size for complex graphs to maintain performance",
+    ],
+    relatedNodes: ["customPreview", "previewFilter", "geometryReference"],
+    workflowNotes: "Geometry Viewer provides inline 3D preview of geometry flowing through your graph. Essential for verifying intermediate results without switching to the main Roslyn viewport.",
   },
   customPreview: {
     tips: [
@@ -1556,165 +1622,440 @@ export const NODE_DOCUMENTATION: Record<string, NodeDocumentation> = {
   // === SOLVERS ===
   biologicalSolver: {
     tips: [
-      "Evolutionary optimization",
-      "Genomes encode parameters",
+      "Encodes design parameters as vector genomes that evolve over generations",
+      "Fitness function guides selection pressure toward optimal configurations",
+      "Use population sizes of 20-50 for initial exploration, larger for refinement",
+      "Mutation rate 0.1-0.3 balances exploration vs convergence speed",
+      "Set a random seed for reproducible evolutionary runs",
     ],
-    relatedNodes: ["biologicalEvolutionSolver"],
+    examples: [
+      "Evolve facade panel proportions: Slider(width) → Slider(height) → Genome Collector → Solver",
+      "Multi-objective: maximize daylight + minimize material → Weighted Fitness → Solver",
+      "Structural branching: grow tree-like supports using growth and nutrient goals",
+    ],
+    pitfalls: [
+      "Empty genome (no sliders connected) produces no meaningful evolution",
+      "Fitness always zero means no selection pressure—solver won't converge",
+      "Too high mutation rate prevents convergence; too low causes premature convergence",
+    ],
+    bestPractices: [
+      "Start with fewer generations to validate setup, then increase for better results",
+      "Normalize fitness metrics to similar scales for multi-objective optimization",
+      "Save promising genomes as presets for later refinement",
+    ],
+    relatedNodes: ["biologicalEvolutionSolver", "genomeCollector", "performsFitness"],
+    workflowNotes: "The Biological Solver implements evolutionary algorithms for parameter optimization. Connect sliders to a Genome Collector to define the search space, wire metric nodes through Performs Fitness to define objectives, then run generations of evolution to find optimal configurations.",
   },
   biologicalEvolutionSolver: {
     tips: [
-      "Full evolution with popup UI",
-      "Connect Genome, Phenotype, Fitness",
+      "Opens dedicated popup UI for monitoring evolution progress",
+      "Real-time fitness graphs show convergence over generations",
+      "Pause/resume evolution to inspect intermediate results",
+      "Export best genomes for documentation or reuse",
+      "Supports both single-objective and multi-objective optimization",
     ],
-    relatedNodes: ["genomeCollector", "geometryPhenotype", "performsFitness"],
+    examples: [
+      "Parametric pavilion: evolve structural depth, opening ratios, and material thickness",
+      "Facade optimization: balance solar gain, views, and glare through weighted fitness",
+      "Topological exploration: evolve connection patterns for space-frame structures",
+    ],
+    pitfalls: [
+      "Missing Genome Collector connection disables evolution",
+      "Missing Fitness connection means no selection criterion",
+      "Very large populations slow down each generation significantly",
+    ],
+    bestPractices: [
+      "Use Geometry Phenotype to capture the output geometry for visualization",
+      "Wire multiple metrics with different weights to Performs Fitness for complex objectives",
+      "Run short test evolutions (5-10 generations) to validate fitness response",
+    ],
+    relatedNodes: ["genomeCollector", "geometryPhenotype", "performsFitness", "biologicalSolver"],
+    workflowNotes: "The Evolution Solver with popup provides full control over evolutionary optimization. Connect your parametric model through Genome Collector, define success criteria through Performs Fitness, and optionally capture geometry with Geometry Phenotype for live preview.",
   },
   physicsSolver: {
     tips: [
-      "Structural analysis",
-      "Connect Load and Anchor goals",
+      "Solves structural equilibrium equation Kd = F for static analysis",
+      "Requires at least one Anchor goal to define fixed boundary conditions",
+      "If Load goals are present, include a Volume goal for material distribution",
+      "Analysis types: static (equilibrium), dynamic (time-stepping), modal (vibration)",
+      "Outputs include deformed mesh, stress field, displacements, and diagnostics",
     ],
-    relatedNodes: ["loadGoal", "anchorGoal", "stiffnessGoal"],
+    examples: [
+      "Cantilevered canopy: Anchor one edge, Load center, Volume 0.3 → deformed shape",
+      "Bridge deck: Anchor both ends, distributed Load, Stiffness goal for optimization",
+      "Building core: Anchor base, lateral Load, analyze stress concentration",
+    ],
+    pitfalls: [
+      "Missing Anchor goal causes solver failure—structure floats with no supports",
+      "Load without Volume goal is ignored—both are needed for force analysis",
+      "maxDeformation too low may prevent realistic deformation results",
+      "Non-manifold or open meshes may produce unexpected stress patterns",
+    ],
+    bestPractices: [
+      "Start with simple geometry to validate anchor and load placement",
+      "Use Geometry Viewer to preview stress field colors after solving",
+      "Increase maxIterations if solver doesn't converge",
+      "Enable useGPU for large meshes to speed up computation",
+    ],
+    relatedNodes: ["loadGoal", "anchorGoal", "stiffnessGoal", "volumeGoal"],
+    workflowNotes: "The Physics Solver (Ἐπιλύτης Φυσικῆς) performs finite element analysis on mesh geometry. Wire your base mesh, add goal nodes defining supports (Anchor), forces (Load), material targets (Volume, Stiffness), then run the solver to compute structural response.",
   },
   voxelSolver: {
     tips: [
-      "Voxel topology optimization",
-      "Wrapper around topologySolver",
+      "Density-based topology optimization using voxel discretization",
+      "Volume fraction controls how much material is retained (0.1-0.5 typical)",
+      "Higher resolution = finer detail but slower computation",
+      "SIMP penalization drives intermediate densities toward 0 or 1",
+      "Extract final result with Extract Isosurface node",
     ],
-    relatedNodes: ["topologySolver", "voxelizeGeometry"],
+    examples: [
+      "Bracket optimization: anchor holes, load tip → minimum volume structure",
+      "Architectural column: anchor base, load top → organic load paths emerge",
+      "Heat sink: combine structural and thermal goals for multi-physics optimization",
+    ],
+    pitfalls: [
+      "Very high resolution (>100³) can exhaust memory and take hours",
+      "Volume fraction too low may disconnect the structure",
+      "Filter radius too large creates overly smooth, blobby results",
+    ],
+    bestPractices: [
+      "Start with low resolution (30-50) for quick iteration",
+      "Use Voxelize Geometry to verify voxel boundary before optimization",
+      "Export optimized density field for downstream smoothing or remeshing",
+    ],
+    relatedNodes: ["topologySolver", "voxelizeGeometry", "extractIsosurface"],
+    workflowNotes: "The Voxel Solver discretizes geometry into a 3D grid and iteratively redistributes material density based on structural performance. Connect Voxelize Geometry for the domain, add goals, run optimization, then Extract Isosurface to convert back to mesh.",
   },
   chemistrySolver: {
     tips: [
-      "Multi-material optimization",
-      "Particle-based simulation",
+      "Particle-based multi-material distribution for functionally graded composites",
+      "Materials blend continuously based on physical properties and goals",
+      "Seed points nucleate material species at specific locations",
+      "Diffusion rate controls how quickly materials blend together",
+      "Higher particle count = finer gradients but slower computation",
     ],
-    relatedNodes: ["chemistryMaterialGoal", "chemistryStiffnessGoal"],
+    examples: [
+      "Curtain wall mullion: steel core → ceramic middle → glass exterior gradient",
+      "Thermal bridge: steel beam transitions to insulating ceramic at envelope",
+      "Structural glass: stiff core, transparent surfaces, blended transition zone",
+    ],
+    pitfalls: [
+      "Domain must be watertight mesh—open boundaries cause particles to escape",
+      "Missing material assignments result in empty solver with no gradients",
+      "Goals with incompatible weights can produce dominated single-material results",
+      "Very high diffusivity causes all materials to blend to uniform gray",
+    ],
+    bestPractices: [
+      "Start with low particle count (~5000) for interactive exploration",
+      "Use Material Goal to assign initial species to geometry regions",
+      "Balance Stiffness and Blend goals for structural gradients",
+      "Add Transparency Goal for regions requiring optical transmission",
+    ],
+    relatedNodes: ["chemistryMaterialGoal", "chemistryStiffnessGoal", "chemistryBlendGoal"],
+    workflowNotes: "The Chemistry Solver (Ἐπιλύτης Χημείας) implements functionally graded material design through particle simulation. Define material species with Material Goals, add optimization objectives (Stiffness, Mass, Transparency, Thermal), set diffusion parameters, and run to generate continuous material gradients.",
   },
 
   // === GOALS: Physics ===
   stiffnessGoal: {
     tips: [
-      "Defines stiffness targets",
-      "Weight controls importance",
+      "Targets material stiffness (Young's modulus) for structural regions",
+      "Weight 0-1 controls goal importance relative to other objectives",
+      "Higher stiffness goals drive optimizer to concentrate material in load paths",
+      "Combine with Volume goal to achieve lightweight but stiff designs",
     ],
-    relatedNodes: ["volumeGoal", "loadGoal", "physicsSolver"],
+    examples: [
+      "Set stiffness 1.0 for primary structural members, 0.5 for secondary",
+      "Use lower stiffness targets for connections that need flexibility",
+    ],
+    pitfalls: [
+      "Stiffness alone doesn't create structure—combine with Load and Anchor",
+      "Extremely high stiffness targets may conflict with Volume constraints",
+    ],
+    relatedNodes: ["volumeGoal", "loadGoal", "physicsSolver", "topologySolver"],
+    workflowNotes: "Stiffness Goal (Σκληρότης) defines material performance targets. Connect to Physics Solver or Topology Solver to guide optimization toward stiffer configurations in structurally critical regions.",
   },
   volumeGoal: {
     tips: [
-      "Constrains material volume",
-      "Fraction 0-1 sets budget",
+      "Sets target volume fraction (0-1) of material to retain after optimization",
+      "0.3 = keep 30% of material, common for topology optimization",
+      "Lower fractions create more dramatic material removal",
+      "Essential companion to Load goals—both required for force analysis",
     ],
-    relatedNodes: ["stiffnessGoal", "topologySolver"],
+    examples: [
+      "Bracket: Volume 0.25 → aggressive lightweighting",
+      "Building core: Volume 0.5 → moderate optimization preserving robustness",
+    ],
+    pitfalls: [
+      "Volume too low (< 0.1) may disconnect the structure",
+      "Physics Solver ignores Load goals if no Volume goal is present",
+    ],
+    bestPractices: [
+      "Start with Volume 0.4-0.5 for first optimization pass",
+      "Reduce gradually to find minimum viable material distribution",
+    ],
+    relatedNodes: ["stiffnessGoal", "loadGoal", "physicsSolver", "topologySolver"],
+    workflowNotes: "Volume Goal (Ὄγκος) constrains the amount of material available for optimization. The solver removes material from regions with low structural contribution while respecting the volume budget.",
   },
   loadGoal: {
     tips: [
-      "Applies external forces",
-      "Set vector and region",
+      "Applies external force vectors to mesh geometry",
+      "Force direction and magnitude define the loading condition",
+      "Select faces or vertices for point loads vs distributed loads",
+      "Multiple Load goals can define complex loading scenarios",
     ],
-    relatedNodes: ["anchorGoal", "physicsSolver"],
+    examples: [
+      "Gravity load: vector (0, 0, -9.81 * mass) on all vertices",
+      "Wind load: lateral vector on facade surface",
+      "Point load: single vertex with concentrated force",
+    ],
+    pitfalls: [
+      "Load without Anchor = floating structure, solver fails",
+      "Load without Volume goal = load is ignored in physics analysis",
+      "Force applied to interior vertices may produce unexpected stress patterns",
+    ],
+    bestPractices: [
+      "Visualize load vectors before running solver to verify direction",
+      "Use multiple Load goals for different load cases (dead, live, wind)",
+    ],
+    relatedNodes: ["anchorGoal", "volumeGoal", "physicsSolver"],
+    workflowNotes: "Load Goal (Βάρος) defines external forces acting on the structure. Forces flow through the material to anchor points, and the solver calculates resulting stresses and deformations.",
   },
   anchorGoal: {
     tips: [
-      "Defines fixed supports",
-      "Regions cannot move",
+      "Defines fixed boundary conditions where displacement is zero",
+      "At least one Anchor required for valid structural analysis",
+      "Select faces, edges, or vertices to anchor specific regions",
+      "Anchored regions do not move during static or dynamic analysis",
     ],
-    relatedNodes: ["loadGoal", "physicsSolver"],
+    examples: [
+      "Foundation: anchor bottom face of column",
+      "Cantilever: anchor one end, leave other end free",
+      "Simply supported: anchor ends but allow rotation",
+    ],
+    pitfalls: [
+      "No anchors = structure has no supports, solver fails",
+      "Over-constrained anchors can prevent realistic deformation",
+      "Anchoring interior vertices may cause stress concentration artifacts",
+    ],
+    bestPractices: [
+      "Anchor boundary faces that correspond to real-world supports",
+      "Visualize anchor locations before running solver",
+      "Use minimal anchors needed to prevent rigid body motion",
+    ],
+    relatedNodes: ["loadGoal", "volumeGoal", "physicsSolver"],
+    workflowNotes: "Anchor Goal (Ἄγκυρα) establishes fixed supports for structural analysis. The solver computes how forces flow from Load regions through the structure to Anchor regions.",
   },
 
   // === GOALS: Biological Evolution ===
   genomeCollector: {
     tips: [
-      "Collects slider genes",
-      "Connect sliders to evolve",
+      "Collects slider values into a vector genome for evolutionary optimization",
+      "Each connected slider becomes a gene that the solver can mutate",
+      "Gene order matters—consistent ordering enables genome comparison",
+      "Multiple sliders define multi-dimensional search spaces",
     ],
-    relatedNodes: ["geometryPhenotype", "performsFitness", "biologicalEvolutionSolver"],
+    examples: [
+      "Connect 3 sliders (length, width, depth) for parametric box evolution",
+      "Wire 10+ sliders for complex multi-parameter optimization",
+    ],
+    pitfalls: [
+      "Disconnected sliders are not evolved—verify all parameters are wired",
+      "Slider min/max ranges define the search bounds for each gene",
+    ],
+    bestPractices: [
+      "Name sliders clearly to understand which parameters evolved",
+      "Set reasonable slider ranges to avoid degenerate geometries",
+    ],
+    relatedNodes: ["geometryPhenotype", "performsFitness", "biologicalEvolutionSolver", "slider"],
+    workflowNotes: "Genome Collector aggregates slider parameters into evolvable genomes. Connect all sliders that should participate in optimization, then wire the collector to the Biological Solver.",
   },
   geometryPhenotype: {
     tips: [
-      "Captures geometry outputs",
-      "Defines what gets evaluated",
+      "Captures the output geometry that results from genome parameter values",
+      "Used for visualization during evolution—see designs update live",
+      "Optional but recommended for understanding what evolved",
+      "Multiple geometries can be captured for complex assemblies",
     ],
-    relatedNodes: ["genomeCollector", "performsFitness"],
+    examples: [
+      "Connect final mesh output to see structure evolve visually",
+      "Capture intermediate geometry to debug fitness function issues",
+    ],
+    relatedNodes: ["genomeCollector", "performsFitness", "biologicalEvolutionSolver"],
+    workflowNotes: "Geometry Phenotype captures design outputs for live preview during evolution. Wire geometry from your parametric model to visualize how different genomes produce different designs.",
   },
   performsFitness: {
     tips: [
-      "Aggregates metrics with weights",
-      "Higher fitness = better",
+      "Aggregates multiple metric values into a single fitness score",
+      "Higher fitness = better design (solver maximizes by default)",
+      "Weights control relative importance of each objective",
+      "Supports minimize mode—invert metrics or use negative weights",
     ],
-    relatedNodes: ["genomeCollector", "geometryPhenotype"],
+    examples: [
+      "Maximize structural efficiency: (stiffness * 0.7) + (1/weight * 0.3)",
+      "Multi-objective: daylight hours, thermal performance, cost → weighted sum",
+    ],
+    pitfalls: [
+      "All metrics zero = no selection pressure, evolution is random",
+      "Unbalanced weights can dominate one objective completely",
+    ],
+    bestPractices: [
+      "Normalize metrics to similar scales before weighting",
+      "Test fitness function response to parameter changes before full evolution",
+    ],
+    relatedNodes: ["genomeCollector", "geometryPhenotype", "biologicalEvolutionSolver"],
+    workflowNotes: "Performs Fitness defines the success criteria for evolution. Wire metric nodes (areas, volumes, distances) with weights, and the solver uses the aggregated fitness to guide selection.",
   },
 
   // === GOALS: Biological Growth ===
   growthGoal: {
     tips: [
-      "Promotes biomass growth",
-      "Intensity and direction",
+      "Promotes biomass accumulation in specified directions or regions",
+      "Intensity parameter controls growth rate (0-1)",
+      "Direction vector biases growth toward light/nutrients/targets",
+      "Combine with Nutrient Goal for tropism-like behavior",
     ],
-    relatedNodes: ["nutrientGoal", "morphogenesisGoal", "biologicalSolver"],
+    examples: [
+      "Upward growth: direction (0, 0, 1), intensity 0.8",
+      "Radial expansion: multiple growth goals pointing outward",
+    ],
+    relatedNodes: ["nutrientGoal", "morphogenesisGoal", "homeostasisGoal", "biologicalSolver"],
+    workflowNotes: "Growth Goal drives biomass expansion during biological simulation. Material accumulates in growth-positive regions, creating organic volume increase.",
   },
   nutrientGoal: {
     tips: [
-      "Defines nutrient source",
-      "Growth follows gradients",
+      "Defines nutrient source points that attract growth",
+      "Growth follows nutrient gradients toward source locations",
+      "Multiple nutrient sources create branching toward each",
+      "Intensity controls attraction strength",
     ],
-    relatedNodes: ["growthGoal", "biologicalSolver"],
+    examples: [
+      "Single attractor: nutrient at top → tree-like upward branching",
+      "Multiple attractors: nutrients at perimeter → radial branching network",
+    ],
+    relatedNodes: ["growthGoal", "morphogenesisGoal", "biologicalSolver"],
+    workflowNotes: "Nutrient Goal creates chemotaxis-like attraction during biological growth. Material grows preferentially toward nutrient-rich regions, producing directional branching patterns.",
   },
   morphogenesisGoal: {
     tips: [
-      "Shapes branching patterns",
-      "Density and scale",
+      "Controls branching density and pattern regularity",
+      "Scale parameter affects branch spacing",
+      "Density influences how many branches form at junctions",
+      "Combines with Growth and Nutrient for full morphogenesis",
     ],
-    relatedNodes: ["growthGoal", "homeostasisGoal"],
+    examples: [
+      "Dense branching: high density, small scale → intricate networks",
+      "Sparse branching: low density, large scale → bold structural members",
+    ],
+    relatedNodes: ["growthGoal", "nutrientGoal", "homeostasisGoal", "biologicalSolver"],
+    workflowNotes: "Morphogenesis Goal shapes the branching patterns during biological growth. Adjust density and scale to control how structures subdivide and ramify.",
   },
   homeostasisGoal: {
     tips: [
-      "Maintains stability",
-      "Penalizes excess stress",
+      "Maintains structural stability during growth simulation",
+      "Penalizes configurations with excessive stress or strain",
+      "Acts as a regularizer preventing runaway growth",
+      "Weight controls stability vs growth trade-off",
     ],
-    relatedNodes: ["growthGoal", "morphogenesisGoal"],
+    examples: [
+      "Structural tree: homeostasis prevents thin branches from over-stressing",
+      "Self-supporting: homeostasis ensures grown geometry can stand",
+    ],
+    relatedNodes: ["growthGoal", "morphogenesisGoal", "biologicalSolver"],
+    workflowNotes: "Homeostasis Goal provides self-regulating feedback during biological growth. The solver penalizes structurally unsound configurations, ensuring grown forms remain viable.",
   },
 
   // === GOALS: Chemistry ===
   chemistryMaterialGoal: {
     tips: [
-      "Assigns material to geometry",
-      "Select from library",
+      "Assigns initial material species to seed geometry regions",
+      "Select from material library: Steel, Ceramic, Glass, etc.",
+      "Seeds nucleate material distribution—diffusion spreads from here",
+      "Multiple Material Goals define different seed regions",
     ],
-    relatedNodes: ["chemistryStiffnessGoal", "chemistrySolver"],
+    examples: [
+      "Assign Steel to beam core geometry → steel nucleates at core",
+      "Assign Glass to facade geometry → glass nucleates at exterior",
+    ],
+    pitfalls: [
+      "Seeds outside solver domain have no effect",
+      "Missing material assignments result in empty solver",
+    ],
+    relatedNodes: ["chemistryStiffnessGoal", "chemistryBlendGoal", "chemistrySolver"],
+    workflowNotes: "Material Goal defines initial material assignments for Chemistry Solver. Each assigned geometry becomes a seed region where that material species begins diffusion.",
   },
   chemistryStiffnessGoal: {
     tips: [
-      "Biases stiff materials to stress regions",
-      "Weight controls priority",
+      "Biases stiff materials (steel, ceramic) toward load-bearing regions",
+      "Automatically identifies stress concentrations from structural analysis",
+      "Weight 0-1 controls priority relative to other chemistry goals",
+      "Combine with Blend Goal for gradual stiffness transitions",
     ],
-    relatedNodes: ["chemistryMassGoal", "chemistrySolver"],
+    examples: [
+      "Mullion core: high stiffness goal → steel concentrates at center",
+      "Connection detail: stiffness goal → ceramic accumulates at stress zones",
+    ],
+    relatedNodes: ["chemistryMassGoal", "chemistryBlendGoal", "chemistrySolver"],
+    workflowNotes: "Chemistry Stiffness Goal drives high-stiffness materials toward structurally critical regions. The solver redistributes material species based on structural performance.",
   },
   chemistryMassGoal: {
     tips: [
-      "Minimizes material mass",
-      "Balance with stiffness",
+      "Minimizes total material mass/density in specified regions",
+      "Biases lightweight materials (glass, foam) toward target areas",
+      "Balance with Stiffness Goal for light-but-strong designs",
+      "Weight controls lightweighting intensity",
     ],
-    relatedNodes: ["chemistryStiffnessGoal", "chemistrySolver"],
+    examples: [
+      "Facade exterior: mass goal → glass dominates visible surfaces",
+      "Secondary structure: mass goal → lightweight materials where stiffness permits",
+    ],
+    relatedNodes: ["chemistryStiffnessGoal", "chemistryBlendGoal", "chemistrySolver"],
+    workflowNotes: "Chemistry Mass Goal pushes the solver toward lightweight material configurations. Regions with strong mass goals favor low-density material species.",
   },
   chemistryBlendGoal: {
     tips: [
-      "Enforces smooth gradients",
-      "Prevents sharp boundaries",
+      "Enforces smooth, continuous gradients between material species",
+      "Prevents abrupt material boundaries that cause stress concentrations",
+      "Smoothness parameter controls gradient sharpness (0 = sharp, 1 = very smooth)",
+      "Essential for functionally graded materials (FGM)",
     ],
-    relatedNodes: ["chemistryMaterialGoal", "chemistrySolver"],
+    examples: [
+      "Steel-to-glass: blend goal ensures gradual transition via intermediate ceramic",
+      "Thermal bridge: blend goal creates smooth conductivity gradient",
+    ],
+    pitfalls: [
+      "No blend goal → materials may form sharp, unrealistic boundaries",
+      "Very high smoothness → materials blend to uniform gray, losing differentiation",
+    ],
+    relatedNodes: ["chemistryMaterialGoal", "chemistryStiffnessGoal", "chemistrySolver"],
+    workflowNotes: "Chemistry Blend Goal ensures continuous material gradients. The solver penalizes abrupt transitions, creating smooth compositional changes across the domain.",
   },
   chemistryTransparencyGoal: {
     tips: [
-      "Biases transparent materials",
-      "For optical regions",
+      "Biases transparent materials (glass) toward specified regions",
+      "Useful for facade glazing, skylights, or optical elements",
+      "Optical transmission property drives material selection",
+      "Combine with structural goals for transparent-but-strong designs",
     ],
-    relatedNodes: ["chemistryMaterialGoal", "chemistrySolver"],
+    examples: [
+      "Facade glazing: transparency goal → glass dominates exterior surfaces",
+      "Skylight: transparency goal at roof → glass transitions from opaque frame",
+    ],
+    relatedNodes: ["chemistryMaterialGoal", "chemistryBlendGoal", "chemistrySolver"],
+    workflowNotes: "Chemistry Transparency Goal optimizes for optical transmission. Regions with high transparency goals favor glass and other transparent material species.",
   },
   chemistryThermalGoal: {
     tips: [
-      "Optimizes thermal conductivity",
-      "Heat paths and barriers",
+      "Optimizes thermal conductivity for heat management",
+      "High conductivity → heat flows easily (heat sinks, thermal bridges)",
+      "Low conductivity → thermal insulation (envelopes, barriers)",
+      "Material thermal properties drive distribution",
     ],
-    relatedNodes: ["chemistryMaterialGoal", "chemistrySolver"],
+    examples: [
+      "Heat sink: high thermal goal → conductive materials concentrate at heat source",
+      "Envelope: low thermal goal → insulating materials form thermal break",
+    ],
+    relatedNodes: ["chemistryMaterialGoal", "chemistryStiffnessGoal", "chemistrySolver"],
+    workflowNotes: "Chemistry Thermal Goal controls heat flow through material selection. The solver positions high-conductivity or insulating materials based on thermal performance objectives.",
   },
 };
 
