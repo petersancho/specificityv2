@@ -57,32 +57,35 @@
 }
 
 .panelContent {
-  width: calc(100% / var(--solver-scale));
-  height: calc(100% / var(--solver-scale));
-  transform: scale(var(--solver-scale));
-  transform-origin: top left;
+  width: 100%;
+  height: 100%;
   display: grid;
   grid-template-rows: auto auto 1fr auto;
   min-height: 100%;
   position: relative;
   z-index: 1;
+  /* Use zoom for scaling instead of transform to avoid layout issues */
+  zoom: var(--solver-scale);
 }
 
 .panel :global(button[data-state]) {
   box-shadow: var(--shadow-xs);
+  transform: none !important;
 }
 
 .panel :global(button[data-state="hover"]:not(:disabled)) {
   box-shadow: var(--shadow-sm-hover);
+  transform: none !important;
 }
 
 .panel :global(button[data-state="pressed"]:not(:disabled)) {
   box-shadow: var(--shadow-sm-pressed);
-  transform: none;
+  transform: none !important;
 }
 
 .panel :global(button[data-active="true"]:not(:disabled)) {
   box-shadow: var(--shadow-sm-pressed);
+  transform: none !important;
 }
 
 .panelMinimized .panelContent {
@@ -426,6 +429,7 @@
 }
 
 .galleryCard {
+  position: relative;
   background: var(--card-bg);
   border-radius: 8px;
   border: 1px solid #000000;
@@ -433,12 +437,13 @@
   display: grid;
   gap: 6px;
   cursor: pointer;
-  transition: box-shadow 160ms var(--easing);
+  transition: box-shadow 160ms var(--easing), border-color 160ms var(--easing);
   box-shadow: var(--shadow-xs);
 }
 
 .galleryCard:hover {
   box-shadow: var(--shadow-sm);
+  border-color: var(--ink-400);
 }
 
 .galleryImage {
@@ -454,6 +459,34 @@
   gap: 2px;
   font: 500 10px/1.3 var(--font-body);
   color: var(--ink-700);
+}
+
+.galleryCard.selected {
+  border-color: var(--solver-accent);
+  box-shadow: 0 0 0 2px var(--solver-accent), var(--shadow-sm);
+}
+
+.galleryCard.selected::after {
+  content: "✓";
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--solver-accent);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.selectionInfo {
+  font: 500 12px/1.4 var(--font-body);
+  color: var(--ink-700);
+  padding: 8px 0;
 }
 
 .detailPanel {

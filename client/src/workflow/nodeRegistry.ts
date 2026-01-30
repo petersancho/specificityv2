@@ -10275,11 +10275,29 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     },
     inputs: [
       {
+        key: "genome",
+        label: "Genome",
+        type: "genomeSpec",
+        description: "Genome specification from Genome Collector.",
+      },
+      {
+        key: "geometry",
+        label: "Geometry",
+        type: "phenotypeSpec",
+        description: "Phenotype specification from Geometry Phenotype.",
+      },
+      {
+        key: "performs",
+        label: "Fitness",
+        type: "fitnessSpec",
+        description: "Fitness specification from Performs Fitness.",
+      },
+      {
         key: "goals",
         label: "Goals",
         type: "goal",
         allowMultiple: true,
-        description: "Biological goal specifications.",
+        description: "Biological goal specifications (growth, nutrient, morphogenesis, homeostasis).",
       },
       {
         key: "domain",

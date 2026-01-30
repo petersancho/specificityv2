@@ -1126,6 +1126,7 @@ export const NumericalCanvas = ({
   const addNodeAt = useProjectStore((state) => state.addNodeAt);
   const addGeometryReferenceNode = useProjectStore((state) => state.addGeometryReferenceNode);
   const addPhysicsSolverRig = useProjectStore((state) => state.addPhysicsSolverRig);
+  const addBiologicalSolverRig = useProjectStore((state) => state.addBiologicalSolverRig);
   const syncWorkflowGeometryToRoslyn = useProjectStore((state) => state.syncWorkflowGeometryToRoslyn);
   const setSelectedGeometryIds = useProjectStore((state) => state.setSelectedGeometryIds);
   const updateNodeData = useProjectStore((state) => state.updateNodeData);
@@ -2667,6 +2668,10 @@ export const NumericalCanvas = ({
       onSelect: closeMenu(() => addPhysicsSolverRig(world)),
     });
     actions.push({
+      label: "Add Biological Solver Rig",
+      onSelect: closeMenu(() => addBiologicalSolverRig(world)),
+    });
+    actions.push({
       label: "Frame All Nodes",
       onSelect: closeMenu(() => frameNodes()),
     });
@@ -2723,6 +2728,7 @@ export const NumericalCanvas = ({
     shortcutOverlayEnabled,
     addTextNoteAt,
     addPhysicsSolverRig,
+    addBiologicalSolverRig,
     openStlFilePicker,
     beginInlineEdit,
     createGroupFromSelection,
