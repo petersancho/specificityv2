@@ -31,8 +31,11 @@ import {
   getCommandDocumentation,
   getNodeDocumentation,
 } from "../data/documentationContent";
+import { safeLocalStorageGet, safeLocalStorageSet } from "../utils/safeStorage";
 
 type ViewMode = "compact" | "detailed";
+
+const DOCS_VIEW_MODE_KEY = "lingua_docs_view_mode";
 
 type CommandGroup = {
   id: string;
@@ -449,7 +452,14 @@ type DocumentationIndexProps = {
 };
 
 const DocumentationIndex = ({ onNavigate }: DocumentationIndexProps) => {
-  const [viewMode, setViewMode] = useState<ViewMode>("compact");
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const stored = safeLocalStorageGet(DOCS_VIEW_MODE_KEY);
+    return stored === "compact" || stored === "detailed" ? stored : "detailed";
+  });
+  const handleViewModeChange = useCallback((mode: ViewMode) => {
+    setViewMode(mode);
+    safeLocalStorageSet(DOCS_VIEW_MODE_KEY, mode);
+  }, []);
   const nodeGroups = useMemo(() => {
     const groupMap = new Map(
       NODE_CATEGORIES.map((category) => [
@@ -585,7 +595,7 @@ const DocumentationIndex = ({ onNavigate }: DocumentationIndexProps) => {
               shortcuts. {viewMode === "compact" ? "Hover for the extended prompt and input expectations." : "Browse detailed documentation inline or click to view full details."}
             </p>
           </div>
-          <ViewToggle mode={viewMode} onModeChange={setViewMode} />
+          <ViewToggle mode={viewMode} onModeChange={handleViewModeChange} />
         </div>
         
         {viewMode === "compact" ? (
@@ -665,7 +675,7 @@ const DocumentationIndex = ({ onNavigate }: DocumentationIndexProps) => {
               Every node is a typed operator in the graph. {viewMode === "compact" ? "Hover a node to read its description, inputs, outputs, and parameter guidance." : "Browse detailed documentation inline with tips, examples, and related nodes."}
             </p>
           </div>
-          <ViewToggle mode={viewMode} onModeChange={setViewMode} />
+          <ViewToggle mode={viewMode} onModeChange={handleViewModeChange} />
         </div>
         
         {viewMode === "compact" ? (
