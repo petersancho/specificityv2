@@ -385,89 +385,33 @@ const DEFAULT_BIOLOGICAL_FITNESS_PROFILE: BiologicalFitnessProfile = {
   frequency: { x: 1, y: 1, z: 0.7 },
 };
 
-export const CHEMISTRY_MATERIAL_LIBRARY: Record<string, ChemistryMaterialSpec> = {
-  steel: {
-    name: "Steel",
-    density: 7850,
-    stiffness: 200e9,
-    thermalConductivity: 50,
-    opticalTransmission: 0,
-    diffusivity: 0.2,
-    color: [0.7, 0.7, 0.75],
-  },
-  aluminum: {
-    name: "Aluminum",
-    density: 2700,
-    stiffness: 69e9,
-    thermalConductivity: 205,
-    opticalTransmission: 0,
-    diffusivity: 0.25,
-    color: [0.78, 0.8, 0.82],
-  },
-  metal: {
-    name: "Metal",
-    density: 7850,
-    stiffness: 180e9,
-    thermalConductivity: 60,
-    opticalTransmission: 0,
-    diffusivity: 0.22,
-    color: [0.68, 0.68, 0.72],
-  },
-  ceramic: {
-    name: "Ceramic",
-    density: 3900,
-    stiffness: 300e9,
-    thermalConductivity: 20,
-    opticalTransmission: 0.05,
-    diffusivity: 0.18,
-    color: [0.9, 0.9, 0.94],
-  },
-  alumina: {
-    name: "Alumina",
-    density: 3900,
-    stiffness: 320e9,
-    thermalConductivity: 25,
-    opticalTransmission: 0.03,
-    diffusivity: 0.16,
-    color: [0.92, 0.92, 0.96],
-  },
-  zirconia: {
-    name: "Zirconia",
-    density: 5600,
-    stiffness: 210e9,
-    thermalConductivity: 2.5,
-    opticalTransmission: 0.02,
-    diffusivity: 0.14,
-    color: [0.95, 0.95, 0.98],
-  },
-  glass: {
-    name: "Glass",
-    density: 2500,
-    stiffness: 70e9,
-    thermalConductivity: 1.4,
-    opticalTransmission: 0.9,
-    diffusivity: 0.35,
-    color: [0.7, 0.85, 0.95],
-  },
-  silica: {
-    name: "Silica",
-    density: 2200,
-    stiffness: 72e9,
-    thermalConductivity: 1.3,
-    opticalTransmission: 0.92,
-    diffusivity: 0.35,
-    color: [0.75, 0.88, 0.96],
-  },
-  borosilicate: {
-    name: "Borosilicate",
-    density: 2230,
-    stiffness: 64e9,
-    thermalConductivity: 1.2,
-    opticalTransmission: 0.88,
-    diffusivity: 0.32,
-    color: [0.76, 0.9, 0.97],
-  },
-};
+// Import expanded material database
+import {
+  CHEMISTRY_MATERIAL_DATABASE,
+  type ChemistryMaterialSpec as ImportedChemistryMaterialSpec,
+  getMaterialByName,
+  blendMaterialColors,
+  CATEGORY_INFO,
+} from "../data/chemistryMaterials";
+
+// Re-export for backward compatibility
+export const CHEMISTRY_MATERIAL_LIBRARY: Record<string, ChemistryMaterialSpec> = Object.fromEntries(
+  Object.entries(CHEMISTRY_MATERIAL_DATABASE).map(([key, spec]) => [
+    key,
+    {
+      name: spec.name,
+      density: spec.density,
+      stiffness: spec.stiffness,
+      thermalConductivity: spec.thermalConductivity,
+      opticalTransmission: spec.opticalTransmission,
+      diffusivity: spec.diffusivity,
+      color: spec.color,
+    },
+  ])
+);
+
+// Re-export utility functions
+export { getMaterialByName, blendMaterialColors, CATEGORY_INFO };
 
 const isVec3Value = (value: WorkflowValue): value is Vec3Value => {
   if (!value || typeof value !== "object") return false;

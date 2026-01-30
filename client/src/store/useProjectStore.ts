@@ -341,6 +341,11 @@ type ProjectStore = {
     data: Partial<Geometry>,
     options?: { recordHistory?: boolean }
   ) => void;
+  updateGeometryMetadata: (
+    id: string,
+    metadata: Record<string, unknown> | undefined,
+    options?: { recordHistory?: boolean }
+  ) => void;
   deleteGeometry: (
     ids: string[] | string,
     options?: { recordHistory?: boolean }
@@ -352,6 +357,7 @@ type ProjectStore = {
   addGeometryReferenceNode: (geometryId?: string) => string | null;
   addPhysicsSolverRig: (position: { x: number; y: number }) => void;
   addBiologicalSolverRig: (position: { x: number; y: number }) => void;
+  addChemistrySolverRig: (position: { x: number; y: number }) => void;
   syncWorkflowGeometryToRoslyn: (nodeId: string) => void;
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;
@@ -7110,6 +7116,337 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }));
     get().recalculateWorkflow();
   },
+  addChemistrySolverRig: (position) => {
+    /**
+     * Chemistry Solver Test Rig: Curtain Wall Mullion with Thermal Break
+     *
+     * Creates a complete material optimization setup for a unitized curtain
+     * wall mullion profile requiring:
+     * - Structural steel at anchor zones (top/bottom connections to slab)
+     * - Ceramic thermal break through the core to prevent condensation
+     * - Glass-compatible interface at glazing contact surfaces
+     * - Mass optimization to reduce embodied carbon
+     *
+     * Nodes created:
+     * - Geometry Reference (Domain) → mullion profile from Roslyn
+     * - Geometry Reference (Anchor Zones) → steel nucleation regions
+     * - Geometry Reference (Thermal Core) → ceramic thermal break region
+     * - Geometry Reference (Vision Strip) → glass interface region
+     * - Stiffness Goal (Τέλος Σκληρότητος) → bias steel toward load paths
+     * - Mass Goal (Τέλος Ἐλαχίστου Ὄγκου) → minimize total mass
+     * - Blend Goal (Τέλος Κράσεως) → smooth manufacturable gradients
+     * - Transparency Goal (Τέλος Διαφανείας) → glass at glazing interface
+     * - Thermal Goal (Τέλος Ῥοῆς Θερμότητος) → ceramic insulation in core
+     * - Chemistry Solver (Ἐπιλύτης Χημείας) → material transmutation
+     * - Geometry Viewer → visualize graded result
+     */
+    const ts = Date.now();
+    const NODE_WIDTH = 200;
+    const NODE_HEIGHT = 120;
+    const H_GAP = 60;
+    const V_GAP = 40;
+
+    // Column 1: Geometry Reference nodes (domain + seed regions)
+    const domainId = `node-geometryReference-domain-${ts}`;
+    const domainPos = { x: position.x, y: position.y };
+
+    const anchorZonesId = `node-geometryReference-anchors-${ts}`;
+    const anchorZonesPos = { x: position.x, y: position.y + NODE_HEIGHT + V_GAP };
+
+    const thermalCoreId = `node-geometryReference-thermal-${ts}`;
+    const thermalCorePos = { x: position.x, y: position.y + (NODE_HEIGHT + V_GAP) * 2 };
+
+    const visionStripId = `node-geometryReference-vision-${ts}`;
+    const visionStripPos = { x: position.x, y: position.y + (NODE_HEIGHT + V_GAP) * 3 };
+
+    // Column 2: Goal nodes (stacked vertically)
+    const col2X = position.x + NODE_WIDTH + H_GAP;
+
+    const stiffnessGoalId = `node-chemistryStiffnessGoal-${ts}`;
+    const stiffnessGoalPos = { x: col2X, y: position.y };
+
+    const massGoalId = `node-chemistryMassGoal-${ts}`;
+    const massGoalPos = { x: col2X, y: position.y + NODE_HEIGHT + V_GAP };
+
+    const blendGoalId = `node-chemistryBlendGoal-${ts}`;
+    const blendGoalPos = { x: col2X, y: position.y + (NODE_HEIGHT + V_GAP) * 2 };
+
+    const transparencyGoalId = `node-chemistryTransparencyGoal-${ts}`;
+    const transparencyGoalPos = { x: col2X, y: position.y + (NODE_HEIGHT + V_GAP) * 3 };
+
+    const thermalGoalId = `node-chemistryThermalGoal-${ts}`;
+    const thermalGoalPos = { x: col2X, y: position.y + (NODE_HEIGHT + V_GAP) * 4 };
+
+    // Column 3: Chemistry Solver
+    const solverId = `node-chemistrySolver-${ts}`;
+    const solverPos = { x: col2X + NODE_WIDTH + H_GAP, y: position.y + NODE_HEIGHT * 1.5 };
+
+    // Column 4: Geometry Viewer
+    const viewerId = `node-geometryViewer-${ts}`;
+    const viewerPos = { x: col2X + (NODE_WIDTH + H_GAP) * 2, y: position.y + NODE_HEIGHT * 1.5 };
+
+    const newNodes = [
+      // Domain geometry reference
+      {
+        id: domainId,
+        type: "geometryReference" as const,
+        position: domainPos,
+        data: {
+          label: "Mullion Domain",
+          parameters: {},
+        },
+      },
+      // Seed region: Anchor zones (for steel nucleation)
+      {
+        id: anchorZonesId,
+        type: "geometryReference" as const,
+        position: anchorZonesPos,
+        data: {
+          label: "Anchor Zones (Steel)",
+          parameters: {},
+        },
+      },
+      // Seed region: Thermal core (for ceramic nucleation)
+      {
+        id: thermalCoreId,
+        type: "geometryReference" as const,
+        position: thermalCorePos,
+        data: {
+          label: "Thermal Core (Ceramic)",
+          parameters: {},
+        },
+      },
+      // Seed region: Vision strip (for glass interface)
+      {
+        id: visionStripId,
+        type: "geometryReference" as const,
+        position: visionStripPos,
+        data: {
+          label: "Vision Strip (Glass)",
+          parameters: {},
+        },
+      },
+      // Stiffness Goal: bias steel toward structural load paths
+      {
+        id: stiffnessGoalId,
+        type: "chemistryStiffnessGoal" as const,
+        position: stiffnessGoalPos,
+        data: {
+          label: "Τέλος Σκληρότητος",
+          parameters: {
+            loadVectorX: 0,
+            loadVectorY: -1, // Gravity direction
+            loadVectorZ: 0,
+            structuralPenalty: 1.5,
+            weight: 0.7, // Primary structural driver
+          },
+        },
+      },
+      // Mass Goal: minimize total mass for embodied carbon
+      {
+        id: massGoalId,
+        type: "chemistryMassGoal" as const,
+        position: massGoalPos,
+        data: {
+          label: "Τέλος Ἐλαχίστου Ὄγκου",
+          parameters: {
+            targetMassFraction: 0.55, // 45% material removal target
+            densityPenalty: 1.2,
+            weight: 0.4, // Secondary to stiffness
+          },
+        },
+      },
+      // Blend Goal: smooth gradients for manufacturability
+      {
+        id: blendGoalId,
+        type: "chemistryBlendGoal" as const,
+        position: blendGoalPos,
+        data: {
+          label: "Τέλος Κράσεως",
+          parameters: {
+            smoothness: 0.75, // Smooth for additive manufacturing
+            diffusivity: 1.2,
+            weight: 0.6,
+          },
+        },
+      },
+      // Transparency Goal: glass at glazing interface
+      {
+        id: transparencyGoalId,
+        type: "chemistryTransparencyGoal" as const,
+        position: transparencyGoalPos,
+        data: {
+          label: "Τέλος Διαφανείας",
+          parameters: {
+            opticalWeight: 2.0, // Strong bias toward transparent material
+            weight: 0.45,
+          },
+        },
+      },
+      // Thermal Goal: ceramic insulation in core
+      {
+        id: thermalGoalId,
+        type: "chemistryThermalGoal" as const,
+        position: thermalGoalPos,
+        data: {
+          label: "Τέλος Ῥοῆς Θερμότητος",
+          parameters: {
+            mode: "insulate", // Minimize heat transfer
+            thermalWeight: 2.5,
+            weight: 0.65, // Critical for condensation prevention
+          },
+        },
+      },
+      // Chemistry Solver
+      {
+        id: solverId,
+        type: "chemistrySolver" as const,
+        position: solverPos,
+        data: {
+          label: "Ἐπιλύτης Χημείας",
+          parameters: {
+            particleCount: 2000, // Interactive mode
+            iterations: 60,
+            fieldResolution: 32,
+            isoValue: 0.35,
+            convergenceTolerance: 0.005,
+            blendStrength: 0.6,
+            historyLimit: 100,
+            seed: 1,
+            materialOrder: "Steel, Ceramic, Glass",
+            seedMaterial: "Steel",
+            seedStrength: 0.85,
+            seedRadius: 0.25,
+          },
+        },
+      },
+      // Geometry Viewer for result visualization
+      {
+        id: viewerId,
+        type: "geometryViewer" as const,
+        position: viewerPos,
+        data: { label: "Graded Material Preview" },
+      },
+    ];
+
+    // Wire connections
+    const newEdges = [
+      // Domain Geometry → Chemistry Solver (domain input)
+      {
+        id: `edge-${domainId}-${solverId}-domain`,
+        source: domainId,
+        sourceHandle: "geometry",
+        target: solverId,
+        targetHandle: "domain",
+      },
+      // Anchor Zones → Chemistry Solver (seeds for steel nucleation)
+      {
+        id: `edge-${anchorZonesId}-${solverId}-seeds`,
+        source: anchorZonesId,
+        sourceHandle: "geometry",
+        target: solverId,
+        targetHandle: "seeds",
+      },
+      // Thermal Core → Chemistry Solver (seeds for ceramic)
+      {
+        id: `edge-${thermalCoreId}-${solverId}-seeds`,
+        source: thermalCoreId,
+        sourceHandle: "geometry",
+        target: solverId,
+        targetHandle: "seeds",
+      },
+      // Vision Strip → Chemistry Solver (seeds for glass)
+      {
+        id: `edge-${visionStripId}-${solverId}-seeds`,
+        source: visionStripId,
+        sourceHandle: "geometry",
+        target: solverId,
+        targetHandle: "seeds",
+      },
+      // Anchor Zones → Stiffness Goal (region input)
+      {
+        id: `edge-${anchorZonesId}-${stiffnessGoalId}-region`,
+        source: anchorZonesId,
+        sourceHandle: "geometry",
+        target: stiffnessGoalId,
+        targetHandle: "region",
+      },
+      // Vision Strip → Transparency Goal (region input)
+      {
+        id: `edge-${visionStripId}-${transparencyGoalId}-region`,
+        source: visionStripId,
+        sourceHandle: "geometry",
+        target: transparencyGoalId,
+        targetHandle: "region",
+      },
+      // Thermal Core → Thermal Goal (region input)
+      {
+        id: `edge-${thermalCoreId}-${thermalGoalId}-region`,
+        source: thermalCoreId,
+        sourceHandle: "geometry",
+        target: thermalGoalId,
+        targetHandle: "region",
+      },
+      // Stiffness Goal → Chemistry Solver (goals)
+      {
+        id: `edge-${stiffnessGoalId}-${solverId}`,
+        source: stiffnessGoalId,
+        sourceHandle: "goal",
+        target: solverId,
+        targetHandle: "goals",
+      },
+      // Mass Goal → Chemistry Solver (goals)
+      {
+        id: `edge-${massGoalId}-${solverId}`,
+        source: massGoalId,
+        sourceHandle: "goal",
+        target: solverId,
+        targetHandle: "goals",
+      },
+      // Blend Goal → Chemistry Solver (goals)
+      {
+        id: `edge-${blendGoalId}-${solverId}`,
+        source: blendGoalId,
+        sourceHandle: "goal",
+        target: solverId,
+        targetHandle: "goals",
+      },
+      // Transparency Goal → Chemistry Solver (goals)
+      {
+        id: `edge-${transparencyGoalId}-${solverId}`,
+        source: transparencyGoalId,
+        sourceHandle: "goal",
+        target: solverId,
+        targetHandle: "goals",
+      },
+      // Thermal Goal → Chemistry Solver (goals)
+      {
+        id: `edge-${thermalGoalId}-${solverId}`,
+        source: thermalGoalId,
+        sourceHandle: "goal",
+        target: solverId,
+        targetHandle: "goals",
+      },
+      // Chemistry Solver → Geometry Viewer
+      {
+        id: `edge-${solverId}-${viewerId}`,
+        source: solverId,
+        sourceHandle: "geometry",
+        target: viewerId,
+        targetHandle: "geometry",
+      },
+    ];
+
+    set((state) => ({
+      workflowHistory: appendWorkflowHistory(state.workflowHistory, state.workflow),
+      workflow: {
+        ...state.workflow,
+        nodes: [...state.workflow.nodes, ...newNodes],
+        edges: [...state.workflow.edges, ...newEdges],
+      },
+    }));
+    get().recalculateWorkflow();
+  },
   setSaves: (saves) => set({ saves }),
   selectGeometry: (id, isMultiSelect = false) =>
     set((state) => {
@@ -7895,6 +8232,22 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
   updateGeometry: (id, data, options) => {
     get().updateGeometryBatch([{ id, data }], options);
+  },
+  updateGeometryMetadata: (id, metadata, options) => {
+    const recordHistory = options?.recordHistory ?? false;
+    if (recordHistory) {
+      get().recordModelerHistory();
+    }
+    set((state) => {
+      const nextGeometry = state.geometry.map((item) => {
+        if (item.id !== id) return item;
+        const nextMetadata = metadata === undefined
+          ? undefined
+          : { ...(item.metadata ?? {}), ...metadata };
+        return { ...item, metadata: nextMetadata } as Geometry;
+      });
+      return { geometry: nextGeometry } satisfies Partial<ProjectStore>;
+    });
   },
   deleteGeometry: (ids, options) => {
     const recordHistory = options?.recordHistory ?? true;

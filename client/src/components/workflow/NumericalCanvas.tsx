@@ -1127,6 +1127,7 @@ export const NumericalCanvas = ({
   const addGeometryReferenceNode = useProjectStore((state) => state.addGeometryReferenceNode);
   const addPhysicsSolverRig = useProjectStore((state) => state.addPhysicsSolverRig);
   const addBiologicalSolverRig = useProjectStore((state) => state.addBiologicalSolverRig);
+  const addChemistrySolverRig = useProjectStore((state) => state.addChemistrySolverRig);
   const syncWorkflowGeometryToRoslyn = useProjectStore((state) => state.syncWorkflowGeometryToRoslyn);
   const setSelectedGeometryIds = useProjectStore((state) => state.setSelectedGeometryIds);
   const updateNodeData = useProjectStore((state) => state.updateNodeData);
@@ -2672,6 +2673,10 @@ export const NumericalCanvas = ({
       onSelect: closeMenu(() => addBiologicalSolverRig(world)),
     });
     actions.push({
+      label: "Add Chemistry Solver Rig",
+      onSelect: closeMenu(() => addChemistrySolverRig(world)),
+    });
+    actions.push({
       label: "Frame All Nodes",
       onSelect: closeMenu(() => frameNodes()),
     });
@@ -2729,6 +2734,7 @@ export const NumericalCanvas = ({
     addTextNoteAt,
     addPhysicsSolverRig,
     addBiologicalSolverRig,
+    addChemistrySolverRig,
     openStlFilePicker,
     beginInlineEdit,
     createGroupFromSelection,
@@ -2768,6 +2774,7 @@ export const NumericalCanvas = ({
     if (label.includes("add file")) return "load";
     if (label.includes("select stl")) return "load";
     if (label.includes("physics solver rig")) return "solver";
+    if (label.includes("chemistry solver rig")) return "solver";
     if (label.includes("refer to object")) return "referenceActive";
     if (label.includes("reference")) return "geometryReference";
     if (label.includes("ontologize")) return "brandRoslyn";
