@@ -695,6 +695,828 @@ export const NODE_DOCUMENTATION: Record<string, NodeDocumentation> = {
   },
 };
 
+  // === GOAL NODES - PHYSICS ===
+  stiffnessGoal: {
+    tips: [
+      "Weight parameter controls the importance relative to other goals",
+      "Higher stiffness targets drive material toward load paths",
+      "Combine with Volume Goal to balance stiffness vs material usage",
+      "Connect to Physics Solver or Topology Solver for optimization",
+    ],
+    examples: [
+      "Maximize stiffness of a bracket while minimizing weight",
+      "Create an optimized beam with target deflection limits",
+      "Design a stiff connection joint for structural assemblies",
+    ],
+    relatedNodes: ["volumeGoal", "loadGoal", "anchorGoal", "physicsSolver"],
+  },
+  volumeGoal: {
+    tips: [
+      "Target fraction (0-1) sets the material budget",
+      "Lower fractions create lighter structures",
+      "Balance with stiffness goals for optimal designs",
+      "Penalize or target - choose based on optimization intent",
+    ],
+    examples: [
+      "Limit material to 30% of bounding volume for lightweight bracket",
+      "Create minimum-weight structure that meets strength requirements",
+      "Optimize material distribution for given volume constraint",
+    ],
+    relatedNodes: ["stiffnessGoal", "loadGoal", "topologySolver"],
+  },
+  loadGoal: {
+    tips: [
+      "Force vector defines magnitude and direction",
+      "Application region can be points, edges, or faces",
+      "Multiple loads can be combined for complex loading scenarios",
+      "Consider both static and dynamic loading cases",
+    ],
+    examples: [
+      "Apply downward gravity load to a shelf structure",
+      "Define point loads at connection points for a bracket",
+      "Create distributed pressure load on a surface",
+    ],
+    relatedNodes: ["anchorGoal", "stiffnessGoal", "physicsSolver"],
+  },
+  anchorGoal: {
+    tips: [
+      "Anchored regions cannot move during analysis",
+      "Define supports realistically for accurate results",
+      "Both fixed and pinned boundary conditions supported",
+      "Position anchors where real-world supports exist",
+    ],
+    examples: [
+      "Fix the base of a cantilever beam",
+      "Define mounting holes as anchor points for a bracket",
+      "Create pinned supports for a simply-supported beam",
+    ],
+    relatedNodes: ["loadGoal", "stiffnessGoal", "physicsSolver"],
+  },
+
+  // === GOAL NODES - BIOLOGICAL EVOLUTION ===
+  genomeCollector: {
+    tips: [
+      "Connect slider nodes that should be evolved",
+      "Each slider becomes a gene in the genome",
+      "Order of connections defines gene order",
+      "Consider which parameters most affect the design",
+    ],
+    examples: [
+      "Collect dimension sliders for furniture optimization",
+      "Gather structural parameters for bracket evolution",
+      "Assemble proportional controls for vehicle design",
+    ],
+    bestPractices: [
+      "Include only parameters that significantly affect fitness",
+      "Set meaningful min/max bounds on connected sliders",
+      "Use descriptive names for sliders to track evolution",
+    ],
+    relatedNodes: ["geometryPhenotype", "performsFitness", "biologicalEvolutionSolver"],
+  },
+  geometryPhenotype: {
+    tips: [
+      "Connect final geometry outputs from your workflow",
+      "Multiple geometry outputs can define the phenotype",
+      "Phenotype is what gets evaluated for fitness",
+      "Ensure geometry updates properly when genome changes",
+    ],
+    examples: [
+      "Capture bracket geometry for structural optimization",
+      "Collect furniture components for ergonomic evaluation",
+      "Gather building envelope for energy analysis",
+    ],
+    relatedNodes: ["genomeCollector", "performsFitness", "biologicalEvolutionSolver"],
+  },
+  performsFitness: {
+    tips: [
+      "Combine multiple metrics with weights",
+      "Higher fitness = better design (maximize)",
+      "Weights control relative importance of objectives",
+      "Normalize metrics to similar scales for balanced optimization",
+    ],
+    examples: [
+      "Weight strength highly and mass low for stiff/heavy design",
+      "Balance aesthetics and function with equal weights",
+      "Prioritize cost while meeting minimum performance thresholds",
+    ],
+    relatedNodes: ["genomeCollector", "geometryPhenotype", "biologicalEvolutionSolver"],
+  },
+
+  // === GOAL NODES - BIOLOGICAL GROWTH ===
+  growthGoal: {
+    tips: [
+      "Intensity controls how fast growth occurs",
+      "Direction vector biases growth toward specific areas",
+      "Combine with Nutrient Goal for realistic patterns",
+      "Higher intensity creates denser structures",
+    ],
+    examples: [
+      "Simulate upward tree growth with vertical bias",
+      "Create organic branching with uniform growth",
+      "Model coral-like formations with radial growth",
+    ],
+    relatedNodes: ["nutrientGoal", "morphogenesisGoal", "homeostasisGoal", "biologicalSolver"],
+  },
+  nutrientGoal: {
+    tips: [
+      "Position defines where nutrients are available",
+      "Strength controls concentration at source",
+      "Diffusion rate affects how far nutrients spread",
+      "Growth naturally follows nutrient gradients",
+    ],
+    examples: [
+      "Place nutrient at ground level for root-like growth",
+      "Create multiple sources for distributed branching",
+      "Simulate light source attracting phototropic growth",
+    ],
+    relatedNodes: ["growthGoal", "morphogenesisGoal", "biologicalSolver"],
+  },
+  morphogenesisGoal: {
+    tips: [
+      "Density controls branching frequency",
+      "Scale affects the size of pattern features",
+      "Creates natural-looking organic structures",
+      "Combine with other goals for complex morphologies",
+    ],
+    examples: [
+      "Generate tree-like branching patterns",
+      "Create vein-like networks for distribution systems",
+      "Design lightning-bolt-like fractal structures",
+    ],
+    relatedNodes: ["growthGoal", "nutrientGoal", "homeostasisGoal", "biologicalSolver"],
+  },
+  homeostasisGoal: {
+    tips: [
+      "Penalizes excessive stress during growth",
+      "Creates more stable, conservative structures",
+      "Balance with growth goals for controlled expansion",
+      "Higher weights create more uniform density",
+    ],
+    examples: [
+      "Prevent overly thin branches in tree structures",
+      "Maintain structural stability during optimization",
+      "Create robust organic forms without weak points",
+    ],
+    relatedNodes: ["growthGoal", "morphogenesisGoal", "biologicalSolver"],
+  },
+
+  // === GOAL NODES - CHEMISTRY/MATERIALS ===
+  chemistryMaterialGoal: {
+    tips: [
+      "Select from the built-in material library",
+      "Connect geometry to assign materials to regions",
+      "Weight controls preference strength",
+      "Multiple goals can create material gradients",
+    ],
+    examples: [
+      "Assign steel to high-stress regions of a bracket",
+      "Place aluminum in low-load areas for weight reduction",
+      "Define glass zones for transparent sections",
+    ],
+    relatedNodes: ["chemistryStiffnessGoal", "chemistryMassGoal", "chemistrySolver"],
+  },
+  chemistryStiffnessGoal: {
+    tips: [
+      "Biases stiff materials toward stress-aligned regions",
+      "Weight controls how strongly stiffness is prioritized",
+      "Combine with Mass Goal for balanced optimization",
+      "Works with the material library in Chemistry Solver",
+    ],
+    examples: [
+      "Optimize a bracket for maximum stiffness with available materials",
+      "Create a composite structure with steel reinforcement",
+      "Design load-bearing elements with stiffness focus",
+    ],
+    relatedNodes: ["chemistryMassGoal", "chemistryMaterialGoal", "chemistrySolver"],
+  },
+  chemistryMassGoal: {
+    tips: [
+      "Penalizes dense materials to reduce overall mass",
+      "Balance with stiffness for lightweight strong structures",
+      "Weight parameter controls mass reduction priority",
+      "Effective for aerospace and automotive applications",
+    ],
+    examples: [
+      "Minimize weight of a bracket while meeting strength targets",
+      "Create lightweight shell structures with material gradients",
+      "Design mass-efficient support structures",
+    ],
+    relatedNodes: ["chemistryStiffnessGoal", "chemistryMaterialGoal", "chemistrySolver"],
+  },
+  chemistryBlendGoal: {
+    tips: [
+      "Enforces smooth transitions between materials",
+      "Prevents sharp material discontinuities",
+      "Important for manufacturability",
+      "Creates gradient materials naturally",
+    ],
+    examples: [
+      "Create smooth steel-to-aluminum transitions",
+      "Design gradient density foam structures",
+      "Generate natural material blending in composites",
+    ],
+    relatedNodes: ["chemistryMaterialGoal", "chemistrySolver"],
+  },
+  chemistryTransparencyGoal: {
+    tips: [
+      "Biases transparent materials to optical regions",
+      "Define areas requiring light transmission",
+      "Combine with structural goals for functional designs",
+      "Works with glass-like materials in the library",
+    ],
+    examples: [
+      "Design a structural facade with transparent panels",
+      "Create a lamp shade with optimized light distribution",
+      "Optimize window placement in an architectural model",
+    ],
+    relatedNodes: ["chemistryMaterialGoal", "chemistryThermalGoal", "chemistrySolver"],
+  },
+  chemistryThermalGoal: {
+    tips: [
+      "Optimizes thermal conductivity distribution",
+      "Place conductive materials for heat paths",
+      "Insulating materials create thermal barriers",
+      "Essential for thermal management applications",
+    ],
+    examples: [
+      "Design a heat sink with optimal material distribution",
+      "Create insulated wall assemblies with thermal breaks",
+      "Optimize electronic enclosure cooling paths",
+    ],
+    relatedNodes: ["chemistryMaterialGoal", "chemistryStiffnessGoal", "chemistrySolver"],
+  },
+
+  // === MATH OPERATIONS ===
+  number: {
+    tips: [
+      "Use for fixed values that don't change",
+      "Good for named constants like Pi or material properties",
+      "Can be connected to any number input port",
+      "Edit value in node parameters panel",
+    ],
+    examples: [
+      "Define a constant offset distance of 10 units",
+      "Set material thickness as a named constant",
+      "Create a degrees-to-radians conversion factor",
+    ],
+    relatedNodes: ["slider", "add", "multiply", "expression"],
+  },
+  add: {
+    tips: [
+      "Adds two numeric inputs",
+      "Can chain multiple additions with multiple Add nodes",
+      "Works with single values and lists",
+      "Order of inputs doesn't matter (commutative)",
+    ],
+    examples: [
+      "Sum dimensions to get total length",
+      "Add offset to base position",
+      "Accumulate incremental values",
+    ],
+    relatedNodes: ["subtract", "multiply", "listSum", "expression"],
+  },
+  subtract: {
+    tips: [
+      "Returns A minus B",
+      "Order matters - first input minus second",
+      "Use for differences, decrements, or relative values",
+      "Negative second input adds instead of subtracts",
+    ],
+    examples: [
+      "Calculate remaining material after cuts",
+      "Find difference between measurements",
+      "Compute relative position from reference",
+    ],
+    relatedNodes: ["add", "divide", "expression"],
+  },
+  multiply: {
+    tips: [
+      "Multiplies two numeric inputs",
+      "Use for scaling, area calculations, or applying factors",
+      "Order doesn't matter (commutative)",
+      "Multiplying by zero always returns zero",
+    ],
+    examples: [
+      "Scale a dimension by a factor",
+      "Calculate area from width and height",
+      "Apply a percentage multiplier",
+    ],
+    relatedNodes: ["divide", "add", "vectorScale", "expression"],
+  },
+  divide: {
+    tips: [
+      "Returns A divided by B",
+      "Division by zero returns infinity (handled gracefully)",
+      "Use for ratios, averaging, or unit conversions",
+      "Integer division rounds toward zero",
+    ],
+    examples: [
+      "Calculate average from sum and count",
+      "Convert units (mm to inches)",
+      "Find ratio of two measurements",
+    ],
+    relatedNodes: ["multiply", "subtract", "expression"],
+  },
+  clamp: {
+    tips: [
+      "Constrains value between min and max",
+      "Values below min become min, above max become max",
+      "Essential for keeping parameters in valid ranges",
+      "Prevents extreme or invalid values",
+    ],
+    examples: [
+      "Limit angle to 0-360 degrees",
+      "Constrain radius to positive values only",
+      "Keep proportions within reasonable bounds",
+    ],
+    relatedNodes: ["min", "max", "remap", "expression"],
+  },
+  min: {
+    tips: [
+      "Returns the smaller of two values",
+      "Use for upper bounds or conservative estimates",
+      "Chain multiple Min nodes for finding minimum of many values",
+      "listMin does this for entire lists",
+    ],
+    examples: [
+      "Limit maximum dimension to available space",
+      "Take the smaller of two clearances",
+      "Find conservative tolerance value",
+    ],
+    relatedNodes: ["max", "clamp", "listMin"],
+  },
+  max: {
+    tips: [
+      "Returns the larger of two values",
+      "Use for lower bounds or ensuring minimums",
+      "Chain multiple Max nodes for finding maximum of many values",
+      "listMax does this for entire lists",
+    ],
+    examples: [
+      "Ensure minimum wall thickness",
+      "Take the larger of two spacing values",
+      "Guarantee minimum strength requirement",
+    ],
+    relatedNodes: ["min", "clamp", "listMax"],
+  },
+  scalarFunctions: {
+    tips: [
+      "Single dropdown for common math functions",
+      "Includes: abs, floor, ceil, round, sqrt, sin, cos, tan, log, exp",
+      "Trigonometric functions use radians",
+      "More compact than individual function nodes",
+    ],
+    examples: [
+      "Take absolute value of signed distance",
+      "Round dimensions to whole numbers",
+      "Calculate sine wave for animation",
+    ],
+    relatedNodes: ["expression", "add", "multiply"],
+  },
+  conditional: {
+    tips: [
+      "If-then-else for numbers",
+      "Condition > 0 or true selects True output",
+      "Condition <= 0 or false selects False output",
+      "Use for mode switching or clamping logic",
+    ],
+    examples: [
+      "Choose between two dimensions based on flag",
+      "Select material based on stress threshold",
+      "Switch calculation method based on size",
+    ],
+    relatedNodes: ["expression", "clamp", "min", "max"],
+  },
+
+  // === VECTOR OPERATIONS ===
+  vectorAdd: {
+    tips: [
+      "Adds vectors component-wise: (A.x+B.x, A.y+B.y, A.z+B.z)",
+      "Use for combining translations or accumulating positions",
+      "Order doesn't matter (commutative)",
+      "Chain for adding multiple vectors",
+    ],
+    examples: [
+      "Combine horizontal and vertical movement",
+      "Add offset to base position",
+      "Accumulate force vectors",
+    ],
+    relatedNodes: ["vectorSubtract", "vectorScale", "vectorConstruct"],
+  },
+  vectorSubtract: {
+    tips: [
+      "Subtracts B from A: (A.x-B.x, A.y-B.y, A.z-B.z)",
+      "Result points from B toward A",
+      "Use for calculating directions between points",
+      "Order matters - result direction depends on order",
+    ],
+    examples: [
+      "Find direction from start to end point",
+      "Calculate relative position",
+      "Compute displacement vector",
+    ],
+    relatedNodes: ["vectorAdd", "vectorFromPoints", "distance"],
+  },
+  vectorScale: {
+    tips: [
+      "Multiplies vector by a scalar",
+      "Scales magnitude, preserves direction",
+      "Negative scalars reverse direction",
+      "Use for adjusting force magnitude or speed",
+    ],
+    examples: [
+      "Double the length of a movement vector",
+      "Reduce force to half strength",
+      "Reverse direction with -1 scale",
+    ],
+    relatedNodes: ["vectorNormalize", "vectorLength", "multiply"],
+  },
+  vectorLength: {
+    tips: [
+      "Calculates magnitude (length) of vector",
+      "Returns a single number",
+      "Use for distance calculations",
+      "Length of normalized vector is always 1",
+    ],
+    examples: [
+      "Measure distance of a displacement",
+      "Check if movement exceeds threshold",
+      "Calculate speed from velocity vector",
+    ],
+    relatedNodes: ["vectorNormalize", "distance", "vectorScale"],
+  },
+  vectorNormalize: {
+    tips: [
+      "Scales vector to unit length (magnitude = 1)",
+      "Preserves direction, standardizes magnitude",
+      "Returns zero vector if input is zero",
+      "Essential before direction comparisons",
+    ],
+    examples: [
+      "Get pure direction for movement",
+      "Normalize for consistent dot products",
+      "Create unit direction vector",
+    ],
+    relatedNodes: ["vectorLength", "vectorScale", "vectorDot"],
+  },
+  vectorDot: {
+    tips: [
+      "Dot product of two vectors",
+      "Returns scalar: positive if same direction, negative if opposite",
+      "For unit vectors: 1 = parallel, 0 = perpendicular, -1 = opposite",
+      "Use for projection and angle calculations",
+    ],
+    examples: [
+      "Check if vectors face the same direction",
+      "Calculate projection length",
+      "Find angle-based attenuation",
+    ],
+    relatedNodes: ["vectorCross", "vectorNormalize", "vectorAngle"],
+  },
+  vectorCross: {
+    tips: [
+      "Cross product of two vectors",
+      "Returns vector perpendicular to both inputs",
+      "Magnitude equals area of parallelogram",
+      "Use for calculating normals or rotation axes",
+    ],
+    examples: [
+      "Find surface normal from two edge vectors",
+      "Calculate rotation axis for alignment",
+      "Compute perpendicular direction",
+    ],
+    relatedNodes: ["vectorDot", "vectorNormalize", "rotateVectorAxis"],
+  },
+  distance: {
+    tips: [
+      "Calculates distance between two points",
+      "Equivalent to length of (B - A)",
+      "Always returns positive value",
+      "Convenience node for common operation",
+    ],
+    examples: [
+      "Measure spacing between objects",
+      "Check clearance distances",
+      "Calculate path segment lengths",
+    ],
+    relatedNodes: ["vectorLength", "vectorSubtract", "proximity3d"],
+  },
+  vectorAngle: {
+    tips: [
+      "Angle between two vectors in degrees",
+      "Returns 0-180 range (always positive)",
+      "Use for bend angles or orientation differences",
+      "Works with any length vectors (normalizes internally)",
+    ],
+    examples: [
+      "Check if vectors are perpendicular (90°)",
+      "Measure bend angle in a path",
+      "Verify alignment tolerance",
+    ],
+    relatedNodes: ["vectorDot", "vectorNormalize", "rotateVectorAxis"],
+  },
+  vectorLerp: {
+    tips: [
+      "Linear interpolation between two vectors",
+      "Factor 0 = A, Factor 1 = B, 0.5 = midpoint",
+      "Factors outside 0-1 extrapolate",
+      "Use for smooth transitions or parametric paths",
+    ],
+    examples: [
+      "Find midpoint between two positions",
+      "Create gradient positions along a path",
+      "Blend between start and end positions",
+    ],
+    relatedNodes: ["remap", "vectorConstruct", "linspace"],
+  },
+  pointAttractor: {
+    tips: [
+      "Creates attraction/repulsion field from a point",
+      "Strength > 0 attracts, < 0 repels",
+      "Falloff controls how quickly effect diminishes",
+      "Use for organic deformations",
+    ],
+    examples: [
+      "Pull vertices toward a center point",
+      "Push geometry away from an obstacle",
+      "Create bulge deformation on a surface",
+    ],
+    relatedNodes: ["fieldTransformation", "proximity3d", "move"],
+  },
+
+  // === LIST OPERATIONS ===
+  listLength: {
+    tips: [
+      "Returns count of items in a list",
+      "Works with any list type",
+      "Empty list returns 0",
+      "Use for loop control or validation",
+    ],
+    examples: [
+      "Check how many points in a path",
+      "Verify minimum number of inputs",
+      "Calculate index bounds for listItem",
+    ],
+    relatedNodes: ["listCreate", "listItem", "range"],
+  },
+  listItem: {
+    tips: [
+      "Extracts item at specified index",
+      "Index 0 is first item",
+      "Negative indices count from end (-1 = last)",
+      "Out of range returns undefined",
+    ],
+    examples: [
+      "Get first point from a list",
+      "Extract the last measurement",
+      "Pick middle item for center calculation",
+    ],
+    relatedNodes: ["listCreate", "listLength", "listSlice"],
+  },
+  listSlice: {
+    tips: [
+      "Extracts a portion of a list",
+      "Start and end indices define the range",
+      "Negative indices count from end",
+      "End index is exclusive (not included)",
+    ],
+    examples: [
+      "Take first 5 items from a list",
+      "Get all items except first and last",
+      "Extract a subset for processing",
+    ],
+    relatedNodes: ["listItem", "listPartition", "listFlatten"],
+  },
+  listFlatten: {
+    tips: [
+      "Converts nested lists to single-level",
+      "Depth controls how many levels to flatten",
+      "Depth 1 = flatten one level, -1 = all levels",
+      "Use after operations that create nested structures",
+    ],
+    examples: [
+      "Flatten grid array output to single list",
+      "Combine grouped results into flat list",
+      "Prepare nested data for export",
+    ],
+    relatedNodes: ["listCreate", "listPartition", "gridArray"],
+  },
+  listSum: {
+    tips: [
+      "Adds all numbers in a list",
+      "Returns single total",
+      "Empty list returns 0",
+      "Non-numbers are skipped",
+    ],
+    examples: [
+      "Calculate total length of segments",
+      "Sum all measurements",
+      "Accumulate costs or weights",
+    ],
+    relatedNodes: ["listAverage", "add", "listLength"],
+  },
+  listAverage: {
+    tips: [
+      "Calculates mean of numeric list",
+      "Sum divided by count",
+      "Empty list returns 0",
+      "Use for center values or smoothing",
+    ],
+    examples: [
+      "Find average dimension from measurements",
+      "Calculate mean position of points",
+      "Smooth noisy sensor data",
+    ],
+    relatedNodes: ["listSum", "listMedian", "listLength"],
+  },
+  listMin: {
+    tips: [
+      "Returns smallest value in list",
+      "Works with numbers only",
+      "Empty list returns undefined",
+      "Use for finding bounds",
+    ],
+    examples: [
+      "Find minimum clearance in a design",
+      "Get lowest measurement value",
+      "Determine bounding box minimum",
+    ],
+    relatedNodes: ["listMax", "min", "listAverage"],
+  },
+  listMax: {
+    tips: [
+      "Returns largest value in list",
+      "Works with numbers only",
+      "Empty list returns undefined",
+      "Use for finding bounds",
+    ],
+    examples: [
+      "Find maximum dimension",
+      "Get highest measurement value",
+      "Determine bounding box maximum",
+    ],
+    relatedNodes: ["listMin", "max", "listAverage"],
+  },
+  listMedian: {
+    tips: [
+      "Returns middle value when sorted",
+      "More robust to outliers than average",
+      "For even count, averages two middle values",
+      "Use for typical value in noisy data",
+    ],
+    examples: [
+      "Find typical measurement ignoring errors",
+      "Get representative value from samples",
+      "Filter outliers from sensor readings",
+    ],
+    relatedNodes: ["listAverage", "listMin", "listMax"],
+  },
+  linspace: {
+    tips: [
+      "Creates evenly spaced values",
+      "Specify start, end, and count",
+      "Includes both endpoints",
+      "Great for parameter sweeps",
+    ],
+    examples: [
+      "Generate 10 points from 0 to 1",
+      "Create parameter values for curve sampling",
+      "Build time steps for animation",
+    ],
+    relatedNodes: ["range", "remap", "listCreate"],
+  },
+  random: {
+    tips: [
+      "Generates random numbers",
+      "Uniform distribution between min and max",
+      "Seed for reproducible sequences",
+      "New seed = different random sequence",
+    ],
+    examples: [
+      "Add randomness to array positions",
+      "Generate random colors or sizes",
+      "Create variation in parametric designs",
+    ],
+    relatedNodes: ["linspace", "range", "expression"],
+  },
+  repeat: {
+    tips: [
+      "Creates a list by repeating a value",
+      "Count controls number of repetitions",
+      "Works with any value type",
+      "Use for initializing lists",
+    ],
+    examples: [
+      "Create list of 10 zeros",
+      "Initialize array with default value",
+      "Generate constant list for operations",
+    ],
+    relatedNodes: ["listCreate", "range", "linspace"],
+  },
+
+  // === ARRAY OPERATIONS ===
+  gridArray: {
+    tips: [
+      "Creates 2D or 3D grid of copies",
+      "Specify counts and spacing for each axis",
+      "Total copies = X count × Y count × Z count",
+      "Outputs nested list structure",
+    ],
+    examples: [
+      "Create a wall of bricks in a grid",
+      "Generate a 3D lattice of spheres",
+      "Build a matrix of panel elements",
+    ],
+    relatedNodes: ["linearArray", "polarArray", "listFlatten"],
+  },
+  geometryArray: {
+    tips: [
+      "Applies array transformation to geometry",
+      "Uses transform list from array nodes",
+      "Outputs list of transformed copies",
+      "More flexible than direct array nodes",
+    ],
+    examples: [
+      "Apply custom array pattern to complex geometry",
+      "Create geometry copies with non-uniform transforms",
+      "Build irregular arrangements",
+    ],
+    relatedNodes: ["linearArray", "polarArray", "gridArray", "move"],
+  },
+
+  // === SIGNAL/WAVE NODES ===
+  sineWave: {
+    tips: [
+      "Output = amplitude × sin(2π × frequency × t + phase) + offset",
+      "Amplitude controls peak height",
+      "Frequency controls cycles per unit",
+      "Phase shifts the wave start position",
+    ],
+    examples: [
+      "Create smooth oscillating motion",
+      "Generate wavy surface deformation",
+      "Build periodic animations",
+    ],
+    relatedNodes: ["cosineWave", "triangleWave", "expression"],
+  },
+  cosineWave: {
+    tips: [
+      "Same as sine but shifted 90 degrees",
+      "Starts at peak instead of zero",
+      "Often paired with sine for circular motion",
+      "Use when starting at maximum is desired",
+    ],
+    examples: [
+      "Create X component of circular motion (with sine for Y)",
+      "Generate phase-shifted oscillation",
+      "Build smooth start/stop transitions",
+    ],
+    relatedNodes: ["sineWave", "triangleWave", "expression"],
+  },
+  triangleWave: {
+    tips: [
+      "Linear up then linear down",
+      "Symmetric zigzag pattern",
+      "No smooth transitions at peaks",
+      "Use for ping-pong animations",
+    ],
+    examples: [
+      "Create back-and-forth motion",
+      "Generate linear oscillation",
+      "Build symmetric cycling values",
+    ],
+    relatedNodes: ["sawtoothWave", "sineWave", "squareWave"],
+  },
+  sawtoothWave: {
+    tips: [
+      "Linear ramp that resets",
+      "Asymmetric: gradual rise, instant drop",
+      "Can be inverted for gradual fall",
+      "Use for progress indicators or sweeps",
+    ],
+    examples: [
+      "Create continuous rotation",
+      "Generate linear sweep patterns",
+      "Build asymmetric oscillations",
+    ],
+    relatedNodes: ["triangleWave", "sineWave", "range"],
+  },
+  squareWave: {
+    tips: [
+      "Alternates between high and low values",
+      "Duty cycle controls high vs low duration",
+      "50% duty = equal high and low time",
+      "Use for binary alternation or pulses",
+    ],
+    examples: [
+      "Create on/off switching pattern",
+      "Generate digital-style oscillation",
+      "Build stepped rhythmic patterns",
+    ],
+    relatedNodes: ["triangleWave", "conditional", "sineWave"],
+  },
+};
+
 /**
  * Get command documentation by command ID.
  */
