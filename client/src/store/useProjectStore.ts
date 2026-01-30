@@ -338,6 +338,11 @@ type ProjectStore = {
     data: Partial<Geometry>,
     options?: { recordHistory?: boolean }
   ) => void;
+  updateGeometryMetadata: (
+    id: string,
+    metadata: Record<string, unknown> | undefined,
+    options?: { recordHistory?: boolean }
+  ) => void;
   deleteGeometry: (
     ids: string[] | string,
     options?: { recordHistory?: boolean }
@@ -7810,6 +7815,22 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
   updateGeometry: (id, data, options) => {
     get().updateGeometryBatch([{ id, data }], options);
+  },
+  updateGeometryMetadata: (id, metadata, options) => {
+    const recordHistory = options?.recordHistory ?? false;
+    if (recordHistory) {
+      get().recordModelerHistory();
+    }
+    set((state) => {
+      const nextGeometry = state.geometry.map((item) => {
+        if (item.id !== id) return item;
+        const nextMetadata = metadata === undefined
+          ? undefined
+          : { ...(item.metadata ?? {}), ...metadata };
+        return { ...item, metadata: nextMetadata } as Geometry;
+      });
+      return { geometry: nextGeometry } satisfies Partial<ProjectStore>;
+    });
   },
   deleteGeometry: (ids, options) => {
     const recordHistory = options?.recordHistory ?? true;

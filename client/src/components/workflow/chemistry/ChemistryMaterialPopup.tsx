@@ -1,16 +1,22 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, useCallback, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import WebGLButton from "../../ui/WebGLButton";
 import WorkflowGeometryViewer from "../WorkflowGeometryViewer";
 import { useProjectStore } from "../../../store/useProjectStore";
-import { CHEMISTRY_MATERIAL_LIBRARY } from "../../../workflow/nodeRegistry";
+import {
+  CHEMISTRY_MATERIAL_DATABASE,
+  getMaterialsByCategory,
+  CATEGORY_INFO,
+  type ChemistryMaterialSpec,
+  type ChemistryMaterialCategory,
+} from "../../../data/chemistryMaterials";
 import {
   getNodeDefinition,
   resolveNodeParameters,
   resolveNodePorts,
 } from "../nodeCatalog";
 import styles from "./ChemistryMaterialPopup.module.css";
-import type { WorkflowNode } from "../../../types";
+import type { WorkflowNode, Geometry } from "../../../types";
 
 type ChemistryMaterialPopupProps = {
   nodeId: string;
@@ -18,7 +24,7 @@ type ChemistryMaterialPopupProps = {
 };
 
 const MATERIAL_DESCRIPTION =
-  "Assign material species to each geometry input so the Chemistry Solver can diffuse, blend, and fuse them into a graded field. Use this panel to preview the solver output and emit the materialsText mapping.";
+  "Assign material species to each geometry input. Materials will display with their characteristic colors in the preview viewport. The Chemistry Solver will diffuse, blend, and fuse them into a functionally graded field.";
 
 const POPUP_ICON_STYLE = "sticker2";
 
@@ -93,15 +99,128 @@ const resolveGeometryOutputKey = (node: Pick<WorkflowNode, "type" | "data">) => 
   return ports.outputs.find((port) => port.type === "geometry")?.key ?? null;
 };
 
+const getMaterialSpec = (name: string): ChemistryMaterialSpec | null => {
+  const normalized = name.trim().toLowerCase().replace(/[\s_-]+/g, "");
+  const key = Object.keys(CHEMISTRY_MATERIAL_DATABASE).find(
+    (k) => k.toLowerCase() === normalized
+  );
+  return key ? CHEMISTRY_MATERIAL_DATABASE[key] : null;
+};
+
+const colorToHex = (color: [number, number, number]) => {
+  const r = Math.round(color[0] * 255).toString(16).padStart(2, "0");
+  const g = Math.round(color[1] * 255).toString(16).padStart(2, "0");
+  const b = Math.round(color[2] * 255).toString(16).padStart(2, "0");
+  return `#${r}${g}${b}`;
+};
+
+const colorToRgbString = (color: [number, number, number]) => {
+  return `rgb(${Math.round(color[0] * 255)}, ${Math.round(color[1] * 255)}, ${Math.round(color[2] * 255)})`;
+};
+
+type MaterialCardProps = {
+  material: ChemistryMaterialSpec;
+  isSelected: boolean;
+  onClick: () => void;
+};
+
+const MaterialCard = ({ material, isSelected, onClick }: MaterialCardProps) => {
+  const categoryInfo = CATEGORY_INFO[material.category];
+  
+  return (
+    <button
+      className={`${styles.materialCard} ${isSelected ? styles.materialCardSelected : ""}`}
+      onClick={onClick}
+      title={material.description}
+    >
+      <div
+        className={styles.materialSwatch}
+        style={{ backgroundColor: colorToRgbString(material.color) }}
+      />
+      <div className={styles.materialInfo}>
+        <div className={styles.materialName}>{material.name}</div>
+        <div
+          className={styles.materialCategory}
+          style={{ color: categoryInfo.color }}
+        >
+          {categoryInfo.label}
+        </div>
+      </div>
+      {isSelected && <div className={styles.checkmark}>✓</div>}
+    </button>
+  );
+};
+
+type MaterialPropertiesProps = {
+  material: ChemistryMaterialSpec | null;
+};
+
+const MaterialProperties = ({ material }: MaterialPropertiesProps) => {
+  if (!material) {
+    return (
+      <div className={styles.propertiesEmpty}>
+        Select a material to view properties
+      </div>
+    );
+  }
+
+  const formatNumber = (value: number, decimals = 2) => {
+    if (value >= 1e9) return `${(value / 1e9).toFixed(decimals)} GPa`;
+    if (value >= 1e6) return `${(value / 1e6).toFixed(decimals)} MPa`;
+    if (value >= 1e3) return `${(value / 1e3).toFixed(decimals)} kPa`;
+    return `${value.toFixed(decimals)}`;
+  };
+
+  const properties = [
+    { label: "Density", value: `${material.density.toLocaleString()} kg/m³`, icon: "◆" },
+    { label: "Stiffness (E)", value: formatNumber(material.stiffness), icon: "▸" },
+    { label: "Thermal Cond.", value: `${material.thermalConductivity} W/(m·K)`, icon: "◈" },
+    { label: "Optical Trans.", value: `${(material.opticalTransmission * 100).toFixed(0)}%`, icon: "◎" },
+    { label: "Diffusivity", value: material.diffusivity.toFixed(2), icon: "◉" },
+  ];
+
+  return (
+    <div className={styles.propertiesPanel}>
+      <div className={styles.propertiesHeader}>
+        <div
+          className={styles.propertiesColorBlock}
+          style={{ backgroundColor: colorToRgbString(material.color) }}
+        />
+        <div>
+          <div className={styles.propertiesTitle}>{material.name}</div>
+          <div className={styles.propertiesCategory}>
+            {CATEGORY_INFO[material.category].label}
+          </div>
+        </div>
+      </div>
+      <p className={styles.propertiesDescription}>{material.description}</p>
+      <div className={styles.propertiesGrid}>
+        {properties.map((prop) => (
+          <div key={prop.label} className={styles.propertyRow}>
+            <span className={styles.propertyIcon}>{prop.icon}</span>
+            <span className={styles.propertyLabel}>{prop.label}</span>
+            <span className={styles.propertyValue}>{prop.value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const ChemistryMaterialPopup = ({ nodeId, onClose }: ChemistryMaterialPopupProps) => {
   const [isMinimized, setIsMinimized] = useState(false);
   const [uiScale, setUiScale] = useState(0.9);
+  const [activeCategory, setActiveCategory] = useState<ChemistryMaterialCategory | "all">("all");
+  const [selectedGeometryId, setSelectedGeometryId] = useState<string | null>(null);
+  const [hoveredMaterial, setHoveredMaterial] = useState<string | null>(null);
   const scalePercent = Math.round(uiScale * 100);
+  
   const nodes = useProjectStore((state) => state.workflow.nodes);
   const edges = useProjectStore((state) => state.workflow.edges);
   const geometry = useProjectStore((state) => state.geometry);
   const sceneNodes = useProjectStore((state) => state.sceneNodes);
   const updateNodeData = useProjectStore((state) => state.updateNodeData);
+  const updateGeometryMetadata = useProjectStore((state) => state.updateGeometryMetadata);
 
   const nodesById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
   const geometryById = useMemo(
@@ -190,27 +309,75 @@ const ChemistryMaterialPopup = ({ nodeId, onClose }: ChemistryMaterialPopupProps
       .map((id) => ({
         id,
         name: geometryLabelById.get(id) ?? id,
+        material: assignmentMap[id] ?? null,
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [connectedGeometryIds, geometryLabelById]);
+  }, [connectedGeometryIds, geometryLabelById, assignmentMap]);
 
-  const materialOptions = useMemo(() => {
-    const names = new Set<string>();
-    Object.values(CHEMISTRY_MATERIAL_LIBRARY).forEach((material) => {
-      if (material.name) names.add(material.name);
+  // Update geometry metadata with material colors for live preview
+  const updateGeometryColors = useCallback((assignments: Record<string, string>) => {
+    Object.entries(assignments).forEach(([geometryId, materialName]) => {
+      const spec = getMaterialSpec(materialName);
+      if (spec && geometryById.has(geometryId)) {
+        updateGeometryMetadata(geometryId, {
+          customMaterial: {
+            color: spec.color,
+            hex: colorToHex(spec.color),
+          },
+        });
+      }
     });
-    return Array.from(names).sort((a, b) => a.localeCompare(b));
-  }, []);
+  }, [geometryById, updateGeometryMetadata]);
 
-  const handleAssignmentChange = (geometryId: string, material: string | null) => {
+  const handleAssignmentChange = useCallback((geometryId: string, material: string | null) => {
     const next = { ...assignmentMap };
     if (!material) {
       delete next[geometryId];
+      // Clear material color
+      if (geometryById.has(geometryId)) {
+        updateGeometryMetadata(geometryId, { customMaterial: undefined });
+      }
     } else {
       next[geometryId] = material;
+      // Update material color
+      const spec = getMaterialSpec(material);
+      if (spec && geometryById.has(geometryId)) {
+        updateGeometryMetadata(geometryId, {
+          customMaterial: {
+            color: spec.color,
+            hex: colorToHex(spec.color),
+          },
+        });
+      }
     }
     updateNodeData(nodeId, { parameters: { assignments: next } });
-  };
+  }, [assignmentMap, geometryById, nodeId, updateGeometryMetadata, updateNodeData]);
+
+  // Initialize colors on mount
+  useEffect(() => {
+    updateGeometryColors(assignmentMap);
+  }, []);
+
+  const materialsByCategory = useMemo(() => getMaterialsByCategory(), []);
+  
+  const filteredMaterials = useMemo(() => {
+    if (activeCategory === "all") {
+      return Object.values(CHEMISTRY_MATERIAL_DATABASE);
+    }
+    return materialsByCategory.get(activeCategory) ?? [];
+  }, [activeCategory, materialsByCategory]);
+
+  const selectedMaterialSpec = useMemo(() => {
+    if (!selectedGeometryId) return null;
+    const materialName = assignmentMap[selectedGeometryId];
+    if (!materialName) return hoveredMaterial ? getMaterialSpec(hoveredMaterial) : null;
+    return getMaterialSpec(materialName);
+  }, [selectedGeometryId, assignmentMap, hoveredMaterial]);
+
+  const displayedMaterialSpec = useMemo(() => {
+    if (hoveredMaterial) return getMaterialSpec(hoveredMaterial);
+    return selectedMaterialSpec;
+  }, [hoveredMaterial, selectedMaterialSpec]);
 
   const materialsText =
     typeof materialNode?.data?.outputs?.materialsText === "string"
@@ -225,6 +392,24 @@ const ChemistryMaterialPopup = ({ nodeId, onClose }: ChemistryMaterialPopupProps
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
+  // Auto-select first geometry if none selected
+  useEffect(() => {
+    if (!selectedGeometryId && rows.length > 0) {
+      setSelectedGeometryId(rows[0].id);
+    }
+  }, [rows, selectedGeometryId]);
+
+  const categories: Array<{ id: ChemistryMaterialCategory | "all"; label: string }> = [
+    { id: "all", label: "All" },
+    { id: "metal", label: "Metals" },
+    { id: "ceramic", label: "Ceramics" },
+    { id: "glass", label: "Glass" },
+    { id: "polymer", label: "Polymers" },
+    { id: "composite", label: "Composites" },
+    { id: "natural", label: "Natural" },
+    { id: "advanced", label: "Advanced" },
+  ];
+
   const panel = (
     <div
       className={`${styles.panel} ${isMinimized ? styles.panelMinimized : ""}`}
@@ -234,8 +419,8 @@ const ChemistryMaterialPopup = ({ nodeId, onClose }: ChemistryMaterialPopupProps
       <div className={styles.panelContent}>
         <div className={styles.header}>
           <div>
-            <div className={styles.title}>Material Assignment</div>
-            <div className={styles.subtitle}>Chemistry Solver Materials</div>
+            <div className={styles.title}>Material Assignment Dashboard</div>
+            <div className={styles.subtitle}>Ἐπιλύτης Χημείας · Chemistry Solver</div>
             <p className={styles.description}>{MATERIAL_DESCRIPTION}</p>
           </div>
           <div className={styles.headerActions}>
@@ -280,90 +465,129 @@ const ChemistryMaterialPopup = ({ nodeId, onClose }: ChemistryMaterialPopupProps
         </div>
 
         <div className={styles.body}>
-          <div className={styles.layout}>
-            <div
-              className={styles.previewCard}
-              title="Preview the solver output as you assign materials."
-            >
-              <div className={styles.previewHeader}>
-                <h3 className={styles.previewTitle}>Solver Output Preview</h3>
-                <span className={styles.previewHint}>
-                  {solverNode ? "Live view updates with assignments" : "Connect to a solver"}
-                </span>
+          <div className={styles.mainLayout}>
+            {/* Left: Geometry List */}
+            <div className={styles.geometryPanel}>
+              <div className={styles.sectionHeader}>
+                <h3 className={styles.sectionTitle}>Geometry Inputs</h3>
+                <span className={styles.sectionCount}>{rows.length}</span>
               </div>
-              <div className={styles.viewerFrame}>
-                {solverGeometryId ? (
-                  <WorkflowGeometryViewer geometryIds={[solverGeometryId]} />
-                ) : (
-                  <div className={styles.previewEmpty}>
-                    {solverNode
-                      ? "Waiting for solver geometry output."
-                      : "Connect this Material node to a Chemistry Solver to preview output."}
+              <div className={styles.geometryList}>
+                {rows.length === 0 ? (
+                  <div className={styles.emptyState}>
+                    No geometry inputs detected. Connect geometry to the solver.
                   </div>
+                ) : (
+                  rows.map((row) => {
+                    const materialSpec = row.material ? getMaterialSpec(row.material) : null;
+                    const isSelected = selectedGeometryId === row.id;
+                    return (
+                      <button
+                        key={row.id}
+                        className={`${styles.geometryRow} ${isSelected ? styles.geometryRowSelected : ""}`}
+                        onClick={() => setSelectedGeometryId(row.id)}
+                      >
+                        <div
+                          className={styles.geometryColor}
+                          style={{
+                            backgroundColor: materialSpec
+                              ? colorToRgbString(materialSpec.color)
+                              : "transparent",
+                            borderColor: materialSpec ? "transparent" : "#ccc",
+                          }}
+                        />
+                        <div className={styles.geometryInfo}>
+                          <div className={styles.geometryName}>{row.name}</div>
+                          <div className={styles.geometryMaterial}>
+                            {row.material ?? "Unassigned"}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })
                 )}
               </div>
             </div>
 
-            <div
-              className={styles.assignmentPanel}
-              title="Assign materials to each connected geometry."
-            >
-              <div className={styles.assignmentHeader}>
-                <h3 className={styles.assignmentTitle}>Geometry Inputs</h3>
-                <span className={styles.assignmentSubtitle}>
-                  {rows.length > 0
-                    ? "Choose a material for each connected geometry."
-                    : "No geometry inputs detected yet."}
-                </span>
+            {/* Center: Material Picker */}
+            <div className={styles.materialPickerPanel}>
+              <div className={styles.sectionHeader}>
+                <h3 className={styles.sectionTitle}>Material Library</h3>
+              </div>
+              
+              {/* Category Tabs */}
+              <div className={styles.categoryTabs}>
+                {categories.map((cat) => (
+                  <button
+                    key={cat.id}
+                    className={`${styles.categoryTab} ${activeCategory === cat.id ? styles.categoryTabActive : ""}`}
+                    onClick={() => setActiveCategory(cat.id)}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
               </div>
 
-              <div className={styles.assignmentList}>
-                {rows.map((row) => {
-                  const selected = assignmentMap[row.id] ?? "";
+              {/* Material Grid */}
+              <div className={styles.materialGrid}>
+                {filteredMaterials.map((material) => {
+                  const isAssigned = selectedGeometryId 
+                    ? assignmentMap[selectedGeometryId] === material.name
+                    : false;
                   return (
-                    <div
-                      key={row.id}
-                      className={styles.assignmentRow}
-                      title="Assign a material to this geometry."
-                    >
-                      <div>
-                        <div className={styles.assignmentName}>{row.name}</div>
-                        <div className={styles.assignmentId}>{row.id}</div>
-                      </div>
-                      <select
-                        className={styles.assignmentSelect}
-                        value={selected}
-                        onChange={(event) =>
+                    <MaterialCard
+                      key={material.name}
+                      material={material}
+                      isSelected={isAssigned}
+                      onClick={() => {
+                        if (selectedGeometryId) {
                           handleAssignmentChange(
-                            row.id,
-                            event.target.value ? event.target.value : null
-                          )
+                            selectedGeometryId,
+                            isAssigned ? null : material.name
+                          );
                         }
-                        title="Select a material for this geometry."
-                      >
-                        <option value="">Unassigned</option>
-                        {materialOptions.map((name) => (
-                          <option key={name} value={name}>
-                            {name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                      }}
+                    />
                   );
                 })}
               </div>
+            </div>
 
-              <div className={styles.materialsTextBlock}>
-                <div className={styles.assignmentTitle}>materialsText output</div>
+            {/* Right: Preview & Properties */}
+            <div className={styles.rightPanel}>
+              {/* Preview Viewport */}
+              <div className={styles.previewCard}>
+                <div className={styles.previewHeader}>
+                  <h3 className={styles.previewTitle}>Live Preview</h3>
+                  <span className={styles.previewHint}>
+                    {connectedGeometryIds.length > 0
+                      ? "Geometry with material colors"
+                      : "No geometry to preview"}
+                  </span>
+                </div>
+                <div className={styles.viewerFrame}>
+                  {connectedGeometryIds.length > 0 ? (
+                    <WorkflowGeometryViewer geometryIds={connectedGeometryIds} />
+                  ) : (
+                    <div className={styles.previewEmpty}>
+                      Connect geometry inputs to see live preview with material colors.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Material Properties */}
+              <MaterialProperties material={displayedMaterialSpec} />
+
+              {/* Output Text */}
+              <div className={styles.outputBlock}>
+                <div className={styles.outputTitle}>materialsText Output</div>
                 <textarea
                   value={materialsText}
                   readOnly
-                  title="Copy this output into the solver Materials Text input."
+                  className={styles.outputTextarea}
+                  title="Material assignments in text format"
                 />
-                <div className={styles.materialsTextHint}>
-                  This text is emitted from the Material node. Connect its output to the
-                  solver’s Materials Text input.
-                </div>
               </div>
             </div>
           </div>
