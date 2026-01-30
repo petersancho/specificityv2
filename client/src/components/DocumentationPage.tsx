@@ -26,6 +26,10 @@ import {
   type CommandDefinition,
 } from "../commands/registry";
 import { COMMAND_DESCRIPTIONS, COMMAND_SEMANTICS } from "../data/commandDescriptions";
+import {
+  getCommandDocumentation,
+  getNodeDocumentation,
+} from "../data/documentationContent";
 
 type CommandGroup = {
   id: string;
@@ -515,6 +519,7 @@ const DocumentationDetail = ({ route, onNavigate }: DocumentationDetailProps) =>
     const categoryMeta = COMMAND_CATEGORY_META[category] ?? COMMAND_CATEGORY_META.performs;
     const semantics = COMMAND_SEMANTICS[category] ?? COMMAND_SEMANTICS.performs;
     const prompt = cleanCommandPrompt(command.prompt, command.label);
+    const commandDoc = getCommandDocumentation(command.id);
 
     return (
       <div className={detailStyles.detailPage}>
@@ -601,13 +606,62 @@ const DocumentationDetail = ({ route, onNavigate }: DocumentationDetailProps) =>
             </p>
           </div>
           <div className={detailStyles.detailSection}>
-            <h2>Minimal workflow context</h2>
+            <h2>Workflow context</h2>
             <p>
-              Use {command.label} to author or adjust geometry before handing it to Numerica for
-              graph-driven variation. Keep the action atomic: select targets, run the command, and
-              confirm.
+              {commandDoc?.workflowNotes ?? `Use ${command.label} to author or adjust geometry before handing it to Numerica for graph-driven variation. Keep the action atomic: select targets, run the command, and confirm.`}
             </p>
           </div>
+          {commandDoc?.tips && commandDoc.tips.length > 0 && (
+            <div className={detailStyles.detailSection}>
+              <h2>Tips &amp; Tricks</h2>
+              <ul className={detailStyles.list}>
+                {commandDoc.tips.map((tip, index) => (
+                  <li key={index}>{tip}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {commandDoc?.examples && commandDoc.examples.length > 0 && (
+            <div className={detailStyles.detailSection}>
+              <h2>Usage Examples</h2>
+              <ul className={detailStyles.list}>
+                {commandDoc.examples.map((example, index) => (
+                  <li key={index}>{example}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {commandDoc?.pitfalls && commandDoc.pitfalls.length > 0 && (
+            <div className={detailStyles.detailSection}>
+              <h2>Common Pitfalls</h2>
+              <ul className={detailStyles.list}>
+                {commandDoc.pitfalls.map((pitfall, index) => (
+                  <li key={index}>{pitfall}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {commandDoc?.relatedCommands && commandDoc.relatedCommands.length > 0 && (
+            <div className={detailStyles.detailSection}>
+              <h2>Related Commands</h2>
+              <div className={detailStyles.relatedItems}>
+                {commandDoc.relatedCommands.map((relatedId) => {
+                  const relatedCmd = COMMAND_DEFINITIONS.find((c) => c.id === relatedId);
+                  if (!relatedCmd) return null;
+                  return (
+                    <WebGLButton
+                      key={relatedId}
+                      label={relatedCmd.label}
+                      variant="chip"
+                      size="sm"
+                      accentColor={categoryMeta.accent}
+                      onClick={() => onNavigate({ kind: "roslyn", id: relatedId })}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -636,6 +690,7 @@ const DocumentationDetail = ({ route, onNavigate }: DocumentationDetailProps) =>
     const semanticLines = tooltipLines.filter(
       (line) => !line.startsWith("Inputs:") && !line.startsWith("Outputs:")
     );
+    const nodeDoc = getNodeDocumentation(definition.type);
 
     return (
       <div className={detailStyles.detailPage}>
@@ -734,13 +789,73 @@ const DocumentationDetail = ({ route, onNavigate }: DocumentationDetailProps) =>
             )}
           </div>
           <div className={detailStyles.detailSection}>
-            <h2>Minimal workflow context</h2>
+            <h2>Workflow context</h2>
             <p>
-              {definition.label} lives inside Numerica’s graph-based system. Keep the script minimal
-              when documenting: connect only the inputs that shape this node’s meaning, then pass
-              the output to the next semantic step.
+              {nodeDoc?.workflowNotes ?? `${definition.label} lives inside Numerica's graph-based system. Keep the script minimal when documenting: connect only the inputs that shape this node's meaning, then pass the output to the next semantic step.`}
             </p>
           </div>
+          {nodeDoc?.tips && nodeDoc.tips.length > 0 && (
+            <div className={detailStyles.detailSection}>
+              <h2>Tips &amp; Tricks</h2>
+              <ul className={detailStyles.list}>
+                {nodeDoc.tips.map((tip, index) => (
+                  <li key={index}>{tip}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {nodeDoc?.examples && nodeDoc.examples.length > 0 && (
+            <div className={detailStyles.detailSection}>
+              <h2>Usage Examples</h2>
+              <ul className={detailStyles.list}>
+                {nodeDoc.examples.map((example, index) => (
+                  <li key={index}>{example}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {nodeDoc?.bestPractices && nodeDoc.bestPractices.length > 0 && (
+            <div className={detailStyles.detailSection}>
+              <h2>Best Practices</h2>
+              <ul className={detailStyles.list}>
+                {nodeDoc.bestPractices.map((practice, index) => (
+                  <li key={index}>{practice}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {nodeDoc?.pitfalls && nodeDoc.pitfalls.length > 0 && (
+            <div className={detailStyles.detailSection}>
+              <h2>Common Pitfalls</h2>
+              <ul className={detailStyles.list}>
+                {nodeDoc.pitfalls.map((pitfall, index) => (
+                  <li key={index}>{pitfall}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {nodeDoc?.relatedNodes && nodeDoc.relatedNodes.length > 0 && (
+            <div className={detailStyles.detailSection}>
+              <h2>Related Nodes</h2>
+              <div className={detailStyles.relatedItems}>
+                {nodeDoc.relatedNodes.map((relatedType) => {
+                  const relatedNode = NODE_DEFINITIONS.find((n) => n.type === relatedType);
+                  if (!relatedNode) return null;
+                  const relatedCategory = NODE_CATEGORY_BY_ID.get(relatedNode.category);
+                  return (
+                    <WebGLButton
+                      key={relatedType}
+                      label={relatedNode.label}
+                      variant="chip"
+                      size="sm"
+                      accentColor={relatedCategory?.accent ?? category?.accent}
+                      onClick={() => onNavigate({ kind: "numerica", id: relatedType })}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
