@@ -570,9 +570,33 @@ export const hitTestComponent = ({
     }
 
     if (item.type === "nurbsCurve") {
-      const points = item.nurbs.controlPoints;
-      if (points.length < 2) return;
-      const renderData = getPolylineRenderData(points, item.nurbs.degree as 1 | 2 | 3, item.closed ?? false, item.nurbs);
+      const controlPoints = item.nurbs.controlPoints;
+      if (controlPoints.length < 2) return;
+
+      // Vertex mode: pick control points
+      if (mode === "vertex") {
+        controlPoints.forEach((cp, index) => {
+          const screen = projectPointToScreen(cp, viewProjection, rect);
+          if (!screen) return;
+          const distance = Math.hypot(pointer.x - screen.x, pointer.y - screen.y);
+          if (distance <= pointThreshold) {
+            consider(
+              {
+                kind: "vertex",
+                geometryId: item.id,
+                vertexIndex: index,
+              },
+              screen.depth,
+              cp,
+              distance
+            );
+          }
+        });
+        return;
+      }
+
+      // Edge mode: pick curve segments (existing behavior)
+      const renderData = getPolylineRenderData(controlPoints, item.nurbs.degree as 1 | 2 | 3, item.closed ?? false, item.nurbs);
       const edgePoints = renderData.points;
       let bestDistance = Number.POSITIVE_INFINITY;
       let bestDepthLocal = Number.POSITIVE_INFINITY;
@@ -612,12 +636,62 @@ export const hitTestComponent = ({
         if (screen) {
           pickDepth = screen.depth;
         }
+        // For edge selection, also populate vertexIndices for control polygon segment
+        const controlEdgeCount = item.closed ? controlPoints.length : controlPoints.length - 1;
+        let controlIndex = bestIndex;
+        if (item.nurbs.degree > 1 && controlEdgeCount > 0) {
+          let bestControlDist = Number.POSITIVE_INFINITY;
+          for (let i = 0; i < controlEdgeCount; i += 1) {
+            const cpA = controlPoints[i];
+            const cpB = controlPoints[(i + 1) % controlPoints.length];
+            const dist = distancePointToSegment3d(pickPoint, cpA, cpB);
+            if (dist < bestControlDist) {
+              bestControlDist = dist;
+              controlIndex = i;
+            }
+          }
+        }
+        const nextIndex = (controlIndex + 1) % controlPoints.length;
         const selection: ComponentSelection = {
           kind: "edge",
           geometryId: item.id,
-          edgeIndex: bestIndex,
+          edgeIndex: controlIndex,
+          vertexIndices: [controlIndex, nextIndex],
         };
         consider(selection, pickDepth, pickPoint);
+      }
+      return;
+    }
+
+    // Handle nurbsSurface vertex picking
+    if (item.type === "nurbsSurface" && mode === "vertex") {
+      const controlGrid = item.nurbs.controlPoints;
+      const uCount = controlGrid.length;
+      if (uCount === 0) return;
+      const vCount = controlGrid[0]?.length ?? 0;
+      if (vCount === 0) return;
+
+      for (let u = 0; u < uCount; u += 1) {
+        for (let v = 0; v < vCount; v += 1) {
+          const cp = controlGrid[u][v];
+          const screen = projectPointToScreen(cp, viewProjection, rect);
+          if (!screen) continue;
+          const distance = Math.hypot(pointer.x - screen.x, pointer.y - screen.y);
+          if (distance <= pointThreshold) {
+            // Flattened index: u * vCount + v
+            const flatIndex = u * vCount + v;
+            consider(
+              {
+                kind: "vertex",
+                geometryId: item.id,
+                vertexIndex: flatIndex,
+              },
+              screen.depth,
+              cp,
+              distance
+            );
+          }
+        }
       }
       return;
     }
