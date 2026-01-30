@@ -1218,6 +1218,42 @@ const DocumentationNewUsers = ({ onNavigate }: DocumentationNewUsersProps) => {
           onClick={() => onNavigate({ kind: "index" })}
         />
       </div>
+      <div className={newUsersStyles.conceptSection}>
+        <h2>Case Study: Pavilion Canopy Optimization</h2>
+        <div className={newUsersStyles.conceptGrid}>
+          <div className={newUsersStyles.conceptCard}>
+            <p>
+              This workflow uses the Biological Solver to evolve a canopy form from five parametric
+              genes. It demonstrates how Numerica can explore large design spaces while keeping the
+              intent legible and the results inspectable.
+            </p>
+            <ul className={newUsersStyles.caseStudyList}>
+              <li><strong>Genes</strong>: five sliders (width, depth, peak, edge drop, subdivisions)</li>
+              <li><strong>Phenotype</strong>: box geometry → Geometry Phenotype</li>
+              <li><strong>Fitness</strong>: area + volume metrics → Performs Fitness</li>
+              <li><strong>Goals</strong>: Morphogenesis + Homeostasis for growth logic and stability</li>
+            </ul>
+            <div className={newUsersStyles.caseStudyActions}>
+              <WebGLButton
+                label="Open Biological Solver Docs"
+                variant="secondary"
+                size="sm"
+                onClick={() => onNavigate({ kind: "numerica", id: "biologicalSolver" })}
+              />
+              <WebGLButton
+                label="Open Morphogenesis Goal"
+                variant="ghost"
+                size="sm"
+                onClick={() => onNavigate({ kind: "numerica", id: "morphogenesisGoal" })}
+              />
+            </div>
+            <p className={newUsersStyles.caseStudyNote}>
+              Tip: in the Numerica canvas, right-click and choose “Add Biological Solver Rig” to
+              spawn the full Pavilion Canopy setup instantly.
+            </p>
+          </div>
+        </div>
+      </div>
       <div className={newUsersStyles.workflowGrid}>
         <section className={newUsersStyles.workflowCard}>
           <div className={newUsersStyles.workflowHeader}>
@@ -1298,42 +1334,6 @@ const DocumentationNewUsers = ({ onNavigate }: DocumentationNewUsersProps) => {
             </ul>
           </div>
         </section>
-      </div>
-      <div className={newUsersStyles.conceptSection}>
-        <h2>Case Study: Pavilion Canopy Optimization</h2>
-        <div className={newUsersStyles.conceptGrid}>
-          <div className={newUsersStyles.conceptCard}>
-            <p>
-              This workflow uses the Biological Solver to evolve a canopy form from five parametric
-              genes. It demonstrates how Numerica can explore large design spaces while keeping the
-              intent legible and the results inspectable.
-            </p>
-            <ul className={newUsersStyles.caseStudyList}>
-              <li><strong>Genes</strong>: five sliders (width, depth, peak, edge drop, subdivisions)</li>
-              <li><strong>Phenotype</strong>: box geometry → Geometry Phenotype</li>
-              <li><strong>Fitness</strong>: area + volume metrics → Performs Fitness</li>
-              <li><strong>Goals</strong>: Morphogenesis + Homeostasis for growth logic and stability</li>
-            </ul>
-            <div className={newUsersStyles.caseStudyActions}>
-              <WebGLButton
-                label="Open Biological Solver Docs"
-                variant="secondary"
-                size="sm"
-                onClick={() => onNavigate({ kind: "numerica", id: "biologicalSolver" })}
-              />
-              <WebGLButton
-                label="Open Morphogenesis Goal"
-                variant="ghost"
-                size="sm"
-                onClick={() => onNavigate({ kind: "numerica", id: "morphogenesisGoal" })}
-              />
-            </div>
-            <p className={newUsersStyles.caseStudyNote}>
-              Tip: in the Numerica canvas, right-click and choose “Add Biological Solver Rig” to
-              spawn the full Pavilion Canopy setup instantly.
-            </p>
-          </div>
-        </div>
       </div>
       <div className={newUsersStyles.conceptSection}>
         <h2>Core Concepts</h2>
