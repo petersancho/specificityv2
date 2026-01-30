@@ -8,8 +8,7 @@
 
 ## THEORETICAL FOUNDATION
 
-This solver implements the epistemological framework established by **Kostas Grigoriadis** (UCL / AA) in his research on functionally graded materials (FGM):
-
+ 
 **Core Principles:**
 1. **Material is continuous**, not discrete
 2. **Geometry emerges** from material behavior
