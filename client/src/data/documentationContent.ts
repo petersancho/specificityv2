@@ -1,6 +1,6 @@
 /**
- * Extended documentation content for Roslyn commands and Numerica nodes.
- * This file provides detailed usage tips, examples, common pitfalls, and related items.
+ * Extended documentation for Roslyn commands and Numerica nodes.
+ * Keys must match IDs from registry.ts (commands) and nodeRegistry.ts (nodes).
  */
 
 export type CommandDocumentation = {
@@ -21,1913 +21,1705 @@ export type NodeDocumentation = {
 };
 
 /**
- * Extended documentation for Roslyn commands.
- * Each entry provides tips, examples, pitfalls, and related commands.
+ * COMMAND_DOCUMENTATION - Extended docs for Roslyn commands.
  */
 export const COMMAND_DOCUMENTATION: Record<string, CommandDocumentation> = {
-  // === GEOMETRY CREATION ===
+  // === GEOMETRY: Points & Curves ===
   point: {
     tips: [
-      "Enable vertex snap to place points exactly on existing geometry",
-      "Points are invisible in rendered views but visible in wireframe and editing modes",
-      "Use points as construction guides before creating curves through them",
-      "Multiple points can be selected and used as input for the Curve command",
+      "Enable vertex snap to place on existing geometry",
+      "Points are invisible in rendered views",
+      "Use as construction guides before creating curves",
     ],
     examples: [
-      "Create reference points for a lofted surface by placing points at key profile locations",
-      "Mark positions for array operations by placing guide points first",
-      "Use points as attractors in Numerica for field-based deformations",
+      "Place reference points for a loft operation",
+      "Mark array positions before distributing objects",
     ],
     pitfalls: [
-      "Points don't render in final output - use small spheres if visible markers are needed",
-      "Snapping to points requires 'Vertex' snap to be enabled",
+      "Points don't render in output—use small spheres for visible markers",
     ],
-    relatedCommands: ["polyline", "curve", "pointCloud"],
+    relatedCommands: ["polyline", "curve", "line"],
   },
   line: {
     tips: [
-      "Hold Shift to constrain lines to orthogonal directions (0°, 90°, etc.)",
-      "Type exact coordinates in the command line: '10,20,0' for a specific endpoint",
-      "Chain multiple line segments by clicking without confirming",
-      "Double-click to finish the line sequence",
+      "Hold Shift for orthogonal constraint",
+      "Type coordinates in command line for precision",
+      "Chain segments by continuing to click",
     ],
     examples: [
-      "Create a construction grid by drawing orthogonal lines at regular intervals",
-      "Draw the profile of a bracket, then extrude to create 3D geometry",
-      "Connect existing points to create a wireframe structure",
+      "Draw bracket profile then extrude",
+      "Create construction grid with intersecting lines",
     ],
     pitfalls: [
-      "Lines are individual segments - use Polyline for connected chains that stay together",
-      "Lines have no width - use Pipe or Extrude for tube geometry",
+      "Lines are individual segments—use Polyline for a connected chain",
     ],
-    relatedCommands: ["polyline", "rectangle", "arc", "extrude"],
+    relatedCommands: ["polyline", "rectangle", "extrude"],
   },
   polyline: {
     tips: [
-      "Right-click at any time to finish without adding another point",
-      "Use Tab to cycle through overlapping snap candidates",
-      "Close the polyline by clicking near the start point",
-      "Polylines can be converted to smooth NURBS curves with Interpolate",
+      "Right-click to finish without adding a point",
+      "Close by clicking near the start",
+      "Convert to smooth curve with Interpolate",
     ],
     examples: [
-      "Draw a floor plan outline to extrude into walls",
-      "Trace an imported image reference to create a profile",
-      "Create a path for pipe sweeps or array distributions",
+      "Draw floor plan outline to extrude into walls",
+      "Trace reference image for profile creation",
     ],
     pitfalls: [
-      "Polylines have sharp corners - use Fillet to round them after creation",
-      "Very short segments can cause issues with offset operations",
+      "Sharp corners—use Fillet to round after creation",
     ],
-    relatedCommands: ["line", "curve", "fillet", "interpolate", "extrude"],
+    relatedCommands: ["line", "curve", "interpolate"],
   },
   rectangle: {
     tips: [
-      "Type 'width,height' (e.g., '10,5') for exact dimensions",
-      "Hold Shift while dragging to constrain to a square",
-      "The rectangle is created on the active C-Plane",
-      "First click sets one corner, second click sets the opposite corner",
+      "Type width,height for exact dimensions",
+      "Hold Shift to constrain to square",
+      "First click sets corner, second sets opposite",
     ],
     examples: [
-      "Create a floor plate profile for extrusion",
-      "Draw a rectangular boundary for array patterns",
-      "Define a trim boundary for surface operations",
+      "Create floor plate for extrusion",
+      "Define boundary for array pattern",
     ],
     pitfalls: [
-      "Rectangles are axis-aligned to the C-Plane - rotate the C-Plane for angled rectangles",
-      "The output is a closed polyline, not a surface",
+      "Axis-aligned to C-Plane—rotate C-Plane for angled rectangles",
     ],
-    relatedCommands: ["circle", "surface", "extrude", "boolean"],
+    relatedCommands: ["circle", "surface", "extrude"],
   },
   circle: {
     tips: [
-      "Type a radius value in the command line for exact sizing",
-      "Hold Shift while dragging to snap to common radii",
-      "Circles are perfect NURBS curves with exact mathematical definition",
-      "Use as profile for Extrude, Loft, or Pipe operations",
+      "Type radius value for exact size",
+      "Perfect NURBS with exact curvature",
+      "Use as profile for Extrude or Loft",
     ],
     examples: [
-      "Create wheel profiles for a vehicle design",
-      "Draw circular openings for Boolean subtraction",
-      "Define column cross-sections for structural elements",
+      "Create wheel profile for vehicle",
+      "Define circular opening for Boolean",
     ],
-    pitfalls: [
-      "Circles need to be converted to mesh for some export formats",
-      "Very small circles may tessellate poorly at low resolution",
-    ],
-    relatedCommands: ["arc", "disk", "cylinder", "extrude"],
+    relatedCommands: ["arc", "extrude", "loft"],
   },
   arc: {
     tips: [
-      "Three-point definition: start, end, then a point on the arc",
-      "The third point determines the arc's curvature (bulge)",
-      "Arcs can be joined with lines to create complex profiles",
-      "Use snaps for precise endpoint positioning",
+      "Three-point definition: start, end, bulge point",
+      "Join with lines for complex profiles",
+      "Curvature set by third point position",
     ],
     examples: [
-      "Create rounded corners on a polyline by replacing sharp vertices with arcs",
-      "Design cam profiles with precise circular segments",
-      "Build arch shapes for architectural elements",
+      "Create rounded corners in profile",
+      "Design cam or arch shapes",
     ],
     pitfalls: [
-      "The three points must not be collinear (on a straight line)",
-      "Arc direction depends on the order of points",
+      "Points must not be collinear",
     ],
-    relatedCommands: ["circle", "curve", "fillet"],
+    relatedCommands: ["circle", "curve", "polyline"],
   },
   curve: {
     tips: [
-      "Control points influence but don't necessarily lie on the curve (except endpoints)",
-      "Degree parameter affects smoothness: 2=quadratic, 3=cubic, higher=smoother",
-      "More control points allow more complex shapes but can be harder to manage",
-      "Use Interpolate command if you need the curve to pass through all points",
+      "Control points influence but don't lie on curve",
+      "Higher degree = smoother (3 = cubic)",
+      "Use Interpolate if curve must pass through points",
     ],
     examples: [
-      "Design organic profiles for furniture or product shells",
-      "Create smooth paths for sweep operations",
-      "Define spline rails for complex surface generation",
+      "Design organic profiles for products",
+      "Create sweep paths for pipes",
     ],
-    pitfalls: [
-      "Too many control points can create unwanted waviness",
-      "Control point editing requires practice to achieve desired shapes",
-    ],
-    relatedCommands: ["polyline", "interpolate", "loft", "surface"],
+    relatedCommands: ["polyline", "interpolate", "loft"],
   },
 
-  // === PRIMITIVES ===
-  box: {
+  // === GEOMETRY: NURBS Primitives ===
+  nurbsbox: {
     tips: [
-      "First click sets one base corner, drag sets width and depth, final click/drag sets height",
-      "Type 'W,D,H' for exact dimensions (e.g., '10,10,5')",
-      "Boxes are created axis-aligned to the C-Plane",
-      "Use as Boolean operands for additive/subtractive modeling",
+      "Mathematically exact surfaces for CAD",
+      "Convert to mesh for rendering",
     ],
-    examples: [
-      "Create building massing for urban design studies",
-      "Define bounding volumes for collision detection",
-      "Build modular furniture components",
-    ],
-    pitfalls: [
-      "Boxes are mesh geometry - use NURBS Box for CAD precision",
-      "For rotated boxes, rotate the C-Plane first or transform after creation",
-    ],
-    relatedCommands: ["nurbsbox", "sphere", "cylinder", "boolean"],
+    relatedCommands: ["nurbssphere", "nurbscylinder", "meshconvert"],
   },
-  sphere: {
+  nurbssphere: {
     tips: [
-      "Click to place center, drag to set radius",
-      "Spheres have even vertex distribution for good tessellation",
-      "Use for organic forms, ball joints, or Boolean sculpting",
-      "Combine with Boolean difference to create hollow shells",
+      "Exact spherical surface definition",
+      "Trimmable for partial spheres",
     ],
-    examples: [
-      "Create ball bearings for mechanical assemblies",
-      "Design decorative ornaments or furniture knobs",
-      "Generate spherical containers or domes",
-    ],
-    pitfalls: [
-      "Mesh spheres have poles where triangles converge - use Geodesic Sphere for even distribution",
-      "UV mapping on spheres can be tricky near the poles",
-    ],
-    relatedCommands: ["hemisphere", "nurbssphere", "geodesicSphere", "boolean"],
+    relatedCommands: ["nurbsbox", "nurbscylinder"],
   },
-  cylinder: {
+  nurbscylinder: {
     tips: [
-      "Click for base center, drag for radius, then drag for height",
-      "Perfect for columns, pipes, wheels, and mechanical parts",
-      "Cap options control whether the cylinder is open or closed",
-      "Use Boolean subtraction for creating holes",
+      "Exact circular cross-section",
+      "Cap or leave open for pipe geometry",
     ],
-    examples: [
-      "Create structural columns for architectural models",
-      "Design wheels and rollers for mechanical systems",
-      "Build cylindrical containers or vessels",
-    ],
-    pitfalls: [
-      "Open cylinders have visible interior faces - close caps for solid appearance",
-      "Very tall thin cylinders may need more segments for smooth appearance",
-    ],
-    relatedCommands: ["capsule", "pipe", "torus", "boolean"],
+    relatedCommands: ["nurbsbox", "nurbssphere"],
   },
 
-  // === TRANSFORMS ===
-  move: {
+  // === GEOMETRY: Mesh Operations ===
+  interpolate: {
     tips: [
-      "Drag axis arrows for constrained movement along X, Y, or Z",
-      "Drag between arrows for planar movement (XY, XZ, YZ)",
-      "Type 'X,Y,Z' for precise displacement from current position",
-      "Use snaps to align with existing geometry",
+      "Creates curve passing through all vertices",
+      "Works on polylines",
     ],
     examples: [
-      "Align objects to a grid by moving with grid snap enabled",
-      "Stack objects vertically by moving in Z only",
-      "Create offset copies by duplicating then moving",
+      "Smooth traced outline into NURBS curve",
     ],
-    pitfalls: [
-      "Movement is relative to current position, not absolute coordinates",
-      "World vs Local coordinates affects movement direction",
-    ],
-    relatedCommands: ["rotate", "scale", "gumball", "array"],
+    relatedCommands: ["curve", "polyline", "loft"],
   },
-  rotate: {
+  surface: {
     tips: [
-      "Drag rotation rings for visual rotation (red=X, green=Y, blue=Z)",
-      "Type angle in degrees for precise rotation",
-      "Rotation occurs around the current pivot point - set pivot first if needed",
-      "Hold Shift for 15° angle snapping",
+      "Input must be closed and planar",
+      "Creates planar fill surface",
     ],
     examples: [
-      "Rotate a chair to face a table",
-      "Create angled supports by rotating rectangular profiles",
-      "Orient objects to match a reference direction",
+      "Cap extrusion with surface",
+      "Create floor from closed outline",
     ],
-    pitfalls: [
-      "Multiple rotations can compound - use Undo if needed",
-      "Pivot position significantly affects rotation result",
-    ],
-    relatedCommands: ["move", "scale", "pivot", "polarArray"],
-  },
-  scale: {
-    tips: [
-      "Drag corner handles for uniform scaling",
-      "Drag edge handles for single-axis scaling",
-      "Type scale factor (2 = double size, 0.5 = half size)",
-      "Hold Shift for uniform scaling when dragging non-uniform handles",
-    ],
-    examples: [
-      "Resize furniture to fit a room proportionally",
-      "Create variations of a design at different scales",
-      "Adjust imported models to the correct size",
-    ],
-    pitfalls: [
-      "Non-uniform scaling can distort shapes unexpectedly",
-      "Scale of 0 or negative values can cause issues",
-    ],
-    relatedCommands: ["move", "rotate", "gumball", "mirror"],
-  },
-  mirror: {
-    tips: [
-      "Click two points to define the mirror axis on the C-Plane",
-      "The mirror plane is perpendicular to the C-Plane and passes through both points",
-      "Original geometry can be kept or deleted after mirroring",
-      "Model half of symmetric designs, then mirror",
-    ],
-    examples: [
-      "Create symmetric furniture by modeling one half and mirroring",
-      "Generate left/right variants of asymmetric parts",
-      "Build complete buildings from half-floor plans",
-    ],
-    pitfalls: [
-      "Mirror reverses face normals - may need Mesh Flip afterward",
-      "Mirroring already-mirrored geometry can create duplicates",
-    ],
-    relatedCommands: ["duplicate", "array", "polarArray"],
-  },
-  array: {
-    tips: [
-      "Linear array: set direction vector, count, and spacing",
-      "Copies are independent objects, not instances",
-      "Preview shows result before confirming",
-      "Use for repetitive elements like columns, stairs, or patterns",
-    ],
-    examples: [
-      "Create a colonnade of equally spaced columns",
-      "Build a staircase by arraying a single step",
-      "Generate a row of seating or tables",
-    ],
-    pitfalls: [
-      "Large arrays can slow performance - use instances in Numerica for efficiency",
-      "Editing the original doesn't update array copies",
-    ],
-    relatedCommands: ["polarArray", "gridArray", "linearArray", "duplicate"],
-  },
-
-  // === BOOLEANS ===
-  boolean: {
-    tips: [
-      "Both objects must be closed solids for reliable results",
-      "Union combines volumes, Difference subtracts, Intersection keeps overlap",
-      "Select the primary object first when order matters (Difference)",
-      "Complex Booleans can be slow - simplify geometry when possible",
-    ],
-    examples: [
-      "Create a hole by subtracting a cylinder from a box",
-      "Combine multiple primitives into a complex solid",
-      "Find the overlap between two volumes for interference checking",
-    ],
-    pitfalls: [
-      "Open meshes or surfaces may produce unexpected results",
-      "Coplanar faces (touching exactly) can cause failures - offset slightly",
-      "Very complex Booleans may require mesh repair afterward",
-    ],
-    relatedCommands: ["meshBoolean", "meshmerge", "solid"],
-  },
-
-  // === EXTRUSION ===
-  extrude: {
-    tips: [
-      "Select a closed profile for solid extrusion, open profile for surface",
-      "Drag to set distance or type a value",
-      "Negative values extrude in the opposite direction",
-      "Cap option closes the ends for solid geometry",
-    ],
-    examples: [
-      "Turn a floor plan into 3D walls",
-      "Create text by extruding imported vector letters",
-      "Build mechanical parts from 2D profiles",
-    ],
-    pitfalls: [
-      "Self-intersecting profiles can cause failed extrusions",
-      "Very thin extrusions may have rendering artifacts",
-    ],
-    relatedCommands: ["surface", "loft", "boolean", "sweep"],
+    relatedCommands: ["extrude", "loft", "boolean"],
   },
   loft: {
     tips: [
-      "Select curves in order - the sequence defines the loft direction",
-      "Curves should have similar point counts for best results",
-      "Loft creates smooth transitions between different profiles",
-      "Options include straight, normal, and developable loft types",
+      "Select profiles in order",
+      "Similar point counts give best results",
+      "Creates smooth transition between shapes",
     ],
     examples: [
-      "Create a vase by lofting between circular profiles of different sizes",
-      "Design an aircraft fuselage by lofting between cross-sections",
-      "Build ergonomic handles by lofting organic profiles",
+      "Create vase by lofting circles of varying radii",
+      "Design boat hull from cross-sections",
     ],
     pitfalls: [
-      "Mismatched curve directions can create twisted lofts",
-      "Very different profile shapes may need intermediate curves",
+      "Mismatched curve directions create twisted lofts",
     ],
-    relatedCommands: ["extrude", "surface", "curve", "sweep"],
+    relatedCommands: ["extrude", "surface", "curve"],
+  },
+  extrude: {
+    tips: [
+      "Default direction is C-Plane normal",
+      "Cap option closes ends for solid",
+      "Negative distance extrudes opposite",
+    ],
+    examples: [
+      "Turn floor plan into 3D walls",
+      "Create text from letter outlines",
+    ],
+    relatedCommands: ["surface", "loft", "boolean"],
+  },
+  boolean: {
+    tips: [
+      "Both objects must be closed solids",
+      "Union combines, Difference subtracts, Intersection keeps overlap",
+    ],
+    examples: [
+      "Create hole by subtracting cylinder from box",
+      "Combine primitives into complex solid",
+    ],
+    pitfalls: [
+      "Coplanar faces can cause failures—offset slightly",
+    ],
+    relatedCommands: ["extrude", "meshmerge"],
+  },
+  meshconvert: {
+    tips: [
+      "Tessellates NURBS into triangles",
+      "Required for STL export or mesh editing",
+    ],
+    relatedCommands: ["breptomesh", "nurbsrestore"],
+  },
+  breptomesh: {
+    tips: [
+      "Converts B-Rep solids to mesh",
+      "Control density with tolerance settings",
+    ],
+    relatedCommands: ["meshconvert", "meshtobrep"],
+  },
+  meshtobrep: {
+    tips: [
+      "Each triangle becomes a B-Rep face",
+      "Enables Boolean on imported meshes",
+    ],
+    relatedCommands: ["breptomesh", "boolean"],
+  },
+  nurbsrestore: {
+    tips: [
+      "Works best on recently converted meshes",
+      "May fail if NURBS metadata lost",
+    ],
+    relatedCommands: ["meshconvert"],
+  },
+  meshmerge: {
+    tips: [
+      "Combines without welding vertices",
+      "For geometric union use Boolean",
+    ],
+    relatedCommands: ["boolean", "meshflip"],
+  },
+  meshflip: {
+    tips: [
+      "Reverses normals and winding",
+      "Fixes inside-out faces from import",
+    ],
+    relatedCommands: ["meshmerge", "meshthicken"],
+  },
+  meshthicken: {
+    tips: [
+      "Creates shell by offsetting along normals",
+      "Set thickness and cap options",
+    ],
+    examples: [
+      "Add wall thickness to thin surface",
+    ],
+    relatedCommands: ["meshflip", "extrude"],
+  },
+
+  // === TRANSFORM ===
+  transform: {
+    tips: [
+      "Access move, rotate, scale via gumball",
+      "Type values for precision",
+    ],
+    relatedCommands: ["move", "rotate", "scale", "gumball"],
+  },
+  move: {
+    tips: [
+      "Drag axis arrows for constrained movement",
+      "Type XYZ for precise displacement",
+    ],
+    examples: [
+      "Align objects by moving with snap",
+      "Stack objects by moving in Z",
+    ],
+    relatedCommands: ["rotate", "scale", "gumball"],
+  },
+  rotate: {
+    tips: [
+      "Rotation uses current pivot",
+      "Shift for 15° snap increments",
+      "Positive angle = counter-clockwise",
+    ],
+    relatedCommands: ["move", "scale", "pivot"],
+  },
+  scale: {
+    tips: [
+      "Factor 2 doubles, 0.5 halves",
+      "Shift for uniform scaling",
+      "Scales from pivot point",
+    ],
+    relatedCommands: ["move", "rotate", "pivot"],
+  },
+  offset: {
+    tips: [
+      "Positive = outward, negative = inward",
+      "Self-intersections handled automatically",
+    ],
+    examples: [
+      "Create wall thickness from centerline",
+    ],
+    relatedCommands: ["mirror", "extrude"],
+  },
+  mirror: {
+    tips: [
+      "Click two points to define axis",
+      "Original can be kept or deleted",
+    ],
+    examples: [
+      "Model half, then mirror for symmetric design",
+    ],
+    relatedCommands: ["duplicate", "array"],
+  },
+  array: {
+    tips: [
+      "Set direction, spacing, and count",
+      "Copies are independent objects",
+    ],
+    examples: [
+      "Create colonnade of columns",
+      "Build staircase by arraying step",
+    ],
+    relatedCommands: ["duplicate", "mirror"],
+  },
+  gumball: {
+    tips: [
+      "Drag arrows to move, rings to rotate, handles to scale",
+      "Click center to switch modes",
+    ],
+    relatedCommands: ["move", "rotate", "scale"],
+  },
+  morph: {
+    tips: [
+      "Brush-based sculpting on mesh",
+      "Adjust brush size and strength",
+    ],
+    relatedCommands: ["move", "scale"],
+  },
+
+  // === EDIT ===
+  undo: {
+    tips: [
+      "Multiple undos step through history",
+      "Some operations cannot be undone",
+    ],
+    relatedCommands: ["redo"],
+  },
+  redo: {
+    tips: [
+      "Only available after undo",
+      "New changes clear redo stack",
+    ],
+    relatedCommands: ["undo"],
+  },
+  copy: {
+    tips: [
+      "Copies to system clipboard",
+      "Can paste in other documents",
+    ],
+    relatedCommands: ["paste", "duplicate"],
+  },
+  paste: {
+    tips: [
+      "Choose placement: in place, cursor, or origin",
+    ],
+    relatedCommands: ["copy", "duplicate"],
+  },
+  duplicate: {
+    tips: [
+      "Creates copy at same location",
+      "Faster than copy-paste for in-doc duplication",
+    ],
+    relatedCommands: ["copy", "array"],
+  },
+  delete: {
+    tips: [
+      "Removes selected geometry",
+      "Recoverable with Undo",
+    ],
+    relatedCommands: ["undo"],
+  },
+  cancel: {
+    tips: [
+      "Aborts without committing",
+      "Preview geometry removed",
+    ],
+    relatedCommands: ["confirm"],
+  },
+  confirm: {
+    tips: [
+      "Commits current operation",
+      "Enter key also confirms",
+    ],
+    relatedCommands: ["cancel"],
   },
 
   // === VIEW ===
   focus: {
     tips: [
-      "Frames the selection with comfortable margins",
-      "If nothing is selected, frames all visible geometry",
-      "Doesn't change camera orientation, only position and zoom",
-      "Use after getting lost in the viewport",
+      "Frames selection with margin",
+      "If nothing selected, frames all",
     ],
-    examples: [
-      "Quickly zoom to a specific object by selecting then focusing",
-      "Reset view to show your entire model",
-      "Navigate to imported geometry that appeared off-screen",
+    relatedCommands: ["frameall", "zoom"],
+  },
+  frameall: {
+    tips: [
+      "Shows entire scene",
+      "Ignores hidden objects",
     ],
-    relatedCommands: ["frameall", "zoom", "orbit", "view"],
+    relatedCommands: ["focus", "zoom"],
+  },
+  screenshot: {
+    tips: [
+      "Opens export preview",
+      "Choose resolution and format",
+    ],
+    relatedCommands: ["display"],
+  },
+  view: {
+    tips: [
+      "Orthographic views: Top, Front, Right",
+      "Perspective shows depth",
+    ],
+    relatedCommands: ["camera", "display"],
+  },
+  camera: {
+    tips: [
+      "Zoom to cursor centers on mouse",
+      "Invert zoom reverses scroll direction",
+    ],
+    relatedCommands: ["view", "orbit", "pan"],
+  },
+  pivot: {
+    tips: [
+      "Affects rotation and scale center",
+      "Object Center, Origin, or Custom",
+    ],
+    relatedCommands: ["rotate", "scale"],
+  },
+  orbit: {
+    tips: [
+      "Right-click drag to orbit",
+      "Rotates around scene center",
+    ],
+    relatedCommands: ["pan", "zoom"],
+  },
+  pan: {
+    tips: [
+      "Middle-click drag to pan",
+      "Shift+right-click also works",
+    ],
+    relatedCommands: ["orbit", "zoom"],
+  },
+  zoom: {
+    tips: [
+      "Scroll wheel zooms",
+      "Zoom to cursor for precision",
+    ],
+    relatedCommands: ["orbit", "pan", "focus"],
   },
   display: {
     tips: [
-      "Wireframe mode reveals topology and hidden edges",
-      "Shaded mode shows smooth surfaces with lighting",
-      "Ghosted mode makes objects semi-transparent",
-      "Silhouette mode shows only outlines",
+      "Wireframe shows edges only",
+      "Ghosted makes objects transparent",
     ],
-    examples: [
-      "Use Wireframe to check edge alignment",
-      "Switch to Shaded for presentation renders",
-      "Enable Ghosted to see through objects for alignment",
+    relatedCommands: ["view", "isolate"],
+  },
+  isolate: {
+    tips: [
+      "Hide everything except selection",
+      "Click again to show all",
     ],
-    relatedCommands: ["isolate", "view", "screenshot"],
+    relatedCommands: ["display"],
+  },
+
+  // === UTILITY ===
+  selectionfilter: {
+    tips: [
+      "Object, Vertex, Edge, or Face mode",
+      "Filter shown in status bar",
+    ],
+    relatedCommands: ["cycle", "snapping"],
+  },
+  cycle: {
+    tips: [
+      "Tab key also cycles",
+      "Use when objects overlap",
+    ],
+    relatedCommands: ["selectionfilter"],
+  },
+  snapping: {
+    tips: [
+      "Grid, Vertex, Endpoint, Midpoint, Intersection",
+      "Multiple snaps can be active",
+    ],
+    relatedCommands: ["grid", "cplane"],
+  },
+  grid: {
+    tips: [
+      "Set spacing and units",
+      "Adaptive grid scales with zoom",
+    ],
+    relatedCommands: ["snapping", "cplane"],
+  },
+  cplane: {
+    tips: [
+      "World XY, XZ, YZ presets",
+      "Or click 3 points for custom",
+    ],
+    relatedCommands: ["grid", "snapping"],
+  },
+  outliner: {
+    tips: [
+      "Manage hierarchy and visibility",
+      "Rename objects for organization",
+    ],
+    relatedCommands: ["isolate"],
+  },
+  tolerance: {
+    tips: [
+      "Affects coincident point detection",
+      "Tighter = more accurate, slower",
+    ],
+    relatedCommands: ["snapping"],
+  },
+  status: {
+    tips: [
+      "Shows command prompts and coordinates",
+      "Helpful for learning commands",
+    ],
+    relatedCommands: ["display"],
   },
 };
 
 /**
- * Extended documentation for Numerica nodes.
- * Each entry provides tips, examples, pitfalls, and related nodes.
+ * NODE_DOCUMENTATION - Extended docs for Numerica nodes.
  */
 export const NODE_DOCUMENTATION: Record<string, NodeDocumentation> = {
-  // === DATA NODES ===
-  slider: {
+  // === DATA ===
+  geometryReference: {
     tips: [
-      "Double-click the slider to enter exact values",
-      "Connect to parameter inputs for real-time adjustments",
-      "Use min/max to constrain the range of valid values",
-      "Step parameter controls the precision of increments",
+      "Select geometry in Roslyn before using",
+      "Updates automatically when Roslyn geometry changes",
+      "Use for bringing modeled shapes into parametric workflows",
     ],
-    examples: [
-      "Control the radius of a sphere node for parametric sizing",
-      "Drive the number of array copies with a slider",
-      "Adjust loft tension or surface smoothness interactively",
+    relatedNodes: ["geometryViewer", "geometryInfo"],
+  },
+  text: {
+    tips: [
+      "Double-click to edit content",
+      "Use for labeling workflow sections",
     ],
-    bestPractices: [
-      "Name sliders descriptively to document their purpose",
-      "Set reasonable min/max bounds to prevent invalid values",
-      "Use consistent step sizes for similar parameters",
+    relatedNodes: ["panel", "textNote", "group"],
+  },
+  group: {
+    tips: [
+      "Drag nodes into group or draw around them",
+      "Double-click title to rename",
+      "Collapse to save space",
     ],
-    relatedNodes: ["number", "remap", "expression"],
+    relatedNodes: ["text", "panel"],
   },
   panel: {
     tips: [
-      "Connect any output to inspect its current value",
-      "Shows lists with indices for easy debugging",
-      "Vectors display as X, Y, Z components",
-      "Can display text when no input is connected",
+      "Connect any output to inspect values",
+      "Shows lists with indices",
+      "Edit fallback text when disconnected",
     ],
-    examples: [
-      "Debug geometry dimensions by connecting to geometryInfo output",
-      "Monitor calculation results to verify math operations",
-      "Display formatted messages to document workflow state",
-    ],
-    relatedNodes: ["textNote", "geometryInfo", "measurement"],
+    relatedNodes: ["textNote", "geometryInfo"],
   },
-  geometryReference: {
+  textNote: {
     tips: [
-      "Select geometry in Roslyn before using this node",
-      "Referenced geometry updates automatically when edited in Roslyn",
-      "Use for bringing hand-modeled shapes into parametric workflows",
-      "Multiple references can be connected to different parts of a graph",
+      "Displays and passes through data",
+      "Add notes to document intermediate values",
+    ],
+    relatedNodes: ["panel", "text"],
+  },
+  slider: {
+    tips: [
+      "Drag handle or click to set value",
+      "Set min/max to constrain range",
+      "Connect to parameters for real-time control",
     ],
     examples: [
-      "Reference a hand-drawn profile to extrude parametrically",
-      "Bring a sculpted base mesh into a subdivision workflow",
-      "Connect Roslyn geometry as input for analysis nodes",
+      "Control sphere radius parametrically",
+      "Drive array count interactively",
     ],
-    pitfalls: [
-      "Deleting referenced geometry in Roslyn breaks the node connection",
-      "Heavy geometry can slow graph updates",
+    relatedNodes: ["number", "remap"],
+  },
+  colorPicker: {
+    tips: [
+      "Outputs RGB vector and hex string",
+      "RGB values range 0-1",
     ],
-    relatedNodes: ["meshConvert", "geometryInfo", "geometryViewer"],
+    relatedNodes: ["customMaterial", "vectorConstruct"],
+  },
+  customMaterial: {
+    tips: [
+      "Applies render color to geometry",
+      "Does not affect geometry data",
+    ],
+    relatedNodes: ["colorPicker", "geometryViewer"],
+  },
+  annotations: {
+    tips: [
+      "Anchors text to geometry or point",
+      "Appears in Roslyn viewport",
+    ],
+    relatedNodes: ["dimensions", "text"],
+  },
+
+  // === PREVIEW ===
+  geometryViewer: {
+    tips: [
+      "Embedded mini viewport",
+      "Accepts Filter input for display modes",
+    ],
+    relatedNodes: ["customPreview", "previewFilter"],
+  },
+  customPreview: {
+    tips: [
+      "Combines geometry with Filter settings",
+      "Geometry passes through unchanged",
+    ],
+    relatedNodes: ["geometryViewer", "previewFilter"],
+  },
+  previewFilter: {
+    tips: [
+      "Configure display mode, solidity, sheen",
+      "Connect to Filter input of viewers",
+    ],
+    relatedNodes: ["geometryViewer", "customPreview"],
+  },
+  metadataPanel: {
+    tips: [
+      "Shows vertex/face count, bounds, area, volume",
+      "Use for validation and documentation",
+    ],
+    relatedNodes: ["geometryInfo", "panel"],
+  },
+  dimensions: {
+    tips: [
+      "Shows live bounding box measurements",
+      "Updates automatically",
+    ],
+    relatedNodes: ["measurement", "geometryInfo"],
   },
 
   // === PRIMITIVES ===
+  point: {
+    tips: [
+      "Creates point at XYZ coordinates",
+      "Use as reference or curve control vertex",
+    ],
+    relatedNodes: ["pointCloud", "line"],
+  },
+  pointCloud: {
+    tips: [
+      "Creates collection from coordinate lists",
+      "Input vectors or separate X,Y,Z lists",
+    ],
+    relatedNodes: ["point", "voronoiPattern"],
+  },
+  line: {
+    tips: [
+      "Creates segment between start and end",
+      "Outputs line and length",
+    ],
+    relatedNodes: ["polyline", "pipeSweep"],
+  },
+  polyline: {
+    tips: [
+      "Connects points with straight segments",
+      "Closed option links last to first",
+    ],
+    relatedNodes: ["line", "curve", "fillet"],
+  },
+  rectangle: {
+    tips: [
+      "Creates closed 4-vertex polyline",
+      "Set width, height, and center",
+    ],
+    relatedNodes: ["circle", "extrude"],
+  },
+  circle: {
+    tips: [
+      "Creates NURBS circle",
+      "Set center and radius",
+    ],
+    relatedNodes: ["arc", "extrude"],
+  },
+  arc: {
+    tips: [
+      "Creates arc from angles",
+      "Set center, radius, start/end angles",
+    ],
+    relatedNodes: ["circle", "curve"],
+  },
+  curve: {
+    tips: [
+      "Creates NURBS through control points",
+      "Degree controls smoothness",
+    ],
+    relatedNodes: ["polyline", "loft"],
+  },
   box: {
     tips: [
-      "Width, Depth, Height parameters control the dimensions",
-      "Center parameter positions the box in space",
-      "Output is mesh geometry suitable for Boolean operations",
-      "Use for architectural massing or mechanical components",
+      "Set width, depth, height",
+      "Center positions the box",
     ],
-    examples: [
-      "Create a parametric cabinet by controlling dimensions with sliders",
-      "Build modular shelving units with connected box nodes",
-      "Generate building volumes for urban design studies",
-    ],
-    relatedNodes: ["sphere", "cylinder", "primitive", "boolean"],
+    relatedNodes: ["sphere", "boolean"],
   },
   sphere: {
     tips: [
-      "Radius parameter controls size",
-      "Segments parameter controls mesh resolution",
-      "Higher segments = smoother appearance but more triangles",
-      "Center parameter positions the sphere",
+      "Set radius and segments",
+      "Higher segments = smoother",
     ],
-    examples: [
-      "Create decorative elements like ornaments or knobs",
-      "Build molecular models with appropriately sized spheres",
-      "Generate spherical containers or dome structures",
+    relatedNodes: ["box", "geodesicSphere"],
+  },
+  primitive: {
+    tips: [
+      "Generic node with selectable type",
+      "Parameters adapt to shape",
     ],
-    relatedNodes: ["geodesicSphere", "hemisphere", "box", "boolean"],
+    relatedNodes: ["box", "sphere"],
   },
 
-  // === MESH OPERATIONS ===
+  // === SURFACES ===
+  surface: {
+    tips: [
+      "Creates surface from boundary curves",
+      "Input must be closed for planar fill",
+    ],
+    relatedNodes: ["loft", "extrude"],
+  },
+  loft: {
+    tips: [
+      "Connects profiles with smooth surface",
+      "Order defines direction",
+    ],
+    relatedNodes: ["surface", "extrude"],
+  },
+  extrude: {
+    tips: [
+      "Pushes profile along direction",
+      "Cap option closes ends",
+    ],
+    relatedNodes: ["surface", "loft", "boolean"],
+  },
+  pipeSweep: {
+    tips: [
+      "Sweeps circle along curve",
+      "Set radius and segments",
+    ],
+    relatedNodes: ["pipeMerge", "curve"],
+  },
+  pipeMerge: {
+    tips: [
+      "Blends pipe junctions",
+      "Use after creating individual pipes",
+    ],
+    relatedNodes: ["pipeSweep"],
+  },
+  offsetSurface: {
+    tips: [
+      "Offsets surface along normals",
+      "Creates parallel shell",
+    ],
+    relatedNodes: ["thickenMesh", "offset"],
+  },
+
+  // === MESH ===
+  meshConvert: {
+    tips: [
+      "Converts geometry to mesh",
+      "Handles curves, surfaces, B-Rep",
+    ],
+    relatedNodes: ["nurbsToMesh", "brepToMesh"],
+  },
+  nurbsToMesh: {
+    tips: [
+      "Converts NURBS to triangles",
+      "Thickness creates pipe from curves",
+    ],
+    relatedNodes: ["meshConvert", "brepToMesh"],
+  },
+  brepToMesh: {
+    tips: [
+      "Tessellates B-Rep to mesh",
+      "Control density with settings",
+    ],
+    relatedNodes: ["meshConvert", "meshToBrep"],
+  },
+  meshToBrep: {
+    tips: [
+      "Creates B-Rep from mesh",
+      "Enables topology operations",
+    ],
+    relatedNodes: ["brepToMesh", "boolean"],
+  },
   subdivideMesh: {
     tips: [
-      "Linear subdivision splits without smoothing",
-      "Catmull-Clark creates smooth quad surfaces",
-      "Loop subdivision works on triangle meshes",
-      "Each iteration approximately quadruples face count",
-    ],
-    examples: [
-      "Smooth a low-poly model for high-quality rendering",
-      "Add detail to a base mesh for sculpting",
-      "Create smooth organic forms from blocky primitives",
+      "Linear, Catmull-Clark, Loop, or Adaptive",
+      "Each iteration roughly quadruples faces",
     ],
     pitfalls: [
-      "High iterations can create extremely heavy meshes",
-      "Non-manifold geometry may not subdivide correctly",
+      "High iterations create heavy meshes",
     ],
-    bestPractices: [
-      "Start with clean quad topology for best results",
-      "Use adaptive subdivision for non-uniform detail",
-      "Keep iteration count low (1-3) for most uses",
-    ],
-    relatedNodes: ["meshRelax", "dualMesh", "quadRemesh"],
+    relatedNodes: ["meshRelax", "dualMesh"],
   },
-  meshBoolean: {
+  dualMesh: {
     tips: [
-      "Both input meshes must be closed (watertight)",
-      "Union combines, Difference subtracts B from A, Intersection keeps overlap",
-      "Complex operations may need mesh repair afterward",
-      "Preview output before using in downstream operations",
+      "Face centers become vertices",
+      "Triangles become hexagonal patterns",
     ],
-    examples: [
-      "Create holes by subtracting cylinders from a base mesh",
-      "Combine multiple primitive shapes into complex solids",
-      "Find the intersection volume of two objects",
-    ],
-    pitfalls: [
-      "Open meshes produce unpredictable results",
-      "Coincident faces (exact touching) can cause failures",
-      "Very complex Booleans may be slow",
-    ],
-    relatedNodes: ["boolean", "meshRepair", "solid"],
+    relatedNodes: ["subdivideMesh", "voronoiPattern"],
   },
-
-  // === TRANSFORMS ===
-  move: {
-    tips: [
-      "Translation vector defines the displacement direction and distance",
-      "Connect vector math nodes for computed movement",
-      "Chain multiple moves for complex translations",
-      "Movement is additive to current position",
-    ],
-    examples: [
-      "Offset geometry along its normal direction",
-      "Create stacked arrangements with incremental moves",
-      "Position geometry based on calculated coordinates",
-    ],
-    relatedNodes: ["rotate", "scale", "linearArray", "moveVector"],
-  },
-  linearArray: {
-    tips: [
-      "Count controls the number of copies (including original)",
-      "Spacing can be either distance between copies or total span",
-      "Direction vector determines the array axis",
-      "Outputs a list of geometry for further operations",
-    ],
-    examples: [
-      "Create a row of columns for an architectural colonnade",
-      "Generate stairs by arraying a single step",
-      "Build fence posts at regular intervals",
-    ],
-    relatedNodes: ["polarArray", "gridArray", "geometryArray", "move"],
-  },
-  polarArray: {
-    tips: [
-      "Center point defines the rotation axis origin",
-      "Axis vector determines the rotation direction",
-      "Count sets the number of copies",
-      "Angle range can be full 360° or partial",
-    ],
-    examples: [
-      "Create a circular arrangement of chairs around a table",
-      "Build gear teeth by arraying a single tooth profile",
-      "Generate radial patterns for decorative designs",
-    ],
-    relatedNodes: ["linearArray", "gridArray", "rotate"],
-  },
-
-  // === MATH NODES ===
-  expression: {
-    tips: [
-      "Supports standard operators: +, -, *, /, ^ (power)",
-      "Built-in functions: sin, cos, tan, sqrt, abs, floor, ceil, round, log, exp",
-      "Variables from inputs are available by their port names",
-      "Use parentheses to control order of operations",
-    ],
-    examples: [
-      "Calculate: 'sin(x * PI * 2) * amplitude + offset'",
-      "Compute distances: 'sqrt(x^2 + y^2 + z^2)'",
-      "Apply easing: '3*t^2 - 2*t^3' for smooth interpolation",
-    ],
-    pitfalls: [
-      "Division by zero returns infinity - add guards if needed",
-      "Trigonometric functions use radians",
-    ],
-    relatedNodes: ["scalarFunctions", "add", "multiply", "remap"],
-  },
-  remap: {
-    tips: [
-      "Maps a value from one range to another",
-      "Input value in [oldMin, oldMax] becomes [newMin, newMax]",
-      "Can invert ranges by swapping min/max",
-      "Values outside input range are extrapolated",
-    ],
-    examples: [
-      "Convert slider 0-100 to radius 0.5-5.0",
-      "Map time 0-1 to rotation 0-360 degrees",
-      "Normalize sensor data to standard ranges",
-    ],
-    relatedNodes: ["clamp", "expression", "linspace"],
-  },
-  vectorConstruct: {
-    tips: [
-      "Combines separate X, Y, Z numbers into a vector",
-      "Essential for building vectors from calculated components",
-      "Works with any numeric inputs",
-      "Output can connect to any vector input port",
-    ],
-    examples: [
-      "Build a movement vector from separate slider controls",
-      "Construct position from calculated coordinates",
-      "Create color vectors from RGB components",
-    ],
-    relatedNodes: ["vectorDeconstruct", "vectorAdd", "moveVector"],
-  },
-
-  // === LISTS ===
-  listCreate: {
-    tips: [
-      "Connect multiple values to create an ordered list",
-      "Works with any data types (numbers, vectors, geometry)",
-      "Ports are added dynamically as you connect",
-      "Order of connections determines list order",
-    ],
-    examples: [
-      "Collect profile curves for lofting",
-      "Gather points for point cloud creation",
-      "Assemble parameters for batch processing",
-    ],
-    relatedNodes: ["listItem", "listLength", "listFlatten"],
-  },
-  range: {
-    tips: [
-      "Generates evenly spaced numbers between start and end",
-      "Count includes both start and end values",
-      "Step is calculated automatically from count",
-      "For explicit step control, use linspace or expression",
-    ],
-    examples: [
-      "Generate parameter values for sampling a curve",
-      "Create indices for array operations",
-      "Build time steps for animation",
-    ],
-    relatedNodes: ["linspace", "repeat", "listCreate"],
-  },
-
-  // === SOLVERS ===
-  biologicalEvolutionSolver: {
-    tips: [
-      "Connect Genome Collector with slider-based genes",
-      "Define phenotype with Geometry Phenotype nodes",
-      "Evaluate fitness with Performs Fitness nodes",
-      "Interactive popup shows evolution progress",
-    ],
-    examples: [
-      "Optimize a bracket shape for minimum material with target strength",
-      "Evolve furniture proportions based on ergonomic constraints",
-      "Find optimal truss configurations for structural efficiency",
-    ],
-    bestPractices: [
-      "Start with simple fitness functions and add complexity gradually",
-      "Use reasonable population sizes (20-100) for initial exploration",
-      "Save promising designs during evolution for comparison",
-    ],
-    relatedNodes: ["genomeCollector", "geometryPhenotype", "performsFitness"],
-  },
-  physicsSolver: {
-    tips: [
-      "Connect base geometry and goal nodes for analysis",
-      "Load goals define forces applied to the structure",
-      "Anchor goals define fixed supports",
-      "Results include stress, strain, and displacement",
-    ],
-    examples: [
-      "Analyze stress distribution in a beam under load",
-      "Find deflection of a cantilevered shelf",
-      "Verify structural capacity of a designed element",
-    ],
-    relatedNodes: ["loadGoal", "anchorGoal", "stiffnessGoal", "volumeGoal"],
-  },
-  chemistrySolver: {
-    tips: [
-      "Distributes materials based on multiple optimization goals",
-      "Chemistry Material Goal assigns materials to regions",
-      "Outputs include particle cloud and material field",
-      "Preview mesh shows the optimized distribution",
-    ],
-    examples: [
-      "Design a multi-material bracket with steel core and aluminum shell",
-      "Optimize thermal insulation with varying material densities",
-      "Create gradient materials for smooth property transitions",
-    ],
-    relatedNodes: ["chemistryMaterialGoal", "chemistryStiffnessGoal", "chemistryMassGoal"],
-  },
-
-  // === MESH OPERATIONS ===
   insetFaces: {
     tips: [
-      "Shrinks faces inward creating a border ring",
-      "Amount controls how far faces shrink",
-      "Creates new connecting faces around each inset",
-      "Works best on relatively flat faces",
+      "Shrinks faces inward",
+      "Creates border ring of new faces",
     ],
-    examples: [
-      "Create panel patterns on a surface",
-      "Prepare faces for extrusion details",
-      "Build window frames in architectural meshes",
-    ],
-    relatedNodes: ["extrudeFaces", "selectFaces", "subdivideMesh"],
+    relatedNodes: ["extrudeFaces", "selectFaces"],
   },
   extrudeFaces: {
     tips: [
-      "Pulls faces along their normals",
-      "Positive values extrude outward, negative inward",
-      "Creates side faces connecting to original position",
-      "Can be combined with inset for complex detailing",
+      "Pulls faces along normals",
+      "Positive outward, negative inward",
     ],
-    examples: [
-      "Add decorative relief to surfaces",
-      "Create window recesses in walls",
-      "Build modular panel systems",
-    ],
-    relatedNodes: ["insetFaces", "selectFaces", "extrude"],
+    relatedNodes: ["insetFaces", "selectFaces"],
   },
   meshRelax: {
     tips: [
-      "Smooths mesh by averaging vertex positions",
-      "Iterations control smoothing intensity",
-      "Keep boundary preserves edge vertices",
-      "Multiple passes create progressively smoother results",
+      "Smooths by averaging positions",
+      "Iterations control intensity",
     ],
-    examples: [
-      "Smooth imported scan data",
-      "Blend sharp edits into surrounding mesh",
-      "Create organic smoothing on mechanical forms",
-    ],
-    relatedNodes: ["subdivideMesh", "meshRepair", "selectFaces"],
+    relatedNodes: ["subdivideMesh", "meshRepair"],
   },
-  meshRepair: {
+  selectFaces: {
     tips: [
-      "Automatically fixes common mesh problems",
-      "Removes degenerate faces and duplicate vertices",
-      "Fills small holes and fixes normal orientation",
-      "Run after imports or complex operations",
+      "Filters by normal direction",
+      "Threshold controls tolerance",
     ],
-    examples: [
-      "Clean up imported STL files",
-      "Fix meshes after Boolean operations",
-      "Prepare meshes for 3D printing",
-    ],
-    relatedNodes: ["meshBoolean", "triangulateMesh", "meshDecimate"],
+    relatedNodes: ["insetFaces", "extrudeFaces"],
   },
-  meshDecimate: {
+  meshBoolean: {
     tips: [
-      "Reduces triangle count while preserving shape",
-      "Ratio or target count controls reduction level",
-      "Preserves boundaries and feature edges",
-      "Essential for optimizing heavy meshes",
+      "Union, Difference, Intersection",
+      "Inputs must be watertight",
     ],
-    examples: [
-      "Simplify scanned mesh data for performance",
-      "Create LOD versions for game assets",
-      "Reduce file sizes for web delivery",
+    pitfalls: [
+      "Coincident faces can cause failures",
     ],
-    relatedNodes: ["meshRepair", "quadRemesh", "subdivideMesh"],
-  },
-  quadRemesh: {
-    tips: [
-      "Converts triangles to quad-dominant topology",
-      "Creates cleaner edge flow than triangles",
-      "Better for subdivision and animation",
-      "Target face count controls output density",
-    ],
-    examples: [
-      "Prepare mesh for Catmull-Clark subdivision",
-      "Clean up organic sculpt for animation",
-      "Create manufacturable quad mesh from triangles",
-    ],
-    relatedNodes: ["meshDecimate", "subdivideMesh", "meshRepair"],
+    relatedNodes: ["boolean", "meshRepair"],
   },
   triangulateMesh: {
     tips: [
       "Converts all faces to triangles",
-      "Required for many mesh operations and exports",
-      "Quads and n-gons are split into triangles",
-      "Preserves geometry, changes only topology",
+      "Required for some operations and export",
     ],
-    examples: [
-      "Prepare mesh for STL export",
-      "Convert quad mesh for game engine",
-      "Ensure compatibility with mesh operations",
-    ],
-    relatedNodes: ["quadRemesh", "meshRepair", "stlExport"],
+    relatedNodes: ["quadRemesh", "meshRepair"],
   },
-  selectFaces: {
+  meshRepair: {
     tips: [
-      "Filters faces based on normal direction",
-      "Threshold angle controls selection tolerance",
-      "Returns submesh of matching faces",
-      "Foundation for targeted operations",
+      "Fixes degenerates, holes, normals",
+      "Run after imports or Booleans",
     ],
-    examples: [
-      "Select all upward-facing faces for flooring",
-      "Find vertical faces for wall operations",
-      "Identify faces facing a direction for materials",
+    relatedNodes: ["meshBoolean", "triangulateMesh"],
+  },
+  meshUVs: {
+    tips: [
+      "Generates texture coordinates",
+      "Planar, Box, Cylindrical, Spherical",
     ],
-    relatedNodes: ["insetFaces", "extrudeFaces", "meshBoolean"],
+    relatedNodes: ["meshRepair"],
+  },
+  meshDecimate: {
+    tips: [
+      "Reduces triangle count",
+      "Preserves shape and boundaries",
+    ],
+    relatedNodes: ["quadRemesh", "meshRepair"],
+  },
+  quadRemesh: {
+    tips: [
+      "Converts to quad-dominant topology",
+      "Better for subdivision and animation",
+    ],
+    relatedNodes: ["meshDecimate", "subdivideMesh"],
   },
   geodesicSphere: {
     tips: [
-      "Creates sphere by subdividing icosahedron",
-      "Frequency controls subdivision level",
-      "Results in evenly distributed vertices",
-      "Better topology than UV sphere for many uses",
+      "Subdivides icosahedron",
+      "Even vertex distribution",
     ],
-    examples: [
-      "Create geodesic dome structures",
-      "Build evenly sampled spheres for physics",
-      "Design spherical patterns with uniform faces",
-    ],
-    relatedNodes: ["sphere", "subdivideMesh", "voronoiPattern"],
+    relatedNodes: ["sphere", "subdivideMesh"],
   },
   voronoiPattern: {
     tips: [
-      "Generates 3D Voronoi cells from points",
-      "Creates organic-looking divisions",
-      "Cell boundaries form natural patterns",
-      "Works with point clouds or mesh vertices",
+      "Generates 3D Voronoi cells",
+      "Organic-looking divisions",
     ],
-    examples: [
-      "Create natural-looking foam structures",
-      "Design cellular patterns for packaging",
-      "Build organic architectural screens",
-    ],
-    relatedNodes: ["hexagonalTiling", "offsetPattern", "pointCloud"],
+    relatedNodes: ["hexagonalTiling", "pointCloud"],
   },
   hexagonalTiling: {
     tips: [
-      "Creates hexagonal tile pattern on surfaces",
-      "Size controls hexagon radius",
-      "Count controls pattern extent",
-      "Great for honeycomb-like structures",
+      "Creates honeycomb pattern",
+      "Set size and count",
     ],
-    examples: [
-      "Design honeycomb panels",
-      "Create hexagonal floor patterns",
-      "Build hex-based game boards",
-    ],
-    relatedNodes: ["voronoiPattern", "offsetPattern", "gridArray"],
+    relatedNodes: ["voronoiPattern", "offsetPattern"],
   },
   offsetPattern: {
     tips: [
-      "Offsets pattern edges inward creating gaps",
-      "Frame width controls offset distance",
-      "Transforms solid patterns into outlined versions",
-      "Great for lattice and frame structures",
+      "Creates gaps between elements",
+      "Frame width controls offset",
     ],
-    examples: [
-      "Create framed panel systems",
-      "Build lightweight lattice structures",
-      "Design decorative screens with gaps",
-    ],
-    relatedNodes: ["hexagonalTiling", "voronoiPattern", "offset"],
+    relatedNodes: ["hexagonalTiling", "voronoiPattern"],
   },
-
-  // === CURVE & SURFACE OPERATIONS ===
-  curve: {
+  solid: {
     tips: [
-      "Control points influence but don't lie on curve",
-      "Degree controls smoothness (3 = cubic is common)",
-      "More points = more complex shapes",
-      "Use Interpolate if curve must pass through points",
+      "Caps boundary loops",
+      "Creates closed solid from surface",
     ],
-    examples: [
-      "Design smooth organic paths",
-      "Create sweep rails for surfaces",
-      "Build ergonomic curves for products",
-    ],
-    relatedNodes: ["polyline", "loft", "pipeSweep"],
+    relatedNodes: ["extrude", "boolean"],
   },
-  polyline: {
+  thickenMesh: {
     tips: [
-      "Points connected with straight segments",
-      "Closed option connects last to first",
-      "Can be smoothed with Interpolate",
-      "Lighter weight than NURBS curves",
+      "Adds thickness by offsetting normals",
+      "Caps edges automatically",
     ],
-    examples: [
-      "Create construction geometry profiles",
-      "Define extrusion paths",
-      "Build wireframe structures",
-    ],
-    relatedNodes: ["curve", "rectangle", "extrude"],
+    relatedNodes: ["offsetSurface", "meshConvert"],
   },
-  loft: {
+  plasticwrap: {
     tips: [
-      "Connects profile curves with a surface",
-      "Order of curves defines surface direction",
-      "Similar point counts give best results",
-      "Options control tangent continuity",
+      "Projects mesh toward target",
+      "Blend controls projection strength",
     ],
-    examples: [
-      "Create boat hull shapes",
-      "Design bottles and vases",
-      "Build ergonomic product forms",
-    ],
-    pitfalls: [
-      "Mismatched curve directions create twisted surfaces",
-      "Very different profiles may need intermediate curves",
-    ],
-    relatedNodes: ["surface", "extrude", "pipeSweep"],
-  },
-  extrude: {
-    tips: [
-      "Pushes curves or surfaces along a direction",
-      "Default direction is surface normal",
-      "Cap option creates closed solid",
-      "Negative distance extrudes opposite way",
-    ],
-    examples: [
-      "Turn floor plans into 3D walls",
-      "Create text geometry from curves",
-      "Build mechanical parts from profiles",
-    ],
-    relatedNodes: ["loft", "surface", "boolean"],
-  },
-  surface: {
-    tips: [
-      "Creates surface from closed boundary curve",
-      "Curve must be planar and closed",
-      "Multiple curves attempt patch surface",
-      "Use for trim boundaries or caps",
-    ],
-    examples: [
-      "Cap the end of an extrusion",
-      "Create floor surfaces from outlines",
-      "Build planar panels from curves",
-    ],
-    relatedNodes: ["extrude", "loft", "boolean"],
-  },
-  pipeSweep: {
-    tips: [
-      "Sweeps circular profile along a curve",
-      "Radius controls pipe thickness",
-      "Segments control smoothness",
-      "Essential for tubes, wires, railings",
-    ],
-    examples: [
-      "Create tubular railings",
-      "Build wire harness geometry",
-      "Design pipe networks",
-    ],
-    relatedNodes: ["pipeMerge", "curve", "extrude"],
-  },
-  pipeMerge: {
-    tips: [
-      "Combines pipe segments at junctions",
-      "Automatically blends connections",
-      "Creates smooth branch transitions",
-      "Use after creating individual pipes",
-    ],
-    examples: [
-      "Join pipe network branches",
-      "Create smooth tube junctions",
-      "Build plumbing or HVAC networks",
-    ],
-    relatedNodes: ["pipeSweep", "meshmerge", "boolean"],
+    relatedNodes: ["fieldTransformation"],
   },
   fillet: {
     tips: [
       "Rounds polyline corners with arcs",
       "Radius controls fillet size",
-      "Rebuilds curve with smooth transitions",
-      "Only works on polylines with sharp corners",
     ],
-    examples: [
-      "Smooth mechanical profile corners",
-      "Create rounded rectangle shapes",
-      "Add fillets to imported DXF profiles",
-    ],
-    relatedNodes: ["filletEdges", "offset", "polyline"],
+    relatedNodes: ["filletEdges", "offset"],
   },
   filletEdges: {
     tips: [
-      "Bevels selected mesh edges",
-      "Width controls bevel distance",
-      "Segments control smoothness",
-      "Creates chamfered or rounded edges",
+      "Bevels mesh edges",
+      "Width and segments control smoothness",
     ],
-    examples: [
-      "Soften hard edges on box models",
-      "Create beveled edge details",
-      "Add subtle roundovers to furniture",
-    ],
-    relatedNodes: ["fillet", "subdivideMesh", "meshRelax"],
+    relatedNodes: ["fillet", "subdivideMesh"],
   },
   offset: {
     tips: [
-      "Creates parallel curve at distance",
-      "Positive = outward, negative = inward",
-      "Self-intersections handled automatically",
-      "Works on closed and open curves",
+      "Creates parallel curve",
+      "Positive outward, negative inward",
     ],
-    examples: [
-      "Create wall thickness from center line",
-      "Build concentric patterns",
-      "Generate margin or clearance curves",
+    relatedNodes: ["fillet", "offsetPattern"],
+  },
+  boolean: {
+    tips: [
+      "Union, Difference, Intersection",
+      "Inputs must be closed solids",
     ],
-    relatedNodes: ["fillet", "offsetPattern", "offsetSurface"],
+    relatedNodes: ["meshBoolean", "extrude"],
   },
 
-  // === TRANSFORM NODES ===
+  // === TRANSFORMS ===
+  move: {
+    tips: [
+      "Translates by vector displacement",
+      "Chain multiple moves for complex translations",
+    ],
+    relatedNodes: ["rotate", "scale", "linearArray"],
+  },
   rotate: {
     tips: [
-      "Rotates around axis by angle in degrees",
-      "Center point defines rotation origin",
-      "Axis vector determines rotation direction",
-      "Positive angle = counter-clockwise looking down axis",
+      "Rotates around axis by angle",
+      "Angle in degrees",
     ],
-    examples: [
-      "Orient objects to face a direction",
-      "Create angled components",
-      "Build spiral patterns with incrementing angles",
-    ],
-    relatedNodes: ["move", "scale", "polarArray", "rotateVectorAxis"],
+    relatedNodes: ["move", "scale", "polarArray"],
   },
   scale: {
     tips: [
-      "Uniform or non-uniform scaling from center",
-      "Factor 2 = double, 0.5 = half",
-      "Separate X, Y, Z factors for stretching",
-      "Center point is the fixed reference",
+      "Scales from center point",
+      "Separate XYZ factors for stretching",
     ],
-    examples: [
-      "Resize imported models to correct size",
-      "Create variations at different scales",
-      "Stretch geometry in one direction",
-    ],
-    relatedNodes: ["move", "rotate", "vectorScale"],
+    relatedNodes: ["move", "rotate"],
   },
   fieldTransformation: {
     tips: [
-      "Deforms geometry using field values",
-      "Vector fields displace in field direction",
-      "Scalar fields displace along normals",
-      "Falloff controls effect extent",
+      "Deforms using field values",
+      "Falloff controls extent",
     ],
-    examples: [
-      "Create organic surface ripples",
-      "Apply attractor-based deformation",
-      "Build terrain from noise fields",
+    relatedNodes: ["pointAttractor", "move"],
+  },
+  movePoint: {
+    tips: [
+      "Moves point by XYZ offsets",
+      "Simple point translation",
     ],
-    relatedNodes: ["pointAttractor", "move", "meshRelax"],
+    relatedNodes: ["movePointByVector", "point"],
+  },
+  movePointByVector: {
+    tips: [
+      "Moves point by vector displacement",
+      "Same as move but for points",
+    ],
+    relatedNodes: ["movePoint", "vectorConstruct"],
+  },
+  rotateVectorAxis: {
+    tips: [
+      "Rotates vector around axis",
+      "Angle in degrees",
+    ],
+    relatedNodes: ["rotate", "vectorCross"],
+  },
+  mirrorVector: {
+    tips: [
+      "Reflects across plane normal",
+      "Use for bounce/reflection",
+    ],
+    relatedNodes: ["vectorProject"],
   },
 
-  // === ANALYSIS NODES ===
-  geometryInfo: {
+  // === ARRAYS ===
+  linearArray: {
     tips: [
-      "Extracts comprehensive mesh statistics",
-      "Shows vertices, faces, edges, bounds",
-      "Includes surface area and volume",
-      "Essential for validation and documentation",
+      "Count includes original",
+      "Set direction and spacing",
     ],
     examples: [
-      "Verify model dimensions before fabrication",
-      "Check mesh density for performance",
-      "Document geometry properties",
+      "Row of columns",
+      "Staircase steps",
     ],
-    relatedNodes: ["measurement", "metadataPanel", "dimensions"],
+    relatedNodes: ["polarArray", "gridArray"],
+  },
+  polarArray: {
+    tips: [
+      "Distributes around axis",
+      "Set count and angle range",
+    ],
+    examples: [
+      "Circular chair arrangement",
+      "Gear teeth",
+    ],
+    relatedNodes: ["linearArray", "gridArray"],
+  },
+  gridArray: {
+    tips: [
+      "2D or 3D grid of copies",
+      "Counts and spacing per axis",
+    ],
+    relatedNodes: ["linearArray", "polarArray"],
+  },
+  geometryArray: {
+    tips: [
+      "Applies array to geometry",
+      "More flexible than direct arrays",
+    ],
+    relatedNodes: ["linearArray", "polarArray"],
+  },
+
+  // === VECTORS ===
+  origin: {
+    tips: [
+      "Outputs (0,0,0)",
+      "Use as reference point",
+    ],
+    relatedNodes: ["unitX", "unitY", "unitZ"],
+  },
+  unitX: {
+    tips: ["Outputs (1,0,0)", "X-axis direction"],
+    relatedNodes: ["unitY", "unitZ", "origin"],
+  },
+  unitY: {
+    tips: ["Outputs (0,1,0)", "Y-axis direction"],
+    relatedNodes: ["unitX", "unitZ", "origin"],
+  },
+  unitZ: {
+    tips: ["Outputs (0,0,1)", "Z-axis direction"],
+    relatedNodes: ["unitX", "unitY", "origin"],
+  },
+  unitXYZ: {
+    tips: ["Outputs normalized (1,1,1)", "Diagonal direction"],
+    relatedNodes: ["unitX", "unitY", "unitZ"],
+  },
+  moveVector: {
+    tips: [
+      "Creates vector from XYZ components",
+      "Use for translation",
+    ],
+    relatedNodes: ["vectorConstruct", "move"],
+  },
+  scaleVector: {
+    tips: [
+      "Creates scale factors per axis",
+      "Use for non-uniform scaling",
+    ],
+    relatedNodes: ["vectorScale", "scale"],
+  },
+  vectorConstruct: {
+    tips: [
+      "Builds vector from X, Y, Z inputs",
+      "Combines separate numbers",
+    ],
+    relatedNodes: ["vectorDeconstruct", "moveVector"],
+  },
+  vectorDeconstruct: {
+    tips: [
+      "Splits vector to X, Y, Z",
+      "Extracts components",
+    ],
+    relatedNodes: ["vectorConstruct"],
+  },
+  vectorAdd: {
+    tips: [
+      "Adds component-wise",
+      "Combine translations",
+    ],
+    relatedNodes: ["vectorSubtract", "vectorScale"],
+  },
+  vectorSubtract: {
+    tips: [
+      "A minus B",
+      "Direction from B to A",
+    ],
+    relatedNodes: ["vectorAdd", "vectorFromPoints"],
+  },
+  vectorScale: {
+    tips: [
+      "Multiplies by scalar",
+      "Scales magnitude, keeps direction",
+    ],
+    relatedNodes: ["vectorNormalize", "scaleVector"],
+  },
+  vectorLength: {
+    tips: [
+      "Returns magnitude",
+      "Use for distance calculations",
+    ],
+    relatedNodes: ["vectorNormalize", "distance"],
+  },
+  vectorNormalize: {
+    tips: [
+      "Scales to unit length",
+      "Keeps direction, magnitude = 1",
+    ],
+    relatedNodes: ["vectorLength", "vectorScale"],
+  },
+  vectorDot: {
+    tips: [
+      "Returns scalar alignment",
+      "1 = parallel, 0 = perpendicular, -1 = opposite",
+    ],
+    relatedNodes: ["vectorCross", "vectorAngle"],
+  },
+  vectorCross: {
+    tips: [
+      "Returns perpendicular vector",
+      "Use for normals and rotation axes",
+    ],
+    relatedNodes: ["vectorDot", "rotateVectorAxis"],
+  },
+  distance: {
+    tips: [
+      "Distance between two points",
+      "Returns single number",
+    ],
+    relatedNodes: ["vectorLength", "proximity3d"],
+  },
+  vectorFromPoints: {
+    tips: [
+      "Direction from A to B",
+      "Length equals distance",
+    ],
+    relatedNodes: ["vectorSubtract", "distance"],
+  },
+  vectorAngle: {
+    tips: [
+      "Angle in degrees",
+      "Returns 0-180 range",
+    ],
+    relatedNodes: ["vectorDot", "rotate"],
+  },
+  vectorLerp: {
+    tips: [
+      "Linear interpolation",
+      "Factor 0 = A, 1 = B, 0.5 = midpoint",
+    ],
+    relatedNodes: ["remap", "linspace"],
+  },
+  vectorProject: {
+    tips: [
+      "Projects A onto B",
+      "Returns parallel component",
+    ],
+    relatedNodes: ["vectorDot", "mirrorVector"],
+  },
+  pointAttractor: {
+    tips: [
+      "Creates attraction field",
+      "Strength > 0 attracts, < 0 repels",
+    ],
+    relatedNodes: ["fieldTransformation", "proximity3d"],
+  },
+
+  // === MATH ===
+  number: {
+    tips: [
+      "Outputs constant value",
+      "Use for fixed parameters",
+    ],
+    relatedNodes: ["slider", "expression"],
+  },
+  add: {
+    tips: ["Adds two numbers", "Basic arithmetic"],
+    relatedNodes: ["subtract", "multiply"],
+  },
+  subtract: {
+    tips: ["A minus B", "Order matters"],
+    relatedNodes: ["add", "divide"],
+  },
+  multiply: {
+    tips: ["Multiplies two numbers", "Use for scaling"],
+    relatedNodes: ["divide", "add"],
+  },
+  divide: {
+    tips: ["A divided by B", "Handles zero gracefully"],
+    relatedNodes: ["multiply", "subtract"],
+  },
+  clamp: {
+    tips: [
+      "Constrains to min/max range",
+      "Values outside become boundary",
+    ],
+    relatedNodes: ["min", "max", "remap"],
+  },
+  min: {
+    tips: ["Returns smaller value", "Use for upper bounds"],
+    relatedNodes: ["max", "clamp"],
+  },
+  max: {
+    tips: ["Returns larger value", "Use for lower bounds"],
+    relatedNodes: ["min", "clamp"],
+  },
+  expression: {
+    tips: [
+      "Evaluates math expressions",
+      "Supports +, -, *, /, ^, sin, cos, sqrt, etc.",
+    ],
+    examples: [
+      "sin(x * PI * 2) * amplitude",
+      "sqrt(x^2 + y^2)",
+    ],
+    relatedNodes: ["scalarFunctions", "number"],
+  },
+  scalarFunctions: {
+    tips: [
+      "Common functions: abs, floor, ceil, sqrt, sin, cos",
+      "Single input, single output",
+    ],
+    relatedNodes: ["expression", "clamp"],
+  },
+  conditional: {
+    tips: [
+      "If-then-else for numbers",
+      "Condition > 0 selects True output",
+    ],
+    relatedNodes: ["expression", "clamp"],
+  },
+
+  // === LISTS ===
+  listCreate: {
+    tips: [
+      "Collects values into list",
+      "Ports added dynamically",
+    ],
+    relatedNodes: ["listItem", "listLength"],
+  },
+  listLength: {
+    tips: [
+      "Returns item count",
+      "Empty list = 0",
+    ],
+    relatedNodes: ["listCreate", "listItem"],
+  },
+  listItem: {
+    tips: [
+      "Extracts by index",
+      "0 = first, -1 = last",
+    ],
+    relatedNodes: ["listCreate", "listSlice"],
+  },
+  listIndexOf: {
+    tips: [
+      "Finds item index",
+      "-1 if not found",
+    ],
+    relatedNodes: ["listItem", "listCreate"],
+  },
+  listPartition: {
+    tips: [
+      "Splits into chunks",
+      "Set size and step",
+    ],
+    relatedNodes: ["listSlice", "listFlatten"],
+  },
+  listFlatten: {
+    tips: [
+      "Flattens nested lists",
+      "Depth controls levels",
+    ],
+    relatedNodes: ["listPartition", "gridArray"],
+  },
+  listSlice: {
+    tips: [
+      "Extracts portion",
+      "Start to end indices",
+    ],
+    relatedNodes: ["listItem", "listReverse"],
+  },
+  listReverse: {
+    tips: [
+      "Reverses order",
+      "First becomes last",
+    ],
+    relatedNodes: ["listSlice"],
+  },
+  listSum: {
+    tips: ["Adds all values", "Returns total"],
+    relatedNodes: ["listAverage", "add"],
+  },
+  listAverage: {
+    tips: ["Calculates mean", "Sum / count"],
+    relatedNodes: ["listSum", "listMedian"],
+  },
+  listMin: {
+    tips: ["Returns smallest", "Numeric values only"],
+    relatedNodes: ["listMax", "min"],
+  },
+  listMax: {
+    tips: ["Returns largest", "Numeric values only"],
+    relatedNodes: ["listMin", "max"],
+  },
+  listMedian: {
+    tips: ["Middle value when sorted", "Robust to outliers"],
+    relatedNodes: ["listAverage"],
+  },
+  listStdDev: {
+    tips: ["Standard deviation", "Measures spread"],
+    relatedNodes: ["listAverage"],
+  },
+
+  // === RANGES ===
+  range: {
+    tips: [
+      "Generates sequence",
+      "Start to end with count",
+    ],
+    relatedNodes: ["linspace", "repeat"],
+  },
+  linspace: {
+    tips: [
+      "Evenly spaced values",
+      "Includes both endpoints",
+    ],
+    relatedNodes: ["range", "remap"],
+  },
+  remap: {
+    tips: [
+      "Maps value between ranges",
+      "[oldMin, oldMax] → [newMin, newMax]",
+    ],
+    relatedNodes: ["clamp", "linspace"],
+  },
+  random: {
+    tips: [
+      "Generates random number",
+      "Seed for reproducibility",
+    ],
+    relatedNodes: ["range", "linspace"],
+  },
+  repeat: {
+    tips: [
+      "Repeats value N times",
+      "Creates constant list",
+    ],
+    relatedNodes: ["range", "listCreate"],
+  },
+
+  // === SIGNALS ===
+  sineWave: {
+    tips: [
+      "Smooth oscillation",
+      "Amplitude, frequency, phase, offset",
+    ],
+    relatedNodes: ["cosineWave", "triangleWave"],
+  },
+  cosineWave: {
+    tips: [
+      "Sine shifted 90°",
+      "Starts at peak",
+    ],
+    relatedNodes: ["sineWave", "triangleWave"],
+  },
+  triangleWave: {
+    tips: [
+      "Linear up then down",
+      "Symmetric zigzag",
+    ],
+    relatedNodes: ["sawtoothWave", "sineWave"],
+  },
+  sawtoothWave: {
+    tips: [
+      "Linear ramp that resets",
+      "Asymmetric oscillation",
+    ],
+    relatedNodes: ["triangleWave", "squareWave"],
+  },
+  squareWave: {
+    tips: [
+      "Alternates high/low",
+      "Duty cycle controls ratio",
+    ],
+    relatedNodes: ["sawtoothWave", "conditional"],
+  },
+
+  // === ANALYSIS ===
+  geometryInfo: {
+    tips: [
+      "Shows vertex/face/edge counts",
+      "Includes bounds, area, volume",
+    ],
+    relatedNodes: ["measurement", "metadataPanel"],
   },
   measurement: {
     tips: [
-      "Measures geometric properties",
-      "Supports distance, angle, area, volume",
-      "Connect geometry and select measurement type",
-      "Output is numeric for downstream use",
+      "Distance, angle, area, volume",
+      "Select measurement type",
     ],
-    examples: [
-      "Measure clearance between parts",
-      "Calculate surface area for material estimation",
-      "Verify angles meet design requirements",
+    relatedNodes: ["geometryInfo", "dimensions"],
+  },
+  geometryVertices: {
+    tips: [
+      "Extracts all vertices",
+      "Returns point list",
     ],
-    relatedNodes: ["geometryInfo", "dimensions", "distance"],
+    relatedNodes: ["geometryEdges", "geometryFaces"],
+  },
+  geometryEdges: {
+    tips: [
+      "Extracts edges as lines",
+      "Returns line list",
+    ],
+    relatedNodes: ["geometryVertices", "geometryFaces"],
+  },
+  geometryFaces: {
+    tips: [
+      "Extracts face centroids",
+      "Mesh only",
+    ],
+    relatedNodes: ["geometryVertices", "geometryNormals"],
+  },
+  geometryNormals: {
+    tips: [
+      "Extracts normal vectors",
+      "Face or vertex normals",
+    ],
+    relatedNodes: ["geometryFaces", "geometryVertices"],
+  },
+  geometryControlPoints: {
+    tips: [
+      "Extracts NURBS control points",
+      "Curves and surfaces only",
+    ],
+    relatedNodes: ["curve", "geometryVertices"],
   },
   proximity3d: {
     tips: [
-      "Finds closest geometry to a test point",
-      "Returns closest point, distance, and index",
-      "Works with any geometry type",
-      "Use for collision detection or snapping",
+      "Finds nearest geometry",
+      "Returns point, distance, index",
     ],
-    examples: [
-      "Find nearest surface point for projection",
-      "Check if geometry is within tolerance",
-      "Snap points to existing geometry",
+    relatedNodes: ["proximity2d", "curveProximity"],
+  },
+  proximity2d: {
+    tips: [
+      "2D nearest in XY plane",
+      "Faster for planar problems",
     ],
-    relatedNodes: ["proximity2d", "curveProximity", "distance"],
+    relatedNodes: ["proximity3d"],
+  },
+  curveProximity: {
+    tips: [
+      "Closest point on curve",
+      "Returns point, parameter, distance",
+    ],
+    relatedNodes: ["proximity3d", "curve"],
   },
 
-  // === GOAL NODES - PHYSICS ===
+  // === INTERCHANGE ===
+  stlImport: {
+    tips: [
+      "Imports STL mesh files",
+      "ASCII and binary supported",
+    ],
+    relatedNodes: ["stlExport", "meshRepair"],
+  },
+  stlExport: {
+    tips: [
+      "Exports to STL format",
+      "For 3D printing and exchange",
+    ],
+    relatedNodes: ["stlImport", "meshConvert"],
+  },
+
+  // === VOXEL ===
+  voxelizeGeometry: {
+    tips: [
+      "Converts to voxel grid",
+      "Surface or solid mode",
+    ],
+    relatedNodes: ["extractIsosurface", "topologySolver"],
+  },
+  extractIsosurface: {
+    tips: [
+      "Creates mesh from density field",
+      "Marching cubes algorithm",
+    ],
+    relatedNodes: ["voxelizeGeometry", "topologySolver"],
+  },
+  topologyOptimize: {
+    tips: [
+      "Settings for topology optimization",
+      "Connect to Topology Solver",
+    ],
+    relatedNodes: ["topologySolver", "voxelizeGeometry"],
+  },
+  topologySolver: {
+    tips: [
+      "Density-based optimization",
+      "Iteratively removes material",
+    ],
+    relatedNodes: ["topologyOptimize", "extractIsosurface"],
+  },
+
+  // === SOLVERS ===
+  biologicalSolver: {
+    tips: [
+      "Evolutionary optimization",
+      "Genomes encode parameters",
+    ],
+    relatedNodes: ["biologicalEvolutionSolver"],
+  },
+  biologicalEvolutionSolver: {
+    tips: [
+      "Full evolution with popup UI",
+      "Connect Genome, Phenotype, Fitness",
+    ],
+    relatedNodes: ["genomeCollector", "geometryPhenotype", "performsFitness"],
+  },
+  physicsSolver: {
+    tips: [
+      "Structural analysis",
+      "Connect Load and Anchor goals",
+    ],
+    relatedNodes: ["loadGoal", "anchorGoal", "stiffnessGoal"],
+  },
+  voxelSolver: {
+    tips: [
+      "Voxel topology optimization",
+      "Wrapper around topologySolver",
+    ],
+    relatedNodes: ["topologySolver", "voxelizeGeometry"],
+  },
+  chemistrySolver: {
+    tips: [
+      "Multi-material optimization",
+      "Particle-based simulation",
+    ],
+    relatedNodes: ["chemistryMaterialGoal", "chemistryStiffnessGoal"],
+  },
+
+  // === GOALS: Physics ===
   stiffnessGoal: {
     tips: [
-      "Weight parameter controls the importance relative to other goals",
-      "Higher stiffness targets drive material toward load paths",
-      "Combine with Volume Goal to balance stiffness vs material usage",
-      "Connect to Physics Solver or Topology Solver for optimization",
+      "Defines stiffness targets",
+      "Weight controls importance",
     ],
-    examples: [
-      "Maximize stiffness of a bracket while minimizing weight",
-      "Create an optimized beam with target deflection limits",
-      "Design a stiff connection joint for structural assemblies",
-    ],
-    relatedNodes: ["volumeGoal", "loadGoal", "anchorGoal", "physicsSolver"],
+    relatedNodes: ["volumeGoal", "loadGoal", "physicsSolver"],
   },
   volumeGoal: {
     tips: [
-      "Target fraction (0-1) sets the material budget",
-      "Lower fractions create lighter structures",
-      "Balance with stiffness goals for optimal designs",
-      "Penalize or target - choose based on optimization intent",
+      "Constrains material volume",
+      "Fraction 0-1 sets budget",
     ],
-    examples: [
-      "Limit material to 30% of bounding volume for lightweight bracket",
-      "Create minimum-weight structure that meets strength requirements",
-      "Optimize material distribution for given volume constraint",
-    ],
-    relatedNodes: ["stiffnessGoal", "loadGoal", "topologySolver"],
+    relatedNodes: ["stiffnessGoal", "topologySolver"],
   },
   loadGoal: {
     tips: [
-      "Force vector defines magnitude and direction",
-      "Application region can be points, edges, or faces",
-      "Multiple loads can be combined for complex loading scenarios",
-      "Consider both static and dynamic loading cases",
+      "Applies external forces",
+      "Set vector and region",
     ],
-    examples: [
-      "Apply downward gravity load to a shelf structure",
-      "Define point loads at connection points for a bracket",
-      "Create distributed pressure load on a surface",
-    ],
-    relatedNodes: ["anchorGoal", "stiffnessGoal", "physicsSolver"],
+    relatedNodes: ["anchorGoal", "physicsSolver"],
   },
   anchorGoal: {
     tips: [
-      "Anchored regions cannot move during analysis",
-      "Define supports realistically for accurate results",
-      "Both fixed and pinned boundary conditions supported",
-      "Position anchors where real-world supports exist",
+      "Defines fixed supports",
+      "Regions cannot move",
     ],
-    examples: [
-      "Fix the base of a cantilever beam",
-      "Define mounting holes as anchor points for a bracket",
-      "Create pinned supports for a simply-supported beam",
-    ],
-    relatedNodes: ["loadGoal", "stiffnessGoal", "physicsSolver"],
+    relatedNodes: ["loadGoal", "physicsSolver"],
   },
 
-  // === GOAL NODES - BIOLOGICAL EVOLUTION ===
+  // === GOALS: Biological Evolution ===
   genomeCollector: {
     tips: [
-      "Connect slider nodes that should be evolved",
-      "Each slider becomes a gene in the genome",
-      "Order of connections defines gene order",
-      "Consider which parameters most affect the design",
-    ],
-    examples: [
-      "Collect dimension sliders for furniture optimization",
-      "Gather structural parameters for bracket evolution",
-      "Assemble proportional controls for vehicle design",
-    ],
-    bestPractices: [
-      "Include only parameters that significantly affect fitness",
-      "Set meaningful min/max bounds on connected sliders",
-      "Use descriptive names for sliders to track evolution",
+      "Collects slider genes",
+      "Connect sliders to evolve",
     ],
     relatedNodes: ["geometryPhenotype", "performsFitness", "biologicalEvolutionSolver"],
   },
   geometryPhenotype: {
     tips: [
-      "Connect final geometry outputs from your workflow",
-      "Multiple geometry outputs can define the phenotype",
-      "Phenotype is what gets evaluated for fitness",
-      "Ensure geometry updates properly when genome changes",
+      "Captures geometry outputs",
+      "Defines what gets evaluated",
     ],
-    examples: [
-      "Capture bracket geometry for structural optimization",
-      "Collect furniture components for ergonomic evaluation",
-      "Gather building envelope for energy analysis",
-    ],
-    relatedNodes: ["genomeCollector", "performsFitness", "biologicalEvolutionSolver"],
+    relatedNodes: ["genomeCollector", "performsFitness"],
   },
   performsFitness: {
     tips: [
-      "Combine multiple metrics with weights",
-      "Higher fitness = better design (maximize)",
-      "Weights control relative importance of objectives",
-      "Normalize metrics to similar scales for balanced optimization",
+      "Aggregates metrics with weights",
+      "Higher fitness = better",
     ],
-    examples: [
-      "Weight strength highly and mass low for stiff/heavy design",
-      "Balance aesthetics and function with equal weights",
-      "Prioritize cost while meeting minimum performance thresholds",
-    ],
-    relatedNodes: ["genomeCollector", "geometryPhenotype", "biologicalEvolutionSolver"],
+    relatedNodes: ["genomeCollector", "geometryPhenotype"],
   },
 
-  // === GOAL NODES - BIOLOGICAL GROWTH ===
+  // === GOALS: Biological Growth ===
   growthGoal: {
     tips: [
-      "Intensity controls how fast growth occurs",
-      "Direction vector biases growth toward specific areas",
-      "Combine with Nutrient Goal for realistic patterns",
-      "Higher intensity creates denser structures",
+      "Promotes biomass growth",
+      "Intensity and direction",
     ],
-    examples: [
-      "Simulate upward tree growth with vertical bias",
-      "Create organic branching with uniform growth",
-      "Model coral-like formations with radial growth",
-    ],
-    relatedNodes: ["nutrientGoal", "morphogenesisGoal", "homeostasisGoal", "biologicalSolver"],
+    relatedNodes: ["nutrientGoal", "morphogenesisGoal", "biologicalSolver"],
   },
   nutrientGoal: {
     tips: [
-      "Position defines where nutrients are available",
-      "Strength controls concentration at source",
-      "Diffusion rate affects how far nutrients spread",
-      "Growth naturally follows nutrient gradients",
+      "Defines nutrient source",
+      "Growth follows gradients",
     ],
-    examples: [
-      "Place nutrient at ground level for root-like growth",
-      "Create multiple sources for distributed branching",
-      "Simulate light source attracting phototropic growth",
-    ],
-    relatedNodes: ["growthGoal", "morphogenesisGoal", "biologicalSolver"],
+    relatedNodes: ["growthGoal", "biologicalSolver"],
   },
   morphogenesisGoal: {
     tips: [
-      "Density controls branching frequency",
-      "Scale affects the size of pattern features",
-      "Creates natural-looking organic structures",
-      "Combine with other goals for complex morphologies",
+      "Shapes branching patterns",
+      "Density and scale",
     ],
-    examples: [
-      "Generate tree-like branching patterns",
-      "Create vein-like networks for distribution systems",
-      "Design lightning-bolt-like fractal structures",
-    ],
-    relatedNodes: ["growthGoal", "nutrientGoal", "homeostasisGoal", "biologicalSolver"],
+    relatedNodes: ["growthGoal", "homeostasisGoal"],
   },
   homeostasisGoal: {
     tips: [
-      "Penalizes excessive stress during growth",
-      "Creates more stable, conservative structures",
-      "Balance with growth goals for controlled expansion",
-      "Higher weights create more uniform density",
+      "Maintains stability",
+      "Penalizes excess stress",
     ],
-    examples: [
-      "Prevent overly thin branches in tree structures",
-      "Maintain structural stability during optimization",
-      "Create robust organic forms without weak points",
-    ],
-    relatedNodes: ["growthGoal", "morphogenesisGoal", "biologicalSolver"],
+    relatedNodes: ["growthGoal", "morphogenesisGoal"],
   },
 
-  // === GOAL NODES - CHEMISTRY/MATERIALS ===
+  // === GOALS: Chemistry ===
   chemistryMaterialGoal: {
     tips: [
-      "Select from the built-in material library",
-      "Connect geometry to assign materials to regions",
-      "Weight controls preference strength",
-      "Multiple goals can create material gradients",
+      "Assigns material to geometry",
+      "Select from library",
     ],
-    examples: [
-      "Assign steel to high-stress regions of a bracket",
-      "Place aluminum in low-load areas for weight reduction",
-      "Define glass zones for transparent sections",
-    ],
-    relatedNodes: ["chemistryStiffnessGoal", "chemistryMassGoal", "chemistrySolver"],
+    relatedNodes: ["chemistryStiffnessGoal", "chemistrySolver"],
   },
   chemistryStiffnessGoal: {
     tips: [
-      "Biases stiff materials toward stress-aligned regions",
-      "Weight controls how strongly stiffness is prioritized",
-      "Combine with Mass Goal for balanced optimization",
-      "Works with the material library in Chemistry Solver",
+      "Biases stiff materials to stress regions",
+      "Weight controls priority",
     ],
-    examples: [
-      "Optimize a bracket for maximum stiffness with available materials",
-      "Create a composite structure with steel reinforcement",
-      "Design load-bearing elements with stiffness focus",
-    ],
-    relatedNodes: ["chemistryMassGoal", "chemistryMaterialGoal", "chemistrySolver"],
+    relatedNodes: ["chemistryMassGoal", "chemistrySolver"],
   },
   chemistryMassGoal: {
     tips: [
-      "Penalizes dense materials to reduce overall mass",
-      "Balance with stiffness for lightweight strong structures",
-      "Weight parameter controls mass reduction priority",
-      "Effective for aerospace and automotive applications",
+      "Minimizes material mass",
+      "Balance with stiffness",
     ],
-    examples: [
-      "Minimize weight of a bracket while meeting strength targets",
-      "Create lightweight shell structures with material gradients",
-      "Design mass-efficient support structures",
-    ],
-    relatedNodes: ["chemistryStiffnessGoal", "chemistryMaterialGoal", "chemistrySolver"],
+    relatedNodes: ["chemistryStiffnessGoal", "chemistrySolver"],
   },
   chemistryBlendGoal: {
     tips: [
-      "Enforces smooth transitions between materials",
-      "Prevents sharp material discontinuities",
-      "Important for manufacturability",
-      "Creates gradient materials naturally",
-    ],
-    examples: [
-      "Create smooth steel-to-aluminum transitions",
-      "Design gradient density foam structures",
-      "Generate natural material blending in composites",
+      "Enforces smooth gradients",
+      "Prevents sharp boundaries",
     ],
     relatedNodes: ["chemistryMaterialGoal", "chemistrySolver"],
   },
   chemistryTransparencyGoal: {
     tips: [
-      "Biases transparent materials to optical regions",
-      "Define areas requiring light transmission",
-      "Combine with structural goals for functional designs",
-      "Works with glass-like materials in the library",
+      "Biases transparent materials",
+      "For optical regions",
     ],
-    examples: [
-      "Design a structural facade with transparent panels",
-      "Create a lamp shade with optimized light distribution",
-      "Optimize window placement in an architectural model",
-    ],
-    relatedNodes: ["chemistryMaterialGoal", "chemistryThermalGoal", "chemistrySolver"],
+    relatedNodes: ["chemistryMaterialGoal", "chemistrySolver"],
   },
   chemistryThermalGoal: {
     tips: [
-      "Optimizes thermal conductivity distribution",
-      "Place conductive materials for heat paths",
-      "Insulating materials create thermal barriers",
-      "Essential for thermal management applications",
+      "Optimizes thermal conductivity",
+      "Heat paths and barriers",
     ],
-    examples: [
-      "Design a heat sink with optimal material distribution",
-      "Create insulated wall assemblies with thermal breaks",
-      "Optimize electronic enclosure cooling paths",
-    ],
-    relatedNodes: ["chemistryMaterialGoal", "chemistryStiffnessGoal", "chemistrySolver"],
-  },
-
-  // === MATH OPERATIONS ===
-  number: {
-    tips: [
-      "Use for fixed values that don't change",
-      "Good for named constants like Pi or material properties",
-      "Can be connected to any number input port",
-      "Edit value in node parameters panel",
-    ],
-    examples: [
-      "Define a constant offset distance of 10 units",
-      "Set material thickness as a named constant",
-      "Create a degrees-to-radians conversion factor",
-    ],
-    relatedNodes: ["slider", "add", "multiply", "expression"],
-  },
-  add: {
-    tips: [
-      "Adds two numeric inputs",
-      "Can chain multiple additions with multiple Add nodes",
-      "Works with single values and lists",
-      "Order of inputs doesn't matter (commutative)",
-    ],
-    examples: [
-      "Sum dimensions to get total length",
-      "Add offset to base position",
-      "Accumulate incremental values",
-    ],
-    relatedNodes: ["subtract", "multiply", "listSum", "expression"],
-  },
-  subtract: {
-    tips: [
-      "Returns A minus B",
-      "Order matters - first input minus second",
-      "Use for differences, decrements, or relative values",
-      "Negative second input adds instead of subtracts",
-    ],
-    examples: [
-      "Calculate remaining material after cuts",
-      "Find difference between measurements",
-      "Compute relative position from reference",
-    ],
-    relatedNodes: ["add", "divide", "expression"],
-  },
-  multiply: {
-    tips: [
-      "Multiplies two numeric inputs",
-      "Use for scaling, area calculations, or applying factors",
-      "Order doesn't matter (commutative)",
-      "Multiplying by zero always returns zero",
-    ],
-    examples: [
-      "Scale a dimension by a factor",
-      "Calculate area from width and height",
-      "Apply a percentage multiplier",
-    ],
-    relatedNodes: ["divide", "add", "vectorScale", "expression"],
-  },
-  divide: {
-    tips: [
-      "Returns A divided by B",
-      "Division by zero returns infinity (handled gracefully)",
-      "Use for ratios, averaging, or unit conversions",
-      "Integer division rounds toward zero",
-    ],
-    examples: [
-      "Calculate average from sum and count",
-      "Convert units (mm to inches)",
-      "Find ratio of two measurements",
-    ],
-    relatedNodes: ["multiply", "subtract", "expression"],
-  },
-  clamp: {
-    tips: [
-      "Constrains value between min and max",
-      "Values below min become min, above max become max",
-      "Essential for keeping parameters in valid ranges",
-      "Prevents extreme or invalid values",
-    ],
-    examples: [
-      "Limit angle to 0-360 degrees",
-      "Constrain radius to positive values only",
-      "Keep proportions within reasonable bounds",
-    ],
-    relatedNodes: ["min", "max", "remap", "expression"],
-  },
-  min: {
-    tips: [
-      "Returns the smaller of two values",
-      "Use for upper bounds or conservative estimates",
-      "Chain multiple Min nodes for finding minimum of many values",
-      "listMin does this for entire lists",
-    ],
-    examples: [
-      "Limit maximum dimension to available space",
-      "Take the smaller of two clearances",
-      "Find conservative tolerance value",
-    ],
-    relatedNodes: ["max", "clamp", "listMin"],
-  },
-  max: {
-    tips: [
-      "Returns the larger of two values",
-      "Use for lower bounds or ensuring minimums",
-      "Chain multiple Max nodes for finding maximum of many values",
-      "listMax does this for entire lists",
-    ],
-    examples: [
-      "Ensure minimum wall thickness",
-      "Take the larger of two spacing values",
-      "Guarantee minimum strength requirement",
-    ],
-    relatedNodes: ["min", "clamp", "listMax"],
-  },
-  scalarFunctions: {
-    tips: [
-      "Single dropdown for common math functions",
-      "Includes: abs, floor, ceil, round, sqrt, sin, cos, tan, log, exp",
-      "Trigonometric functions use radians",
-      "More compact than individual function nodes",
-    ],
-    examples: [
-      "Take absolute value of signed distance",
-      "Round dimensions to whole numbers",
-      "Calculate sine wave for animation",
-    ],
-    relatedNodes: ["expression", "add", "multiply"],
-  },
-  conditional: {
-    tips: [
-      "If-then-else for numbers",
-      "Condition > 0 or true selects True output",
-      "Condition <= 0 or false selects False output",
-      "Use for mode switching or clamping logic",
-    ],
-    examples: [
-      "Choose between two dimensions based on flag",
-      "Select material based on stress threshold",
-      "Switch calculation method based on size",
-    ],
-    relatedNodes: ["expression", "clamp", "min", "max"],
-  },
-
-  // === VECTOR OPERATIONS ===
-  vectorAdd: {
-    tips: [
-      "Adds vectors component-wise: (A.x+B.x, A.y+B.y, A.z+B.z)",
-      "Use for combining translations or accumulating positions",
-      "Order doesn't matter (commutative)",
-      "Chain for adding multiple vectors",
-    ],
-    examples: [
-      "Combine horizontal and vertical movement",
-      "Add offset to base position",
-      "Accumulate force vectors",
-    ],
-    relatedNodes: ["vectorSubtract", "vectorScale", "vectorConstruct"],
-  },
-  vectorSubtract: {
-    tips: [
-      "Subtracts B from A: (A.x-B.x, A.y-B.y, A.z-B.z)",
-      "Result points from B toward A",
-      "Use for calculating directions between points",
-      "Order matters - result direction depends on order",
-    ],
-    examples: [
-      "Find direction from start to end point",
-      "Calculate relative position",
-      "Compute displacement vector",
-    ],
-    relatedNodes: ["vectorAdd", "vectorFromPoints", "distance"],
-  },
-  vectorScale: {
-    tips: [
-      "Multiplies vector by a scalar",
-      "Scales magnitude, preserves direction",
-      "Negative scalars reverse direction",
-      "Use for adjusting force magnitude or speed",
-    ],
-    examples: [
-      "Double the length of a movement vector",
-      "Reduce force to half strength",
-      "Reverse direction with -1 scale",
-    ],
-    relatedNodes: ["vectorNormalize", "vectorLength", "multiply"],
-  },
-  vectorLength: {
-    tips: [
-      "Calculates magnitude (length) of vector",
-      "Returns a single number",
-      "Use for distance calculations",
-      "Length of normalized vector is always 1",
-    ],
-    examples: [
-      "Measure distance of a displacement",
-      "Check if movement exceeds threshold",
-      "Calculate speed from velocity vector",
-    ],
-    relatedNodes: ["vectorNormalize", "distance", "vectorScale"],
-  },
-  vectorNormalize: {
-    tips: [
-      "Scales vector to unit length (magnitude = 1)",
-      "Preserves direction, standardizes magnitude",
-      "Returns zero vector if input is zero",
-      "Essential before direction comparisons",
-    ],
-    examples: [
-      "Get pure direction for movement",
-      "Normalize for consistent dot products",
-      "Create unit direction vector",
-    ],
-    relatedNodes: ["vectorLength", "vectorScale", "vectorDot"],
-  },
-  vectorDot: {
-    tips: [
-      "Dot product of two vectors",
-      "Returns scalar: positive if same direction, negative if opposite",
-      "For unit vectors: 1 = parallel, 0 = perpendicular, -1 = opposite",
-      "Use for projection and angle calculations",
-    ],
-    examples: [
-      "Check if vectors face the same direction",
-      "Calculate projection length",
-      "Find angle-based attenuation",
-    ],
-    relatedNodes: ["vectorCross", "vectorNormalize", "vectorAngle"],
-  },
-  vectorCross: {
-    tips: [
-      "Cross product of two vectors",
-      "Returns vector perpendicular to both inputs",
-      "Magnitude equals area of parallelogram",
-      "Use for calculating normals or rotation axes",
-    ],
-    examples: [
-      "Find surface normal from two edge vectors",
-      "Calculate rotation axis for alignment",
-      "Compute perpendicular direction",
-    ],
-    relatedNodes: ["vectorDot", "vectorNormalize", "rotateVectorAxis"],
-  },
-  distance: {
-    tips: [
-      "Calculates distance between two points",
-      "Equivalent to length of (B - A)",
-      "Always returns positive value",
-      "Convenience node for common operation",
-    ],
-    examples: [
-      "Measure spacing between objects",
-      "Check clearance distances",
-      "Calculate path segment lengths",
-    ],
-    relatedNodes: ["vectorLength", "vectorSubtract", "proximity3d"],
-  },
-  vectorAngle: {
-    tips: [
-      "Angle between two vectors in degrees",
-      "Returns 0-180 range (always positive)",
-      "Use for bend angles or orientation differences",
-      "Works with any length vectors (normalizes internally)",
-    ],
-    examples: [
-      "Check if vectors are perpendicular (90°)",
-      "Measure bend angle in a path",
-      "Verify alignment tolerance",
-    ],
-    relatedNodes: ["vectorDot", "vectorNormalize", "rotateVectorAxis"],
-  },
-  vectorLerp: {
-    tips: [
-      "Linear interpolation between two vectors",
-      "Factor 0 = A, Factor 1 = B, 0.5 = midpoint",
-      "Factors outside 0-1 extrapolate",
-      "Use for smooth transitions or parametric paths",
-    ],
-    examples: [
-      "Find midpoint between two positions",
-      "Create gradient positions along a path",
-      "Blend between start and end positions",
-    ],
-    relatedNodes: ["remap", "vectorConstruct", "linspace"],
-  },
-  pointAttractor: {
-    tips: [
-      "Creates attraction/repulsion field from a point",
-      "Strength > 0 attracts, < 0 repels",
-      "Falloff controls how quickly effect diminishes",
-      "Use for organic deformations",
-    ],
-    examples: [
-      "Pull vertices toward a center point",
-      "Push geometry away from an obstacle",
-      "Create bulge deformation on a surface",
-    ],
-    relatedNodes: ["fieldTransformation", "proximity3d", "move"],
-  },
-
-  // === LIST OPERATIONS ===
-  listLength: {
-    tips: [
-      "Returns count of items in a list",
-      "Works with any list type",
-      "Empty list returns 0",
-      "Use for loop control or validation",
-    ],
-    examples: [
-      "Check how many points in a path",
-      "Verify minimum number of inputs",
-      "Calculate index bounds for listItem",
-    ],
-    relatedNodes: ["listCreate", "listItem", "range"],
-  },
-  listItem: {
-    tips: [
-      "Extracts item at specified index",
-      "Index 0 is first item",
-      "Negative indices count from end (-1 = last)",
-      "Out of range returns undefined",
-    ],
-    examples: [
-      "Get first point from a list",
-      "Extract the last measurement",
-      "Pick middle item for center calculation",
-    ],
-    relatedNodes: ["listCreate", "listLength", "listSlice"],
-  },
-  listSlice: {
-    tips: [
-      "Extracts a portion of a list",
-      "Start and end indices define the range",
-      "Negative indices count from end",
-      "End index is exclusive (not included)",
-    ],
-    examples: [
-      "Take first 5 items from a list",
-      "Get all items except first and last",
-      "Extract a subset for processing",
-    ],
-    relatedNodes: ["listItem", "listPartition", "listFlatten"],
-  },
-  listFlatten: {
-    tips: [
-      "Converts nested lists to single-level",
-      "Depth controls how many levels to flatten",
-      "Depth 1 = flatten one level, -1 = all levels",
-      "Use after operations that create nested structures",
-    ],
-    examples: [
-      "Flatten grid array output to single list",
-      "Combine grouped results into flat list",
-      "Prepare nested data for export",
-    ],
-    relatedNodes: ["listCreate", "listPartition", "gridArray"],
-  },
-  listSum: {
-    tips: [
-      "Adds all numbers in a list",
-      "Returns single total",
-      "Empty list returns 0",
-      "Non-numbers are skipped",
-    ],
-    examples: [
-      "Calculate total length of segments",
-      "Sum all measurements",
-      "Accumulate costs or weights",
-    ],
-    relatedNodes: ["listAverage", "add", "listLength"],
-  },
-  listAverage: {
-    tips: [
-      "Calculates mean of numeric list",
-      "Sum divided by count",
-      "Empty list returns 0",
-      "Use for center values or smoothing",
-    ],
-    examples: [
-      "Find average dimension from measurements",
-      "Calculate mean position of points",
-      "Smooth noisy sensor data",
-    ],
-    relatedNodes: ["listSum", "listMedian", "listLength"],
-  },
-  listMin: {
-    tips: [
-      "Returns smallest value in list",
-      "Works with numbers only",
-      "Empty list returns undefined",
-      "Use for finding bounds",
-    ],
-    examples: [
-      "Find minimum clearance in a design",
-      "Get lowest measurement value",
-      "Determine bounding box minimum",
-    ],
-    relatedNodes: ["listMax", "min", "listAverage"],
-  },
-  listMax: {
-    tips: [
-      "Returns largest value in list",
-      "Works with numbers only",
-      "Empty list returns undefined",
-      "Use for finding bounds",
-    ],
-    examples: [
-      "Find maximum dimension",
-      "Get highest measurement value",
-      "Determine bounding box maximum",
-    ],
-    relatedNodes: ["listMin", "max", "listAverage"],
-  },
-  listMedian: {
-    tips: [
-      "Returns middle value when sorted",
-      "More robust to outliers than average",
-      "For even count, averages two middle values",
-      "Use for typical value in noisy data",
-    ],
-    examples: [
-      "Find typical measurement ignoring errors",
-      "Get representative value from samples",
-      "Filter outliers from sensor readings",
-    ],
-    relatedNodes: ["listAverage", "listMin", "listMax"],
-  },
-  linspace: {
-    tips: [
-      "Creates evenly spaced values",
-      "Specify start, end, and count",
-      "Includes both endpoints",
-      "Great for parameter sweeps",
-    ],
-    examples: [
-      "Generate 10 points from 0 to 1",
-      "Create parameter values for curve sampling",
-      "Build time steps for animation",
-    ],
-    relatedNodes: ["range", "remap", "listCreate"],
-  },
-  random: {
-    tips: [
-      "Generates random numbers",
-      "Uniform distribution between min and max",
-      "Seed for reproducible sequences",
-      "New seed = different random sequence",
-    ],
-    examples: [
-      "Add randomness to array positions",
-      "Generate random colors or sizes",
-      "Create variation in parametric designs",
-    ],
-    relatedNodes: ["linspace", "range", "expression"],
-  },
-  repeat: {
-    tips: [
-      "Creates a list by repeating a value",
-      "Count controls number of repetitions",
-      "Works with any value type",
-      "Use for initializing lists",
-    ],
-    examples: [
-      "Create list of 10 zeros",
-      "Initialize array with default value",
-      "Generate constant list for operations",
-    ],
-    relatedNodes: ["listCreate", "range", "linspace"],
-  },
-
-  // === ARRAY OPERATIONS ===
-  gridArray: {
-    tips: [
-      "Creates 2D or 3D grid of copies",
-      "Specify counts and spacing for each axis",
-      "Total copies = X count × Y count × Z count",
-      "Outputs nested list structure",
-    ],
-    examples: [
-      "Create a wall of bricks in a grid",
-      "Generate a 3D lattice of spheres",
-      "Build a matrix of panel elements",
-    ],
-    relatedNodes: ["linearArray", "polarArray", "listFlatten"],
-  },
-  geometryArray: {
-    tips: [
-      "Applies array transformation to geometry",
-      "Uses transform list from array nodes",
-      "Outputs list of transformed copies",
-      "More flexible than direct array nodes",
-    ],
-    examples: [
-      "Apply custom array pattern to complex geometry",
-      "Create geometry copies with non-uniform transforms",
-      "Build irregular arrangements",
-    ],
-    relatedNodes: ["linearArray", "polarArray", "gridArray", "move"],
-  },
-
-  // === SIGNAL/WAVE NODES ===
-  sineWave: {
-    tips: [
-      "Output = amplitude × sin(2π × frequency × t + phase) + offset",
-      "Amplitude controls peak height",
-      "Frequency controls cycles per unit",
-      "Phase shifts the wave start position",
-    ],
-    examples: [
-      "Create smooth oscillating motion",
-      "Generate wavy surface deformation",
-      "Build periodic animations",
-    ],
-    relatedNodes: ["cosineWave", "triangleWave", "expression"],
-  },
-  cosineWave: {
-    tips: [
-      "Same as sine but shifted 90 degrees",
-      "Starts at peak instead of zero",
-      "Often paired with sine for circular motion",
-      "Use when starting at maximum is desired",
-    ],
-    examples: [
-      "Create X component of circular motion (with sine for Y)",
-      "Generate phase-shifted oscillation",
-      "Build smooth start/stop transitions",
-    ],
-    relatedNodes: ["sineWave", "triangleWave", "expression"],
-  },
-  triangleWave: {
-    tips: [
-      "Linear up then linear down",
-      "Symmetric zigzag pattern",
-      "No smooth transitions at peaks",
-      "Use for ping-pong animations",
-    ],
-    examples: [
-      "Create back-and-forth motion",
-      "Generate linear oscillation",
-      "Build symmetric cycling values",
-    ],
-    relatedNodes: ["sawtoothWave", "sineWave", "squareWave"],
-  },
-  sawtoothWave: {
-    tips: [
-      "Linear ramp that resets",
-      "Asymmetric: gradual rise, instant drop",
-      "Can be inverted for gradual fall",
-      "Use for progress indicators or sweeps",
-    ],
-    examples: [
-      "Create continuous rotation",
-      "Generate linear sweep patterns",
-      "Build asymmetric oscillations",
-    ],
-    relatedNodes: ["triangleWave", "sineWave", "range"],
-  },
-  squareWave: {
-    tips: [
-      "Alternates between high and low values",
-      "Duty cycle controls high vs low duration",
-      "50% duty = equal high and low time",
-      "Use for binary alternation or pulses",
-    ],
-    examples: [
-      "Create on/off switching pattern",
-      "Generate digital-style oscillation",
-      "Build stepped rhythmic patterns",
-    ],
-    relatedNodes: ["triangleWave", "conditional", "sineWave"],
+    relatedNodes: ["chemistryMaterialGoal", "chemistrySolver"],
   },
 };
 
-/**
- * Get command documentation by command ID.
- */
-export const getCommandDocumentation = (commandId: string): CommandDocumentation | undefined =>
-  COMMAND_DOCUMENTATION[commandId];
+export const getCommandDocumentation = (id: string): CommandDocumentation | undefined =>
+  COMMAND_DOCUMENTATION[id];
 
-/**
- * Get node documentation by node type.
- */
-export const getNodeDocumentation = (nodeType: string): NodeDocumentation | undefined =>
-  NODE_DOCUMENTATION[nodeType];
+export const getNodeDocumentation = (type: string): NodeDocumentation | undefined =>
+  NODE_DOCUMENTATION[type];
