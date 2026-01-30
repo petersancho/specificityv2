@@ -347,6 +347,7 @@ type ProjectStore = {
   addNode: (type: NodeType) => void;
   addNodeAt: (type: NodeType, position: { x: number; y: number }) => string;
   addGeometryReferenceNode: (geometryId?: string) => string | null;
+  addPhysicsSolverRig: (position: { x: number; y: number }) => void;
   syncWorkflowGeometryToRoslyn: (nodeId: string) => void;
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;
@@ -6502,6 +6503,202 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }));
     get().recalculateWorkflow();
     return id;
+  },
+  addPhysicsSolverRig: (position) => {
+    /**
+     * Physics Solver Test Rig: Cantilevered Canopy Scenario
+     * 
+     * Creates a complete analysis setup:
+     * - Geometry Reference → connects Roslyn mesh to baseMesh
+     * - Anchor Goal (Ἄγκυρα) → fixed supports at one end (required)
+     * - Load Goal (Βάρος) → gravitational/wind forces on canopy
+     * - Volume Goal (Ὄγκος) → material budget (required with Load)
+     * - Stiffness Goal (Σκληρότης) → structural steel properties
+     * - Physics Solver (Ἐπιλύτης Φυσικῆς) → equilibrium analysis (Kd = F)
+     * - Geometry Viewer → visualize deformed result
+     */
+    const ts = Date.now();
+    const NODE_WIDTH = 200;
+    const NODE_HEIGHT = 120;
+    const H_GAP = 60;
+    const V_GAP = 40;
+
+    // Column 1: Geometry Reference
+    const geoRefId = `node-geometryReference-${ts}`;
+    const geoRefPos = { x: position.x, y: position.y };
+
+    // Column 2: Goal nodes (stacked vertically)
+    const col2X = position.x + NODE_WIDTH + H_GAP;
+    const anchorId = `node-anchorGoal-${ts}`;
+    const anchorPos = { x: col2X, y: position.y };
+
+    const loadId = `node-loadGoal-${ts}`;
+    const loadPos = { x: col2X, y: position.y + NODE_HEIGHT + V_GAP };
+
+    const volumeId = `node-volumeGoal-${ts}`;
+    const volumePos = { x: col2X, y: position.y + (NODE_HEIGHT + V_GAP) * 2 };
+
+    const stiffnessId = `node-stiffnessGoal-${ts}`;
+    const stiffnessPos = { x: col2X, y: position.y + (NODE_HEIGHT + V_GAP) * 3 };
+
+    // Column 3: Physics Solver
+    const solverId = `node-physicsSolver-${ts}`;
+    const solverPos = { x: col2X + NODE_WIDTH + H_GAP, y: position.y + NODE_HEIGHT };
+
+    // Column 4: Geometry Viewer
+    const viewerId = `node-geometryViewer-${ts}`;
+    const viewerPos = { x: col2X + (NODE_WIDTH + H_GAP) * 2, y: position.y + NODE_HEIGHT };
+
+    const newNodes = [
+      {
+        id: geoRefId,
+        type: "geometryReference" as const,
+        position: geoRefPos,
+        data: { label: "Canopy Mesh" },
+      },
+      {
+        id: anchorId,
+        type: "anchorGoal" as const,
+        position: anchorPos,
+        data: {
+          label: "Fixed Supports",
+          parameters: {
+            anchorType: "fixed",
+            fixX: true,
+            fixY: true,
+            fixZ: true,
+            weight: 1.0,
+          },
+        },
+      },
+      {
+        id: loadId,
+        type: "loadGoal" as const,
+        position: loadPos,
+        data: {
+          label: "Gravity + Wind",
+          parameters: {
+            forceX: 0,
+            forceY: 0,
+            forceZ: -5000, // Downward gravity load (N)
+            distributed: true,
+            loadType: "static",
+            weight: 1.0,
+          },
+        },
+      },
+      {
+        id: volumeId,
+        type: "volumeGoal" as const,
+        position: volumePos,
+        data: {
+          label: "Material Budget",
+          parameters: {
+            materialDensity: 7850, // Steel (kg/m³)
+            allowedDeviation: 0.05,
+            weight: 0.8,
+          },
+        },
+      },
+      {
+        id: stiffnessId,
+        type: "stiffnessGoal" as const,
+        position: stiffnessPos,
+        data: {
+          label: "Steel Properties",
+          parameters: {
+            youngModulus: 200e9, // Steel E = 200 GPa
+            poissonRatio: 0.3,
+            weight: 1.0,
+          },
+        },
+      },
+      {
+        id: solverId,
+        type: "physicsSolver" as const,
+        position: solverPos,
+        data: {
+          label: "Ἐπιλύτης Φυσικῆς",
+          parameters: {
+            analysisType: "static",
+            maxIterations: 1000,
+            convergenceTolerance: 1e-6,
+            maxDeformation: 10,
+            maxStress: 1e9,
+            useGPU: true,
+            chunkSize: 1000,
+          },
+        },
+      },
+      {
+        id: viewerId,
+        type: "geometryViewer" as const,
+        position: viewerPos,
+        data: { label: "Result Preview" },
+      },
+    ];
+
+    // Wire connections: goals → solver, geometry → baseMesh, solver → viewer
+    const newEdges = [
+      // Geometry Reference → Physics Solver (baseMesh)
+      {
+        id: `edge-${geoRefId}-${solverId}-baseMesh`,
+        source: geoRefId,
+        sourceHandle: "geometry",
+        target: solverId,
+        targetHandle: "baseMesh",
+      },
+      // Anchor Goal → Physics Solver (goals)
+      {
+        id: `edge-${anchorId}-${solverId}`,
+        source: anchorId,
+        sourceHandle: "goal",
+        target: solverId,
+        targetHandle: "goals",
+      },
+      // Load Goal → Physics Solver (goals)
+      {
+        id: `edge-${loadId}-${solverId}`,
+        source: loadId,
+        sourceHandle: "goal",
+        target: solverId,
+        targetHandle: "goals",
+      },
+      // Volume Goal → Physics Solver (goals)
+      {
+        id: `edge-${volumeId}-${solverId}`,
+        source: volumeId,
+        sourceHandle: "goal",
+        target: solverId,
+        targetHandle: "goals",
+      },
+      // Stiffness Goal → Physics Solver (goals)
+      {
+        id: `edge-${stiffnessId}-${solverId}`,
+        source: stiffnessId,
+        sourceHandle: "goal",
+        target: solverId,
+        targetHandle: "goals",
+      },
+      // Physics Solver → Geometry Viewer
+      {
+        id: `edge-${solverId}-${viewerId}`,
+        source: solverId,
+        sourceHandle: "geometry",
+        target: viewerId,
+        targetHandle: "geometry",
+      },
+    ];
+
+    set((state) => ({
+      workflowHistory: appendWorkflowHistory(state.workflowHistory, state.workflow),
+      workflow: {
+        ...state.workflow,
+        nodes: [...state.workflow.nodes, ...newNodes],
+        edges: [...state.workflow.edges, ...newEdges],
+      },
+    }));
+    get().recalculateWorkflow();
   },
   setSaves: (saves) => set({ saves }),
   selectGeometry: (id, isMultiSelect = false) =>

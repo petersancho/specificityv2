@@ -304,10 +304,15 @@ export const buildNodeTooltipLines = (
   return lines;
 };
 
-export const resolveNodeDescription = (definition: WorkflowNodeDefinition) =>
-  definition.description?.trim().length
+export const resolveNodeDescription = (definition: WorkflowNodeDefinition) => {
+  // Prefer detailed implementation notes over brief built-in descriptions
+  const note = NODE_IMPLEMENTATION_NOTES[definition.type];
+  if (note) return note;
+  // Fall back to built-in description if no implementation note exists
+  return definition.description?.trim().length
     ? definition.description
-    : NODE_IMPLEMENTATION_NOTES[definition.type] ?? "Description pending.";
+    : "Description pending.";
+};
 
 export const getDefaultNodePorts = (definition: WorkflowNodeDefinition) => {
   try {
