@@ -1,4 +1,4 @@
-import { Component, useCallback, useMemo, type CSSProperties, type ReactNode } from "react";
+import { Component, useCallback, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import WebGLTitleLogo from "./WebGLTitleLogo";
 import WebGLButton from "./ui/WebGLButton";
 import Tooltip from "./ui/Tooltip";
@@ -20,6 +20,7 @@ import {
   resolveNodeDescription,
   type NodeDefinition,
   type WorkflowPortSpec,
+  type NodeCategory,
 } from "./workflow/nodeCatalog";
 import {
   COMMAND_DEFINITIONS,
@@ -30,6 +31,8 @@ import {
   getCommandDocumentation,
   getNodeDocumentation,
 } from "../data/documentationContent";
+
+type ViewMode = "compact" | "detailed";
 
 type CommandGroup = {
   id: string;
@@ -191,11 +194,262 @@ const DocsTopNav = ({ route, onNavigate }: DocsNavProps) => {
   );
 };
 
+type ViewToggleProps = {
+  mode: ViewMode;
+  onModeChange: (mode: ViewMode) => void;
+};
+
+const ViewToggle = ({ mode, onModeChange }: ViewToggleProps) => (
+  <div className={styles.viewToggle}>
+    <span className={styles.viewToggleLabel}>View:</span>
+    <button
+      type="button"
+      className={`${styles.viewToggleButton} ${mode === "compact" ? styles.viewToggleActive : ""}`}
+      onClick={() => onModeChange("compact")}
+      aria-pressed={mode === "compact"}
+    >
+      Compact
+    </button>
+    <button
+      type="button"
+      className={`${styles.viewToggleButton} ${mode === "detailed" ? styles.viewToggleActive : ""}`}
+      onClick={() => onModeChange("detailed")}
+      aria-pressed={mode === "detailed"}
+    >
+      Detailed
+    </button>
+  </div>
+);
+
+type CommandDetailCardProps = {
+  command: {
+    id: string;
+    label: string;
+    description: string;
+    shortcut?: string;
+  };
+  accent: string;
+  categoryLabel: string;
+  onNavigate: (route: DocsRoute) => void;
+};
+
+const CommandDetailCard = ({ command, accent, categoryLabel, onNavigate }: CommandDetailCardProps) => {
+  const doc = getCommandDocumentation(command.id);
+  
+  return (
+    <div className={styles.detailCard} style={{ ["--accent" as string]: accent } as CSSProperties}>
+      <div className={styles.detailCardHeader}>
+        <div className={styles.detailCardTitle}>
+          <h4>{command.label}</h4>
+          <span className={styles.categoryBadge} style={{ background: accent }}>{categoryLabel}</span>
+        </div>
+        {command.shortcut && (
+          <kbd className={styles.shortcutBadge}>{command.shortcut}</kbd>
+        )}
+      </div>
+      <p className={styles.detailCardDescription}>{command.description}</p>
+      
+      {doc && (
+        <div className={styles.detailCardContent}>
+          {doc.tips && doc.tips.length > 0 && (
+            <div className={styles.detailSection}>
+              <h5>Tips</h5>
+              <ul className={styles.detailList}>
+                {doc.tips.slice(0, 4).map((tip, i) => (
+                  <li key={i}>{tip}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {doc.examples && doc.examples.length > 0 && (
+            <div className={styles.detailSection}>
+              <h5>Examples</h5>
+              <ul className={styles.detailList}>
+                {doc.examples.slice(0, 3).map((example, i) => (
+                  <li key={i}>{example}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {doc.pitfalls && doc.pitfalls.length > 0 && (
+            <div className={styles.detailSection}>
+              <h5>Common Pitfalls</h5>
+              <ul className={styles.detailList}>
+                {doc.pitfalls.slice(0, 3).map((pitfall, i) => (
+                  <li key={i}>{pitfall}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {doc.relatedCommands && doc.relatedCommands.length > 0 && (
+            <div className={styles.detailSection}>
+              <h5>Related</h5>
+              <div className={styles.relatedChips}>
+                {doc.relatedCommands.slice(0, 5).map((relatedId) => {
+                  const relatedCmd = COMMAND_DEFINITIONS.find((c) => c.id === relatedId);
+                  if (!relatedCmd) return null;
+                  return (
+                    <button
+                      key={relatedId}
+                      type="button"
+                      className={styles.relatedChip}
+                      onClick={() => onNavigate({ kind: "roslyn", id: relatedId })}
+                    >
+                      {relatedCmd.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      
+      <div className={styles.detailCardFooter}>
+        <WebGLButton
+          label="View Full Details"
+          variant="ghost"
+          size="sm"
+          accentColor={accent}
+          onClick={() => onNavigate({ kind: "roslyn", id: command.id })}
+        />
+      </div>
+    </div>
+  );
+};
+
+type NodeDetailCardProps = {
+  node: NodeDefinition;
+  category: NodeCategory | undefined;
+  onNavigate: (route: DocsRoute) => void;
+};
+
+const NodeDetailCard = ({ node, category, onNavigate }: NodeDetailCardProps) => {
+  const doc = getNodeDocumentation(node.type);
+  const description = resolveNodeDescription(node);
+  const ports = getDefaultNodePorts(node);
+  const accent = category?.accent ?? "#666";
+  
+  return (
+    <div className={styles.detailCard} style={{ ["--accent" as string]: accent } as CSSProperties}>
+      <div className={styles.detailCardHeader}>
+        <div className={styles.detailCardTitle}>
+          <h4>{node.label}</h4>
+          <span className={styles.categoryBadge} style={{ background: accent }}>{category?.label ?? node.category}</span>
+        </div>
+        <code className={styles.typeCode}>{node.type}</code>
+      </div>
+      <p className={styles.detailCardDescription}>{description}</p>
+      
+      <div className={styles.detailCardContent}>
+        <div className={styles.portsSummary}>
+          {ports.inputs.length > 0 && (
+            <div className={styles.portGroup}>
+              <span className={styles.portLabel}>Inputs:</span>
+              <span className={styles.portList}>
+                {ports.inputs.slice(0, 4).map((p) => p.label || p.key).join(", ")}
+                {ports.inputs.length > 4 && ` +${ports.inputs.length - 4} more`}
+              </span>
+            </div>
+          )}
+          {ports.outputs.length > 0 && (
+            <div className={styles.portGroup}>
+              <span className={styles.portLabel}>Outputs:</span>
+              <span className={styles.portList}>
+                {ports.outputs.slice(0, 4).map((p) => p.label || p.key).join(", ")}
+                {ports.outputs.length > 4 && ` +${ports.outputs.length - 4} more`}
+              </span>
+            </div>
+          )}
+        </div>
+        
+        {doc && (
+          <>
+            {doc.tips && doc.tips.length > 0 && (
+              <div className={styles.detailSection}>
+                <h5>Tips</h5>
+                <ul className={styles.detailList}>
+                  {doc.tips.slice(0, 4).map((tip, i) => (
+                    <li key={i}>{tip}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {doc.examples && doc.examples.length > 0 && (
+              <div className={styles.detailSection}>
+                <h5>Examples</h5>
+                <ul className={styles.detailList}>
+                  {doc.examples.slice(0, 3).map((example, i) => (
+                    <li key={i}>{example}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {doc.bestPractices && doc.bestPractices.length > 0 && (
+              <div className={styles.detailSection}>
+                <h5>Best Practices</h5>
+                <ul className={styles.detailList}>
+                  {doc.bestPractices.slice(0, 3).map((practice, i) => (
+                    <li key={i}>{practice}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {doc.pitfalls && doc.pitfalls.length > 0 && (
+              <div className={styles.detailSection}>
+                <h5>Common Pitfalls</h5>
+                <ul className={styles.detailList}>
+                  {doc.pitfalls.slice(0, 3).map((pitfall, i) => (
+                    <li key={i}>{pitfall}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {doc.relatedNodes && doc.relatedNodes.length > 0 && (
+              <div className={styles.detailSection}>
+                <h5>Related Nodes</h5>
+                <div className={styles.relatedChips}>
+                  {doc.relatedNodes.slice(0, 5).map((relatedType) => {
+                    const relatedNode = NODE_DEFINITIONS.find((n) => n.type === relatedType);
+                    if (!relatedNode) return null;
+                    const relatedCategory = NODE_CATEGORY_BY_ID.get(relatedNode.category);
+                    return (
+                      <button
+                        key={relatedType}
+                        type="button"
+                        className={styles.relatedChip}
+                        onClick={() => onNavigate({ kind: "numerica", id: relatedType })}
+                      >
+                        {relatedNode.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+      
+      <div className={styles.detailCardFooter}>
+        <WebGLButton
+          label="View Full Details"
+          variant="ghost"
+          size="sm"
+          accentColor={accent}
+          onClick={() => onNavigate({ kind: "numerica", id: node.type })}
+        />
+      </div>
+    </div>
+  );
+};
+
 type DocumentationIndexProps = {
   onNavigate: (route: DocsRoute) => void;
 };
 
 const DocumentationIndex = ({ onNavigate }: DocumentationIndexProps) => {
+  const [viewMode, setViewMode] = useState<ViewMode>("compact");
   const nodeGroups = useMemo(() => {
     const groupMap = new Map(
       NODE_CATEGORIES.map((category) => [
@@ -328,48 +582,78 @@ const DocumentationIndex = ({ onNavigate }: DocumentationIndexProps) => {
             <h2>Roslyn command index</h2>
             <p>
               Command buttons map to precision modeling actions, with clear prompts and optional
-              shortcuts. Hover for the extended prompt and input expectations.
+              shortcuts. {viewMode === "compact" ? "Hover for the extended prompt and input expectations." : "Browse detailed documentation inline or click to view full details."}
             </p>
           </div>
+          <ViewToggle mode={viewMode} onModeChange={setViewMode} />
         </div>
-        <div className={styles.commandGroups}>
-          {commandGroups.map((group) => (
-            <div
-              key={group.id}
-              className={styles.commandGroup}
-              style={{ ["--accent" as string]: group.accent } as CSSProperties}
-            >
-              <div className={styles.groupHeader}>
-                <span className={styles.groupDot} />
-                <h3>{group.label}</h3>
+        
+        {viewMode === "compact" ? (
+          <div className={styles.commandGroups}>
+            {commandGroups.map((group) => (
+              <div
+                key={group.id}
+                className={styles.commandGroup}
+                style={{ ["--accent" as string]: group.accent } as CSSProperties}
+              >
+                <div className={styles.groupHeader}>
+                  <span className={styles.groupDot} />
+                  <h3>{group.label}</h3>
+                </div>
+                <div className={styles.itemGrid}>
+                  {group.commands.map((command) => (
+                    <Tooltip
+                      key={command.id}
+                      content={buildCommandTooltipText(
+                        command.label,
+                        command.description,
+                        command.shortcut
+                      )}
+                      position="top"
+                      maxWidth={360}
+                      triggerClassName={styles.docTrigger}
+                    >
+                      <WebGLButton
+                        label={command.label}
+                        variant="chip"
+                        size="sm"
+                        accentColor={group.accent}
+                        className={styles.docButton}
+                        onClick={() => onNavigate({ kind: "roslyn", id: command.id })}
+                      />
+                    </Tooltip>
+                  ))}
+                </div>
               </div>
-              <div className={styles.itemGrid}>
-                {group.commands.map((command) => (
-                  <Tooltip
-                    key={command.id}
-                    content={buildCommandTooltipText(
-                      command.label,
-                      command.description,
-                      command.shortcut
-                    )}
-                    position="top"
-                    maxWidth={360}
-                    triggerClassName={styles.docTrigger}
-                  >
-                    <WebGLButton
-                      label={command.label}
-                      variant="chip"
-                      size="sm"
-                      accentColor={group.accent}
-                      className={styles.docButton}
-                      onClick={() => onNavigate({ kind: "roslyn", id: command.id })}
+            ))}
+          </div>
+        ) : (
+          <div className={styles.detailGroups}>
+            {commandGroups.map((group) => (
+              <div
+                key={group.id}
+                className={styles.detailGroup}
+                style={{ ["--accent" as string]: group.accent } as CSSProperties}
+              >
+                <div className={styles.groupHeader}>
+                  <span className={styles.groupDot} />
+                  <h3>{group.label}</h3>
+                </div>
+                <div className={styles.detailCardGrid}>
+                  {group.commands.map((command) => (
+                    <CommandDetailCard
+                      key={command.id}
+                      command={command}
+                      accent={group.accent}
+                      categoryLabel={group.label}
+                      onNavigate={onNavigate}
                     />
-                  </Tooltip>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <section id="documentation-numerica" className={styles.section}>
@@ -378,54 +662,91 @@ const DocumentationIndex = ({ onNavigate }: DocumentationIndexProps) => {
           <div>
             <h2>Numerica node index</h2>
             <p>
-              Every node is a typed operator in the graph. Hover a node to read its description,
-              inputs, outputs, and parameter guidance.
+              Every node is a typed operator in the graph. {viewMode === "compact" ? "Hover a node to read its description, inputs, outputs, and parameter guidance." : "Browse detailed documentation inline with tips, examples, and related nodes."}
             </p>
           </div>
+          <ViewToggle mode={viewMode} onModeChange={setViewMode} />
         </div>
-        <div className={styles.nodeGroups}>
-          {nodeGroups.map((group) => (
-            <div
-              key={group.category.id}
-              className={styles.nodeGroup}
-              style={
-                {
-                  ["--accent" as string]: group.category.accent,
-                  ["--band" as string]: group.category.band,
-                  ["--port" as string]: group.category.port,
-                } as CSSProperties
-              }
-            >
-              <div className={styles.groupHeader}>
-                <span className={styles.groupDot} />
-                <div>
-                  <h3>{group.category.label}</h3>
-                  <p>{group.category.description}</p>
+        
+        {viewMode === "compact" ? (
+          <div className={styles.nodeGroups}>
+            {nodeGroups.map((group) => (
+              <div
+                key={group.category.id}
+                className={styles.nodeGroup}
+                style={
+                  {
+                    ["--accent" as string]: group.category.accent,
+                    ["--band" as string]: group.category.band,
+                    ["--port" as string]: group.category.port,
+                  } as CSSProperties
+                }
+              >
+                <div className={styles.groupHeader}>
+                  <span className={styles.groupDot} />
+                  <div>
+                    <h3>{group.category.label}</h3>
+                    <p>{group.category.description}</p>
+                  </div>
+                </div>
+                <div className={styles.itemGrid}>
+                  {group.nodes.map((node) => (
+                    <Tooltip
+                      key={node.type}
+                      content={buildNodeTooltipText(node)}
+                      position="top"
+                      maxWidth={380}
+                      triggerClassName={styles.docTrigger}
+                    >
+                      <WebGLButton
+                        label={node.label}
+                        variant="chip"
+                        size="sm"
+                        accentColor={group.category.accent}
+                        className={styles.docButton}
+                        onClick={() => onNavigate({ kind: "numerica", id: node.type })}
+                      />
+                    </Tooltip>
+                  ))}
                 </div>
               </div>
-              <div className={styles.itemGrid}>
-                {group.nodes.map((node) => (
-                  <Tooltip
-                    key={node.type}
-                    content={buildNodeTooltipText(node)}
-                    position="top"
-                    maxWidth={380}
-                    triggerClassName={styles.docTrigger}
-                  >
-                    <WebGLButton
-                      label={node.label}
-                      variant="chip"
-                      size="sm"
-                      accentColor={group.category.accent}
-                      className={styles.docButton}
-                      onClick={() => onNavigate({ kind: "numerica", id: node.type })}
+            ))}
+          </div>
+        ) : (
+          <div className={styles.detailGroups}>
+            {nodeGroups.map((group) => (
+              <div
+                key={group.category.id}
+                className={styles.detailGroup}
+                style={
+                  {
+                    ["--accent" as string]: group.category.accent,
+                    ["--band" as string]: group.category.band,
+                    ["--port" as string]: group.category.port,
+                  } as CSSProperties
+                }
+              >
+                <div className={styles.groupHeader}>
+                  <span className={styles.groupDot} />
+                  <div>
+                    <h3>{group.category.label}</h3>
+                    <p>{group.category.description}</p>
+                  </div>
+                </div>
+                <div className={styles.detailCardGrid}>
+                  {group.nodes.map((node) => (
+                    <NodeDetailCard
+                      key={node.type}
+                      node={node}
+                      category={group.category}
+                      onNavigate={onNavigate}
                     />
-                  </Tooltip>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );
