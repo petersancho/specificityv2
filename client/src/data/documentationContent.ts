@@ -695,6 +695,410 @@ export const NODE_DOCUMENTATION: Record<string, NodeDocumentation> = {
   },
 };
 
+  // === MESH OPERATIONS ===
+  insetFaces: {
+    tips: [
+      "Shrinks faces inward creating a border ring",
+      "Amount controls how far faces shrink",
+      "Creates new connecting faces around each inset",
+      "Works best on relatively flat faces",
+    ],
+    examples: [
+      "Create panel patterns on a surface",
+      "Prepare faces for extrusion details",
+      "Build window frames in architectural meshes",
+    ],
+    relatedNodes: ["extrudeFaces", "selectFaces", "subdivideMesh"],
+  },
+  extrudeFaces: {
+    tips: [
+      "Pulls faces along their normals",
+      "Positive values extrude outward, negative inward",
+      "Creates side faces connecting to original position",
+      "Can be combined with inset for complex detailing",
+    ],
+    examples: [
+      "Add decorative relief to surfaces",
+      "Create window recesses in walls",
+      "Build modular panel systems",
+    ],
+    relatedNodes: ["insetFaces", "selectFaces", "extrude"],
+  },
+  meshRelax: {
+    tips: [
+      "Smooths mesh by averaging vertex positions",
+      "Iterations control smoothing intensity",
+      "Keep boundary preserves edge vertices",
+      "Multiple passes create progressively smoother results",
+    ],
+    examples: [
+      "Smooth imported scan data",
+      "Blend sharp edits into surrounding mesh",
+      "Create organic smoothing on mechanical forms",
+    ],
+    relatedNodes: ["subdivideMesh", "meshRepair", "selectFaces"],
+  },
+  meshRepair: {
+    tips: [
+      "Automatically fixes common mesh problems",
+      "Removes degenerate faces and duplicate vertices",
+      "Fills small holes and fixes normal orientation",
+      "Run after imports or complex operations",
+    ],
+    examples: [
+      "Clean up imported STL files",
+      "Fix meshes after Boolean operations",
+      "Prepare meshes for 3D printing",
+    ],
+    relatedNodes: ["meshBoolean", "triangulateMesh", "meshDecimate"],
+  },
+  meshDecimate: {
+    tips: [
+      "Reduces triangle count while preserving shape",
+      "Ratio or target count controls reduction level",
+      "Preserves boundaries and feature edges",
+      "Essential for optimizing heavy meshes",
+    ],
+    examples: [
+      "Simplify scanned mesh data for performance",
+      "Create LOD versions for game assets",
+      "Reduce file sizes for web delivery",
+    ],
+    relatedNodes: ["meshRepair", "quadRemesh", "subdivideMesh"],
+  },
+  quadRemesh: {
+    tips: [
+      "Converts triangles to quad-dominant topology",
+      "Creates cleaner edge flow than triangles",
+      "Better for subdivision and animation",
+      "Target face count controls output density",
+    ],
+    examples: [
+      "Prepare mesh for Catmull-Clark subdivision",
+      "Clean up organic sculpt for animation",
+      "Create manufacturable quad mesh from triangles",
+    ],
+    relatedNodes: ["meshDecimate", "subdivideMesh", "meshRepair"],
+  },
+  triangulateMesh: {
+    tips: [
+      "Converts all faces to triangles",
+      "Required for many mesh operations and exports",
+      "Quads and n-gons are split into triangles",
+      "Preserves geometry, changes only topology",
+    ],
+    examples: [
+      "Prepare mesh for STL export",
+      "Convert quad mesh for game engine",
+      "Ensure compatibility with mesh operations",
+    ],
+    relatedNodes: ["quadRemesh", "meshRepair", "stlExport"],
+  },
+  selectFaces: {
+    tips: [
+      "Filters faces based on normal direction",
+      "Threshold angle controls selection tolerance",
+      "Returns submesh of matching faces",
+      "Foundation for targeted operations",
+    ],
+    examples: [
+      "Select all upward-facing faces for flooring",
+      "Find vertical faces for wall operations",
+      "Identify faces facing a direction for materials",
+    ],
+    relatedNodes: ["insetFaces", "extrudeFaces", "meshBoolean"],
+  },
+  geodesicSphere: {
+    tips: [
+      "Creates sphere by subdividing icosahedron",
+      "Frequency controls subdivision level",
+      "Results in evenly distributed vertices",
+      "Better topology than UV sphere for many uses",
+    ],
+    examples: [
+      "Create geodesic dome structures",
+      "Build evenly sampled spheres for physics",
+      "Design spherical patterns with uniform faces",
+    ],
+    relatedNodes: ["sphere", "subdivideMesh", "voronoiPattern"],
+  },
+  voronoiPattern: {
+    tips: [
+      "Generates 3D Voronoi cells from points",
+      "Creates organic-looking divisions",
+      "Cell boundaries form natural patterns",
+      "Works with point clouds or mesh vertices",
+    ],
+    examples: [
+      "Create natural-looking foam structures",
+      "Design cellular patterns for packaging",
+      "Build organic architectural screens",
+    ],
+    relatedNodes: ["hexagonalTiling", "offsetPattern", "pointCloud"],
+  },
+  hexagonalTiling: {
+    tips: [
+      "Creates hexagonal tile pattern on surfaces",
+      "Size controls hexagon radius",
+      "Count controls pattern extent",
+      "Great for honeycomb-like structures",
+    ],
+    examples: [
+      "Design honeycomb panels",
+      "Create hexagonal floor patterns",
+      "Build hex-based game boards",
+    ],
+    relatedNodes: ["voronoiPattern", "offsetPattern", "gridArray"],
+  },
+  offsetPattern: {
+    tips: [
+      "Offsets pattern edges inward creating gaps",
+      "Frame width controls offset distance",
+      "Transforms solid patterns into outlined versions",
+      "Great for lattice and frame structures",
+    ],
+    examples: [
+      "Create framed panel systems",
+      "Build lightweight lattice structures",
+      "Design decorative screens with gaps",
+    ],
+    relatedNodes: ["hexagonalTiling", "voronoiPattern", "offset"],
+  },
+
+  // === CURVE & SURFACE OPERATIONS ===
+  curve: {
+    tips: [
+      "Control points influence but don't lie on curve",
+      "Degree controls smoothness (3 = cubic is common)",
+      "More points = more complex shapes",
+      "Use Interpolate if curve must pass through points",
+    ],
+    examples: [
+      "Design smooth organic paths",
+      "Create sweep rails for surfaces",
+      "Build ergonomic curves for products",
+    ],
+    relatedNodes: ["polyline", "loft", "pipeSweep"],
+  },
+  polyline: {
+    tips: [
+      "Points connected with straight segments",
+      "Closed option connects last to first",
+      "Can be smoothed with Interpolate",
+      "Lighter weight than NURBS curves",
+    ],
+    examples: [
+      "Create construction geometry profiles",
+      "Define extrusion paths",
+      "Build wireframe structures",
+    ],
+    relatedNodes: ["curve", "rectangle", "extrude"],
+  },
+  loft: {
+    tips: [
+      "Connects profile curves with a surface",
+      "Order of curves defines surface direction",
+      "Similar point counts give best results",
+      "Options control tangent continuity",
+    ],
+    examples: [
+      "Create boat hull shapes",
+      "Design bottles and vases",
+      "Build ergonomic product forms",
+    ],
+    pitfalls: [
+      "Mismatched curve directions create twisted surfaces",
+      "Very different profiles may need intermediate curves",
+    ],
+    relatedNodes: ["surface", "extrude", "pipeSweep"],
+  },
+  extrude: {
+    tips: [
+      "Pushes curves or surfaces along a direction",
+      "Default direction is surface normal",
+      "Cap option creates closed solid",
+      "Negative distance extrudes opposite way",
+    ],
+    examples: [
+      "Turn floor plans into 3D walls",
+      "Create text geometry from curves",
+      "Build mechanical parts from profiles",
+    ],
+    relatedNodes: ["loft", "surface", "boolean"],
+  },
+  surface: {
+    tips: [
+      "Creates surface from closed boundary curve",
+      "Curve must be planar and closed",
+      "Multiple curves attempt patch surface",
+      "Use for trim boundaries or caps",
+    ],
+    examples: [
+      "Cap the end of an extrusion",
+      "Create floor surfaces from outlines",
+      "Build planar panels from curves",
+    ],
+    relatedNodes: ["extrude", "loft", "boolean"],
+  },
+  pipeSweep: {
+    tips: [
+      "Sweeps circular profile along a curve",
+      "Radius controls pipe thickness",
+      "Segments control smoothness",
+      "Essential for tubes, wires, railings",
+    ],
+    examples: [
+      "Create tubular railings",
+      "Build wire harness geometry",
+      "Design pipe networks",
+    ],
+    relatedNodes: ["pipeMerge", "curve", "extrude"],
+  },
+  pipeMerge: {
+    tips: [
+      "Combines pipe segments at junctions",
+      "Automatically blends connections",
+      "Creates smooth branch transitions",
+      "Use after creating individual pipes",
+    ],
+    examples: [
+      "Join pipe network branches",
+      "Create smooth tube junctions",
+      "Build plumbing or HVAC networks",
+    ],
+    relatedNodes: ["pipeSweep", "meshmerge", "boolean"],
+  },
+  fillet: {
+    tips: [
+      "Rounds polyline corners with arcs",
+      "Radius controls fillet size",
+      "Rebuilds curve with smooth transitions",
+      "Only works on polylines with sharp corners",
+    ],
+    examples: [
+      "Smooth mechanical profile corners",
+      "Create rounded rectangle shapes",
+      "Add fillets to imported DXF profiles",
+    ],
+    relatedNodes: ["filletEdges", "offset", "polyline"],
+  },
+  filletEdges: {
+    tips: [
+      "Bevels selected mesh edges",
+      "Width controls bevel distance",
+      "Segments control smoothness",
+      "Creates chamfered or rounded edges",
+    ],
+    examples: [
+      "Soften hard edges on box models",
+      "Create beveled edge details",
+      "Add subtle roundovers to furniture",
+    ],
+    relatedNodes: ["fillet", "subdivideMesh", "meshRelax"],
+  },
+  offset: {
+    tips: [
+      "Creates parallel curve at distance",
+      "Positive = outward, negative = inward",
+      "Self-intersections handled automatically",
+      "Works on closed and open curves",
+    ],
+    examples: [
+      "Create wall thickness from center line",
+      "Build concentric patterns",
+      "Generate margin or clearance curves",
+    ],
+    relatedNodes: ["fillet", "offsetPattern", "offsetSurface"],
+  },
+
+  // === TRANSFORM NODES ===
+  rotate: {
+    tips: [
+      "Rotates around axis by angle in degrees",
+      "Center point defines rotation origin",
+      "Axis vector determines rotation direction",
+      "Positive angle = counter-clockwise looking down axis",
+    ],
+    examples: [
+      "Orient objects to face a direction",
+      "Create angled components",
+      "Build spiral patterns with incrementing angles",
+    ],
+    relatedNodes: ["move", "scale", "polarArray", "rotateVectorAxis"],
+  },
+  scale: {
+    tips: [
+      "Uniform or non-uniform scaling from center",
+      "Factor 2 = double, 0.5 = half",
+      "Separate X, Y, Z factors for stretching",
+      "Center point is the fixed reference",
+    ],
+    examples: [
+      "Resize imported models to correct size",
+      "Create variations at different scales",
+      "Stretch geometry in one direction",
+    ],
+    relatedNodes: ["move", "rotate", "vectorScale"],
+  },
+  fieldTransformation: {
+    tips: [
+      "Deforms geometry using field values",
+      "Vector fields displace in field direction",
+      "Scalar fields displace along normals",
+      "Falloff controls effect extent",
+    ],
+    examples: [
+      "Create organic surface ripples",
+      "Apply attractor-based deformation",
+      "Build terrain from noise fields",
+    ],
+    relatedNodes: ["pointAttractor", "move", "meshRelax"],
+  },
+
+  // === ANALYSIS NODES ===
+  geometryInfo: {
+    tips: [
+      "Extracts comprehensive mesh statistics",
+      "Shows vertices, faces, edges, bounds",
+      "Includes surface area and volume",
+      "Essential for validation and documentation",
+    ],
+    examples: [
+      "Verify model dimensions before fabrication",
+      "Check mesh density for performance",
+      "Document geometry properties",
+    ],
+    relatedNodes: ["measurement", "metadataPanel", "dimensions"],
+  },
+  measurement: {
+    tips: [
+      "Measures geometric properties",
+      "Supports distance, angle, area, volume",
+      "Connect geometry and select measurement type",
+      "Output is numeric for downstream use",
+    ],
+    examples: [
+      "Measure clearance between parts",
+      "Calculate surface area for material estimation",
+      "Verify angles meet design requirements",
+    ],
+    relatedNodes: ["geometryInfo", "dimensions", "distance"],
+  },
+  proximity3d: {
+    tips: [
+      "Finds closest geometry to a test point",
+      "Returns closest point, distance, and index",
+      "Works with any geometry type",
+      "Use for collision detection or snapping",
+    ],
+    examples: [
+      "Find nearest surface point for projection",
+      "Check if geometry is within tolerance",
+      "Snap points to existing geometry",
+    ],
+    relatedNodes: ["proximity2d", "curveProximity", "distance"],
+  },
+
   // === GOAL NODES - PHYSICS ===
   stiffnessGoal: {
     tips: [
