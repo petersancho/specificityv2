@@ -693,7 +693,6 @@ export const NODE_DOCUMENTATION: Record<string, NodeDocumentation> = {
     ],
     relatedNodes: ["chemistryMaterialGoal", "chemistryStiffnessGoal", "chemistryMassGoal"],
   },
-};
 
   // === MESH OPERATIONS ===
   insetFaces: {
