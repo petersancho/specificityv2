@@ -26,6 +26,10 @@ import {
   type CommandDefinition,
 } from "../commands/registry";
 import { COMMAND_DESCRIPTIONS, COMMAND_SEMANTICS } from "../data/commandDescriptions";
+import {
+  getCommandDocumentation,
+  getNodeDocumentation,
+} from "../data/documentationContent";
 
 type CommandGroup = {
   id: string;
@@ -515,6 +519,7 @@ const DocumentationDetail = ({ route, onNavigate }: DocumentationDetailProps) =>
     const categoryMeta = COMMAND_CATEGORY_META[category] ?? COMMAND_CATEGORY_META.performs;
     const semantics = COMMAND_SEMANTICS[category] ?? COMMAND_SEMANTICS.performs;
     const prompt = cleanCommandPrompt(command.prompt, command.label);
+    const commandDoc = getCommandDocumentation(command.id);
 
     return (
       <div className={detailStyles.detailPage}>
@@ -601,13 +606,62 @@ const DocumentationDetail = ({ route, onNavigate }: DocumentationDetailProps) =>
             </p>
           </div>
           <div className={detailStyles.detailSection}>
-            <h2>Minimal workflow context</h2>
+            <h2>Workflow context</h2>
             <p>
-              Use {command.label} to author or adjust geometry before handing it to Numerica for
-              graph-driven variation. Keep the action atomic: select targets, run the command, and
-              confirm.
+              {commandDoc?.workflowNotes ?? `Use ${command.label} to author or adjust geometry before handing it to Numerica for graph-driven variation. Keep the action atomic: select targets, run the command, and confirm.`}
             </p>
           </div>
+          {commandDoc?.tips && commandDoc.tips.length > 0 && (
+            <div className={detailStyles.detailSection}>
+              <h2>Tips &amp; Tricks</h2>
+              <ul className={detailStyles.list}>
+                {commandDoc.tips.map((tip, index) => (
+                  <li key={index}>{tip}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {commandDoc?.examples && commandDoc.examples.length > 0 && (
+            <div className={detailStyles.detailSection}>
+              <h2>Usage Examples</h2>
+              <ul className={detailStyles.list}>
+                {commandDoc.examples.map((example, index) => (
+                  <li key={index}>{example}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {commandDoc?.pitfalls && commandDoc.pitfalls.length > 0 && (
+            <div className={detailStyles.detailSection}>
+              <h2>Common Pitfalls</h2>
+              <ul className={detailStyles.list}>
+                {commandDoc.pitfalls.map((pitfall, index) => (
+                  <li key={index}>{pitfall}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {commandDoc?.relatedCommands && commandDoc.relatedCommands.length > 0 && (
+            <div className={detailStyles.detailSection}>
+              <h2>Related Commands</h2>
+              <div className={detailStyles.relatedItems}>
+                {commandDoc.relatedCommands.map((relatedId) => {
+                  const relatedCmd = COMMAND_DEFINITIONS.find((c) => c.id === relatedId);
+                  if (!relatedCmd) return null;
+                  return (
+                    <WebGLButton
+                      key={relatedId}
+                      label={relatedCmd.label}
+                      variant="chip"
+                      size="sm"
+                      accentColor={categoryMeta.accent}
+                      onClick={() => onNavigate({ kind: "roslyn", id: relatedId })}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -636,6 +690,7 @@ const DocumentationDetail = ({ route, onNavigate }: DocumentationDetailProps) =>
     const semanticLines = tooltipLines.filter(
       (line) => !line.startsWith("Inputs:") && !line.startsWith("Outputs:")
     );
+    const nodeDoc = getNodeDocumentation(definition.type);
 
     return (
       <div className={detailStyles.detailPage}>
@@ -734,13 +789,73 @@ const DocumentationDetail = ({ route, onNavigate }: DocumentationDetailProps) =>
             )}
           </div>
           <div className={detailStyles.detailSection}>
-            <h2>Minimal workflow context</h2>
+            <h2>Workflow context</h2>
             <p>
-              {definition.label} lives inside Numerica’s graph-based system. Keep the script minimal
-              when documenting: connect only the inputs that shape this node’s meaning, then pass
-              the output to the next semantic step.
+              {nodeDoc?.workflowNotes ?? `${definition.label} lives inside Numerica's graph-based system. Keep the script minimal when documenting: connect only the inputs that shape this node's meaning, then pass the output to the next semantic step.`}
             </p>
           </div>
+          {nodeDoc?.tips && nodeDoc.tips.length > 0 && (
+            <div className={detailStyles.detailSection}>
+              <h2>Tips &amp; Tricks</h2>
+              <ul className={detailStyles.list}>
+                {nodeDoc.tips.map((tip, index) => (
+                  <li key={index}>{tip}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {nodeDoc?.examples && nodeDoc.examples.length > 0 && (
+            <div className={detailStyles.detailSection}>
+              <h2>Usage Examples</h2>
+              <ul className={detailStyles.list}>
+                {nodeDoc.examples.map((example, index) => (
+                  <li key={index}>{example}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {nodeDoc?.bestPractices && nodeDoc.bestPractices.length > 0 && (
+            <div className={detailStyles.detailSection}>
+              <h2>Best Practices</h2>
+              <ul className={detailStyles.list}>
+                {nodeDoc.bestPractices.map((practice, index) => (
+                  <li key={index}>{practice}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {nodeDoc?.pitfalls && nodeDoc.pitfalls.length > 0 && (
+            <div className={detailStyles.detailSection}>
+              <h2>Common Pitfalls</h2>
+              <ul className={detailStyles.list}>
+                {nodeDoc.pitfalls.map((pitfall, index) => (
+                  <li key={index}>{pitfall}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {nodeDoc?.relatedNodes && nodeDoc.relatedNodes.length > 0 && (
+            <div className={detailStyles.detailSection}>
+              <h2>Related Nodes</h2>
+              <div className={detailStyles.relatedItems}>
+                {nodeDoc.relatedNodes.map((relatedType) => {
+                  const relatedNode = NODE_DEFINITIONS.find((n) => n.type === relatedType);
+                  if (!relatedNode) return null;
+                  const relatedCategory = NODE_CATEGORY_BY_ID.get(relatedNode.category);
+                  return (
+                    <WebGLButton
+                      key={relatedType}
+                      label={relatedNode.label}
+                      variant="chip"
+                      size="sm"
+                      accentColor={relatedCategory?.accent ?? category?.accent}
+                      onClick={() => onNavigate({ kind: "numerica", id: relatedType })}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -786,11 +901,31 @@ const DocumentationNewUsers = ({ onNavigate }: DocumentationNewUsersProps) => {
           </div>
           <RoslynWorkflowArt />
           <ol className={newUsersStyles.workflowList}>
-            <li>Choose a command from the Roslyn command bar.</li>
-            <li>Set points or dimensions in the active C-Plane.</li>
-            <li>Use the gumball or numeric fields to refine the form.</li>
-            <li>Confirm to commit geometry, or cancel to preserve intent.</li>
+            <li>Choose a command from the Roslyn command bar or type in the command line.</li>
+            <li>Set points or dimensions in the active C-Plane using mouse clicks or typed coordinates.</li>
+            <li>Use the gumball handles to move, rotate, or scale interactively.</li>
+            <li>Confirm with Enter or click to commit, or press Escape to cancel.</li>
           </ol>
+          <div className={newUsersStyles.workflowTips}>
+            <h3>Quick Start Tips</h3>
+            <ul>
+              <li><strong>Box</strong> - Click to place base, drag for size, click for height</li>
+              <li><strong>Circle</strong> - Click center, drag for radius</li>
+              <li><strong>Extrude</strong> - Select a profile, drag or type distance</li>
+              <li><strong>Boolean</strong> - Select solids, choose Union/Difference/Intersection</li>
+            </ul>
+          </div>
+          <div className={newUsersStyles.workflowTips}>
+            <h3>Essential Shortcuts</h3>
+            <ul>
+              <li><strong>Esc</strong> - Cancel current command</li>
+              <li><strong>Enter</strong> - Confirm/commit operation</li>
+              <li><strong>⌘Z</strong> - Undo last action</li>
+              <li><strong>F</strong> - Focus on selection</li>
+              <li><strong>W</strong> - Toggle gumball</li>
+              <li><strong>Tab</strong> - Cycle through overlapping objects</li>
+            </ul>
+          </div>
         </section>
         <section className={newUsersStyles.workflowCard}>
           <div className={newUsersStyles.workflowHeader}>
@@ -805,12 +940,86 @@ const DocumentationNewUsers = ({ onNavigate }: DocumentationNewUsersProps) => {
           </div>
           <NumericaWorkflowArt />
           <ol className={newUsersStyles.workflowList}>
-            <li>Add nodes from the palette to define operations.</li>
-            <li>Connect ports to wire data between steps.</li>
-            <li>Adjust parameters to drive variation or constraints.</li>
-            <li>Reference Roslyn geometry for live, iterative updates.</li>
+            <li>Add nodes from the palette by clicking or searching by name.</li>
+            <li>Connect output ports to input ports by clicking and dragging wires.</li>
+            <li>Adjust node parameters in the properties panel or directly on nodes.</li>
+            <li>Use Geometry Reference to bring Roslyn geometry into the graph.</li>
           </ol>
+          <div className={newUsersStyles.workflowTips}>
+            <h3>Common Node Patterns</h3>
+            <ul>
+              <li><strong>Parametric shapes</strong> - Slider → Primitive → Move/Scale</li>
+              <li><strong>Array patterns</strong> - Geometry → Linear/Polar Array</li>
+              <li><strong>Mesh processing</strong> - Geometry → Subdivide → Boolean</li>
+              <li><strong>Analysis</strong> - Geometry → Geometry Info → Panel</li>
+            </ul>
+          </div>
+          <div className={newUsersStyles.workflowTips}>
+            <h3>Node Categories</h3>
+            <ul>
+              <li><strong>Data</strong> - Sliders, panels, text notes, groups</li>
+              <li><strong>Primitives</strong> - Box, sphere, cylinder, and more</li>
+              <li><strong>Curves</strong> - Point, line, polyline, circle, arc</li>
+              <li><strong>Mesh</strong> - Subdivide, boolean, repair, export</li>
+              <li><strong>Math</strong> - Add, multiply, expressions, vectors</li>
+              <li><strong>Transforms</strong> - Move, rotate, scale, arrays</li>
+              <li><strong>Solvers</strong> - Topology, physics, evolution</li>
+            </ul>
+          </div>
         </section>
+      </div>
+      <div className={newUsersStyles.conceptSection}>
+        <h2>Core Concepts</h2>
+        <div className={newUsersStyles.conceptGrid}>
+          <div className={newUsersStyles.conceptCard}>
+            <h3>C-Plane (Construction Plane)</h3>
+            <p>
+              The active working surface for 2D geometry creation. All new points, rectangles, and 
+              circles are created on the C-Plane. Switch between World XY, XZ, YZ, or define custom 
+              planes by clicking three points.
+            </p>
+          </div>
+          <div className={newUsersStyles.conceptCard}>
+            <h3>Gumball Transform</h3>
+            <p>
+              The interactive widget for moving, rotating, and scaling geometry. Drag axis arrows 
+              for constrained movement, rotation rings for spinning, and scale handles for resizing. 
+              The gumball appears on selected geometry.
+            </p>
+          </div>
+          <div className={newUsersStyles.conceptCard}>
+            <h3>Snapping</h3>
+            <p>
+              Precision placement using snap targets. Enable Grid snap for regular spacing, Vertex 
+              snap to connect to points, Endpoint snap for curve ends, and more. Toggle snaps in the 
+              status bar or with keyboard shortcuts.
+            </p>
+          </div>
+          <div className={newUsersStyles.conceptCard}>
+            <h3>Port Types</h3>
+            <p>
+              Numerica nodes have typed ports for data flow. Number ports carry single values, 
+              Vector ports carry XYZ coordinates, Geometry ports carry meshes and curves. Connect 
+              compatible types - the system will auto-convert when possible.
+            </p>
+          </div>
+          <div className={newUsersStyles.conceptCard}>
+            <h3>Parameters vs Inputs</h3>
+            <p>
+              Node parameters are fixed settings edited in the properties panel. Node inputs are 
+              dynamic values from upstream connections. Parameters become inputs when you connect 
+              a wire, enabling parametric control.
+            </p>
+          </div>
+          <div className={newUsersStyles.conceptCard}>
+            <h3>Solvers</h3>
+            <p>
+              Optimization engines that iteratively improve designs. Connect goal nodes to define 
+              objectives (stiffness, volume, fitness), then run the solver. Results update in 
+              real-time as the solver converges on optimal solutions.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
