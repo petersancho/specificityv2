@@ -1211,6 +1211,9 @@ const DocumentationNewUsers = ({ onNavigate }: DocumentationNewUsersProps) => {
             need graph-driven variation. Both workflows are designed to stay clear, procedural, and
             fun.
           </p>
+          <p className={newUsersStyles.heroNotice}>
+            <strong>Case Study:</strong> Pavilion Canopy Optimization (scroll just below)
+          </p>
         </div>
         <WebGLButton
           label="Back to Index"
@@ -1218,7 +1221,7 @@ const DocumentationNewUsers = ({ onNavigate }: DocumentationNewUsersProps) => {
           onClick={() => onNavigate({ kind: "index" })}
         />
       </div>
-      <div className={newUsersStyles.conceptSection}>
+      <div id="case-study" className={newUsersStyles.conceptSection}>
         <h2>Case Study: Pavilion Canopy Optimization</h2>
         <div className={newUsersStyles.conceptGrid}>
           <div className={newUsersStyles.conceptCard}>

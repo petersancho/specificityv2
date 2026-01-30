@@ -31,6 +31,12 @@
   max-width: 560px;
 }
 
+.heroNotice {
+  margin-top: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+}
+
 .kicker {
   text-transform: uppercase;
   letter-spacing: var(--letter-spacing-caps);
