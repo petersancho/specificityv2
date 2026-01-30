@@ -1,6 +1,6 @@
 # Lingua Command and Node Reference
 
-Updated: 2026-01-29
+Updated: 2026-01-30
 
 This reference is generated from the command and node registries to keep documentation aligned with the UI.
 Source files:

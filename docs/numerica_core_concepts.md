@@ -1,6 +1,6 @@
 # Numerica Core Concepts
 
-Updated: 2026-01-29
+Updated: 2026-01-30
 
 This document explains how Numerica evaluates graphs, how data types flow, and how to think about parameters versus inputs.
 

@@ -1,6 +1,6 @@
 # Numerica Node Reference
 
-Updated: 2026-01-29
+Updated: 2026-01-30
 
 This document is generated from the node registry to keep behavior and documentation aligned.
 Each node lists its display name, type id, and short description.

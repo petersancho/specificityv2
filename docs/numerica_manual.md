@@ -1,6 +1,6 @@
 # Numerica Manual
 
-Updated: 2026-01-29
+Updated: 2026-01-30
 
 This manual is the entry point for learning Numerica from zero. It is designed to be complete and self‑contained, with links to deep reference material and solver workflows.
 
