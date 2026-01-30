@@ -105,6 +105,7 @@ import type {
   TransformOrientation,
   GumballAlignment,
   GumballStepSettings,
+  GumballSettings,
   ViewSettings,
   Vec3,
   WorkflowNodeData,
@@ -221,6 +222,7 @@ type ProjectStore = {
   showRotationRings: boolean;
   showMoveArms: boolean;
   gumballStep: GumballStepSettings;
+  gumballSettings: GumballSettings;
   pivot: PivotState;
   displayMode: DisplayMode;
   viewSolidity: number;
@@ -251,6 +253,7 @@ type ProjectStore = {
   setShowRotationRings: (show: boolean) => void;
   setShowMoveArms: (show: boolean) => void;
   setGumballStep: (settings: Partial<GumballStepSettings>) => void;
+  setGumballSettings: (settings: Partial<GumballSettings>) => void;
   setPivotMode: (mode: PivotMode) => void;
   setPivotPosition: (position: Vec3) => void;
   setPivotCursorPosition: (position: Vec3 | null) => void;
@@ -478,6 +481,12 @@ const defaultViewSettings: ViewSettings = {
   showNormals: false,
   sheen: 0.08,
   showPointPickDebug: false,
+  showEdges: true,
+  showControlPoints: false,
+};
+
+const defaultGumballSettings: GumballSettings = {
+  clickToStep: true,
 };
 
 const defaultTopologySettings: TopologyOptimizationSettings = {
@@ -6017,6 +6026,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   showRotationRings: true,
   showMoveArms: true,
   gumballStep: defaultGumballStep,
+  gumballSettings: defaultGumballSettings,
   pivot: defaultPivot,
   displayMode: "shaded",
   viewSolidity: SOLIDITY_PRESETS.shaded,
@@ -6756,6 +6766,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setShowMoveArms: (show) => set({ showMoveArms: show }),
   setGumballStep: (settings) =>
     set((state) => ({ gumballStep: { ...state.gumballStep, ...settings } })),
+  setGumballSettings: (settings) =>
+    set((state) => ({ gumballSettings: { ...state.gumballSettings, ...settings } })),
   setPivotMode: (mode) =>
     set((state) => ({
       pivot: { ...state.pivot, mode },
@@ -6915,6 +6927,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           gumballAlignment: state.gumballAlignment,
           showRotationRings: state.showRotationRings,
           showMoveArms: state.showMoveArms,
+          gumballSettings: state.gumballSettings,
           displayMode: state.displayMode,
           viewSolidity: state.viewSolidity,
           viewSettings: state.viewSettings,
@@ -6947,6 +6960,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       gumballAlignment: get().gumballAlignment,
       showRotationRings: get().showRotationRings,
       showMoveArms: get().showMoveArms,
+      gumballSettings: get().gumballSettings,
       displayMode: get().displayMode,
       viewSolidity: get().viewSolidity,
       viewSettings: get().viewSettings,
@@ -6970,6 +6984,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       gumballAlignment: snapshot.gumballAlignment,
       showRotationRings: snapshot.showRotationRings,
       showMoveArms: snapshot.showMoveArms,
+      gumballSettings: snapshot.gumballSettings ?? defaultGumballSettings,
       displayMode: snapshot.displayMode,
       viewSolidity: snapshot.viewSolidity,
       viewSettings: snapshot.viewSettings,
@@ -7001,6 +7016,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       gumballAlignment: get().gumballAlignment,
       showRotationRings: get().showRotationRings,
       showMoveArms: get().showMoveArms,
+      gumballSettings: get().gumballSettings,
       displayMode: get().displayMode,
       viewSolidity: get().viewSolidity,
       viewSettings: get().viewSettings,
@@ -7024,6 +7040,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       gumballAlignment: snapshot.gumballAlignment,
       showRotationRings: snapshot.showRotationRings,
       showMoveArms: snapshot.showMoveArms,
+      gumballSettings: snapshot.gumballSettings ?? defaultGumballSettings,
       displayMode: snapshot.displayMode,
       viewSolidity: snapshot.viewSolidity,
       viewSettings: snapshot.viewSettings,

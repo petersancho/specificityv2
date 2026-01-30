@@ -338,6 +338,12 @@ export type ViewSettings = {
   showNormals: boolean;
   sheen: number;
   showPointPickDebug?: boolean;
+  showEdges?: boolean;
+  showControlPoints?: boolean;
+};
+
+export type GumballSettings = {
+  clickToStep: boolean;
 };
 
 export type SnapSettings = {
@@ -415,6 +421,7 @@ export type ModelerSnapshot = {
   gumballAlignment: GumballAlignment;
   showRotationRings: boolean;
   showMoveArms: boolean;
+  gumballSettings?: GumballSettings;
   displayMode: DisplayMode;
   viewSolidity: number;
   viewSettings: ViewSettings;

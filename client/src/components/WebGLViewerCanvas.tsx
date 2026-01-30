@@ -352,9 +352,15 @@ type TransformConstraint =
   | { kind: "screen" }
   | { kind: "free" };
 
+type NurbsTarget = {
+  kind: "curve" | "surface";
+  indices: number[];
+};
+
 type TransformTargets = {
   vertexIds: string[];
   meshTargets: Map<string, { positions: number[]; indices: number[] }>;
+  nurbsTargets: Map<string, NurbsTarget>;
 };
 
 type TransformSession = {
@@ -372,6 +378,8 @@ type TransformSession = {
   startVertexPositions: Map<string, Vec3>;
   startMeshPositions: Map<string, number[]>;
   meshExtras: Map<string, { normals: number[]; uvs: number[]; indices: number[] }>;
+  startNurbsCurveControlPoints: Map<string, Vec3[]>;
+  startNurbsSurfaceControlPoints: Map<string, Vec3[][]>;
   historySnapshot: ModelerSnapshot;
   typedDelta?: Vec3;
   typedAngle?: number;
@@ -1081,6 +1089,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
   const viewSolidityRef = useRef(useProjectStore.getState().viewSolidity);
   const displayModeRef = useRef(useProjectStore.getState().displayMode);
   const gumballStepRef = useRef(useProjectStore.getState().gumballStep);
+  const gumballSettingsRef = useRef(useProjectStore.getState().gumballSettings);
   const showRotationRingsRef = useRef(useProjectStore.getState().showRotationRings);
   const showMoveArmsRef = useRef(useProjectStore.getState().showMoveArms);
   const dragRef = useRef<DragState>({ mode: "none" });
@@ -1232,6 +1241,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
   const displayMode = useProjectStore((state) => state.displayMode);
   const viewSolidity = useProjectStore((state) => state.viewSolidity);
   const gumballStep = useProjectStore((state) => state.gumballStep);
+  const gumballSettings = useProjectStore((state) => state.gumballSettings);
   const selectionMode = useProjectStore((state) => state.selectionMode);
   const componentSelection = useProjectStore((state) => state.componentSelection);
   const transformOrientation = useProjectStore((state) => state.transformOrientation);
@@ -1245,6 +1255,9 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
   const setPivotPosition = useProjectStore((state) => state.setPivotPosition);
   const setPivotPickedPosition = useProjectStore((state) => state.setPivotPickedPosition);
   const setPivotCursorPosition = useProjectStore((state) => state.setPivotCursorPosition);
+  const setViewSettings = useProjectStore((state) => state.setViewSettings);
+  const setGumballSettings = useProjectStore((state) => state.setGumballSettings);
+  const setSelectionMode = useProjectStore((state) => state.setSelectionMode);
   const updateGeometryBatch = useProjectStore((state) => state.updateGeometryBatch);
   const recordModelerHistory = useProjectStore((state) => state.recordModelerHistory);
   const addGeometryPoint = useProjectStore((state) => state.addGeometryPoint);
@@ -1407,8 +1420,22 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
             if (vertex) points.push(vertex.position);
             return;
           }
-          if (vertexSelection.vertexIndex != null && "mesh" in item) {
-            points.push(getMeshPoint(item.mesh, vertexSelection.vertexIndex));
+          if (vertexSelection.vertexIndex != null) {
+            if ("mesh" in item) {
+              points.push(getMeshPoint(item.mesh, vertexSelection.vertexIndex));
+            } else if (item.type === "nurbsCurve") {
+              const cp = item.nurbs.controlPoints[vertexSelection.vertexIndex];
+              if (cp) points.push(cp);
+            } else if (item.type === "nurbsSurface") {
+              const uCount = item.nurbs.controlPoints.length;
+              const vCount = item.nurbs.controlPoints[0]?.length ?? 0;
+              if (vCount > 0) {
+                const u = Math.floor(vertexSelection.vertexIndex / vCount);
+                const v = vertexSelection.vertexIndex % vCount;
+                const cp = item.nurbs.controlPoints[u]?.[v];
+                if (cp) points.push(cp);
+              }
+            }
           }
           return;
         }
@@ -1421,10 +1448,27 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
             });
             return;
           }
-          if (edgeSelection.vertexIndices && "mesh" in item) {
-            edgeSelection.vertexIndices.forEach((index) => {
-              points.push(getMeshPoint(item.mesh, index));
-            });
+          if (edgeSelection.vertexIndices) {
+            if ("mesh" in item) {
+              edgeSelection.vertexIndices.forEach((index) => {
+                points.push(getMeshPoint(item.mesh, index));
+              });
+            } else if (item.type === "nurbsCurve") {
+              edgeSelection.vertexIndices.forEach((index) => {
+                const cp = item.nurbs.controlPoints[index];
+                if (cp) points.push(cp);
+              });
+            } else if (item.type === "nurbsSurface") {
+              const vCount = item.nurbs.controlPoints[0]?.length ?? 0;
+              if (vCount > 0) {
+                edgeSelection.vertexIndices.forEach((flatIndex) => {
+                  const u = Math.floor(flatIndex / vCount);
+                  const v = flatIndex % vCount;
+                  const cp = item.nurbs.controlPoints[u]?.[v];
+                  if (cp) points.push(cp);
+                });
+              }
+            }
           }
           return;
         }
@@ -2655,6 +2699,17 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
       if (item && "mesh" in item) {
         return getMeshPoint(item.mesh, selection.vertexIndex);
       }
+      if (item?.type === "nurbsCurve") {
+        return item.nurbs.controlPoints[selection.vertexIndex] ?? null;
+      }
+      if (item?.type === "nurbsSurface") {
+        const vCount = item.nurbs.controlPoints[0]?.length ?? 0;
+        if (vCount > 0) {
+          const u = Math.floor(selection.vertexIndex / vCount);
+          const v = selection.vertexIndex % vCount;
+          return item.nurbs.controlPoints[u]?.[v] ?? null;
+        }
+      }
     }
     return null;
   };
@@ -3207,6 +3262,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
   const buildTransformTargets = (overrideIds?: string[]): TransformTargets => {
     const vertexIds = new Set<string>();
     const meshTargets = new Map<string, { positions: number[]; indices: Set<number> }>();
+    const nurbsTargets = new Map<string, { kind: "curve" | "surface"; indices: Set<number> }>();
 
     const addVertexId = (id: string) => {
       if (lockedRef.current.includes(id)) return;
@@ -3222,6 +3278,13 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
       meshTargets.set(geometryId, entry);
     };
 
+    const addNurbsControlPoint = (geometryId: string, kind: "curve" | "surface", index: number) => {
+      if (lockedRef.current.includes(geometryId)) return;
+      const entry = nurbsTargets.get(geometryId) ?? { kind, indices: new Set<number>() };
+      entry.indices.add(index);
+      nurbsTargets.set(geometryId, entry);
+    };
+
     const currentGeometry = geometryRef.current;
     if (componentSelectionRef.current.length > 0) {
       componentSelectionRef.current.forEach((selection) => {
@@ -3230,8 +3293,14 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         const vertexSelection = asVertexSelection(selection);
         if (vertexSelection) {
           if (vertexSelection.vertexId) addVertexId(vertexSelection.vertexId);
-          if (vertexSelection.vertexIndex != null && "mesh" in item) {
-            addMeshIndices(item.id, item.mesh, [vertexSelection.vertexIndex]);
+          if (vertexSelection.vertexIndex != null) {
+            if ("mesh" in item && item.mesh) {
+              addMeshIndices(item.id, item.mesh, [vertexSelection.vertexIndex]);
+            } else if (item.type === "nurbsCurve") {
+              addNurbsControlPoint(item.id, "curve", vertexSelection.vertexIndex);
+            } else if (item.type === "nurbsSurface") {
+              addNurbsControlPoint(item.id, "surface", vertexSelection.vertexIndex);
+            }
           }
           return;
         }
@@ -3240,13 +3309,23 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
           if (edgeSelection.vertexIds) {
             edgeSelection.vertexIds.forEach((id) => addVertexId(id));
           }
-          if (edgeSelection.vertexIndices && "mesh" in item) {
-            addMeshIndices(item.id, item.mesh, edgeSelection.vertexIndices);
+          if (edgeSelection.vertexIndices) {
+            if ("mesh" in item && item.mesh) {
+              addMeshIndices(item.id, item.mesh, edgeSelection.vertexIndices);
+            } else if (item.type === "nurbsCurve") {
+              edgeSelection.vertexIndices.forEach((index) => {
+                addNurbsControlPoint(item.id, "curve", index);
+              });
+            } else if (item.type === "nurbsSurface") {
+              edgeSelection.vertexIndices.forEach((index) => {
+                addNurbsControlPoint(item.id, "surface", index);
+              });
+            }
           }
           return;
         }
         const faceSelection = asFaceSelection(selection);
-        if (faceSelection && "mesh" in item) {
+        if (faceSelection && "mesh" in item && item.mesh) {
           addMeshIndices(item.id, item.mesh, faceSelection.vertexIndices);
         }
       });
@@ -3264,7 +3343,23 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
           item.vertexIds.forEach((vertexId) => addVertexId(vertexId));
           return;
         }
-        if ("mesh" in item) {
+        if (item.type === "nurbsCurve") {
+          item.nurbs.controlPoints.forEach((_, index) => {
+            addNurbsControlPoint(item.id, "curve", index);
+          });
+          return;
+        }
+        if (item.type === "nurbsSurface") {
+          const uCount = item.nurbs.controlPoints.length;
+          const vCount = item.nurbs.controlPoints[0]?.length ?? 0;
+          for (let u = 0; u < uCount; u += 1) {
+            for (let v = 0; v < vCount; v += 1) {
+              addNurbsControlPoint(item.id, "surface", u * vCount + v);
+            }
+          }
+          return;
+        }
+        if ("mesh" in item && item.mesh) {
           const indices = Array.from(
             { length: item.mesh.positions.length / 3 },
             (_, index) => index
@@ -3282,7 +3377,15 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
       });
     });
 
-    return { vertexIds: Array.from(vertexIds), meshTargets: finalized };
+    const finalizedNurbs = new Map<string, NurbsTarget>();
+    nurbsTargets.forEach((entry, geometryId) => {
+      finalizedNurbs.set(geometryId, {
+        kind: entry.kind,
+        indices: Array.from(entry.indices),
+      });
+    });
+
+    return { vertexIds: Array.from(vertexIds), meshTargets: finalized, nurbsTargets: finalizedNurbs };
   };
 
   const applyTransformToTargets = (
@@ -3324,6 +3427,70 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         },
       });
     });
+
+    // Handle NURBS control point transforms
+    session.targets.nurbsTargets.forEach((target, geometryId) => {
+      const item = geometryRef.current.find((entry) => entry.id === geometryId);
+      if (!item) return;
+
+      if (target.kind === "curve" && item.type === "nurbsCurve") {
+        const startControlPoints = session.startNurbsCurveControlPoints.get(geometryId);
+        if (!startControlPoints) return;
+        const nextControlPoints = startControlPoints.map((cp, index) => {
+          if (target.indices.includes(index)) {
+            return transformPoint(cp);
+          }
+          return cp;
+        });
+        updates.push({
+          id: geometryId,
+          data: {
+            nurbs: {
+              ...item.nurbs,
+              controlPoints: nextControlPoints,
+            },
+          },
+        });
+      }
+
+      if (target.kind === "surface" && item.type === "nurbsSurface") {
+        const startControlPoints = session.startNurbsSurfaceControlPoints.get(geometryId);
+        if (!startControlPoints) return;
+        const uCount = startControlPoints.length;
+        const vCount = startControlPoints[0]?.length ?? 0;
+        const nextControlPoints = startControlPoints.map((row, u) =>
+          row.map((cp, v) => {
+            const flatIndex = u * vCount + v;
+            if (target.indices.includes(flatIndex)) {
+              return transformPoint(cp);
+            }
+            return cp;
+          })
+        );
+        // Re-tessellate the surface and convert to RenderMesh
+        const tessellated = tessellateSurfaceAdaptive({
+          ...item.nurbs,
+          controlPoints: nextControlPoints,
+        });
+        const mesh: RenderMesh = {
+          positions: Array.from(tessellated.positions),
+          normals: Array.from(tessellated.normals),
+          uvs: Array.from(tessellated.uvs),
+          indices: Array.from(tessellated.indices),
+        };
+        updates.push({
+          id: geometryId,
+          data: {
+            nurbs: {
+              ...item.nurbs,
+              controlPoints: nextControlPoints,
+            },
+            mesh,
+          },
+        });
+      }
+    });
+
     if (updates.length > 0) {
       updateGeometryBatch(updates, { recordHistory: false });
     }
@@ -3375,6 +3542,44 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
             uvs: extras.uvs,
             indices: extras.indices,
           },
+        },
+      });
+    });
+    // Restore NURBS control points
+    session.startNurbsCurveControlPoints.forEach((controlPoints, geometryId) => {
+      const item = geometryRef.current.find((entry) => entry.id === geometryId);
+      if (!item || item.type !== "nurbsCurve") return;
+      updates.push({
+        id: geometryId,
+        data: {
+          nurbs: {
+            ...item.nurbs,
+            controlPoints,
+          },
+        },
+      });
+    });
+    session.startNurbsSurfaceControlPoints.forEach((controlPoints, geometryId) => {
+      const item = geometryRef.current.find((entry) => entry.id === geometryId);
+      if (!item || item.type !== "nurbsSurface") return;
+      const tessellated = tessellateSurfaceAdaptive({
+        ...item.nurbs,
+        controlPoints,
+      });
+      const mesh: RenderMesh = {
+        positions: Array.from(tessellated.positions),
+        normals: Array.from(tessellated.normals),
+        uvs: Array.from(tessellated.uvs),
+        indices: Array.from(tessellated.indices),
+      };
+      updates.push({
+        id: geometryId,
+        data: {
+          nurbs: {
+            ...item.nurbs,
+            controlPoints,
+          },
+          mesh,
         },
       });
     });
@@ -3455,7 +3660,13 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     const planeOrigin = options?.planeOrigin ?? pivotPoint;
     const orientationMode = transformOrientationRef.current;
     const targets = buildTransformTargets();
-    if (targets.vertexIds.length === 0 && targets.meshTargets.size === 0) return false;
+    if (
+      targets.vertexIds.length === 0 &&
+      targets.meshTargets.size === 0 &&
+      targets.nurbsTargets.size === 0
+    ) {
+      return false;
+    }
 
     const startVertexPositions = new Map<string, Vec3>();
     targets.vertexIds.forEach((id) => {
@@ -3471,13 +3682,33 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     >();
     targets.meshTargets.forEach((_, geometryId) => {
       const item = geometryRef.current.find((entry) => entry.id === geometryId);
-      if (!item || !("mesh" in item)) return;
+      if (!item || !("mesh" in item) || !item.mesh) return;
       startMeshPositions.set(geometryId, item.mesh.positions.slice());
       meshExtras.set(geometryId, {
         normals: item.mesh.normals,
         uvs: item.mesh.uvs,
         indices: item.mesh.indices,
       });
+    });
+
+    // Store starting NURBS control points
+    const startNurbsCurveControlPoints = new Map<string, Vec3[]>();
+    const startNurbsSurfaceControlPoints = new Map<string, Vec3[][]>();
+    targets.nurbsTargets.forEach((target, geometryId) => {
+      const item = geometryRef.current.find((entry) => entry.id === geometryId);
+      if (!item) return;
+      if (target.kind === "curve" && item.type === "nurbsCurve") {
+        startNurbsCurveControlPoints.set(
+          geometryId,
+          item.nurbs.controlPoints.map((cp) => ({ ...cp }))
+        );
+      }
+      if (target.kind === "surface" && item.type === "nurbsSurface") {
+        startNurbsSurfaceControlPoints.set(
+          geometryId,
+          item.nurbs.controlPoints.map((row) => row.map((cp) => ({ ...cp })))
+        );
+      }
     });
 
     const cameraDirection = normalize(
@@ -3552,6 +3783,8 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
       startVertexPositions,
       startMeshPositions,
       meshExtras,
+      startNurbsCurveControlPoints,
+      startNurbsSurfaceControlPoints,
       historySnapshot: buildModelerSnapshot(),
       scaleMode,
       scaleAxis: constraint.kind === "axis" ? constraint.axis : undefined,
@@ -5124,6 +5357,21 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
           if (item && "mesh" in item) {
             const point = getMeshPoint(item.mesh, selection.vertexIndex);
             pointPositions.push(point.x, point.y, point.z);
+          } else if (item?.type === "nurbsCurve") {
+            const cp = item.nurbs.controlPoints[selection.vertexIndex];
+            if (cp) {
+              pointPositions.push(cp.x, cp.y, cp.z);
+            }
+          } else if (item?.type === "nurbsSurface") {
+            const vCount = item.nurbs.controlPoints[0]?.length ?? 0;
+            if (vCount > 0) {
+              const u = Math.floor(selection.vertexIndex / vCount);
+              const v = selection.vertexIndex % vCount;
+              const cp = item.nurbs.controlPoints[u]?.[v];
+              if (cp) {
+                pointPositions.push(cp.x, cp.y, cp.z);
+              }
+            }
           }
         }
         return;
@@ -5144,6 +5392,27 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
           if (item && "mesh" in item) {
             a = getMeshPoint(item.mesh, selection.vertexIndices[0]);
             b = getMeshPoint(item.mesh, selection.vertexIndices[1]);
+          } else if (item?.type === "nurbsCurve") {
+            const cpA = item.nurbs.controlPoints[selection.vertexIndices[0]];
+            const cpB = item.nurbs.controlPoints[selection.vertexIndices[1]];
+            if (cpA && cpB) {
+              a = cpA;
+              b = cpB;
+            }
+          } else if (item?.type === "nurbsSurface") {
+            const vCount = item.nurbs.controlPoints[0]?.length ?? 0;
+            if (vCount > 0) {
+              const u1 = Math.floor(selection.vertexIndices[0] / vCount);
+              const v1 = selection.vertexIndices[0] % vCount;
+              const u2 = Math.floor(selection.vertexIndices[1] / vCount);
+              const v2 = selection.vertexIndices[1] % vCount;
+              const cpA = item.nurbs.controlPoints[u1]?.[v1];
+              const cpB = item.nurbs.controlPoints[u2]?.[v2];
+              if (cpA && cpB) {
+                a = cpA;
+                b = cpB;
+              }
+            }
           }
         }
         if (a && b) {
@@ -5371,6 +5640,10 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
   useEffect(() => {
     gumballStepRef.current = gumballStep;
   }, [gumballStep]);
+
+  useEffect(() => {
+    gumballSettingsRef.current = gumballSettings;
+  }, [gumballSettings]);
 
   useEffect(() => {
     showRotationRingsRef.current = showRotationRings;
@@ -6441,7 +6714,16 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
 
       const gumballDrag = gumballDragRef.current;
       if (gumballDrag && gumballDrag.pointerId === event.pointerId) {
-        if (!gumballDrag.moved && applyGumballClickStep(gumballDrag.handle)) {
+        // Only apply click-step if enabled and no drag occurred
+        const clickToStepEnabled = gumballSettingsRef.current.clickToStep !== false;
+        if (!gumballDrag.moved && clickToStepEnabled && applyGumballClickStep(gumballDrag.handle)) {
+          safeReleasePointerCapture(event.pointerId);
+          return;
+        }
+        // If click-step is disabled and no drag occurred, cancel the transform session
+        if (!gumballDrag.moved && !clickToStepEnabled) {
+          cancelTransformSession();
+          gumballDragRef.current = null;
           safeReleasePointerCapture(event.pointerId);
           return;
         }
@@ -6776,7 +7058,8 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
       const edgeFade = isSilhouette ? 1 : smoothSolidity;
       const wireframeBoost = isSilhouette ? 0 : Math.pow(1 - smoothSolidity, 1.25);
       renderer.setBackfaceCulling(false);
-      const showEdges = !isSilhouette;
+      const viewSettingsShowEdges = viewSettingsRef.current.showEdges !== false;
+      const showEdges = !isSilhouette && viewSettingsShowEdges;
       const renderScale = lerp(1, VIEW_STYLE.solidRenderScale, solidBlend);
       const baseDpr = resolveViewerDpr();
       const dpr = baseDpr * renderScale;
@@ -7215,6 +7498,68 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         const isSelected = selection.has(renderable.id);
         renderPointHandle(renderable, isSelected);
       });
+
+      // Render NURBS control points when showControlPoints is enabled or in vertex selection mode
+      const showControlPoints =
+        viewSettingsRef.current.showControlPoints === true ||
+        selectionModeRef.current === "vertex";
+      if (showControlPoints) {
+        const currentGeometry = geometryRef.current;
+        const nurbsItems = currentGeometry.filter(
+          (item) =>
+            !hidden.has(item.id) &&
+            (item.type === "nurbsCurve" || item.type === "nurbsSurface")
+        );
+        nurbsItems.forEach((item) => {
+          const isSelected = selection.has(item.id);
+          const fillColor = adjustForSelection(
+            POINT_FILL_COLOR,
+            isSelected,
+            hasSelection
+          );
+          let controlPoints: Vec3[] = [];
+          if (item.type === "nurbsCurve") {
+            controlPoints = item.nurbs.controlPoints;
+          } else if (item.type === "nurbsSurface") {
+            item.nurbs.controlPoints.forEach((row) => {
+              row.forEach((cp) => controlPoints.push(cp));
+            });
+          }
+          if (controlPoints.length === 0) return;
+
+          // Create a temporary buffer for control points
+          const positions = new Float32Array(controlPoints.length * 3);
+          controlPoints.forEach((cp, index) => {
+            positions[index * 3] = cp.x;
+            positions[index * 3 + 1] = cp.y;
+            positions[index * 3 + 2] = cp.z;
+          });
+          const bufferId = `__nurbs_cp_${item.id}`;
+          let tempBuffer = renderer.getBuffer(bufferId);
+          if (!tempBuffer) {
+            tempBuffer = renderer.createGeometryBuffer(bufferId);
+          }
+          tempBuffer.setData({
+            positions,
+            normals: new Float32Array(controlPoints.length * 3),
+            uvs: new Float32Array(controlPoints.length * 2),
+            indices: new Uint16Array(0),
+          });
+          renderer.renderPoints(
+            tempBuffer,
+            cameraPayload,
+            {
+              pointRadius: pointRadius * 0.85,
+              outlineWidth: pointOutline,
+              fillColor,
+              outlineColor: POINT_OUTLINE_COLOR,
+              depthBias: pointDepthBias,
+              opacity: 0.9,
+            },
+            { depthFunc: "lequal", depthMask: false, blend: true }
+          );
+        });
+      }
 
       const selectedLineBuffer = selectedLineBufferRef.current;
       const selectedFaceBuffer = selectedFaceBufferRef.current;
@@ -7833,6 +8178,93 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         style={{ width: "100%", height: "100%", display: "block" }}
         onContextMenu={(event) => event.preventDefault()}
       />
+      {/* Geometry editing control cluster */}
+      <div
+        style={{
+          position: "absolute",
+          left: 12,
+          bottom: 12,
+          display: "flex",
+          gap: 4,
+          padding: 4,
+          borderRadius: 6,
+          background: "rgba(252, 249, 244, 0.92)",
+          border: "1px solid rgba(0, 0, 0, 0.12)",
+          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.12)",
+          pointerEvents: "auto",
+          zIndex: 4,
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setViewSettings({ showEdges: !viewSettings.showEdges })}
+          title={viewSettings.showEdges !== false ? "Hide edges" : "Show edges"}
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 4,
+            border: "1px solid rgba(0, 0, 0, 0.15)",
+            background: viewSettings.showEdges !== false ? "rgba(43, 38, 32, 0.08)" : "transparent",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 11,
+            fontWeight: 600,
+            color: viewSettings.showEdges !== false ? "#2b2620" : "#8a847a",
+          }}
+        >
+          E
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            const next = !viewSettings.showControlPoints;
+            setViewSettings({ showControlPoints: next });
+            if (next && selectionMode !== "vertex") {
+              setSelectionMode("vertex");
+            }
+          }}
+          title={viewSettings.showControlPoints ? "Hide control points" : "Show control points"}
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 4,
+            border: "1px solid rgba(0, 0, 0, 0.15)",
+            background: viewSettings.showControlPoints ? "rgba(43, 38, 32, 0.08)" : "transparent",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 11,
+            fontWeight: 600,
+            color: viewSettings.showControlPoints ? "#2b2620" : "#8a847a",
+          }}
+        >
+          CP
+        </button>
+        <button
+          type="button"
+          onClick={() => setGumballSettings({ clickToStep: !gumballSettings.clickToStep })}
+          title={gumballSettings.clickToStep ? "Click-step on (click toggles)" : "Click-step off (click toggles)"}
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 4,
+            border: "1px solid rgba(0, 0, 0, 0.15)",
+            background: gumballSettings.clickToStep ? "rgba(43, 38, 32, 0.08)" : "transparent",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 11,
+            fontWeight: 600,
+            color: gumballSettings.clickToStep ? "#2b2620" : "#8a847a",
+          }}
+        >
+          GS
+        </button>
+      </div>
       {snapIndicator && snapScreen && (
         <div
           style={{
