@@ -9,7 +9,7 @@ Lingua is a custom-built parametric design environment that combines direct
 Both panels share a single Zustand store, so geometry, selection, and workflows
 stay in sync across direct and parametric tools.
 
-## Project Philosophy
+## Project Philosophy & Inspirations
 
 Lingua prioritizes ownership of core systems over third-party convenience.
 The geometry kernel is authored in TypeScript without external CAD libraries.
@@ -17,6 +17,11 @@ The viewport uses a custom WebGL renderer with explicit control over buffers and
 shaders. The workflow editor is a bespoke HTML canvas implementation optimized
 for large graphs. Three.js is used selectively for math helpers and primitive
 mesh generation, while all persisted geometry remains plain TypeScript records.
+
+Inspirations that shape the work include the clarity of professional CAD
+toolbars and the biomimetic experimentation of Interactive Evolutionary
+Algorithms, which influence everything from the icon language to the biological
+solver workflows.
 
 ## Architecture Overview
 

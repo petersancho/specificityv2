@@ -74,6 +74,7 @@ for the workflow editor.
 
 - Stabilization doctrine: `PART_1_Stabilization_Doctrine.md`
 - MVP completion guide: `PART_2_MVP_Completion_Guide.md`
+- MVP testing plan: `mvp_testing_plan.md`
 
 ## Documentation Maintenance
 

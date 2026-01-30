@@ -178,11 +178,13 @@ const collectInputValue = (
     if (port.parameterKey) {
       const parameterValue = meta.parameters[port.parameterKey] as WorkflowValue;
       if (parameterValue != null) {
-        return coerceValueToPortType(parameterValue, port.type);
+        const coerced = coerceValueToPortType(parameterValue, port.type);
+        return port.allowMultiple ? flattenWorkflowValue(coerced) : coerced;
       }
     }
     if (port.defaultValue !== undefined) {
-      return coerceValueToPortType(port.defaultValue as WorkflowValue, port.type);
+      const coerced = coerceValueToPortType(port.defaultValue as WorkflowValue, port.type);
+      return port.allowMultiple ? flattenWorkflowValue(coerced) : coerced;
     }
     return undefined;
   }
@@ -299,8 +301,12 @@ export const evaluateWorkflow = (
     if (outputKey in evaluated.outputs) {
       return evaluated.outputs[outputKey];
     }
-    const fallback = Object.values(evaluated.outputs)[0];
-    return fallback;
+    const availableKeys = Object.keys(evaluated.outputs);
+    const hint =
+      availableKeys.length > 0
+        ? `Available outputs: ${availableKeys.join(", ")}.`
+        : "No outputs are available.";
+    throw new Error(`Output "${outputKey}" is missing on node "${nodeId}". ${hint}`);
   };
 
   prunedNodes.forEach((node) => {

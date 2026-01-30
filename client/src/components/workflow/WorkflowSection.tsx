@@ -36,30 +36,30 @@ import {
 import styles from "./WorkflowSection.module.css";
 
 const STICKER_TINTS: Record<string, string> = {
-  data: "#00FFFF",
-  basics: "#FFFF00",
-  lists: "#99FF80",
-  primitives: "#FF00FF",
-  curves: "#FF33FF",
-  nurbs: "#00FF80",
-  brep: "#3300FF",
-  mesh: "#1AB3FF",
-  tessellation: "#4DFFFF",
-  modifiers: "#FF331A",
-  transforms: "#661AFF",
-  arrays: "#B2FF00",
-  euclidean: "#00FF00",
-  ranges: "#E6FF1A",
-  signals: "#B200FF",
-  analysis: "#FF0000",
-  interop: "#33FFCC",
-  measurement: "#FF4D66",
-  voxel: "#FF6600",
-  solver: "#0000FF",
-  goal: "#CC1AE6",
-  optimization: "#80FF00",
-  math: "#FFCC00",
-  logic: "#99FF33",
+  data: "#00B7EB",
+  basics: "#F6D21A",
+  lists: "#00B7EB",
+  primitives: "#FF4FA3",
+  curves: "#FF4FA3",
+  nurbs: "#00B7EB",
+  brep: "#5F259F",
+  mesh: "#5F259F",
+  tessellation: "#00B7EB",
+  modifiers: "#FF9E1B",
+  transforms: "#5F259F",
+  arrays: "#F6D21A",
+  euclidean: "#00B7EB",
+  ranges: "#F6D21A",
+  signals: "#5F259F",
+  analysis: "#FF4FA3",
+  interop: "#00B7EB",
+  measurement: "#FF9E1B",
+  voxel: "#FF9E1B",
+  solver: "#000000",
+  goal: "#FF4FA3",
+  optimization: "#F6D21A",
+  math: "#F6D21A",
+  logic: "#00B7EB",
 };
 
 const resolveStickerTint = (categoryId?: string | null) => {
@@ -75,6 +75,7 @@ const legacyNodeTypes = new Set<NodeType>(["primitive"]);
 
 const PALETTE_COLLAPSED_KEY = "lingua.numericaPaletteCollapsed";
 const CAPTURE_BACKGROUND_KEY = "lingua.numericaCaptureBackground";
+const HOVER_POPUPS_KEY = "lingua.numericaHoverPopups";
 
 type CaptureBackground = "transparent" | "white";
 
@@ -177,6 +178,12 @@ const WorkflowSection = ({
     if (typeof window === "undefined") return "transparent";
     const stored = safeLocalStorageGet(CAPTURE_BACKGROUND_KEY);
     return stored === "white" ? "white" : "transparent";
+  });
+  const [hoverPopupsEnabled, setHoverPopupsEnabled] = useState(() => {
+    if (typeof window === "undefined") return true;
+    const stored = safeLocalStorageGet(HOVER_POPUPS_KEY);
+    if (stored === null) return true;
+    return stored === "true";
   });
   const [captureMode, setCaptureMode] = useState<CaptureBackground | null>(null);
   const paletteRef = useRef<HTMLElement | null>(null);
@@ -514,6 +521,11 @@ const WorkflowSection = ({
   }, [captureBackground]);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    safeLocalStorageSet(HOVER_POPUPS_KEY, String(hoverPopupsEnabled));
+  }, [hoverPopupsEnabled]);
+
+  useEffect(() => {
     if (paletteCollapsed) return;
     const handlePointerDown = (event: PointerEvent) => {
       if (event.button !== 0) return;
@@ -738,6 +750,7 @@ const WorkflowSection = ({
               onDropNode={handleCanvasDrop}
               onRequestNodeSettings={handleRequestNodeSettings}
               captureMode={captureMode}
+              hoverPopupsEnabled={hoverPopupsEnabled}
             />
           </div>
           <div
@@ -1189,6 +1202,16 @@ const WorkflowSection = ({
                   )}
                 </div>
                 <div className={styles.paletteFooter}>
+                  <label className={styles.paletteFooterSetting}>
+                    <input
+                      type="checkbox"
+                      checked={hoverPopupsEnabled}
+                      onChange={(event) =>
+                        setHoverPopupsEnabled(event.target.checked)
+                      }
+                    />
+                    Hover popups
+                  </label>
                   <WebGLButton
                     type="button"
                     label="Screenshot"

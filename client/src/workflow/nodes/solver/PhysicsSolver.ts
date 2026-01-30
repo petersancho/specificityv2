@@ -3,6 +3,7 @@ import { resolveMeshFromGeometry } from "../../../geometry/meshTessellation";
 import type { GoalSpecification, SolverConfiguration, SolverResult } from "./types";
 import { validatePhysicsGoals } from "./validation";
 import { solvePhysicsChunkedSync } from "./solverInterface";
+import { solvePhysicsWithWorker } from "./physicsWorkerClient";
 import { clamp, toBoolean, toNumber } from "./utils";
 
 export const PhysicsSolverNode: WorkflowNodeDefinition = {
@@ -86,7 +87,7 @@ export const PhysicsSolverNode: WorkflowNodeDefinition = {
       type: "number",
       defaultValue: 1000,
       min: 10,
-      max: 10000,
+      max: 100000,
     },
     {
       key: "convergenceTolerance",
@@ -142,6 +143,14 @@ export const PhysicsSolverNode: WorkflowNodeDefinition = {
       max: 1e12,
     },
     {
+      key: "memoryLimitMB",
+      label: "Memory Limit (MB)",
+      type: "number",
+      defaultValue: 0,
+      min: 0,
+      max: 65536,
+    },
+    {
       key: "useGPU",
       label: "Use GPU",
       type: "boolean",
@@ -153,7 +162,7 @@ export const PhysicsSolverNode: WorkflowNodeDefinition = {
       type: "number",
       defaultValue: 1000,
       min: 100,
-      max: 10000,
+      max: 100000,
     },
   ],
   primaryOutputKey: "geometry",
@@ -193,52 +202,78 @@ export const PhysicsSolverNode: WorkflowNodeDefinition = {
     const analysisTypeRaw = typeof parameters.analysisType === "string" ? parameters.analysisType : "static";
     const analysisType = analysisTypeRaw === "dynamic" || analysisTypeRaw === "modal" ? analysisTypeRaw : "static";
 
+    const memoryLimitRaw = toNumber(parameters.memoryLimitMB, 0);
+    const memoryLimitMB =
+      Number.isFinite(memoryLimitRaw) && memoryLimitRaw > 0
+        ? clamp(memoryLimitRaw, 256, 65536)
+        : undefined;
+
     const config: SolverConfiguration = {
-      maxIterations: clamp(toNumber(parameters.maxIterations, 1000), 10, 10000),
+      maxIterations: clamp(toNumber(parameters.maxIterations, 1000), 10, 100000),
       convergenceTolerance: clamp(toNumber(parameters.convergenceTolerance, 1e-6), 1e-12, 1e-2),
       analysisType,
       timeStep: analysisType === "dynamic" ? toNumber(parameters.timeStep, 0.01) : undefined,
       animationFrames: analysisType === "static" ? undefined : Math.round(toNumber(parameters.animationFrames, 60)),
       useGPU: toBoolean(parameters.useGPU, true),
-      chunkSize: Math.round(clamp(toNumber(parameters.chunkSize, 1000), 100, 10000)),
+      chunkSize: Math.round(clamp(toNumber(parameters.chunkSize, 1000), 100, 100000)),
       safetyLimits: {
         maxDeformation: toNumber(parameters.maxDeformation, 10),
         maxStress: toNumber(parameters.maxStress, 1e9),
+        memoryLimitMB,
       },
     };
 
-    const result = solvePhysicsChunkedSync(
-      {
-        mesh,
-        goals: normalizedGoals,
-        config,
-      },
-      config.chunkSize
-    ) as SolverResult;
+    const useWorker = Boolean(config.useGPU);
+    const { result, status, computeMode, gpuAvailable } = useWorker
+      ? solvePhysicsWithWorker({
+          nodeId: context.nodeId,
+          mesh,
+          goals: normalizedGoals,
+          config,
+        })
+      : {
+          result: solvePhysicsChunkedSync(
+            {
+              mesh,
+              goals: normalizedGoals,
+              config,
+            },
+            config.chunkSize
+          ) as SolverResult,
+          status: "complete" as const,
+          computeMode: "cpu-fallback" as const,
+          gpuAvailable: false,
+        };
 
-    if (validation.warnings.length > 0) {
-      result.warnings.push(...validation.warnings);
-    }
+    const mergedWarnings =
+      validation.warnings.length > 0
+        ? [...result.warnings, ...validation.warnings]
+        : result.warnings;
+    const finalResult =
+      mergedWarnings === result.warnings ? result : { ...result, warnings: mergedWarnings };
 
-    if (!result.success) {
-      throw new Error(`Physics solver failed: ${result.errors.join(", ")}`);
+    if (!finalResult.success && finalResult.errors.length > 0) {
+      throw new Error(`Physics solver failed: ${finalResult.errors.join(", ")}`);
     }
 
     const geometryId = typeof parameters.geometryId === "string" ? parameters.geometryId : null;
 
     return {
       geometry: geometryId,
-      mesh: result.deformedMesh ?? mesh,
-      result,
-      animation: result.animation ?? null,
-      stressField: result.stressField ?? [],
-      displacements: result.displacements ?? [],
+      mesh: finalResult.deformedMesh ?? mesh,
+      result: finalResult,
+      animation: finalResult.animation ?? null,
+      stressField: finalResult.stressField ?? [],
+      displacements: finalResult.displacements ?? [],
       diagnostics: {
-        iterations: result.iterations,
-        convergence: result.convergenceAchieved,
-        computeTime: result.performanceMetrics.computeTime,
-        memoryUsed: result.performanceMetrics.memoryUsed,
-        warnings: result.warnings,
+        iterations: finalResult.iterations,
+        convergence: finalResult.convergenceAchieved,
+        computeTime: finalResult.performanceMetrics.computeTime,
+        memoryUsed: finalResult.performanceMetrics.memoryUsed,
+        warnings: mergedWarnings,
+        status,
+        computeMode: useWorker ? computeMode : "cpu",
+        gpuAvailable,
       },
     };
   },

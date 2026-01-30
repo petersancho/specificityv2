@@ -468,6 +468,26 @@ export const hitTestComponent = ({
   geometry.forEach((item) => {
     if (hiddenSet.has(item.id) || lockedSet.has(item.id)) return;
 
+    if (item.type === "vertex") {
+      if (mode !== "vertex") return;
+      const screen = projectPointToScreen(item.position, viewProjection, rect);
+      if (!screen) return;
+      const distance = Math.hypot(pointer.x - screen.x, pointer.y - screen.y);
+      if (distance <= pointThreshold) {
+        consider(
+          {
+            kind: "vertex",
+            geometryId: item.id,
+            vertexId: item.id,
+          },
+          screen.depth,
+          item.position,
+          distance
+        );
+      }
+      return;
+    }
+
     if (item.type === "polyline") {
       const points = item.vertexIds
         .map((id) => vertexMap.get(id)?.position)

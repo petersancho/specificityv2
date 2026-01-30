@@ -6,11 +6,13 @@ import WorkflowGeometryViewer from "../WorkflowGeometryViewer";
 import {
   DEFAULT_SOLVER_CONFIG,
   clearEvaluationCache,
+  getEvaluationCache,
   getBiologicalSolverState,
   updateBiologicalSolverState,
 } from "../../../workflow/nodes/solver/biological/solverState";
 import {
   applyGenomeToSliders,
+  deriveGoalTuning,
   evaluateIndividuals,
   resolveSolverConnections,
   type ConnectionInfo,
@@ -23,6 +25,7 @@ import type {
   SolverConfig,
   Gallery,
 } from "../../../workflow/nodes/solver/biological/types";
+import type { Geometry } from "../../../types";
 import { useProjectStore } from "../../../store/useProjectStore";
 
 type TabId = "setup" | "simulation" | "outputs";
@@ -45,90 +48,27 @@ const POPUP_ICON_STYLE = "sticker2";
 const SOLVER_DESCRIPTION =
   "Evolves populations of genomes, evaluates them against connected fitness goals, and promotes the highest-performing phenotypes through generations. Use it to explore variation, monitor convergence, and commit a selected genome back into the graph.";
 
-const hashString = (value: string) => {
-  let hash = 0;
-  for (let i = 0; i < value.length; i += 1) {
-    hash = (hash << 5) - hash + value.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash);
-};
+const clampNumber = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value));
 
-const FALLBACK_THUMBNAIL =
-  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/xcAAr8B9pTa8wAAAABJRU5ErkJggg==";
-
-const renderThumbnail = (genome: number[], fitness: number, key: string, size = 360) => {
-  const scale =
-    typeof window !== "undefined" ? Math.max(2, Math.min(5, window.devicePixelRatio || 1)) : 3;
-  const canvas = document.createElement("canvas");
-  canvas.width = size * scale;
-  canvas.height = size * scale;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return null;
-  ctx.imageSmoothingEnabled = true;
-  if ("imageSmoothingQuality" in ctx) {
-    ctx.imageSmoothingQuality = "high";
-  }
-  ctx.scale(scale, scale);
-
-  const seed = hashString(key);
-  const hue = seed % 360;
-  const hue2 = (hue + 40 + (seed % 60)) % 360;
-  const gradient = ctx.createLinearGradient(0, 0, size, size);
-  gradient.addColorStop(0, `hsla(${hue}, 62%, 74%, 0.95)`);
-  gradient.addColorStop(1, `hsla(${hue2}, 64%, 58%, 0.95)`);
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, size, size);
-
-  ctx.fillStyle = "rgba(255,255,255,0.35)";
-  ctx.beginPath();
-  ctx.arc(size * 0.2, size * 0.2, size * 0.14, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(size * 0.8, size * 0.3, size * 0.1, 0, Math.PI * 2);
-  ctx.fill();
-
-  const barCount = Math.min(12, genome.length);
-  const padding = Math.max(12, Math.round(size * 0.04));
-  const labelSize = Math.max(12, Math.round(size * 0.038));
-  const barWidth = size / (barCount + 1);
-  genome.slice(0, barCount).forEach((value, idx) => {
-    const normalized = Number.isFinite(value) ? Math.abs(value) % 1 : 0.5;
-    const barHeight = Math.max(12, normalized * (size * 0.5));
-    const x = (idx + 0.5) * barWidth + 4;
-    const y = size - barHeight - padding;
-    ctx.fillStyle = "rgba(31, 31, 34, 0.35)";
-    ctx.fillRect(x, y, barWidth * 0.6, barHeight);
-  });
-
-  ctx.fillStyle = "rgba(255,255,255,0.85)";
-  ctx.font = `600 ${labelSize}px "Montreal Neue", "Space Grotesk", sans-serif`;
-  ctx.textAlign = "left";
-  ctx.fillText(`Fit ${fitness.toFixed(3)}`, padding, size - padding);
-
-  return canvas.toDataURL("image/png");
-};
+const clampInt = (value: number, min: number, max: number) =>
+  Math.round(clampNumber(value, min, max));
 
 const buildGallery = (
   generations: GenerationRecord[],
   selections: Set<string>,
-  thumbnailCache: Map<string, string>
+  evaluationCache: Map<string, { geometryIds: string[]; geometry?: Geometry[] }>
 ) => {
   const byGeneration: Record<number, Individual[]> = {};
   const allIndividuals: Individual[] = [];
   generations.forEach((generation) => {
     const population = generation.population.map((individual) => {
-      const thumbKey = individual.genomeString;
-      const thumb =
-        thumbnailCache.get(thumbKey) ??
-        renderThumbnail(individual.genome, individual.fitness, thumbKey) ??
-        null;
-      if (thumb && !thumbnailCache.has(thumbKey)) {
-        thumbnailCache.set(thumbKey, thumb);
-      }
+      const cached = evaluationCache.get(individual.genomeString);
       return {
         ...individual,
-        thumbnail: thumb,
+        geometryIds: cached?.geometryIds ?? individual.geometryIds,
+        geometry: cached?.geometry,
+        thumbnail: null,
       };
     });
     byGeneration[generation.id] = population;
@@ -145,6 +85,24 @@ const buildGallery = (
     byGeneration,
     bestOverall: bestOverall?.id ?? null,
     userSelections: Array.from(selections),
+  } satisfies Gallery;
+};
+
+const stripGalleryThumbnails = (gallery: Gallery | null) => {
+  if (!gallery) return null;
+  const sanitizeIndividuals = (individuals: Individual[]) =>
+    individuals.map((individual) => ({ ...individual, thumbnail: null }));
+  const nextAll = sanitizeIndividuals(gallery.allIndividuals ?? []);
+  const nextByGeneration = Object.fromEntries(
+    Object.entries(gallery.byGeneration ?? {}).map(([key, individuals]) => [
+      key,
+      sanitizeIndividuals(individuals),
+    ])
+  ) as Record<number, Individual[]>;
+  return {
+    ...gallery,
+    allIndividuals: nextAll,
+    byGeneration: nextByGeneration,
   } satisfies Gallery;
 };
 
@@ -215,7 +173,7 @@ const ConvergenceChart = ({
           </linearGradient>
         </defs>
         <rect x="0" y="0" width={width} height={height} fill="transparent" />
-        {points.length > 1 && (
+        {points.length > 1 ? (
           <>
             <path d={buildPath("best")} fill="none" stroke="url(#bestLine)" strokeWidth="2.5" />
             <path
@@ -241,7 +199,14 @@ const ConvergenceChart = ({
               />
             )}
           </>
-        )}
+        ) : points.length === 1 ? (
+          <circle
+            cx={xForIndex(0)}
+            cy={yForValue(points[0].best)}
+            r={4}
+            fill="#cc5b1a"
+          />
+        ) : null}
       </svg>
       {hoverPoint ? (
         <div className={styles.chartTooltip}>
@@ -269,23 +234,19 @@ const BiologicalSolverPopup = ({ nodeId, onClose }: BiologicalSolverPopupProps) 
   const [selectedGeneration, setSelectedGeneration] = useState("all");
   const [sortMode, setSortMode] = useState("fitness");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedGeometryIds, setSelectedGeometryIds] = useState<string[]>([]);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [previewGeometryIds, setPreviewGeometryIds] = useState<string[]>([]);
-  const [metadataOptions, setMetadataOptions] = useState({
-    generation: true,
-    rank: true,
-    fitness: true,
-    sparkline: false,
-  });
 
   const scalePercent = Math.round(uiScale * 100);
 
   const workerRef = useRef<Worker | null>(null);
   const connectionsRef = useRef<ConnectionInfo | null>(null);
   const historyRef = useRef<GenerationRecord[]>([]);
-  const thumbnailCache = useRef<Map<string, string>>(new Map());
   const configRef = useRef<SolverConfig>(config);
   const selectedIdsRef = useRef<Set<string>>(selectedIds);
+  const selectedGeometryIdsRef = useRef<string[]>(selectedGeometryIds);
+  const pendingAutoRunRef = useRef<number | null>(null);
 
   const nodeLabel = useProjectStore((state) => {
     const node = state.workflow.nodes.find((entry) => entry.id === nodeId);
@@ -302,11 +263,25 @@ const BiologicalSolverPopup = ({ nodeId, onClose }: BiologicalSolverPopupProps) 
     setMetrics(saved.metrics ?? []);
     historyRef.current = savedHistory;
     setHistory(savedHistory);
-    setGallery(saved.outputs.gallery ?? null);
+    const hasThumbnails =
+      saved.outputs.gallery?.allIndividuals?.some((individual) => individual.thumbnail) ?? false;
+    const sanitizedGallery = hasThumbnails
+      ? stripGalleryThumbnails(saved.outputs.gallery ?? null)
+      : saved.outputs.gallery ?? null;
+    setGallery(sanitizedGallery ?? null);
     setBest(saved.outputs.best ?? null);
     setPopulationBests(saved.outputs.populationBests ?? []);
+    setSelectedGeometryIds(saved.outputs.selectedGeometry ?? []);
     if (saved.outputs.gallery?.userSelections) {
       setSelectedIds(new Set(saved.outputs.gallery.userSelections));
+    }
+    if (hasThumbnails && sanitizedGallery) {
+      updateBiologicalSolverState(nodeId, {
+        outputs: {
+          ...saved.outputs,
+          gallery: sanitizedGallery,
+        },
+      });
     }
   }, [nodeId]);
 
@@ -338,24 +313,69 @@ const BiologicalSolverPopup = ({ nodeId, onClose }: BiologicalSolverPopupProps) 
   }, [selectedIds]);
 
   useEffect(() => {
+    selectedGeometryIdsRef.current = selectedGeometryIds;
+  }, [selectedGeometryIds]);
+
+  useEffect(() => {
     if (!gallery) return;
     const nextSelections = Array.from(selectedIds);
     const currentSelections = new Set(gallery.userSelections ?? []);
-    const changed =
+    const selectionChanged =
       nextSelections.length !== currentSelections.size ||
       nextSelections.some((id) => !currentSelections.has(id));
-    if (!changed) return;
-    const nextGallery = {
-      ...gallery,
-      userSelections: nextSelections,
-    };
-    setGallery(nextGallery);
+    const nextGallery = selectionChanged
+      ? {
+          ...gallery,
+          userSelections: nextSelections,
+        }
+      : gallery;
+    const evaluationCache = getEvaluationCache(nodeId);
+    const selectedIndividuals = nextSelections
+      .map((id) => nextGallery.allIndividuals.find((individual) => individual.id === id))
+      .filter((individual): individual is Individual => Boolean(individual));
+    const geometryIds: string[] = [];
+    const geometryItems: Geometry[] = [];
+    selectedIndividuals.forEach((individual) => {
+      const cached = evaluationCache.get(individual.genomeString);
+      const ids = cached?.geometryIds ?? individual.geometryIds ?? [];
+      const items = cached?.geometry ?? individual.geometry ?? [];
+      geometryIds.push(...ids);
+      geometryItems.push(...items);
+    });
+    const uniqueGeometryIds = Array.from(new Set(geometryIds));
+    if (geometryItems.length > 0) {
+      const store = useProjectStore.getState();
+      const existingIds = new Set(store.geometry.map((item) => item.id));
+      const seenIds = new Set(existingIds);
+      const additions: Geometry[] = [];
+      geometryItems.forEach((item) => {
+        if (seenIds.has(item.id)) return;
+        seenIds.add(item.id);
+        additions.push(item);
+      });
+      if (additions.length > 0) {
+        store.addGeometryItems(additions, {
+          recordHistory: false,
+          selectIds: store.selectedGeometryIds,
+        });
+      }
+    }
+    const geometryChanged =
+      uniqueGeometryIds.length !== selectedGeometryIdsRef.current.length ||
+      uniqueGeometryIds.some((id) => !selectedGeometryIdsRef.current.includes(id));
+    if (!selectionChanged && !geometryChanged) return;
+    if (selectionChanged) {
+      setGallery(nextGallery);
+    }
+    setSelectedGeometryIds(uniqueGeometryIds);
+    selectedGeometryIdsRef.current = uniqueGeometryIds;
     updateBiologicalSolverState(nodeId, {
       outputs: {
         best,
         populationBests,
         history: { generations: historyRef.current, config: configRef.current },
         gallery: nextGallery,
+        selectedGeometry: uniqueGeometryIds,
       },
     });
     recalcWorkflow();
@@ -386,6 +406,8 @@ const BiologicalSolverPopup = ({ nodeId, onClose }: BiologicalSolverPopupProps) 
         return;
       }
       if (message?.type === "INITIALIZED" || message?.type === "GENERATION_COMPLETE") {
+        const shouldAutoRun =
+          message?.type === "INITIALIZED" && pendingAutoRunRef.current != null;
         const generationRecord: GenerationRecord = {
           id: message.generation,
           population: message.population ?? [],
@@ -398,7 +420,12 @@ const BiologicalSolverPopup = ({ nodeId, onClose }: BiologicalSolverPopupProps) 
           .sort((a, b) => a.id - b.id);
         historyRef.current = nextHistory;
         setHistory(nextHistory);
-        const nextGallery = buildGallery(nextHistory, selectedIdsRef.current, thumbnailCache.current);
+        const evaluationCache = getEvaluationCache(nodeId);
+        const nextGallery = buildGallery(
+          nextHistory,
+          selectedIdsRef.current,
+          evaluationCache
+        );
         setGallery(nextGallery);
         const nextPopulationBests = buildPopulationBests(nextHistory, 3);
         setPopulationBests(nextPopulationBests);
@@ -407,17 +434,26 @@ const BiologicalSolverPopup = ({ nodeId, onClose }: BiologicalSolverPopupProps) 
           null
         );
         setBest(nextBest);
+        const nextStatus = shouldAutoRun ? "running" : "initialized";
         updateBiologicalSolverState(nodeId, {
           outputs: {
             best: nextBest,
             populationBests: nextPopulationBests,
             history: { generations: nextHistory, config: configRef.current },
             gallery: nextGallery,
+            selectedGeometry: selectedGeometryIdsRef.current,
           },
-          status: "initialized",
+          status: nextStatus,
         });
         recalcWorkflow();
-        setStatus("initialized");
+        setStatus(nextStatus);
+        if (shouldAutoRun) {
+          const autoRunCount = pendingAutoRunRef.current ?? 0;
+          pendingAutoRunRef.current = null;
+          if (autoRunCount > 0) {
+            workerRef.current?.postMessage({ type: "EVOLVE", generations: autoRunCount });
+          }
+        }
         return;
       }
       if (message?.type === "ALL_COMPLETE") {
@@ -447,8 +483,16 @@ const BiologicalSolverPopup = ({ nodeId, onClose }: BiologicalSolverPopupProps) 
         setBest(null);
         setPopulationBests([]);
         setStatus("idle");
+        setSelectedGeometryIds([]);
+        selectedGeometryIdsRef.current = [];
         updateBiologicalSolverState(nodeId, {
-          outputs: { best: null, populationBests: [], history: null, gallery: null },
+          outputs: {
+            best: null,
+            populationBests: [],
+            history: null,
+            gallery: null,
+            selectedGeometry: [],
+          },
           status: "idle",
           generation: 0,
           progress: null,
@@ -487,6 +531,10 @@ const BiologicalSolverPopup = ({ nodeId, onClose }: BiologicalSolverPopupProps) 
   }, [gallery, selectedGeneration, sortMode]);
 
   const selectedDetail = filteredIndividuals.find((ind) => ind.id === detailId) ?? null;
+  const selectedSnapshot =
+    selectedDetail && (selectedDetail.geometry?.length ?? 0) > 0
+      ? selectedDetail
+      : null;
 
   const handleInitialize = () => {
     const connections = resolveSolverConnections(nodeId);
@@ -502,16 +550,25 @@ const BiologicalSolverPopup = ({ nodeId, onClose }: BiologicalSolverPopupProps) 
         : connections.metrics;
     setMetrics(metricList);
     clearEvaluationCache(nodeId);
+    const tuning = deriveGoalTuning(connections.goals);
+    const runConfig = {
+      ...config,
+      populationSize: clampInt(config.populationSize * tuning.populationScale, 5, 100),
+      mutationRate: clampNumber(config.mutationRate * tuning.mutationRateScale, 0.01, 0.95),
+    };
+    configRef.current = runConfig;
+    pendingAutoRunRef.current = clampInt(runConfig.generations, 1, 200);
+    setRunCount(runConfig.generations);
     workerRef.current?.postMessage({
       type: "INIT",
-      config,
+      config: runConfig,
       genes: connections.genes,
       metrics: metricList,
       seedGenome: config.seedFromCurrent ? connections.genes.map((gene) => gene.currentValue) : null,
     });
     setStatus("running");
     updateBiologicalSolverState(nodeId, {
-      config,
+      config: runConfig,
       metrics: metricList,
       status: "running",
     });
@@ -534,6 +591,7 @@ const BiologicalSolverPopup = ({ nodeId, onClose }: BiologicalSolverPopupProps) 
   };
 
   const handleReset = () => {
+    pendingAutoRunRef.current = null;
     workerRef.current?.postMessage({ type: "RESET" });
   };
 
@@ -546,105 +604,6 @@ const BiologicalSolverPopup = ({ nodeId, onClose }: BiologicalSolverPopupProps) 
         next.add(id);
       }
       return next;
-    });
-  };
-
-  const exportIndividuals = async (individuals: Individual[], layout: "single" | "grid") => {
-    if (individuals.length === 0) return;
-    const size = layout === "single" ? 1600 : 480;
-    const cols = layout === "single" ? 1 : Math.ceil(Math.sqrt(individuals.length));
-    const rows = layout === "single" ? 1 : Math.ceil(individuals.length / cols);
-    const canvas = document.createElement("canvas");
-    canvas.width = size * cols;
-    canvas.height = size * rows;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.imageSmoothingEnabled = true;
-    if ("imageSmoothingQuality" in ctx) {
-      ctx.imageSmoothingQuality = "high";
-    }
-
-    const sparklineValues = historyRef.current.map(
-      (generation) => generation.statistics.bestFitness
-    );
-    const drawSparkline = (x: number, y: number, width: number, height: number) => {
-      if (sparklineValues.length < 2) return;
-      const maxVal = Math.max(...sparklineValues, 1);
-      const minVal = Math.min(...sparklineValues, 0);
-      const range = Math.max(0.0001, maxVal - minVal);
-      ctx.save();
-      ctx.strokeStyle = "rgba(31,31,34,0.75)";
-      ctx.lineWidth = Math.max(2, Math.round(size * 0.0014));
-      ctx.beginPath();
-      sparklineValues.forEach((value, index) => {
-        const t = index / (sparklineValues.length - 1);
-        const sx = x + t * width;
-        const sy = y + height - ((value - minVal) / range) * height;
-        if (index === 0) {
-          ctx.moveTo(sx, sy);
-        } else {
-          ctx.lineTo(sx, sy);
-        }
-      });
-      ctx.stroke();
-      ctx.restore();
-    };
-
-    const loadImage = (src: string) =>
-      new Promise<HTMLImageElement>((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.onerror = () => reject(new Error("Failed to load thumbnail"));
-        img.src = src;
-      });
-
-    const images = await Promise.all(
-      individuals.map(async (individual) => {
-        const thumbKey = individual.genomeString;
-        const thumb =
-          individual.thumbnail ??
-          thumbnailCache.current.get(thumbKey) ??
-          renderThumbnail(individual.genome, individual.fitness, thumbKey, size) ??
-          FALLBACK_THUMBNAIL;
-        if (thumb && !thumbnailCache.current.has(thumbKey)) {
-          thumbnailCache.current.set(thumbKey, thumb);
-        }
-        return loadImage(thumb);
-      })
-    );
-
-    images.forEach((image, index) => {
-      const col = index % cols;
-      const row = Math.floor(index / cols);
-      const x = col * size;
-      const y = row * size;
-      ctx.drawImage(image, x, y, size, size);
-      ctx.fillStyle = "rgba(31,31,34,0.75)";
-      const labelSize = Math.max(12, Math.round(size * 0.014));
-      ctx.font = `600 ${labelSize}px "Montreal Neue", "Space Grotesk", sans-serif`;
-      const individual = individuals[index];
-      if (metadataOptions.generation) {
-        ctx.fillText(`Gen ${individual.generation}`, x + 20, y + 34);
-      }
-      if (metadataOptions.rank) {
-        ctx.fillText(`Rank ${individual.rank}`, x + 20, y + 58);
-      }
-      if (metadataOptions.fitness) {
-        ctx.fillText(`Fit ${individual.fitness.toFixed(3)}`, x + 20, y + 82);
-      }
-      if (metadataOptions.sparkline) {
-        drawSparkline(x + size - 140, y + 20, 120, 40);
-      }
-    });
-
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `biological_solver_export_${Date.now()}.png`;
-      link.click();
-      URL.revokeObjectURL(url);
     });
   };
 
@@ -696,6 +655,9 @@ const BiologicalSolverPopup = ({ nodeId, onClose }: BiologicalSolverPopupProps) 
                 step={0.05}
                 value={uiScale}
                 onChange={(event) => setUiScale(Number(event.target.value))}
+                onWheel={(event) => {
+                  event.currentTarget.blur();
+                }}
               />
               <span className={styles.scaleValue}>{scalePercent}%</span>
             </div>
@@ -783,7 +745,7 @@ const BiologicalSolverPopup = ({ nodeId, onClose }: BiologicalSolverPopupProps) 
                         className={styles.input}
                         type="number"
                         min={1}
-                        max={100}
+                        max={200}
                         value={config.generations}
                         onChange={(event) => {
                           const next = Number(event.target.value);
@@ -1123,6 +1085,20 @@ const BiologicalSolverPopup = ({ nodeId, onClose }: BiologicalSolverPopupProps) 
                     </div>
                     <div className={styles.controls}>
                       <WebGLButton
+                        label={isInitialized ? "Reinitialize" : "Initialize"}
+                        iconId="run"
+                        iconStyle={POPUP_ICON_STYLE}
+                        variant="primary"
+                        accentColor={SOLVER_ACCENTS.run}
+                        size="sm"
+                        className={styles.actionButton}
+                        disabled={status === "running"}
+                        onClick={handleInitialize}
+                        tooltip="Initialize the solver and run the configured generations."
+                        title="Initialize solver"
+                        shape="rounded"
+                      />
+                      <WebGLButton
                         label="Run Next Generation"
                         iconId="run"
                         iconStyle={POPUP_ICON_STYLE}
@@ -1143,7 +1119,7 @@ const BiologicalSolverPopup = ({ nodeId, onClose }: BiologicalSolverPopupProps) 
                             className={styles.input}
                             type="number"
                           min={1}
-                          max={100}
+                          max={200}
                           value={runCount}
                           onChange={(event) => {
                             const next = Number(event.target.value);
@@ -1276,6 +1252,9 @@ const BiologicalSolverPopup = ({ nodeId, onClose }: BiologicalSolverPopupProps) 
                   <div className={styles.galleryGrid}>
                     {filteredIndividuals.map((individual) => {
                       const isSelected = selectedIds.has(individual.id);
+                      const hasGeometry =
+                        (individual.geometryIds?.length ?? 0) > 0 &&
+                        (individual.geometry?.length ?? 0) > 0;
                       return (
                         <div
                           key={individual.id}
@@ -1291,12 +1270,13 @@ const BiologicalSolverPopup = ({ nodeId, onClose }: BiologicalSolverPopupProps) 
                           }}
                           title={isSelected ? "Click to deselect" : "Click to select and preview"}
                         >
-                          {individual.thumbnail ? (
-                            <img
-                              className={styles.galleryImage}
-                              src={individual.thumbnail}
-                              alt={`Generation ${individual.generation}`}
-                            />
+                          {hasGeometry ? (
+                            <div className={styles.galleryViewport}>
+                              <WorkflowGeometryViewer
+                                geometryIds={individual.geometryIds ?? []}
+                                geometryItems={individual.geometry ?? []}
+                              />
+                            </div>
                           ) : (
                             <div className={styles.galleryImage} />
                           )}
@@ -1311,57 +1291,18 @@ const BiologicalSolverPopup = ({ nodeId, onClose }: BiologicalSolverPopupProps) 
                   </div>
                   <div className={styles.selectionInfo}>
                     {selectedIds.size > 0 ? (
-                      <span>{selectedIds.size} design{selectedIds.size !== 1 ? "s" : ""} selected</span>
+                      <span>
+                        {selectedIds.size} design{selectedIds.size !== 1 ? "s" : ""} selected ·{" "}
+                        {selectedGeometryIds.length} output geometr{selectedGeometryIds.length === 1 ? "y" : "ies"} ready
+                      </span>
                     ) : (
-                      <span>Click designs to select for export</span>
+                      <span>
+                        Select designs to expose geometry on the “Selected Geometry” output.
+                        Connect a Custom Viewer to preview in Roslyn.
+                      </span>
                     )}
                   </div>
-                  <div className={styles.sectionActions}>
-                    <WebGLButton
-                      label="Export Best Overall PNG"
-                      iconId="download"
-                      iconStyle={POPUP_ICON_STYLE}
-                      variant="primary"
-                      onClick={() => best && exportIndividuals([best], "single")}
-                      tooltip="Export the best overall design at full resolution."
-                      title="Export best overall"
-                      shape="rounded"
-                      disabled={!best}
-                    />
-                    <WebGLButton
-                      label="Export Generation Bests PNG"
-                      iconId="download"
-                      iconStyle={POPUP_ICON_STYLE}
-                      variant="secondary"
-                      onClick={() =>
-                        exportIndividuals(
-                          populationBests.flatMap((entry) => entry.individuals.slice(0, 1)),
-                          "grid"
-                        )
-                      }
-                      tooltip="Export the top individual from each generation."
-                      title="Export generation bests"
-                      shape="rounded"
-                      disabled={populationBests.length === 0}
-                    />
-                    <WebGLButton
-                      label={`Export Selected (${selectedIds.size})`}
-                      iconId="download"
-                      iconStyle={POPUP_ICON_STYLE}
-                      variant="secondary"
-                      onClick={() =>
-                        exportIndividuals(
-                          gallery
-                            ? gallery.allIndividuals.filter((ind) => selectedIds.has(ind.id))
-                            : [],
-                          "grid"
-                        )
-                      }
-                      tooltip="Export only the selected designs."
-                      title="Export selected designs"
-                      shape="rounded"
-                      disabled={selectedIds.size === 0}
-                    />
+                  <div className={`${styles.sectionActions} ${styles.outputsActions}`}>
                     <WebGLButton
                       label="Clear Selection"
                       iconId="close"
@@ -1387,12 +1328,15 @@ const BiologicalSolverPopup = ({ nodeId, onClose }: BiologicalSolverPopupProps) 
                             <WorkflowGeometryViewer geometryIds={previewGeometryIds} />
                           </div>
                         </div>
-                      ) : selectedDetail.thumbnail ? (
-                        <img
-                          className={styles.detailImage}
-                          src={selectedDetail.thumbnail}
-                          alt="Detail preview"
-                        />
+                      ) : selectedSnapshot ? (
+                        <div className={styles.detailImage}>
+                          <div style={{ width: "100%", height: "100%" }}>
+                            <WorkflowGeometryViewer
+                              geometryIds={selectedSnapshot.geometryIds ?? []}
+                              geometryItems={selectedSnapshot.geometry ?? []}
+                            />
+                          </div>
+                        </div>
                       ) : (
                         <div className={styles.detailImage} />
                       )}
@@ -1413,50 +1357,11 @@ const BiologicalSolverPopup = ({ nodeId, onClose }: BiologicalSolverPopupProps) 
                           title="Apply to canvas"
                           shape="rounded"
                         />
-                        <WebGLButton
-                          label="Export Solo"
-                          iconId="download"
-                          iconStyle={POPUP_ICON_STYLE}
-                          variant="secondary"
-                          onClick={() => exportIndividuals([selectedDetail], "single")}
-                          tooltip="Export this design as a single PNG."
-                          title="Export selected design"
-                          shape="rounded"
-                        />
                       </div>
                     </>
                   ) : (
                     <div className={styles.detailMeta}>Select a design to inspect.</div>
                   )}
-                  <div
-                    className={styles.cardHeader}
-                    title="Toggle metadata overlays for exports."
-                  >
-                    Metadata Overlay
-                  </div>
-                  <div className={styles.fieldGrid}>
-                    {(Object.keys(metadataOptions) as Array<keyof typeof metadataOptions>).map(
-                      (key) => (
-                        <label
-                          key={key}
-                          className={styles.field}
-                          title={`Include ${key} in exports.`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={metadataOptions[key]}
-                            onChange={(event) =>
-                              setMetadataOptions((prev) => ({
-                                ...prev,
-                                [key]: event.target.checked,
-                              }))
-                            }
-                          />
-                          {key}
-                        </label>
-                      )
-                    )}
-                  </div>
                 </div>
               </div>
             </div>
@@ -1474,17 +1379,6 @@ const BiologicalSolverPopup = ({ nodeId, onClose }: BiologicalSolverPopupProps) 
               onClick={onClose}
               tooltip="Close the solver popup."
               title="Close popup"
-              shape="rounded"
-            />
-            <WebGLButton
-              label="Initialize"
-              iconId="run"
-              iconStyle={POPUP_ICON_STYLE}
-              variant="primary"
-              onClick={handleInitialize}
-              disabled={status === "running"}
-              tooltip="Initialize the solver with the current setup."
-              title="Initialize solver"
               shape="rounded"
             />
           </div>

@@ -134,6 +134,7 @@ type NumericalCanvasProps = {
   mode?: "standard" | "minimap";
   enableMinimapPanZoom?: boolean;
   captureMode?: "transparent" | "white" | null;
+  hoverPopupsEnabled?: boolean;
 };
 
 type CanvasPalette = {
@@ -897,7 +898,8 @@ const computeNodeLayout = (node: any): NodeLayout => {
   const portsHeight = rowCount * PORT_ROW_HEIGHT;
   const portsStartOffset =
     node.type === "slider" ? PORTS_START_OFFSET + SLIDER_PORT_OFFSET : PORTS_START_OFFSET;
-  const isViewerNode = node.type === "geometryViewer" || node.type === "customPreview";
+  const isViewerNode =
+    node.type === "geometryViewer" || node.type === "customPreview" || node.type === "customViewer";
   const minHeight = isViewerNode
     ? VIEWER_NODE_MIN_HEIGHT
     : node.type === "slider"
@@ -1053,6 +1055,7 @@ export const NumericalCanvas = ({
   mode = "standard",
   enableMinimapPanZoom = false,
   captureMode = null,
+  hoverPopupsEnabled = true,
 }: NumericalCanvasProps) => {
   const isMinimap = mode === "minimap";
   const interactionsEnabled = !isMinimap;
@@ -1134,7 +1137,10 @@ export const NumericalCanvas = ({
 
   const viewerNodes = useMemo(() => {
     const targets = nodes.filter(
-      (node) => node.type === "geometryViewer" || node.type === "customPreview"
+      (node) =>
+        node.type === "geometryViewer" ||
+        node.type === "customPreview" ||
+        node.type === "customViewer"
     );
     if (targets.length === 0) return [];
     const layouts = computeNodeLayouts(nodes);
@@ -1168,7 +1174,11 @@ export const NumericalCanvas = ({
         geometryIds = uniqueIds.length > 0 ? uniqueIds : geometryIds;
       }
 
-      if (node.type === "customPreview" || node.type === "geometryViewer") {
+      if (
+        node.type === "customPreview" ||
+        node.type === "geometryViewer" ||
+        node.type === "customViewer"
+      ) {
         const filterEdge = edges.find(
           (entry) =>
             entry.target === node.id &&
@@ -1525,9 +1535,10 @@ export const NumericalCanvas = ({
       layoutRef.current = layouts;
       const connectedInputs = buildConnectedInputSet(edges, layouts);
 
-      const tooltip = captureActive
-        ? null
-        : resolveHoverTooltip(hoveredTarget, layouts, connectedInputs);
+      const tooltip =
+        captureActive || !hoverPopupsEnabled
+          ? null
+          : resolveHoverTooltip(hoveredTarget, layouts, connectedInputs);
       const backgroundMode =
         captureMode === "white"
           ? "white"
@@ -1664,6 +1675,7 @@ export const NumericalCanvas = ({
     shortcutOverlayEnabled,
     gridSnapEnabled,
     captureMode,
+    hoverPopupsEnabled,
   ]);
 
   const screenToWorld = (screenX: number, screenY: number): Vec2 => {
@@ -2454,7 +2466,7 @@ export const NumericalCanvas = ({
         onSelect: closeMenu(() => frameNodes(new Set([target.nodeId]))),
       });
 
-      if (node?.type === "biologicalEvolutionSolver") {
+      if (node?.type === "biologicalEvolutionSolver" || node?.type === "biologicalSolver") {
         actions.push({
           label: "Open Biological Solver",
           onSelect: closeMenu(() => setBiologicalSolverPopupNodeId(target.nodeId)),
@@ -3652,7 +3664,7 @@ export const NumericalCanvas = ({
     if (isDoubleRightClick) {
       if (target.type === "node") {
         const node = nodes.find((entry) => entry.id === target.nodeId);
-        if (node?.type === "biologicalEvolutionSolver") {
+        if (node?.type === "biologicalEvolutionSolver" || node?.type === "biologicalSolver") {
           setContextMenu(null);
           setNodeSearchPopup(null);
           setBiologicalSolverPopupNodeId(node.id);
@@ -5306,7 +5318,8 @@ function drawNodes(
       const iconIsSoft =
         node.type === "panel" ||
         node.type === "geometryViewer" ||
-        node.type === "customPreview";
+        node.type === "customPreview" ||
+        node.type === "customViewer";
       const iconScale = iconIsSoft ? 0.78 : 1;
       const iconLimit = Math.min(
         ICON_SIZE,

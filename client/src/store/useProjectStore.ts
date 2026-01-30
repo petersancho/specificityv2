@@ -128,6 +128,7 @@ import {
   computeMeshArea,
   computeVertexNormals,
 } from "../geometry/mesh";
+import { computeMeshVolumeAndCentroid, computePrimitivePhysicalProperties, resolveDensity } from "../geometry/physical";
 import { withTessellationMetadata } from "../geometry/meshTessellation";
 import { tessellateCurveAdaptive, tessellateSurfaceAdaptive } from "../geometry/tessellation";
 import { tessellateBRepToMesh, brepFromMesh, createBRepBox, createBRepSphere, createBRepCylinder } from "../geometry/brep";
@@ -173,6 +174,7 @@ import {
   scaleRenderMesh,
 } from "../utils/meshIo";
 import { hexToRgb, normalizeHexColor, normalizeRgbInput, rgbToHex } from "../utils/color";
+import { buildStressVertexColors } from "../utils/stressColors";
 export type { NodeType } from "../workflow/nodeTypes";
 
 type SaveEntry = {
@@ -1241,6 +1243,20 @@ const applyMoveDeltaToGeometry = (
       }
       nextUpdate.mesh = { ...baseMesh, positions };
     }
+    const baseCentroid = existing?.centroid ?? geometry.centroid;
+    if (baseCentroid) {
+      nextUpdate.centroid = addVec3(baseCentroid, delta);
+    }
+    if (existing?.volume_m3 !== undefined || geometry.volume_m3 !== undefined) {
+      nextUpdate.volume_m3 = existing?.volume_m3 ?? geometry.volume_m3;
+    }
+    if (existing?.mass_kg !== undefined || geometry.mass_kg !== undefined) {
+      nextUpdate.mass_kg = existing?.mass_kg ?? geometry.mass_kg;
+    }
+    if (existing?.inertiaTensor_kg_m2 !== undefined || geometry.inertiaTensor_kg_m2 !== undefined) {
+      nextUpdate.inertiaTensor_kg_m2 =
+        existing?.inertiaTensor_kg_m2 ?? geometry.inertiaTensor_kg_m2;
+    }
     updates.set(geometryId, nextUpdate);
     return;
   }
@@ -1267,6 +1283,24 @@ const applyMoveDeltaToGeometry = (
       ...(existing ?? {}),
       mesh: nextMesh,
     };
+    const baseCentroid = (existing as Partial<Geometry> | undefined)?.centroid ?? geometry.centroid;
+    if (baseCentroid) {
+      nextUpdate.centroid = addVec3(baseCentroid, delta);
+    }
+    const existingGeometry = existing as Partial<Geometry> | undefined;
+    if (existingGeometry?.volume_m3 !== undefined || geometry.volume_m3 !== undefined) {
+      nextUpdate.volume_m3 = existingGeometry?.volume_m3 ?? geometry.volume_m3;
+    }
+    if (existingGeometry?.mass_kg !== undefined || geometry.mass_kg !== undefined) {
+      nextUpdate.mass_kg = existingGeometry?.mass_kg ?? geometry.mass_kg;
+    }
+    if (
+      existingGeometry?.inertiaTensor_kg_m2 !== undefined ||
+      geometry.inertiaTensor_kg_m2 !== undefined
+    ) {
+      nextUpdate.inertiaTensor_kg_m2 =
+        existingGeometry?.inertiaTensor_kg_m2 ?? geometry.inertiaTensor_kg_m2;
+    }
     if (geometry.type === "mesh" && geometry.primitive) {
       const existingMesh = existing as Partial<MeshPrimitiveGeometry> | undefined;
       const basePrimitive = (existingMesh?.primitive ?? geometry.primitive) as NonNullable<
@@ -1346,22 +1380,27 @@ const applyMatrixToGeometry = (
     return;
   }
 
-  if (geometry.type === "brep") {
-    const existing = updates.get(geometryId) as Partial<BRepGeometry> | undefined;
-    const baseBrep = (existing?.brep ?? geometry.brep) as BRepData;
-    const nextBrep = transformBRepData(baseBrep, matrix);
-    const nextUpdate: Partial<BRepGeometry> = { ...(existing ?? {}), brep: nextBrep };
-    if (geometry.mesh) {
-      const baseMesh = (existing?.mesh ?? geometry.mesh) as RenderMesh;
-      const positions = applyMatrixToPositions(baseMesh.positions, matrix);
-      const normals =
-        baseMesh.indices.length > 0 ? computeVertexNormals(positions, baseMesh.indices) : baseMesh.normals;
-      nextUpdate.mesh = { ...baseMesh, positions, normals };
-      nextUpdate.area_m2 = computeMeshArea(positions, baseMesh.indices);
+    if (geometry.type === "brep") {
+      const existing = updates.get(geometryId) as Partial<BRepGeometry> | undefined;
+      const baseBrep = (existing?.brep ?? geometry.brep) as BRepData;
+      const nextBrep = transformBRepData(baseBrep, matrix);
+      const nextUpdate: Partial<BRepGeometry> = { ...(existing ?? {}), brep: nextBrep };
+      if (geometry.mesh) {
+        const baseMesh = (existing?.mesh ?? geometry.mesh) as RenderMesh;
+        const positions = applyMatrixToPositions(baseMesh.positions, matrix);
+        const normals =
+          baseMesh.indices.length > 0 ? computeVertexNormals(positions, baseMesh.indices) : baseMesh.normals;
+        nextUpdate.mesh = { ...baseMesh, positions, normals };
+        nextUpdate.area_m2 = computeMeshArea(positions, baseMesh.indices);
+        const { volume_m3, centroid } = computeMeshVolumeAndCentroid(nextUpdate.mesh);
+        nextUpdate.volume_m3 = volume_m3;
+        nextUpdate.centroid = centroid ?? undefined;
+        const density = resolveDensity(geometry.metadata ?? nextUpdate.metadata);
+        nextUpdate.mass_kg = density && volume_m3 > 0 ? density * volume_m3 : undefined;
+      }
+      updates.set(geometryId, nextUpdate);
+      return;
     }
-    updates.set(geometryId, nextUpdate);
-    return;
-  }
 
   if ("mesh" in geometry && geometry.mesh) {
     const existing = updates.get(geometryId) as Partial<
@@ -1377,12 +1416,17 @@ const applyMatrixToGeometry = (
       normals,
     };
     const nextArea = computeMeshArea(positions, baseMesh.indices);
+    const { volume_m3, centroid } = computeMeshVolumeAndCentroid(nextMesh);
+    const density = resolveDensity(geometry.metadata ?? (existing as Geometry | undefined)?.metadata);
     const nextUpdate: Partial<Geometry> & {
       primitive?: MeshPrimitiveGeometry["primitive"];
     } = {
       ...(existing ?? {}),
       mesh: nextMesh,
       area_m2: nextArea,
+      volume_m3,
+      centroid: centroid ?? undefined,
+      mass_kg: density && volume_m3 > 0 ? density * volume_m3 : undefined,
     };
     if (geometry.type === "mesh" && geometry.primitive) {
       const existingMesh = existing as Partial<MeshPrimitiveGeometry> | undefined;
@@ -1606,13 +1650,38 @@ const upsertBRepGeometry = (
     geometryById: Map<string, Geometry>;
     updates: Map<string, Partial<Geometry>>;
     itemsToAdd: Geometry[];
+  },
+  options?: {
+    primitive?: MeshPrimitiveGeometry["primitive"];
+    metadata?: Record<string, unknown>;
   }
 ) => {
   const { geometryById, updates, itemsToAdd } = state;
   const existing = geometryById.get(geometryId);
   const layerId = existing?.layerId ?? "layer-default";
+  const metadata = options?.metadata ?? existing?.metadata;
+  const physical =
+    mesh
+      ? options?.primitive
+        ? computePrimitivePhysicalProperties(mesh, options.primitive, metadata)
+        : (() => {
+            const { volume_m3, centroid } = computeMeshVolumeAndCentroid(mesh);
+            return {
+              area_m2: computeMeshArea(mesh.positions, mesh.indices),
+              volume_m3,
+              centroid,
+              mass_kg: undefined as number | undefined,
+              inertiaTensor_kg_m2: undefined as BRepGeometry["inertiaTensor_kg_m2"],
+            };
+          })()
+      : null;
   if (existing && existing.type === "brep") {
-    updates.set(geometryId, { brep, mesh });
+    updates.set(geometryId, {
+      brep,
+      mesh,
+      ...(physical ? physical : null),
+      metadata,
+    });
     return;
   }
   itemsToAdd.push({
@@ -1621,6 +1690,8 @@ const upsertBRepGeometry = (
     brep,
     mesh,
     layerId,
+    ...(physical ? physical : null),
+    metadata,
   });
 };
 
@@ -1636,9 +1707,29 @@ const upsertMeshGeometry = (
 ) => {
   const { geometryById, updates, itemsToAdd } = state;
   const existing = geometryById.get(geometryId);
-  const area = computeMeshArea(mesh.positions, mesh.indices);
+  const metadata = existing?.metadata;
+  const physical = primitive
+    ? computePrimitivePhysicalProperties(mesh, primitive, metadata)
+    : (() => {
+        const { volume_m3, centroid } = computeMeshVolumeAndCentroid(mesh);
+        return {
+          area_m2: computeMeshArea(mesh.positions, mesh.indices),
+          volume_m3,
+          centroid,
+          mass_kg: undefined as number | undefined,
+          inertiaTensor_kg_m2: undefined as MeshPrimitiveGeometry["inertiaTensor_kg_m2"],
+        };
+      })();
   if (existing && "mesh" in existing) {
-    updates.set(geometryId, { mesh, area_m2: area, primitive });
+    updates.set(geometryId, {
+      mesh,
+      primitive,
+      area_m2: physical.area_m2,
+      volume_m3: physical.volume_m3,
+      centroid: physical.centroid ?? undefined,
+      mass_kg: physical.mass_kg,
+      inertiaTensor_kg_m2: physical.inertiaTensor_kg_m2,
+    });
     return;
   }
   const layerId = existing?.layerId ?? "layer-default";
@@ -1647,7 +1738,11 @@ const upsertMeshGeometry = (
     type: "mesh",
     mesh,
     layerId,
-    area_m2: area,
+    area_m2: physical.area_m2,
+    volume_m3: physical.volume_m3,
+    centroid: physical.centroid ?? undefined,
+    mass_kg: physical.mass_kg,
+    inertiaTensor_kg_m2: physical.inertiaTensor_kg_m2,
     primitive,
   });
 };
@@ -1816,7 +1911,19 @@ const applySeedGeometryNodesToGeometry = (
       const mesh = translateMesh(baseMesh, center);
       if (representation === "brep") {
         const brep = createBRepBox(width, height, depth, center);
-        upsertBRepGeometry(geometryId, brep, mesh, { geometryById, updates, itemsToAdd });
+        upsertBRepGeometry(
+          geometryId,
+          brep,
+          mesh,
+          { geometryById, updates, itemsToAdd },
+          {
+            primitive: {
+              kind: "box",
+              origin: center,
+              dimensions: { width, height, depth },
+            },
+          }
+        );
       } else {
         upsertMeshGeometry(
           geometryId,
@@ -1865,7 +1972,13 @@ const applySeedGeometryNodesToGeometry = (
       const mesh = translateMesh(baseMesh, center);
       if (representation === "brep") {
         const brep = createBRepSphere(radius, center);
-        upsertBRepGeometry(geometryId, brep, mesh, { geometryById, updates, itemsToAdd });
+        upsertBRepGeometry(
+          geometryId,
+          brep,
+          mesh,
+          { geometryById, updates, itemsToAdd },
+          { primitive: { kind: "sphere", origin: center, radius } }
+        );
       } else {
         upsertMeshGeometry(
           geometryId,
@@ -1926,7 +2039,23 @@ const applySeedGeometryNodesToGeometry = (
             : primitiveKind === "sphere"
               ? createBRepSphere(config.radius ?? 0.5, origin)
               : createBRepCylinder(config.radius ?? 0.5, config.height ?? 1, origin);
-        upsertBRepGeometry(geometryId, brep, translated, { geometryById, updates, itemsToAdd });
+        const primitiveInfo =
+          primitiveKind === "box"
+            ? {
+                kind: "box" as const,
+                origin,
+                dimensions: { width: config.size ?? 1, height: config.size ?? 1, depth: config.size ?? 1 },
+              }
+            : primitiveKind === "sphere"
+              ? { kind: "sphere" as const, origin, radius: config.radius ?? 0.5 }
+              : { kind: "cylinder" as const, origin, radius: config.radius ?? 0.5, height: config.height ?? 1 };
+        upsertBRepGeometry(
+          geometryId,
+          brep,
+          translated,
+          { geometryById, updates, itemsToAdd },
+          { primitive: primitiveInfo }
+        );
       } else {
         upsertMeshGeometry(
           geometryId,
@@ -2617,9 +2746,15 @@ const applyLoftNodesToGeometry = (
             samples: Number.isFinite(samplesValue) ? samplesValue : baseMetadata.samples,
           }
         : baseMetadata;
+    const { volume_m3, centroid } = computeMeshVolumeAndCentroid(mesh);
+    const density = resolveDensity(nextMetadata);
+    const mass_kg = density && volume_m3 > 0 ? density * volume_m3 : undefined;
     updates.set(geometryId, {
       mesh,
       area_m2: computeMeshArea(mesh.positions, mesh.indices),
+      volume_m3,
+      centroid: centroid ?? undefined,
+      mass_kg,
       sectionIds,
       degree,
       closed,
@@ -2675,9 +2810,15 @@ const applyExtrudeNodesToGeometry = (
       : existing.type === "extrude"
         ? existing.profileIds
         : [];
+    const { volume_m3, centroid } = computeMeshVolumeAndCentroid(mesh);
+    const density = resolveDensity(existing.metadata);
+    const mass_kg = density && volume_m3 > 0 ? density * volume_m3 : undefined;
     updates.set(geometryId, {
       mesh,
       area_m2: computeMeshArea(mesh.positions, mesh.indices),
+      volume_m3,
+      centroid: centroid ?? undefined,
+      mass_kg,
       distance,
       direction: direction ?? { x: 0, y: 0, z: 0 },
       capped,
@@ -2747,9 +2888,15 @@ const applyBooleanNodesToGeometry = (
         sourceGeometryIds,
       },
     };
+    const { volume_m3, centroid } = computeMeshVolumeAndCentroid(mesh);
+    const density = resolveDensity(nextMetadata);
+    const mass_kg = density && volume_m3 > 0 ? density * volume_m3 : undefined;
     updates.set(geometryId, {
       mesh,
       area_m2: computeMeshArea(mesh.positions, mesh.indices),
+      volume_m3,
+      centroid: centroid ?? undefined,
+      mass_kg,
       metadata: nextMetadata,
     });
     didApply = true;
@@ -2810,9 +2957,15 @@ const applyPipeSweepNodesToGeometry = (
         sourceGeometryIds,
       },
     };
+    const { volume_m3, centroid } = computeMeshVolumeAndCentroid(mesh);
+    const density = resolveDensity(nextMetadata);
+    const mass_kg = density && volume_m3 > 0 ? density * volume_m3 : undefined;
     updates.set(geometryId, {
       mesh,
       area_m2: computeMeshArea(mesh.positions, mesh.indices),
+      volume_m3,
+      centroid: centroid ?? undefined,
+      mass_kg,
       metadata: nextMetadata,
     });
     didApply = true;
@@ -2854,9 +3007,15 @@ const applyPipeMergeNodesToGeometry = (
     if (!geometryId || !mesh) return node;
     const existing = geometryById.get(geometryId);
     if (!existing || !("mesh" in existing)) return node;
+    const { volume_m3, centroid } = computeMeshVolumeAndCentroid(mesh);
+    const density = resolveDensity(existing.metadata);
+    const mass_kg = density && volume_m3 > 0 ? density * volume_m3 : undefined;
     updates.set(geometryId, {
       mesh,
       area_m2: computeMeshArea(mesh.positions, mesh.indices),
+      volume_m3,
+      centroid: centroid ?? undefined,
+      mass_kg,
     });
     didApply = true;
     return node;
@@ -3026,9 +3185,15 @@ const applyOffsetSurfaceNodesToGeometry = (
     }
 
     const mesh = offsetMeshAlongNormals(existing.mesh, delta);
+    const { volume_m3, centroid } = computeMeshVolumeAndCentroid(mesh);
+    const density = resolveDensity(existing.metadata);
+    const mass_kg = density && volume_m3 > 0 ? density * volume_m3 : undefined;
     const geometryUpdate: Partial<Geometry> = {
       mesh,
       area_m2: computeMeshArea(mesh.positions, mesh.indices),
+      volume_m3,
+      centroid: centroid ?? undefined,
+      mass_kg,
     };
     if (existing.type === "surface" && existing.mesh.positions.length >= 3) {
       const indices = resolveMeshIndices(existing.mesh);
@@ -3887,15 +4052,22 @@ const applyFilletEdgesNodesToGeometry = (
         ? [...baseUvs, ...new Array((positions.length / 3 - vertexCount) * 2).fill(0)]
         : new Array((positions.length / 3) * 2).fill(0);
 
+    const nextMesh = {
+      ...existing.mesh,
+      positions,
+      normals,
+      indices: newIndices,
+      uvs,
+    };
+    const { volume_m3, centroid } = computeMeshVolumeAndCentroid(nextMesh);
+    const density = resolveDensity(existing.metadata);
+    const mass_kg = density && volume_m3 > 0 ? density * volume_m3 : undefined;
     updates.set(geometryId, {
-      mesh: {
-        ...existing.mesh,
-        positions,
-        normals,
-        indices: newIndices,
-        uvs,
-      },
+      mesh: nextMesh,
       area_m2: computeMeshArea(positions, newIndices),
+      volume_m3,
+      centroid: centroid ?? undefined,
+      mass_kg,
     });
     didApply = true;
 
@@ -4227,9 +4399,15 @@ const applyThickenMeshNodesToGeometry = (
       thickness,
       sides
     );
+    const { volume_m3, centroid } = computeMeshVolumeAndCentroid(mesh);
+    const density = resolveDensity(existing.metadata);
+    const mass_kg = density && volume_m3 > 0 ? density * volume_m3 : undefined;
     updates.set(geometryId, {
       mesh,
       area_m2: computeMeshArea(mesh.positions, mesh.indices),
+      volume_m3,
+      centroid: centroid ?? undefined,
+      mass_kg,
     });
     didApply = true;
     return {
@@ -4655,14 +4833,21 @@ const applyPlasticwrapNodesToGeometry = (
       }
       const indices = resolveMeshIndices(source.mesh);
       const normals = computeVertexNormals(nextPositions, indices);
+      const nextMesh = {
+        ...source.mesh,
+        positions: nextPositions,
+        normals,
+        indices: source.mesh.indices.length > 0 ? source.mesh.indices : indices,
+      };
+      const { volume_m3, centroid } = computeMeshVolumeAndCentroid(nextMesh);
+      const density = resolveDensity(source.metadata);
+      const mass_kg = density && volume_m3 > 0 ? density * volume_m3 : undefined;
       updates.set(geometryId, {
-        mesh: {
-          ...source.mesh,
-          positions: nextPositions,
-          normals,
-          indices: source.mesh.indices.length > 0 ? source.mesh.indices : indices,
-        },
+        mesh: nextMesh,
         area_m2: computeMeshArea(nextPositions, indices),
+        volume_m3,
+        centroid: centroid ?? undefined,
+        mass_kg,
       });
       didApply = true;
       return {
@@ -4758,9 +4943,15 @@ const applySolidNodesToGeometry = (
     if (boundaryEdges.length === 0) {
       mesh = ensureDoubleSidedMesh(existing.mesh);
     }
+    const { volume_m3, centroid } = computeMeshVolumeAndCentroid(mesh);
+    const density = resolveDensity(existing.metadata);
+    const mass_kg = density && volume_m3 > 0 ? density * volume_m3 : undefined;
     updates.set(geometryId, {
       mesh,
       area_m2: computeMeshArea(mesh.positions, mesh.indices),
+      volume_m3,
+      centroid: centroid ?? undefined,
+      mass_kg,
     });
     didApply = true;
     return {
@@ -5102,14 +5293,21 @@ const applyFieldTransformationNodesToGeometry = (
         nextPositions[i * 3 + 2] = moved.z;
       }
       const nextNormals = computeVertexNormals(nextPositions, indices);
+      const nextMesh = {
+        ...existing.mesh,
+        positions: nextPositions,
+        normals: nextNormals,
+        indices: existing.mesh.indices.length > 0 ? existing.mesh.indices : indices,
+      };
+      const { volume_m3, centroid } = computeMeshVolumeAndCentroid(nextMesh);
+      const density = resolveDensity(existing.metadata);
+      const mass_kg = density && volume_m3 > 0 ? density * volume_m3 : undefined;
       updates.set(geometryId, {
-        mesh: {
-          ...existing.mesh,
-          positions: nextPositions,
-          normals: nextNormals,
-          indices: existing.mesh.indices.length > 0 ? existing.mesh.indices : indices,
-        },
+        mesh: nextMesh,
         area_m2: computeMeshArea(nextPositions, indices),
+        volume_m3,
+        centroid: centroid ?? undefined,
+        mass_kg,
       });
       didApply = true;
       return {
@@ -5306,6 +5504,12 @@ const applyGeometryArrayNodesToGeometry = (
       const brep = transformBRepData(source.brep, matrix);
       const mesh = source.mesh ? transformMesh(source.mesh, matrix) : undefined;
       const area = mesh ? computeMeshArea(mesh.positions, mesh.indices) : source.area_m2;
+      const volumeAndCentroid = mesh ? computeMeshVolumeAndCentroid(mesh) : null;
+      const density = resolveDensity(source.metadata);
+      const mass_kg =
+        density && volumeAndCentroid && volumeAndCentroid.volume_m3 > 0
+          ? density * volumeAndCentroid.volume_m3
+          : undefined;
       return {
         geometryId,
         items: [
@@ -5316,6 +5520,9 @@ const applyGeometryArrayNodesToGeometry = (
             mesh,
             layerId,
             area_m2: area,
+            volume_m3: volumeAndCentroid?.volume_m3,
+            centroid: volumeAndCentroid?.centroid ?? undefined,
+            mass_kg,
             thickness_m: source.thickness_m,
             metadata: source.metadata,
           },
@@ -5332,7 +5539,15 @@ const applyGeometryArrayNodesToGeometry = (
           origin: transformPoint(matrix, base.primitive.origin),
         };
       }
+      const volumeAndCentroid = computeMeshVolumeAndCentroid(mesh);
+      const density = resolveDensity(source.metadata);
       base.area_m2 = computeMeshArea(mesh.positions, mesh.indices);
+      base.volume_m3 = volumeAndCentroid.volume_m3;
+      base.centroid = volumeAndCentroid.centroid ?? undefined;
+      base.mass_kg =
+        density && volumeAndCentroid.volume_m3 > 0
+          ? density * volumeAndCentroid.volume_m3
+          : undefined;
       return { geometryId, items: [base] };
     }
     return null;
@@ -5552,9 +5767,15 @@ const applyIsosurfaceNodesToGeometry = (
     }
     const existing = geometryById.get(geometryId);
     if (!existing || !("mesh" in existing)) return node;
+    const { volume_m3, centroid } = computeMeshVolumeAndCentroid(mesh);
+    const density = resolveDensity(existing.metadata);
+    const mass_kg = density && volume_m3 > 0 ? density * volume_m3 : undefined;
     updates.set(geometryId, {
       mesh,
       area_m2: computeMeshArea(mesh.positions, mesh.indices),
+      volume_m3,
+      centroid: centroid ?? undefined,
+      mass_kg,
     });
     didApply = true;
     return node;
@@ -5606,10 +5827,19 @@ const applyMeshConvertNodesToGeometry = (
       const existing = geometryById.get(geometryId);
       if (!existing || existing.type !== "brep") return node;
       const mesh = outputs?.mesh as RenderMesh | undefined;
+      const volumeAndCentroid = mesh ? computeMeshVolumeAndCentroid(mesh) : null;
+      const density = resolveDensity(existing.metadata);
+      const mass_kg =
+        density && volumeAndCentroid && volumeAndCentroid.volume_m3 > 0
+          ? density * volumeAndCentroid.volume_m3
+          : undefined;
       updates.set(geometryId, {
         brep,
         mesh,
         area_m2: mesh ? computeMeshArea(mesh.positions, mesh.indices) : existing.area_m2,
+        volume_m3: volumeAndCentroid?.volume_m3,
+        centroid: volumeAndCentroid?.centroid ?? undefined,
+        mass_kg,
       });
       didApply = true;
       return node;
@@ -5619,9 +5849,15 @@ const applyMeshConvertNodesToGeometry = (
     if (!mesh) return node;
     const existing = geometryById.get(geometryId);
     if (!existing || !("mesh" in existing)) return node;
+    const { volume_m3, centroid } = computeMeshVolumeAndCentroid(mesh);
+    const density = resolveDensity(existing.metadata);
+    const mass_kg = density && volume_m3 > 0 ? density * volume_m3 : undefined;
     updates.set(geometryId, {
       mesh,
       area_m2: computeMeshArea(mesh.positions, mesh.indices),
+      volume_m3,
+      centroid: centroid ?? undefined,
+      mass_kg,
     });
     didApply = true;
     return node;
@@ -5663,10 +5899,18 @@ const applyPhysicsSolverNodesToGeometry = (
     if (!mesh || !Array.isArray(mesh.positions) || !Array.isArray(mesh.indices)) {
       return node;
     }
+    const stressField = Array.isArray(outputs?.stressField)
+      ? (outputs?.stressField as number[])
+      : [];
+    const stressColors =
+      stressField.length > 0 ? buildStressVertexColors(mesh, stressField) : null;
+    const meshWithColors = stressColors
+      ? { ...mesh, colors: stressColors }
+      : { ...mesh, colors: undefined };
     const existing = geometryById.get(geometryId);
     if (!existing || !("mesh" in existing)) return node;
     updates.set(geometryId, {
-      mesh,
+      mesh: meshWithColors,
       area_m2: computeMeshArea(mesh.positions, mesh.indices),
     });
     didApply = true;
@@ -6561,17 +6805,78 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     // Column 3: Physics Solver
     const solverId = `node-physicsSolver-${ts}`;
     const solverPos = { x: col2X + NODE_WIDTH + H_GAP, y: position.y + NODE_HEIGHT };
+    const solverGeometryId = createGeometryId("mesh");
 
     // Column 4: Geometry Viewer
     const viewerId = `node-geometryViewer-${ts}`;
     const viewerPos = { x: col2X + (NODE_WIDTH + H_GAP) * 2, y: position.y + NODE_HEIGHT };
+
+    const baseGeometryId =
+      get().selectedGeometryIds[0] ?? get().geometry[0]?.id ?? null;
+    const baseGeometry = baseGeometryId
+      ? get().geometry.find((item) => item.id === baseGeometryId)
+      : null;
+    const baseLabel =
+      baseGeometry &&
+      typeof (baseGeometry.metadata as { label?: unknown } | undefined)?.label === "string"
+        ? ((baseGeometry.metadata as { label?: unknown }).label as string)
+        : null;
+    const baseMesh = baseGeometry ? resolveGeometryMesh(baseGeometry) : null;
+    const axisIndex = (axis: "x" | "y" | "z") => (axis === "x" ? 0 : axis === "y" ? 1 : 2);
+    const findIndicesAtExtent = (
+      mesh: RenderMesh,
+      axis: "x" | "y" | "z",
+      mode: "min" | "max"
+    ) => {
+      const axisOffset = axisIndex(axis);
+      let min = Number.POSITIVE_INFINITY;
+      let max = Number.NEGATIVE_INFINITY;
+      for (let i = 0; i < mesh.positions.length; i += 3) {
+        const value = mesh.positions[i + axisOffset];
+        min = Math.min(min, value);
+        max = Math.max(max, value);
+      }
+      if (!Number.isFinite(min) || !Number.isFinite(max)) return [];
+      const target = mode === "min" ? min : max;
+      const epsilon = Math.max(1e-6, Math.abs(max - min) * 0.01);
+      const indices: number[] = [];
+      const count = Math.floor(mesh.positions.length / 3);
+      for (let i = 0; i < count; i += 1) {
+        const value = mesh.positions[i * 3 + axisOffset];
+        if (Math.abs(value - target) <= epsilon) indices.push(i);
+      }
+      return indices;
+    };
+    const anchorIndices = baseMesh ? findIndicesAtExtent(baseMesh, "y", "min") : [];
+    const loadIndices = baseMesh ? findIndicesAtExtent(baseMesh, "y", "max") : [];
+    const listColX = col2X - NODE_WIDTH - H_GAP * 0.5;
+    const anchorListId = `node-listCreate-anchor-${ts}`;
+    const anchorListPos = { x: listColX, y: anchorPos.y };
+    const loadListId = `node-listCreate-load-${ts}`;
+    const loadListPos = { x: listColX, y: loadPos.y };
 
     const newNodes = [
       {
         id: geoRefId,
         type: "geometryReference" as const,
         position: geoRefPos,
-        data: { label: "Canopy Mesh" },
+        data: {
+          label: baseLabel ?? "Canopy Mesh",
+          geometryId: baseGeometryId ?? undefined,
+          geometryType: baseGeometry?.type,
+          isLinked: Boolean(baseGeometryId),
+        },
+      },
+      {
+        id: anchorListId,
+        type: "listCreate" as const,
+        position: anchorListPos,
+        data: {
+          label: "Anchor Vertices",
+          parameters: {
+            itemsText: anchorIndices.join(", "),
+          },
+        },
       },
       {
         id: anchorId,
@@ -6585,6 +6890,17 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             fixY: true,
             fixZ: true,
             weight: 1.0,
+          },
+        },
+      },
+      {
+        id: loadListId,
+        type: "listCreate" as const,
+        position: loadListPos,
+        data: {
+          label: "Load Vertices",
+          parameters: {
+            itemsText: loadIndices.join(", "),
           },
         },
       },
@@ -6636,6 +6952,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         position: solverPos,
         data: {
           label: "Ἐπιλύτης Φυσικῆς",
+          geometryId: solverGeometryId,
+          geometryType: "mesh",
+          isLinked: true,
           parameters: {
             analysisType: "static",
             maxIterations: 1000,
@@ -6673,6 +6992,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         target: solverId,
         targetHandle: "goals",
       },
+      // Anchor Vertices → Anchor Goal (vertices)
+      {
+        id: `edge-${anchorListId}-${anchorId}-vertices`,
+        source: anchorListId,
+        sourceHandle: "list",
+        target: anchorId,
+        targetHandle: "vertices",
+      },
       // Load Goal → Physics Solver (goals)
       {
         id: `edge-${loadId}-${solverId}`,
@@ -6680,6 +7007,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         sourceHandle: "goal",
         target: solverId,
         targetHandle: "goals",
+      },
+      // Load Vertices → Load Goal (application points)
+      {
+        id: `edge-${loadListId}-${loadId}-applicationPoints`,
+        source: loadListId,
+        sourceHandle: "list",
+        target: loadId,
+        targetHandle: "applicationPoints",
       },
       // Volume Goal → Physics Solver (goals)
       {
@@ -6706,6 +7041,22 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         targetHandle: "geometry",
       },
     ];
+
+    const emptyMesh: RenderMesh = { positions: [], normals: [], uvs: [], indices: [] };
+    const solverGeometry: Geometry = {
+      id: solverGeometryId,
+      type: "mesh",
+      mesh: emptyMesh,
+      layerId: "layer-default",
+      sourceNodeId: solverId,
+      metadata: {
+        label: "Physics Solver Output",
+      },
+    };
+    get().addGeometryItems([solverGeometry], {
+      selectIds: get().selectedGeometryIds,
+      recordHistory: true,
+    });
 
     set((state) => ({
       workflowHistory: appendWorkflowHistory(state.workflowHistory, state.workflow),
@@ -7128,6 +7479,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
      * - Mass optimization to reduce embodied carbon
      *
      * Nodes created:
+     * - Density Slider → controls solver particle density
+     * - Toggle Switch → enable/disable solver execution
      * - Geometry Reference (Domain) → mullion profile from Roslyn
      * - Geometry Reference (Anchor Zones) → steel nucleation regions
      * - Geometry Reference (Thermal Core) → ceramic thermal break region
@@ -7145,6 +7498,16 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const NODE_HEIGHT = 120;
     const H_GAP = 60;
     const V_GAP = 40;
+
+    // Column 0: Solver controls
+    const densitySliderId = `node-slider-density-${ts}`;
+    const densitySliderPos = { x: position.x, y: position.y - (NODE_HEIGHT + V_GAP) };
+
+    const toggleSwitchId = `node-toggleSwitch-${ts}`;
+    const toggleSwitchPos = {
+      x: position.x + NODE_WIDTH + H_GAP,
+      y: position.y - (NODE_HEIGHT + V_GAP),
+    };
 
     // Column 1: Geometry Reference nodes (domain + seed regions)
     const domainId = `node-geometryReference-domain-${ts}`;
@@ -7180,12 +7543,39 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     // Column 3: Chemistry Solver
     const solverId = `node-chemistrySolver-${ts}`;
     const solverPos = { x: col2X + NODE_WIDTH + H_GAP, y: position.y + NODE_HEIGHT * 1.5 };
+    const solverGeometryId = createGeometryId("mesh");
 
     // Column 4: Geometry Viewer
     const viewerId = `node-geometryViewer-${ts}`;
     const viewerPos = { x: col2X + (NODE_WIDTH + H_GAP) * 2, y: position.y + NODE_HEIGHT * 1.5 };
 
     const newNodes = [
+      // Solver controls
+      {
+        id: densitySliderId,
+        type: "slider" as const,
+        position: densitySliderPos,
+        data: {
+          label: "Particle Density",
+          parameters: {
+            min: 0.1,
+            max: 1,
+            step: 0.05,
+            value: 0.6,
+          },
+        },
+      },
+      {
+        id: toggleSwitchId,
+        type: "toggleSwitch" as const,
+        position: toggleSwitchPos,
+        data: {
+          label: "Solver Toggle",
+          parameters: {
+            value: true,
+          },
+        },
+      },
       // Domain geometry reference
       {
         id: domainId,
@@ -7304,8 +7694,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         position: solverPos,
         data: {
           label: "Ἐπιλύτης Χημείας",
+          geometryId: solverGeometryId,
+          geometryType: "mesh",
+          isLinked: true,
           parameters: {
             particleCount: 2000, // Interactive mode
+            particleDensity: 0.6,
             iterations: 60,
             fieldResolution: 32,
             isoValue: 0.35,
@@ -7314,6 +7708,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             historyLimit: 100,
             seed: 1,
             materialOrder: "Steel, Ceramic, Glass",
+            materialsText: JSON.stringify([
+              { material: { name: "Steel", color: [0.75, 0.75, 0.78] } },
+              { material: { name: "Ceramic", color: [0.85, 0.2, 0.2] } },
+              { material: { name: "Glass", color: [0.2, 0.45, 0.9] } },
+            ]),
             seedMaterial: "Steel",
             seedStrength: 0.85,
             seedRadius: 0.25,
@@ -7331,6 +7730,22 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
     // Wire connections
     const newEdges = [
+      // Density Slider → Chemistry Solver (particle density)
+      {
+        id: `edge-${densitySliderId}-${solverId}-density`,
+        source: densitySliderId,
+        sourceHandle: "value",
+        target: solverId,
+        targetHandle: "particleDensity",
+      },
+      // Toggle Switch → Chemistry Solver (enabled)
+      {
+        id: `edge-${toggleSwitchId}-${solverId}-enabled`,
+        source: toggleSwitchId,
+        sourceHandle: "value",
+        target: solverId,
+        targetHandle: "enabled",
+      },
       // Domain Geometry → Chemistry Solver (domain input)
       {
         id: `edge-${domainId}-${solverId}-domain`,
@@ -7362,6 +7777,30 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         sourceHandle: "geometry",
         target: solverId,
         targetHandle: "seeds",
+      },
+      // Anchor Zones → Chemistry Solver (materials input order: Steel, Ceramic, Glass)
+      {
+        id: `edge-${anchorZonesId}-${solverId}-materials`,
+        source: anchorZonesId,
+        sourceHandle: "geometry",
+        target: solverId,
+        targetHandle: "materials",
+      },
+      // Thermal Core → Chemistry Solver (materials input)
+      {
+        id: `edge-${thermalCoreId}-${solverId}-materials`,
+        source: thermalCoreId,
+        sourceHandle: "geometry",
+        target: solverId,
+        targetHandle: "materials",
+      },
+      // Vision Strip → Chemistry Solver (materials input)
+      {
+        id: `edge-${visionStripId}-${solverId}-materials`,
+        source: visionStripId,
+        sourceHandle: "geometry",
+        target: solverId,
+        targetHandle: "materials",
       },
       // Anchor Zones → Stiffness Goal (region input)
       {
@@ -7436,6 +7875,22 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         targetHandle: "geometry",
       },
     ];
+
+    const emptyMesh: RenderMesh = { positions: [], normals: [], uvs: [], indices: [] };
+    const solverGeometry: Geometry = {
+      id: solverGeometryId,
+      type: "mesh",
+      mesh: emptyMesh,
+      layerId: "layer-default",
+      sourceNodeId: solverId,
+      metadata: {
+        label: "Chemistry Solver Output",
+      },
+    };
+    get().addGeometryItems([solverGeometry], {
+      selectIds: get().selectedGeometryIds,
+      recordHistory: true,
+    });
 
     set((state) => ({
       workflowHistory: appendWorkflowHistory(state.workflowHistory, state.workflow),
@@ -7977,10 +8432,22 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const translatedMesh = options?.origin
       ? translateMesh(mesh, options.origin)
       : mesh;
-    const area = options?.area_m2 ?? computeMeshArea(translatedMesh.positions, translatedMesh.indices);
     const primitive =
       options?.primitive ??
       (options?.metadata?.primitive as MeshPrimitiveGeometry["primitive"] | undefined);
+    const physical =
+      primitive != null
+        ? computePrimitivePhysicalProperties(translatedMesh, primitive, options?.metadata)
+        : (() => {
+            const { volume_m3, centroid } = computeMeshVolumeAndCentroid(translatedMesh);
+            return {
+              area_m2: options?.area_m2 ?? computeMeshArea(translatedMesh.positions, translatedMesh.indices),
+              volume_m3,
+              centroid,
+              mass_kg: undefined as number | undefined,
+              inertiaTensor_kg_m2: undefined as MeshPrimitiveGeometry["inertiaTensor_kg_m2"],
+            };
+          })();
     set((state) => {
       const layerId = withDefaultLayerId(options?.layerId, state);
       const nextGeometry: Geometry = {
@@ -7988,7 +8455,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         type: "mesh",
         mesh: translatedMesh,
         layerId,
-        area_m2: area,
+        area_m2: physical.area_m2,
+        volume_m3: physical.volume_m3,
+        centroid: physical.centroid ?? undefined,
+        mass_kg: physical.mass_kg,
+        inertiaTensor_kg_m2: physical.inertiaTensor_kg_m2,
         thickness_m: options?.thickness_m,
         sourceNodeId: options?.sourceNodeId,
         metadata: options?.metadata,
@@ -8052,6 +8523,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }
     const id = options?.geometryId ?? createGeometryId("loft");
     const area = computeMeshArea(mesh.positions, mesh.indices);
+    const { volume_m3, centroid } = computeMeshVolumeAndCentroid(mesh);
+    const density = resolveDensity(options?.metadata);
+    const mass_kg =
+      density && volume_m3 > 0 ? density * volume_m3 : undefined;
     set((state) => {
       const existing = state.geometry.find((item) => item.id === id);
       const layerId =
@@ -8065,6 +8540,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         closed: options.closed,
         layerId,
         area_m2: area,
+        volume_m3,
+        centroid: centroid ?? undefined,
+        mass_kg,
         sourceNodeId: options?.sourceNodeId ?? existing?.sourceNodeId,
         metadata: options?.metadata ?? existing?.metadata,
       };
@@ -8103,6 +8581,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }
     const id = options?.geometryId ?? createGeometryId("extrude");
     const area = computeMeshArea(mesh.positions, mesh.indices);
+    const { volume_m3, centroid } = computeMeshVolumeAndCentroid(mesh);
+    const density = resolveDensity(options?.metadata);
+    const mass_kg =
+      density && volume_m3 > 0 ? density * volume_m3 : undefined;
     set((state) => {
       const existing = state.geometry.find((item) => item.id === id);
       const layerId =
@@ -8117,6 +8599,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         capped: options.capped,
         layerId,
         area_m2: area,
+        volume_m3,
+        centroid: centroid ?? undefined,
+        mass_kg,
         sourceNodeId: options?.sourceNodeId ?? existing?.sourceNodeId,
         metadata: options?.metadata ?? existing?.metadata,
       };
@@ -9070,6 +9555,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       colorPicker: "Color Picker",
       customMaterial: "Custom Material",
       geometryViewer: "Geometry Viewer",
+      customViewer: "Custom Viewer",
       customPreview: "Custom Preview",
       previewFilter: "Filter",
       meshConvert: "Mesh Convert",

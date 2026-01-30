@@ -287,6 +287,7 @@ const cloneMesh = (mesh: RenderMesh): RenderMesh => ({
   normals: mesh.normals.slice(),
   uvs: mesh.uvs.slice(),
   indices: mesh.indices.slice(),
+  colors: mesh.colors ? mesh.colors.slice() : undefined,
 });
 
 const translateMesh = (mesh: RenderMesh, offset: Vec3): RenderMesh => {
@@ -340,15 +341,28 @@ const mergeMeshes = (meshes: RenderMesh[]): RenderMesh => {
   const normals: number[] = [];
   const uvs: number[] = [];
   const indices: number[] = [];
+  const includeColors = meshes.every(
+    (mesh) => Boolean(mesh.colors) && mesh.colors.length === mesh.positions.length
+  );
+  const colors: number[] = [];
   let offset = 0;
   meshes.forEach((mesh) => {
     positions.push(...mesh.positions);
     normals.push(...mesh.normals);
     uvs.push(...mesh.uvs);
+    if (includeColors) {
+      colors.push(...(mesh.colors ?? new Array(mesh.positions.length).fill(0)));
+    }
     indices.push(...mesh.indices.map((index) => index + offset));
     offset += mesh.positions.length / 3;
   });
-  return { positions, normals, uvs, indices };
+  return {
+    positions,
+    normals,
+    uvs,
+    indices,
+    colors: includeColors ? colors : undefined,
+  };
 };
 
 const generateParametricMesh = (

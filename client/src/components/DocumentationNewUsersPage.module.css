@@ -37,6 +37,13 @@
   color: var(--color-text);
 }
 
+.actionRow {
+  margin-top: var(--space-3);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
 .kicker {
   text-transform: uppercase;
   letter-spacing: var(--letter-spacing-caps);
@@ -136,6 +143,14 @@
   letter-spacing: var(--letter-spacing-tight);
 }
 
+.sectionIntro {
+  margin: 0 0 var(--space-4) 0;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--color-muted);
+  max-width: 720px;
+}
+
 .conceptGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -157,6 +172,104 @@
 }
 
 .conceptCard p {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--color-muted);
+}
+
+.cardActions {
+  margin-top: var(--space-3);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.storySection {
+  padding: var(--space-5);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+  display: grid;
+  gap: var(--space-4);
+}
+
+.storySection h2 {
+  margin: 0;
+  font-size: var(--text-xl);
+  letter-spacing: var(--letter-spacing-tight);
+}
+
+.storyStack {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 760px;
+}
+
+.storyParagraph {
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: 1.7;
+  color: var(--color-muted);
+}
+
+.storyColumns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-3);
+}
+
+.storyCard {
+  padding: var(--space-4);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.storyCard h3 {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+
+.storyCard p {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--color-muted);
+}
+
+.storyList {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+  line-height: 1.6;
+}
+
+.callout {
+  padding: var(--space-4);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.callout h3 {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+
+.callout p {
   margin: 0;
   font-size: var(--text-sm);
   line-height: 1.6;

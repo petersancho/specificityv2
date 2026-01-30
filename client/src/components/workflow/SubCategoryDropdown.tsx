@@ -33,9 +33,9 @@ export type SubCategoryDropdownProps = {
 
 const STICKER_SIZE = 384;
 const GOAL_TINTS: Record<string, string> = {
-  "Physics Goals": "#0000FF",
-  "Biological Goals": "#00FF00",
-  "Chemistry Goals": "#00FFFF",
+  "Physics Goals": "#000000",
+  "Biological Goals": "#00B7EB",
+  "Chemistry Goals": "#F6D21A",
 };
 
 const buildTooltipContent = (node: SolverInputNode) => {

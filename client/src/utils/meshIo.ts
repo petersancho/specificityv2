@@ -42,6 +42,10 @@ export const mergeRenderMeshes = (meshes: RenderMesh[]): RenderMesh => {
   const normals: number[] = [];
   const uvs: number[] = [];
   const indices: number[] = [];
+  const includeColors = meshes.every(
+    (mesh) => Boolean(mesh.colors) && mesh.colors.length === (mesh.positions?.length ?? 0)
+  );
+  const colors: number[] = [];
   let vertexOffset = 0;
 
   meshes.forEach((mesh) => {
@@ -60,6 +64,9 @@ export const mergeRenderMeshes = (meshes: RenderMesh[]): RenderMesh => {
       uvs.push(...meshUvs);
     } else if (meshPositions.length > 0) {
       uvs.push(...new Array((meshPositions.length / 3) * 2).fill(0));
+    }
+    if (includeColors) {
+      colors.push(...(mesh.colors ?? new Array(meshPositions.length).fill(0)));
     }
 
     const vertexCount = Math.floor(meshPositions.length / 3);
@@ -82,6 +89,7 @@ export const mergeRenderMeshes = (meshes: RenderMesh[]): RenderMesh => {
     normals: resolvedNormals,
     uvs,
     indices: resolvedIndices,
+    colors: includeColors ? colors : undefined,
   };
 };
 

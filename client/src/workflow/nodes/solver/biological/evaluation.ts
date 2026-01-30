@@ -1,7 +1,9 @@
 import { useProjectStore } from "../../../../store/useProjectStore";
 import { resolveNodeParameters, resolveNodePorts } from "../../../nodeRegistry";
 import { toList, toNumber } from "../utils";
+import type { GoalSpecification } from "../types";
 import type { FitnessMetric, GeneDefinition } from "./types";
+import type { Geometry, RenderMesh } from "../../../../types";
 import { getEvaluationCache } from "./solverState";
 
 export type ConnectionInfo = {
@@ -10,6 +12,7 @@ export type ConnectionInfo = {
   performsFitnessId: string | null;
   genes: GeneDefinition[];
   metrics: FitnessMetric[];
+  goals: GoalSpecification[];
   geometrySources: Array<{ nodeId: string; portKey: string }>;
   metricSources: Array<{ nodeId: string; portKey: string; metricId: string }>;
 };
@@ -31,6 +34,28 @@ const coerceMetricValue = (value: unknown) => {
   }
   return toNumber(value, 0);
 };
+
+const safeClone = <T,>(value: T): T => {
+  if (typeof structuredClone === "function") {
+    return structuredClone(value);
+  }
+  return JSON.parse(JSON.stringify(value)) as T;
+};
+
+const cloneMeshData = (mesh: RenderMesh | undefined) =>
+  mesh
+    ? {
+        positions: [...mesh.positions],
+        normals: [...mesh.normals],
+        uvs: [...mesh.uvs],
+        indices: [...mesh.indices],
+      }
+    : null;
+
+const cloneGeometryItem = (item: Geometry): Geometry => safeClone(item);
+
+const createSnapshotId = (prefix: string) =>
+  `solver-${prefix}-${Math.random().toString(36).slice(2, 9)}-${Date.now().toString(36)}`;
 
 const resolveDefaultInputKey = (nodeId: string) => {
   const node = useProjectStore.getState().workflow.nodes.find((entry) => entry.id === nodeId);
@@ -75,6 +100,9 @@ const resolveNodeLabel = (nodeId: string, fallback: string) => {
   return node?.data?.label ?? fallback;
 };
 
+const isGoalSpec = (value: unknown): value is GoalSpecification =>
+  Boolean(value) && typeof value === "object" && "goalType" in (value as object);
+
 export const resolveSolverConnections = (solverNodeId: string): ConnectionInfo | null => {
   const genomeEdge = resolveInputSource(solverNodeId, "genome");
   const geometryEdge = resolveInputSource(solverNodeId, "geometry");
@@ -113,6 +141,13 @@ export const resolveSolverConnections = (solverNodeId: string): ConnectionInfo |
     portKey: edge.sourceHandle ?? resolveDefaultOutputKey(edge.source) ?? "geometry",
   }));
 
+  const domainSources = resolveIncomingEdges(solverNodeId, "domain").map((edge) => ({
+    nodeId: edge.source,
+    portKey: edge.sourceHandle ?? resolveDefaultOutputKey(edge.source) ?? "geometry",
+  }));
+
+  const combinedGeometrySources = [...geometrySources, ...domainSources];
+
   const metricSources = performsFitnessId
     ? resolveIncomingEdges(performsFitnessId, "metrics").map((edge, index) => ({
         nodeId: edge.source,
@@ -133,13 +168,27 @@ export const resolveSolverConnections = (solverNodeId: string): ConnectionInfo |
     },
   }));
 
+  const goalSources = resolveIncomingEdges(solverNodeId, "goals").map((edge) => ({
+    nodeId: edge.source,
+    portKey: edge.sourceHandle ?? resolveDefaultOutputKey(edge.source) ?? "goal",
+  }));
+
+  const goals = goalSources
+    .map((source) => {
+      const node = useProjectStore.getState().workflow.nodes.find((entry) => entry.id === source.nodeId);
+      return node?.data?.outputs?.[source.portKey];
+    })
+    .flatMap((value) => (Array.isArray(value) ? value : value ? [value] : []))
+    .filter(isGoalSpec) as unknown as GoalSpecification[];
+
   return {
     genomeCollectorId,
     geometryPhenotypeId,
     performsFitnessId,
     genes,
     metrics,
-    geometrySources,
+    goals,
+    geometrySources: combinedGeometrySources,
     metricSources: metricSources.map((source) => ({
       nodeId: source.nodeId,
       portKey: source.portKey,
@@ -238,7 +287,7 @@ export const evaluateIndividuals = async (
       metrics[metric.metricId] = coerceMetricValue(value);
     });
 
-    // Capture geometry IDs for thumbnail generation
+    // Capture geometry IDs for solver snapshots
     const geometryIds: string[] = [];
     connections.geometrySources.forEach((source) => {
       const node = useProjectStore
@@ -254,10 +303,75 @@ export const evaluateIndividuals = async (
       }
     });
 
+    const geometryItems: Geometry[] = [];
+    const snapshotIds: string[] = [];
+    if (geometryIds.length > 0) {
+      const geometryById = new Map(
+        useProjectStore.getState().geometry.map((item) => [item.id, item])
+      );
+      const processed = new Set<string>();
+      const addSnapshotItem = (item: Geometry) => {
+        if (processed.has(item.id)) return;
+        processed.add(item.id);
+        if ("mesh" in item && item.mesh) {
+          const mesh = cloneMeshData(item.mesh);
+          if (!mesh) return;
+          const snapshotId = createSnapshotId("mesh");
+          geometryItems.push({
+            id: snapshotId,
+            type: "mesh",
+            mesh,
+            layerId: item.layerId,
+            area_m2: item.area_m2,
+            thickness_m: item.thickness_m,
+            sourceNodeId: item.sourceNodeId,
+            metadata: item.metadata,
+            primitive: item.type === "mesh" ? item.primitive : undefined,
+          });
+          snapshotIds.push(snapshotId);
+          return;
+        }
+        if (item.type === "polyline") {
+          const vertexIds = item.vertexIds.map((vertexId) => {
+            const vertex = geometryById.get(vertexId);
+            if (!vertex || vertex.type !== "vertex") {
+              return createSnapshotId("vertex");
+            }
+            const vertexIdSnapshot = createSnapshotId("vertex");
+            geometryItems.push({
+              ...cloneGeometryItem(vertex),
+              id: vertexIdSnapshot,
+            });
+            return vertexIdSnapshot;
+          });
+          const polylineId = createSnapshotId("polyline");
+          geometryItems.push({
+            ...cloneGeometryItem(item),
+            id: polylineId,
+            vertexIds,
+          });
+          snapshotIds.push(polylineId);
+          return;
+        }
+        const snapshotId = createSnapshotId(item.type);
+        geometryItems.push({
+          ...cloneGeometryItem(item),
+          id: snapshotId,
+        });
+        snapshotIds.push(snapshotId);
+      };
+      geometryIds.forEach((id) => {
+        const item = geometryById.get(id);
+        if (!item) return;
+        addSnapshotItem(item);
+      });
+    }
+
     cache.set(individual.genomeString, {
       genomeString: individual.genomeString,
       metrics,
-      geometryIds,
+      geometryIds: snapshotIds.length > 0 ? snapshotIds : geometryIds,
+      geometry: geometryItems,
     });
     results.push({ genomeString: individual.genomeString, metrics });
 
@@ -277,6 +391,50 @@ export const evaluateIndividuals = async (
 
   restoreOriginal();
   return results;
+};
+
+export const deriveGoalTuning = (
+  goals?: GoalSpecification[] | null
+): { mutationRateScale: number; populationScale: number } => {
+  if (!Array.isArray(goals) || goals.length === 0) {
+    return { mutationRateScale: 1, populationScale: 1 };
+  }
+
+  let mutationRateScale = 1;
+  let populationScale = 1;
+
+  goals.forEach((goal) => {
+    const weight = clamp(toNumber(goal.weight, 0), 0, 1);
+    const params = goal.parameters ?? {};
+    switch (goal.goalType) {
+      case "growth": {
+        const growthRate = clamp(toNumber(params.growthRate, 0.6), 0, 3);
+        const carryingCapacity = clamp(toNumber(params.carryingCapacity, 1), 0.1, 5);
+        mutationRateScale *= 1 + weight * (growthRate - 0.5) * 0.4;
+        populationScale *= 1 + weight * (carryingCapacity - 1) * 0.15;
+        break;
+      }
+      case "morphogenesis": {
+        const branchingFactor = clamp(toNumber(params.branchingFactor, 0.6), 0, 2);
+        mutationRateScale *= 1 + weight * branchingFactor * 0.5;
+        break;
+      }
+      case "homeostasis": {
+        const damping = clamp(toNumber(params.damping, 0.5), 0, 1);
+        const stressLimit = clamp(toNumber(params.stressLimit, 1), 0.1, 10);
+        mutationRateScale *= 1 - weight * damping * 0.6;
+        populationScale *= 1 + weight * (stressLimit - 1) * 0.05;
+        break;
+      }
+      default:
+        break;
+    }
+  });
+
+  return {
+    mutationRateScale: clamp(mutationRateScale, 0.35, 2),
+    populationScale: clamp(populationScale, 0.6, 2),
+  };
 };
 
 export const applyGenomeToSliders = (genes: GeneDefinition[], genome: number[]) => {

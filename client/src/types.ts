@@ -56,6 +56,16 @@ export type RenderMesh = {
   normals: number[];
   uvs: number[];
   indices: number[];
+  colors?: number[];
+};
+
+export type InertiaTensor = {
+  xx: number;
+  yy: number;
+  zz: number;
+  xy: number;
+  xz: number;
+  yz: number;
 };
 
 export type NurbsCurveGeometry = {
@@ -185,6 +195,10 @@ export type LoftGeometry = {
   closed: boolean;
   layerId: string;
   area_m2?: number;
+  volume_m3?: number;
+  centroid?: Vec3;
+  mass_kg?: number;
+  inertiaTensor_kg_m2?: InertiaTensor;
   thickness_m?: number;
   sourceNodeId?: string;
   metadata?: Record<string, unknown>;
@@ -200,6 +214,10 @@ export type ExtrudeGeometry = {
   capped: boolean;
   layerId: string;
   area_m2?: number;
+  volume_m3?: number;
+  centroid?: Vec3;
+  mass_kg?: number;
+  inertiaTensor_kg_m2?: InertiaTensor;
   thickness_m?: number;
   sourceNodeId?: string;
   metadata?: Record<string, unknown>;
@@ -263,6 +281,10 @@ export type MeshGeometry = {
   layerId: string;
   primitive?: MeshPrimitiveInfo;
   area_m2?: number;
+  volume_m3?: number;
+  centroid?: Vec3;
+  mass_kg?: number;
+  inertiaTensor_kg_m2?: InertiaTensor;
   thickness_m?: number;
   sourceNodeId?: string;
   metadata?: Record<string, unknown>;
@@ -277,6 +299,10 @@ export type BRepGeometry = {
   mesh?: RenderMesh;
   layerId: string;
   area_m2?: number;
+  volume_m3?: number;
+  centroid?: Vec3;
+  mass_kg?: number;
+  inertiaTensor_kg_m2?: InertiaTensor;
   thickness_m?: number;
   sourceNodeId?: string;
   metadata?: Record<string, unknown>;

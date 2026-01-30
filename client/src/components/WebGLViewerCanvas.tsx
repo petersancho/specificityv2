@@ -113,6 +113,7 @@ const COMPONENT_POINT_PICK_RADIUS_PX = 14;
 const POINT_HANDLE_RADIUS_PX = 6;
 const POINT_HANDLE_OUTLINE_PX = 1.5;
 const POINT_HANDLE_PICK_RADIUS_PX = 11;
+const MAX_CONTROL_POINT_VERTICES = 2000;
 const POINT_DRAG_THRESHOLD = 4;
 const PREVIEW_LINE_ID = "__preview-line";
 const PREVIEW_MESH_ID = "__preview-mesh";
@@ -145,6 +146,7 @@ const SILHOUETTE_BASE_COLOR: [number, number, number] = [0, 0, 0];
 const SILHOUETTE_SELECTED_COLOR: [number, number, number] = [0.2, 0.2, 0.2];
 const POINT_FILL_COLOR: [number, number, number] = [1, 0.82, 0.16];
 const POINT_OUTLINE_COLOR: [number, number, number] = [0, 0, 0];
+const SELECTION_HIGHLIGHT_INTENSITY = 0.5;
 
 const SNAP_COLORS: Record<string, string> = {
   grid: "#9a9a96",
@@ -6382,6 +6384,40 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         }
 
         if (!commandId) {
+          const controlPointPickEnabled =
+            viewSettingsRef.current.showControlPoints === true &&
+            selectionModeRef.current === "object" &&
+            !event.shiftKey;
+          if (controlPointPickEnabled) {
+            const componentPick = pickComponent(context, "vertex");
+            if (componentPick?.kind === "component" && componentPick.selection.kind === "vertex") {
+              const selectionPoint =
+                componentPick.point ?? resolveVertexSelectionPosition(componentPick.selection);
+              setSelectionState([componentPick.selection.geometryId], [componentPick.selection]);
+              if (selectionPoint) {
+                const started = startTransformSession(
+                  "move",
+                  { kind: "screen" },
+                  context,
+                  { pivot: selectionPoint }
+                );
+                if (started) {
+                  pointDragRef.current = {
+                    pointerId: event.pointerId,
+                    startPointer: { x: context.pointer.x, y: context.pointer.y },
+                    moved: false,
+                  };
+                  canvas.setPointerCapture(event.pointerId);
+                  event.preventDefault();
+                  event.stopPropagation();
+                  return;
+                }
+              }
+              event.preventDefault();
+              event.stopPropagation();
+              return;
+            }
+          }
           if (componentMode && componentKind === "vertex") {
             const componentPick = pickComponent(context, "vertex");
             if (componentPick?.kind === "component" && componentPick.selection.kind === "vertex") {
@@ -6662,9 +6698,15 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         gumballHoverRef.current = nextHandleId;
         extrudeHoverRef.current = nextExtrude;
 
-        const hoverComponentMode = selectionModeRef.current !== "object" || event.shiftKey;
+        const controlPointHover =
+          viewSettingsRef.current.showControlPoints === true &&
+          selectionModeRef.current === "object" &&
+          !event.shiftKey;
+        const hoverComponentMode =
+          selectionModeRef.current !== "object" || event.shiftKey || controlPointHover;
         if (hoverComponentMode) {
-          const hoverPickComponent = pickComponent(context, resolveComponentMode());
+          const hoverMode = controlPointHover ? "vertex" : resolveComponentMode();
+          const hoverPickComponent = pickComponent(context, hoverMode);
           setHoverSelection(
             hoverPickComponent?.kind === "component"
               ? hoverPickComponent.selection
@@ -7074,8 +7116,8 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
       const pointOutline = POINT_HANDLE_OUTLINE_PX * baseDpr;
       const edgeOpacityScale = lerp(1, 0.8, edgeFade);
       const edgeInternalScale = lerp(1, 0.7, edgeFade);
-      const edgeAAStrength = lerp(0.22, 1.0, smoothSolidity);
-      const edgePixelSnap = lerp(0.65, 0.0, smoothSolidity);
+      const edgeAAStrength = lerp(0.2, 0.7, smoothSolidity);
+      const edgePixelSnap = lerp(0.7, 0.2, smoothSolidity);
 
       const gridMinorBuffer = gridMinorBufferRef.current;
       const gridMajorBuffer = gridMajorBufferRef.current;
@@ -7152,7 +7194,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
             ambientStrength: 1,
             cameraPosition: cameraPayload.position,
             selectionHighlight: VIEW_STYLE.selection,
-            isSelected: isSelected ? 0.6 : 0,
+            isSelected: isSelected ? SELECTION_HIGHLIGHT_INTENSITY : 0,
             sheenIntensity: 0,
             opacity: fillOpacity,
           });
@@ -7187,7 +7229,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
             customOverrides?.ambientStrength ?? VIEW_STYLE.ambientStrength,
           cameraPosition: cameraPayload.position,
           selectionHighlight: VIEW_STYLE.selection,
-          isSelected: isSelected ? 0.6 : 0,
+          isSelected: isSelected ? SELECTION_HIGHLIGHT_INTENSITY : 0,
           sheenIntensity:
             customOverrides?.sheenIntensity ?? viewSettingsRef.current.sheen ?? 0.08,
           opacity,
@@ -7499,11 +7541,50 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         renderPointHandle(renderable, isSelected);
       });
 
-      // Render NURBS control points when showControlPoints is enabled or in vertex selection mode
+      // Render control points when enabled or in vertex selection mode
       const showControlPoints =
         viewSettingsRef.current.showControlPoints === true ||
         selectionModeRef.current === "vertex";
       if (showControlPoints) {
+        const renderControlPointBuffer = (
+          bufferId: string,
+          positions: Float32Array,
+          isSelected: boolean,
+          radiusScale = 0.85,
+          opacity = 0.9
+        ) => {
+          const count = Math.floor(positions.length / 3);
+          if (count <= 0) return;
+          const fillColor = adjustForSelection(
+            POINT_FILL_COLOR,
+            isSelected,
+            hasSelection
+          );
+          let tempBuffer = renderer.getBuffer(bufferId);
+          if (!tempBuffer) {
+            tempBuffer = renderer.createGeometryBuffer(bufferId);
+          }
+          tempBuffer.setData({
+            positions,
+            normals: new Float32Array(count * 3),
+            uvs: new Float32Array(count * 2),
+            indices: new Uint16Array(0),
+          });
+          renderer.renderPoints(
+            tempBuffer,
+            cameraPayload,
+            {
+              pointRadius: pointRadius * radiusScale,
+              outlineWidth: pointOutline,
+              fillColor,
+              outlineColor: POINT_OUTLINE_COLOR,
+              depthBias: pointDepthBias,
+              opacity,
+            },
+            { depthFunc: "lequal", depthMask: false, blend: true }
+          );
+        };
+
         const currentGeometry = geometryRef.current;
         const nurbsItems = currentGeometry.filter(
           (item) =>
@@ -7512,11 +7593,6 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         );
         nurbsItems.forEach((item) => {
           const isSelected = selection.has(item.id);
-          const fillColor = adjustForSelection(
-            POINT_FILL_COLOR,
-            isSelected,
-            hasSelection
-          );
           let controlPoints: Vec3[] = [];
           if (item.type === "nurbsCurve") {
             controlPoints = item.nurbs.controlPoints;
@@ -7527,37 +7603,33 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
           }
           if (controlPoints.length === 0) return;
 
-          // Create a temporary buffer for control points
           const positions = new Float32Array(controlPoints.length * 3);
           controlPoints.forEach((cp, index) => {
             positions[index * 3] = cp.x;
             positions[index * 3 + 1] = cp.y;
             positions[index * 3 + 2] = cp.z;
           });
-          const bufferId = `__nurbs_cp_${item.id}`;
-          let tempBuffer = renderer.getBuffer(bufferId);
-          if (!tempBuffer) {
-            tempBuffer = renderer.createGeometryBuffer(bufferId);
-          }
-          tempBuffer.setData({
-            positions,
-            normals: new Float32Array(controlPoints.length * 3),
-            uvs: new Float32Array(controlPoints.length * 2),
-            indices: new Uint16Array(0),
-          });
-          renderer.renderPoints(
-            tempBuffer,
-            cameraPayload,
-            {
-              pointRadius: pointRadius * 0.85,
-              outlineWidth: pointOutline,
-              fillColor,
-              outlineColor: POINT_OUTLINE_COLOR,
-              depthBias: pointDepthBias,
-              opacity: 0.9,
-            },
-            { depthFunc: "lequal", depthMask: false, blend: true }
-          );
+          renderControlPointBuffer(`__nurbs_cp_${item.id}`, positions, isSelected, 0.85, 0.95);
+        });
+
+        const meshItems = currentGeometry.filter((item) => {
+          if (hidden.has(item.id)) return false;
+          if (item.type === "nurbsCurve" || item.type === "nurbsSurface") return false;
+          if ("nurbs" in item && item.nurbs) return false;
+          return "mesh" in item && Boolean(item.mesh);
+        });
+        meshItems.forEach((item) => {
+          const mesh = "mesh" in item ? item.mesh : null;
+          if (!mesh) return;
+          const positionsArray = mesh.positions;
+          const vertexCount = Math.floor(positionsArray.length / 3);
+          if (vertexCount <= 0 || vertexCount > MAX_CONTROL_POINT_VERTICES) return;
+          const positions =
+            positionsArray instanceof Float32Array
+              ? positionsArray
+              : new Float32Array(positionsArray);
+          const isSelected = selection.has(item.id);
+          renderControlPointBuffer(`__mesh_cp_${item.id}`, positions, isSelected, 0.7, 0.85);
         });
       }
 
@@ -8183,7 +8255,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         style={{
           position: "absolute",
           left: 12,
-          bottom: 12,
+          bottom: 60,
           display: "flex",
           gap: 4,
           padding: 4,
@@ -8212,6 +8284,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
             fontSize: 11,
             fontWeight: 600,
             color: viewSettings.showEdges !== false ? "#2b2620" : "#8a847a",
+            pointerEvents: "auto",
           }}
         >
           E
@@ -8221,9 +8294,6 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
           onClick={() => {
             const next = !viewSettings.showControlPoints;
             setViewSettings({ showControlPoints: next });
-            if (next && selectionMode !== "vertex") {
-              setSelectionMode("vertex");
-            }
           }}
           title={viewSettings.showControlPoints ? "Hide control points" : "Show control points"}
           style={{
@@ -8239,6 +8309,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
             fontSize: 11,
             fontWeight: 600,
             color: viewSettings.showControlPoints ? "#2b2620" : "#8a847a",
+            pointerEvents: "auto",
           }}
         >
           CP
@@ -8260,6 +8331,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
             fontSize: 11,
             fontWeight: 600,
             color: gumballSettings.clickToStep ? "#2b2620" : "#8a847a",
+            pointerEvents: "auto",
           }}
         >
           GS

@@ -943,6 +943,7 @@ export const generateMeshFromField = (
     normals,
     uvs,
     indices,
+    colors,
   };
 };
 

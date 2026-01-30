@@ -35,6 +35,7 @@ const DEFAULT_OUTPUTS: SolverOutputs = {
   populationBests: [],
   history: null,
   gallery: null,
+  selectedGeometry: [],
 };
 
 const solverStateByNode = new Map<string, SolverRuntimeState>();

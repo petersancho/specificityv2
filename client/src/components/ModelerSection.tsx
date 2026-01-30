@@ -7,7 +7,7 @@ import {
   useState,
   type ChangeEvent,
   type CSSProperties,
-  type PointerEvent,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 import { createPortal } from "react-dom";
 import WebGLViewerCanvas from "./WebGLViewerCanvas";
@@ -1783,7 +1783,7 @@ const ModelerSection = ({
 
   const updateWheelColor = (
     id: ColorWheelId,
-    event: PointerEvent<HTMLDivElement>
+    event: ReactPointerEvent<HTMLDivElement>
   ) => {
     const palette = renderFilter as ColorWheelPalette;
     const rect = event.currentTarget.getBoundingClientRect();
@@ -1801,7 +1801,7 @@ const ModelerSection = ({
   };
 
   const handleWheelPointerDown =
-    (id: ColorWheelId) => (event: PointerEvent<HTMLDivElement>) => {
+    (id: ColorWheelId) => (event: ReactPointerEvent<HTMLDivElement>) => {
       event.preventDefault();
       event.stopPropagation();
       colorWheelDragRef.current = id;
@@ -1810,7 +1810,7 @@ const ModelerSection = ({
     };
 
   const handleWheelPointerMove =
-    (id: ColorWheelId) => (event: PointerEvent<HTMLDivElement>) => {
+    (id: ColorWheelId) => (event: ReactPointerEvent<HTMLDivElement>) => {
       if (colorWheelDragRef.current !== id) return;
       event.preventDefault();
       event.stopPropagation();
@@ -1818,7 +1818,7 @@ const ModelerSection = ({
     };
 
   const handleWheelPointerUp =
-    (id: ColorWheelId) => (event: PointerEvent<HTMLDivElement>) => {
+    (id: ColorWheelId) => (event: ReactPointerEvent<HTMLDivElement>) => {
       if (colorWheelDragRef.current !== id) return;
       colorWheelDragRef.current = null;
       event.preventDefault();
@@ -5462,6 +5462,7 @@ const ModelerSection = ({
                           height={minimapSize.height}
                           mode="minimap"
                           enableMinimapPanZoom
+                          hoverPopupsEnabled={false}
                         />
                       )}
                     </div>

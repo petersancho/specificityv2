@@ -55,6 +55,7 @@ export type Individual = {
   generation: number;
   rank: number;
   geometryIds?: string[];
+  geometry?: Geometry[];
   thumbnail?: string | null;
 };
 
@@ -106,4 +107,5 @@ export type SolverOutputs = {
   populationBests: PopulationBests[];
   history: SolverHistory | null;
   gallery: Gallery | null;
+  selectedGeometry: string[];
 };

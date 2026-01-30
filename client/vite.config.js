@@ -40,5 +40,8 @@ export default defineConfig(function (_a) {
                 },
             },
         },
+        test: {
+            environment: "node",
+        },
     };
 });

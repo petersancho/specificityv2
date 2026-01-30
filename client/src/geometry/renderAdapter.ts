@@ -282,6 +282,7 @@ export class GeometryRenderAdapter {
         positions: flatMesh.positions,
         normals: flatMesh.normals,
         indices: flatMesh.indices,
+        colors: flatMesh.colors,
       });
 
       const edgeSegments = buildEdgeSegments(meshSource);
@@ -477,11 +478,19 @@ const toTriangleIndices = (mesh: RenderMesh): number[] => {
 
 const createFlatShadedMesh = (
   mesh: RenderMesh
-): { positions: Float32Array; normals: Float32Array; indices: Uint16Array } => {
+): {
+  positions: Float32Array;
+  normals: Float32Array;
+  indices: Uint16Array;
+  colors?: Float32Array;
+} => {
   const baseIndices = toTriangleIndices(mesh);
   const positionsOut: number[] = [];
   const normalsOut: number[] = [];
   const indicesOut: number[] = [];
+  const hasColors = Boolean(mesh.colors) && mesh.colors.length === mesh.positions.length;
+  const colorsOut: number[] = [];
+  const sourceColors = mesh.colors ?? [];
 
   let cursor = 0;
 
@@ -520,6 +529,19 @@ const createFlatShadedMesh = (
     nz /= length;
 
     positionsOut.push(ax, ay, az, bx, by, bz, cx, cy, cz);
+    if (hasColors) {
+      colorsOut.push(
+        sourceColors[ia] ?? 0,
+        sourceColors[ia + 1] ?? 0,
+        sourceColors[ia + 2] ?? 0,
+        sourceColors[ib] ?? 0,
+        sourceColors[ib + 1] ?? 0,
+        sourceColors[ib + 2] ?? 0,
+        sourceColors[ic] ?? 0,
+        sourceColors[ic + 1] ?? 0,
+        sourceColors[ic + 2] ?? 0
+      );
+    }
     pushNormal(nx, ny, nz);
     indicesOut.push(cursor, cursor + 1, cursor + 2);
     cursor += 3;
@@ -530,6 +552,7 @@ const createFlatShadedMesh = (
       positions: new Float32Array(mesh.positions),
       normals: new Float32Array(mesh.normals),
       indices: new Uint16Array(mesh.indices),
+      colors: hasColors ? new Float32Array(sourceColors) : undefined,
     };
   }
 
@@ -537,6 +560,7 @@ const createFlatShadedMesh = (
     positions: new Float32Array(positionsOut),
     normals: new Float32Array(normalsOut),
     indices: new Uint16Array(indicesOut),
+    colors: hasColors ? new Float32Array(colorsOut) : undefined,
   };
 };
 

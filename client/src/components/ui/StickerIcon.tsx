@@ -51,6 +51,26 @@ const resolveTint = (value: StickerIconProps["tint"], fallback: RGBA): RGBA => {
   return fallback;
 };
 
+const deriveSignature = (iconId: IconId) => {
+  const raw = typeof iconId === "string" ? iconId : "icon";
+  const words = raw
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/[^a-zA-Z0-9]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  const first = words[0] ?? "icon";
+  const second = words[1] ?? "";
+  const baseChars = `${first[0] ?? "I"}${second[0] ?? first[1] ?? "C"}`.toUpperCase();
+  let hash = 2166136261;
+  for (let i = 0; i < raw.length; i += 1) {
+    hash ^= raw.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  const suffix = (hash >>> 0).toString(36).toUpperCase().padStart(2, "0").slice(-2);
+  return `${baseChars}${suffix}`;
+};
+
 export const StickerIcon = ({
   iconId,
   variant = "site",
@@ -75,21 +95,26 @@ export const StickerIcon = ({
     [tint, fallbackTint]
   );
 
+  const resolvedSignature = useMemo(
+    () => (signature === undefined ? deriveSignature(iconId) : signature),
+    [signature, iconId]
+  );
+
   const iconStyle = variant === "library" ? "sticker" : "sticker2";
   const iconSrc = useMemo(() => {
     const url = resolveIconImageUrl(iconId, size, resolvedTint, {
       style: iconStyle,
-      signature,
+      signature: resolvedSignature,
     });
     if (url) return url;
     const fallbackSize = Math.max(128, Math.round(size * 6));
     return renderIconDataUrl(iconId, fallbackSize, {
       tint: resolvedTint,
       style: iconStyle,
-      signature,
+      signature: resolvedSignature,
       monochrome: true,
     });
-  }, [iconId, size, resolvedTint, iconStyle, signature]);
+  }, [iconId, size, resolvedTint, iconStyle, resolvedSignature]);
 
   const classes = [styles.icon, className].filter(Boolean).join(" ");
   const hidden = ariaHidden ?? !alt;

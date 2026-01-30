@@ -31,21 +31,21 @@
   cursor: pointer;
   user-select: none;
   transition: transform 120ms ease, filter 120ms ease, box-shadow 120ms ease;
-  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.55);
+  box-shadow: var(--shadow-xs);
   isolation: isolate;
 }
 
 .button[data-state="hover"]:not(:disabled) {
-  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.45);
+  box-shadow: var(--shadow-sm);
 }
 
 .button[data-state="pressed"]:not(:disabled) {
   transform: translateY(1px);
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-sm-pressed);
 }
 
 .button[data-active="true"]:not(:disabled) {
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-sm-pressed);
 }
 
 .button:disabled {

@@ -70,7 +70,8 @@ import {
   ChemistryThermalGoalNode,
   ChemistryTransparencyGoalNode,
 } from "./nodes/solver/goals/chemistry";
-import { validateBiologicalGoals, validateChemistryGoals } from "./nodes/solver/validation";
+import { getBiologicalSolverState } from "./nodes/solver/biological/solverState";
+import { validateChemistryGoals } from "./nodes/solver/validation";
 import type { GoalSpecification } from "./nodes/solver/types";
 
 export type WorkflowPortType =
@@ -1251,6 +1252,38 @@ const collectGeometryPositions = (
   return [];
 };
 
+const resolveGeometryPositionByIndex = (
+  geometry: Geometry,
+  context: WorkflowComputeContext,
+  index: number
+): Vec3Value | null => {
+  if (index < 0) return null;
+  if (geometry.type === "vertex") {
+    return index === 0 ? (geometry.position as Vec3Value) : null;
+  }
+  if (geometry.type === "polyline") {
+    const vertexId = geometry.vertexIds[index];
+    if (!vertexId) return null;
+    const vertex = context.vertexById.get(vertexId);
+    return vertex ? (vertex.position as Vec3Value) : null;
+  }
+  if (geometry.type === "brep") {
+    if (geometry.mesh?.positions) {
+      const count = Math.floor(geometry.mesh.positions.length / 3);
+      if (index >= count) return null;
+      return vec3FromPositions(geometry.mesh.positions, index);
+    }
+    const vertex = geometry.brep.vertices[index];
+    return vertex ? (vertex.position as Vec3Value) : null;
+  }
+  if ("mesh" in geometry && geometry.mesh?.positions) {
+    const count = Math.floor(geometry.mesh.positions.length / 3);
+    if (index >= count) return null;
+    return vec3FromPositions(geometry.mesh.positions, index);
+  }
+  return null;
+};
+
 const computeBoundsFromPositions = (positions: Vec3Value[]) => {
   if (positions.length === 0) {
     return {
@@ -1324,6 +1357,36 @@ const normalizeVoxelBounds = (bounds?: { min: Vec3Value; max: Vec3Value }) => {
   fixAxis("y");
   fixAxis("z");
   return { min: normalizedMin, max: normalizedMax };
+};
+
+const resolveBoundsSize = (bounds: { min: Vec3Value; max: Vec3Value }) => ({
+  x: bounds.max.x - bounds.min.x,
+  y: bounds.max.y - bounds.min.y,
+  z: bounds.max.z - bounds.min.z,
+});
+
+const resolveBoundsVolume = (bounds: { min: Vec3Value; max: Vec3Value }) => {
+  const size = resolveBoundsSize(bounds);
+  const volume = size.x * size.y * size.z;
+  return Number.isFinite(volume) && volume > 0 ? volume : 1;
+};
+
+const positionToVoxelIndex = (
+  position: Vec3Value,
+  bounds: { min: Vec3Value; max: Vec3Value },
+  resolution: number
+) => {
+  const size = resolveBoundsSize(bounds);
+  const safeRes = Math.max(1, Math.floor(resolution));
+  const toAxis = (value: number, min: number, span: number) => {
+    if (!Number.isFinite(span) || Math.abs(span) <= EPSILON) return 0;
+    const t = (value - min) / span;
+    return clampInt(Math.floor(t * safeRes), 0, safeRes - 1, 0);
+  };
+  const x = toAxis(position.x, bounds.min.x, size.x);
+  const y = toAxis(position.y, bounds.min.y, size.y);
+  const z = toAxis(position.z, bounds.min.z, size.z);
+  return x + y * safeRes + z * safeRes * safeRes;
 };
 
 const inferVoxelResolutionFromCount = (count: number) => {
@@ -1772,6 +1835,81 @@ const buildVoxelMesh = (grid: VoxelGrid, isoValue: number) => {
     }
   }
   return mesh;
+};
+
+const buildChemistryMesh = (
+  field: ChemistryField,
+  materials: ChemistryMaterialSpec[],
+  isoValue: number
+) => {
+  const mesh = buildVoxelMesh(
+    {
+      resolution: field.resolution,
+      bounds: field.bounds,
+      cellSize: field.cellSize,
+      densities: field.densities,
+    },
+    isoValue
+  );
+  if (!mesh.positions.length) return mesh;
+
+  const materialColorByName = new Map<string, [number, number, number]>();
+  materials.forEach((material) => {
+    materialColorByName.set(material.name, material.color);
+  });
+
+  const resX = Math.max(1, Math.round(field.resolution.x));
+  const resY = Math.max(1, Math.round(field.resolution.y));
+  const resZ = Math.max(1, Math.round(field.resolution.z));
+  const cellSize = field.cellSize;
+  const bounds = field.bounds;
+  const toIndex = (x: number, y: number, z: number) =>
+    x + y * resX + z * resX * resY;
+  const clampIndex = (value: number, max: number) =>
+    Math.min(max, Math.max(0, value));
+
+  const colors = new Array<number>(mesh.positions.length).fill(0.5);
+  for (let i = 0; i < mesh.positions.length; i += 3) {
+    const x = clampIndex(
+      Math.floor((mesh.positions[i] - bounds.min.x) / cellSize.x),
+      resX - 1
+    );
+    const y = clampIndex(
+      Math.floor((mesh.positions[i + 1] - bounds.min.y) / cellSize.y),
+      resY - 1
+    );
+    const z = clampIndex(
+      Math.floor((mesh.positions[i + 2] - bounds.min.z) / cellSize.z),
+      resZ - 1
+    );
+    const idx = toIndex(x, y, z);
+    let sum = 0;
+    for (let m = 0; m < field.channels.length; m += 1) {
+      sum += field.channels[m][idx] ?? 0;
+    }
+    let r = 0;
+    let g = 0;
+    let b = 0;
+    if (sum > EPSILON) {
+      for (let m = 0; m < field.channels.length; m += 1) {
+        const conc = (field.channels[m][idx] ?? 0) / sum;
+        const name = field.materials[m];
+        const color = materialColorByName.get(name) ?? [0.5, 0.5, 0.5];
+        r += conc * color[0];
+        g += conc * color[1];
+        b += conc * color[2];
+      }
+    } else {
+      r = 0.5;
+      g = 0.5;
+      b = 0.5;
+    }
+    colors[i] = r;
+    colors[i + 1] = g;
+    colors[i + 2] = b;
+  }
+
+  return { ...mesh, colors };
 };
 
 const stripWrappingChars = (token: string) =>
@@ -3328,13 +3466,10 @@ const runChemistrySolver = (args: {
     domainBounds,
     args.fieldResolution
   );
-  const fieldGrid: VoxelGrid = {
-    resolution: field.resolution,
-    bounds: field.bounds,
-    cellSize: field.cellSize,
-    densities: field.densities,
-  };
-  const mesh = buildVoxelMesh(fieldGrid, clampNumber(args.isoValue, 0, 1));
+  const colorMaterials = materialNames.map(
+    (name) => materialByName.get(name) ?? resolveChemistryMaterialSpec(name)
+  );
+  const mesh = buildChemistryMesh(field, colorMaterials, clampNumber(args.isoValue, 0, 1));
 
   return {
     particles,
@@ -4300,6 +4435,29 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     },
   },
   {
+    type: "customViewer",
+    label: "Custom Viewer",
+    shortLabel: "VIEW",
+    description: "Expose geometry for Roslyn preview.",
+    category: "analysis",
+    iconId: "displayMode",
+    inputs: [
+      {
+        key: "geometry",
+        label: "Geometry",
+        type: "geometry",
+        required: false,
+      },
+    ],
+    outputs: [{ key: "geometry", label: "Geometry", type: "geometry" }],
+    parameters: [],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs }) => {
+      const geometryId = typeof inputs.geometry === "string" ? inputs.geometry : null;
+      return { geometry: geometryId };
+    },
+  },
+  {
     type: "previewFilter",
     label: "Filter",
     shortLabel: "FILTER",
@@ -4444,6 +4602,10 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       { key: "type", label: "Type", type: "string" },
       { key: "layer", label: "Layer", type: "string" },
       { key: "area", label: "Area", type: "number" },
+      { key: "volume", label: "Volume", type: "number" },
+      { key: "mass", label: "Mass", type: "number" },
+      { key: "centroid", label: "Centroid", type: "vector" },
+      { key: "inertia", label: "Inertia", type: "any" },
       { key: "thickness", label: "Thickness", type: "number" },
     ],
     parameters: [],
@@ -4457,6 +4619,10 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
           type: "",
           layer: "",
           area: 0,
+          volume: 0,
+          mass: 0,
+          centroid: ZERO_VEC3,
+          inertia: null,
           thickness: 0,
         };
       }
@@ -4465,6 +4631,10 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
         type: geometry.type,
         layerId: geometry.layerId,
         area_m2: geometry.area_m2 ?? null,
+        volume_m3: geometry.volume_m3 ?? null,
+        centroid: geometry.centroid ?? null,
+        mass_kg: geometry.mass_kg ?? null,
+        inertiaTensor_kg_m2: geometry.inertiaTensor_kg_m2 ?? null,
         thickness_m: geometry.thickness_m ?? null,
         metadata: geometry.metadata ?? null,
       };
@@ -4474,6 +4644,10 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
         type: geometry.type,
         layer: geometry.layerId,
         area: geometry.area_m2 ?? 0,
+        volume: geometry.volume_m3 ?? 0,
+        mass: geometry.mass_kg ?? 0,
+        centroid: geometry.centroid ?? ZERO_VEC3,
+        inertia: geometry.inertiaTensor_kg_m2 ?? null,
         thickness: geometry.thickness_m ?? 0,
       };
     },
@@ -7403,11 +7577,18 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
           length += distanceVec3(vertices[vertices.length - 1], vertices[0]);
         }
       }
-      let area = 0;
-      let volume = 0;
+      const hasArea = typeof geometry.area_m2 === "number" && Number.isFinite(geometry.area_m2);
+      const hasVolume =
+        typeof geometry.volume_m3 === "number" && Number.isFinite(geometry.volume_m3);
+      let area = hasArea ? (geometry.area_m2 as number) : 0;
+      let volume = hasVolume ? (geometry.volume_m3 as number) : 0;
       if ("mesh" in geometry && geometry.mesh?.positions && geometry.mesh?.indices) {
-        area = computeMeshArea(geometry.mesh.positions, geometry.mesh.indices);
-        volume = computeMeshVolume(geometry.mesh.positions, geometry.mesh.indices);
+        if (!hasArea) {
+          area = computeMeshArea(geometry.mesh.positions, geometry.mesh.indices);
+        }
+        if (!hasVolume) {
+          volume = computeMeshVolume(geometry.mesh.positions, geometry.mesh.indices);
+        }
       }
       const property = String(parameters.property ?? "length");
       let value = length;
@@ -9979,6 +10160,13 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
         description: "Geometry domain used to fit bounds when no grid is supplied.",
       },
       {
+        key: "goals",
+        label: "Goals",
+        type: "goal",
+        allowMultiple: true,
+        description: "Structural goals (volume, stiffness, load, anchor) for the optimizer.",
+      },
+      {
         key: "voxelGrid",
         label: "Voxel Grid",
         type: "any",
@@ -10293,6 +10481,36 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
         type: "string",
         description: "Solver status string.",
       },
+      {
+        key: "best",
+        label: "Best Detail",
+        type: "any",
+        description: "Best individual payload from the interactive solver.",
+      },
+      {
+        key: "populationBests",
+        label: "Population Bests",
+        type: "any",
+        description: "Top individuals per generation from the interactive solver.",
+      },
+      {
+        key: "history",
+        label: "History",
+        type: "any",
+        description: "Full evolutionary history and statistics.",
+      },
+      {
+        key: "gallery",
+        label: "Gallery",
+        type: "any",
+        description: "Gallery metadata for all individuals.",
+      },
+      {
+        key: "selectedGeometry",
+        label: "Selected Geometry",
+        type: "geometry",
+        description: "Selected solver outputs as geometry ids.",
+      },
     ],
     parameters: [
       {
@@ -10343,70 +10561,33 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       },
     ],
     primaryOutputKey: "bestScore",
-    compute: ({ inputs, parameters, context }) => {
-      const domainId = typeof inputs.domain === "string" ? inputs.domain : "domain";
-      const rawGoals = Array.isArray(inputs.goals)
-        ? inputs.goals
-        : inputs.goals
-          ? [inputs.goals]
-          : [];
-      const goals = rawGoals.filter(
-        (goal): goal is GoalSpecification =>
-          Boolean(goal) && typeof goal === "object" && "goalType" in (goal as object)
+    compute: ({ context }) => {
+      const state = getBiologicalSolverState(context.nodeId);
+      const best = state.outputs.best;
+      const genome = Array.isArray(best?.genome) ? best?.genome : [];
+      const axis = (index: number) => {
+        const value = genome[index];
+        return Number.isFinite(value) ? value : 0;
+      };
+      const history = state.outputs.history?.generations ?? [];
+      const evaluations = history.reduce(
+        (sum, generation) => sum + (generation.population?.length ?? 0),
+        0
       );
-      const fitnessBias = toNumber(
-        inputs.fitnessBias,
-        readNumberParameter(parameters, "fitnessBias", 0)
-      );
-      const populationSize = toNumber(
-        inputs.populationSize,
-        readNumberParameter(parameters, "populationSize", 32)
-      );
-      const generations = toNumber(
-        inputs.generations,
-        readNumberParameter(parameters, "generations", 24)
-      );
-      const mutationRate = toNumber(
-        inputs.mutationRate,
-        readNumberParameter(parameters, "mutationRate", 0.18)
-      );
-      const seedValue = toNumber(inputs.seed, readNumberParameter(parameters, "seed", 1));
-
-      const goalValidation = validateBiologicalGoals(goals);
-      if (!goalValidation.valid) {
-        throw new Error(`Goal validation failed: ${goalValidation.errors.join(", ")}`);
-      }
-
-      const normalizedGoals = goalValidation.normalizedGoals ?? goals;
-      const tuning = deriveBiologicalProfile(normalizedGoals, fitnessBias);
-      const adjustedPopulation = clampInt(
-        Math.round(populationSize * tuning.populationScale),
-        8,
-        96,
-        Math.round(populationSize)
-      );
-      const adjustedMutationRate = clampNumber(
-        mutationRate * tuning.mutationRateScale,
-        0.01,
-        0.95
-      );
-
-      const result = runBiologicalSolver({
-        seedKey: `${context.nodeId}:${domainId}:${seedValue}:${tuning.fitnessProfile.bias.toFixed(3)}`,
-        populationSize: adjustedPopulation,
-        generations,
-        mutationRate: adjustedMutationRate,
-        fitnessProfile: tuning.fitnessProfile,
-      });
 
       return {
-        bestScore: result.bestScore,
-        bestGenome: result.bestGenome,
-        evaluations: result.evaluations,
-        populationSize: result.populationSize,
-        generations: result.generations,
-        mutationRate: result.mutationRate,
-        status: "complete",
+        bestScore: typeof best?.fitness === "number" ? best.fitness : 0,
+        bestGenome: { x: axis(0), y: axis(1), z: axis(2) },
+        evaluations,
+        populationSize: state.config.populationSize,
+        generations: state.config.generations,
+        mutationRate: state.config.mutationRate,
+        status: state.status,
+        best: state.outputs.best,
+        populationBests: state.outputs.populationBests,
+        history: state.outputs.history,
+        gallery: state.outputs.gallery,
+        selectedGeometry: state.outputs.selectedGeometry,
       };
     },
   },
@@ -10430,6 +10611,22 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
         type: "geometry",
         required: true,
         description: "Spatial domain for material distribution.",
+      },
+      {
+        key: "enabled",
+        label: "Enabled",
+        type: "boolean",
+        parameterKey: "enabled",
+        defaultValue: true,
+        description: "Toggle solver execution on or off.",
+      },
+      {
+        key: "particleDensity",
+        label: "Particle Density",
+        type: "number",
+        parameterKey: "particleDensity",
+        defaultValue: 1,
+        description: "Scales particle count to trade accuracy for speed.",
       },
       {
         key: "materials",
@@ -10523,6 +10720,12 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     ],
     parameters: [
       {
+        key: "enabled",
+        label: "Enabled",
+        type: "boolean",
+        defaultValue: true,
+      },
+      {
         key: "particleCount",
         label: "Particle Count",
         type: "number",
@@ -10530,6 +10733,15 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
         min: 100,
         max: 20000,
         step: 50,
+      },
+      {
+        key: "particleDensity",
+        label: "Particle Density",
+        type: "number",
+        defaultValue: 1,
+        min: 0.1,
+        max: 1,
+        step: 0.05,
       },
       {
         key: "iterations",
@@ -10640,6 +10852,26 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     compute: ({ inputs, parameters, context }) => {
       const geometryId =
         typeof parameters.geometryId === "string" ? parameters.geometryId : null;
+      const enabled = toBoolean(
+        inputs.enabled,
+        readBooleanParameter(parameters, "enabled", true)
+      );
+      if (!enabled) {
+        return {
+          geometry: geometryId,
+          mesh: EMPTY_MESH,
+          materialParticles: [],
+          materialField: null,
+          history: [],
+          bestState: null,
+          materials: [],
+          totalEnergy: 0,
+          status: "disabled",
+          diagnostics: {
+            warnings: ["Chemistry Solver is disabled."],
+          },
+        };
+      }
       const domainId = typeof inputs.domain === "string" ? inputs.domain : null;
       const domainGeometry = domainId ? context.geometryById.get(domainId) ?? null : null;
       if (!domainGeometry) {
@@ -10675,13 +10907,27 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       }
       const normalizedGoals = validation.normalizedGoals ?? goals;
 
-      const particleCount = clampInt(
+      const baseParticleCount = clampInt(
         Math.round(
           toNumber(inputs.particleCount, readNumberParameter(parameters, "particleCount", 2000))
         ),
         100,
         20000,
         2000
+      );
+      const particleDensity = clampNumber(
+        toNumber(
+          inputs.particleDensity,
+          readNumberParameter(parameters, "particleDensity", 1)
+        ),
+        0.1,
+        1
+      );
+      const particleCount = clampInt(
+        Math.round(baseParticleCount * particleDensity),
+        100,
+        20000,
+        baseParticleCount
       );
       const iterations = clampInt(
         Math.round(
@@ -11116,6 +11362,28 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       }
       return { result };
     },
+  },
+  {
+    type: "toggleSwitch",
+    label: "Toggle Switch",
+    shortLabel: "SW",
+    description: "Manual on/off switch for boolean control signals.",
+    category: "logic",
+    iconId: "conditional",
+    inputs: [],
+    outputs: [{ key: "value", label: "Value", type: "boolean" }],
+    parameters: [
+      {
+        key: "value",
+        label: "On",
+        type: "boolean",
+        defaultValue: true,
+      },
+    ],
+    primaryOutputKey: "value",
+    compute: ({ parameters }) => ({
+      value: readBooleanParameter(parameters, "value", true),
+    }),
   },
   {
     type: "conditional",

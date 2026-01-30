@@ -433,6 +433,10 @@ const evolveGeneration = async () => {
 };
 
 const checkConvergence = (): { converged: boolean; reason: string | null } => {
+  const minGenerations = config ? Math.max(0, Math.round(config.generations)) : 0;
+  if (generation < minGenerations) {
+    return { converged: false, reason: null };
+  }
   if (generation >= MAX_TOTAL_GENERATIONS) {
     return { converged: true, reason: `Maximum generations (${MAX_TOTAL_GENERATIONS}) reached` };
   }

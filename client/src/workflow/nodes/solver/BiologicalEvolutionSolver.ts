@@ -33,6 +33,19 @@ export const BiologicalEvolutionSolverNode: WorkflowNodeDefinition = {
       type: "fitnessSpec",
       description: "Fitness specification from Performs Fitness.",
     },
+    {
+      key: "goals",
+      label: "Goals",
+      type: "goal",
+      allowMultiple: true,
+      description: "Optional biological goal specifications (growth, nutrient, morphogenesis, homeostasis).",
+    },
+    {
+      key: "domain",
+      label: "Domain",
+      type: "geometry",
+      description: "Optional geometry reference that seeds the search.",
+    },
   ],
   outputs: [
     {
@@ -58,6 +71,12 @@ export const BiologicalEvolutionSolverNode: WorkflowNodeDefinition = {
       label: "Gallery",
       type: "any",
       description: "Gallery metadata for all individuals.",
+    },
+    {
+      key: "selectedGeometry",
+      label: "Selected Geometry",
+      type: "geometry",
+      description: "Selected solver outputs as geometry ids.",
     },
   ],
   parameters: [],

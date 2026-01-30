@@ -36,7 +36,7 @@ const PALETTE = {
   text: rgb(24, 24, 28, 0.96),
   textShadow: rgb(0, 0, 0, 0.35),
   glow: rgb(255, 255, 255, 0.5),
-  shadow: rgb(0, 0, 0, 0.22),
+  shadow: rgb(0, 0, 0, 1),
 };
 
 const TONE_ACCENTS: Record<LogoTone, RGBA> = {
@@ -61,7 +61,7 @@ const PADDING_Y = 6;
 const ACCENT_GAP = 3;
 const ACCENT_BAR = 3;
 const ACCENT_BAR_GAP = 7;
-const RADIUS = 7;
+const RADIUS = 6;
 const STROKE = 1.4;
 const SHADOW_OFFSET = 2;
 const UNDERLINE_HEIGHT = 2;

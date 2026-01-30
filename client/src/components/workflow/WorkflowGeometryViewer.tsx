@@ -34,6 +34,7 @@ const SILHOUETTE_BASE_COLOR: [number, number, number] = [0, 0, 0];
 const SILHOUETTE_SELECTED_COLOR: [number, number, number] = [0.2, 0.2, 0.2];
 const POINT_FILL_COLOR: [number, number, number] = [1, 0.82, 0.16];
 const POINT_OUTLINE_COLOR: [number, number, number] = [0, 0, 0];
+const SELECTION_HIGHLIGHT_INTENSITY = 0.5;
 const POINT_HANDLE_RADIUS_PX = 6;
 const POINT_HANDLE_OUTLINE_PX = 1.5;
 
@@ -262,6 +263,7 @@ const buildGridGeometry = (spacing: number, majorLinesEvery: number) => {
 
 type WorkflowGeometryViewerProps = {
   geometryIds: string[];
+  geometryItems?: Geometry[];
   displayMode?: DisplayMode;
   viewSolidity?: number;
   viewSettings?: Partial<ViewSettings>;
@@ -269,6 +271,7 @@ type WorkflowGeometryViewerProps = {
 
 const WorkflowGeometryViewer = ({
   geometryIds,
+  geometryItems,
   displayMode: displayModeOverride,
   viewSolidity: viewSolidityOverride,
   viewSettings: viewSettingsOverride,
@@ -283,13 +286,14 @@ const WorkflowGeometryViewer = ({
   const activeGeometryIdsRef = useRef<Set<string>>(new Set());
   const cameraRef = useRef<CameraState>({ ...DEFAULT_CAMERA });
 
-  const geometry = useProjectStore((state) => state.geometry);
+  const storeGeometry = useProjectStore((state) => state.geometry);
   const gridSettings = useProjectStore((state) => state.gridSettings);
   const globalDisplayMode = useProjectStore((state) => state.displayMode);
   const globalViewSolidity = useProjectStore((state) => state.viewSolidity);
   const globalViewSettings = useProjectStore((state) => state.viewSettings);
   const selectedGeometryIds = useProjectStore((state) => state.selectedGeometryIds);
   const hiddenGeometryIds = useProjectStore((state) => state.hiddenGeometryIds);
+  const geometry = geometryItems ?? storeGeometry;
 
   const customMaterialMap = useMemo(() => {
     const map = new Map<string, CustomMaterialOverrides>();
@@ -662,8 +666,8 @@ const WorkflowGeometryViewer = ({
       const pointOutline = POINT_HANDLE_OUTLINE_PX * baseDpr;
       const edgeOpacityScale = lerp(1, 0.8, edgeFade);
       const edgeInternalScale = lerp(1, 0.7, edgeFade);
-      const edgeAAStrength = lerp(0.22, 1.0, smoothSolidity);
-      const edgePixelSnap = lerp(0.65, 0.0, smoothSolidity);
+      const edgeAAStrength = lerp(0.2, 0.7, smoothSolidity);
+      const edgePixelSnap = lerp(0.7, 0.2, smoothSolidity);
 
       if (gridMinorBufferRef.current) {
         renderer.renderEdges(gridMinorBufferRef.current, cameraPayload, {
@@ -772,7 +776,7 @@ const WorkflowGeometryViewer = ({
             cameraPosition: cameraPayload.position,
             ambientStrength: 1,
             selectionHighlight: VIEW_STYLE.selection,
-            isSelected: isSelected ? 0.6 : 0,
+            isSelected: isSelected ? SELECTION_HIGHLIGHT_INTENSITY : 0,
             sheenIntensity: 0,
             opacity: fillOpacity,
           });
@@ -807,7 +811,7 @@ const WorkflowGeometryViewer = ({
           ambientStrength:
             customOverrides?.ambientStrength ?? VIEW_STYLE.ambientStrength,
           selectionHighlight: VIEW_STYLE.selection,
-          isSelected: isSelected ? 0.6 : 0,
+          isSelected: isSelected ? SELECTION_HIGHLIGHT_INTENSITY : 0,
           sheenIntensity:
             customOverrides?.sheenIntensity ?? viewSettingsRef.current.sheen ?? 0.08,
           opacity,

@@ -8,6 +8,7 @@ export type NodeType =
   | "colorPicker"
   | "customMaterial"
   | "geometryViewer"
+  | "customViewer"
   | "customPreview"
   | "previewFilter"
   | "meshConvert"
@@ -134,6 +135,7 @@ export type NodeType =
   | "max"
   | "expression"
   | "scalarFunctions"
+  | "toggleSwitch"
   | "conditional"
   | "vectorConstruct"
   | "vectorDeconstruct"
@@ -206,6 +208,7 @@ export const SUPPORTED_WORKFLOW_NODE_TYPES: NodeType[] = [
   "colorPicker",
   "customMaterial",
   "geometryViewer",
+  "customViewer",
   "customPreview",
   "previewFilter",
   "meshConvert",
@@ -332,6 +335,7 @@ export const SUPPORTED_WORKFLOW_NODE_TYPES: NodeType[] = [
   "max",
   "expression",
   "scalarFunctions",
+  "toggleSwitch",
   "conditional",
   "vectorConstruct",
   "vectorDeconstruct",

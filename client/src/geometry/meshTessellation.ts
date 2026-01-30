@@ -1634,11 +1634,20 @@ export const mergeRenderMeshes = (meshA: RenderMesh, meshB: RenderMesh): RenderM
   const normals: number[] = [];
   const uvs: number[] = [];
   const indices: number[] = [];
+  const includeColors =
+    Boolean(meshA.colors) &&
+    meshA.colors.length === meshA.positions.length &&
+    Boolean(meshB.colors) &&
+    meshB.colors.length === meshB.positions.length;
+  const colors: number[] = [];
   let offset = 0;
   [meshA, meshB].forEach((mesh) => {
     positions.push(...mesh.positions);
     normals.push(...(mesh.normals ?? new Array(mesh.positions.length).fill(0)));
     uvs.push(...(mesh.uvs ?? new Array((mesh.positions.length / 3) * 2).fill(0)));
+    if (includeColors) {
+      colors.push(...(mesh.colors ?? new Array(mesh.positions.length).fill(0)));
+    }
     const meshIndices = mesh.indices.length > 0
       ? mesh.indices
       : Array.from({ length: mesh.positions.length / 3 }, (_, i) => i);
@@ -1649,7 +1658,13 @@ export const mergeRenderMeshes = (meshA: RenderMesh, meshB: RenderMesh): RenderM
     normals.length === positions.length
       ? normals
       : computeVertexNormals(positions, indices);
-  return { positions, normals: resolvedNormals, uvs, indices };
+  return {
+    positions,
+    normals: resolvedNormals,
+    uvs,
+    indices,
+    colors: includeColors ? colors : undefined,
+  };
 };
 
 export const meshBoolean = (

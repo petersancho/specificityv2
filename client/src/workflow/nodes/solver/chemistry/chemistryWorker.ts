@@ -498,6 +498,7 @@ const runWorkerSimulation = (payload: ChemistryWorkerStartPayload): void => {
     const normals: number[] = [];
     const uvs: number[] = [];
     const indices: number[] = [];
+    const colors: number[] = [];
     
     const isoValue = config.isoValue;
     for (let z = 0; z < resolution - 1; z++) {
@@ -522,6 +523,27 @@ const runWorkerSimulation = (payload: ChemistryWorkerStartPayload): void => {
           
           if (cubeIndex === 0 || cubeIndex === 255) continue;
           
+          const cellIndex = cornerIndices[0];
+          let totalWeight = 0;
+          for (let m = 0; m < materialCount; m++) {
+            totalWeight += fieldData[m][cellIndex] ?? 0;
+          }
+          let blendedR = 0.5;
+          let blendedG = 0.5;
+          let blendedB = 0.5;
+          if (totalWeight > EPSILON) {
+            blendedR = 0;
+            blendedG = 0;
+            blendedB = 0;
+            for (let m = 0; m < materialCount; m++) {
+              const weight = (fieldData[m][cellIndex] ?? 0) / totalWeight;
+              const color = materialSpecs[m]?.color ?? [0.5, 0.5, 0.5];
+              blendedR += weight * color[0];
+              blendedG += weight * color[1];
+              blendedB += weight * color[2];
+            }
+          }
+
           // Generate a simple quad for cells that cross the isosurface
           const cellCenterX = bounds.min.x + (x + 0.5) * cellSize.x;
           const cellCenterY = bounds.min.y + (y + 0.5) * cellSize.y;
@@ -547,6 +569,7 @@ const runWorkerSimulation = (payload: ChemistryWorkerStartPayload): void => {
           for (let i = 0; i < 8; i++) {
             normals.push(0, 1, 0);
             uvs.push(0, 0);
+            colors.push(blendedR, blendedG, blendedB);
           }
           
           // Box faces
@@ -591,7 +614,7 @@ const runWorkerSimulation = (payload: ChemistryWorkerStartPayload): void => {
       }
     }
     
-    const mesh: RenderMesh = { positions, normals, uvs, indices };
+    const mesh: RenderMesh = { positions, normals, uvs, indices, colors };
     
     const result: ChemistryWorkerResultPayload = {
       mesh,

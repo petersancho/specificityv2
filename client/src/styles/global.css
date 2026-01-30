@@ -129,6 +129,7 @@
   --shadow-xs: 0 3px 0 #000000;
   --shadow-sm: 0 4px 0 #000000;
   --shadow-md: 0 6px 0 #000000;
+  --shadow-md-up: 0 -6px 0 #000000;
   --shadow-node: 0 8px 0 #000000;
   --shadow-lg: 0 12px 0 #000000;
   --shadow-xl: 0 16px 0 #000000;
@@ -280,6 +281,7 @@
   --color-handle-stroke: rgba(253, 253, 252, 0.6);
   --shadow-xs: 0 1px 0 rgba(0, 0, 0, 0.6);
   --shadow-sm: 0 6px 0 rgba(0, 0, 0, 0.8);
+  --shadow-md-up: 0 -6px 0 rgba(0, 0, 0, 0.8);
   --shadow-panel: 0 16px 0 rgba(0, 0, 0, 0.85);
   --shadow-panel-active: 0 20px 0 rgba(0, 0, 0, 0.92);
   --shadow-panel-outline: 0 0 0 2px rgba(253, 253, 252, 0.15);

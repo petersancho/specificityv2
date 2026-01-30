@@ -9,5 +9,5 @@
 }
 
 .icon[data-variant="site"] {
-  filter: none;
+  filter: drop-shadow(0 5px 0 #000000);
 }

@@ -691,6 +691,13 @@ export const NODE_DOCUMENTATION: Record<string, NodeDocumentation> = {
     relatedNodes: ["customPreview", "previewFilter", "geometryReference"],
     workflowNotes: "Geometry Viewer provides inline 3D preview of geometry flowing through your graph. Essential for verifying intermediate results without switching to the main Roslyn viewport.",
   },
+  customViewer: {
+    tips: [
+      "Lightweight viewer for Roslyn-focused previews",
+      "Connect any geometry output to make it the designated display target",
+    ],
+    relatedNodes: ["geometryViewer", "customPreview", "previewFilter"],
+  },
   customPreview: {
     tips: [
       "Combines geometry with Filter settings",
@@ -1679,6 +1686,7 @@ export const NODE_DOCUMENTATION: Record<string, NodeDocumentation> = {
       "If Load goals are present, include a Volume goal for material distribution",
       "Analysis types: static (equilibrium), dynamic (time-stepping), modal (vibration)",
       "Outputs include deformed mesh, stress field, displacements, and diagnostics",
+      "Right-click the Numerica canvas and choose \"Add Physics Solver Rig\" to generate the cantilevered canopy setup",
     ],
     examples: [
       "Cantilevered canopy: Anchor one edge, Load center, Volume 0.3 → deformed shape",
