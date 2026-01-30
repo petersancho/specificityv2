@@ -1,6 +1,6 @@
 # Numerica Interaction Commands (Graph UI)
 
-Updated: 2026-01-29
+Updated: 2026-01-30
 
 These are Numerica‑specific interactions that are not part of the Roslyn command registry.
 

@@ -1,6 +1,6 @@
 # Command + Node Test Matrix
 
-Updated: 2026-01-29
+Updated: 2026-01-30
 
 Use this checklist to validate every Roslyn command and Numerica node.
 Pair this document with `docs/commands_nodes_reference.md` and `docs/numerica_nodes_reference.md`.

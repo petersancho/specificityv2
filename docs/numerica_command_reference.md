@@ -1,6 +1,6 @@
 # Numerica Command Reference
 
-Updated: 2026-01-29
+Updated: 2026-01-30
 
 This reference is generated from the command registry and command descriptions.
 

@@ -228,57 +228,110 @@ List Sum(materialUsage) → Performs Fitness → Biological Solver
 
 Node: **Ἐπιλύτης Χημείας** (`chemistrySolver`)
 
-**Purpose**: Material blending + graded composites over a domain using goals such as stiffness, mass, transparency, and thermal flow.
+**Purpose**: Functionally graded composite material distribution using particle-based simulation and goal-driven optimization. Creates continuous material gradients (e.g., steel-to-ceramic-to-glass transitions).
 
-### Inputs (key ports)
+### Core Concepts
 
-- **Domain** (geometry, required): the spatial region for material distribution.
-- **Materials** (any, multi): material assignments or geometry IDs.
-- **Materials Text** (string): optional JSON / line-based assignments.
-- **Seeds** (geometry): nucleation points/curves/surfaces.
-- **Goals** (goal, multi): chemistry goals.
+- **Materials as particles**: Not geometry, but compositional states that blend continuously.
+- **Seeds**: Nucleation points where specific materials originate.
+- **Diffusion**: Materials spread and mix based on physical properties.
+- **Goals as energy**: Competing objectives drive material distribution toward optimal configurations.
+
+### Key Inputs
+
+| Input | Type | Description |
+|-------|------|-------------|
+| **Domain** | geometry | Watertight boundary for material existence. |
+| **Materials** | any (multi) | Material species assignments (Steel, Glass, Ceramic). |
+| **Materials Text** | string | JSON material definitions (optional). |
+| **Seeds** | geometry | Nucleation sites (points, curves, surfaces). |
+| **Goals** | goal (multi) | Chemistry goals defining optimization objectives. |
+
+### Material Properties (per species)
+
+```
+{
+  name: "Steel",
+  density: 7850,           // kg/m³
+  stiffness: 200e9,        // Pa (Young's modulus)
+  thermalConductivity: 50, // W/(m·K)
+  opticalTransmission: 0,  // 0=opaque, 1=transparent
+  diffusivity: 0.3         // Blending coefficient
+}
+```
 
 ### Chemistry Goal Nodes
 
-- **Material Goal** (`chemistryMaterialGoal`) — defines initial material assignments.
-- **Stiffness Goal** (`chemistryStiffnessGoal`) — pushes stiff materials into load zones.
-- **Mass Goal** (`chemistryMassGoal`) — minimize density/mass in target regions.
-- **Blend Goal** (`chemistryBlendGoal`) — enforce smooth gradients.
-- **Transparency Goal** (`chemistryTransparencyGoal`) — maximize transmission.
-- **Thermal Goal** (`chemistryThermalGoal`) — balance heat flow.
+| Node | Greek | Purpose |
+|------|-------|---------|
+| **Stiffness Goal** | Τέλος Σκληρότητος | Drive stiff materials to load paths. |
+| **Mass Goal** | Τέλος Ἐλαχίστου Ὄγκου | Minimize material density/volume. |
+| **Blend Goal** | Τέλος Ὁμαλότητος | Enforce smooth material gradients. |
+| **Transparency Goal** | Τέλος Διαφανείας | Maximize optical transmission. |
+| **Thermal Goal** | Τέλος Θερμότητος | Balance heat flow through gradients. |
 
-### Step-by-Step: Basic Blend
+### Solver Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `particleCount` | 10000 | Resolution (higher = finer gradients). |
+| `iterations` | 100 | Diffusion steps per solve. |
+| `diffusionRate` | 0.1 | Global blending speed. |
+| `convergenceTolerance` | 1e-4 | Energy change threshold. |
+
+### Step-by-Step: Curtain Wall Mullion Gradient
+
+1) **Define domain** (closed mesh of mullion shape):
+```
+Geometry Reference (mullion) → Chemistry Solver [domain]
+```
+
+2) **Assign materials** via Material Goal:
+```
+Material Goal (Steel at core) → Chemistry Solver [goals]
+Material Goal (Ceramic at middle) → Chemistry Solver [goals]
+Material Goal (Glass at exterior) → Chemistry Solver [goals]
+```
+
+3) **Add optimization goals**:
+```
+Stiffness Goal (weight 0.4) → Chemistry Solver [goals]
+Blend Goal (smoothness 0.8) → Chemistry Solver [goals]
+Transparency Goal (weight 0.3, exterior region) → Chemistry Solver [goals]
+```
+
+4) **Preview result**:
+```
+Chemistry Solver → Geometry Viewer
+```
+
+### Example: Steel-to-Ceramic-to-Glass Gradient
 
 ```
-Geometry Reference (domain) → Chemistry Solver
-Material Goal → Chemistry Solver
-Blend Goal → Chemistry Solver
-```
-
-- Assign initial materials using `Material Goal` (per geometry or list).
-- Use `Blend Goal` with a medium smoothness factor.
-- Preview geometry via a Geometry Viewer node.
-
-### Example Workflow: Glass-to-Ceramic Gradient
-
-```
-Domain → Chemistry Solver
-Glass assignment → Material Goal → Chemistry Solver
-Ceramic assignment → Material Goal → Chemistry Solver
-Blend Goal (high smoothness) → Chemistry Solver
-Transparency Goal → Chemistry Solver
+Domain (mullion mesh)
+       ↓
+Chemistry Solver ← Steel Material (core seeds)
+       ↓          ← Ceramic Material (intermediate)
+       ↓          ← Glass Material (exterior seeds)
+       ↓          ← Stiffness Goal
+       ↓          ← Blend Goal
+       ↓          ← Transparency Goal
+Geometry Viewer (gradient visualization)
 ```
 
 ### Compute Budget Modes
 
-Use smaller particle counts / lower resolution for interactive exploration.
-Switch to higher resolution for final "bake" outputs.
+- **Interactive** (particleCount < 5000): Real-time feedback, coarse gradients.
+- **Draft** (particleCount ~20000): Visible gradient quality, ~5-10s solve.
+- **Final** (particleCount > 50000): Publication-quality gradients, minutes to solve.
 
 ### Common Pitfalls
 
-- Missing materials: solver runs with empty material list.
-- Goals with incompatible weights: result dominated by a single goal.
-- Seeds outside the domain: no effect.
+- Missing materials → solver runs with no compositional data.
+- Goals with incompatible weights → result dominated by single objective.
+- Seeds outside the domain → no material nucleation.
+- Domain not watertight → particles escape, unpredictable results.
+- Diffusivity too high → materials blend to uniform gray.
 
 ---
 

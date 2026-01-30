@@ -1,6 +1,6 @@
 # Numerica Interchange (Import/Export)
 
-Updated: 2026-01-29
+Updated: 2026-01-30
 
 This document explains how Numerica exchanges data with external tools.
 

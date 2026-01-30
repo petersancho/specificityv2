@@ -1,6 +1,6 @@
 # Numerica Node Library Reference
 
-Updated: 2026-01-29
+Updated: 2026-01-30
 
 This reference is generated from the node registry. Each node includes inputs, outputs, defaults, and guidance.
 

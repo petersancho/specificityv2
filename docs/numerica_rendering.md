@@ -1,6 +1,6 @@
 # Numerica Rendering & WebGL Previews
 
-Updated: 2026-01-29
+Updated: 2026-01-30
 
 Numerica renders all nodes on a canvas. Geometry previews are generated through the workflow evaluation engine and displayed via dedicated viewer nodes.
 
