@@ -63,6 +63,9 @@ type GenerationRecord = {
 };
 
 const EPSILON = 1e-9;
+const CONVERGENCE_THRESHOLD = 0.001; // Stop if improvement is less than this
+const MAX_STAGNATION_GENERATIONS = 10; // Stop after this many generations without improvement
+const MAX_TOTAL_GENERATIONS = 200; // Hard limit on total generations
 
 let config: SolverConfig | null = null;
 let genes: GeneDefinition[] = [];
@@ -275,46 +278,86 @@ const evaluatePopulation = async () => {
     fitnessCache.set(result.genomeString, result.metrics ?? {});
   });
 
-  const metricRanges = new Map<string, { min: number; max: number }>();
+  // Collect metric ranges across population for normalization
+  const metricRanges = new Map<string, { min: number; max: number; values: number[] }>();
   metrics.forEach((metric) => {
-    metricRanges.set(metric.id, { min: Number.POSITIVE_INFINITY, max: Number.NEGATIVE_INFINITY });
+    metricRanges.set(metric.id, { 
+      min: Number.POSITIVE_INFINITY, 
+      max: Number.NEGATIVE_INFINITY,
+      values: [],
+    });
   });
 
+  // First pass: collect all values and ranges
   population.forEach((ind) => {
     const values = fitnessCache.get(ind.genomeString) ?? {};
     metrics.forEach((metric) => {
-      const value = Number(values[metric.id] ?? 0);
+      const raw = values[metric.id];
+      const value = Number.isFinite(Number(raw)) ? Number(raw) : 0;
       const range = metricRanges.get(metric.id);
       if (!range) return;
+      range.values.push(value);
       range.min = Math.min(range.min, value);
       range.max = Math.max(range.max, value);
     });
   });
 
-  const totalWeight = metrics.reduce((sum, metric) => sum + (metric.weight || 0), 0);
+  // Handle edge cases: if all values are the same, use a fallback range
+  metricRanges.forEach((range, metricId) => {
+    if (range.max - range.min <= EPSILON) {
+      // All values are the same - use a small range around the value
+      const midValue = range.values.length > 0 ? range.values[0] : 0;
+      range.min = midValue - 1;
+      range.max = midValue + 1;
+    }
+  });
+
+  // Calculate total weight with fallback
+  const totalWeight = metrics.reduce((sum, metric) => sum + Math.max(EPSILON, metric.weight || 0), 0);
+  
+  // Second pass: calculate normalized fitness scores
   population.forEach((ind) => {
     const values = fitnessCache.get(ind.genomeString) ?? {};
     const breakdown: Record<string, number> = {};
     let score = 0;
+    
     metrics.forEach((metric) => {
-      const value = Number(values[metric.id] ?? 0);
+      const raw = values[metric.id];
+      const value = Number.isFinite(Number(raw)) ? Number(raw) : 0;
       const range = metricRanges.get(metric.id);
-      if (!range) return;
+      if (!range) {
+        breakdown[metric.id] = 0.5;
+        return;
+      }
+      
       const span = range.max - range.min;
-      let normalized = span <= EPSILON ? 0.5 : (value - range.min) / span;
-      if (metric.mode === "minimize") normalized = 1 - normalized;
+      // Normalize to 0-1 range
+      let normalized = span > EPSILON ? (value - range.min) / span : 0.5;
+      // Clamp to valid range
+      normalized = clamp(normalized, 0, 1);
+      
+      // Apply minimize/maximize mode
+      if (metric.mode === "minimize") {
+        normalized = 1 - normalized;
+      }
+      
       breakdown[metric.id] = normalized;
-      score += normalized * (metric.weight || 0);
+      const weight = Math.max(EPSILON, metric.weight || 0);
+      score += normalized * weight;
     });
+    
     ind.fitnessBreakdown = breakdown;
-    ind.fitness = totalWeight > EPSILON ? score / totalWeight : 0;
+    // Normalize final fitness to 0-1 range
+    ind.fitness = clamp(totalWeight > EPSILON ? score / totalWeight : 0.5, 0, 1);
   });
 
+  // Sort by fitness (best first)
   population.sort((a, b) => b.fitness - a.fitness);
   population.forEach((ind, idx) => {
     ind.rank = idx + 1;
   });
 
+  // Calculate statistics
   const fitnessValues = population.map((ind) => ind.fitness);
   const bestFitness = fitnessValues.length > 0 ? Math.max(...fitnessValues) : 0;
   const worstFitness = fitnessValues.length > 0 ? Math.min(...fitnessValues) : 0;
@@ -389,19 +432,60 @@ const evolveGeneration = async () => {
   });
 };
 
+const checkConvergence = (): { converged: boolean; reason: string | null } => {
+  if (generation >= MAX_TOTAL_GENERATIONS) {
+    return { converged: true, reason: `Maximum generations (${MAX_TOTAL_GENERATIONS}) reached` };
+  }
+  if (stagnationCount >= MAX_STAGNATION_GENERATIONS) {
+    return { converged: true, reason: `Stagnation detected (${MAX_STAGNATION_GENERATIONS} generations without improvement)` };
+  }
+  if (history.length >= 2) {
+    const current = history[history.length - 1];
+    const previous = history[history.length - 2];
+    const improvement = Math.abs(current.statistics.bestFitness - previous.statistics.bestFitness);
+    if (improvement < CONVERGENCE_THRESHOLD && current.statistics.diversityStdDev < CONVERGENCE_THRESHOLD) {
+      return { converged: true, reason: "Convergence detected (minimal improvement and low diversity)" };
+    }
+  }
+  return { converged: false, reason: null };
+};
+
 const runEvolution = async (count: number) => {
   if (!config) return;
   running = true;
   stopRequested = false;
   paused = false;
+  
+  let converged = false;
+  let convergenceReason: string | null = null;
+  
   for (let i = 0; i < count; i++) {
     if (stopRequested) break;
     if (paused) break;
+    
+    // Check convergence before evolving
+    const convergenceCheck = checkConvergence();
+    if (convergenceCheck.converged) {
+      converged = true;
+      convergenceReason = convergenceCheck.reason;
+      break;
+    }
+    
     generation += 1;
     await evolveGeneration();
+    
+    // Yield to allow message processing
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
   }
+  
   running = false;
-  self.postMessage({ type: "ALL_COMPLETE", generation, history });
+  self.postMessage({ 
+    type: "ALL_COMPLETE", 
+    generation, 
+    history,
+    converged,
+    convergenceReason,
+  });
 };
 
 self.onmessage = async (event: MessageEvent<WorkerIncomingMessage>) => {

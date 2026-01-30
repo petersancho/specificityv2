@@ -421,8 +421,13 @@ const BiologicalSolverPopup = ({ nodeId, onClose }: BiologicalSolverPopupProps) 
         return;
       }
       if (message?.type === "ALL_COMPLETE") {
-        setStatus("stopped");
-        updateBiologicalSolverState(nodeId, { status: "stopped" });
+        const converged = message.converged ?? false;
+        const reason = message.convergenceReason ?? null;
+        setStatus(converged ? "converged" : "stopped");
+        if (converged && reason) {
+          setError(`Converged: ${reason}`);
+        }
+        updateBiologicalSolverState(nodeId, { status: converged ? "converged" : "stopped" });
         return;
       }
       if (message?.type === "PAUSED") {
@@ -1269,37 +1274,47 @@ const BiologicalSolverPopup = ({ nodeId, onClose }: BiologicalSolverPopupProps) 
                     </select>
                   </div>
                   <div className={styles.galleryGrid}>
-                    {filteredIndividuals.map((individual) => (
-                      <div
-                        key={individual.id}
-                        className={styles.galleryCard}
-                        onClick={() => {
-                          setDetailId(individual.id);
-                          toggleSelection(individual.id);
-                          const connections = connectionsRef.current;
-                          if (connections) {
-                            applyGenomeToSliders(connections.genes, individual.genome);
-                            updatePreviewGeometry(connections);
-                          }
-                        }}
-                        title="Click to preview and toggle selection."
-                      >
-                        {individual.thumbnail ? (
-                          <img
-                            className={styles.galleryImage}
-                            src={individual.thumbnail}
-                            alt={`Generation ${individual.generation}`}
-                          />
-                        ) : (
-                          <div className={styles.galleryImage} />
-                        )}
-                        <div className={styles.galleryMeta}>
-                          <span>Gen {individual.generation}</span>
-                          <span>Rank {individual.rank}</span>
-                          <span>Fit {individual.fitness.toFixed(3)}</span>
+                    {filteredIndividuals.map((individual) => {
+                      const isSelected = selectedIds.has(individual.id);
+                      return (
+                        <div
+                          key={individual.id}
+                          className={`${styles.galleryCard} ${isSelected ? styles.selected : ""}`}
+                          onClick={() => {
+                            setDetailId(individual.id);
+                            toggleSelection(individual.id);
+                            const connections = connectionsRef.current;
+                            if (connections) {
+                              applyGenomeToSliders(connections.genes, individual.genome);
+                              updatePreviewGeometry(connections);
+                            }
+                          }}
+                          title={isSelected ? "Click to deselect" : "Click to select and preview"}
+                        >
+                          {individual.thumbnail ? (
+                            <img
+                              className={styles.galleryImage}
+                              src={individual.thumbnail}
+                              alt={`Generation ${individual.generation}`}
+                            />
+                          ) : (
+                            <div className={styles.galleryImage} />
+                          )}
+                          <div className={styles.galleryMeta}>
+                            <span>Gen {individual.generation}</span>
+                            <span>Rank {individual.rank}</span>
+                            <span>Fit {individual.fitness.toFixed(3)}</span>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
+                  </div>
+                  <div className={styles.selectionInfo}>
+                    {selectedIds.size > 0 ? (
+                      <span>{selectedIds.size} design{selectedIds.size !== 1 ? "s" : ""} selected</span>
+                    ) : (
+                      <span>Click designs to select for export</span>
+                    )}
                   </div>
                   <div className={styles.sectionActions}>
                     <WebGLButton
@@ -1311,6 +1326,7 @@ const BiologicalSolverPopup = ({ nodeId, onClose }: BiologicalSolverPopupProps) 
                       tooltip="Export the best overall design at full resolution."
                       title="Export best overall"
                       shape="rounded"
+                      disabled={!best}
                     />
                     <WebGLButton
                       label="Export Generation Bests PNG"
@@ -1326,9 +1342,10 @@ const BiologicalSolverPopup = ({ nodeId, onClose }: BiologicalSolverPopupProps) 
                       tooltip="Export the top individual from each generation."
                       title="Export generation bests"
                       shape="rounded"
+                      disabled={populationBests.length === 0}
                     />
                     <WebGLButton
-                      label="Export Selected Designs PNG"
+                      label={`Export Selected (${selectedIds.size})`}
                       iconId="download"
                       iconStyle={POPUP_ICON_STYLE}
                       variant="secondary"
@@ -1343,6 +1360,18 @@ const BiologicalSolverPopup = ({ nodeId, onClose }: BiologicalSolverPopupProps) 
                       tooltip="Export only the selected designs."
                       title="Export selected designs"
                       shape="rounded"
+                      disabled={selectedIds.size === 0}
+                    />
+                    <WebGLButton
+                      label="Clear Selection"
+                      iconId="close"
+                      iconStyle={POPUP_ICON_STYLE}
+                      variant="ghost"
+                      onClick={() => setSelectedIds(new Set())}
+                      tooltip="Clear all selections."
+                      title="Clear selection"
+                      shape="rounded"
+                      disabled={selectedIds.size === 0}
                     />
                   </div>
                 </div>

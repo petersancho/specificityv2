@@ -148,6 +148,11 @@ export const resolveSolverConnections = (solverNodeId: string): ConnectionInfo |
   };
 };
 
+// Batch size for evaluation - larger batches reduce overhead
+const EVAL_BATCH_SIZE = 8;
+// Throttle progress updates to reduce UI lag
+const PROGRESS_THROTTLE_MS = 50;
+
 export const evaluateIndividuals = async (
   solverNodeId: string,
   individuals: Array<{ genome: number[]; genomeString: string }>,
@@ -165,7 +170,8 @@ export const evaluateIndividuals = async (
     return toNumber(parameters.value, 0);
   });
 
-  const applySliderValues = (values: number[]) => {
+  // Fast batch update for slider values
+  const applySliderValuesFast = (values: number[]) => {
     const updates = new Map<string, number>();
     connections.genes.forEach((gene, index) => {
       const raw = values[index] ?? gene.currentValue;
@@ -192,24 +198,36 @@ export const evaluateIndividuals = async (
         }),
       },
     }));
+    // Recalculate synchronously
     useProjectStore.getState().recalculateWorkflow();
   };
 
   const restoreOriginal = () => {
-    applySliderValues(originalValues);
+    applySliderValuesFast(originalValues);
   };
 
-  let completed = 0;
+  // Separate cached vs uncached individuals
+  const uncached: Array<{ genome: number[]; genomeString: string }> = [];
   for (const individual of individuals) {
     const cached = cache.get(individual.genomeString);
     if (cached) {
       results.push({ genomeString: individual.genomeString, metrics: cached.metrics });
-      completed += 1;
-      onProgress?.(completed, individuals.length, "Cached evaluation");
-      continue;
+    } else {
+      uncached.push(individual);
     }
+  }
 
-    applySliderValues(individual.genome);
+  // Report cached results immediately
+  if (results.length > 0 && onProgress) {
+    onProgress(results.length, individuals.length, "Cached");
+  }
+
+  // Process uncached individuals in batches
+  let lastProgressTime = 0;
+  for (let i = 0; i < uncached.length; i++) {
+    const individual = uncached[i];
+
+    applySliderValuesFast(individual.genome);
 
     const metrics: Record<string, number> = {};
     connections.metricSources.forEach((metric) => {
@@ -220,16 +238,41 @@ export const evaluateIndividuals = async (
       metrics[metric.metricId] = coerceMetricValue(value);
     });
 
+    // Capture geometry IDs for thumbnail generation
+    const geometryIds: string[] = [];
+    connections.geometrySources.forEach((source) => {
+      const node = useProjectStore
+        .getState()
+        .workflow.nodes.find((entry) => entry.id === source.nodeId);
+      const output = node?.data?.outputs?.[source.portKey];
+      if (typeof output === "string") {
+        geometryIds.push(output);
+      } else if (Array.isArray(output)) {
+        output.forEach((id) => {
+          if (typeof id === "string") geometryIds.push(id);
+        });
+      }
+    });
+
     cache.set(individual.genomeString, {
       genomeString: individual.genomeString,
       metrics,
-      geometryIds: [],
+      geometryIds,
     });
     results.push({ genomeString: individual.genomeString, metrics });
 
-    completed += 1;
-    onProgress?.(completed, individuals.length, "Evaluating");
-    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    // Throttled progress updates
+    const now = performance.now();
+    const completed = results.length;
+    if (onProgress && (now - lastProgressTime > PROGRESS_THROTTLE_MS || completed === individuals.length)) {
+      onProgress(completed, individuals.length, "Evaluating");
+      lastProgressTime = now;
+    }
+
+    // Yield to UI every batch to prevent freezing
+    if ((i + 1) % EVAL_BATCH_SIZE === 0 && i < uncached.length - 1) {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    }
   }
 
   restoreOriginal();

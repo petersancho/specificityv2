@@ -7026,29 +7026,29 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         target: performsFitnessId,
         targetHandle: "metrics",
       },
-      // Genome Collector → Biological Solver (goals input)
+      // Genome Collector → Biological Solver (genome input)
       {
         id: `edge-${genomeCollectorId}-${solverId}`,
         source: genomeCollectorId,
         sourceHandle: "genome",
         target: solverId,
-        targetHandle: "goals",
+        targetHandle: "genome",
       },
-      // Geometry Phenotype → Biological Solver (goals input)
+      // Geometry Phenotype → Biological Solver (geometry input)
       {
         id: `edge-${geometryPhenotypeId}-${solverId}`,
         source: geometryPhenotypeId,
         sourceHandle: "phenotype",
         target: solverId,
-        targetHandle: "goals",
+        targetHandle: "geometry",
       },
-      // Performs Fitness → Biological Solver (goals input)
+      // Performs Fitness → Biological Solver (performs input)
       {
         id: `edge-${performsFitnessId}-${solverId}`,
         source: performsFitnessId,
         sourceHandle: "fitness",
         target: solverId,
-        targetHandle: "goals",
+        targetHandle: "performs",
       },
       // Morphogenesis Goal → Biological Solver (goals input)
       {
