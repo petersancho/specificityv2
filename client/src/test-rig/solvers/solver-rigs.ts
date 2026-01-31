@@ -307,17 +307,20 @@ export const runBiologicalSolverRig = () => {
     fitness: number,
     generation: number,
     rank: number
-  ): Individual => ({
-    id,
-    genome,
-    genomeString: genome.join(","),
-    fitness,
-    generation,
-    rank,
-    geometryIds: [baseGeometry.id],
-    geometry: [baseGeometry],
-    thumbnail: null,
-  });
+  ): Individual => {
+    const genomeCopy = [...genome];
+    return {
+      id,
+      genome: genomeCopy,
+      genomeString: genomeCopy.join(","),
+      fitness,
+      generation,
+      rank,
+      geometryIds: [baseGeometry.id],
+      geometry: [baseGeometry],
+      thumbnail: null,
+    };
+  };
 
   const gen0 = [
     makeIndividual("ind-0", [0.25, -0.35, 0.6], 0.72, 0, 2),
@@ -328,6 +331,14 @@ export const runBiologicalSolverRig = () => {
     makeIndividual("ind-2", [0.33, -0.22, 0.71], 0.8, 1, 2),
     makeIndividual("ind-3", [0.5, 0.18, 0.62], 0.86, 1, 1),
   ];
+
+  const populations = [gen0, gen1];
+  const populationSize = populations[0].length;
+  populations.forEach((population) => {
+    if (population.length !== populationSize) {
+      throw new Error("Biological solver rig populations must be uniform size");
+    }
+  });
 
   const best = gen1[1];
 
@@ -347,13 +358,13 @@ export const runBiologicalSolverRig = () => {
   };
 
   const config: SolverConfig = {
-    populationSize: 2,
-    generations: 2,
+    populationSize,
+    generations: populations.length,
     mutationRate: 0.18,
     crossoverRate: 0.7,
     elitism: 1,
     selectionMethod: "tournament",
-    tournamentSize: 2,
+    tournamentSize: Math.min(2, populationSize),
     mutationType: "gaussian",
     crossoverType: "uniform",
     seedFromCurrent: false,

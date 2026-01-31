@@ -5,6 +5,7 @@ import {
   runPhysicsSolverRig,
   runTopologySolverRig,
 } from "../solvers/solver-rigs";
+import { makeBranchingGrowthExampleGrowthGoal } from "../solvers/branching-growth-example";
 import type { RenderMesh } from "../../types";
 import { deriveGoalTuning } from "../../workflow/nodes/solver/biological/evaluation";
 import type { GoalSpecification } from "../../workflow/nodes/solver/types";
@@ -166,7 +167,7 @@ const validateBiologicalSolver = () => {
 };
 
 const validateBiologicalGoalTuning = () => {
-  const baseline = deriveGoalTuning(null);
+  const baseline = deriveGoalTuning([]);
   ensure(
     approxEqual(baseline.mutationRateScale, 1),
     "Expected baseline mutation scale 1"
@@ -176,17 +177,7 @@ const validateBiologicalGoalTuning = () => {
     "Expected baseline population scale 1"
   );
 
-  const growthGoal: GoalSpecification = {
-    goalType: "growth",
-    weight: 1,
-    target: 0.7,
-    geometry: { elements: [0, 1, 2] },
-    parameters: {
-      growthRate: 2,
-      targetBiomass: 0.7,
-      carryingCapacity: 3,
-    },
-  };
+  const growthGoal = makeBranchingGrowthExampleGrowthGoal();
 
   const tunedGrowth = deriveGoalTuning([growthGoal]);
   ensure(tunedGrowth.mutationRateScale > 1, "Expected growth to increase mutation rate");

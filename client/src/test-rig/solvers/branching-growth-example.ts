@@ -66,22 +66,24 @@ export type BranchingGrowthSolverExampleV1 = {
   };
 };
 
+export const makeBranchingGrowthExampleGrowthGoal = (): GoalSpecification => ({
+  goalType: "growth",
+  weight: 1,
+  target: 0.7,
+  geometry: {
+    elements: [0, 1, 2, 3, 4],
+  },
+  parameters: {
+    growthRate: 2,
+    targetBiomass: 0.7,
+    carryingCapacity: 3,
+  },
+});
+
 export const generateBranchingGrowthSolverExample = (): BranchingGrowthSolverExampleV1 => {
   const { biologicalOutputs, baseGeometry, individual, config } = runBiologicalSolverRig();
 
-  const growthGoal: GoalSpecification = {
-    goalType: "growth",
-    weight: 1,
-    target: 0.7,
-    geometry: {
-      elements: [0, 1, 2, 3, 4],
-    },
-    parameters: {
-      growthRate: 1.5,
-      targetBiomass: 0.7,
-      carryingCapacity: 2,
-    },
-  };
+  const growthGoal = makeBranchingGrowthExampleGrowthGoal();
 
   const goalTuning = deriveGoalTuning([growthGoal]);
 
