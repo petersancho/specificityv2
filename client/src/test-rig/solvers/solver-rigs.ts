@@ -341,13 +341,19 @@ export const runBiologicalSolverRig = () => {
 
   const populations = [gen0, gen1];
   const populationSize = populations[0].length;
-  populations.forEach((population) => {
+  populations.forEach((population, index) => {
     if (population.length !== populationSize) {
       throw new Error(
-        `Biological solver rig populations must be uniform size: expected ${populationSize}, got ${population.length}`
+        `Biological solver rig populations must be uniform size: expected ${populationSize}, got ${population.length} at generation ${index}`
       );
     }
   });
+
+  if (populationSize < 2) {
+    throw new Error(
+      `Biological solver rig requires populationSize >= 2 for tournament selection (got ${populationSize})`
+    );
+  }
 
   const best = gen1[1];
 
@@ -380,7 +386,7 @@ export const runBiologicalSolverRig = () => {
     crossoverRate: 0.7,
     elitism: 1,
     selectionMethod: "tournament",
-    tournamentSize: Math.min(2, populationSize),
+    tournamentSize: 2,
     mutationType: "gaussian",
     crossoverType: "uniform",
     seedFromCurrent: false,
@@ -438,6 +444,26 @@ export const runBiologicalSolverRig = () => {
     },
     selectedGeometry: [baseGeometry.id],
   };
+
+  const lastHistoryGeneration = outputs.history?.generations[outputs.history.generations.length - 1];
+  if (!lastHistoryGeneration) {
+    throw new Error("Biological solver rig missing history generations");
+  }
+
+  if (!lastHistoryGeneration.population.some((entry) => entry.id === best.id)) {
+    throw new Error(
+      `Biological solver rig best individual ${best.id} not found in last generation`
+    );
+  }
+
+  const bestFitnessInLastGeneration = Math.max(
+    ...lastHistoryGeneration.population.map((entry) => entry.fitness)
+  );
+  if (best.fitness !== bestFitnessInLastGeneration) {
+    throw new Error(
+      `Biological solver rig best fitness mismatch: best.fitness=${best.fitness}, history bestFitness=${bestFitnessInLastGeneration}`
+    );
+  }
 
   const generations = outputs.history?.generations ?? [];
   const completedGenerations = generations.length;

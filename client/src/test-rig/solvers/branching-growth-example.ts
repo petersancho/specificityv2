@@ -12,10 +12,12 @@ type MeshSummary = {
   bounds: ReturnType<typeof meshBounds> | null;
   hasColors: boolean;
   isTriangleMesh: boolean;
+  validationWarnings?: string[];
 };
 
 
 const summarizeMesh = (mesh: RenderMesh): MeshSummary => {
+  const validationWarnings: string[] = [];
   const isTriangleMesh =
     mesh.positions.length > 0 &&
     mesh.indices.length > 0 &&
@@ -23,20 +25,21 @@ const summarizeMesh = (mesh: RenderMesh): MeshSummary => {
     mesh.indices.length % 3 === 0;
 
   if (!isTriangleMesh) {
-    throw new Error(
-      `BranchingGrowth solver test rig expects triangle mesh baseGeometry (positions=${mesh.positions.length}, indices=${mesh.indices.length})`
+    validationWarnings.push(
+      `Expected triangle mesh (got positions=${mesh.positions.length}, indices=${mesh.indices.length})`
     );
   }
 
-  const vertexCount = mesh.positions.length / 3;
-  const triangleCount = mesh.indices.length / 3;
-  const bounds = meshBounds(mesh);
+  const vertexCount = isTriangleMesh ? mesh.positions.length / 3 : 0;
+  const triangleCount = isTriangleMesh ? mesh.indices.length / 3 : 0;
+  const bounds = isTriangleMesh ? meshBounds(mesh) : null;
   return {
     vertexCount,
     triangleCount,
     bounds,
     hasColors: Array.isArray(mesh.colors) && mesh.colors.length > 0,
     isTriangleMesh,
+    validationWarnings: validationWarnings.length > 0 ? validationWarnings : undefined,
   };
 };
 
@@ -98,6 +101,12 @@ export const makeBranchingGrowthExampleGrowthGoal = (): GoalSpecification => ({
 
 export const generateBranchingGrowthSolverExample = (): BranchingGrowthSolverExampleV1 => {
   const { biologicalOutputs, baseGeometry, individual, config } = runBiologicalSolverRig();
+
+  if (individual.genome.length !== BRANCHING_GROWTH_GENOME_DIMENSION) {
+    throw new Error(
+      `BranchingGrowth example expects genome length ${BRANCHING_GROWTH_GENOME_DIMENSION} (got ${individual.genome.length})`
+    );
+  }
 
   const [branchX, branchY, branchZ] = individual.genome;
 
