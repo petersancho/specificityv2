@@ -2482,7 +2482,15 @@ const runTopologyDensitySolver = (args: {
     mean /= cellCount;
     constraint = mean - volumeFraction;
 
-    const correction = constraint * 0.35;
+    // Apply a global correction to keep mean density close to the target volume fraction;
+    // clamp the step so extreme inputs do not overshoot.
+    const correctionGain = 1;
+    const maxCorrection = clampNumber(0.5 * volumeFraction, 0.05, 0.25);
+    const correction = clampNumber(
+      constraint * correctionGain,
+      -maxCorrection,
+      maxCorrection
+    );
     let compliance = 0;
     for (let i = 0; i < cellCount; i += 1) {
       densities[i] = clampNumber(next[i] - correction, 0, 1);
@@ -10241,6 +10249,46 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
         description:
           "Optional voxel grid domain. Bounds are reused; resolution snaps to cubic max.",
       },
+      {
+        key: "volumeFraction",
+        label: "VF",
+        type: "number",
+        parameterKey: "volumeFraction",
+        defaultValue: 0.4,
+        description: "Target solid volume fraction (0-1).",
+      },
+      {
+        key: "penaltyExponent",
+        label: "Penalty",
+        type: "number",
+        parameterKey: "penaltyExponent",
+        defaultValue: 3,
+        description: "SIMP penalty exponent for stiffness.",
+      },
+      {
+        key: "filterRadius",
+        label: "Radius",
+        type: "number",
+        parameterKey: "filterRadius",
+        defaultValue: 2,
+        description: "Neighborhood radius in voxels (0 disables filtering).",
+      },
+      {
+        key: "iterations",
+        label: "Iterations",
+        type: "number",
+        parameterKey: "iterations",
+        defaultValue: 40,
+        description: "Solver iterations to run.",
+      },
+      {
+        key: "resolution",
+        label: "Resolution",
+        type: "number",
+        parameterKey: "resolution",
+        defaultValue: 12,
+        description: "Grid resolution when no voxel grid input is provided.",
+      },
     ],
     outputs: [
       {
@@ -10355,25 +10403,34 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
             )
           )
         : null;
-      const volumeFraction = toNumber(
-        inputs.volumeFraction,
-        readNumberParameter(parameters, "volumeFraction", 0.4)
+
+      // Inputs may override parameter values to support wiring solver settings from other nodes.
+      const volumeFraction = clampNumber(
+        toNumber(inputs.volumeFraction, readNumberParameter(parameters, "volumeFraction", 0.4)),
+        0.05,
+        0.95
       );
-      const penaltyExponent = toNumber(
-        inputs.penaltyExponent,
-        readNumberParameter(parameters, "penaltyExponent", 3)
+      const penaltyExponent = clampNumber(
+        toNumber(inputs.penaltyExponent, readNumberParameter(parameters, "penaltyExponent", 3)),
+        1,
+        6
       );
-      const filterRadius = toNumber(
-        inputs.filterRadius,
-        readNumberParameter(parameters, "filterRadius", 2)
+      const filterRadius = clampNumber(
+        toNumber(inputs.filterRadius, readNumberParameter(parameters, "filterRadius", 2)),
+        0,
+        8
       );
-      const iterations = toNumber(
-        inputs.iterations,
-        readNumberParameter(parameters, "iterations", 40)
+      const iterations = clampInt(
+        toNumber(inputs.iterations, readNumberParameter(parameters, "iterations", 40)),
+        1,
+        120,
+        40
       );
-      const resolutionHint = toNumber(
-        inputs.resolution,
-        readNumberParameter(parameters, "resolution", 12)
+      const resolutionHint = clampInt(
+        toNumber(inputs.resolution, readNumberParameter(parameters, "resolution", 12)),
+        4,
+        36,
+        12
       );
       const inputGrid = coerceVoxelGrid(
         inputs.voxelGrid,

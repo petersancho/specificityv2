@@ -34,6 +34,38 @@ const ensureStressColors = (mesh: RenderMesh, label: string) => {
   );
 };
 
+const ensureTopologyReport = (
+  report: {
+    settings: { volumeFraction: number };
+    density: {
+      cellCount: number;
+      mean: number;
+      stdDev: number;
+      min: number;
+      max: number;
+      midSlice: number[][] | null;
+    };
+    isoSurface: { triangleCount: number };
+  },
+  label: string
+) => {
+  ensureFinite(report.density.mean, `${label}: mean density not finite`);
+  ensureFinite(report.density.stdDev, `${label}: density std dev not finite`);
+  ensure(report.density.cellCount > 0, `${label}: density cell count missing`);
+  ensure(report.density.min >= 0, `${label}: density min < 0`);
+  ensure(report.density.max <= 1, `${label}: density max > 1`);
+  ensure(report.density.midSlice !== null, `${label}: density mid-slice unavailable`);
+
+  // Enforce non-trivial variation while scaling thresholds with grid size so the validation
+  // stays meaningful across different resolutions.
+  const minStdDev = Math.max(1e-4, 0.05 / Math.sqrt(report.density.cellCount));
+  ensure(report.density.stdDev > minStdDev, `${label}: density field has no variation`);
+  ensure(report.isoSurface.triangleCount > 0, `${label}: iso surface empty`);
+  const meanError = Math.abs(report.density.mean - report.settings.volumeFraction);
+  const meanTolerance = Math.max(0.1, 4 / Math.sqrt(report.density.cellCount));
+  ensure(meanError <= meanTolerance, `${label}: mean density diverged from target volume fraction`);
+};
+
 const runNodeValidation = (nodeName: string, fn: () => void) => {
   try {
     fn();
@@ -97,24 +129,30 @@ const validatePhysicsModal = () => {
 };
 
 const validateTopologySolver = () => {
-  const { outputs, isoOutputs, outputGeometry } = runTopologySolverRig("topologySolver");
+  const { outputs, isoOutputs, outputGeometry, report } = runTopologySolverRig("topologySolver");
   ensure(outputs.status === "complete", "Expected topology solver complete");
   ensure(Array.isArray(outputs.densityField), "Expected density field array");
   ensure(outputs.densityField.length > 0, "Expected density field data");
   ensure(outputs.voxelGrid !== null, "Expected voxel grid output");
   ensure(outputs.resolution > 0, "Expected resolution > 0");
+  ensureFinite(outputs.objective, "Expected objective finite");
+  ensureFinite(outputs.constraint, "Expected constraint finite");
   ensureMesh(isoOutputs.mesh as RenderMesh, "topology iso mesh");
   ensureMesh(outputGeometry.mesh, "topology output geometry");
+  ensureTopologyReport(report, "topology report");
 };
 
 const validateVoxelSolver = () => {
-  const { outputs, isoOutputs, outputGeometry } = runTopologySolverRig("voxelSolver");
+  const { outputs, isoOutputs, outputGeometry, report } = runTopologySolverRig("voxelSolver");
   ensure(outputs.status === "complete", "Expected voxel solver complete");
   ensure(Array.isArray(outputs.densityField), "Expected density field array");
   ensure(outputs.densityField.length > 0, "Expected density field data");
   ensure(outputs.voxelGrid !== null, "Expected voxel grid output");
+  ensureFinite(outputs.objective, "Expected objective finite");
+  ensureFinite(outputs.constraint, "Expected constraint finite");
   ensureMesh(isoOutputs.mesh as RenderMesh, "voxel iso mesh");
   ensureMesh(outputGeometry.mesh, "voxel output geometry");
+  ensureTopologyReport(report, "voxel report");
 };
 
 const validateChemistrySolver = () => {

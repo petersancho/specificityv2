@@ -150,25 +150,201 @@ export const runPhysicsSolverRig = (analysisType: AnalysisType) => {
   };
 };
 
+type TopologyScenario = "cantilever" | "bridge";
+
+const TOPOLOGY_SCENARIO_CONFIG: Record<
+  TopologyScenario,
+  {
+    anchorAxis: "x" | "y" | "z";
+    loadAxis: "x" | "y" | "z";
+    force: { x: number; y: number; z: number };
+    weights: { volume: number; stiffness: number; load: number; anchor: number };
+  }
+> = {
+  cantilever: {
+    anchorAxis: "x",
+    loadAxis: "x",
+    force: { x: 0, y: -120, z: 0 },
+    weights: { volume: 0.4, stiffness: 0.25, load: 0.2, anchor: 0.15 },
+  },
+  bridge: {
+    anchorAxis: "y",
+    loadAxis: "y",
+    force: { x: 0, y: -180, z: 0 },
+    weights: { volume: 0.4, stiffness: 0.25, load: 0.2, anchor: 0.15 },
+  },
+};
+
+const buildTopologyGoals = (
+  mesh: RenderMesh,
+  scenario: TopologyScenario,
+  volumeFraction: number
+): GoalSpecification[] => {
+  const config = TOPOLOGY_SCENARIO_CONFIG[scenario];
+  const anchorAxis = config.anchorAxis;
+  const loadAxis = config.loadAxis;
+  const anchorMode: "min" | "max" = "min";
+  const loadMode: "min" | "max" = "max";
+  const anchorIndices = findVertexIndicesAtExtent(mesh, anchorAxis, anchorMode);
+  const loadIndices = findVertexIndicesAtExtent(mesh, loadAxis, loadMode);
+  if (anchorIndices.length === 0) {
+    throw new Error(`Topology rig ${scenario}: no anchor vertices found`);
+  }
+  if (loadIndices.length === 0) {
+    throw new Error(`Topology rig ${scenario}: no load vertices found`);
+  }
+
+  const volume: VolumeGoal = {
+    goalType: "volume",
+    weight: config.weights.volume,
+    target: volumeFraction,
+    geometry: { elements: [] },
+    parameters: {
+      targetVolume: volumeFraction,
+      materialDensity: 7800,
+      allowedDeviation: 0.1,
+    },
+  };
+
+  const stiffness: StiffnessGoal = {
+    goalType: "stiffness",
+    weight: config.weights.stiffness,
+    target: 1,
+    constraint: { min: 0, max: 1 },
+    geometry: { elements: loadIndices },
+    parameters: {
+      youngModulus: 2.1e9,
+      poissonRatio: 0.3,
+      targetStiffness: 1,
+    },
+  };
+
+  const load: LoadGoal = {
+    goalType: "load",
+    weight: config.weights.load,
+    target: 1,
+    geometry: { elements: loadIndices },
+    parameters: {
+      force: config.force,
+      applicationPoints: loadIndices,
+      distributed: true,
+      loadType: "static",
+    },
+  };
+
+  const anchor: AnchorGoal = {
+    goalType: "anchor",
+    weight: config.weights.anchor,
+    target: 0,
+    geometry: { elements: anchorIndices },
+    parameters: {
+      fixedDOF: { x: true, y: true, z: true },
+      anchorType: "fixed",
+      springStiffness: 0,
+    },
+  };
+
+  return [volume, stiffness, load, anchor];
+};
+
+const summarizeDensityField = (densities: number[]) => {
+  if (densities.length === 0) {
+    return { min: 0, max: 0, mean: 0, stdDev: 0 };
+  }
+  let min = Infinity;
+  let max = -Infinity;
+  let sum = 0;
+  for (let i = 0; i < densities.length; i += 1) {
+    const value = densities[i];
+    if (value < min) min = value;
+    if (value > max) max = value;
+    sum += value;
+  }
+  const mean = sum / densities.length;
+  let variance = 0;
+  for (let i = 0; i < densities.length; i += 1) {
+    const delta = densities[i] - mean;
+    variance += delta * delta;
+  }
+  const stdDev = Math.sqrt(variance / densities.length);
+  return { min, max, mean, stdDev };
+};
+
+const buildDensityHistogram = (densities: number[], buckets = 10) => {
+  const counts = new Array<number>(buckets).fill(0);
+  if (densities.length === 0) {
+    return { buckets, counts };
+  }
+  densities.forEach((value) => {
+    const clamped = Math.max(0, Math.min(1, value));
+    const idx = Math.min(buckets - 1, Math.floor(clamped * buckets));
+    counts[idx] += 1;
+  });
+  return { buckets, counts };
+};
+
+const buildMidSlice = (densities: number[], resolution: number): number[][] | null => {
+  const requestedResolution = Math.max(1, Math.floor(resolution));
+  let res = requestedResolution;
+  const requestedCellCount = res * res * res;
+  if (densities.length !== requestedCellCount) {
+    const inferred = Math.round(Math.cbrt(densities.length));
+    if (inferred > 0 && inferred * inferred * inferred === densities.length) {
+      res = inferred;
+    } else {
+      return null;
+    }
+  }
+  const layer = Math.floor(res / 2);
+  const slice: number[][] = [];
+  const zOffset = layer * res * res;
+  for (let y = 0; y < res; y += 1) {
+    const row: number[] = [];
+    for (let x = 0; x < res; x += 1) {
+      const idx = zOffset + y * res + x;
+      const value = densities[idx] ?? 0;
+      row.push(Math.round(value * 1000) / 1000);
+    }
+    slice.push(row);
+  }
+  return slice;
+};
+
 export const runTopologySolverRig = (nodeType: "topologySolver" | "voxelSolver") => {
   const solverNode = getNodeDefinition(nodeType);
   const isoNode = getNodeDefinition("extractIsosurface");
-  const baseGeometry = createBoxGeometry(`geo-${nodeType}`, { width: 1.8, height: 1.2, depth: 1.4 });
-  const context = createTestContext(`${nodeType}-context`, [baseGeometry]);
+  const scenario: TopologyScenario = nodeType === "topologySolver" ? "cantilever" : "bridge";
+  const baseGeometry = createBoxGeometry(`geo-${nodeType}-${scenario}`, {
+    width: 1.8,
+    height: 1.2,
+    depth: 1.4,
+  });
+  const context = createTestContext(`${nodeType}-${scenario}-context`, [baseGeometry]);
 
-  const parameters = {
+  const settings = {
     volumeFraction: 0.6,
     penaltyExponent: 3,
-    filterRadius: 1,
-    iterations: 24,
+    filterRadius: 2,
+    iterations: 40,
     resolution: 12,
   };
 
+  const goals = buildTopologyGoals(baseGeometry.mesh, scenario, settings.volumeFraction);
+
+  // Settings are passed via inputs so they can be driven by other nodes; the solver falls back
+  // to parameter defaults when inputs are absent.
   const outputs = solverNode.compute({
-    inputs: { domain: baseGeometry.id },
-    parameters,
+    inputs: { domain: baseGeometry.id, goals, ...settings },
+    parameters: {},
     context,
   });
+
+  const densityField = Array.isArray(outputs.densityField)
+    ? (outputs.densityField as number[])
+    : [];
+  const densityStats = summarizeDensityField(densityField);
+  const histogram = buildDensityHistogram(densityField);
+  const midSlice = buildMidSlice(densityField, outputs.resolution ?? settings.resolution);
 
   const isoParams = {
     geometryId: `${nodeType}-iso`,
@@ -187,11 +363,35 @@ export const runTopologySolverRig = (nodeType: "topologySolver" | "voxelSolver")
     isoOutputs.mesh as RenderMesh
   );
 
+  const report = {
+    solver: nodeType,
+    scenario,
+    settings,
+    goals,
+    objective: outputs.objective,
+    constraint: outputs.constraint,
+    bestScore: outputs.bestScore,
+    density: {
+      cellCount: densityField.length,
+      ...densityStats,
+      histogram,
+      midSlice,
+    },
+    isoSurface: {
+      isoValue: isoParams.isoValue,
+      vertexCount: Math.floor((outputGeometry.mesh.positions.length ?? 0) / 3),
+      triangleCount: Math.floor((outputGeometry.mesh.indices.length ?? 0) / 3),
+    },
+  };
+
   return {
     outputs,
     isoOutputs,
     outputGeometry,
     baseGeometry,
+    goals,
+    scenario,
+    report,
   };
 };
 
