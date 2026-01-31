@@ -64,6 +64,50 @@ function addEdge(connection: Connection, edges: any[]): any[] {
   };
   return [...edges, newEdge];
 }
+
+function computeGroupBounds(
+  items: { x: number; y: number; width: number; height: number }[],
+  padding: number
+): { position: { x: number; y: number }; width: number; height: number } {
+  if (items.length === 0) {
+    return { position: { x: 0, y: 0 }, width: 0, height: 0 };
+  }
+
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+
+  for (const item of items) {
+    minX = Math.min(minX, item.x);
+    minY = Math.min(minY, item.y);
+    maxX = Math.max(maxX, item.x + item.width);
+    maxY = Math.max(maxY, item.y + item.height);
+  }
+
+  if (
+    !Number.isFinite(minX) ||
+    !Number.isFinite(minY) ||
+    !Number.isFinite(maxX) ||
+    !Number.isFinite(maxY)
+  ) {
+    return {
+      position: { x: 0, y: 0 },
+      width: 0,
+      height: 0,
+    };
+  }
+
+  return {
+    position: { x: minX - padding, y: minY - padding },
+    width: maxX - minX + padding * 2,
+    height: maxY - minY + padding * 2,
+  };
+}
+
+function rect(pos: { x: number; y: number }, width: number, height: number) {
+  return { x: pos.x, y: pos.y, width, height };
+}
 import type {
   CPlane,
   CameraPreset,
@@ -6889,12 +6933,20 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
      * - Stiffness Goal (Σκληρότης) → structural steel properties
      * - Physics Solver (Ἐπιλύτης Φυσικῆς) → equilibrium analysis (Kd = F)
      * - Geometry Viewer → visualize deformed result
+     *
+     * SEMANTIC ORGANIZATION (Group Nodes):
+     * 1. CONTROLS GROUP - Solver parameters (iterations, convergence, GPU)
+     * 2. DOMAIN GROUP - Input mesh + vertex index sets
+     * 3. GOALS GROUP - Structural goals (anchor, load, volume, stiffness)
+     * 4. SOLVER GROUP - Physics solver node
+     * 5. OUTPUT GROUP - Geometry viewer
      */
     const ts = Date.now();
     const NODE_WIDTH = 200;
     const NODE_HEIGHT = 120;
     const H_GAP = 60;
     const V_GAP = 40;
+    const GROUP_PADDING = 30;
 
     // Column 0: Solver parameter nodes
     const maxIterationsId = `node-number-maxIterations-${ts}`;
@@ -6979,6 +7031,47 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const anchorListPos = { x: listColX, y: anchorPos.y };
     const loadListId = `node-listCreate-load-${ts}`;
     const loadListPos = { x: listColX, y: loadPos.y };
+
+    const controlsGroupId = `node-group-controls-${ts}`;
+    const domainGroupId = `node-group-domain-${ts}`;
+    const goalsGroupId = `node-group-goals-${ts}`;
+    const solverGroupId = `node-group-solver-${ts}`;
+    const outputGroupId = `node-group-output-${ts}`;
+
+    const controlsGroupBounds = computeGroupBounds(
+      [
+        rect(maxIterationsPos, NODE_WIDTH, NODE_HEIGHT),
+        rect(convergencePos, NODE_WIDTH, NODE_HEIGHT),
+        rect(useGPUPos, NODE_WIDTH, NODE_HEIGHT),
+        rect(chunkSizePos, NODE_WIDTH, NODE_HEIGHT),
+      ],
+      GROUP_PADDING
+    );
+    const domainGroupBounds = computeGroupBounds(
+      [
+        rect(geoRefPos, NODE_WIDTH, NODE_HEIGHT),
+        rect(anchorListPos, NODE_WIDTH, NODE_HEIGHT),
+        rect(loadListPos, NODE_WIDTH, NODE_HEIGHT),
+      ],
+      GROUP_PADDING
+    );
+    const goalsGroupBounds = computeGroupBounds(
+      [
+        rect(anchorPos, NODE_WIDTH, NODE_HEIGHT),
+        rect(loadPos, NODE_WIDTH, NODE_HEIGHT),
+        rect(volumePos, NODE_WIDTH, NODE_HEIGHT),
+        rect(stiffnessPos, NODE_WIDTH, NODE_HEIGHT),
+      ],
+      GROUP_PADDING
+    );
+    const solverGroupBounds = computeGroupBounds(
+      [rect(solverPos, NODE_WIDTH, NODE_HEIGHT)],
+      GROUP_PADDING
+    );
+    const outputGroupBounds = computeGroupBounds(
+      [rect(viewerPos, NODE_WIDTH, NODE_HEIGHT)],
+      GROUP_PADDING
+    );
 
     const newNodes = [
       // Parameter nodes
@@ -7130,6 +7223,77 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         position: viewerPos,
         data: { label: "Result Preview" },
       },
+      // Group nodes are decorative canvas annotations (no parent/child behavior).
+      {
+        id: controlsGroupId,
+        type: "group" as const,
+        position: controlsGroupBounds.position,
+        data: {
+          label: "Controls (solver parameters)",
+          parameters: {
+            title: "Controls (solver parameters)",
+            color: "#e8f5e9",
+          },
+          width: controlsGroupBounds.width,
+          height: controlsGroupBounds.height,
+        },
+      },
+      {
+        id: domainGroupId,
+        type: "group" as const,
+        position: domainGroupBounds.position,
+        data: {
+          label: "Domain (mesh + index sets)",
+          parameters: {
+            title: "Domain (mesh + index sets)",
+            color: "#e3f2fd",
+          },
+          width: domainGroupBounds.width,
+          height: domainGroupBounds.height,
+        },
+      },
+      {
+        id: goalsGroupId,
+        type: "group" as const,
+        position: goalsGroupBounds.position,
+        data: {
+          label: "Goals (Τέλοι)",
+          parameters: {
+            title: "Goals (Τέλοι)",
+            color: "#fff3e0",
+          },
+          width: goalsGroupBounds.width,
+          height: goalsGroupBounds.height,
+        },
+      },
+      {
+        id: solverGroupId,
+        type: "group" as const,
+        position: solverGroupBounds.position,
+        data: {
+          label: "Solver (Ἐπιλύτης Φυσικῆς)",
+          parameters: {
+            title: "Solver (Ἐπιλύτης Φυσικῆς)",
+            color: "#fce4ec",
+          },
+          width: solverGroupBounds.width,
+          height: solverGroupBounds.height,
+        },
+      },
+      {
+        id: outputGroupId,
+        type: "group" as const,
+        position: outputGroupBounds.position,
+        data: {
+          label: "Output (geometry)",
+          parameters: {
+            title: "Output (geometry)",
+            color: "#f3e5f5",
+          },
+          width: outputGroupBounds.width,
+          height: outputGroupBounds.height,
+        },
+      },
     ];
 
     // Wire connections: parameters → solver, goals → solver, geometry → baseMesh, solver → viewer
@@ -7269,12 +7433,21 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
      * - Biology goals (morphogenesis, homeostasis) → Biological Solver
      *
      * Demonstrates optimization of canopy dimensions for max area, min material.
+     *
+     * SEMANTIC ORGANIZATION (Group Nodes):
+     * 1. CONTROLS GROUP - Genome sliders (genes)
+     * 2. GENOME GROUP - Genome collector
+     * 3. PHENOTYPE GROUP - Parametric geometry + phenotype mapping
+     * 4. FITNESS GROUP - Measurements + fitness aggregator
+     * 5. GOALS GROUP - Biological goals
+     * 6. SOLVER GROUP - Evolutionary solver
      */
     const ts = Date.now();
     const NODE_WIDTH = 180;
     const NODE_HEIGHT = 100;
     const H_GAP = 50;
     const V_GAP = 30;
+    const GROUP_PADDING = 30;
 
     // Column 1: Sliders (genes for the genome)
     const slider1Id = `node-slider-width-${ts}`;
@@ -7326,6 +7499,54 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const col5X = col4X + NODE_WIDTH + H_GAP;
     const solverId = `node-biologicalSolver-${ts}`;
     const solverPos = { x: col5X, y: position.y + NODE_HEIGHT * 2 };
+
+    const controlsGroupId = `node-group-controls-${ts}`;
+    const genomeGroupId = `node-group-genome-${ts}`;
+    const phenotypeGroupId = `node-group-phenotype-${ts}`;
+    const fitnessGroupId = `node-group-fitness-${ts}`;
+    const goalsGroupId = `node-group-goals-${ts}`;
+    const solverGroupId = `node-group-solver-${ts}`;
+
+    const controlsGroupBounds = computeGroupBounds(
+      [
+        rect(slider1Pos, NODE_WIDTH, NODE_HEIGHT),
+        rect(slider2Pos, NODE_WIDTH, NODE_HEIGHT),
+        rect(slider3Pos, NODE_WIDTH, NODE_HEIGHT),
+        rect(slider4Pos, NODE_WIDTH, NODE_HEIGHT),
+        rect(slider5Pos, NODE_WIDTH, NODE_HEIGHT),
+      ],
+      GROUP_PADDING
+    );
+    const genomeGroupBounds = computeGroupBounds(
+      [rect(genomeCollectorPos, NODE_WIDTH, NODE_HEIGHT)],
+      GROUP_PADDING
+    );
+    const phenotypeGroupBounds = computeGroupBounds(
+      [
+        rect(boxPos, NODE_WIDTH, NODE_HEIGHT),
+        rect(geometryPhenotypePos, NODE_WIDTH, NODE_HEIGHT),
+      ],
+      GROUP_PADDING
+    );
+    const fitnessGroupBounds = computeGroupBounds(
+      [
+        rect(measureAreaPos, NODE_WIDTH, NODE_HEIGHT),
+        rect(measureVolumePos, NODE_WIDTH, NODE_HEIGHT),
+        rect(performsFitnessPos, NODE_WIDTH, NODE_HEIGHT),
+      ],
+      GROUP_PADDING
+    );
+    const goalsGroupBounds = computeGroupBounds(
+      [
+        rect(morphogenesisPos, NODE_WIDTH, NODE_HEIGHT),
+        rect(homeostasisPos, NODE_WIDTH, NODE_HEIGHT),
+      ],
+      GROUP_PADDING
+    );
+    const solverGroupBounds = computeGroupBounds(
+      [rect(solverPos, NODE_WIDTH, NODE_HEIGHT)],
+      GROUP_PADDING
+    );
 
     const newNodes = [
       // Sliders (genome genes)
@@ -7502,6 +7723,91 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             mutationRate: 0.18,
             seed: 42,
           },
+        },
+      },
+      // Group nodes are decorative canvas annotations (no parent/child behavior).
+      {
+        id: controlsGroupId,
+        type: "group" as const,
+        position: controlsGroupBounds.position,
+        data: {
+          label: "Controls (genes)",
+          parameters: {
+            title: "Controls (genes)",
+            color: "#e8f5e9",
+          },
+          width: controlsGroupBounds.width,
+          height: controlsGroupBounds.height,
+        },
+      },
+      {
+        id: genomeGroupId,
+        type: "group" as const,
+        position: genomeGroupBounds.position,
+        data: {
+          label: "Genome (collected genes)",
+          parameters: {
+            title: "Genome (collected genes)",
+            color: "#e3f2fd",
+          },
+          width: genomeGroupBounds.width,
+          height: genomeGroupBounds.height,
+        },
+      },
+      {
+        id: phenotypeGroupId,
+        type: "group" as const,
+        position: phenotypeGroupBounds.position,
+        data: {
+          label: "Phenotype (geometry)",
+          parameters: {
+            title: "Phenotype (geometry)",
+            color: "#ede7f6",
+          },
+          width: phenotypeGroupBounds.width,
+          height: phenotypeGroupBounds.height,
+        },
+      },
+      {
+        id: fitnessGroupId,
+        type: "group" as const,
+        position: fitnessGroupBounds.position,
+        data: {
+          label: "Fitness (metrics → score)",
+          parameters: {
+            title: "Fitness (metrics → score)",
+            color: "#fff3e0",
+          },
+          width: fitnessGroupBounds.width,
+          height: fitnessGroupBounds.height,
+        },
+      },
+      {
+        id: goalsGroupId,
+        type: "group" as const,
+        position: goalsGroupBounds.position,
+        data: {
+          label: "Goals (biological)",
+          parameters: {
+            title: "Goals (biological)",
+            color: "#ffe0b2",
+          },
+          width: goalsGroupBounds.width,
+          height: goalsGroupBounds.height,
+        },
+      },
+      {
+        id: solverGroupId,
+        type: "group" as const,
+        position: solverGroupBounds.position,
+        data: {
+          label: "Solver (evolution)",
+          parameters: {
+            title: "Solver (evolution)",
+            color: "#fce4ec",
+          },
+          width: solverGroupBounds.width,
+          height: solverGroupBounds.height,
         },
       },
     ];
@@ -7748,6 +8054,58 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     // Column 4: Geometry Viewer
     const viewerId = `node-geometryViewer-${ts}`;
     const viewerPos = { x: col2X + (NODE_WIDTH + H_GAP) * 2, y: position.y + NODE_HEIGHT * 1.5 };
+
+    const diagnosticsPanelPos = { x: viewerPos.x, y: viewerPos.y + NODE_HEIGHT + V_GAP };
+
+    const controlsGroupId = `node-group-controls-${ts}`;
+    const domainGroupId = `node-group-domain-${ts}`;
+    const goalsGroupId = `node-group-goals-${ts}`;
+    const solverGroupId = `node-group-solver-${ts}`;
+    const outputGroupId = `node-group-output-${ts}`;
+
+    const controlsGroupBounds = computeGroupBounds(
+      [
+        rect(toggleSwitchPos, NODE_WIDTH, NODE_HEIGHT),
+        rect(densitySliderPos, NODE_WIDTH, NODE_HEIGHT),
+        rect(particleCountPos, NODE_WIDTH, NODE_HEIGHT),
+        rect(iterationsPos, NODE_WIDTH, NODE_HEIGHT),
+        rect(fieldResolutionPos, NODE_WIDTH, NODE_HEIGHT),
+        rect(isoValuePos, NODE_WIDTH, NODE_HEIGHT),
+        rect(blendStrengthPos, NODE_WIDTH, NODE_HEIGHT),
+        rect(convergencePos, NODE_WIDTH, NODE_HEIGHT),
+      ],
+      GROUP_PADDING
+    );
+    const domainGroupBounds = computeGroupBounds(
+      [
+        rect(domainPos, NODE_WIDTH, NODE_HEIGHT),
+        rect(anchorZonesPos, NODE_WIDTH, NODE_HEIGHT),
+        rect(thermalCorePos, NODE_WIDTH, NODE_HEIGHT),
+        rect(visionStripPos, NODE_WIDTH, NODE_HEIGHT),
+      ],
+      GROUP_PADDING
+    );
+    const goalsGroupBounds = computeGroupBounds(
+      [
+        rect(stiffnessGoalPos, NODE_WIDTH, NODE_HEIGHT),
+        rect(massGoalPos, NODE_WIDTH, NODE_HEIGHT),
+        rect(blendGoalPos, NODE_WIDTH, NODE_HEIGHT),
+        rect(transparencyGoalPos, NODE_WIDTH, NODE_HEIGHT),
+        rect(thermalGoalPos, NODE_WIDTH, NODE_HEIGHT),
+      ],
+      GROUP_PADDING
+    );
+    const solverGroupBounds = computeGroupBounds(
+      [rect(solverPos, NODE_WIDTH, NODE_HEIGHT)],
+      GROUP_PADDING
+    );
+    const outputGroupBounds = computeGroupBounds(
+      [
+        rect(viewerPos, NODE_WIDTH, NODE_HEIGHT),
+        rect(diagnosticsPanelPos, NODE_WIDTH, NODE_HEIGHT),
+      ],
+      GROUP_PADDING
+    );
 
     const newNodes = [
       // Solver controls and parameters
@@ -7998,7 +8356,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       {
         id: `node-panel-diagnostics-${ts}`,
         type: "panel" as const,
-        position: { x: viewerPos.x, y: viewerPos.y + NODE_HEIGHT + V_GAP },
+        position: diagnosticsPanelPos,
         data: {
           label: "Solver Diagnostics",
           parameters: {
@@ -8008,80 +8366,75 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           },
         },
       },
-      // GROUP NODES for semantic organization
-      // 1. Controls Group
+      // Group nodes are decorative canvas annotations (no parent/child behavior).
       {
-        id: `node-group-controls-${ts}`,
+        id: controlsGroupId,
         type: "group" as const,
-        position: { x: position.x - GROUP_PADDING, y: position.y - (NODE_HEIGHT + V_GAP) * 2 - GROUP_PADDING },
+        position: controlsGroupBounds.position,
         data: {
-          label: "Controls",
+          label: "Controls (particles + solver params)",
           parameters: {
-            title: "Controls",
-            color: "#e8f5e9", // Light green
+            title: "Controls (particles + solver params)",
+            color: "#e8f5e9",
           },
-          width: (NODE_WIDTH + H_GAP) * 4 + GROUP_PADDING * 2,
-          height: (NODE_HEIGHT + V_GAP) * 2 + GROUP_PADDING,
+          width: controlsGroupBounds.width,
+          height: controlsGroupBounds.height,
         },
       },
-      // 2. Domain Group
       {
-        id: `node-group-domain-${ts}`,
+        id: domainGroupId,
         type: "group" as const,
-        position: { x: position.x - GROUP_PADDING, y: position.y - GROUP_PADDING },
+        position: domainGroupBounds.position,
         data: {
-          label: "Domain & Seed Regions",
+          label: "Domain + seed regions (geometry)",
           parameters: {
-            title: "Domain & Seed Regions",
-            color: "#e3f2fd", // Light blue
+            title: "Domain + seed regions (geometry)",
+            color: "#e3f2fd",
           },
-          width: NODE_WIDTH + GROUP_PADDING * 2,
-          height: (NODE_HEIGHT + V_GAP) * 4 + GROUP_PADDING,
+          width: domainGroupBounds.width,
+          height: domainGroupBounds.height,
         },
       },
-      // 3. Goals Group
       {
-        id: `node-group-goals-${ts}`,
+        id: goalsGroupId,
         type: "group" as const,
-        position: { x: col2X - GROUP_PADDING, y: position.y - GROUP_PADDING },
+        position: goalsGroupBounds.position,
         data: {
-          label: "Chemistry Goals (Τέλοι)",
+          label: "Chemistry goals (Τέλοι)",
           parameters: {
-            title: "Chemistry Goals (Τέλοι)",
-            color: "#fff3e0", // Light orange
+            title: "Chemistry goals (Τέλοι)",
+            color: "#fff3e0",
           },
-          width: NODE_WIDTH + GROUP_PADDING * 2,
-          height: (NODE_HEIGHT + V_GAP) * 5 + GROUP_PADDING,
+          width: goalsGroupBounds.width,
+          height: goalsGroupBounds.height,
         },
       },
-      // 4. Solver Group
       {
-        id: `node-group-solver-${ts}`,
+        id: solverGroupId,
         type: "group" as const,
-        position: { x: solverPos.x - GROUP_PADDING, y: solverPos.y - GROUP_PADDING },
+        position: solverGroupBounds.position,
         data: {
-          label: "Material Transmutation",
+          label: "Solver (Ἐπιλύτης Χημείας)",
           parameters: {
-            title: "Material Transmutation (Ἐπιλύτης Χημείας)",
-            color: "#fce4ec", // Light pink
+            title: "Solver (Ἐπιλύτης Χημείας)",
+            color: "#fce4ec",
           },
-          width: NODE_WIDTH + GROUP_PADDING * 2,
-          height: NODE_HEIGHT + GROUP_PADDING * 2,
+          width: solverGroupBounds.width,
+          height: solverGroupBounds.height,
         },
       },
-      // 5. Output Group
       {
-        id: `node-group-output-${ts}`,
+        id: outputGroupId,
         type: "group" as const,
-        position: { x: viewerPos.x - GROUP_PADDING, y: viewerPos.y - GROUP_PADDING },
+        position: outputGroupBounds.position,
         data: {
-          label: "Output & Visualization",
+          label: "Output + diagnostics",
           parameters: {
-            title: "Output & Visualization",
-            color: "#f3e5f5", // Light purple
+            title: "Output + diagnostics",
+            color: "#f3e5f5",
           },
-          width: NODE_WIDTH + GROUP_PADDING * 2,
-          height: (NODE_HEIGHT + V_GAP) * 2 + GROUP_PADDING * 2,
+          width: outputGroupBounds.width,
+          height: outputGroupBounds.height,
         },
       },
     ];
