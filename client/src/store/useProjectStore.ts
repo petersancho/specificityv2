@@ -7726,32 +7726,22 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         position: { x: pos.x, y: pos.y },
         groupSize: { width: GROUP_MIN_WIDTH, height: GROUP_MIN_HEIGHT },
       });
-      const invalid = frames.filter(
-        (frame) =>
-          !(
-            Number.isFinite(frame.position.x) &&
-            Number.isFinite(frame.position.y) &&
-            Number.isFinite(frame.size.width) &&
-            Number.isFinite(frame.size.height) &&
-            frame.size.width > 0 &&
-            frame.size.height > 0
-          )
-      );
+      const isValidFrame = (frame: RigFrame) =>
+        Number.isFinite(frame.position.x) &&
+        Number.isFinite(frame.position.y) &&
+        Number.isFinite(frame.size.width) &&
+        Number.isFinite(frame.size.height) &&
+        frame.size.width > 0 &&
+        frame.size.height > 0;
+
+      const valid = frames.filter(isValidFrame);
+      const invalid = frames.filter((frame) => !isValidFrame(frame));
       if (invalid.length > 0) {
         console.warn(
           "Chemistry solver rig: ignoring invalid frames while computing group bounds",
           invalid.map((frame) => frame.id)
         );
       }
-      const valid = frames.filter(
-        (frame) =>
-          Number.isFinite(frame.position.x) &&
-          Number.isFinite(frame.position.y) &&
-          Number.isFinite(frame.size.width) &&
-          Number.isFinite(frame.size.height) &&
-          frame.size.width > 0 &&
-          frame.size.height > 0
-      );
       if (valid.length === 0) {
         console.warn(
           "Chemistry solver rig: falling back to default group bounds (no valid frames)",
@@ -7773,6 +7763,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       });
 
       if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) {
+        console.warn(
+          "Chemistry solver rig: falling back to default group bounds (invalid min/max)",
+          { minX, minY, maxX, maxY }
+        );
         return fallbackGroupBox(fallbackPosition);
       }
 
@@ -8210,13 +8204,16 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       }
     }
 
+    const groupTitleById = new Map(groups.map((group) => [group.groupId, group.title] as const));
     const groupOwnerByNodeId = new Map<string, string>();
     groups.forEach((group) => {
       group.nodes.forEach((node) => {
         const prevOwner = groupOwnerByNodeId.get(node.id);
         if (prevOwner && prevOwner !== group.groupId) {
+          const prevTitle = groupTitleById.get(prevOwner);
+          const currentTitle = groupTitleById.get(group.groupId);
           throw new RigConfigError(
-            `Chemistry solver rig config error: node ${node.id} appears in multiple groups: ${prevOwner}, ${group.groupId}`
+            `Chemistry solver rig config error: node ${node.id} appears in multiple groups: ${prevOwner}${prevTitle ? ` ("${prevTitle}")` : ""}, ${group.groupId}${currentTitle ? ` ("${currentTitle}")` : ""}`
           );
         }
         groupOwnerByNodeId.set(node.id, group.groupId);
