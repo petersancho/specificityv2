@@ -93,6 +93,9 @@ describe("Physics solver benchmark", () => {
     };
 
     const warmupResult = solvePhysicsChunkedSync({ mesh, goals, config }, config.chunkSize);
+    if (!warmupResult.success && warmupResult.errors.length > 0) {
+      throw new Error(`Warmup failed: ${warmupResult.errors.join(", ")}`);
+    }
 
     const cpuTimings: number[] = [];
     const cpuComputeTimes: number[] = [];

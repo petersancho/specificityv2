@@ -10,6 +10,7 @@ import type {
 } from "../../workflow/nodes/solver/types";
 
 export type ScalarStats = {
+  // `count` is the raw array length. `finite`/`nonFinite` describe data quality.
   count: number;
   finite: number;
   nonFinite: number;
@@ -96,13 +97,45 @@ const summarizeDisplacementMagnitudes = (displacements: Vec3[] | null | undefine
   mags.length = list.length;
   for (let i = 0; i < list.length; i += 1) {
     const disp = list[i];
-    const x = Number(disp?.x ?? 0);
-    const y = Number(disp?.y ?? 0);
-    const z = Number(disp?.z ?? 0);
-    const mag = Math.sqrt(x * x + y * y + z * z);
-    mags[i] = mag;
+    const x = disp?.x;
+    const y = disp?.y;
+    const z = disp?.z;
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) {
+      mags[i] = Number.NaN;
+      continue;
+    }
+    mags[i] = Math.sqrt(x * x + y * y + z * z);
   }
   return summarizeScalarField(mags);
+};
+
+const sanitizeParamValue = (value: unknown, depth = 1): unknown => {
+  if (value === null) return null;
+  if (value === undefined) return undefined;
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return { count: value.length };
+  }
+  if (typeof value === "object") {
+    if (depth <= 0) return "[object]";
+    const record = value as Record<string, unknown>;
+    const sanitized: Record<string, unknown> = {};
+    for (const [key, entry] of Object.entries(record)) {
+      sanitized[key] = sanitizeParamValue(entry, depth - 1);
+    }
+    return sanitized;
+  }
+  return String(value);
+};
+
+const sanitizeGoalParameters = (parameters: Record<string, unknown>) => {
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(parameters)) {
+    sanitized[key] = sanitizeParamValue(value, 2);
+  }
+  return sanitized;
 };
 
 export const summarizeMesh = (mesh: RenderMesh): MeshSummary => {
@@ -201,7 +234,7 @@ export const summarizeGoals = (goals: GoalSpecification[]): PhysicsGoalSummary[]
           target: goal.target,
           elementCount: goal.geometry.elements.length,
           parameters: {
-            ...goal.parameters,
+            ...sanitizeGoalParameters(goal.parameters),
           },
         };
     }

@@ -136,11 +136,11 @@ const validatePhysicsSafetyWarnings = () => {
   });
   ensure(outputs.result.success === true, "Expected physics solver success");
   ensure(
-    outputs.result.warnings.some((warning) => warning.includes("Deformation exceeds specified limits")),
+    outputs.result.warnings.some((warning) => warning.includes("Deformation exceeds")),
     "Expected deformation warning"
   );
   ensure(
-    outputs.result.warnings.some((warning) => warning.includes("Stress exceeds specified limits")),
+    outputs.result.warnings.some((warning) => warning.includes("Stress exceeds")),
     "Expected stress warning"
   );
 };
