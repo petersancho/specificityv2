@@ -2833,19 +2833,44 @@ const resolveChemistryMaterialAssignments = (
   // `materials` assignments for the same geometry/domain.
   const DOMAIN_ASSIGNMENT_KEY = "__chemistry_domain__";
   const normalizeAssignmentKey = (geometryId: string | undefined) =>
-    geometryId ?? domainGeometryId ?? DOMAIN_ASSIGNMENT_KEY;
+    geometryId ?? DOMAIN_ASSIGNMENT_KEY;
 
   let assignments: ChemistryMaterialAssignment[] = [...inputAssignments];
   if (textAssignments.length > 0) {
-    const overridden = new Set(
-      textAssignments.map((assignment) => normalizeAssignmentKey(assignment.geometryId))
-    );
-    assignments = [
-      ...textAssignments,
-      ...inputAssignments.filter(
-        (assignment) => !overridden.has(normalizeAssignmentKey(assignment.geometryId))
-      ),
-    ];
+    const overridesByKey = new Map<string, ChemistryMaterialAssignment[]>();
+    textAssignments.forEach((assignment) => {
+      const key = normalizeAssignmentKey(assignment.geometryId);
+      const existing = overridesByKey.get(key);
+      if (existing) {
+        existing.push(assignment);
+      } else {
+        overridesByKey.set(key, [assignment]);
+      }
+    });
+
+    const emittedOverrides = new Set<string>();
+    const merged: ChemistryMaterialAssignment[] = [];
+
+    inputAssignments.forEach((assignment) => {
+      const key = normalizeAssignmentKey(assignment.geometryId);
+      const override = overridesByKey.get(key);
+      if (override) {
+        if (!emittedOverrides.has(key)) {
+          merged.push(...override);
+          emittedOverrides.add(key);
+        }
+        return;
+      }
+      merged.push(assignment);
+    });
+
+    overridesByKey.forEach((override, key) => {
+      if (!emittedOverrides.has(key)) {
+        merged.push(...override);
+      }
+    });
+
+    assignments = merged;
   }
 
   if (assignments.length === 0) {

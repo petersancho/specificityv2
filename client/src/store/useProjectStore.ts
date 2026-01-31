@@ -8332,6 +8332,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         target: solverId,
         targetHandle: "seeds",
       },
+      // Note: keep `materials` edges so the Material popup can discover connected
+      // geometry regions; the Material Goal's `materialsText` output can override
+      // which material specs are actually assigned.
       // Anchor Zones → Chemistry Solver (materials input order: Steel, Ceramic, Glass)
       {
         id: `edge-${anchorZonesId}-${solverId}-materials`,
