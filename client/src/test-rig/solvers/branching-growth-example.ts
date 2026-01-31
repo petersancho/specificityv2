@@ -13,9 +13,14 @@ type MeshSummary = {
   isTriangleMesh: boolean;
 };
 
+const BRANCHING_GROWTH_GENOME_DIMENSION = 3;
+
 const summarizeMesh = (mesh: RenderMesh): MeshSummary => {
   const isTriangleMesh =
-    mesh.positions.length % 3 === 0 && mesh.indices.length % 3 === 0;
+    mesh.positions.length > 0 &&
+    mesh.indices.length > 0 &&
+    mesh.positions.length % 3 === 0 &&
+    mesh.indices.length % 3 === 0;
   const vertexCount = isTriangleMesh ? mesh.positions.length / 3 : 0;
   const triangleCount = isTriangleMesh ? mesh.indices.length / 3 : 0;
   const bounds = isTriangleMesh ? meshBounds(mesh) : null;
@@ -87,8 +92,10 @@ export const makeBranchingGrowthExampleGrowthGoal = (): GoalSpecification => ({
 export const generateBranchingGrowthSolverExample = (): BranchingGrowthSolverExampleV1 => {
   const { biologicalOutputs, baseGeometry, individual, config } = runBiologicalSolverRig();
 
-  if (individual.genome.length < 3) {
-    throw new Error("BranchingGrowth example expects genome with at least 3 genes");
+  if (individual.genome.length < BRANCHING_GROWTH_GENOME_DIMENSION) {
+    throw new Error(
+      `BranchingGrowth example expects genome with at least ${BRANCHING_GROWTH_GENOME_DIMENSION} genes`
+    );
   }
 
   const growthGoal = makeBranchingGrowthExampleGrowthGoal();

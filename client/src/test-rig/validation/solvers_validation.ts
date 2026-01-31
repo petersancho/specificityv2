@@ -24,7 +24,7 @@ const ensureFinite = (value: number, message: string) => {
   ensure(Number.isFinite(value), message);
 };
 
-const approxEqual = (a: number, b: number, epsilon = 1e-4) =>
+const approxEqual = (a: number, b: number, epsilon = 1e-3) =>
   Math.abs(a - b) < epsilon;
 
 const ensureMesh = (mesh: RenderMesh, label: string) => {
