@@ -1,5 +1,12 @@
 import { generateBoxMesh } from "../../geometry/mesh";
-import type { Geometry, MeshGeometry, RenderMesh, WorkflowEdge, WorkflowNode } from "../../types";
+import type {
+  Geometry,
+  MeshGeometry,
+  RenderMesh,
+  Vec3,
+  WorkflowEdge,
+  WorkflowNode,
+} from "../../types";
 import { useProjectStore } from "../../store/useProjectStore";
 import { findVertexIndicesAtExtent, wrapMeshGeometry } from "./rig-utils";
 
@@ -15,31 +22,81 @@ export type PhysicsSolverWorkflowOutputs = {
   };
   animation: { frames: RenderMesh[]; timeStamps: number[] } | null;
   stressField: number[];
-  displacements: unknown[];
+  displacements: Vec3[];
 };
 
 export type ChemistrySolverWorkflowOutputs = {
   status: string;
   mesh: RenderMesh;
-  materialParticles: unknown[];
+  materialParticles: Array<Record<string, unknown>>;
   materialField:
     | {
         resolution: { x: number; y: number; z: number };
         densities: number[];
       }
     | null;
-  materials: unknown[];
+  materials: Array<Record<string, unknown>>;
 };
 
-const resetProjectStore = () => {
-  // These workflow rigs mutate the global `useProjectStore` singleton. They are
-  // intended to run sequentially (as part of the validation test harness).
-  useProjectStore.setState(useProjectStore.getInitialState(), true);
+type ProjectStoreApi = typeof useProjectStore;
+
+const resetProjectStore = (store: ProjectStoreApi) => {
+  store.setState(store.getInitialState(), true);
 };
 
-const ensureNonEmpty = (value: number[], label: string, context: string) => {
+const runWorkflowSynchronously = (store: ProjectStoreApi) => {
+  // `recalculateWorkflow()` is synchronous today; we rely on node outputs +
+  // geometry updates being available immediately after this call.
+  store.getState().recalculateWorkflow();
+};
+
+const safeStringify = (value: unknown) => {
+  try {
+    const json = JSON.stringify(value);
+    return json.length > 2000 ? `${json.slice(0, 2000)}…` : json;
+  } catch {
+    return "<unserializable details>";
+  }
+};
+
+const ensureNonEmpty = (
+  value: number[],
+  label: string,
+  context: string,
+  details?: Record<string, unknown>
+) => {
   if (!Array.isArray(value) || value.length === 0) {
-    throw new Error(`${label} is empty in ${context} (length=${value?.length ?? 0})`);
+    const extra = details ? ` details=${safeStringify(details)}` : "";
+    throw new Error(
+      `${label} is empty in ${context} (length=${value?.length ?? 0}).${extra}`
+    );
+  }
+};
+
+const ensureValidIndices = (
+  indices: number[],
+  maxIndexExclusive: number,
+  label: string,
+  context: string,
+  details?: Record<string, unknown>
+) => {
+  ensureNonEmpty(indices, label, context, details);
+
+  const invalid: number[] = [];
+  for (const index of indices) {
+    if (!Number.isInteger(index) || index < 0 || index >= maxIndexExclusive) {
+      invalid.push(index);
+    }
+  }
+
+  if (invalid.length > 0) {
+    const baseDetails = {
+      ...details,
+      maxIndexExclusive,
+      invalid,
+    };
+    const extra = ` details=${safeStringify(baseDetails)}`;
+    throw new Error(`${label} contains invalid indices: [${invalid.join(", ")}].${extra}`);
   }
 };
 
@@ -61,26 +118,63 @@ const createBoxMeshGeometry = (id: string, options?: { size?: number }) => {
   };
 };
 
-const baseRigState = (args: {
-  geometry: Geometry[];
-  workflow: { nodes: WorkflowNode[]; edges: WorkflowEdge[] };
-  selectedGeometryIds: string[];
-}) => ({
-  geometry: args.geometry,
-  workflow: args.workflow,
-  selectedGeometryIds: args.selectedGeometryIds,
-  workflowHistory: [],
-});
+const computePhysicsRigIndices = (mesh: RenderMesh) => {
+  const baseVertexCount = Math.floor(mesh.positions.length / 3);
+  if (baseVertexCount === 0) {
+    throw new Error("computePhysicsRigIndices: base mesh has zero vertices.");
+  }
 
-export const runPhysicsSolverWorkflowRig = (analysisType: PhysicsAnalysisType) => {
-  resetProjectStore();
+  const anchorIndices = findVertexIndicesAtExtent(mesh, "y", "min");
+  const loadIndices = findVertexIndicesAtExtent(mesh, "y", "max");
+  const stiffnessCandidates = findVertexIndicesAtExtent(mesh, "x", "min");
+
+  const stiffnessIndices = stiffnessCandidates.length > 0 ? stiffnessCandidates : loadIndices;
+  const stiffnessSource =
+    stiffnessCandidates.length > 0
+      ? { axis: "x", extent: "min" }
+      : { axis: "y", extent: "max", fallback: "loadIndices" };
+
+  return {
+    baseVertexCount,
+    anchorIndices,
+    loadIndices,
+    stiffnessIndices,
+    stiffnessSource,
+  };
+};
+
+const applyRigState = (
+  store: ProjectStoreApi,
+  args: {
+    geometry: Geometry[];
+    workflow: { nodes: WorkflowNode[]; edges: WorkflowEdge[] };
+    selectedGeometryIds: string[];
+  }
+) => {
+  const current = store.getState();
+  store.setState({
+    geometry: args.geometry,
+    workflow: { ...current.workflow, ...args.workflow },
+    selectedGeometryIds: args.selectedGeometryIds,
+    workflowHistory: [],
+  });
+};
+
+export const runPhysicsSolverWorkflowRig = (
+  analysisType: PhysicsAnalysisType,
+  store: ProjectStoreApi = useProjectStore
+) => {
+  resetProjectStore(store);
 
   const baseGeometryId = "physics-base";
   const outputGeometryId = `physics-${analysisType}-out`;
   const animationFrames = analysisType === "static" ? 0 : 20;
+  const maxIterations = 120;
   const timeProfileId = "node-physics-time-profile";
 
   const baseGeometry = createBoxMeshGeometry(baseGeometryId);
+  const { baseVertexCount, anchorIndices, loadIndices, stiffnessIndices, stiffnessSource } =
+    computePhysicsRigIndices(baseGeometry.mesh);
   const outputGeometry: MeshGeometry = {
     id: outputGeometryId,
     type: "mesh",
@@ -92,10 +186,35 @@ export const runPhysicsSolverWorkflowRig = (analysisType: PhysicsAnalysisType) =
     },
   };
 
-  const anchorIndices = findVertexIndicesAtExtent(baseGeometry.mesh, "y", "min");
-  const loadIndices = findVertexIndicesAtExtent(baseGeometry.mesh, "y", "max");
-  ensureNonEmpty(anchorIndices, "anchor indices", "runPhysicsSolverWorkflowRig");
-  ensureNonEmpty(loadIndices, "load indices", "runPhysicsSolverWorkflowRig");
+  ensureValidIndices(anchorIndices, baseVertexCount, "anchor indices", "runPhysicsSolverWorkflowRig", {
+    analysisType,
+    geometryId: baseGeometryId,
+    axis: "y",
+    extent: "min",
+    baseVertexCount,
+    count: anchorIndices.length,
+  });
+  ensureValidIndices(loadIndices, baseVertexCount, "load indices", "runPhysicsSolverWorkflowRig", {
+    analysisType,
+    geometryId: baseGeometryId,
+    axis: "y",
+    extent: "max",
+    baseVertexCount,
+    count: loadIndices.length,
+  });
+  ensureValidIndices(
+    stiffnessIndices,
+    baseVertexCount,
+    "stiffness indices",
+    "runPhysicsSolverWorkflowRig",
+    {
+      analysisType,
+      geometryId: baseGeometryId,
+      ...stiffnessSource,
+      baseVertexCount,
+      count: stiffnessIndices.length,
+    }
+  );
 
   const nodes: WorkflowNode[] = [
     {
@@ -123,6 +242,16 @@ export const runPhysicsSolverWorkflowRig = (analysisType: PhysicsAnalysisType) =
       data: {
         parameters: {
           itemsText: loadIndices.join(", "),
+        },
+      },
+    },
+    {
+      id: "node-physics-stiffness-list",
+      type: "listCreate",
+      position: { x: 0, y: 400 },
+      data: {
+        parameters: {
+          itemsText: stiffnessIndices.join(", "),
         },
       },
     },
@@ -200,7 +329,7 @@ export const runPhysicsSolverWorkflowRig = (analysisType: PhysicsAnalysisType) =
         isLinked: true,
         parameters: {
           analysisType,
-          maxIterations: 120,
+          maxIterations,
           convergenceTolerance: 1e-5,
           animationFrames,
           timeStep: analysisType === "dynamic" ? 0.02 : undefined,
@@ -247,8 +376,8 @@ export const runPhysicsSolverWorkflowRig = (analysisType: PhysicsAnalysisType) =
         ] satisfies WorkflowEdge[])
       : []),
     {
-      id: "edge-load-list-to-stiffness-goal",
-      source: "node-physics-load-list",
+      id: "edge-stiffness-list-to-stiffness-goal",
+      source: "node-physics-stiffness-list",
       sourceHandle: "list",
       target: "node-physics-stiffness-goal",
       targetHandle: "elements",
@@ -283,20 +412,22 @@ export const runPhysicsSolverWorkflowRig = (analysisType: PhysicsAnalysisType) =
     },
   ];
 
-  useProjectStore.setState(
-    baseRigState({
-      geometry: [baseGeometry, outputGeometry],
-      workflow: { nodes, edges },
-      selectedGeometryIds: [baseGeometryId],
-    })
-  );
-  // `recalculateWorkflow()` is synchronous today; we rely on node outputs +
-  // geometry updates being available immediately after this call.
-  useProjectStore.getState().recalculateWorkflow();
+  applyRigState(store, {
+    geometry: [baseGeometry, outputGeometry],
+    workflow: { nodes, edges },
+    selectedGeometryIds: [baseGeometryId],
+  });
+  runWorkflowSynchronously(store);
 
-  const state = useProjectStore.getState();
+  const state = store.getState();
   const solverNode = state.workflow.nodes.find((node) => node.id === "node-physics-solver");
-  const outputs = (solverNode?.data?.outputs ?? {}) as PhysicsSolverWorkflowOutputs;
+  if (!solverNode) {
+    throw new Error("Physics workflow rig is missing solver node.");
+  }
+  if (!solverNode.data?.outputs) {
+    throw new Error("Physics workflow rig solver outputs missing.");
+  }
+  const outputs = solverNode.data.outputs as PhysicsSolverWorkflowOutputs;
   const nextOutputGeometry = state.geometry.find((item) => item.id === outputGeometryId);
   const nextBaseGeometry = state.geometry.find((item) => item.id === baseGeometryId);
 
@@ -311,12 +442,12 @@ export const runPhysicsSolverWorkflowRig = (analysisType: PhysicsAnalysisType) =
     outputs,
     outputGeometry: nextOutputGeometry,
     baseGeometry: nextBaseGeometry,
-    parameters: { analysisType, animationFrames },
+    parameters: { analysisType, animationFrames, maxIterations },
   };
 };
 
-export const runChemistrySolverWorkflowRig = () => {
-  resetProjectStore();
+export const runChemistrySolverWorkflowRig = (store: ProjectStoreApi = useProjectStore) => {
+  resetProjectStore(store);
 
   const baseGeometryId = "chemistry-domain";
   const outputGeometryId = "chemistry-out";
@@ -394,20 +525,22 @@ export const runChemistrySolverWorkflowRig = () => {
     },
   ];
 
-  useProjectStore.setState(
-    baseRigState({
-      geometry: [baseGeometry, outputGeometry],
-      workflow: { nodes, edges },
-      selectedGeometryIds: [baseGeometryId],
-    })
-  );
-  // `recalculateWorkflow()` is synchronous today; we rely on node outputs +
-  // geometry updates being available immediately after this call.
-  useProjectStore.getState().recalculateWorkflow();
+  applyRigState(store, {
+    geometry: [baseGeometry, outputGeometry],
+    workflow: { nodes, edges },
+    selectedGeometryIds: [baseGeometryId],
+  });
+  runWorkflowSynchronously(store);
 
-  const state = useProjectStore.getState();
+  const state = store.getState();
   const solverNode = state.workflow.nodes.find((node) => node.id === "node-chemistry-solver");
-  const outputs = (solverNode?.data?.outputs ?? {}) as ChemistrySolverWorkflowOutputs;
+  if (!solverNode) {
+    throw new Error("Chemistry workflow rig is missing solver node.");
+  }
+  if (!solverNode.data?.outputs) {
+    throw new Error("Chemistry workflow rig solver outputs missing.");
+  }
+  const outputs = solverNode.data.outputs as ChemistrySolverWorkflowOutputs;
   const nextOutputGeometry = state.geometry.find((item) => item.id === outputGeometryId);
 
   if (!nextOutputGeometry || nextOutputGeometry.type !== "mesh") {

@@ -36,6 +36,19 @@ const ensureStressColors = (mesh: RenderMesh, label: string) => {
   );
 };
 
+const ensureStressFieldMatchesMesh = (
+  stressField: number[],
+  mesh: RenderMesh,
+  label: string
+) => {
+  const vertexCount = Math.floor(mesh.positions.length / 3);
+  const faceCount = Math.floor(mesh.indices.length / 3);
+  ensure(
+    stressField.length === vertexCount || stressField.length === faceCount,
+    `${label}: Expected stress field to be per-vertex or per-face`
+  );
+};
+
 const runNodeValidation = (nodeName: string, fn: () => void) => {
   try {
     fn();
@@ -69,6 +82,7 @@ const validatePhysicsStatic = () => {
   ensureFinite(outputs.result.finalObjectiveValue, "Expected finite objective value");
   ensureMesh(outputs.mesh as RenderMesh, "physics static mesh");
   ensureMesh(outputGeometry.mesh, "physics static geometry");
+  ensureStressFieldMatchesMesh(outputs.stressField, outputGeometry.mesh, "physics static");
   ensureStressColors(outputGeometry.mesh, "physics static geometry");
 };
 
@@ -92,19 +106,28 @@ const validatePhysicsDynamic = () => {
     outputs.result.iterations >= parameters.animationFrames,
     "Expected iterations to cover all frames"
   );
+  ensure(
+    outputs.result.iterations <= parameters.maxIterations,
+    "Expected iterations to remain below maxIterations"
+  );
   ensureMesh(outputs.mesh as RenderMesh, "physics dynamic mesh");
   ensureMesh(outputGeometry.mesh, "physics dynamic geometry");
+  ensureStressFieldMatchesMesh(outputs.stressField, outputGeometry.mesh, "physics dynamic");
   ensureStressColors(outputGeometry.mesh, "physics dynamic geometry");
 };
 
 const validatePhysicsModal = () => {
-  const { outputs, outputGeometry } = runPhysicsSolverWorkflowRig("modal");
+  const { outputs, outputGeometry, baseGeometry } = runPhysicsSolverWorkflowRig("modal");
+  const baseVertexCount = Math.floor(baseGeometry.mesh.positions.length / 3);
   ensure(outputs.geometry === "physics-modal-out", "Expected geometry id to match");
   ensure(outputs.result.success === true, "Expected physics solver success");
   ensure(outputs.animation !== null, "Expected animation for modal analysis");
   ensure(outputs.animation.frames.length > 0, "Expected modal frames");
+  ensure(outputs.displacements.length === baseVertexCount, "Expected displacement per vertex");
+  ensure(Array.isArray(outputs.stressField), "Expected stress field array");
   ensureMesh(outputs.mesh as RenderMesh, "physics modal mesh");
   ensureMesh(outputGeometry.mesh, "physics modal geometry");
+  ensureStressFieldMatchesMesh(outputs.stressField, outputGeometry.mesh, "physics modal");
   ensureStressColors(outputGeometry.mesh, "physics modal geometry");
 };
 
