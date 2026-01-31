@@ -301,17 +301,35 @@ export const runBiologicalSolverRig = () => {
 
   resetBiologicalSolverState(nodeId);
 
-  const individual: Individual = {
-    id: "ind-0",
-    genome: [0.25, -0.35, 0.6],
-    genomeString: "0.25,-0.35,0.6",
-    fitness: 0.82,
-    generation: 0,
-    rank: 1,
+  const makeIndividual = (
+    id: string,
+    genome: number[],
+    fitness: number,
+    generation: number,
+    rank: number
+  ): Individual => ({
+    id,
+    genome,
+    genomeString: genome.join(","),
+    fitness,
+    generation,
+    rank,
     geometryIds: [baseGeometry.id],
     geometry: [baseGeometry],
     thumbnail: null,
-  };
+  });
+
+  const gen0 = [
+    makeIndividual("ind-0", [0.25, -0.35, 0.6], 0.72, 0, 2),
+    makeIndividual("ind-1", [0.4, 0.1, 0.55], 0.78, 0, 1),
+  ];
+
+  const gen1 = [
+    makeIndividual("ind-2", [0.33, -0.22, 0.71], 0.8, 1, 2),
+    makeIndividual("ind-3", [0.5, 0.18, 0.62], 0.86, 1, 1),
+  ];
+
+  const best = gen1[1];
 
   const config: SolverConfig = {
     populationSize: 16,
@@ -328,23 +346,27 @@ export const runBiologicalSolverRig = () => {
   };
 
   const outputs: SolverOutputs = {
-    best: individual,
+    best,
     populationBests: [
       {
         generation: 0,
-        individuals: [individual],
+        individuals: [gen0[1]],
+      },
+      {
+        generation: 1,
+        individuals: [best],
       },
     ],
     history: {
       generations: [
         {
           id: 0,
-          population: [individual],
+          population: gen0,
           statistics: {
-            bestFitness: 0.82,
-            meanFitness: 0.82,
-            worstFitness: 0.82,
-            diversityStdDev: 0,
+            bestFitness: 0.78,
+            meanFitness: (0.72 + 0.78) / 2,
+            worstFitness: 0.72,
+            diversityStdDev: 0.05,
             evaluationTime: 0.1,
           },
           convergenceMetrics: {
@@ -352,24 +374,39 @@ export const runBiologicalSolverRig = () => {
             stagnationCount: 0,
           },
         },
+        {
+          id: 1,
+          population: gen1,
+          statistics: {
+            bestFitness: 0.86,
+            meanFitness: (0.8 + 0.86) / 2,
+            worstFitness: 0.8,
+            diversityStdDev: 0.04,
+            evaluationTime: 0.09,
+          },
+          convergenceMetrics: {
+            improvementRate: 0.08,
+            stagnationCount: 0,
+          },
+        },
       ],
       config,
     },
     gallery: {
-      allIndividuals: [individual],
-      byGeneration: { 0: [individual] },
-      bestOverall: individual.id,
+      allIndividuals: [...gen0, ...gen1],
+      byGeneration: { 0: gen0, 1: gen1 },
+      bestOverall: best.id,
       userSelections: [],
     },
-    selectedGeometry: [],
+    selectedGeometry: [baseGeometry.id],
   };
 
   updateBiologicalSolverState(nodeId, {
     outputs,
     config,
     status: "running",
-    generation: 1,
-    progress: { current: 1, total: 1, status: "complete" },
+    generation: 2,
+    progress: { current: 2, total: 2, status: "complete" },
     metrics: [],
     error: null,
   });
@@ -394,7 +431,7 @@ export const runBiologicalSolverRig = () => {
     biologicalOutputs,
     evolutionOutputs,
     baseGeometry,
-    individual,
+    individual: best,
     config,
   };
 };

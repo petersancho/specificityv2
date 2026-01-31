@@ -6,6 +6,8 @@ import {
   runTopologySolverRig,
 } from "../solvers/solver-rigs";
 import type { RenderMesh } from "../../types";
+import { deriveGoalTuning } from "../../workflow/nodes/solver/biological/evaluation";
+import type { GoalSpecification } from "../../workflow/nodes/solver/types";
 
 const CATEGORY = "solvers";
 
@@ -140,10 +142,63 @@ const validateBiologicalSolver = () => {
   ensure(biologicalOutputs.bestGenome.x === individual.genome[0], "Expected genome x");
   ensure(biologicalOutputs.bestGenome.y === individual.genome[1], "Expected genome y");
   ensure(biologicalOutputs.bestGenome.z === individual.genome[2], "Expected genome z");
+  ensure(biologicalOutputs.status === "running", "Expected solver status running");
+  const generations = biologicalOutputs.history?.generations ?? [];
+  const expectedEvaluations = generations.reduce(
+    (sum, generation) => sum + (generation.population?.length ?? 0),
+    0
+  );
+  ensure(biologicalOutputs.evaluations === expectedEvaluations, "Expected evaluation count");
   ensure(biologicalOutputs.best?.geometry?.length === 1, "Expected best geometry payload");
   ensure(biologicalOutputs.best?.geometry?.[0].id === baseGeometry.id, "Expected geometry id match");
   ensure(evolutionOutputs.best?.id === individual.id, "Expected evolution best id");
-  ensure(evolutionOutputs.gallery?.allIndividuals.length === 1, "Expected gallery entries");
+  ensure(
+    (evolutionOutputs.gallery?.allIndividuals.length ?? 0) >= 4,
+    "Expected gallery entries"
+  );
+  ensure(
+    evolutionOutputs.selectedGeometry?.[0] === baseGeometry.id,
+    "Expected selected geometry id"
+  );
+};
+
+const validateBiologicalGoalTuning = () => {
+  const baseline = deriveGoalTuning(null);
+  ensure(baseline.mutationRateScale === 1, "Expected baseline mutation scale 1");
+  ensure(baseline.populationScale === 1, "Expected baseline population scale 1");
+
+  const growthGoal: GoalSpecification = {
+    goalType: "growth",
+    weight: 1,
+    target: 0.7,
+    geometry: { elements: [0, 1, 2] },
+    parameters: {
+      growthRate: 2,
+      targetBiomass: 0.7,
+      carryingCapacity: 3,
+    },
+  };
+
+  const tunedGrowth = deriveGoalTuning([growthGoal]);
+  ensure(tunedGrowth.mutationRateScale > 1, "Expected growth to increase mutation rate");
+  ensure(tunedGrowth.populationScale > 1, "Expected growth to increase population");
+
+  const homeostasisGoal: GoalSpecification = {
+    goalType: "homeostasis",
+    weight: 1,
+    geometry: { elements: [0] },
+    parameters: {
+      stabilityTarget: 0.5,
+      damping: 1,
+      stressLimit: 1,
+    },
+  };
+
+  const tunedHomeostasis = deriveGoalTuning([homeostasisGoal]);
+  ensure(
+    tunedHomeostasis.mutationRateScale < 1,
+    "Expected homeostasis to reduce mutation rate"
+  );
 };
 
 export const runSolversValidation = () => {
@@ -156,6 +211,7 @@ export const runSolversValidation = () => {
   runNodeValidation("voxelSolver", validateVoxelSolver);
   runNodeValidation("chemistrySolver", validateChemistrySolver);
   runNodeValidation("biologicalSolver", validateBiologicalSolver);
+  runNodeValidation("biologicalSolver/goalTuning", validateBiologicalGoalTuning);
 
   return generateReport();
 };
