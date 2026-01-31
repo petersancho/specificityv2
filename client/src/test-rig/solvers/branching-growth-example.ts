@@ -4,6 +4,7 @@ import type { GoalSpecification } from "../../workflow/nodes/solver/types";
 import type { RenderMesh } from "../../types";
 import { meshBounds } from "./rig-utils";
 import { runBiologicalSolverRig } from "./solver-rigs";
+import { BRANCHING_GROWTH_GENOME_DIMENSION } from "./branching-growth-contract";
 
 type MeshSummary = {
   vertexCount: number;
@@ -20,9 +21,16 @@ const summarizeMesh = (mesh: RenderMesh): MeshSummary => {
     mesh.indices.length > 0 &&
     mesh.positions.length % 3 === 0 &&
     mesh.indices.length % 3 === 0;
-  const vertexCount = isTriangleMesh ? mesh.positions.length / 3 : 0;
-  const triangleCount = isTriangleMesh ? mesh.indices.length / 3 : 0;
-  const bounds = isTriangleMesh ? meshBounds(mesh) : null;
+
+  if (!isTriangleMesh) {
+    throw new Error(
+      `BranchingGrowth example expects triangle mesh (got positions=${mesh.positions.length}, indices=${mesh.indices.length})`
+    );
+  }
+
+  const vertexCount = mesh.positions.length / 3;
+  const triangleCount = mesh.indices.length / 3;
+  const bounds = meshBounds(mesh);
   return {
     vertexCount,
     triangleCount,
@@ -91,8 +99,10 @@ export const makeBranchingGrowthExampleGrowthGoal = (): GoalSpecification => ({
 export const generateBranchingGrowthSolverExample = (): BranchingGrowthSolverExampleV1 => {
   const { biologicalOutputs, baseGeometry, individual, config } = runBiologicalSolverRig();
 
-  if (individual.genome.length < 3) {
-    throw new Error("BranchingGrowth example expects genome with at least 3 genes");
+  if (individual.genome.length !== BRANCHING_GROWTH_GENOME_DIMENSION) {
+    throw new Error(
+      `BranchingGrowth example expects genome length ${BRANCHING_GROWTH_GENOME_DIMENSION} (got ${individual.genome.length})`
+    );
   }
 
   const [branchX, branchY, branchZ] = individual.genome;

@@ -24,6 +24,7 @@ import {
   findVertexIndicesAtExtent,
   wrapMeshGeometry,
 } from "./rig-utils";
+import { BRANCHING_GROWTH_GENOME_DIMENSION } from "./branching-growth-contract";
 
 const getNodeDefinition = (type: string) => {
   const node = NODE_DEFINITIONS.find((definition) => definition.type === type);
@@ -309,6 +310,11 @@ export const runBiologicalSolverRig = () => {
     rank: number
   ): Individual => {
     const genomeCopy = [...genome];
+    if (genomeCopy.length !== BRANCHING_GROWTH_GENOME_DIMENSION) {
+      throw new Error(
+        `Biological solver rig expects genome length ${BRANCHING_GROWTH_GENOME_DIMENSION} (got ${genomeCopy.length})`
+      );
+    }
     const geometryCopy = wrapMeshGeometry(baseGeometry.id, baseGeometry.mesh);
     return {
       id,
@@ -427,13 +433,15 @@ export const runBiologicalSolverRig = () => {
     selectedGeometry: [baseGeometry.id],
   };
 
-  const completedGenerations = outputs.history?.generations.length ?? 0;
+  const generations = outputs.history?.generations ?? [];
+  const completedGenerations = generations.length;
+  const lastGenerationId = generations.length ? generations[generations.length - 1].id : 0;
 
   updateBiologicalSolverState(nodeId, {
     outputs,
     config,
     status: "stopped",
-    generation: completedGenerations,
+    generation: lastGenerationId,
     progress: {
       current: completedGenerations,
       total: completedGenerations,

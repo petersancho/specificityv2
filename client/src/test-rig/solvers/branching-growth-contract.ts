@@ -1,0 +1,1 @@
+export const BRANCHING_GROWTH_GENOME_DIMENSION = 3 as const;
