@@ -7691,9 +7691,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
     const GROUP_PADDING = 14;
     const GROUP_HEADER_HEIGHT = 20;
-    const GROUP_MIN_WIDTH = 230; // Match `NumericalCanvas.tsx` group layout.
-    const GROUP_MIN_HEIGHT = 160; // Match `NumericalCanvas.tsx` group layout.
-
     // Keep in sync with `NumericalCanvas.tsx` node layout constants.
     const RIG_NODE_WIDTH = 180;
     const RIG_NODE_MIN_HEIGHT = 98;
@@ -7703,6 +7700,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const RIG_PORTS_START_OFFSET = 64;
     const RIG_PORTS_BOTTOM_PADDING = 18;
     const RIG_SLIDER_PORT_OFFSET = 6;
+
+    const GROUP_MIN_WIDTH = Math.max(RIG_NODE_WIDTH + GROUP_PADDING * 2, 230);
+    const GROUP_MIN_HEIGHT = Math.max(
+      RIG_NODE_MIN_HEIGHT + GROUP_PADDING * 2 + GROUP_HEADER_HEIGHT,
+      160
+    );
 
     type RigFrame = {
       id: string;
@@ -7723,6 +7726,23 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         position: { x: pos.x, y: pos.y },
         groupSize: { width: GROUP_MIN_WIDTH, height: GROUP_MIN_HEIGHT },
       });
+      const invalid = frames.filter(
+        (frame) =>
+          !(
+            Number.isFinite(frame.position.x) &&
+            Number.isFinite(frame.position.y) &&
+            Number.isFinite(frame.size.width) &&
+            Number.isFinite(frame.size.height) &&
+            frame.size.width > 0 &&
+            frame.size.height > 0
+          )
+      );
+      if (invalid.length > 0) {
+        console.warn(
+          "Chemistry solver rig: ignoring invalid frames while computing group bounds",
+          invalid.map((frame) => frame.id)
+        );
+      }
       const valid = frames.filter(
         (frame) =>
           Number.isFinite(frame.position.x) &&
@@ -7732,7 +7752,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           frame.size.width > 0 &&
           frame.size.height > 0
       );
-      if (valid.length === 0) return fallbackGroupBox(fallbackPosition);
+      if (valid.length === 0) {
+        console.warn(
+          "Chemistry solver rig: falling back to default group bounds (no valid frames)",
+          fallbackPosition
+        );
+        return fallbackGroupBox(fallbackPosition);
+      }
 
       let minX = Number.POSITIVE_INFINITY;
       let minY = Number.POSITIVE_INFINITY;
@@ -8123,7 +8149,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       },
     ];
 
-    const buildGroupNode = (
+    const buildRigGroupNode = (
       groupId: string,
       title: string,
       nodes: WorkflowNode[],
@@ -8173,16 +8199,23 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
     const groupNodes = groups
       .map((group) =>
-        buildGroupNode(group.groupId, group.title, group.nodes, position, { color: group.color })
+        buildRigGroupNode(group.groupId, group.title, group.nodes, position, { color: group.color })
       )
       .filter((node): node is NonNullable<typeof node> => node != null);
+
+    class RigConfigError extends Error {
+      constructor(message: string) {
+        super(message);
+        this.name = "RigConfigError";
+      }
+    }
 
     const groupOwnerByNodeId = new Map<string, string>();
     groups.forEach((group) => {
       group.nodes.forEach((node) => {
         const prevOwner = groupOwnerByNodeId.get(node.id);
         if (prevOwner && prevOwner !== group.groupId) {
-          throw new Error(
+          throw new RigConfigError(
             `Chemistry solver rig config error: node ${node.id} appears in multiple groups: ${prevOwner}, ${group.groupId}`
           );
         }
