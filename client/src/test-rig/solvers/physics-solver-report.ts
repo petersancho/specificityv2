@@ -14,6 +14,7 @@ export type ScalarStats = {
   count: number;
   finite: number;
   nonFinite: number;
+  hasFinite: boolean;
   min: number;
   max: number;
   mean: number;
@@ -22,6 +23,7 @@ export type ScalarStats = {
 export type MeshSummary = {
   vertexCount: number;
   triangleCount: number;
+  boundsValid: boolean;
   bounds: { min: Vec3; max: Vec3 };
 };
 
@@ -85,6 +87,7 @@ export const summarizeScalarField = (values: number[] | null | undefined): Scala
     count: list.length,
     finite,
     nonFinite,
+    hasFinite: finite > 0,
     min: Number.isFinite(min) ? min : 0,
     max: Number.isFinite(max) ? max : 0,
     mean: Number.isFinite(mean) ? mean : 0,
@@ -154,10 +157,18 @@ export const summarizeMesh = (mesh: RenderMesh): MeshSummary => {
     if (y > max.y) max.y = y;
     if (z > max.z) max.z = z;
   }
+  const boundsValid =
+    Number.isFinite(min.x) &&
+    Number.isFinite(min.y) &&
+    Number.isFinite(min.z) &&
+    Number.isFinite(max.x) &&
+    Number.isFinite(max.y) &&
+    Number.isFinite(max.z);
   const safe = (value: number) => (Number.isFinite(value) ? value : 0);
   return {
     vertexCount,
     triangleCount,
+    boundsValid,
     bounds: {
       min: { x: safe(min.x), y: safe(min.y), z: safe(min.z) },
       max: { x: safe(max.x), y: safe(max.y), z: safe(max.z) },
@@ -175,14 +186,14 @@ export const summarizeGoals = (goals: GoalSpecification[]): PhysicsGoalSummary[]
           weight: load.weight,
           target: load.target,
           elementCount: load.geometry.elements.length,
-          parameters: {
+          parameters: sanitizeGoalParameters({
             force: load.parameters.force,
             distributed: load.parameters.distributed,
             loadType: load.parameters.loadType,
             applicationPointCount: load.parameters.applicationPoints.length,
             timeProfileLength: load.parameters.timeProfile?.length ?? 0,
             frequency: load.parameters.frequency ?? null,
-          },
+          }),
         };
       }
       case "anchor": {
@@ -192,11 +203,11 @@ export const summarizeGoals = (goals: GoalSpecification[]): PhysicsGoalSummary[]
           weight: anchor.weight,
           target: anchor.target,
           elementCount: anchor.geometry.elements.length,
-          parameters: {
+          parameters: sanitizeGoalParameters({
             fixedDOF: anchor.parameters.fixedDOF,
             anchorType: anchor.parameters.anchorType ?? null,
             springStiffness: anchor.parameters.springStiffness ?? 0,
-          },
+          }),
         };
       }
       case "stiffness": {
@@ -206,11 +217,11 @@ export const summarizeGoals = (goals: GoalSpecification[]): PhysicsGoalSummary[]
           weight: stiffness.weight,
           target: stiffness.target,
           elementCount: stiffness.geometry.elements.length,
-          parameters: {
+          parameters: sanitizeGoalParameters({
             youngModulus: stiffness.parameters.youngModulus,
             poissonRatio: stiffness.parameters.poissonRatio,
             targetStiffness: stiffness.parameters.targetStiffness ?? null,
-          },
+          }),
         };
       }
       case "volume": {
@@ -220,11 +231,11 @@ export const summarizeGoals = (goals: GoalSpecification[]): PhysicsGoalSummary[]
           weight: volume.weight,
           target: volume.target,
           elementCount: volume.geometry.elements.length,
-          parameters: {
+          parameters: sanitizeGoalParameters({
             targetVolume: volume.parameters.targetVolume ?? null,
             materialDensity: volume.parameters.materialDensity,
             allowedDeviation: volume.parameters.allowedDeviation,
-          },
+          }),
         };
       }
       default:

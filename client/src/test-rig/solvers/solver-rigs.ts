@@ -9,6 +9,7 @@ import type {
   ChemistryStiffnessGoal,
   GoalSpecification,
   LoadGoal,
+  SolverConfiguration,
   StiffnessGoal,
   VolumeGoal,
 } from "../../workflow/nodes/solver/types";
@@ -110,9 +111,33 @@ export type PhysicsRigOverrides = Partial<{
   chunkSize: number;
 }>;
 
+const toPhysicsSolverConfig = (parameters: {
+  maxIterations: number;
+  convergenceTolerance: number;
+  analysisType: AnalysisType;
+  timeStep: number;
+  animationFrames: number;
+  useGPU: boolean;
+  chunkSize: number;
+  maxDeformation: number;
+  maxStress: number;
+}): SolverConfiguration => ({
+  maxIterations: parameters.maxIterations,
+  convergenceTolerance: parameters.convergenceTolerance,
+  analysisType: parameters.analysisType,
+  timeStep: parameters.timeStep,
+  animationFrames: parameters.animationFrames,
+  useGPU: parameters.useGPU,
+  chunkSize: parameters.chunkSize,
+  safetyLimits: {
+    maxDeformation: parameters.maxDeformation,
+    maxStress: parameters.maxStress,
+  },
+});
+
 export const runPhysicsSolverRig = (analysisType: AnalysisType, overrides: PhysicsRigOverrides = {}) => {
   const node = getNodeDefinition("physicsSolver");
-  const segments = overrides.meshSegments ?? 1;
+  const segments = Math.max(1, Math.floor(overrides.meshSegments ?? 1));
   const baseGeometry = createBoxGeometry(`geo-physics-${analysisType}`, {
     width: 2,
     height: 1.2,
@@ -144,19 +169,7 @@ export const runPhysicsSolverRig = (analysisType: AnalysisType, overrides: Physi
     context,
   });
 
-  const config = {
-    maxIterations: parameters.maxIterations,
-    convergenceTolerance: parameters.convergenceTolerance,
-    analysisType: parameters.analysisType,
-    timeStep: parameters.timeStep,
-    animationFrames: parameters.animationFrames,
-    useGPU: parameters.useGPU,
-    chunkSize: parameters.chunkSize,
-    safetyLimits: {
-      maxDeformation: parameters.maxDeformation,
-      maxStress: parameters.maxStress,
-    },
-  };
+  const config = toPhysicsSolverConfig(parameters);
 
   const outputMesh = (() => {
     const mesh = outputs.mesh as RenderMesh;

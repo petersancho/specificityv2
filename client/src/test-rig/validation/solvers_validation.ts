@@ -135,6 +135,26 @@ const validatePhysicsSafetyWarnings = () => {
     maxStress: 1e-9,
   });
   ensure(outputs.result.success === true, "Expected physics solver success");
+  ensure(outputs.displacements.length > 0, "Expected displacements for safety test");
+  ensure(outputs.stressField.length > 0, "Expected stress field for safety test");
+  ensureFiniteVec3Array(outputs.displacements, "physics safety displacements");
+  ensureFiniteArray(outputs.stressField, "physics safety stress field");
+
+  let maxDisp = 0;
+  for (let i = 0; i < outputs.displacements.length; i += 1) {
+    const disp = outputs.displacements[i];
+    const mag = Math.sqrt(disp.x * disp.x + disp.y * disp.y + disp.z * disp.z);
+    if (mag > maxDisp) maxDisp = mag;
+  }
+
+  let maxStress = 0;
+  for (let i = 0; i < outputs.stressField.length; i += 1) {
+    const stress = outputs.stressField[i];
+    if (stress > maxStress) maxStress = stress;
+  }
+
+  ensure(maxDisp > 1e-9, "Expected deformation to exceed safety limit");
+  ensure(maxStress > 1e-9, "Expected stress to exceed safety limit");
   ensure(
     outputs.result.warnings.some((warning) => warning.includes("Deformation exceeds")),
     "Expected deformation warning"

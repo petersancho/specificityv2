@@ -93,8 +93,12 @@ describe("Physics solver benchmark", () => {
     };
 
     const warmupResult = solvePhysicsChunkedSync({ mesh, goals, config }, config.chunkSize);
-    if (!warmupResult.success && warmupResult.errors.length > 0) {
-      throw new Error(`Warmup failed: ${warmupResult.errors.join(", ")}`);
+    if (!warmupResult.success) {
+      const detail =
+        warmupResult.errors.length > 0
+          ? warmupResult.errors.join(", ")
+          : "Physics solver warmup returned success = false with no error messages";
+      throw new Error(`Warmup failed: ${detail}`);
     }
 
     const cpuTimings: number[] = [];
@@ -104,11 +108,19 @@ describe("Physics solver benchmark", () => {
       const start = performance.now();
       const result = solvePhysicsChunkedSync({ mesh, goals, config }, config.chunkSize);
       const end = performance.now();
-      if (!result.success && result.errors.length > 0) {
-        throw new Error(result.errors.join(", "));
+      if (!result.success) {
+        const detail =
+          result.errors.length > 0
+            ? result.errors.join(", ")
+            : "Physics solver returned success = false with no error messages";
+        throw new Error(detail);
       }
       cpuTimings.push(end - start);
-      cpuComputeTimes.push(result.performanceMetrics.computeTime);
+      const computeTime = result.performanceMetrics.computeTime;
+      if (!Number.isFinite(computeTime)) {
+        throw new Error("Missing or non-finite computeTime in physics solver CPU result");
+      }
+      cpuComputeTimes.push(computeTime);
       lastCpuResult = result;
     }
 
@@ -133,8 +145,12 @@ describe("Physics solver benchmark", () => {
       const start = performance.now();
       const workerResult = await runPhysicsWorkerSolve({ mesh, goals, config: { ...config, useGPU: true } });
       const end = performance.now();
-      if (!workerResult.result.success && workerResult.result.errors.length > 0) {
-        throw new Error(workerResult.result.errors.join(", "));
+      if (!workerResult.result.success) {
+        const detail =
+          workerResult.result.errors.length > 0
+            ? workerResult.result.errors.join(", ")
+            : "Physics solver worker returned success = false with no error messages";
+        throw new Error(detail);
       }
       if (workerResult.computeMode === "cpu-fallback") {
         console.log("[BENCH] worker unavailable in this environment; skipped worker timing.");
@@ -160,7 +176,11 @@ describe("Physics solver benchmark", () => {
         return;
       }
       workerTimings.push(end - start);
-      workerComputeTimes.push(workerResult.result.performanceMetrics.computeTime);
+      const computeTime = workerResult.result.performanceMetrics.computeTime;
+      if (!Number.isFinite(computeTime)) {
+        throw new Error("Missing or non-finite computeTime in physics solver worker result");
+      }
+      workerComputeTimes.push(computeTime);
       lastWorkerReport = buildPhysicsSolverReport({
         name: "physics-bench/worker",
         inputMesh: mesh,
