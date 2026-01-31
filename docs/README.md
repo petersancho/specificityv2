@@ -55,7 +55,7 @@ Click it again while in the docs view to return to the Roslyn + Numerica workspa
 - Interaction commands: `numerica_interaction_commands.md`
 - Interchange: `numerica_interchange.md`
 - Rendering: `numerica_rendering.md`
-- Workflow implementation map: `Semantics and Ontology - Numerica - Roslyn/IMPLEMENTATION_MAP.md`
+- Workflow implementation map: `numerica-roslyn-semantics/IMPLEMENTATION_MAP.md`
 
 ---
 
