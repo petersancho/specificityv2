@@ -402,6 +402,10 @@ export const runBiologicalSolverRig = () => {
 
   const targetGenome = [1.6, 4.2, 2.6, 0.75, 0.25];
 
+  if (targetGenome.length !== genes.length) {
+    throw new Error("Expected target genome length to match gene count");
+  }
+
   const normalizeDistance = (genome: number[]) => {
     let acc = 0;
     for (let i = 0; i < genes.length; i += 1) {
@@ -500,6 +504,7 @@ export const runBiologicalSolverRig = () => {
         generation: generationId,
         rank: 0,
         geometryIds: [baseGeometry.id],
+        geometry: [baseGeometry],
         thumbnail: null,
       };
     });

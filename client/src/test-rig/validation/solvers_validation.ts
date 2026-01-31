@@ -143,7 +143,9 @@ const validateBiologicalSolver = () => {
     runBiologicalSolverRig();
   const best = outputs.best;
   ensure(best !== null, "Expected best individual");
-  if (!best) return;
+  if (!best) {
+    throw new Error("Expected best individual");
+  }
 
   ensure(biologicalOutputs.status === "stopped", "Expected stopped status");
   ensure(biologicalOutputs.populationSize === config.populationSize, "Expected population size");
@@ -198,6 +200,11 @@ const validateBiologicalSolver = () => {
     outputs,
   });
   ensure(exportData.schema === "lingua.biological-solver.run@v1", "Expected export schema");
+  ensure(exportData.config.generations === config.generations, "Expected export config");
+  ensure(
+    exportData.generations.length === (outputs.history?.generations.length ?? 0),
+    "Expected exported generation count"
+  );
   ensure(exportData.best?.genome.length === genes.length, "Expected export gene alignment");
   ensure(typeof JSON.stringify(exportData) === "string", "Expected export JSON");
 

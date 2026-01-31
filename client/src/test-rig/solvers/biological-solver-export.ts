@@ -59,8 +59,11 @@ export const toBiologicalSolverRunExportV1 = (args: {
     best,
     generations: history.map((generation) => ({
       id: generation.id,
-      stats: generation.statistics,
-      bestIds: generation.population.slice(0, 3).map((individual) => individual.id),
+      stats: { ...generation.statistics },
+      bestIds: [...generation.population]
+        .sort((a, b) => b.fitness - a.fitness)
+        .slice(0, 3)
+        .map((individual) => individual.id),
     })),
   };
 };
@@ -69,13 +72,24 @@ export const toBiologicalSolverRunNodeExampleScript = (
   exportData: BiologicalSolverRunExportV1
 ) => {
   const fileName = "biological-solver-run.json";
+  const expectedSchema = exportData.schema;
 
   return [
-    "import fs from \"node:fs\";",
+    "const fs = require(\"node:fs\");",
     "\nconst input = process.argv[2] ?? \"" + fileName + "\";",
-    "const raw = fs.readFileSync(input, \"utf8\");",
-    "const run = JSON.parse(raw);",
+    "const expectedSchema = \"" + expectedSchema + "\";",
+    "let run;",
+    "try {",
+    "  const raw = fs.readFileSync(input, \"utf8\");",
+    "  run = JSON.parse(raw);",
+    "} catch (error) {",
+    "  console.error(\"Failed to read or parse run file\", error);",
+    "  process.exit(1);",
+    "}",
     "\nconsole.log(run.schema);",
+    "if (expectedSchema && run.schema !== expectedSchema) {",
+    "  console.warn(\"Unexpected schema\", run.schema);",
+    "}",
     "console.log(\"generatedAt\", run.generatedAt);",
     "console.log(\"generations\", run.config.generations);",
     "\nif (run.best) {",
