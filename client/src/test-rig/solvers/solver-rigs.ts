@@ -309,6 +309,7 @@ export const runBiologicalSolverRig = () => {
     rank: number
   ): Individual => {
     const genomeCopy = [...genome];
+    const geometryCopy = { ...baseGeometry, mesh: baseGeometry.mesh };
     return {
       id,
       genome: genomeCopy,
@@ -316,8 +317,8 @@ export const runBiologicalSolverRig = () => {
       fitness,
       generation,
       rank,
-      geometryIds: [baseGeometry.id],
-      geometry: [baseGeometry],
+      geometryIds: [geometryCopy.id],
+      geometry: [geometryCopy],
       thumbnail: null,
     };
   };

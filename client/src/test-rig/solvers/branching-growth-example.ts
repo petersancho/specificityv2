@@ -14,10 +14,14 @@ type MeshSummary = {
 
 const summarizeMesh = (mesh: RenderMesh): MeshSummary => {
   if (mesh.positions.length % 3 !== 0) {
-    throw new Error("Mesh positions length must be a multiple of 3");
+    throw new Error(
+      `BranchingGrowth example expects triangle mesh (got positions=${mesh.positions.length}, indices=${mesh.indices.length})`
+    );
   }
   if (mesh.indices.length % 3 !== 0) {
-    throw new Error("Mesh indices length must be a multiple of 3");
+    throw new Error(
+      `BranchingGrowth example expects triangle mesh (got positions=${mesh.positions.length}, indices=${mesh.indices.length})`
+    );
   }
 
   const vertexCount = mesh.positions.length / 3;
@@ -118,7 +122,11 @@ export const generateBranchingGrowthSolverExample = (): BranchingGrowthSolverExa
     },
     outputs: {
       bestScore: biologicalOutputs.bestScore,
-      bestGenomeVector3: biologicalOutputs.bestGenome,
+      bestGenomeVector3: {
+        x: biologicalOutputs.bestGenome?.x ?? individual.genome[0] ?? 0,
+        y: biologicalOutputs.bestGenome?.y ?? individual.genome[1] ?? 0,
+        z: biologicalOutputs.bestGenome?.z ?? individual.genome[2] ?? 0,
+      },
       evaluations: biologicalOutputs.evaluations,
       status: biologicalOutputs.status,
     },
