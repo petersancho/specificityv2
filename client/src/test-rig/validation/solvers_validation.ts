@@ -4,6 +4,7 @@ import {
   runChemistrySolverRig,
   runPhysicsSolverRig,
   runTopologySolverRig,
+  runVoxelSolverRig,
 } from "../solvers/solver-rigs";
 import type { RenderMesh } from "../../types";
 
@@ -97,7 +98,7 @@ const validatePhysicsModal = () => {
 };
 
 const validateTopologySolver = () => {
-  const { outputs, isoOutputs, outputGeometry } = runTopologySolverRig("topologySolver");
+  const { outputs, isoOutputs, outputGeometry } = runTopologySolverRig();
   ensure(outputs.status === "complete", "Expected topology solver complete");
   ensure(Array.isArray(outputs.densityField), "Expected density field array");
   ensure(outputs.densityField.length > 0, "Expected density field data");
@@ -107,14 +108,42 @@ const validateTopologySolver = () => {
   ensureMesh(outputGeometry.mesh, "topology output geometry");
 };
 
-const validateVoxelSolver = () => {
-  const { outputs, isoOutputs, outputGeometry } = runTopologySolverRig("voxelSolver");
+const validateVoxelSolverSolidBox = () => {
+  const { outputs, isoOutputs, outputGeometry } = runVoxelSolverRig("box/solid");
   ensure(outputs.status === "complete", "Expected voxel solver complete");
   ensure(Array.isArray(outputs.densityField), "Expected density field array");
   ensure(outputs.densityField.length > 0, "Expected density field data");
   ensure(outputs.voxelGrid !== null, "Expected voxel grid output");
-  ensureMesh(isoOutputs.mesh as RenderMesh, "voxel iso mesh");
-  ensureMesh(outputGeometry.mesh, "voxel output geometry");
+  ensureFinite(outputs.occupiedCells, "Expected occupied cells count");
+  ensure(outputs.occupiedCells > 0, "Expected occupied cells > 0");
+  ensureFinite(outputs.fillRatio, "Expected fill ratio");
+  ensure(outputs.fillRatio > 0 && outputs.fillRatio < 1, "Expected fill ratio in (0, 1)");
+  ensureMesh(isoOutputs.mesh as RenderMesh, "voxel solid box iso mesh");
+  ensureMesh(outputGeometry.mesh, "voxel solid box output geometry");
+};
+
+const validateVoxelSolverSurfaceBox = () => {
+  const { outputs, isoOutputs, outputGeometry } = runVoxelSolverRig("box/surface");
+  ensure(outputs.status === "complete", "Expected voxel solver complete");
+  ensure(Array.isArray(outputs.densityField), "Expected density field array");
+  ensure(outputs.densityField.length > 0, "Expected density field data");
+  ensure(outputs.voxelGrid !== null, "Expected voxel grid output");
+  ensureFinite(outputs.occupiedCells, "Expected occupied cells count");
+  ensure(outputs.occupiedCells > 0, "Expected occupied cells > 0");
+  ensureMesh(isoOutputs.mesh as RenderMesh, "voxel surface box iso mesh");
+  ensureMesh(outputGeometry.mesh, "voxel surface box output geometry");
+};
+
+const validateVoxelSolverSolidSphere = () => {
+  const { outputs, isoOutputs, outputGeometry } = runVoxelSolverRig("sphere/solid");
+  ensure(outputs.status === "complete", "Expected voxel solver complete");
+  ensure(Array.isArray(outputs.densityField), "Expected density field array");
+  ensure(outputs.densityField.length > 0, "Expected density field data");
+  ensure(outputs.voxelGrid !== null, "Expected voxel grid output");
+  ensureFinite(outputs.fillRatio, "Expected fill ratio");
+  ensure(outputs.fillRatio > 0 && outputs.fillRatio < 1, "Expected fill ratio in (0, 1)");
+  ensureMesh(isoOutputs.mesh as RenderMesh, "voxel solid sphere iso mesh");
+  ensureMesh(outputGeometry.mesh, "voxel solid sphere output geometry");
 };
 
 const validateChemistrySolver = () => {
@@ -153,7 +182,9 @@ export const runSolversValidation = () => {
   runNodeValidation("physicsSolver/dynamic", validatePhysicsDynamic);
   runNodeValidation("physicsSolver/modal", validatePhysicsModal);
   runNodeValidation("topologySolver", validateTopologySolver);
-  runNodeValidation("voxelSolver", validateVoxelSolver);
+  runNodeValidation("voxelSolver/box-solid", validateVoxelSolverSolidBox);
+  runNodeValidation("voxelSolver/box-surface", validateVoxelSolverSurfaceBox);
+  runNodeValidation("voxelSolver/sphere-solid", validateVoxelSolverSolidSphere);
   runNodeValidation("chemistrySolver", validateChemistrySolver);
   runNodeValidation("biologicalSolver", validateBiologicalSolver);
 

@@ -150,7 +150,8 @@ export const runPhysicsSolverRig = (analysisType: AnalysisType) => {
   };
 };
 
-export const runTopologySolverRig = (nodeType: "topologySolver" | "voxelSolver") => {
+export const runTopologySolverRig = () => {
+  const nodeType = "topologySolver";
   const solverNode = getNodeDefinition(nodeType);
   const isoNode = getNodeDefinition("extractIsosurface");
   const baseGeometry = createBoxGeometry(`geo-${nodeType}`, { width: 1.8, height: 1.2, depth: 1.4 });
@@ -192,6 +193,58 @@ export const runTopologySolverRig = (nodeType: "topologySolver" | "voxelSolver")
     isoOutputs,
     outputGeometry,
     baseGeometry,
+  };
+};
+
+export const runVoxelSolverRig = (
+  rigType: "box/solid" | "box/surface" | "sphere/solid" = "box/solid"
+) => {
+  const solverNode = getNodeDefinition("voxelSolver");
+  const isoNode = getNodeDefinition("extractIsosurface");
+  const baseGeometry =
+    rigType === "sphere/solid"
+      ? createSphereGeometry("geo-voxel-sphere", 1.1, 18)
+      : createBoxGeometry("geo-voxel-box", { width: 1.8, height: 1.2, depth: 1.4 });
+  const context = createTestContext(`voxel-${rigType}-context`, [baseGeometry]);
+
+  const mode = rigType === "box/surface" ? "surface" : "solid";
+  const parameters = {
+    resolution: 16,
+    padding: 0.2,
+    mode,
+    thickness: 2,
+  };
+
+  const outputs = solverNode.compute({
+    inputs: { domain: baseGeometry.id },
+    parameters,
+    context,
+  });
+
+  const isoParams = {
+    geometryId: `voxel-${rigType}-iso`,
+    isoValue: 0.5,
+    resolution: outputs.resolution ?? parameters.resolution,
+  };
+
+  const isoOutputs = isoNode.compute({
+    inputs: { voxelGrid: outputs.voxelGrid ?? outputs.densityField },
+    parameters: isoParams,
+    context,
+  });
+
+  const outputGeometry = wrapMeshGeometry(
+    isoParams.geometryId,
+    isoOutputs.mesh as RenderMesh
+  );
+
+  return {
+    outputs,
+    isoOutputs,
+    outputGeometry,
+    baseGeometry,
+    parameters,
+    isoParams,
   };
 };
 

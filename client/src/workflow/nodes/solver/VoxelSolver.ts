@@ -7,13 +7,13 @@ export const createVoxelSolverNode = (
   type: "voxelSolver",
   label: "Ἐπιλύτης Φογκελ",
   shortLabel: "Voxel",
-  description: "Voxel solver (topology density) prototype.",
+  description: "Voxelize geometry into a voxel density grid.",
   category: "solver",
   iconId: baseDefinition.iconId ?? "solver",
   display: {
     nameGreek: "Ἐπιλύτης Φογκελ",
     nameEnglish: "Voxel Solver",
     romanization: "Epilýtēs Fogkel",
-    description: "Voxel density solver for geometry domains.",
+    description: "Voxelize geometry into a density grid for downstream extraction.",
   },
 });

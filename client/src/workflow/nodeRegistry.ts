@@ -1523,6 +1523,204 @@ const normalizeVoxelGrid = (grid: VoxelGrid, fallbackResolution = 12): VoxelGrid
   };
 };
 
+type MeshTriangle = {
+  a: Vec3Value;
+  b: Vec3Value;
+  c: Vec3Value;
+  minY: number;
+  maxY: number;
+  minZ: number;
+  maxZ: number;
+};
+
+const collectMeshTriangles = (mesh: RenderMesh): MeshTriangle[] => {
+  const positions = Array.isArray(mesh.positions) ? mesh.positions : [];
+  const indices = Array.isArray(mesh.indices) ? mesh.indices : [];
+  const triangles: MeshTriangle[] = [];
+  const indexed = indices.length >= 3;
+  const triangleCount = indexed
+    ? Math.floor(indices.length / 3)
+    : Math.floor(positions.length / 9);
+
+  for (let i = 0; i < triangleCount; i += 1) {
+    const ia = indexed ? indices[i * 3] ?? 0 : i * 3;
+    const ib = indexed ? indices[i * 3 + 1] ?? 0 : i * 3 + 1;
+    const ic = indexed ? indices[i * 3 + 2] ?? 0 : i * 3 + 2;
+    const a = vec3FromPositions(positions, ia);
+    const b = vec3FromPositions(positions, ib);
+    const c = vec3FromPositions(positions, ic);
+    triangles.push({
+      a,
+      b,
+      c,
+      minY: Math.min(a.y, b.y, c.y),
+      maxY: Math.max(a.y, b.y, c.y),
+      minZ: Math.min(a.z, b.z, c.z),
+      maxZ: Math.max(a.z, b.z, c.z),
+    });
+  }
+
+  return triangles;
+};
+
+const rayIntersectTriangle = (
+  origin: Vec3Value,
+  direction: Vec3Value,
+  triangle: MeshTriangle
+) => {
+  const edge1 = subtractVec3(triangle.b, triangle.a);
+  const edge2 = subtractVec3(triangle.c, triangle.a);
+  const pvec = crossVec3(direction, edge2);
+  const det = dotVec3(edge1, pvec);
+  if (Math.abs(det) <= 1e-10) {
+    return null;
+  }
+  const invDet = 1 / det;
+  const tvec = subtractVec3(origin, triangle.a);
+  const u = dotVec3(tvec, pvec) * invDet;
+  if (u < 0 || u > 1) {
+    return null;
+  }
+  const qvec = crossVec3(tvec, edge1);
+  const v = dotVec3(direction, qvec) * invDet;
+  if (v < 0 || u + v > 1) {
+    return null;
+  }
+  const t = dotVec3(edge2, qvec) * invDet;
+  return t > 1e-10 ? t : null;
+};
+
+const buildVoxelMaskFromMesh = (
+  mesh: RenderMesh,
+  bounds: { min: Vec3Value; max: Vec3Value },
+  resolution: number
+) => {
+  const safeResolution = clampResolution(resolution, 12);
+  const triangles = collectMeshTriangles(mesh);
+  const size = resolveBoundsSize(bounds);
+  const cellSize = {
+    x: size.x / safeResolution,
+    y: size.y / safeResolution,
+    z: size.z / safeResolution,
+  };
+  const cellCount = safeResolution * safeResolution * safeResolution;
+  const mask = new Uint8Array(cellCount);
+  const direction = normalizeVec3Safe(
+    { x: 1, y: 0.317, z: 0.211 },
+    UNIT_X_VEC3
+  );
+  const offsetDistance = Math.max(cellSize.x, cellSize.y, cellSize.z) * 0.001;
+  const offset = scaleVec3(direction, offsetDistance);
+
+  for (let z = 0; z < safeResolution; z += 1) {
+    const centerZ = bounds.min.z + (z + 0.5) * cellSize.z;
+    for (let y = 0; y < safeResolution; y += 1) {
+      const centerY = bounds.min.y + (y + 0.5) * cellSize.y;
+      for (let x = 0; x < safeResolution; x += 1) {
+        const centerX = bounds.min.x + (x + 0.5) * cellSize.x;
+        const center = { x: centerX, y: centerY, z: centerZ };
+        const origin = subtractVec3(center, offset);
+        let hits = 0;
+        triangles.forEach((triangle) => {
+          const t = rayIntersectTriangle(origin, direction, triangle);
+          if (t !== null) hits += 1;
+        });
+        if (hits % 2 === 1) {
+          mask[x + y * safeResolution + z * safeResolution * safeResolution] = 1;
+        }
+      }
+    }
+  }
+
+  return { mask, resolution: safeResolution, cellSize };
+};
+
+const extractSurfaceLayers = (
+  solid: Uint8Array,
+  resolution: number,
+  thicknessValue: number
+) => {
+  const thickness = clampInt(Math.round(thicknessValue), 1, 4, 1);
+  const sizeXY = resolution * resolution;
+  const remaining = new Uint8Array(solid);
+  const surface = new Uint8Array(solid.length);
+
+  const isEmptyNeighbor = (x: number, y: number, z: number) => {
+    const idx = x + y * resolution + z * sizeXY;
+    if (x === 0 || x === resolution - 1 || y === 0 || y === resolution - 1 || z === 0 || z === resolution - 1) {
+      return true;
+    }
+    return (
+      remaining[idx - 1] === 0 ||
+      remaining[idx + 1] === 0 ||
+      remaining[idx - resolution] === 0 ||
+      remaining[idx + resolution] === 0 ||
+      remaining[idx - sizeXY] === 0 ||
+      remaining[idx + sizeXY] === 0
+    );
+  };
+
+  for (let layer = 0; layer < thickness; layer += 1) {
+    const removed: number[] = [];
+    for (let z = 0; z < resolution; z += 1) {
+      for (let y = 0; y < resolution; y += 1) {
+        for (let x = 0; x < resolution; x += 1) {
+          const idx = x + y * resolution + z * sizeXY;
+          if (remaining[idx] === 0) continue;
+          if (isEmptyNeighbor(x, y, z)) {
+            surface[idx] = 1;
+            removed.push(idx);
+          }
+        }
+      }
+    }
+    removed.forEach((idx) => {
+      remaining[idx] = 0;
+    });
+  }
+
+  return surface;
+};
+
+const buildVoxelGridFromMeshVoxelization = (
+  mesh: RenderMesh,
+  bounds: { min: Vec3Value; max: Vec3Value },
+  resolution: number,
+  mode: string,
+  thicknessValue: number
+) => {
+  const normalizedBounds = normalizeVoxelBounds(bounds);
+  const solidResult = buildVoxelMaskFromMesh(mesh, normalizedBounds, resolution);
+  const voxelMask =
+    mode === "surface"
+      ? extractSurfaceLayers(solidResult.mask, solidResult.resolution, thicknessValue)
+      : solidResult.mask;
+  const cellCount = solidResult.resolution * solidResult.resolution * solidResult.resolution;
+  const densities = new Array<number>(cellCount);
+  let occupiedCells = 0;
+  for (let i = 0; i < cellCount; i += 1) {
+    const value = voxelMask[i] ? 1 : 0;
+    densities[i] = value;
+    occupiedCells += value;
+  }
+  return {
+    voxelGrid: normalizeVoxelGrid(
+      {
+        resolution: {
+          x: solidResult.resolution,
+          y: solidResult.resolution,
+          z: solidResult.resolution,
+        },
+        bounds: normalizedBounds,
+        cellSize: solidResult.cellSize,
+        densities,
+      },
+      solidResult.resolution
+    ),
+    occupiedCells,
+  };
+};
+
 const buildVoxelGridFromDensities = (
   densities: number[],
   resolutionHint?: number,
@@ -12401,9 +12599,291 @@ NODE_DEFINITIONS.push(PhysicsSolverNode, BiologicalEvolutionSolverNode);
 const topologySolverDefinition = NODE_DEFINITIONS.find(
   (definition) => definition.type === "topologySolver"
 );
-if (topologySolverDefinition) {
-  NODE_DEFINITIONS.push(createVoxelSolverNode(topologySolverDefinition));
-}
+
+const voxelSolverDefinition: WorkflowNodeDefinition = {
+  type: "voxelSolver",
+  label: "Voxel Solver",
+  shortLabel: "Voxel",
+  description: "Voxelize a geometry domain into a density grid.",
+  category: "voxel",
+  iconId: topologySolverDefinition?.iconId ?? "topologySolver",
+  inputs: [
+    {
+      key: "domain",
+      label: "Domain",
+      type: "geometry",
+      description: "Geometry used to define the voxelization bounds.",
+    },
+    {
+      key: "voxelGrid",
+      label: "Voxel Grid",
+      type: "any",
+      description: "Optional grid template (bounds + resolution) to voxelize into.",
+    },
+  ],
+  outputs: [
+    {
+      key: "densityField",
+      label: "Density",
+      type: "any",
+      description: "Voxel density field (0/1 occupancy).",
+    },
+    {
+      key: "voxelGrid",
+      label: "Voxel Grid",
+      type: "any",
+      description: "Voxel grid containing bounds, cell size, and densities.",
+    },
+    {
+      key: "resolution",
+      label: "Resolution",
+      type: "number",
+      description: "Cubic voxel grid resolution.",
+    },
+    {
+      key: "occupiedCells",
+      label: "Occupied",
+      type: "number",
+      description: "Number of occupied cells (density=1).",
+    },
+    {
+      key: "fillRatio",
+      label: "Fill",
+      type: "number",
+      description: "Occupied fraction of total cells.",
+    },
+    {
+      key: "cellSize",
+      label: "Cell",
+      type: "vector",
+      description: "Voxel cell size (world units).",
+    },
+    {
+      key: "boundsMin",
+      label: "Min",
+      type: "vector",
+      description: "Voxel grid bounds minimum.",
+    },
+    {
+      key: "boundsMax",
+      label: "Max",
+      type: "vector",
+      description: "Voxel grid bounds maximum.",
+    },
+    {
+      key: "status",
+      label: "Status",
+      type: "string",
+      description: "Status string for the voxelization pass.",
+    },
+  ],
+  parameters: [
+    {
+      key: "resolution",
+      label: "Resolution",
+      type: "number",
+      defaultValue: 16,
+      min: 4,
+      max: 36,
+      step: 1,
+      description: "Cubic voxel grid resolution.",
+    },
+    {
+      key: "padding",
+      label: "Padding",
+      type: "number",
+      defaultValue: 0.2,
+      min: 0,
+      max: 10,
+      step: 0.1,
+      description: "Extra space added around the geometry bounds.",
+    },
+    {
+      key: "mode",
+      label: "Mode",
+      type: "select",
+      defaultValue: "solid",
+      options: [
+        { value: "solid", label: "Solid" },
+        { value: "surface", label: "Surface" },
+      ],
+      description: "Solid fills interior; Surface keeps only boundary layers.",
+    },
+    {
+      key: "thickness",
+      label: "Surface Thickness",
+      type: "number",
+      defaultValue: 1,
+      min: 1,
+      max: 4,
+      step: 1,
+      description: "Surface mode thickness in voxel layers.",
+    },
+  ],
+  primaryOutputKey: "densityField",
+  compute: ({ inputs, parameters, context }) => {
+    const domainId = typeof inputs.domain === "string" ? inputs.domain : null;
+    const domainGeometry = domainId ? context.geometryById.get(domainId) ?? null : null;
+    const resolutionHint = readNumberParameter(parameters, "resolution", 16);
+    const inputGrid = coerceVoxelGrid(inputs.voxelGrid, resolutionHint);
+    const resolution = clampResolution(
+      inputGrid
+        ? Math.max(inputGrid.resolution.x, inputGrid.resolution.y, inputGrid.resolution.z)
+        : resolutionHint,
+      resolutionHint
+    );
+
+    if (!domainId && !inputGrid) {
+      return {
+        densityField: [],
+        voxelGrid: null,
+        resolution,
+        occupiedCells: 0,
+        fillRatio: 0,
+        cellSize: ZERO_VEC3,
+        boundsMin: ZERO_VEC3,
+        boundsMax: ZERO_VEC3,
+        status: "waiting-for-domain",
+      };
+    }
+
+    if (domainId && !domainGeometry) {
+      return {
+        densityField: [],
+        voxelGrid: null,
+        resolution,
+        occupiedCells: 0,
+        fillRatio: 0,
+        cellSize: ZERO_VEC3,
+        boundsMin: ZERO_VEC3,
+        boundsMax: ZERO_VEC3,
+        status: "missing-domain",
+      };
+    }
+
+    const padding = readNumberParameter(parameters, "padding", 0.2);
+    const mode = String(parameters.mode ?? "solid").toLowerCase();
+    const thickness = readNumberParameter(parameters, "thickness", 1);
+    const bounds = (() => {
+      if (inputGrid) {
+        return inputGrid.bounds;
+      }
+      if (!domainGeometry) {
+        return DEFAULT_VOXEL_BOUNDS;
+      }
+      const rawBounds = computeBoundsFromPositions(
+        collectGeometryPositions(domainGeometry, context)
+      );
+      return {
+        min: {
+          x: rawBounds.min.x - padding,
+          y: rawBounds.min.y - padding,
+          z: rawBounds.min.z - padding,
+        },
+        max: {
+          x: rawBounds.max.x + padding,
+          y: rawBounds.max.y + padding,
+          z: rawBounds.max.z + padding,
+        },
+      };
+    })();
+
+    const mesh: RenderMesh | null = (() => {
+      if (!domainGeometry) return null;
+      if (domainGeometry.type === "brep") {
+        return domainGeometry.mesh ?? null;
+      }
+      if ("mesh" in domainGeometry) {
+        return domainGeometry.mesh ?? null;
+      }
+      return null;
+    })();
+
+    if (!mesh || !Array.isArray(mesh.positions) || mesh.positions.length < 9) {
+      const grid = inputGrid
+        ? normalizeVoxelGrid(
+            {
+              resolution: {
+                x: resolution,
+                y: resolution,
+                z: resolution,
+              },
+              bounds: normalizeVoxelBounds(bounds),
+              cellSize: inputGrid.cellSize,
+              densities: inputGrid.densities,
+            },
+            resolution
+          )
+        : domainGeometry
+          ? buildVoxelGridFromGeometry(
+              domainGeometry,
+              context,
+              resolution,
+              padding,
+              mode,
+              thickness
+            )
+          : null;
+
+      if (!grid) {
+        return {
+          densityField: [],
+          voxelGrid: null,
+          resolution,
+          occupiedCells: 0,
+          fillRatio: 0,
+          cellSize: ZERO_VEC3,
+          boundsMin: ZERO_VEC3,
+          boundsMax: ZERO_VEC3,
+          status: "missing-domain",
+        };
+      }
+      const occupiedCells = grid.densities.reduce(
+        (count, value) => count + (value > 0.5 ? 1 : 0),
+        0
+      );
+      const fillRatio =
+        grid.densities.length > 0 ? occupiedCells / grid.densities.length : 0;
+      return {
+        densityField: grid.densities,
+        voxelGrid: grid,
+        resolution: grid.resolution.x,
+        occupiedCells,
+        fillRatio,
+        cellSize: grid.cellSize,
+        boundsMin: grid.bounds.min,
+        boundsMax: grid.bounds.max,
+        status: "complete",
+      };
+    }
+
+    const voxelized = buildVoxelGridFromMeshVoxelization(
+      mesh,
+      bounds,
+      resolution,
+      mode,
+      thickness
+    );
+    const fillRatio =
+      voxelized.voxelGrid.densities.length > 0
+        ? voxelized.occupiedCells / voxelized.voxelGrid.densities.length
+        : 0;
+
+    return {
+      densityField: voxelized.voxelGrid.densities,
+      voxelGrid: voxelized.voxelGrid,
+      resolution: voxelized.voxelGrid.resolution.x,
+      occupiedCells: voxelized.occupiedCells,
+      fillRatio,
+      cellSize: voxelized.voxelGrid.cellSize,
+      boundsMin: voxelized.voxelGrid.bounds.min,
+      boundsMax: voxelized.voxelGrid.bounds.max,
+      status: "complete",
+    };
+  },
+};
+
+NODE_DEFINITIONS.push(createVoxelSolverNode(voxelSolverDefinition));
 NODE_DEFINITIONS.push(
   StiffnessGoalNode,
   VolumeGoalNode,
