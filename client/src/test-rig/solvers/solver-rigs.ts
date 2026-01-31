@@ -221,6 +221,10 @@ export const runVoxelSolverRig = (
     context,
   });
 
+  if (!outputs.voxelGrid) {
+    throw new Error("Expected voxel solver to return voxelGrid");
+  }
+
   const isoParams = {
     geometryId: `voxel-${rigType}-iso`,
     isoValue: 0.5,
@@ -228,7 +232,7 @@ export const runVoxelSolverRig = (
   };
 
   const isoOutputs = isoNode.compute({
-    inputs: { voxelGrid: outputs.voxelGrid ?? outputs.densityField },
+    inputs: { voxelGrid: outputs.voxelGrid },
     parameters: isoParams,
     context,
   });

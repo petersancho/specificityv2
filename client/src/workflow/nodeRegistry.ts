@@ -1605,12 +1605,10 @@ const buildVoxelMaskFromMesh = (
   };
   const cellCount = safeResolution * safeResolution * safeResolution;
   const mask = new Uint8Array(cellCount);
-  const direction = normalizeVec3Safe(
-    { x: 1, y: 0.317, z: 0.211 },
-    UNIT_X_VEC3
-  );
-  const offsetDistance = Math.max(cellSize.x, cellSize.y, cellSize.z) * 0.001;
-  const offset = scaleVec3(direction, offsetDistance);
+  const direction = UNIT_X_VEC3;
+  const xOffset = cellSize.x * 0.001;
+  const yNudge = cellSize.y * 1e-6;
+  const zNudge = cellSize.z * 2e-6;
 
   for (let z = 0; z < safeResolution; z += 1) {
     const centerZ = bounds.min.z + (z + 0.5) * cellSize.z;
@@ -1618,10 +1616,11 @@ const buildVoxelMaskFromMesh = (
       const centerY = bounds.min.y + (y + 0.5) * cellSize.y;
       for (let x = 0; x < safeResolution; x += 1) {
         const centerX = bounds.min.x + (x + 0.5) * cellSize.x;
-        const center = { x: centerX, y: centerY, z: centerZ };
-        const origin = subtractVec3(center, offset);
+        const origin = { x: centerX - xOffset, y: centerY + yNudge, z: centerZ + zNudge };
         let hits = 0;
         triangles.forEach((triangle) => {
+          if (origin.y < triangle.minY || origin.y > triangle.maxY) return;
+          if (origin.z < triangle.minZ || origin.z > triangle.maxZ) return;
           const t = rayIntersectTriangle(origin, direction, triangle);
           if (t !== null) hits += 1;
         });
@@ -1647,6 +1646,7 @@ const extractSurfaceLayers = (
 
   const isEmptyNeighbor = (x: number, y: number, z: number) => {
     const idx = x + y * resolution + z * sizeXY;
+    // Treat the domain boundary as adjacent to empty space so surface mode always produces a shell.
     if (x === 0 || x === resolution - 1 || y === 0 || y === resolution - 1 || z === 0 || z === resolution - 1) {
       return true;
     }
