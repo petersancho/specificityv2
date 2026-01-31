@@ -2711,19 +2711,26 @@ const resolveChemistryMaterialAssignments = (
   const warnings: string[] = [];
   const materialOrder = parseMaterialOrder(parameters.materialOrder);
   const defaultMaterialName = materialOrder[0] ?? "Steel";
-  const assignments: ChemistryMaterialAssignment[] = [];
+  const inputAssignments: ChemistryMaterialAssignment[] = [];
+  const textAssignments: ChemistryMaterialAssignment[] = [];
   const materialsByName = new Map<string, ChemistryMaterialSpec>();
 
+  const addMaterial = (materialInput: unknown) => {
+    const material = coerceChemistryMaterialSpec(materialInput, defaultMaterialName);
+    if (!materialsByName.has(material.name)) {
+      materialsByName.set(material.name, material);
+    }
+    return material;
+  };
+
   const pushAssignment = (
+    target: ChemistryMaterialAssignment[],
     geometryId: string | undefined,
     materialInput: unknown,
     weight?: number
   ) => {
-    const material = coerceChemistryMaterialSpec(materialInput, defaultMaterialName);
-    assignments.push({ geometryId, material, weight });
-    if (!materialsByName.has(material.name)) {
-      materialsByName.set(material.name, material);
-    }
+    const material = addMaterial(materialInput);
+    target.push({ geometryId, material, weight });
   };
 
   const entries: WorkflowValue[] = [];
@@ -2734,9 +2741,9 @@ const resolveChemistryMaterialAssignments = (
       if (context.geometryById.has(entry)) {
         const materialName =
           materialOrder[index % materialOrder.length] ?? defaultMaterialName;
-        pushAssignment(entry, materialName);
+        pushAssignment(inputAssignments, entry, materialName);
       } else {
-        pushAssignment(domainGeometryId ?? undefined, entry);
+        pushAssignment(inputAssignments, domainGeometryId ?? undefined, entry);
       }
       return;
     }
@@ -2758,7 +2765,12 @@ const resolveChemistryMaterialAssignments = (
       const weight = toFiniteNumber(
         (candidate.weight ?? candidate.influence ?? candidate.strength) as WorkflowValue
       );
-      pushAssignment(geometryId ?? (domainGeometryId ?? undefined), materialInput, weight ?? undefined);
+      pushAssignment(
+        inputAssignments,
+        geometryId ?? (domainGeometryId ?? undefined),
+        materialInput,
+        weight ?? undefined
+      );
     }
   });
 
@@ -2775,9 +2787,9 @@ const resolveChemistryMaterialAssignments = (
           if (context.geometryById.has(entry)) {
             const materialName =
               materialOrder[index % materialOrder.length] ?? defaultMaterialName;
-            pushAssignment(entry, materialName);
+            pushAssignment(textAssignments, entry, materialName);
           } else {
-            pushAssignment(domainGeometryId ?? undefined, entry);
+            pushAssignment(textAssignments, domainGeometryId ?? undefined, entry);
           }
           return;
         }
@@ -2797,19 +2809,47 @@ const resolveChemistryMaterialAssignments = (
           const weight = toFiniteNumber(
             (candidate.weight ?? candidate.influence ?? candidate.strength) as WorkflowValue
           );
-          pushAssignment(geometryId ?? (domainGeometryId ?? undefined), materialInput, weight ?? undefined);
+          if (geometryId) {
+            pushAssignment(textAssignments, geometryId, materialInput, weight ?? undefined);
+          } else {
+            pushAssignment(
+              textAssignments,
+              domainGeometryId ?? undefined,
+              materialInput,
+              weight ?? undefined
+            );
+          }
         }
       });
     } catch {
       const parsedAssignments = parseChemistryAssignmentsFromText(materialsText);
       parsedAssignments.forEach(({ geometryId, material }) => {
-        pushAssignment(geometryId, material);
+        pushAssignment(textAssignments, geometryId, material);
       });
     }
   }
 
+  // Merge precedence: assignments derived from `materialsText` override any upstream
+  // `materials` assignments for the same geometry/domain.
+  const DOMAIN_ASSIGNMENT_KEY = "__chemistry_domain__";
+  const normalizeAssignmentKey = (geometryId: string | undefined) =>
+    geometryId ?? domainGeometryId ?? DOMAIN_ASSIGNMENT_KEY;
+
+  let assignments: ChemistryMaterialAssignment[] = [...inputAssignments];
+  if (textAssignments.length > 0) {
+    const overridden = new Set(
+      textAssignments.map((assignment) => normalizeAssignmentKey(assignment.geometryId))
+    );
+    assignments = [
+      ...textAssignments,
+      ...inputAssignments.filter(
+        (assignment) => !overridden.has(normalizeAssignmentKey(assignment.geometryId))
+      ),
+    ];
+  }
+
   if (assignments.length === 0) {
-    pushAssignment(domainGeometryId ?? undefined, defaultMaterialName);
+    pushAssignment(assignments, domainGeometryId ?? undefined, defaultMaterialName);
     warnings.push("No materials specified; using default material assignment.");
   }
 
