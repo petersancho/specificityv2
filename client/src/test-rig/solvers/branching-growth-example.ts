@@ -56,7 +56,6 @@ export type BranchingGrowthSolverExampleV1 = {
   bestIndividual: {
     id: string;
     genome: number[];
-    genomeString: string;
     fitness: number;
     generation: number;
     rank: number;
@@ -117,7 +116,6 @@ export const generateBranchingGrowthSolverExample = (): BranchingGrowthSolverExa
     bestIndividual: {
       id: individual.id,
       genome: [...individual.genome],
-      genomeString: individual.genomeString,
       fitness: individual.fitness,
       generation: individual.generation,
       rank: individual.rank,

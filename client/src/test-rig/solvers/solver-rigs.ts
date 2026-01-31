@@ -333,11 +333,7 @@ export const runBiologicalSolverRig = () => {
 
   const buildStats = (population: Individual[]) => {
     if (population.length === 0) {
-      return {
-        bestFitness: 0,
-        meanFitness: 0,
-        worstFitness: 0,
-      };
+      throw new Error("Biological solver rig generation population must not be empty");
     }
     const fitnesses = population.map((entry) => entry.fitness);
     const bestFitness = Math.max(...fitnesses);
@@ -351,13 +347,13 @@ export const runBiologicalSolverRig = () => {
   };
 
   const config: SolverConfig = {
-    populationSize: 16,
-    generations: 6,
+    populationSize: 2,
+    generations: 2,
     mutationRate: 0.18,
     crossoverRate: 0.7,
-    elitism: 2,
+    elitism: 1,
     selectionMethod: "tournament",
-    tournamentSize: 3,
+    tournamentSize: 2,
     mutationType: "gaussian",
     crossoverType: "uniform",
     seedFromCurrent: false,
