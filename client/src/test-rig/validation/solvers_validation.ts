@@ -135,15 +135,24 @@ const validateChemistrySolver = () => {
 };
 
 const validateBiologicalSolver = () => {
-  const { biologicalOutputs, evolutionOutputs, individual, baseGeometry } = runBiologicalSolverRig();
-  ensure(biologicalOutputs.bestScore === individual.fitness, "Expected best score to match fitness");
-  ensure(biologicalOutputs.bestGenome.x === individual.genome[0], "Expected genome x");
-  ensure(biologicalOutputs.bestGenome.y === individual.genome[1], "Expected genome y");
-  ensure(biologicalOutputs.bestGenome.z === individual.genome[2], "Expected genome z");
+  const { biologicalOutputs, evolutionOutputs, seed } = runBiologicalSolverRig();
+  const best = seed.bestIndividual;
+  ensure(biologicalOutputs.bestScore === best.fitness, "Expected best score to match fitness");
+  ensure(biologicalOutputs.bestGenome.x === best.genome[0], "Expected genome x");
+  ensure(biologicalOutputs.bestGenome.y === best.genome[1], "Expected genome y");
+  ensure(biologicalOutputs.bestGenome.z === best.genome[2], "Expected genome z");
+  ensure(biologicalOutputs.evaluations === seed.evaluationCount, "Expected evaluation count");
+  ensure(biologicalOutputs.populationSize === seed.config.populationSize, "Expected population size");
+  ensure(biologicalOutputs.generations === seed.config.generations, "Expected generations");
   ensure(biologicalOutputs.best?.geometry?.length === 1, "Expected best geometry payload");
-  ensure(biologicalOutputs.best?.geometry?.[0].id === baseGeometry.id, "Expected geometry id match");
-  ensure(evolutionOutputs.best?.id === individual.id, "Expected evolution best id");
-  ensure(evolutionOutputs.gallery?.allIndividuals.length === 1, "Expected gallery entries");
+  ensure(
+    biologicalOutputs.best?.geometry?.[0].id === best.geometryIds?.[0],
+    "Expected geometry id match"
+  );
+  ensure(evolutionOutputs.best?.id === best.id, "Expected evolution best id");
+  ensure(evolutionOutputs.history?.generations.length === seed.config.generations, "Expected history generations");
+  ensure(evolutionOutputs.gallery?.allIndividuals.length === seed.evaluationCount, "Expected gallery entries");
+  ensure(evolutionOutputs.gallery?.bestOverall === best.id, "Expected gallery best overall");
 };
 
 export const runSolversValidation = () => {

@@ -12,14 +12,13 @@ import type {
   StiffnessGoal,
   VolumeGoal,
 } from "../../workflow/nodes/solver/types";
-import type { SolverOutputs, Individual, SolverConfig } from "../../workflow/nodes/solver/biological/types";
 import {
   resetBiologicalSolverState,
   updateBiologicalSolverState,
 } from "../../workflow/nodes/solver/biological/solverState";
+import { buildBiologicalSolverExampleSeed } from "./biological-solver-example";
 import {
   createBoxGeometry,
-  createSphereGeometry,
   createTestContext,
   findVertexIndicesAtExtent,
   wrapMeshGeometry,
@@ -296,85 +295,23 @@ export const runChemistrySolverRig = () => {
 export const runBiologicalSolverRig = () => {
   const biologicalNode = getNodeDefinition("biologicalSolver");
   const evolutionNode = getNodeDefinition("biologicalEvolutionSolver");
-  const baseGeometry = createSphereGeometry("geo-bio", 1, 12);
   const nodeId = "biological-rig";
+  const seed = buildBiologicalSolverExampleSeed();
+  const baseGeometry = seed.geometries[0];
 
   resetBiologicalSolverState(nodeId);
 
-  const individual: Individual = {
-    id: "ind-0",
-    genome: [0.25, -0.35, 0.6],
-    genomeString: "0.25,-0.35,0.6",
-    fitness: 0.82,
-    generation: 0,
-    rank: 1,
-    geometryIds: [baseGeometry.id],
-    geometry: [baseGeometry],
-    thumbnail: null,
-  };
-
-  const config: SolverConfig = {
-    populationSize: 16,
-    generations: 6,
-    mutationRate: 0.18,
-    crossoverRate: 0.7,
-    elitism: 2,
-    selectionMethod: "tournament",
-    tournamentSize: 3,
-    mutationType: "gaussian",
-    crossoverType: "uniform",
-    seedFromCurrent: false,
-    randomSeed: 42,
-  };
-
-  const outputs: SolverOutputs = {
-    best: individual,
-    populationBests: [
-      {
-        generation: 0,
-        individuals: [individual],
-      },
-    ],
-    history: {
-      generations: [
-        {
-          id: 0,
-          population: [individual],
-          statistics: {
-            bestFitness: 0.82,
-            meanFitness: 0.82,
-            worstFitness: 0.82,
-            diversityStdDev: 0,
-            evaluationTime: 0.1,
-          },
-          convergenceMetrics: {
-            improvementRate: 0.1,
-            stagnationCount: 0,
-          },
-        },
-      ],
-      config,
-    },
-    gallery: {
-      allIndividuals: [individual],
-      byGeneration: { 0: [individual] },
-      bestOverall: individual.id,
-      userSelections: [],
-    },
-    selectedGeometry: [],
-  };
-
   updateBiologicalSolverState(nodeId, {
-    outputs,
-    config,
+    outputs: seed.outputs,
+    config: seed.config,
     status: "running",
-    generation: 1,
-    progress: { current: 1, total: 1, status: "complete" },
-    metrics: [],
+    generation: seed.config.generations,
+    progress: { current: seed.config.generations, total: seed.config.generations, status: "complete" },
+    metrics: seed.metrics,
     error: null,
   });
 
-  const context = createTestContext(nodeId, [baseGeometry]);
+  const context = createTestContext(nodeId, seed.geometries);
 
   const biologicalOutputs = biologicalNode.compute({
     inputs: {},
@@ -394,7 +331,6 @@ export const runBiologicalSolverRig = () => {
     biologicalOutputs,
     evolutionOutputs,
     baseGeometry,
-    individual,
-    config,
+    seed,
   };
 };
