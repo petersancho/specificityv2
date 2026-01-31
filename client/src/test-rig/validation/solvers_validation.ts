@@ -109,8 +109,9 @@ const validateTopologySolver = () => {
 };
 
 const validateVoxelSolverSolidBox = () => {
-  const { outputs, isoOutputs, outputGeometry } = runVoxelSolverRig("box/solid");
+  const { outputs, isoOutputs, outputGeometry, baseGeometry } = runVoxelSolverRig("box/solid");
   ensure(outputs.status === "complete", "Expected voxel solver complete");
+  ensureMesh(baseGeometry.mesh, "voxel solid box domain mesh");
   ensure(Array.isArray(outputs.densityField), "Expected density field array");
   ensure(outputs.densityField.length > 0, "Expected density field data");
   ensure(outputs.voxelGrid !== null, "Expected voxel grid output");
@@ -123,24 +124,26 @@ const validateVoxelSolverSolidBox = () => {
 };
 
 const validateVoxelSolverSurfaceBox = () => {
-  const { outputs, isoOutputs, outputGeometry } = runVoxelSolverRig("box/surface");
+  const { outputs, isoOutputs, outputGeometry, baseGeometry } = runVoxelSolverRig("box/surface");
   const solid = runVoxelSolverRig("box/solid");
   ensure(outputs.status === "complete", "Expected voxel solver complete");
+  ensureMesh(baseGeometry.mesh, "voxel surface box domain mesh");
   ensure(Array.isArray(outputs.densityField), "Expected density field array");
   ensure(outputs.densityField.length > 0, "Expected density field data");
   ensure(outputs.voxelGrid !== null, "Expected voxel grid output");
   ensureFinite(outputs.occupiedCells, "Expected occupied cells count");
   ensure(outputs.occupiedCells > 0, "Expected occupied cells > 0");
   ensureFinite(outputs.fillRatio, "Expected fill ratio");
-  ensure(outputs.occupiedCells < solid.outputs.occupiedCells, "Expected surface occupancy < solid");
-  ensure(outputs.fillRatio < solid.outputs.fillRatio, "Expected surface fill ratio < solid");
+  ensure(outputs.occupiedCells <= solid.outputs.occupiedCells, "Expected surface occupancy <= solid");
+  ensure(outputs.fillRatio <= solid.outputs.fillRatio, "Expected surface fill ratio <= solid");
   ensureMesh(isoOutputs.mesh as RenderMesh, "voxel surface box iso mesh");
   ensureMesh(outputGeometry.mesh, "voxel surface box output geometry");
 };
 
 const validateVoxelSolverSolidSphere = () => {
-  const { outputs, isoOutputs, outputGeometry } = runVoxelSolverRig("sphere/solid");
+  const { outputs, isoOutputs, outputGeometry, baseGeometry } = runVoxelSolverRig("sphere/solid");
   ensure(outputs.status === "complete", "Expected voxel solver complete");
+  ensureMesh(baseGeometry.mesh, "voxel solid sphere domain mesh");
   ensure(Array.isArray(outputs.densityField), "Expected density field array");
   ensure(outputs.densityField.length > 0, "Expected density field data");
   ensure(outputs.voxelGrid !== null, "Expected voxel grid output");

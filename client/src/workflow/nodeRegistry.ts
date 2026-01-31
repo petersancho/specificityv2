@@ -1533,19 +1533,25 @@ type MeshTriangle = {
   maxZ: number;
 };
 
+type VoxelizationMode = "solid" | "surface";
+
 const collectMeshTriangles = (mesh: RenderMesh): MeshTriangle[] => {
   const positions = Array.isArray(mesh.positions) ? mesh.positions : [];
   const indices = Array.isArray(mesh.indices) ? mesh.indices : [];
   const triangles: MeshTriangle[] = [];
+  const vertexCount = Math.floor(positions.length / 3);
   const indexed = indices.length >= 3;
   const triangleCount = indexed
     ? Math.floor(indices.length / 3)
     : Math.floor(positions.length / 9);
 
   for (let i = 0; i < triangleCount; i += 1) {
-    const ia = indexed ? indices[i * 3] ?? 0 : i * 3;
-    const ib = indexed ? indices[i * 3 + 1] ?? 0 : i * 3 + 1;
-    const ic = indexed ? indices[i * 3 + 2] ?? 0 : i * 3 + 2;
+    const ia = indexed ? indices[i * 3] : i * 3;
+    const ib = indexed ? indices[i * 3 + 1] : i * 3 + 1;
+    const ic = indexed ? indices[i * 3 + 2] : i * 3 + 2;
+    if (ia == null || ib == null || ic == null) continue;
+    if (ia < 0 || ib < 0 || ic < 0) continue;
+    if (ia >= vertexCount || ib >= vertexCount || ic >= vertexCount) continue;
     const a = vec3FromPositions(positions, ia);
     const b = vec3FromPositions(positions, ib);
     const c = vec3FromPositions(positions, ic);
@@ -1686,7 +1692,7 @@ const buildVoxelGridFromMeshVoxelization = (
   mesh: RenderMesh,
   bounds: { min: Vec3Value; max: Vec3Value },
   resolution: number,
-  mode: string,
+  mode: VoxelizationMode,
   thicknessValue: number
 ) => {
   const normalizedBounds = normalizeVoxelBounds(bounds);
@@ -12671,6 +12677,12 @@ const voxelSolverDefinition: WorkflowNodeDefinition = {
       description: "Voxel grid bounds maximum.",
     },
     {
+      key: "mode",
+      label: "Mode",
+      type: "string",
+      description: "Voxelization mode (solid or surface).",
+    },
+    {
       key: "status",
       label: "Status",
       type: "string",
@@ -12743,6 +12755,7 @@ const voxelSolverDefinition: WorkflowNodeDefinition = {
         cellSize: ZERO_VEC3,
         boundsMin: ZERO_VEC3,
         boundsMax: ZERO_VEC3,
+        mode: "solid",
         status: "waiting-for-domain",
       };
     }
@@ -12757,12 +12770,13 @@ const voxelSolverDefinition: WorkflowNodeDefinition = {
         cellSize: ZERO_VEC3,
         boundsMin: ZERO_VEC3,
         boundsMax: ZERO_VEC3,
+        mode: "solid",
         status: "missing-domain",
       };
     }
 
     const padding = readNumberParameter(parameters, "padding", 0.2);
-    const mode = String(parameters.mode ?? "solid").toLowerCase();
+    const mode: VoxelizationMode = parameters.mode === "surface" ? "surface" : "solid";
     const thickness = readNumberParameter(parameters, "thickness", 1);
     const bounds = (() => {
       if (inputGrid) {
@@ -12835,6 +12849,7 @@ const voxelSolverDefinition: WorkflowNodeDefinition = {
           cellSize: ZERO_VEC3,
           boundsMin: ZERO_VEC3,
           boundsMax: ZERO_VEC3,
+          mode,
           status: "missing-domain",
         };
       }
@@ -12853,6 +12868,7 @@ const voxelSolverDefinition: WorkflowNodeDefinition = {
         cellSize: grid.cellSize,
         boundsMin: grid.bounds.min,
         boundsMax: grid.bounds.max,
+        mode,
         status: "complete",
       };
     }
@@ -12878,6 +12894,7 @@ const voxelSolverDefinition: WorkflowNodeDefinition = {
       cellSize: voxelized.voxelGrid.cellSize,
       boundsMin: voxelized.voxelGrid.bounds.min,
       boundsMax: voxelized.voxelGrid.bounds.max,
+      mode,
       status: "complete",
     };
   },

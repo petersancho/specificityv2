@@ -212,7 +212,7 @@ export const runVoxelSolverRig = (
     resolution: 16,
     padding: 0.2,
     mode,
-    thickness: 2,
+    thickness: mode === "surface" ? 2 : 1,
   };
 
   const outputs = solverNode.compute({

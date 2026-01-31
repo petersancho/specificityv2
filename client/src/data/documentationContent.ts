@@ -1915,6 +1915,7 @@ export const NODE_DOCUMENTATION: Record<string, NodeDocumentation> = {
     ],
     pitfalls: [
       "Non-watertight meshes can create gaps when voxelized",
+      "Non-mesh geometry types may voxelize differently (fallback sampling)",
       "Very high resolution can be slow and memory-heavy",
       "If fillRatio is ~0, check bounds and padding (or whether the domain is missing)",
     ],
