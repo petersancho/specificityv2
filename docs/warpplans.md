@@ -82,7 +82,7 @@ Warp is authorized to work on **all subsystems**, including:
 
 The file paths below are examples; replace them with the actual files for your task.
 
-| File | Change Type | Risk Level |
+| File (example) | Change Type | Risk Level |
 |------|-------------|------------|
 | `docs/subsystems_guide.md` (example) | Update | Low |
 | `client/src/components/ExampleWidget.tsx` (example) | Add prop | Medium |
