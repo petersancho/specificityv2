@@ -80,7 +80,7 @@ Warp is authorized to work on **all subsystems**, including:
 
 **For each file you'll modify:**
 
-The file paths below are examples; replace them with the actual files for your task.
+**All file paths in this section are examples—replace them with the real files for your task.**
 
 | File (example) | Change Type | Risk Level |
 |------|-------------|------------|
@@ -189,7 +189,7 @@ A checkpoint is valid when:
 
 ## Templates
 
-Replace the example file paths below with the actual files for your task.
+**All file paths in this section are examples—replace them with the real files for your task.**
 
 ### Linear Issue Comment (Starting Work)
 

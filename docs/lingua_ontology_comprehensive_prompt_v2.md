@@ -734,7 +734,7 @@ computed on demand by recursively evaluating dependencies."
 
 #### 4.3 Catalyst Nodes: Bridging Cartesian Dualism
 
-From `PARAMETRIC_FLOW_DEEP_DIVE.md` (see Primary Sources above):
+From `docs/numerica-roslyn-semantics/PARAMETRIC_FLOW_DEEP_DIVE.md`:
 ```
 "The catalyst nodes serve as critical translation layers between different 
 modes of representation and different types of operations."
