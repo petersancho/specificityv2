@@ -43,9 +43,14 @@ const ensureStressFieldMatchesMesh = (
 ) => {
   const vertexCount = Math.floor(mesh.positions.length / 3);
   const faceCount = Math.floor(mesh.indices.length / 3);
+  ensure(stressField.length > 0, `${label}: Stress field must not be empty`);
+  ensure(
+    stressField.every((value) => Number.isFinite(value)),
+    `${label}: Stress field must be finite`
+  );
   ensure(
     stressField.length === vertexCount || stressField.length === faceCount,
-    `${label}: Expected stress field to be per-vertex or per-face`
+    `${label}: Expected stress field to be per-vertex (length=${vertexCount}) or per-face (length=${faceCount}), got length=${stressField.length}`
   );
 };
 
