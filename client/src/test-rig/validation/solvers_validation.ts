@@ -4,6 +4,7 @@ import {
   runChemistrySolverRig,
   runPhysicsSolverRig,
   runTopologySolverRig,
+  runVoxelSolverRig,
 } from "../solvers/solver-rigs";
 import type { RenderMesh } from "../../types";
 
@@ -97,7 +98,7 @@ const validatePhysicsModal = () => {
 };
 
 const validateTopologySolver = () => {
-  const { outputs, isoOutputs, outputGeometry } = runTopologySolverRig("topologySolver");
+  const { outputs, isoOutputs, outputGeometry } = runTopologySolverRig();
   ensure(outputs.status === "complete", "Expected topology solver complete");
   ensure(Array.isArray(outputs.densityField), "Expected density field array");
   ensure(outputs.densityField.length > 0, "Expected density field data");
@@ -108,13 +109,40 @@ const validateTopologySolver = () => {
 };
 
 const validateVoxelSolver = () => {
-  const { outputs, isoOutputs, outputGeometry } = runTopologySolverRig("voxelSolver");
-  ensure(outputs.status === "complete", "Expected voxel solver complete");
-  ensure(Array.isArray(outputs.densityField), "Expected density field array");
-  ensure(outputs.densityField.length > 0, "Expected density field data");
-  ensure(outputs.voxelGrid !== null, "Expected voxel grid output");
-  ensureMesh(isoOutputs.mesh as RenderMesh, "voxel iso mesh");
-  ensureMesh(outputGeometry.mesh, "voxel output geometry");
+  const boxResult = runVoxelSolverRig({
+    caseId: "box-solid",
+    geometry: "box",
+    mode: "solid",
+    resolution: 14,
+    padding: 0.15,
+    thickness: 1,
+  });
+  ensure(boxResult.outputs.status === "complete", "Expected voxel solver complete");
+  ensure(Array.isArray(boxResult.outputs.densityField), "Expected density field array");
+  ensure(boxResult.outputs.densityField.length > 0, "Expected density field data");
+  ensure(boxResult.outputs.voxelGrid !== null, "Expected voxel grid output");
+  ensure(typeof boxResult.report === "string" && boxResult.report.length > 0, "Expected voxel report");
+  ensureMesh(boxResult.isoOutputs.mesh as RenderMesh, "voxel box iso mesh");
+  ensureMesh(boxResult.outputGeometry.mesh, "voxel box output geometry");
+
+  const sphereResult = runVoxelSolverRig({
+    caseId: "sphere-surface",
+    geometry: "sphere",
+    mode: "surface",
+    resolution: 18,
+    padding: 0.1,
+    thickness: 2,
+  });
+  ensure(sphereResult.outputs.status === "complete", "Expected voxel solver complete");
+  ensure(Array.isArray(sphereResult.outputs.densityField), "Expected density field array");
+  ensure(sphereResult.outputs.densityField.length > 0, "Expected density field data");
+  ensure(sphereResult.outputs.voxelGrid !== null, "Expected voxel grid output");
+  ensure(
+    typeof sphereResult.report === "string" && sphereResult.report.length > 0,
+    "Expected voxel report"
+  );
+  ensureMesh(sphereResult.isoOutputs.mesh as RenderMesh, "voxel sphere iso mesh");
+  ensureMesh(sphereResult.outputGeometry.mesh, "voxel sphere output geometry");
 };
 
 const validateChemistrySolver = () => {

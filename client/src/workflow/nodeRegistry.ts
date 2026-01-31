@@ -1420,7 +1420,19 @@ const buildVoxelGridFromGeometry = (
   mode: string,
   thicknessValue: number
 ): VoxelGrid => {
-  const positions = collectGeometryPositions(geometry, context);
+  const mesh = resolveMeshFromGeometry(geometry);
+  const positions = (() => {
+    if (!mesh) return collectGeometryPositions(geometry, context);
+    const points: Vec3Value[] = [];
+    for (let i = 0; i < mesh.positions.length; i += 3) {
+      points.push({
+        x: mesh.positions[i],
+        y: mesh.positions[i + 1] ?? 0,
+        z: mesh.positions[i + 2] ?? 0,
+      });
+    }
+    return points;
+  })();
   const bounds = computeBoundsFromPositions(positions);
   const padding = Number.isFinite(paddingValue) ? Math.max(0, paddingValue) : 0;
   const paddedBounds = normalizeVoxelBounds({
@@ -1451,31 +1463,165 @@ const buildVoxelGridFromGeometry = (
   };
   const cellCount = res.x * res.y * res.z;
   const normalizedMode = mode === "surface" ? "surface" : "solid";
-  const hasSamples = positions.length > 0;
-  const baseDensity = normalizedMode === "solid" && hasSamples ? 1 : 0;
-  const densities = new Array<number>(cellCount).fill(baseDensity);
-  if (normalizedMode === "surface" && positions.length > 0) {
-    const radius = clampInt(Math.round(thicknessValue), 0, 4, 1);
-    const toIndex = (x: number, y: number, z: number) =>
-      x + y * res.x + z * res.x * res.y;
-    positions.forEach((point) => {
-      const ix = clampInt(Math.floor((point.x - min.x) / cellSize.x), 0, res.x - 1, 0);
-      const iy = clampInt(Math.floor((point.y - min.y) / cellSize.y), 0, res.y - 1, 0);
-      const iz = clampInt(Math.floor((point.z - min.z) / cellSize.z), 0, res.z - 1, 0);
-      for (let dz = -radius; dz <= radius; dz += 1) {
-        const z = iz + dz;
-        if (z < 0 || z >= res.z) continue;
-        for (let dy = -radius; dy <= radius; dy += 1) {
-          const y = iy + dy;
-          if (y < 0 || y >= res.y) continue;
-          for (let dx = -radius; dx <= radius; dx += 1) {
-            const x = ix + dx;
-            if (x < 0 || x >= res.x) continue;
-            densities[toIndex(x, y, z)] = 1;
-          }
+  const densities = new Array<number>(cellCount).fill(0);
+
+  const radius = clampInt(Math.round(thicknessValue), 0, 4, normalizedMode === "solid" ? 0 : 1);
+  const toIndex = (x: number, y: number, z: number) => x + y * res.x + z * res.x * res.y;
+  const paintVoxel = (x: number, y: number, z: number) => {
+    for (let dz = -radius; dz <= radius; dz += 1) {
+      const zz = z + dz;
+      if (zz < 0 || zz >= res.z) continue;
+      for (let dy = -radius; dy <= radius; dy += 1) {
+        const yy = y + dy;
+        if (yy < 0 || yy >= res.y) continue;
+        for (let dx = -radius; dx <= radius; dx += 1) {
+          const xx = x + dx;
+          if (xx < 0 || xx >= res.x) continue;
+          densities[toIndex(xx, yy, zz)] = 1;
         }
       }
-    });
+    }
+  };
+
+  const paintPoint = (point: Vec3Value) => {
+    const ix = clampInt(Math.floor((point.x - min.x) / cellSize.x), 0, res.x - 1, 0);
+    const iy = clampInt(Math.floor((point.y - min.y) / cellSize.y), 0, res.y - 1, 0);
+    const iz = clampInt(Math.floor((point.z - min.z) / cellSize.z), 0, res.z - 1, 0);
+    paintVoxel(ix, iy, iz);
+  };
+
+  const paintSurfaceFromMesh = (meshInput: RenderMesh) => {
+    const indices = meshInput.indices;
+    const vertexCount = Math.floor(meshInput.positions.length / 3);
+    if (!indices || indices.length < 3 || vertexCount <= 0) {
+      return;
+    }
+
+    const cell = Math.min(cellSize.x, cellSize.y, cellSize.z);
+    const maxSamples = 24;
+
+    for (let t = 0; t < indices.length; t += 3) {
+      const ia = indices[t];
+      const ib = indices[t + 1];
+      const ic = indices[t + 2];
+      if (
+        ia == null ||
+        ib == null ||
+        ic == null ||
+        ia < 0 ||
+        ib < 0 ||
+        ic < 0 ||
+        ia >= vertexCount ||
+        ib >= vertexCount ||
+        ic >= vertexCount
+      ) {
+        continue;
+      }
+
+      const a3 = ia * 3;
+      const b3 = ib * 3;
+      const c3 = ic * 3;
+      const ax = meshInput.positions[a3];
+      const ay = meshInput.positions[a3 + 1];
+      const az = meshInput.positions[a3 + 2];
+      const bx = meshInput.positions[b3];
+      const by = meshInput.positions[b3 + 1];
+      const bz = meshInput.positions[b3 + 2];
+      const cx = meshInput.positions[c3];
+      const cy = meshInput.positions[c3 + 1];
+      const cz = meshInput.positions[c3 + 2];
+
+      const ab = Math.sqrt((bx - ax) * (bx - ax) + (by - ay) * (by - ay) + (bz - az) * (bz - az));
+      const bc = Math.sqrt((cx - bx) * (cx - bx) + (cy - by) * (cy - by) + (cz - bz) * (cz - bz));
+      const ca = Math.sqrt((ax - cx) * (ax - cx) + (ay - cy) * (ay - cy) + (az - cz) * (az - cz));
+      const maxEdge = Math.max(ab, bc, ca);
+      const steps = clampInt(Math.ceil((maxEdge / Math.max(cell, EPSILON)) * 1.5), 1, maxSamples, 1);
+
+      for (let i = 0; i <= steps; i += 1) {
+        for (let j = 0; j <= steps - i; j += 1) {
+          const u = steps === 0 ? 0 : i / steps;
+          const v = steps === 0 ? 0 : j / steps;
+          const w = 1 - u - v;
+          const point = {
+            x: ax * w + bx * u + cx * v,
+            y: ay * w + by * u + cy * v,
+            z: az * w + bz * u + cz * v,
+          };
+          paintPoint(point);
+        }
+      }
+    }
+  };
+
+  const paintSurfaceFromPoints = (points: Vec3Value[]) => {
+    points.forEach((point) => paintPoint(point));
+  };
+
+  if (mesh) {
+    paintSurfaceFromMesh(mesh);
+  } else {
+    paintSurfaceFromPoints(positions);
+  }
+
+  if (normalizedMode === "solid" && !mesh) {
+    if (positions.length > 0) {
+      densities.fill(1);
+    }
+  }
+
+  if (normalizedMode === "solid" && mesh) {
+    const visited = new Uint8Array(cellCount);
+    const queue = new Int32Array(cellCount);
+    let head = 0;
+    let tail = 0;
+
+    const enqueue = (x: number, y: number, z: number) => {
+      const idx = toIndex(x, y, z);
+      if (visited[idx] === 1) return;
+      if (densities[idx] > 0) return;
+      visited[idx] = 1;
+      queue[tail] = idx;
+      tail += 1;
+    };
+
+    for (let z = 0; z < res.z; z += 1) {
+      for (let y = 0; y < res.y; y += 1) {
+        enqueue(0, y, z);
+        enqueue(res.x - 1, y, z);
+      }
+      for (let x = 0; x < res.x; x += 1) {
+        enqueue(x, 0, z);
+        enqueue(x, res.y - 1, z);
+      }
+    }
+
+    const decode = (idx: number) => {
+      const xy = res.x * res.y;
+      const z = Math.floor(idx / xy);
+      const rem = idx - z * xy;
+      const y = Math.floor(rem / res.x);
+      const x = rem - y * res.x;
+      return { x, y, z };
+    };
+
+    while (head < tail) {
+      const idx = queue[head];
+      head += 1;
+      const { x, y, z } = decode(idx);
+
+      if (x > 0) enqueue(x - 1, y, z);
+      if (x + 1 < res.x) enqueue(x + 1, y, z);
+      if (y > 0) enqueue(x, y - 1, z);
+      if (y + 1 < res.y) enqueue(x, y + 1, z);
+      if (z > 0) enqueue(x, y, z - 1);
+      if (z + 1 < res.z) enqueue(x, y, z + 1);
+    }
+
+    for (let i = 0; i < cellCount; i += 1) {
+      if (visited[i] === 0) {
+        densities[i] = 1;
+      }
+    }
   }
 
   return {
@@ -12398,11 +12544,11 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
 ];
 
 NODE_DEFINITIONS.push(PhysicsSolverNode, BiologicalEvolutionSolverNode);
-const topologySolverDefinition = NODE_DEFINITIONS.find(
-  (definition) => definition.type === "topologySolver"
+const voxelizeGeometryDefinition = NODE_DEFINITIONS.find(
+  (definition) => definition.type === "voxelizeGeometry"
 );
-if (topologySolverDefinition) {
-  NODE_DEFINITIONS.push(createVoxelSolverNode(topologySolverDefinition));
+if (voxelizeGeometryDefinition) {
+  NODE_DEFINITIONS.push(createVoxelSolverNode(voxelizeGeometryDefinition));
 }
 NODE_DEFINITIONS.push(
   StiffnessGoalNode,

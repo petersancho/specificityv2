@@ -1,5 +1,5 @@
 import { NODE_DEFINITIONS } from "../../workflow/nodeRegistry";
-import type { RenderMesh } from "../../types";
+import type { RenderMesh, VoxelGrid } from "../../types";
 import { buildStressVertexColors } from "../../utils/stressColors";
 import type {
   AnchorGoal,
@@ -150,11 +150,11 @@ export const runPhysicsSolverRig = (analysisType: AnalysisType) => {
   };
 };
 
-export const runTopologySolverRig = (nodeType: "topologySolver" | "voxelSolver") => {
-  const solverNode = getNodeDefinition(nodeType);
+export const runTopologySolverRig = () => {
+  const solverNode = getNodeDefinition("topologySolver");
   const isoNode = getNodeDefinition("extractIsosurface");
-  const baseGeometry = createBoxGeometry(`geo-${nodeType}`, { width: 1.8, height: 1.2, depth: 1.4 });
-  const context = createTestContext(`${nodeType}-context`, [baseGeometry]);
+  const baseGeometry = createBoxGeometry("geo-topologySolver", { width: 1.8, height: 1.2, depth: 1.4 });
+  const context = createTestContext("topologySolver-context", [baseGeometry]);
 
   const parameters = {
     volumeFraction: 0.6,
@@ -171,7 +171,7 @@ export const runTopologySolverRig = (nodeType: "topologySolver" | "voxelSolver")
   });
 
   const isoParams = {
-    geometryId: `${nodeType}-iso`,
+    geometryId: "topologySolver-iso",
     isoValue: 0.12,
     resolution: outputs.resolution ?? 12,
   };
@@ -192,6 +192,103 @@ export const runTopologySolverRig = (nodeType: "topologySolver" | "voxelSolver")
     isoOutputs,
     outputGeometry,
     baseGeometry,
+  };
+};
+
+const formatVoxelGridSlice = (grid: VoxelGrid, zLayer: number) => {
+  const z = Math.max(0, Math.min(grid.resolution.z - 1, Math.floor(zLayer)));
+  const lines: string[] = [];
+  const threshold = 0.5;
+  const toIndex = (x: number, y: number, z: number) =>
+    x + y * grid.resolution.x + z * grid.resolution.x * grid.resolution.y;
+
+  for (let y = grid.resolution.y - 1; y >= 0; y -= 1) {
+    let line = "";
+    for (let x = 0; x < grid.resolution.x; x += 1) {
+      line += grid.densities[toIndex(x, y, z)] > threshold ? "#" : ".";
+    }
+    lines.push(line);
+  }
+
+  return lines.join("\n");
+};
+
+const formatVoxelGridReport = (grid: VoxelGrid) => {
+  const cellCount = grid.densities.length;
+  let filledCount = 0;
+  for (let i = 0; i < grid.densities.length; i += 1) {
+    if (grid.densities[i] > 0) filledCount += 1;
+  }
+  const fillRatio = cellCount > 0 ? filledCount / cellCount : 0;
+  const zMid = Math.floor(grid.resolution.z / 2);
+
+  return [
+    `VoxelGrid ${grid.resolution.x}×${grid.resolution.y}×${grid.resolution.z}`,
+    `Bounds min=(${grid.bounds.min.x.toFixed(3)}, ${grid.bounds.min.y.toFixed(3)}, ${grid.bounds.min.z.toFixed(3)})`,
+    `Bounds max=(${grid.bounds.max.x.toFixed(3)}, ${grid.bounds.max.y.toFixed(3)}, ${grid.bounds.max.z.toFixed(3)})`,
+    `Cell size=(${grid.cellSize.x.toFixed(3)}, ${grid.cellSize.y.toFixed(3)}, ${grid.cellSize.z.toFixed(3)})`,
+    `Filled: ${filledCount}/${cellCount} (${(fillRatio * 100).toFixed(1)}%)`,
+    "",
+    `Z slice @ ${zMid} (# = filled):`,
+    formatVoxelGridSlice(grid, zMid),
+  ].join("\n");
+};
+
+export const runVoxelSolverRig = (options: {
+  caseId: string;
+  geometry: "box" | "sphere";
+  mode: "solid" | "surface";
+  resolution: number;
+  padding?: number;
+  thickness?: number;
+}) => {
+  const solverNode = getNodeDefinition("voxelSolver");
+  const isoNode = getNodeDefinition("extractIsosurface");
+  const baseGeometry =
+    options.geometry === "sphere"
+      ? createSphereGeometry(`geo-voxel-${options.caseId}`, 1, 16)
+      : createBoxGeometry(`geo-voxel-${options.caseId}`, { width: 1.8, height: 1.2, depth: 1.4 });
+  const context = createTestContext(`voxelSolver-${options.caseId}`, [baseGeometry]);
+
+  const outputs = solverNode.compute({
+    inputs: { geometry: baseGeometry.id },
+    parameters: {
+      resolution: options.resolution,
+      padding: options.padding ?? 0.2,
+      mode: options.mode,
+      thickness: options.thickness ?? 1,
+    },
+    context,
+  });
+
+  const voxelGrid = outputs.voxelGrid as VoxelGrid | null;
+  if (!voxelGrid) {
+    throw new Error("Missing voxel grid output");
+  }
+
+  const report = formatVoxelGridReport(voxelGrid);
+
+  const isoParams = {
+    geometryId: `voxelSolver-${options.caseId}-iso`,
+    isoValue: 0.5,
+    resolution: outputs.resolution ?? options.resolution,
+  };
+  const isoOutputs = isoNode.compute({
+    inputs: { voxelGrid },
+    parameters: isoParams,
+    context,
+  });
+  const outputGeometry = wrapMeshGeometry(
+    isoParams.geometryId,
+    isoOutputs.mesh as RenderMesh
+  );
+
+  return {
+    outputs,
+    isoOutputs,
+    outputGeometry,
+    baseGeometry,
+    report,
   };
 };
 
