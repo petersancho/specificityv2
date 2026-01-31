@@ -669,7 +669,7 @@ function rotate(geometry: Geometry, angle: number): Geometry {
 
 #### 4.1 Node Types as Categories of Understanding
 
-From `numerica_nodes_reference.md`, analyze the node taxonomy:
+From `docs/numerica_nodes_reference.md`, analyze the node taxonomy:
 
 **Data Nodes**:
 - `geometryReference`: Reference existing geometry
@@ -705,7 +705,7 @@ From `numerica_nodes_reference.md`, analyze the node taxonomy:
 
 #### 4.2 Pull-Based Lazy Evaluation as Actualization of Potential
 
-From `numerica_technical_spec.md`:
+From `docs/numerica_technical_spec.md`:
 ```
 "Graph evaluation uses a pull-based lazy model where output values are 
 computed on demand by recursively evaluating dependencies."
