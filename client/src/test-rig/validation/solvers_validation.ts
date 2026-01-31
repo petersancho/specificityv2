@@ -124,6 +124,11 @@ const validateVoxelSolverSolidBox = () => {
   ensure(typeof result.report === "string" && result.report.length > 0, "Expected voxel report");
   ensureMesh(result.isoOutputs.mesh as RenderMesh, "voxel box iso mesh");
   ensureMesh(result.outputGeometry.mesh, "voxel box output geometry");
+  ensure(result.outputs.cellCount === 14 * 14 * 14, "Expected voxel cellCount to match resolution^3");
+  ensureFinite(result.outputs.filledCount as number, "Expected voxel filledCount");
+  ensureFinite(result.outputs.fillRatio as number, "Expected voxel fillRatio");
+  ensure((result.outputs.filledCount as number) > 0, "Expected filled voxels");
+  ensure((result.outputs.fillRatio as number) > 0.15, "Expected solid box fillRatio to be meaningful");
 };
 
 const validateVoxelSolverSurfaceSphere = () => {
@@ -142,11 +147,35 @@ const validateVoxelSolverSurfaceSphere = () => {
   ensure(typeof result.report === "string" && result.report.length > 0, "Expected voxel report");
   ensureMesh(result.isoOutputs.mesh as RenderMesh, "voxel sphere iso mesh");
   ensureMesh(result.outputGeometry.mesh, "voxel sphere output geometry");
+  ensure(result.outputs.cellCount === 18 * 18 * 18, "Expected voxel cellCount to match resolution^3");
+  ensureFinite(result.outputs.filledCount as number, "Expected voxel filledCount");
+  ensureFinite(result.outputs.fillRatio as number, "Expected voxel fillRatio");
+  ensure((result.outputs.filledCount as number) > 0, "Expected filled voxels");
+  ensure((result.outputs.fillRatio as number) < 0.5, "Expected surface sphere fillRatio to be limited");
+};
+
+const validateVoxelSolverSurfaceLowRes = () => {
+  const result = runVoxelSolverRig({
+    caseId: "box-surface-lowres",
+    geometry: "box",
+    mode: "surface",
+    resolution: 6,
+    padding: 0,
+    thickness: 0,
+  });
+  ensure(result.outputs.status === "complete", "Expected voxel solver complete");
+  ensure(Array.isArray(result.outputs.densityField), "Expected density field array");
+  ensure(result.outputs.densityField.length > 0, "Expected density field data");
+  ensure(result.outputs.voxelGrid !== null, "Expected voxel grid output");
+  ensureMesh(result.outputGeometry.mesh, "voxel low-res output geometry");
+  ensure(result.outputs.cellCount === 6 * 6 * 6, "Expected voxel cellCount to match resolution^3");
+  ensure((result.outputs.filledCount as number) > 0, "Expected low-res surface voxels");
 };
 
 const validateVoxelSolver = () => {
   validateVoxelSolverSolidBox();
   validateVoxelSolverSurfaceSphere();
+  validateVoxelSolverSurfaceLowRes();
 };
 
 const validateChemistrySolver = () => {
