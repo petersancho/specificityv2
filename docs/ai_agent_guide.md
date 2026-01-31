@@ -92,4 +92,6 @@ When you encounter patterns or design decisions that seem inconsistent with this
 
 This guide and the related documentation files are living documents that should evolve as the architecture matures. When you implement new patterns or make architectural decisions, consider whether those patterns should be documented for future reference. The documentation serves future developers and AI agents who need to understand the system without extensive exploration.
 
+This guide is the coordination point for agent-facing documentation. When you change (a) how agents should run builds/tests, (b) default expectations around undo/history or store invariants, or (c) the high-level agent workflow (planning, verification, PR checklist), review all agent-specific onboarding/planning docs (currently `docs/CharlieAgent.md` and `docs/CharlieAgentPlans.md`) and update them or explicitly confirm they remain accurate.
+
 Remember that the goal is not to follow rules rigidly but to build a coherent system where components integrate cleanly and patterns are consistent. Use this documentation as guidance for making good decisions, but apply judgment when specific situations call for deviations from established patterns. Document those deviations when they represent intentional architectural choices rather than expedient shortcuts.

@@ -16,8 +16,12 @@ Click it again while in the docs view to return to the Roslyn + Numerica workspa
 - Conventions: `lingua_conventions.md`
 - AI agent quick reference: `agents.md` (start here for fast context)
 - AI agent detailed guide: `ai_agent_guide.md`
+- Charlie agent guide: `CharlieAgent.md`
+- Charlie planning guide: `CharlieAgentPlans.md`
 - Warp agent guide: `warpagent.md` (onboarding for Warp agent)
 - Large refactor template: `warpplans.md`
+
+Note: `CharlieAgent.md` and `CharlieAgentPlans.md` are a one-off CamelCase exception to docs naming conventions. `lingua_conventions.md` → Naming Conventions is the only canonical source for documentation naming rules and exceptions; this note is just a pointer.
 
 ---
 

@@ -14,6 +14,15 @@ Naming follows patterns that make purpose and scope immediately clear. Component
 
 Variables and functions use camelCase for local scope and for module exports. Constants use SCREAMING_SNAKE_CASE when they represent truly immutable configuration values, such as AXIS_HIT_RADIUS_MULTIPLIER or DEFAULT_GRID_SPACING. Constants that are merely initialized once but conceptually variable use camelCase, such as commandRegistry or defaultCameraState.
 
+Documentation filenames must follow the repo’s existing patterns and, by default, use simple, readable lowercase names when creating new docs.
+
+**Exceptions and process:**
+- **Canonical source:** This section is the only canonical source for documentation naming rules and any exceptions; other docs should reference it rather than redefining the rules.
+- **Approved exceptions (current):** `docs/CharlieAgent.md`, `docs/CharlieAgentPlans.md` (to match the wording of the original Linear task SPE-7).
+- **Exception process:** No additional naming exceptions may be introduced without a dedicated issue/PR, explicit maintainer approval, and updates to both `docs/lingua_conventions.md` and `docs/README.md`.
+- **Process changes:** If the exception-handling process changes, update this section first and then align `docs/README.md` accordingly.
+- **Rarity and justification:** Exceptions should be rare and must include a brief justification in the corresponding Linear issue/PR.
+
 Type names use PascalCase for interfaces, type aliases, and discriminated union variants. Generic type parameters use single uppercase letters when the parameter represents a simple substitution, such as T or K, but use descriptive PascalCase names when the parameter has semantic meaning, such as GeometryType or NodeParameters.
 
 React hooks follow the use-prefix convention and are named to indicate what they manage or compute, such as useProjectStore for the store hook, useGeometryRenderer for rendering logic, or useTransformSession for transform interaction state. Custom hooks that select specific slices from the store use descriptive names like useCameraState or useSelectedGeometry rather than generic names like useState or useData.
