@@ -298,14 +298,16 @@ export const runBiologicalSolverRig = () => {
   const nodeId = "biological-rig";
   const seed = buildBiologicalSolverExampleSeed();
   const baseGeometry = seed.geometries[0];
+  const completedGenerationId = Math.max(0, seed.config.generations - 1);
 
   resetBiologicalSolverState(nodeId);
 
+  // Seed the biological solver state as if a full run completed (used by popup/dashboard + node outputs).
   updateBiologicalSolverState(nodeId, {
     outputs: seed.outputs,
     config: seed.config,
     status: "running",
-    generation: seed.config.generations,
+    generation: completedGenerationId,
     progress: { current: seed.config.generations, total: seed.config.generations, status: "complete" },
     metrics: seed.metrics,
     error: null,

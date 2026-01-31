@@ -134,6 +134,7 @@ const validateChemistrySolver = () => {
   ensureMesh(outputGeometry.mesh, "chemistry output geometry");
 };
 
+// This validation intentionally relies on the deterministic seed returned by `runBiologicalSolverRig()`.
 const validateBiologicalSolver = () => {
   const { biologicalOutputs, evolutionOutputs, seed } = runBiologicalSolverRig();
   const best = seed.bestIndividual;

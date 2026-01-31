@@ -19,6 +19,16 @@ export type BiologicalSolverExampleSeed = {
   evaluationCount: number;
 };
 
+const BIOLOGICAL_EXAMPLE_PARAMS = {
+  genome: {
+    gene0: { base: 0.1, generationStep: 0.06, indexStep: 0.04 },
+    gene1: { base: -0.35, indexStep: 0.07 },
+    gene2: { base: 0.55, generationStep: -0.05, indexStep: 0.03 },
+  },
+  stagnationThreshold: 0.002,
+  evaluationTime: { base: 0.05, generationStep: 0.02 },
+} as const;
+
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
 
@@ -54,9 +64,26 @@ const buildIndividualsForGeneration = (
   const individuals: Individual[] = [];
 
   for (let index = 0; index < size; index += 1) {
-    const g0 = clamp(0.1 + generation * 0.06 + index * 0.04, -1, 1);
-    const g1 = clamp(-0.35 + index * 0.07, -1, 1);
-    const g2 = clamp(0.55 - generation * 0.05 + index * 0.03, -1, 1);
+    const g0 = clamp(
+      BIOLOGICAL_EXAMPLE_PARAMS.genome.gene0.base +
+        generation * BIOLOGICAL_EXAMPLE_PARAMS.genome.gene0.generationStep +
+        index * BIOLOGICAL_EXAMPLE_PARAMS.genome.gene0.indexStep,
+      -1,
+      1
+    );
+    const g1 = clamp(
+      BIOLOGICAL_EXAMPLE_PARAMS.genome.gene1.base +
+        index * BIOLOGICAL_EXAMPLE_PARAMS.genome.gene1.indexStep,
+      -1,
+      1
+    );
+    const g2 = clamp(
+      BIOLOGICAL_EXAMPLE_PARAMS.genome.gene2.base +
+        generation * BIOLOGICAL_EXAMPLE_PARAMS.genome.gene2.generationStep +
+        index * BIOLOGICAL_EXAMPLE_PARAMS.genome.gene2.indexStep,
+      -1,
+      1
+    );
     const genome = [g0, g1, g2];
     const genomeString = formatGenomeString(genome);
 
@@ -102,7 +129,10 @@ const buildGenerationRecord = (
   const diversityStdDev = stdDev(fitness);
 
   const improvementRate = previousBest == null ? bestFitness : bestFitness - previousBest;
-  const nextStagnation = improvementRate > 0.002 ? 0 : stagnationCount + 1;
+  const nextStagnation =
+    improvementRate > BIOLOGICAL_EXAMPLE_PARAMS.stagnationThreshold
+      ? 0
+      : stagnationCount + 1;
 
   return {
     record: {
@@ -113,7 +143,9 @@ const buildGenerationRecord = (
         meanFitness,
         worstFitness,
         diversityStdDev,
-        evaluationTime: 0.05 + generation * 0.02,
+        evaluationTime:
+          BIOLOGICAL_EXAMPLE_PARAMS.evaluationTime.base +
+          generation * BIOLOGICAL_EXAMPLE_PARAMS.evaluationTime.generationStep,
       },
       convergenceMetrics: {
         improvementRate,
