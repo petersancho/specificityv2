@@ -104,7 +104,11 @@ These are point-in-time project logs and may reference legacy naming (e.g.
 
 Archive index (Phase 1–4): `archive/README.md`
 
-Key phase logs: `archive/PHASE1_AUDIT.md` (Phase 1 Audit), `archive/PHASE2_COMPLETE.md` (Phase 2 Complete), `archive/PHASE3_PROGRESS.md` (Phase 3 Progress), `archive/PHASE4_COMPLETE.md` (Phase 4 Complete).
+Key phase logs:
+- `archive/PHASE1_AUDIT.md` – Phase 1 Audit
+- `archive/PHASE2_COMPLETE.md` – Phase 2 Complete
+- `archive/PHASE3_PROGRESS.md` – Phase 3 Progress
+- `archive/PHASE4_COMPLETE.md` – Phase 4 Complete
 
 Legacy baseline (WebGL-only, superseded): `basic_implementation_guide.md`
 

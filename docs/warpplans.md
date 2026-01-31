@@ -84,8 +84,8 @@ The file paths below are examples; replace them with the actual files for your t
 
 | File | Change Type | Risk Level |
 |------|-------------|------------|
-| `docs/subsystems_guide.md` | Update | Low |
-| `client/src/components/X.tsx` | Add prop | Medium |
+| `docs/subsystems_guide.md` (example) | Update | Low |
+| `client/src/components/X.tsx` (example) | Add prop | Medium |
 
 **Checkpoint criteria:**
 - Can you describe what each change does?
@@ -196,7 +196,7 @@ Replace the example file paths below with the actual files for your task.
 ```
 Starting work on this issue.
 
-**Files I'll touch:**
+**Files I'll touch (examples):**
 - docs/subsystems_guide.md
 - client/src/components/Bar.tsx
 
