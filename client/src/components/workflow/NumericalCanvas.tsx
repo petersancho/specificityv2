@@ -1129,6 +1129,7 @@ export const NumericalCanvas = ({
   const addNodeAt = useProjectStore((state) => state.addNodeAt);
   const addGeometryReferenceNode = useProjectStore((state) => state.addGeometryReferenceNode);
   const addPhysicsSolverRig = useProjectStore((state) => state.addPhysicsSolverRig);
+  const addTopologySolverRig = useProjectStore((state) => state.addTopologySolverRig);
   const addBiologicalSolverRig = useProjectStore((state) => state.addBiologicalSolverRig);
   const addChemistrySolverRig = useProjectStore((state) => state.addChemistrySolverRig);
   const syncWorkflowGeometryToRoslyn = useProjectStore((state) => state.syncWorkflowGeometryToRoslyn);
@@ -2681,6 +2682,10 @@ export const NumericalCanvas = ({
       onSelect: closeMenu(() => addPhysicsSolverRig(world)),
     });
     actions.push({
+      label: "Add Topology Solver Rig",
+      onSelect: closeMenu(() => addTopologySolverRig(world)),
+    });
+    actions.push({
       label: "Add Biological Solver Rig",
       onSelect: closeMenu(() => addBiologicalSolverRig(world)),
     });
@@ -2745,6 +2750,7 @@ export const NumericalCanvas = ({
     shortcutOverlayEnabled,
     addTextNoteAt,
     addPhysicsSolverRig,
+    addTopologySolverRig,
     addBiologicalSolverRig,
     addChemistrySolverRig,
     openStlFilePicker,

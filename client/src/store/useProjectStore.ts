@@ -358,6 +358,7 @@ type ProjectStore = {
   addNodeAt: (type: NodeType, position: { x: number; y: number }) => string;
   addGeometryReferenceNode: (geometryId?: string) => string | null;
   addPhysicsSolverRig: (position: { x: number; y: number }) => void;
+  addTopologySolverRig: (position: { x: number; y: number }) => void;
   addBiologicalSolverRig: (position: { x: number; y: number }) => void;
   addChemistrySolverRig: (position: { x: number; y: number }) => void;
   syncWorkflowGeometryToRoslyn: (nodeId: string) => void;
@@ -7244,6 +7245,380 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       },
     };
     get().addGeometryItems([solverGeometry], {
+      selectIds: get().selectedGeometryIds,
+      recordHistory: true,
+    });
+
+    set((state) => ({
+      workflowHistory: appendWorkflowHistory(state.workflowHistory, state.workflow),
+      workflow: {
+        ...state.workflow,
+        nodes: [...state.workflow.nodes, ...newNodes],
+        edges: [...state.workflow.edges, ...newEdges],
+      },
+    }));
+    get().recalculateWorkflow();
+  },
+  addTopologySolverRig: (position) => {
+    /**
+     * Topology Solver Test Rig: Cantilever Bracket (density field)
+     *
+     * Creates a minimal-but-complete topology optimization workflow:
+     * - Geometry Reference → Topology Optimize → Topology Solver
+     * - Anchor/Load/Stiffness/Volume goals → Topology Solver
+     * - Topology Solver → Extract Isosurface → Geometry Viewer
+     */
+    const ts = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+    const NODE_WIDTH = 200;
+    const NODE_HEIGHT = 120;
+    const H_GAP = 60;
+    const V_GAP = 40;
+
+    // Column 1: Geometry Reference
+    const geoRefId = `node-geometryReference-topology-${ts}`;
+    const geoRefPos = { x: position.x, y: position.y };
+
+    // Column 2: Goal nodes
+    const col2X = position.x + NODE_WIDTH + H_GAP;
+    const anchorId = `node-anchorGoal-topology-${ts}`;
+    const anchorPos = { x: col2X, y: position.y };
+
+    const loadId = `node-loadGoal-topology-${ts}`;
+    const loadPos = { x: col2X, y: position.y + NODE_HEIGHT + V_GAP };
+
+    const stiffnessId = `node-stiffnessGoal-topology-${ts}`;
+    const stiffnessPos = { x: col2X, y: position.y + (NODE_HEIGHT + V_GAP) * 2 };
+
+    const volumeId = `node-volumeGoal-topology-${ts}`;
+    const volumePos = { x: col2X, y: position.y + (NODE_HEIGHT + V_GAP) * 3 };
+
+    // Column 3: Optimization settings + solver
+    const col3X = col2X + NODE_WIDTH + H_GAP;
+    const optimizeId = `node-topologyOptimize-${ts}`;
+    const optimizePos = { x: col3X, y: position.y };
+
+    const solverId = `node-topologySolver-${ts}`;
+    const solverPos = { x: col3X, y: position.y + (NODE_HEIGHT + V_GAP) * 2 };
+
+    // Column 4: Isosurface extraction
+    const col4X = col3X + NODE_WIDTH + H_GAP;
+    const isoId = `node-extractIsosurface-${ts}`;
+    const isoPos = { x: col4X, y: position.y + NODE_HEIGHT };
+    const isoGeometryId = createGeometryId("mesh");
+
+    // Column 5: Viewer
+    const col5X = col4X + NODE_WIDTH + H_GAP;
+    const viewerId = `node-geometryViewer-topology-${ts}`;
+    const viewerPos = { x: col5X, y: position.y + NODE_HEIGHT };
+
+    const baseGeometryId = get().selectedGeometryIds[0] ?? get().geometry[0]?.id ?? null;
+    const baseGeometry = baseGeometryId
+      ? get().geometry.find((item) => item.id === baseGeometryId)
+      : null;
+    const baseLabel =
+      baseGeometry &&
+      typeof (baseGeometry.metadata as { label?: unknown } | undefined)?.label === "string"
+        ? ((baseGeometry.metadata as { label?: unknown }).label as string)
+        : null;
+    const baseMesh = baseGeometry ? resolveGeometryMesh(baseGeometry) : null;
+    const axisIndex = (axis: "x" | "y" | "z") => (axis === "x" ? 0 : axis === "y" ? 1 : 2);
+    const findIndicesAtExtent = (
+      mesh: RenderMesh,
+      axis: "x" | "y" | "z",
+      mode: "min" | "max"
+    ) => {
+      const axisOffset = axisIndex(axis);
+      let min = Number.POSITIVE_INFINITY;
+      let max = Number.NEGATIVE_INFINITY;
+      for (let i = 0; i < mesh.positions.length; i += 3) {
+        const value = mesh.positions[i + axisOffset];
+        min = Math.min(min, value);
+        max = Math.max(max, value);
+      }
+      if (!Number.isFinite(min) || !Number.isFinite(max)) return [];
+      const target = mode === "min" ? min : max;
+      const epsilon = Math.max(1e-6, Math.abs(max - min) * 0.01);
+      const indices: number[] = [];
+      const count = Math.floor(mesh.positions.length / 3);
+      for (let i = 0; i < count; i += 1) {
+        const value = mesh.positions[i * 3 + axisOffset];
+        if (Math.abs(value - target) <= epsilon) indices.push(i);
+      }
+      return indices;
+    };
+    const MAX_INDICES = 512;
+    const anchorIndices = baseMesh
+      ? findIndicesAtExtent(baseMesh, "x", "min").slice(0, MAX_INDICES)
+      : [];
+    const loadIndices = baseMesh
+      ? findIndicesAtExtent(baseMesh, "x", "max").slice(0, MAX_INDICES)
+      : [];
+    const listColX = col2X - NODE_WIDTH - H_GAP * 0.5;
+    const anchorListId = `node-listCreate-topology-anchor-${ts}`;
+    const anchorListPos = { x: listColX, y: anchorPos.y };
+    const loadListId = `node-listCreate-topology-load-${ts}`;
+    const loadListPos = { x: listColX, y: loadPos.y };
+
+    const newNodes = [
+      {
+        id: geoRefId,
+        type: "geometryReference" as const,
+        position: geoRefPos,
+        data: {
+          label: baseLabel ?? "Design Domain",
+          geometryId: baseGeometryId ?? undefined,
+          geometryType: baseGeometry?.type,
+          isLinked: Boolean(baseGeometryId),
+        },
+      },
+      {
+        id: anchorListId,
+        type: "listCreate" as const,
+        position: anchorListPos,
+        data: {
+          label: "Anchor Vertices",
+          parameters: {
+            itemsText: anchorIndices.join(", "),
+          },
+        },
+      },
+      {
+        id: anchorId,
+        type: "anchorGoal" as const,
+        position: anchorPos,
+        data: {
+          label: "Fixed Supports",
+          parameters: {
+            anchorType: "fixed",
+            fixX: true,
+            fixY: true,
+            fixZ: true,
+            weight: 1.0,
+          },
+        },
+      },
+      {
+        id: loadListId,
+        type: "listCreate" as const,
+        position: loadListPos,
+        data: {
+          label: "Load Vertices",
+          parameters: {
+            itemsText: loadIndices.join(", "),
+          },
+        },
+      },
+      {
+        id: loadId,
+        type: "loadGoal" as const,
+        position: loadPos,
+        data: {
+          label: "Cantilever Load",
+          parameters: {
+            forceX: 0,
+            forceY: -120,
+            forceZ: 0,
+            distributed: true,
+            loadType: "static",
+            weight: 1.0,
+          },
+        },
+      },
+      {
+        id: stiffnessId,
+        type: "stiffnessGoal" as const,
+        position: stiffnessPos,
+        data: {
+          label: "Material Stiffness",
+          parameters: {
+            youngModulus: 2.0e9,
+            poissonRatio: 0.3,
+            weight: 0.7,
+          },
+        },
+      },
+      {
+        id: volumeId,
+        type: "volumeGoal" as const,
+        position: volumePos,
+        data: {
+          label: "Volume Budget",
+          parameters: {
+            materialDensity: 1200,
+            allowedDeviation: 0.05,
+            weight: 0.6,
+          },
+        },
+      },
+      {
+        id: optimizeId,
+        type: "topologyOptimize" as const,
+        position: optimizePos,
+        data: {
+          label: "Topology Optimize",
+          topologySettings: {
+            volumeFraction: 0.35,
+            penaltyExponent: 3,
+            filterRadius: 2,
+            maxIterations: 40,
+            convergenceTolerance: 0.001,
+          },
+          topologyProgress: {
+            iteration: 0,
+            objective: 0,
+            constraint: 0,
+            status: "idle",
+          },
+        },
+      },
+      {
+        id: solverId,
+        type: "topologySolver" as const,
+        position: solverPos,
+        data: {
+          label: "Topology Solver",
+          parameters: {
+            resolution: 16,
+            iterations: 40,
+          },
+        },
+      },
+      {
+        id: isoId,
+        type: "extractIsosurface" as const,
+        position: isoPos,
+        data: {
+          label: "Extract Isosurface",
+          geometryId: isoGeometryId,
+          geometryType: "mesh",
+          isLinked: true,
+          parameters: {
+            isoValue: 0.35,
+            resolution: 16,
+          },
+        },
+      },
+      {
+        id: viewerId,
+        type: "geometryViewer" as const,
+        position: viewerPos,
+        data: { label: "Result Preview" },
+      },
+    ];
+
+    const newEdges = [
+      {
+        id: `edge-${geoRefId}-${optimizeId}-domain`,
+        source: geoRefId,
+        sourceHandle: "geometry",
+        target: optimizeId,
+        targetHandle: "domain",
+      },
+      {
+        id: `edge-${optimizeId}-${solverId}-domain`,
+        source: optimizeId,
+        sourceHandle: "domain",
+        target: solverId,
+        targetHandle: "domain",
+      },
+      {
+        id: `edge-${optimizeId}-${solverId}-volumeFraction`,
+        source: optimizeId,
+        sourceHandle: "volumeFraction",
+        target: solverId,
+        targetHandle: "volumeFraction",
+      },
+      {
+        id: `edge-${optimizeId}-${solverId}-penaltyExponent`,
+        source: optimizeId,
+        sourceHandle: "penaltyExponent",
+        target: solverId,
+        targetHandle: "penaltyExponent",
+      },
+      {
+        id: `edge-${optimizeId}-${solverId}-filterRadius`,
+        source: optimizeId,
+        sourceHandle: "filterRadius",
+        target: solverId,
+        targetHandle: "filterRadius",
+      },
+      {
+        id: `edge-${optimizeId}-${solverId}-iterations`,
+        source: optimizeId,
+        sourceHandle: "maxIterations",
+        target: solverId,
+        targetHandle: "iterations",
+      },
+      {
+        id: `edge-${anchorListId}-${anchorId}-vertices`,
+        source: anchorListId,
+        sourceHandle: "list",
+        target: anchorId,
+        targetHandle: "vertices",
+      },
+      {
+        id: `edge-${loadListId}-${loadId}-applicationPoints`,
+        source: loadListId,
+        sourceHandle: "list",
+        target: loadId,
+        targetHandle: "applicationPoints",
+      },
+      {
+        id: `edge-${anchorId}-${solverId}-goals`,
+        source: anchorId,
+        sourceHandle: "goal",
+        target: solverId,
+        targetHandle: "goals",
+      },
+      {
+        id: `edge-${loadId}-${solverId}-goals`,
+        source: loadId,
+        sourceHandle: "goal",
+        target: solverId,
+        targetHandle: "goals",
+      },
+      {
+        id: `edge-${stiffnessId}-${solverId}-goals`,
+        source: stiffnessId,
+        sourceHandle: "goal",
+        target: solverId,
+        targetHandle: "goals",
+      },
+      {
+        id: `edge-${volumeId}-${solverId}-goals`,
+        source: volumeId,
+        sourceHandle: "goal",
+        target: solverId,
+        targetHandle: "goals",
+      },
+      {
+        id: `edge-${solverId}-${isoId}-grid`,
+        source: solverId,
+        sourceHandle: "voxelGrid",
+        target: isoId,
+        targetHandle: "voxelGrid",
+      },
+      {
+        id: `edge-${isoId}-${viewerId}-geometry`,
+        source: isoId,
+        sourceHandle: "geometry",
+        target: viewerId,
+        targetHandle: "geometry",
+      },
+    ];
+
+    const emptyMesh: RenderMesh = { positions: [], normals: [], uvs: [], indices: [] };
+    const isoGeometry: Geometry = {
+      id: isoGeometryId,
+      type: "mesh",
+      mesh: emptyMesh,
+      layerId: "layer-default",
+      sourceNodeId: isoId,
+      metadata: {
+        label: "Topology Solver Output",
+      },
+    };
+    get().addGeometryItems([isoGeometry], {
       selectIds: get().selectedGeometryIds,
       recordHistory: true,
     });

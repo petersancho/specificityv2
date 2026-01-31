@@ -2445,6 +2445,7 @@ const runTopologyDensitySolver = (args: {
     x + y * resX + z * resX * resY;
 
   const useNeighborhood = neighborSpan > 0;
+  const VOLUME_CORRECTION_GAIN = 0.75;
   for (let iter = 0; iter < iterations; iter += 1) {
     let mean = 0;
     for (let z = 0; z < resZ; z += 1) {
@@ -2482,13 +2483,24 @@ const runTopologyDensitySolver = (args: {
     mean /= cellCount;
     constraint = mean - volumeFraction;
 
-    const correction = constraint * 0.35;
+    const correction = constraint * VOLUME_CORRECTION_GAIN;
     let compliance = 0;
+    let correctedMean = 0;
     for (let i = 0; i < cellCount; i += 1) {
       densities[i] = clampNumber(next[i] - correction, 0, 1);
+      correctedMean += densities[i];
       const voidness = 1 - densities[i];
       compliance += voidness * voidness;
     }
+
+    correctedMean /= cellCount;
+    const secondaryConstraint = correctedMean - volumeFraction;
+    if (Math.abs(secondaryConstraint) > 1e-6) {
+      for (let i = 0; i < cellCount; i += 1) {
+        densities[i] = clampNumber(densities[i] - secondaryConstraint, 0, 1);
+      }
+    }
+    constraint = secondaryConstraint;
     objective = compliance / cellCount;
   }
 
@@ -10375,6 +10387,24 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
         inputs.resolution,
         readNumberParameter(parameters, "resolution", 12)
       );
+
+      const rawGoals = Array.isArray(inputs.goals)
+        ? inputs.goals
+        : inputs.goals
+          ? [inputs.goals]
+          : [];
+      const isGoalSpecification = (goal: unknown): goal is GoalSpecification => {
+        if (!goal || typeof goal !== "object") return false;
+        if (!("goalType" in goal)) return false;
+        const geometry = (goal as { geometry?: unknown }).geometry;
+        return (
+          Boolean(geometry) &&
+          typeof geometry === "object" &&
+          Array.isArray((geometry as { elements?: unknown }).elements)
+        );
+      };
+      const goals = rawGoals.filter(isGoalSpecification);
+
       const inputGrid = coerceVoxelGrid(
         inputs.voxelGrid,
         resolutionHint,
@@ -10414,6 +10444,161 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
         };
       }
 
+      const buildGoalSeedDensities = (args: {
+        bounds: { min: Vec3Value; max: Vec3Value };
+        resolution: number;
+        volumeFraction: number;
+        filterRadius: number;
+        goals: GoalSpecification[];
+        domainGeometry: Geometry;
+        context: WorkflowComputeContext;
+      }) => {
+        const anchorGoals = args.goals.filter((goal) => goal.goalType === "anchor");
+        const loadGoals = args.goals.filter((goal) => goal.goalType === "load");
+
+        const collectGoalPositions = (goalList: GoalSpecification[]) => {
+          const positions: Vec3Value[] = [];
+          goalList.forEach((goal) => {
+            goal.geometry.elements.forEach((index) => {
+              const position = resolveGeometryPositionByIndex(
+                args.domainGeometry,
+                args.context,
+                index
+              );
+              if (position) positions.push(position);
+            });
+          });
+          return positions;
+        };
+
+        const anchors = collectGoalPositions(anchorGoals);
+        const loads = collectGoalPositions(loadGoals);
+        if (anchors.length === 0 && loads.length === 0) return null;
+
+        const meanPosition = (positions: Vec3Value[]): Vec3Value | null => {
+          if (positions.length === 0) return null;
+          let total: Vec3Value = { x: 0, y: 0, z: 0 };
+          positions.forEach((position) => {
+            total = addVec3(total, position);
+          });
+          return scaleVec3(total, 1 / positions.length);
+        };
+
+        const anchorCenter = meanPosition(anchors);
+        const loadCenter = meanPosition(loads);
+        const size = resolveBoundsSize(args.bounds);
+        const diagonal = Math.max(
+          EPSILON,
+          Math.sqrt(size.x * size.x + size.y * size.y + size.z * size.z)
+        );
+
+        const res = clampInt(Math.round(args.resolution), 4, 36, 12);
+        const cellCount = res * res * res;
+        const densities = new Array<number>(cellCount).fill(args.volumeFraction);
+
+        const toIndex = (x: number, y: number, z: number) => x + y * res + z * res * res;
+        const resolveCellCenter = (x: number, y: number, z: number): Vec3Value => ({
+          x: args.bounds.min.x + (x + 0.5) * (size.x / res),
+          y: args.bounds.min.y + (y + 0.5) * (size.y / res),
+          z: args.bounds.min.z + (z + 0.5) * (size.z / res),
+        });
+
+        const influenceRadius =
+          diagonal * 0.12 +
+          (args.filterRadius > 0
+            ? (diagonal / res) * clampNumber(args.filterRadius, 0, 8)
+            : 0);
+        const sigma = Math.max(diagonal * 0.08, influenceRadius);
+        const sigma2 = sigma * sigma;
+        const gaussian = (distance: number) => Math.exp(-(distance * distance) / (2 * sigma2));
+
+        const axisStart = anchorCenter ?? loadCenter;
+        const axisEnd = loadCenter ?? anchorCenter;
+        const axisVector =
+          axisStart && axisEnd ? subtractVec3(axisEnd, axisStart) : null;
+        const axisLength2 = axisVector ? dotVec3(axisVector, axisVector) : 0;
+
+        const TUBE_WEIGHT = 0.55;
+        const ANCHOR_WEIGHT = 0.25;
+        const LOAD_WEIGHT = 0.2;
+        const BIAS_BASELINE = 0.2;
+        const BIAS_GAIN = 0.75;
+
+        for (let z = 0; z < res; z += 1) {
+          for (let y = 0; y < res; y += 1) {
+            for (let x = 0; x < res; x += 1) {
+              const idx = toIndex(x, y, z);
+              const p = resolveCellCenter(x, y, z);
+
+              let anchorField = 0;
+              if (anchorCenter) {
+                anchorField = gaussian(distanceVec3(p, anchorCenter));
+              }
+
+              let loadField = 0;
+              if (loadCenter) {
+                loadField = gaussian(distanceVec3(p, loadCenter));
+              }
+
+              let tubeField = 0;
+              if (axisStart && axisEnd && axisVector && axisLength2 > EPSILON) {
+                const ap = subtractVec3(p, axisStart);
+                const t = clampNumber(dotVec3(ap, axisVector) / axisLength2, 0, 1);
+                const closest = addVec3(axisStart, scaleVec3(axisVector, t));
+                tubeField = gaussian(distanceVec3(p, closest));
+              }
+
+              const bias = clampNumber(
+                TUBE_WEIGHT * tubeField +
+                  ANCHOR_WEIGHT * anchorField +
+                  LOAD_WEIGHT * loadField,
+                0,
+                1
+              );
+              const boosted = args.volumeFraction + (bias - BIAS_BASELINE) * BIAS_GAIN;
+              densities[idx] = clampNumber(boosted, 0, 1);
+            }
+          }
+        }
+
+        let mean = 0;
+        for (let i = 0; i < cellCount; i += 1) {
+          mean += densities[i];
+        }
+        mean /= cellCount;
+        const correction = mean - args.volumeFraction;
+        for (let i = 0; i < cellCount; i += 1) {
+          densities[i] = clampNumber(densities[i] - correction, 0, 1);
+        }
+
+        return densities;
+      };
+
+      const baseBounds = inputGrid?.bounds ?? domainBounds ?? DEFAULT_VOXEL_BOUNDS;
+      const normalizedBounds = normalizeVoxelBounds(baseBounds);
+      const seedDensities =
+        domainGeometry && goals.length > 0
+          ? buildGoalSeedDensities({
+              bounds: normalizedBounds,
+              resolution,
+              volumeFraction,
+              filterRadius,
+              goals,
+              domainGeometry,
+              context,
+            })
+          : null;
+      const SEED_BLEND_FACTOR = 0.35;
+      const initialDensities = (() => {
+        const gridDensities = inputGrid?.densities;
+        if (seedDensities && gridDensities && gridDensities.length === seedDensities.length) {
+          return gridDensities.map((value, index) =>
+            clampNumber(lerpNumber(value, seedDensities[index], SEED_BLEND_FACTOR), 0, 1)
+          );
+        }
+        return gridDensities ?? seedDensities ?? undefined;
+      })();
+
       const result = runTopologyDensitySolver({
         seedKey: `${context.nodeId}:${domainId ?? "voxel"}`,
         resolution,
@@ -10421,10 +10606,8 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
         penaltyExponent,
         filterRadius,
         iterations,
-        initialDensities: inputGrid?.densities,
+        initialDensities,
       });
-      const bounds = inputGrid?.bounds ?? domainBounds ?? DEFAULT_VOXEL_BOUNDS;
-      const normalizedBounds = normalizeVoxelBounds(bounds);
       const size = {
         x: normalizedBounds.max.x - normalizedBounds.min.x,
         y: normalizedBounds.max.y - normalizedBounds.min.y,
