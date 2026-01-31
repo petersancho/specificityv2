@@ -27,10 +27,10 @@ describe("Physics solver benchmark", () => {
       },
     };
 
-    solvePhysicsChunkedSync({ mesh, goals, config }, config.chunkSize);
+    const warmupResult = solvePhysicsChunkedSync({ mesh, goals, config }, config.chunkSize);
 
     const cpuTimings: number[] = [];
-    let lastCpuResult = solvePhysicsChunkedSync({ mesh, goals, config }, config.chunkSize);
+    let lastCpuResult = warmupResult;
     for (let i = 0; i < 2; i += 1) {
       const start = performance.now();
       const result = solvePhysicsChunkedSync({ mesh, goals, config }, config.chunkSize);
@@ -66,9 +66,13 @@ describe("Physics solver benchmark", () => {
       if (!workerResult.result.success && workerResult.result.errors.length > 0) {
         throw new Error(workerResult.result.errors.join(", "));
       }
-      workerTimings.push(end - start);
       lastWorkerResult = workerResult.result;
       lastWorkerMode = workerResult.computeMode;
+
+      if (lastWorkerMode === "cpu-fallback") {
+        break;
+      }
+      workerTimings.push(end - start);
     }
 
     logPhysicsSolverRunReport(

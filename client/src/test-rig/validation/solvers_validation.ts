@@ -79,11 +79,11 @@ const validatePhysicsStatic = () => {
     result: outputs.result,
   });
   ensure(
-    report.stats.displacements.finiteCount === report.stats.displacements.count,
+    report.stats.displacements.nonFiniteCount === 0,
     "Expected finite displacements"
   );
   ensure(
-    report.stats.stressField.finiteCount === report.stats.stressField.count,
+    report.stats.stressField.nonFiniteCount === 0,
     "Expected finite stress field"
   );
 };
@@ -111,7 +111,7 @@ const validatePhysicsDynamic = () => {
     result: outputs.result,
   });
   ensure(
-    report.stats.displacements.finiteCount === report.stats.displacements.count,
+    report.stats.displacements.nonFiniteCount === 0,
     "Expected finite displacements"
   );
 };
@@ -135,7 +135,7 @@ const validatePhysicsModal = () => {
     result: outputs.result,
   });
   ensure(
-    report.stats.displacements.finiteCount === report.stats.displacements.count,
+    report.stats.displacements.nonFiniteCount === 0,
     "Expected finite displacements"
   );
 };

@@ -20,6 +20,7 @@ const summarizeScalarSeries = (values: ArrayLike<number> | null | undefined) => 
     return {
       count: 0,
       finiteCount: 0,
+      nonFiniteCount: 0,
       min: 0,
       max: 0,
       mean: 0,
@@ -28,13 +29,17 @@ const summarizeScalarSeries = (values: ArrayLike<number> | null | undefined) => 
   }
 
   let finiteCount = 0;
+  let nonFiniteCount = 0;
   let min = Infinity;
   let max = -Infinity;
   let sum = 0;
   let sumSquares = 0;
   for (let i = 0; i < values.length; i += 1) {
     const value = Number(values[i] ?? 0);
-    if (!Number.isFinite(value)) continue;
+    if (!Number.isFinite(value)) {
+      nonFiniteCount += 1;
+      continue;
+    }
     finiteCount += 1;
     if (value < min) min = value;
     if (value > max) max = value;
@@ -48,6 +53,7 @@ const summarizeScalarSeries = (values: ArrayLike<number> | null | undefined) => 
   return {
     count: values.length,
     finiteCount,
+    nonFiniteCount,
     min: finiteCount > 0 ? min : 0,
     max: finiteCount > 0 ? max : 0,
     mean,
@@ -60,6 +66,7 @@ const summarizeVec3Series = (values: ArrayLike<Vec3> | null | undefined) => {
     return {
       count: 0,
       finiteCount: 0,
+      nonFiniteCount: 0,
       maxMagnitude: 0,
       meanMagnitude: 0,
       rmsMagnitude: 0,
@@ -67,6 +74,7 @@ const summarizeVec3Series = (values: ArrayLike<Vec3> | null | undefined) => {
   }
 
   let finiteCount = 0;
+  let nonFiniteCount = 0;
   let maxMagnitude = 0;
   let sumMagnitude = 0;
   let sumSquares = 0;
@@ -74,7 +82,10 @@ const summarizeVec3Series = (values: ArrayLike<Vec3> | null | undefined) => {
     const candidate = values[i];
     if (!candidate) continue;
     const magnitude = vecLength(candidate);
-    if (!Number.isFinite(magnitude)) continue;
+    if (!Number.isFinite(magnitude)) {
+      nonFiniteCount += 1;
+      continue;
+    }
     finiteCount += 1;
     if (magnitude > maxMagnitude) maxMagnitude = magnitude;
     sumMagnitude += magnitude;
@@ -87,6 +98,7 @@ const summarizeVec3Series = (values: ArrayLike<Vec3> | null | undefined) => {
   return {
     count: values.length,
     finiteCount,
+    nonFiniteCount,
     maxMagnitude,
     meanMagnitude,
     rmsMagnitude,
@@ -150,10 +162,12 @@ const summarizeGoals = (goals: GoalSpecification[]) =>
     return base;
   });
 
+export type PhysicsComputeMode = "cpu" | "worker" | "cpu-fallback";
+
 export type PhysicsSolverRunReport = {
   label: string;
   timestamp: string;
-  computeMode: string;
+  computeMode: PhysicsComputeMode;
   mesh: {
     vertexCount: number;
     triangleCount: number;
@@ -182,7 +196,7 @@ export type PhysicsSolverRunReport = {
 export const buildPhysicsSolverRunReport = (args: {
   label: string;
   timestamp?: string;
-  computeMode: string;
+  computeMode: PhysicsComputeMode;
   mesh: RenderMesh;
   goals: GoalSpecification[];
   config: SolverConfiguration;
@@ -206,7 +220,7 @@ export const buildPhysicsSolverRunReport = (args: {
     },
     deformedMesh: deformedMesh ? { bounds: deformedMesh } : undefined,
     goals: summarizeGoals(goals),
-    config,
+    config: { ...config, safetyLimits: { ...config.safetyLimits } },
     result: {
       success: result.success,
       iterations: result.iterations,

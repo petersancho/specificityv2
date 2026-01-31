@@ -42,32 +42,31 @@ export const runPhysicsSolverRig = (analysisType: AnalysisType) => {
     baseGeometry.mesh,
     analysisType === "dynamic" ? "dynamic" : "static"
   );
+  const config: SolverConfiguration = {
+    maxIterations: 250,
+    convergenceTolerance: 1e-6,
+    analysisType,
+    timeStep: analysisType === "dynamic" ? 0.02 : undefined,
+    animationFrames: analysisType === "static" ? undefined : 20,
+    useGPU: false,
+    chunkSize: 64,
+    safetyLimits: {
+      maxDeformation: 100,
+      maxStress: 1e12,
+    },
+  };
+
   const parameters = {
     geometryId: `physics-${analysisType}-out`,
     analysisType,
-    maxIterations: 250,
-    convergenceTolerance: 1e-6,
-    animationFrames: analysisType === "static" ? 0 : 20,
-    timeStep: 0.02,
-    maxDeformation: 100,
-    maxStress: 1e12,
-    useGPU: false,
-    chunkSize: 64,
-  };
-
-  const config: SolverConfiguration = {
-    maxIterations: parameters.maxIterations,
-    convergenceTolerance: parameters.convergenceTolerance,
-    analysisType,
-    timeStep: analysisType === "dynamic" ? parameters.timeStep : undefined,
-    animationFrames:
-      analysisType === "static" ? undefined : parameters.animationFrames,
-    useGPU: false,
-    chunkSize: parameters.chunkSize,
-    safetyLimits: {
-      maxDeformation: parameters.maxDeformation,
-      maxStress: parameters.maxStress,
-    },
+    maxIterations: config.maxIterations,
+    convergenceTolerance: config.convergenceTolerance,
+    animationFrames: analysisType === "static" ? 0 : (config.animationFrames ?? 0),
+    timeStep: config.timeStep ?? 0.02,
+    maxDeformation: config.safetyLimits.maxDeformation,
+    maxStress: config.safetyLimits.maxStress,
+    useGPU: config.useGPU,
+    chunkSize: config.chunkSize,
   };
 
   const outputs = node.compute({

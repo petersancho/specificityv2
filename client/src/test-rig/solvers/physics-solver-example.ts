@@ -10,10 +10,9 @@ export const runPhysicsSolverExample = (analysisType: AnalysisType) => {
     height: 1.2,
     depth: 1.5,
   });
-  const goals = buildPhysicsGoals(
-    baseGeometry.mesh,
-    analysisType === "dynamic" ? "dynamic" : "static"
-  );
+  // Modal analysis currently reuses the static load pattern so the example stays comparable.
+  const loadType = analysisType === "dynamic" ? "dynamic" : "static";
+  const goals = buildPhysicsGoals(baseGeometry.mesh, loadType);
   const config = buildExamplePhysicsConfig(analysisType);
   const result = solvePhysicsChunkedSync({ mesh: baseGeometry.mesh, goals, config }, config.chunkSize);
 
@@ -35,4 +34,7 @@ const main = () => {
   runPhysicsSolverExample("modal");
 };
 
-main();
+const maybeMain = (import.meta as ImportMeta & { main?: boolean }).main;
+if (maybeMain === true) {
+  main();
+}
