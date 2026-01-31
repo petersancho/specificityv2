@@ -73,13 +73,14 @@ const runNodeValidation = (nodeName: string, fn: () => void) => {
 const validatePhysicsStatic = () => {
   const { outputs, outputGeometry, baseGeometry } = runPhysicsSolverRig("static");
   const baseVertexCount = Math.floor(baseGeometry.mesh.positions.length / 3);
+  const baseTriangleCount = Math.floor(baseGeometry.mesh.indices.length / 3);
   ensure(outputs.geometry === "physics-static-out", "Expected geometry id to match");
   ensure(outputs.result.success === true, "Expected physics solver success");
   ensure(outputs.animation === null, "Expected no animation for static analysis");
   ensure(Array.isArray(outputs.displacements), "Expected displacements array");
   ensure(outputs.displacements.length === baseVertexCount, "Expected displacement per vertex");
   ensure(Array.isArray(outputs.stressField), "Expected stress field array");
-  ensure(outputs.stressField.length === baseVertexCount, "Expected stress field per vertex");
+  ensure(outputs.stressField.length === baseTriangleCount, "Expected stress field per triangle");
   ensureFinite(outputs.result.finalObjectiveValue, "Expected finite objective value");
   ensureFiniteVec3Array(outputs.displacements, "physics static displacements");
   ensureFiniteArray(outputs.stressField, "physics static stress field");
@@ -91,6 +92,7 @@ const validatePhysicsStatic = () => {
 const validatePhysicsDynamic = () => {
   const { outputs, outputGeometry, baseGeometry, parameters } = runPhysicsSolverRig("dynamic");
   const baseVertexCount = Math.floor(baseGeometry.mesh.positions.length / 3);
+  const baseTriangleCount = Math.floor(baseGeometry.mesh.indices.length / 3);
   ensure(outputs.geometry === "physics-dynamic-out", "Expected geometry id to match");
   ensure(outputs.result.success === true, "Expected physics solver success");
   ensure(outputs.result.iterations === parameters.animationFrames, "Expected iterations to match frames");
@@ -98,7 +100,7 @@ const validatePhysicsDynamic = () => {
   ensure(outputs.animation.frames.length === parameters.animationFrames, "Expected frame count");
   ensure(outputs.animation.timeStamps.length === parameters.animationFrames, "Expected timestamp count");
   ensure(outputs.displacements.length === baseVertexCount, "Expected displacement per vertex");
-  ensure(outputs.stressField.length === baseVertexCount, "Expected stress field per vertex");
+  ensure(outputs.stressField.length === baseTriangleCount, "Expected stress field per triangle");
   ensureFiniteVec3Array(outputs.displacements, "physics dynamic displacements");
   ensureFiniteArray(outputs.stressField, "physics dynamic stress field");
   ensureMesh(outputs.mesh as RenderMesh, "physics dynamic mesh");
@@ -109,12 +111,13 @@ const validatePhysicsDynamic = () => {
 const validatePhysicsModal = () => {
   const { outputs, outputGeometry, baseGeometry } = runPhysicsSolverRig("modal");
   const baseVertexCount = Math.floor(baseGeometry.mesh.positions.length / 3);
+  const baseTriangleCount = Math.floor(baseGeometry.mesh.indices.length / 3);
   ensure(outputs.geometry === "physics-modal-out", "Expected geometry id to match");
   ensure(outputs.result.success === true, "Expected physics solver success");
   ensure(outputs.animation !== null, "Expected animation for modal analysis");
   ensure(outputs.animation.frames.length > 0, "Expected modal frames");
   ensure(outputs.displacements.length === baseVertexCount, "Expected displacement per vertex");
-  ensure(outputs.stressField.length === baseVertexCount, "Expected stress field per vertex");
+  ensure(outputs.stressField.length === baseTriangleCount, "Expected stress field per triangle");
   ensureFiniteVec3Array(outputs.displacements, "physics modal displacements");
   ensureFiniteArray(outputs.stressField, "physics modal stress field");
   ensureMesh(outputs.mesh as RenderMesh, "physics modal mesh");
