@@ -35,9 +35,10 @@ export const createVoxelSolverNode = (
       romanization: "Epilýtēs Fogkel",
       description: "Voxelize geometry into a cubic density grid.",
     },
-    outputs: Array.isArray(baseDefinition.outputs)
-      ? [...baseDefinition.outputs, ...extraOutputs]
-      : (parameters) => [...baseDefinition.outputs(parameters), ...extraOutputs],
+    outputs:
+      typeof baseDefinition.outputs === "function"
+        ? (parameters) => [...baseDefinition.outputs(parameters), ...extraOutputs]
+        : [...baseDefinition.outputs, ...extraOutputs],
     compute: (args) => {
       const result = baseCompute(args);
       const geometryId = typeof args.inputs.geometry === "string" ? args.inputs.geometry : null;
