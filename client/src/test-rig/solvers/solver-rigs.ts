@@ -316,14 +316,14 @@ export const runChemistrySolverRig = (
 
   const parameters = {
     geometryId: "chemistry-out",
-    particleCount: variant === "disabled" ? 0 : 6000,
+    particleCount: 6000,
     particleDensity: 1.0,
-    iterations: variant === "disabled" ? 0 : 55,
-    fieldResolution: variant === "disabled" ? 0 : 36,
+    iterations: 55,
+    fieldResolution: 36,
     isoValue: 0.12,
     convergenceTolerance: 0.002,
     blendStrength: 0.7,
-    historyLimit: variant === "disabled" ? 0 : 80,
+    historyLimit: 80,
     seed: 7,
     materialOrder: "Steel, Ceramic, Glass",
     seedMaterial: "Steel",

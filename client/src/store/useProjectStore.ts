@@ -6735,8 +6735,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         return;
       }
       const outputs = outputsRaw as Record<string, unknown>;
-      const mesh = outputs.mesh as RenderMesh | undefined;
-      if (!mesh || mesh.positions.length < 3) return;
+      const meshCandidate = outputs.mesh;
+      if (!meshCandidate || typeof meshCandidate !== "object") return;
+      const mesh = meshCandidate as RenderMesh;
+      const positions = (mesh as any).positions as { length?: unknown } | undefined;
+      if (!positions || typeof positions.length !== "number" || positions.length < 3) return;
       
       const materials = Array.isArray(outputs.materials) ? outputs.materials : [];
       const materialParticles = Array.isArray(outputs.materialParticles)

@@ -91,6 +91,11 @@ export const wrapMeshGeometry = (id: string, mesh: RenderMesh): MeshGeometry => 
 export const translateRenderMesh = (mesh: RenderMesh, offset: Vec3): RenderMesh => {
   const next = shallowCloneRenderMesh(mesh);
   const positions = next.positions;
+  if (positions.length % 3 !== 0) {
+    throw new Error(
+      `translateRenderMesh expected positions.length % 3 === 0, got ${positions.length}`
+    );
+  }
   for (let i = 0; i < positions.length; i += 3) {
     positions[i] += offset.x;
     positions[i + 1] += offset.y;
