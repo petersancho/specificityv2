@@ -7668,26 +7668,21 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
      * - Glass-compatible interface at glazing contact surfaces
      * - Mass optimization to reduce embodied carbon
      *
-     * Nodes created:
-     * - Density Slider → controls solver particle density
-     * - Toggle Switch → enable/disable solver execution
-     * - Geometry Reference (Domain) → mullion profile from Roslyn
-     * - Geometry Reference (Anchor Zones) → steel nucleation regions
-     * - Geometry Reference (Thermal Core) → ceramic thermal break region
-     * - Geometry Reference (Vision Strip) → glass interface region
-     * - Stiffness Goal (Τέλος Σκληρότητος) → bias steel toward load paths
-     * - Mass Goal (Τέλος Ἐλαχίστου Ὄγκου) → minimize total mass
-     * - Blend Goal (Τέλος Κράσεως) → smooth manufacturable gradients
-     * - Transparency Goal (Τέλος Διαφανείας) → glass at glazing interface
-     * - Thermal Goal (Τέλος Ῥοῆς Θερμότητος) → ceramic insulation in core
-     * - Chemistry Solver (Ἐπιλύτης Χημείας) → material transmutation
-     * - Geometry Viewer → visualize graded result
+     * SEMANTIC ORGANIZATION (Group Nodes):
+     * 1. CONTROLS GROUP - Toggle switch, density slider, solver parameters
+     * 2. DOMAIN GROUP - Geometry references (domain, anchors, thermal, vision)
+     * 3. GOALS GROUP - Chemistry goal nodes (stiffness, mass, blend, transparency, thermal)
+     * 4. SOLVER GROUP - Chemistry solver node
+     * 5. OUTPUT GROUP - Geometry viewer and diagnostics panel
+     *
+     * Particle count: 10,000 (8,000-10,000 range for production simulations)
      */
     const ts = Date.now();
     const NODE_WIDTH = 200;
     const NODE_HEIGHT = 120;
     const H_GAP = 60;
     const V_GAP = 40;
+    const GROUP_PADDING = 30;
 
     // Column 0: Solver controls and parameters
     const toggleSwitchId = `node-conditionalToggleButton-${ts}`;
@@ -7999,6 +7994,96 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         position: viewerPos,
         data: { label: "Graded Material Preview" },
       },
+      // Diagnostics Panel for solver monitoring
+      {
+        id: `node-panel-diagnostics-${ts}`,
+        type: "panel" as const,
+        position: { x: viewerPos.x, y: viewerPos.y + NODE_HEIGHT + V_GAP },
+        data: {
+          label: "Solver Diagnostics",
+          parameters: {
+            text: "Connect to solver outputs to monitor:\n- Status\n- Particle count\n- Total energy\n- Iterations\n- Material distribution",
+            maxLines: 20,
+            showIndex: false,
+          },
+        },
+      },
+      // GROUP NODES for semantic organization
+      // 1. Controls Group
+      {
+        id: `node-group-controls-${ts}`,
+        type: "group" as const,
+        position: { x: position.x - GROUP_PADDING, y: position.y - (NODE_HEIGHT + V_GAP) * 2 - GROUP_PADDING },
+        data: {
+          label: "Controls",
+          parameters: {
+            title: "Controls",
+            color: "#e8f5e9", // Light green
+          },
+          width: (NODE_WIDTH + H_GAP) * 4 + GROUP_PADDING * 2,
+          height: (NODE_HEIGHT + V_GAP) * 2 + GROUP_PADDING,
+        },
+      },
+      // 2. Domain Group
+      {
+        id: `node-group-domain-${ts}`,
+        type: "group" as const,
+        position: { x: position.x - GROUP_PADDING, y: position.y - GROUP_PADDING },
+        data: {
+          label: "Domain & Seed Regions",
+          parameters: {
+            title: "Domain & Seed Regions",
+            color: "#e3f2fd", // Light blue
+          },
+          width: NODE_WIDTH + GROUP_PADDING * 2,
+          height: (NODE_HEIGHT + V_GAP) * 4 + GROUP_PADDING,
+        },
+      },
+      // 3. Goals Group
+      {
+        id: `node-group-goals-${ts}`,
+        type: "group" as const,
+        position: { x: col2X - GROUP_PADDING, y: position.y - GROUP_PADDING },
+        data: {
+          label: "Chemistry Goals (Τέλοι)",
+          parameters: {
+            title: "Chemistry Goals (Τέλοι)",
+            color: "#fff3e0", // Light orange
+          },
+          width: NODE_WIDTH + GROUP_PADDING * 2,
+          height: (NODE_HEIGHT + V_GAP) * 5 + GROUP_PADDING,
+        },
+      },
+      // 4. Solver Group
+      {
+        id: `node-group-solver-${ts}`,
+        type: "group" as const,
+        position: { x: solverPos.x - GROUP_PADDING, y: solverPos.y - GROUP_PADDING },
+        data: {
+          label: "Material Transmutation",
+          parameters: {
+            title: "Material Transmutation (Ἐπιλύτης Χημείας)",
+            color: "#fce4ec", // Light pink
+          },
+          width: NODE_WIDTH + GROUP_PADDING * 2,
+          height: NODE_HEIGHT + GROUP_PADDING * 2,
+        },
+      },
+      // 5. Output Group
+      {
+        id: `node-group-output-${ts}`,
+        type: "group" as const,
+        position: { x: viewerPos.x - GROUP_PADDING, y: viewerPos.y - GROUP_PADDING },
+        data: {
+          label: "Output & Visualization",
+          parameters: {
+            title: "Output & Visualization",
+            color: "#f3e5f5", // Light purple
+          },
+          width: NODE_WIDTH + GROUP_PADDING * 2,
+          height: (NODE_HEIGHT + V_GAP) * 2 + GROUP_PADDING * 2,
+        },
+      },
     ];
 
     // Wire connections
@@ -8194,6 +8279,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         sourceHandle: "geometry",
         target: viewerId,
         targetHandle: "geometry",
+      },
+      // Chemistry Solver → Diagnostics Panel (status output)
+      {
+        id: `edge-${solverId}-diagnostics-status`,
+        source: solverId,
+        sourceHandle: "diagnostics",
+        target: `node-panel-diagnostics-${ts}`,
+        targetHandle: "data",
       },
     ];
 

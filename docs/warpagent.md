@@ -958,6 +958,26 @@ When starting work on Lingua, complete these items:
 
 ---
 
+## Pull Request Process
+
+### Code Reviewer
+Always add **@CharlieHelps** as a code reviewer on pull requests. Charlie is our code review agent and will assist with reviewing changes.
+
+### Commit Messages
+Include the co-author line at the end of every commit message:
+```
+Co-Authored-By: Warp <agent@warp.dev>
+```
+
+### PR Descriptions
+Include:
+- Clear summary of changes
+- Affected subsystems
+- Testing performed
+- Any breaking changes
+
+---
+
 ## Final Notes
 
 - **Code is authoritative** - when docs conflict with code, trust the code
