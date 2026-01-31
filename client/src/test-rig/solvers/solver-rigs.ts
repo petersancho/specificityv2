@@ -343,7 +343,9 @@ export const runBiologicalSolverRig = () => {
   const populationSize = populations[0].length;
   populations.forEach((population) => {
     if (population.length !== populationSize) {
-      throw new Error("Biological solver rig populations must be uniform size");
+      throw new Error(
+        `Biological solver rig populations must be uniform size: expected ${populationSize}, got ${population.length}`
+      );
     }
   });
 
@@ -353,10 +355,14 @@ export const runBiologicalSolverRig = () => {
     if (population.length === 0) {
       throw new Error("Biological solver rig generation population must not be empty");
     }
-    const fitnesses = population.map((entry) => entry.fitness);
-    if (fitnesses.some((fitness) => !Number.isFinite(fitness))) {
-      throw new Error("Biological solver rig population contains non-finite fitness value");
-    }
+    const fitnesses = population.map((entry, index) => {
+      if (!Number.isFinite(entry.fitness)) {
+        throw new Error(
+          `Biological solver rig population contains non-finite fitness at index ${index}`
+        );
+      }
+      return entry.fitness;
+    });
     const bestFitness = Math.max(...fitnesses);
     const worstFitness = Math.min(...fitnesses);
     const meanFitness = fitnesses.reduce((sum, entry) => sum + entry, 0) / fitnesses.length;
@@ -436,6 +442,12 @@ export const runBiologicalSolverRig = () => {
   const generations = outputs.history?.generations ?? [];
   const completedGenerations = generations.length;
   const lastGenerationId = generations.length ? generations[generations.length - 1].id : 0;
+
+  if (completedGenerations !== config.generations) {
+    throw new Error(
+      `Biological solver rig history/config mismatch: history has ${completedGenerations} generations, config.generations=${config.generations}`
+    );
+  }
 
   updateBiologicalSolverState(nodeId, {
     outputs,

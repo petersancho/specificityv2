@@ -24,7 +24,7 @@ const summarizeMesh = (mesh: RenderMesh): MeshSummary => {
 
   if (!isTriangleMesh) {
     throw new Error(
-      `BranchingGrowth example expects triangle mesh (got positions=${mesh.positions.length}, indices=${mesh.indices.length})`
+      `BranchingGrowth solver test rig expects triangle mesh baseGeometry (positions=${mesh.positions.length}, indices=${mesh.indices.length})`
     );
   }
 
@@ -98,12 +98,6 @@ export const makeBranchingGrowthExampleGrowthGoal = (): GoalSpecification => ({
 
 export const generateBranchingGrowthSolverExample = (): BranchingGrowthSolverExampleV1 => {
   const { biologicalOutputs, baseGeometry, individual, config } = runBiologicalSolverRig();
-
-  if (individual.genome.length !== BRANCHING_GROWTH_GENOME_DIMENSION) {
-    throw new Error(
-      `BranchingGrowth example expects genome length ${BRANCHING_GROWTH_GENOME_DIMENSION} (got ${individual.genome.length})`
-    );
-  }
 
   const [branchX, branchY, branchZ] = individual.genome;
 

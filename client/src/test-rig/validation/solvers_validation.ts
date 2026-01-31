@@ -148,13 +148,11 @@ const validateBiologicalSolver = () => {
   ensure(biologicalOutputs.bestGenome.z === individual.genome[2], "Expected genome z");
   ensure(biologicalOutputs.status === "stopped", "Expected solver status stopped");
   const generations = biologicalOutputs.history?.generations ?? [];
-  const expectedEvaluations = generations.reduce(
-    (sum, generation) => sum + (generation.population?.length ?? 0),
-    0
-  );
+  const perGenerationSizes = generations.map((generation) => generation.population?.length ?? 0);
+  const expectedEvaluations = perGenerationSizes.reduce((sum, size) => sum + size, 0);
   ensure(
     biologicalOutputs.evaluations === expectedEvaluations,
-    `Expected evaluation count ${expectedEvaluations} (got ${biologicalOutputs.evaluations})`
+    `Expected evaluation count ${expectedEvaluations} from per-generation sizes ${perGenerationSizes.join(",")} (got ${biologicalOutputs.evaluations})`
   );
   ensure(biologicalOutputs.best?.geometry?.length === 1, "Expected best geometry payload");
   ensure(biologicalOutputs.best?.geometry?.[0].id === baseGeometry.id, "Expected geometry id match");
