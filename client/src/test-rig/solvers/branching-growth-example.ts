@@ -8,30 +8,23 @@ import { runBiologicalSolverRig } from "./solver-rigs";
 type MeshSummary = {
   vertexCount: number;
   triangleCount: number;
-  bounds: ReturnType<typeof meshBounds>;
+  bounds: ReturnType<typeof meshBounds> | null;
   hasColors: boolean;
+  isTriangleMesh: boolean;
 };
 
 const summarizeMesh = (mesh: RenderMesh): MeshSummary => {
-  if (mesh.positions.length % 3 !== 0) {
-    throw new Error(
-      `BranchingGrowth example expects triangle mesh (got positions=${mesh.positions.length}, indices=${mesh.indices.length})`
-    );
-  }
-  if (mesh.indices.length % 3 !== 0) {
-    throw new Error(
-      `BranchingGrowth example expects triangle mesh (got positions=${mesh.positions.length}, indices=${mesh.indices.length})`
-    );
-  }
-
-  const vertexCount = mesh.positions.length / 3;
-  const triangleCount = mesh.indices.length / 3;
-  const bounds = meshBounds(mesh);
+  const isTriangleMesh =
+    mesh.positions.length % 3 === 0 && mesh.indices.length % 3 === 0;
+  const vertexCount = isTriangleMesh ? mesh.positions.length / 3 : 0;
+  const triangleCount = isTriangleMesh ? mesh.indices.length / 3 : 0;
+  const bounds = isTriangleMesh ? meshBounds(mesh) : null;
   return {
     vertexCount,
     triangleCount,
     bounds,
     hasColors: Array.isArray(mesh.colors) && mesh.colors.length > 0,
+    isTriangleMesh,
   };
 };
 
@@ -94,6 +87,10 @@ export const makeBranchingGrowthExampleGrowthGoal = (): GoalSpecification => ({
 export const generateBranchingGrowthSolverExample = (): BranchingGrowthSolverExampleV1 => {
   const { biologicalOutputs, baseGeometry, individual, config } = runBiologicalSolverRig();
 
+  if (individual.genome.length < 3) {
+    throw new Error("BranchingGrowth example expects genome with at least 3 genes");
+  }
+
   const growthGoal = makeBranchingGrowthExampleGrowthGoal();
 
   const goalTuning = deriveGoalTuning([growthGoal]);
@@ -123,9 +120,9 @@ export const generateBranchingGrowthSolverExample = (): BranchingGrowthSolverExa
     outputs: {
       bestScore: biologicalOutputs.bestScore,
       bestGenomeVector3: {
-        x: biologicalOutputs.bestGenome?.x ?? individual.genome[0] ?? 0,
-        y: biologicalOutputs.bestGenome?.y ?? individual.genome[1] ?? 0,
-        z: biologicalOutputs.bestGenome?.z ?? individual.genome[2] ?? 0,
+        x: individual.genome[0],
+        y: individual.genome[1],
+        z: individual.genome[2],
       },
       evaluations: biologicalOutputs.evaluations,
       status: biologicalOutputs.status,

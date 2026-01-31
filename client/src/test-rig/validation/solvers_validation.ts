@@ -153,8 +153,8 @@ const validateBiologicalSolver = () => {
     0
   );
   ensure(
-    biologicalOutputs.evaluations >= expectedEvaluations,
-    "Expected evaluation count"
+    biologicalOutputs.evaluations === expectedEvaluations,
+    `Expected evaluation count ${expectedEvaluations} (got ${biologicalOutputs.evaluations})`
   );
   ensure(biologicalOutputs.best?.geometry?.length === 1, "Expected best geometry payload");
   ensure(biologicalOutputs.best?.geometry?.[0].id === baseGeometry.id, "Expected geometry id match");
