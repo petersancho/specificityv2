@@ -7691,23 +7691,30 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
     const GROUP_PADDING = 14;
     const GROUP_HEADER_HEIGHT = 20;
-    const GROUP_MIN_WIDTH = 230;
-    const GROUP_MIN_HEIGHT = 160;
+    const GROUP_MIN_WIDTH = NODE_WIDTH + GROUP_PADDING * 2;
+    const GROUP_MIN_HEIGHT = NODE_HEIGHT + GROUP_PADDING * 2 + GROUP_HEADER_HEIGHT;
 
-    type RigFrame = { id: string; position: { x: number; y: number } };
-    type PositionFrame = { position: { x: number; y: number } };
+    type RigFrame = {
+      id: string;
+      position: { x: number; y: number };
+      size: { width: number; height: number };
+    };
 
     type GroupBox = {
       position: { x: number; y: number };
       groupSize: { width: number; height: number };
     };
 
-    const computeGroupBox = (frames: PositionFrame[]): GroupBox => {
+    const computeGroupBox = (
+      frames: RigFrame[],
+      fallbackPosition: { x: number; y: number }
+    ): GroupBox => {
+      const fallbackGroupBox = (pos: { x: number; y: number }): GroupBox => ({
+        position: { x: pos.x, y: pos.y },
+        groupSize: { width: GROUP_MIN_WIDTH, height: GROUP_MIN_HEIGHT },
+      });
       if (frames.length === 0) {
-        return {
-          position: { x: position.x, y: position.y },
-          groupSize: { width: GROUP_MIN_WIDTH, height: GROUP_MIN_HEIGHT },
-        };
+        return fallbackGroupBox(fallbackPosition);
       }
       let minX = Number.POSITIVE_INFINITY;
       let minY = Number.POSITIVE_INFINITY;
@@ -7716,9 +7723,18 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       frames.forEach((frame) => {
         minX = Math.min(minX, frame.position.x);
         minY = Math.min(minY, frame.position.y);
-        maxX = Math.max(maxX, frame.position.x + NODE_WIDTH);
-        maxY = Math.max(maxY, frame.position.y + NODE_HEIGHT);
+        maxX = Math.max(maxX, frame.position.x + frame.size.width);
+        maxY = Math.max(maxY, frame.position.y + frame.size.height);
       });
+
+      if (
+        !Number.isFinite(minX) ||
+        !Number.isFinite(minY) ||
+        !Number.isFinite(maxX) ||
+        !Number.isFinite(maxY)
+      ) {
+        return fallbackGroupBox(fallbackPosition);
+      }
       const width = Math.max(GROUP_MIN_WIDTH, maxX - minX + GROUP_PADDING * 2);
       const height = Math.max(
         GROUP_MIN_HEIGHT,
@@ -7736,8 +7752,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const createGroupNode = (
       groupId: string,
       title: string,
-      frames: RigFrame[],
-      groupBox: GroupBox
+      groupNodeIds: string[],
+      groupBox: GroupBox,
+      options?: { color?: string }
     ) => ({
       id: groupId,
       type: "group" as const,
@@ -7745,8 +7762,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       data: {
         label: title,
         groupSize: groupBox.groupSize,
-        groupNodeIds: frames.map((frame) => frame.id),
-        parameters: { title, color: "#f5f2ee" },
+        groupNodeIds,
+        parameters: { title, color: options?.color ?? "#f5f2ee" },
       },
     });
 
@@ -7820,45 +7837,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const goalsGroupId = `node-group-chemistry-goals-${ts}`;
     const outputGroupId = `node-group-chemistry-output-${ts}`;
 
-    const controlsFrames: RigFrame[] = [
-      { id: toggleSwitchId, position: toggleSwitchPos },
-      { id: densitySliderId, position: densitySliderPos },
-      { id: particleCountId, position: particleCountPos },
-      { id: iterationsId, position: iterationsPos },
-      { id: fieldResolutionId, position: fieldResolutionPos },
-      { id: isoValueId, position: isoValuePos },
-      { id: blendStrengthId, position: blendStrengthPos },
-      { id: convergenceId, position: convergencePos },
-    ];
-    const inputsFrames: RigFrame[] = [
-      { id: domainId, position: domainPos },
-      { id: anchorZonesId, position: anchorZonesPos },
-      { id: thermalCoreId, position: thermalCorePos },
-      { id: visionStripId, position: visionStripPos },
-    ];
-    const goalsFrames: RigFrame[] = [
-      { id: stiffnessGoalId, position: stiffnessGoalPos },
-      { id: massGoalId, position: massGoalPos },
-      { id: blendGoalId, position: blendGoalPos },
-      { id: transparencyGoalId, position: transparencyGoalPos },
-      { id: thermalGoalId, position: thermalGoalPos },
-    ];
-    const outputFrames: RigFrame[] = [
-      { id: solverId, position: solverPos },
-      { id: viewerId, position: viewerPos },
-    ];
-
-    const controlsGroup = computeGroupBox(controlsFrames);
-    const inputsGroup = computeGroupBox(inputsFrames);
-    const goalsGroup = computeGroupBox(goalsFrames);
-    const outputGroup = computeGroupBox(outputFrames);
-
-    const newNodes = [
-      createGroupNode(controlsGroupId, "Solver Controls", controlsFrames, controlsGroup),
-      createGroupNode(inputsGroupId, "Domain + Seeds", inputsFrames, inputsGroup),
-      createGroupNode(goalsGroupId, "Goals", goalsFrames, goalsGroup),
-      createGroupNode(outputGroupId, "Solve + Preview", outputFrames, outputGroup),
-      // Solver controls and parameters
+    const controlsNodes = [
       {
         id: toggleSwitchId,
         type: "conditionalToggleButton" as const,
@@ -7959,7 +7938,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           },
         },
       },
-      // Domain geometry reference
+    ];
+
+    const inputsNodes = [
       {
         id: domainId,
         type: "geometryReference" as const,
@@ -7969,7 +7950,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           parameters: {},
         },
       },
-      // Seed region: Anchor zones (for steel nucleation)
       {
         id: anchorZonesId,
         type: "geometryReference" as const,
@@ -7979,7 +7959,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           parameters: {},
         },
       },
-      // Seed region: Thermal core (for ceramic nucleation)
       {
         id: thermalCoreId,
         type: "geometryReference" as const,
@@ -7989,7 +7968,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           parameters: {},
         },
       },
-      // Seed region: Vision strip (for glass interface)
       {
         id: visionStripId,
         type: "geometryReference" as const,
@@ -7999,7 +7977,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           parameters: {},
         },
       },
-      // Stiffness Goal: bias steel toward structural load paths
+    ];
+
+    const goalsNodes = [
       {
         id: stiffnessGoalId,
         type: "chemistryStiffnessGoal" as const,
@@ -8015,7 +7995,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           },
         },
       },
-      // Mass Goal: minimize total mass for embodied carbon
       {
         id: massGoalId,
         type: "chemistryMassGoal" as const,
@@ -8029,7 +8008,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           },
         },
       },
-      // Blend Goal: smooth gradients for manufacturability
       {
         id: blendGoalId,
         type: "chemistryBlendGoal" as const,
@@ -8043,7 +8021,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           },
         },
       },
-      // Transparency Goal: glass at glazing interface
       {
         id: transparencyGoalId,
         type: "chemistryTransparencyGoal" as const,
@@ -8056,7 +8033,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           },
         },
       },
-      // Thermal Goal: ceramic insulation in core
       {
         id: thermalGoalId,
         type: "chemistryThermalGoal" as const,
@@ -8070,7 +8046,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           },
         },
       },
-      // Chemistry Solver
+    ];
+
+    const outputNodes = [
       {
         id: solverId,
         type: "chemistrySolver" as const,
@@ -8095,7 +8073,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           },
         },
       },
-      // Geometry Viewer for result visualization
       {
         id: viewerId,
         type: "geometryViewer" as const,
@@ -8103,6 +8080,74 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         data: { label: "Graded Material Preview" },
       },
     ];
+
+    const buildGroupNode = (
+      groupId: string,
+      title: string,
+      nodes: { id: string; position: { x: number; y: number }; size?: RigFrame["size"] }[],
+      anchorPosition: { x: number; y: number },
+      options?: { color?: string }
+    ): ReturnType<typeof createGroupNode> | null => {
+      if (nodes.length === 0) {
+        return null;
+      }
+      const frames: RigFrame[] = nodes.map((node) => ({
+        id: node.id,
+        position: node.position,
+        size: node.size ?? { width: NODE_WIDTH, height: NODE_HEIGHT },
+      }));
+      const groupBox = computeGroupBox(frames, anchorPosition);
+      return createGroupNode(
+        groupId,
+        title,
+        nodes.map((node) => node.id),
+        groupBox,
+        options
+      );
+    };
+
+    const groups = [
+      {
+        groupId: controlsGroupId,
+        title: "Solver Controls",
+        color: "#e3f2fd",
+        nodes: controlsNodes,
+      },
+      {
+        groupId: inputsGroupId,
+        title: "Domain + Seeds",
+        color: "#e8f5e9",
+        nodes: inputsNodes,
+      },
+      {
+        groupId: goalsGroupId,
+        title: "Goals",
+        color: "#fff3e0",
+        nodes: goalsNodes,
+      },
+      {
+        groupId: outputGroupId,
+        title: "Solve + Preview",
+        color: "#f3e5f5",
+        nodes: outputNodes,
+      },
+    ];
+
+    const groupNodes = groups
+      .map((group) =>
+        buildGroupNode(group.groupId, group.title, group.nodes, position, { color: group.color })
+      )
+      .filter((node): node is NonNullable<typeof node> => node != null);
+
+    const childNodes = Array.from(
+      new Map(
+        groups
+          .flatMap((group) => group.nodes)
+          .map((node) => [node.id, node] as const)
+      ).values()
+    );
+
+    const newNodes = [...groupNodes, ...childNodes];
 
     // Wire connections
     const newEdges = [
