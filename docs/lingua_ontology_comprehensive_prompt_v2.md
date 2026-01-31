@@ -24,7 +24,7 @@ You are tasked with producing a comprehensive academic paper (15,000-30,000 word
 #### 1.1 Phase 1: The Audit - Awakening to Ownership Over Convenience
 
 **Primary Sources**:
-- `docs/PHASE1_AUDIT.md` (complete audit of Three.js and ReactFlow dependencies)
+- `docs/archive/PHASE1_AUDIT.md` (complete audit of Three.js and ReactFlow dependencies)
 - `docs/lingua_architecture.md` (architectural principles)
 - `client/src/components/ViewerCanvas.tsx` (legacy implementation)
 
@@ -68,7 +68,7 @@ The Phase 1 Audit represents an ontological rupture—a moment where the develop
 #### 1.2 Phase 2: ETO.forms Canvas - The Immediacy of Presence
 
 **Primary Sources**:
-- `docs/PHASE2_COMPLETE.md` (complete ETO.forms implementation)
+- `docs/archive/PHASE2_COMPLETE.md` (complete ETO.forms implementation)
 - `client/src/components/workflow/NumericalCanvas.tsx` (canvas implementation)
 - `docs/numerica_technical_spec.md` (canvas architecture)
 
@@ -124,7 +124,7 @@ Analyze: This sequence is liturgical—a prescribed ritual for manifestation. Ea
 #### 1.3 Phase 3: The WebGL Pipeline - Direct Material Engagement
 
 **Primary Sources**:
-- `docs/PHASE3_PROGRESS.md` (WebGL infrastructure completion)
+- `docs/archive/PHASE3_PROGRESS.md` (WebGL infrastructure completion)
 - `client/src/webgl/WebGLRenderer.ts` (core renderer)
 - `client/src/webgl/ShaderManager.ts` (shader compilation)
 - `client/src/webgl/shaders/` (GLSL programs)
@@ -206,7 +206,7 @@ class GeometryBuffer {
 #### 1.4 Phase 4: The Geometry Kernel - Mathematical Essence in TypeScript
 
 **Primary Sources**:
-- `docs/PHASE4_COMPLETE.md` (kernel completion)
+- `docs/archive/PHASE4_COMPLETE.md` (kernel completion)
 - `client/src/geometry/nurbs.ts` (NURBS implementation)
 - `client/src/geometry/tessellation.ts` (adaptive tessellation)
 - `client/src/geometry/booleans.ts` (geometric operations)
@@ -662,14 +662,14 @@ function rotate(geometry: Geometry, angle: number): Geometry {
 - `client/src/workflow/workflowEngine.ts` (evaluation engine - if exists)
 - `docs/numerica_technical_spec.md` (comprehensive workflow architecture)
 - `docs/commands_nodes_reference.md` (node catalog)
-- `docs/PARAMETRIC_FLOW_DEEP_DIVE.md` (data flow philosophy)
+- `docs/numerica-roslyn-semantics/PARAMETRIC_FLOW_DEEP_DIVE.md` (data flow philosophy)
 - `docs/numerica_nodes_reference.md` (current node inventory)
 
 **Philosophical Framework**: Nodes as Kantian categories, edges as synthetic a priori judgments, evaluation as transcendental deduction.
 
 #### 4.1 Node Types as Categories of Understanding
 
-From `numerica_nodes_reference.md`, analyze the node taxonomy:
+From `docs/numerica_nodes_reference.md`, analyze the node taxonomy:
 
 **Data Nodes**:
 - `geometryReference`: Reference existing geometry
@@ -705,7 +705,7 @@ From `numerica_nodes_reference.md`, analyze the node taxonomy:
 
 #### 4.2 Pull-Based Lazy Evaluation as Actualization of Potential
 
-From `numerica_technical_spec.md`:
+From `docs/numerica_technical_spec.md`:
 ```
 "Graph evaluation uses a pull-based lazy model where output values are 
 computed on demand by recursively evaluating dependencies."
@@ -734,7 +734,7 @@ computed on demand by recursively evaluating dependencies."
 
 #### 4.3 Catalyst Nodes: Bridging Cartesian Dualism
 
-From `PARAMETRIC_FLOW_DEEP_DIVE.md`:
+From `docs/numerica-roslyn-semantics/PARAMETRIC_FLOW_DEEP_DIVE.md`:
 ```
 "The catalyst nodes serve as critical translation layers between different 
 modes of representation and different types of operations."
@@ -758,7 +758,7 @@ modes of representation and different types of operations."
    - The expression "2+2" has a sense (the computation) and a reference (the value 4)
 
 3. **Geometry Extractor**:
-   - From `numerica_technical_spec.md`: "converts implicit spatial information into explicit numerical data"
+   - From `docs/numerica_technical_spec.md`: "converts implicit spatial information into explicit numerical data"
    - Bridges spatial *res extensa* and computational *res cogitans*
    - Measurement is translation between domains
 
@@ -822,7 +822,7 @@ The evaluation engine maintains an evaluation stack..."
 - `client/src/webgl/WebGLRenderer.ts` (rendering pipeline)
 - `client/src/geometry/renderAdapter.ts` (geometry-to-buffer conversion)
 - `docs/webgl_rendering_style.md` (S.O.L.I.D.I.T.Y principles)
-- `docs/PHASE3_PROGRESS.md` (WebGL infrastructure)
+- `docs/archive/PHASE3_PROGRESS.md` (WebGL infrastructure)
 
 **Philosophical Framework**: Rendering as Platonic *methexis* (participation), the pipeline as successive degradations from ideal to material.
 

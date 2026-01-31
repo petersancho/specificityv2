@@ -59,7 +59,7 @@ Note: `CharlieAgent.md` and `CharlieAgentPlans.md` are a one-off CamelCase excep
 - Interaction commands: `numerica_interaction_commands.md`
 - Interchange: `numerica_interchange.md`
 - Rendering: `numerica_rendering.md`
-- Workflow implementation map: `Semantics and Ontology - Numerica - Roslyn/IMPLEMENTATION_MAP.md`
+- Workflow implementation map: `numerica-roslyn-semantics/IMPLEMENTATION_MAP.md`
 
 ---
 
@@ -106,11 +106,15 @@ These are point-in-time project logs and may reference legacy naming (e.g.
 `ViewerCanvas`) or early planning terminology. Current implementation uses
 `WebGLViewerCanvas` for the viewport and `NumericalCanvas` for the workflow editor.
 
-- `archive/PHASE1_AUDIT.md`
-- `archive/PHASE2_COMPLETE.md`
-- `archive/PHASE3_PROGRESS.md`
-- `archive/PHASE4_COMPLETE.md`
-- `basic_implementation_guide.md` (WebGL-only baseline, legacy)
+Archive index: `archive/README.md` (Phases 1–4 + other historical docs)
+
+Key phase logs:
+- `archive/PHASE1_AUDIT.md` – Phase 1 Audit
+- `archive/PHASE2_COMPLETE.md` – Phase 2 Complete
+- `archive/PHASE3_PROGRESS.md` – Phase 3 Progress
+- `archive/PHASE4_COMPLETE.md` – Phase 4 Complete
+
+Legacy baseline (WebGL-only, superseded): `basic_implementation_guide.md`
 
 ---
 

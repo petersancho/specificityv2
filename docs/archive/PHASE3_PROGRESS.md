@@ -1,7 +1,7 @@
 # Phase 3 Progress: Custom WebGL Infrastructure
 
 ## Objective
-Replace React Three Fiber (R3F) abstractions with direct WebGL control while maintaining Three.js for math utilities only, per `docs/PHASE1_AUDIT.md` and `docs/SHADER_INVENTORY.md`.
+Replace React Three Fiber (R3F) abstractions with direct WebGL control while maintaining Three.js for math utilities only, per `docs/archive/PHASE1_AUDIT.md` and `docs/SHADER_INVENTORY.md`.
 
 **Status:** ✅ Complete (WebGL pipeline fully replaces R3F in Roslyn; R3F dependencies removed.)
 
@@ -176,7 +176,7 @@ No additional Phase 3 work remaining. Proceed with Phase 4+ enhancements or UI p
 
 ## References
 
-- Implementation follows `docs/PHASE1_AUDIT.md` migration strategy
+- Implementation follows `docs/archive/PHASE1_AUDIT.md` migration strategy
 - Shaders per `docs/SHADER_INVENTORY.md` specifications
 - WebGL patterns per `docs/lingua_conventions.md:60-69`
 - Architecture per `docs/lingua_architecture.md:40-50`

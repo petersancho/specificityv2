@@ -80,10 +80,12 @@ Warp is authorized to work on **all subsystems**, including:
 
 **For each file you'll modify:**
 
-| File | Change Type | Risk Level |
+**All file paths in this section are examples—replace them with the real files for your task.**
+
+| File (example) | Change Type | Risk Level |
 |------|-------------|------------|
-| `docs/foo.md` | Update | Low |
-| `client/src/components/X.tsx` | Add prop | Medium |
+| `docs/subsystems_guide.md` (example) | Update | Low |
+| `client/src/components/ExampleWidget.tsx` (example) | Add prop | Medium |
 
 **Checkpoint criteria:**
 - Can you describe what each change does?
@@ -187,14 +189,16 @@ A checkpoint is valid when:
 
 ## Templates
 
+**All file paths in this section are examples—replace them with the real files for your task.**
+
 ### Linear Issue Comment (Starting Work)
 
 ```
 Starting work on this issue.
 
-**Files I'll touch:**
-- docs/foo.md
-- client/src/components/Bar.tsx
+**Files I'll touch (examples):**
+- docs/subsystems_guide.md
+- client/src/components/ExampleWidget.tsx
 
 **Approach:**
 Brief description of planned changes.
@@ -208,12 +212,12 @@ Brief description of planned changes.
 Completed this issue.
 
 **Changes:**
-- Updated docs/foo.md with new section
-- Added tooltip to Bar component
+- Updated docs/subsystems_guide.md with new section
+- Added tooltip to ExampleWidget component
 
 **Files changed:**
-- docs/foo.md
-- client/src/components/Bar.tsx
+- docs/subsystems_guide.md
+- client/src/components/ExampleWidget.tsx
 
 **Tests:**
 - Manual verification: app loads, tooltip displays

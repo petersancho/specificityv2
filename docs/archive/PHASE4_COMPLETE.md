@@ -1,7 +1,7 @@
 # Phase 4 Complete: Custom Geometry Kernel
 
 ## Objective
-Build custom NURBS mathematics and geometry operations under the WebGL/ETO.forms foundation, eliminating dependency on external CAD libraries per `docs/PHASE1_AUDIT.md` and `docs/subsystems_guide.md:3-46`.
+Build custom NURBS mathematics and geometry operations under the WebGL/ETO.forms foundation, eliminating dependency on external CAD libraries per `docs/archive/PHASE1_AUDIT.md` and `docs/subsystems_guide.md:3-46`.
 
 ## Implementation Summary
 
@@ -262,8 +262,8 @@ Per `docs/subsystems_guide.md:3-46`:
 
 - Implementation follows `docs/subsystems_guide.md:3-46` NURBS specifications
 - Pure functional patterns per `docs/lingua_conventions.md:80-85`
-- Tessellation strategy per `docs/PHASE1_AUDIT.md` kernel expansion plan
-- Integration with WebGL per `docs/PHASE3_PROGRESS.md`
+- Tessellation strategy per `docs/archive/PHASE1_AUDIT.md` kernel expansion plan
+- Integration with WebGL per `docs/archive/PHASE3_PROGRESS.md`
 
 ## Success Criteria
 
