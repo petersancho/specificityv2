@@ -662,7 +662,7 @@ function rotate(geometry: Geometry, angle: number): Geometry {
 - `client/src/workflow/workflowEngine.ts` (evaluation engine - if exists)
 - `docs/numerica_technical_spec.md` (comprehensive workflow architecture)
 - `docs/commands_nodes_reference.md` (node catalog)
-- `docs/PARAMETRIC_FLOW_DEEP_DIVE.md` (data flow philosophy)
+- `docs/numerica-roslyn-semantics/PARAMETRIC_FLOW_DEEP_DIVE.md` (data flow philosophy)
 - `docs/numerica_nodes_reference.md` (current node inventory)
 
 **Philosophical Framework**: Nodes as Kantian categories, edges as synthetic a priori judgments, evaluation as transcendental deduction.
@@ -734,7 +734,7 @@ computed on demand by recursively evaluating dependencies."
 
 #### 4.3 Catalyst Nodes: Bridging Cartesian Dualism
 
-From `PARAMETRIC_FLOW_DEEP_DIVE.md`:
+From `docs/numerica-roslyn-semantics/PARAMETRIC_FLOW_DEEP_DIVE.md`:
 ```
 "The catalyst nodes serve as critical translation layers between different 
 modes of representation and different types of operations."

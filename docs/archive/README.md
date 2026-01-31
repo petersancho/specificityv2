@@ -14,7 +14,7 @@ Some supporting reference docs remain "current" and live outside this archive fo
 
 ## Phase docs
 
-- Phase 1 Audit: `PHASE1_AUDIT.md`
-- Phase 2 Complete: `PHASE2_COMPLETE.md`
-- Phase 3 Progress: `PHASE3_PROGRESS.md`
-- Phase 4 Complete: `PHASE4_COMPLETE.md`
+- Phase 1 Audit: `docs/archive/PHASE1_AUDIT.md`
+- Phase 2 Complete: `docs/archive/PHASE2_COMPLETE.md`
+- Phase 3 Progress: `docs/archive/PHASE3_PROGRESS.md`
+- Phase 4 Complete: `docs/archive/PHASE4_COMPLETE.md`

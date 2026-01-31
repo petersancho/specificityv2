@@ -82,7 +82,7 @@ Warp is authorized to work on **all subsystems**, including:
 
 | File | Change Type | Risk Level |
 |------|-------------|------------|
-| `docs/foo.md` | Update | Low |
+| `docs/README.md` | Update | Low |
 | `client/src/components/X.tsx` | Add prop | Medium |
 
 **Checkpoint criteria:**
@@ -193,7 +193,7 @@ A checkpoint is valid when:
 Starting work on this issue.
 
 **Files I'll touch:**
-- docs/foo.md
+- docs/README.md
 - client/src/components/Bar.tsx
 
 **Approach:**
@@ -208,11 +208,11 @@ Brief description of planned changes.
 Completed this issue.
 
 **Changes:**
-- Updated docs/foo.md with new section
+- Updated docs/README.md with new section
 - Added tooltip to Bar component
 
 **Files changed:**
-- docs/foo.md
+- docs/README.md
 - client/src/components/Bar.tsx
 
 **Tests:**
