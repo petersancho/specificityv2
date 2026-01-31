@@ -5,8 +5,10 @@ import type { RenderMesh } from "../../types";
 import { meshBounds } from "./rig-utils";
 import { runBiologicalSolverRig } from "./solver-rigs";
 import { BRANCHING_GROWTH_GENOME_DIMENSION } from "./branching-growth-contract";
+import type { SolverRuntimeState } from "../../workflow/nodes/solver/biological/solverState";
 
 type MeshSummary = {
+  valid: boolean;
   vertexCount: number;
   triangleCount: number;
   bounds: ReturnType<typeof meshBounds> | null;
@@ -34,6 +36,7 @@ const summarizeMesh = (mesh: RenderMesh): MeshSummary => {
   const triangleCount = isTriangleMesh ? mesh.indices.length / 3 : 0;
   const bounds = isTriangleMesh ? meshBounds(mesh) : null;
   return {
+    valid: isTriangleMesh,
     vertexCount,
     triangleCount,
     bounds,
@@ -70,7 +73,7 @@ export type BranchingGrowthSolverExampleV1 = {
     bestScore: number;
     bestGenomeVector3: { x: number; y: number; z: number };
     evaluations: number;
-    status: string;
+    status: SolverRuntimeState["status"];
   };
   bestIndividual: {
     id: string;
