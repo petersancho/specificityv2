@@ -12,7 +12,14 @@ import type {
   StiffnessGoal,
   VolumeGoal,
 } from "../../workflow/nodes/solver/types";
-import type { SolverOutputs, Individual, SolverConfig } from "../../workflow/nodes/solver/biological/types";
+import type {
+  FitnessMetric,
+  GeneDefinition,
+  GenerationRecord,
+  Individual,
+  SolverConfig,
+  SolverOutputs,
+} from "../../workflow/nodes/solver/biological/types";
 import {
   resetBiologicalSolverState,
   updateBiologicalSolverState,
@@ -301,17 +308,83 @@ export const runBiologicalSolverRig = () => {
 
   resetBiologicalSolverState(nodeId);
 
-  const individual: Individual = {
-    id: "ind-0",
-    genome: [0.25, -0.35, 0.6],
-    genomeString: "0.25,-0.35,0.6",
-    fitness: 0.82,
-    generation: 0,
-    rank: 1,
-    geometryIds: [baseGeometry.id],
-    geometry: [baseGeometry],
-    thumbnail: null,
+  const createSeededRandom = (seed: number) => {
+    let t = seed >>> 0;
+    return () => {
+      t += 0x6d2b79f5;
+      let r = Math.imul(t ^ (t >>> 15), t | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
   };
+
+  const random = createSeededRandom(42);
+
+  const clamp = (value: number, min: number, max: number) =>
+    Math.min(max, Math.max(min, value));
+
+  const roundToStep = (value: number, step: number, min: number) => {
+    if (!Number.isFinite(step) || step <= 0) return value;
+    const snapped = Math.round((value - min) / step) * step + min;
+    return Number.isFinite(snapped) ? snapped : value;
+  };
+
+  const encodeGenome = (values: number[]) =>
+    values.map((value) => Number(value).toFixed(6)).join("-");
+
+  const genes: GeneDefinition[] = [
+    {
+      id: "gene-canopy-height",
+      name: "Canopy height",
+      min: 0.4,
+      max: 2.4,
+      step: 0.02,
+      currentValue: 1.2,
+      type: "continuous",
+    },
+    {
+      id: "gene-canopy-span",
+      name: "Canopy span",
+      min: 1,
+      max: 6,
+      step: 0.05,
+      currentValue: 3.25,
+      type: "continuous",
+    },
+    {
+      id: "gene-canopy-depth",
+      name: "Canopy depth",
+      min: 0.8,
+      max: 4.2,
+      step: 0.05,
+      currentValue: 2.1,
+      type: "continuous",
+    },
+    {
+      id: "gene-branching",
+      name: "Branching",
+      min: 0.1,
+      max: 1,
+      step: 0.01,
+      currentValue: 0.6,
+      type: "continuous",
+    },
+    {
+      id: "gene-damping",
+      name: "Homeostasis damping",
+      min: 0,
+      max: 1,
+      step: 0.01,
+      currentValue: 0.45,
+      type: "continuous",
+    },
+  ];
+
+  const metrics: FitnessMetric[] = [
+    { id: "metric:area", name: "Area", mode: "maximize", weight: 0.55 },
+    { id: "metric:mass", name: "Material", mode: "minimize", weight: 0.3 },
+    { id: "metric:stability", name: "Stability", mode: "maximize", weight: 0.15 },
+  ];
 
   const config: SolverConfig = {
     populationSize: 16,
@@ -327,50 +400,191 @@ export const runBiologicalSolverRig = () => {
     randomSeed: 42,
   };
 
-  const outputs: SolverOutputs = {
-    best: individual,
-    populationBests: [
-      {
-        generation: 0,
-        individuals: [individual],
+  const targetGenome = [1.6, 4.2, 2.6, 0.75, 0.25];
+
+  const normalizeDistance = (genome: number[]) => {
+    let acc = 0;
+    for (let i = 0; i < genes.length; i += 1) {
+      const gene = genes[i];
+      const value = genome[i] ?? gene.currentValue;
+      const target = targetGenome[i] ?? gene.currentValue;
+      const range = Math.max(1e-6, gene.max - gene.min);
+      const delta = (value - target) / range;
+      acc += delta * delta;
+    }
+    return Math.sqrt(acc / Math.max(1, genes.length));
+  };
+
+  const computeFitnessBreakdown = (genome: number[]) => {
+    const distance = normalizeDistance(genome);
+    const area = clamp(1 - distance, 0, 1);
+    const mass = clamp(distance * 1.15, 0, 1);
+    const stability = clamp(1 - Math.abs((genome[3] ?? 0.6) - 0.7), 0, 1);
+
+    return {
+      "metric:area": area,
+      "metric:mass": mass,
+      "metric:stability": stability,
+    };
+  };
+
+  const computeFitness = (breakdown: Record<string, number>) => {
+    let fitness = 0;
+    metrics.forEach((metric) => {
+      const raw = clamp(breakdown[metric.id] ?? 0, 0, 1);
+      const score = metric.mode === "minimize" ? 1 - raw : raw;
+      fitness += score * metric.weight;
+    });
+    return fitness;
+  };
+
+  const computeDiversityStdDev = (population: Individual[]) => {
+    if (population.length === 0) return 0;
+    const geneCount = genes.length;
+    const means = new Array(geneCount).fill(0);
+    population.forEach((individual) => {
+      individual.genome.forEach((value, idx) => {
+        means[idx] += value;
+      });
+    });
+    means.forEach((_, idx) => {
+      means[idx] /= population.length;
+    });
+    const variances = new Array(geneCount).fill(0);
+    population.forEach((individual) => {
+      individual.genome.forEach((value, idx) => {
+        const diff = value - means[idx];
+        variances[idx] += diff * diff;
+      });
+    });
+    variances.forEach((_, idx) => {
+      variances[idx] /= population.length;
+    });
+    const variance = variances.reduce((sum, entry) => sum + entry, 0) / Math.max(1, geneCount);
+    return Math.sqrt(variance);
+  };
+
+  const meanFitness = (population: Individual[]) =>
+    population.reduce((sum, individual) => sum + individual.fitness, 0) /
+    Math.max(1, population.length);
+
+  const buildGenome = (generation: number) => {
+    const progress = config.generations <= 1 ? 1 : generation / (config.generations - 1);
+    return genes.map((gene, idx) => {
+      const base = gene.min + random() * (gene.max - gene.min);
+      const target = targetGenome[idx] ?? gene.currentValue;
+      const blended = base * (1 - progress * 0.75) + target * (progress * 0.75);
+      const noise = (random() - 0.5) * (gene.max - gene.min) * (1 - progress) * 0.18;
+      return roundToStep(clamp(blended + noise, gene.min, gene.max), gene.step, gene.min);
+    });
+  };
+
+  const generations: GenerationRecord[] = [];
+  let bestOverall: Individual | null = null;
+  let stagnationCount = 0;
+  let previousBestFitness: number | null = null;
+
+  for (let generationId = 0; generationId < config.generations; generationId += 1) {
+    const population: Individual[] = Array.from({ length: config.populationSize }, (_, idx) => {
+      const genome = buildGenome(generationId);
+      const breakdown = computeFitnessBreakdown(genome);
+      const fitness = computeFitness(breakdown);
+      const genomeString = encodeGenome(genome);
+
+      return {
+        id: `bio-g${generationId}-i${idx}`,
+        genome,
+        genomeString,
+        fitness,
+        fitnessBreakdown: breakdown,
+        generation: generationId,
+        rank: 0,
+        geometryIds: [baseGeometry.id],
+        thumbnail: null,
+      };
+    });
+
+    population.sort((a, b) => b.fitness - a.fitness);
+    population.forEach((individual, index) => {
+      individual.rank = index + 1;
+    });
+
+    const best = population[0];
+    const worst = population[population.length - 1];
+
+    if (!bestOverall || best.fitness > bestOverall.fitness) {
+      bestOverall = best;
+    }
+
+    const bestFitness = best?.fitness ?? 0;
+    const improvementRate =
+      previousBestFitness == null || Math.abs(previousBestFitness) < 1e-6
+        ? 0
+        : (bestFitness - previousBestFitness) / Math.abs(previousBestFitness);
+    if (previousBestFitness != null && bestFitness - previousBestFitness < 0.001) {
+      stagnationCount += 1;
+    } else {
+      stagnationCount = 0;
+    }
+    previousBestFitness = bestFitness;
+
+    generations.push({
+      id: generationId,
+      population,
+      statistics: {
+        bestFitness: bestFitness,
+        meanFitness: meanFitness(population),
+        worstFitness: worst?.fitness ?? 0,
+        diversityStdDev: computeDiversityStdDev(population),
+        evaluationTime: 0.02 + random() * 0.03,
       },
-    ],
+      convergenceMetrics: {
+        improvementRate,
+        stagnationCount,
+      },
+    });
+  }
+
+  const bestWithGeometry: Individual | null = bestOverall
+    ? {
+        ...bestOverall,
+        geometryIds: [baseGeometry.id],
+        geometry: [baseGeometry],
+      }
+    : null;
+
+  const outputs: SolverOutputs = {
+    best: bestWithGeometry,
+    populationBests: generations.map((generation) => ({
+      generation: generation.id,
+      individuals: generation.population.slice(0, 3),
+    })),
     history: {
-      generations: [
-        {
-          id: 0,
-          population: [individual],
-          statistics: {
-            bestFitness: 0.82,
-            meanFitness: 0.82,
-            worstFitness: 0.82,
-            diversityStdDev: 0,
-            evaluationTime: 0.1,
-          },
-          convergenceMetrics: {
-            improvementRate: 0.1,
-            stagnationCount: 0,
-          },
-        },
-      ],
+      generations,
       config,
     },
     gallery: {
-      allIndividuals: [individual],
-      byGeneration: { 0: [individual] },
-      bestOverall: individual.id,
-      userSelections: [],
+      allIndividuals: generations.flatMap((generation) => generation.population),
+      byGeneration: Object.fromEntries(
+        generations.map((generation) => [generation.id, generation.population])
+      ) as Record<number, Individual[]>,
+      bestOverall: bestWithGeometry?.id ?? null,
+      userSelections: bestWithGeometry ? [bestWithGeometry.id] : [],
     },
-    selectedGeometry: [],
+    selectedGeometry: bestWithGeometry ? [baseGeometry.id] : [],
   };
 
   updateBiologicalSolverState(nodeId, {
     outputs,
     config,
-    status: "running",
-    generation: 1,
-    progress: { current: 1, total: 1, status: "complete" },
-    metrics: [],
+    status: "stopped",
+    generation: config.generations,
+    progress: {
+      current: config.generations,
+      total: config.generations,
+      status: "complete",
+    },
+    metrics,
     error: null,
   });
 
@@ -394,7 +608,9 @@ export const runBiologicalSolverRig = () => {
     biologicalOutputs,
     evolutionOutputs,
     baseGeometry,
-    individual,
+    genes,
+    metrics,
     config,
+    outputs,
   };
 };

@@ -5,6 +5,10 @@ import {
   runPhysicsSolverRig,
   runTopologySolverRig,
 } from "../solvers/solver-rigs";
+import {
+  toBiologicalSolverRunExportV1,
+  toBiologicalSolverRunNodeExampleScript,
+} from "../solvers/biological-solver-export";
 import type { RenderMesh } from "../../types";
 
 const CATEGORY = "solvers";
@@ -135,15 +139,70 @@ const validateChemistrySolver = () => {
 };
 
 const validateBiologicalSolver = () => {
-  const { biologicalOutputs, evolutionOutputs, individual, baseGeometry } = runBiologicalSolverRig();
-  ensure(biologicalOutputs.bestScore === individual.fitness, "Expected best score to match fitness");
-  ensure(biologicalOutputs.bestGenome.x === individual.genome[0], "Expected genome x");
-  ensure(biologicalOutputs.bestGenome.y === individual.genome[1], "Expected genome y");
-  ensure(biologicalOutputs.bestGenome.z === individual.genome[2], "Expected genome z");
+  const { biologicalOutputs, evolutionOutputs, baseGeometry, genes, metrics, config, outputs } =
+    runBiologicalSolverRig();
+  const best = outputs.best;
+  ensure(best !== null, "Expected best individual");
+  if (!best) return;
+
+  ensure(biologicalOutputs.status === "stopped", "Expected stopped status");
+  ensure(biologicalOutputs.populationSize === config.populationSize, "Expected population size");
+  ensure(biologicalOutputs.generations === config.generations, "Expected generation count");
+  ensure(
+    biologicalOutputs.evaluations === config.populationSize * config.generations,
+    "Expected evaluation count"
+  );
+  ensure(biologicalOutputs.bestScore === best.fitness, "Expected best score to match fitness");
+  ensure(biologicalOutputs.bestGenome.x === best.genome[0], "Expected genome x");
+  ensure(biologicalOutputs.bestGenome.y === best.genome[1], "Expected genome y");
+  ensure(biologicalOutputs.bestGenome.z === best.genome[2], "Expected genome z");
   ensure(biologicalOutputs.best?.geometry?.length === 1, "Expected best geometry payload");
   ensure(biologicalOutputs.best?.geometry?.[0].id === baseGeometry.id, "Expected geometry id match");
-  ensure(evolutionOutputs.best?.id === individual.id, "Expected evolution best id");
-  ensure(evolutionOutputs.gallery?.allIndividuals.length === 1, "Expected gallery entries");
+
+  const history = outputs.history?.generations ?? [];
+  ensure(history.length === config.generations, "Expected full history");
+  history.forEach((generation) => {
+    ensure(
+      generation.population.length === config.populationSize,
+      "Expected full population"
+    );
+    generation.population.forEach((individual, index) => {
+      ensure(individual.rank === index + 1, "Expected rank ordering");
+      if (index > 0) {
+        ensure(
+          generation.population[index - 1].fitness >= individual.fitness,
+          "Expected fitness sort"
+        );
+      }
+    });
+  });
+
+  ensure(evolutionOutputs.best?.id === best.id, "Expected evolution best id");
+  ensure(
+    evolutionOutputs.gallery?.allIndividuals.length === config.populationSize * config.generations,
+    "Expected gallery entries"
+  );
+  ensure(
+    evolutionOutputs.gallery?.bestOverall === best.id,
+    "Expected gallery best overall"
+  );
+  ensure(
+    Array.isArray(outputs.selectedGeometry) && outputs.selectedGeometry.includes(baseGeometry.id),
+    "Expected selected geometry"
+  );
+
+  const exportData = toBiologicalSolverRunExportV1({
+    config,
+    genes,
+    metrics,
+    outputs,
+  });
+  ensure(exportData.schema === "lingua.biological-solver.run@v1", "Expected export schema");
+  ensure(exportData.best?.genome.length === genes.length, "Expected export gene alignment");
+  ensure(typeof JSON.stringify(exportData) === "string", "Expected export JSON");
+
+  const script = toBiologicalSolverRunNodeExampleScript(exportData);
+  ensure(script.includes("bestFitness"), "Expected example script to include summary");
 };
 
 export const runSolversValidation = () => {
