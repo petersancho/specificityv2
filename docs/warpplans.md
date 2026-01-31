@@ -22,25 +22,27 @@ Skip this for:
 
 ---
 
-## Quick Role Check
+## Warp's Scope
 
-Before starting, confirm the task is in Warp's scope:
+Warp is authorized to work on **all subsystems**, including:
 
-**Warp handles (safe):**
 - Documentation updates
-- Small UI tweaks (CSS, labels, tooltips)
-- Safe refactors (no store/render changes)
-- Issue grooming in Linear
-- Light debugging
-
-**Codex handles (risky):**
-- Rendering pipeline
+- UI tweaks (CSS, labels, tooltips, components)
 - Zustand store changes
-- Shaders and WebGL
+- Rendering pipeline and WebGL
+- Shaders (GLSL)
 - Geometry kernel
-- Core architecture
+- Workflow engine and node registry
+- Commands and viewport
+- Solvers
 
-**If unsure:** Comment on the Linear issue and ask before starting.
+**Risk awareness:** Some subsystems are higher-risk. Apply extra care and testing when working on:
+- Store state mutations (ensure atomic updates, history recording)
+- Shaders (ensure vert/frag match, don't break attribute layouts)
+- Geometry kernel (keep functions pure, don't mutate inputs)
+- Rendering pipeline (dispose GPU resources properly)
+
+**If unsure about approach:** Comment on the Linear issue to discuss before starting.
 
 ---
 
@@ -132,18 +134,18 @@ Types: `docs`, `fix`, `feat`, `refactor`, `style`, `test`
 
 Know which subsystem you're touching:
 
-| Subsystem | Key Files | Owner |
-|-----------|-----------|-------|
-| **Docs** | `docs/*` | Warp |
-| **UI/CSS** | `*.css`, `*.module.css` | Warp |
-| **Store** | `useProjectStore.ts` | Codex |
-| **Rendering** | `WebGLRenderer.ts`, `renderAdapter.ts` | Codex |
-| **Shaders** | `webgl/shaders/*` | Codex |
-| **Geometry** | `geometry/*` | Codex |
-| **Viewport** | `WebGLViewerCanvas.tsx` | Codex |
-| **Workflow Engine** | `workflowEngine.ts` | Codex |
-| **Node Registry** | `nodeRegistry.ts` | Codex |
-| **Commands** | `commands/registry.ts` | Codex |
+| Subsystem | Key Files | Risk Level |
+|-----------|-----------|------------|
+| **Docs** | `docs/*` | Low |
+| **UI/CSS** | `*.css`, `*.module.css` | Low |
+| **Store** | `useProjectStore.ts` | High - follow atomic update pattern |
+| **Rendering** | `WebGLRenderer.ts`, `renderAdapter.ts` | High - dispose resources properly |
+| **Shaders** | `webgl/shaders/*` | High - match vert/frag, don't break layouts |
+| **Geometry** | `geometry/*` | Medium - keep functions pure |
+| **Viewport** | `WebGLViewerCanvas.tsx` | High - large file, test interactions |
+| **Workflow Engine** | `workflowEngine.ts` | Medium - test evaluation |
+| **Node Registry** | `nodeRegistry.ts` | Medium - large file, test compute functions |
+| **Commands** | `commands/registry.ts` | Medium - test command flow |
 
 ---
 
@@ -167,7 +169,7 @@ A checkpoint is valid when:
 
 ## Collision Avoidance
 
-**Prevent stepping on Codex's work:**
+**Prevent stepping on others' work:**
 
 1. **Check Linear** - Is anyone else assigned to related work?
 2. **Check recent commits** - Has the file been modified recently?
@@ -228,11 +230,11 @@ Completed this issue.
 ## Checklist: Before Starting
 
 - [ ] Linear issue exists and assigned to me
-- [ ] Labels applied (safe + subsystem)
+- [ ] Labels applied (subsystem + risk level)
 - [ ] Success criteria defined
 - [ ] I've listed files I'll touch
-- [ ] No conflicts with Codex's current work
-- [ ] Task is in Warp's scope (docs, UI, safe refactors)
+- [ ] No conflicts with others' current work
+- [ ] For high-risk subsystems: reviewed relevant patterns in `warpagent.md`
 
 ## Checklist: Before Closing
 

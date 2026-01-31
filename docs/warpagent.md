@@ -14,6 +14,26 @@ This guide gives you the essential knowledge to be productive in the Lingua code
 - Patterns for safe code changes
 - Workflows for extending the system
 
+### Warp's Scope
+
+Warp is authorized to work on **all subsystems** in Lingua:
+
+- Documentation and docs generation
+- UI components (CSS, labels, tooltips, layouts)
+- Zustand store (actions, state slices)
+- Rendering pipeline (WebGL, buffers, render adapter)
+- Shaders (GLSL vertex/fragment)
+- Geometry kernel (mesh, curves, NURBS, B-Rep, tessellation)
+- Workflow engine and node registry
+- Commands and viewport interactions
+- Solvers (physics, biology, chemistry)
+
+**Higher-risk areas require extra care:**
+- Store: atomic updates, history recording
+- Shaders: vert/frag must match, preserve attribute layouts
+- Geometry: keep functions pure, no mutations
+- Rendering: dispose GPU resources properly
+
 ### When to Read Other Docs
 
 | Situation | Read This |
@@ -23,7 +43,7 @@ This guide gives you the essential knowledge to be productive in the Lingua code
 | Working on viewport/WebGL | `webgl_rendering_style.md` |
 | Working on workflow nodes | `numerica_technical_spec.md` |
 | Adding solvers | `solver_architecture_guide.md` |
-| Large refactor (5+ files) | `plans.md` (full template) |
+| Large refactor (5+ files) | `warpplans.md` (planning workflow) |
 | Visual design questions | `brandkit.md` (CMYK + Porcelain aesthetic) |
 | Debugging issues | `ai_agent_guide.md` (detailed subsystem integration) |
 
