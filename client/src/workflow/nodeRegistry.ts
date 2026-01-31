@@ -1601,6 +1601,7 @@ const buildVoxelMaskFromMesh = (
   bounds: { min: Vec3Value; max: Vec3Value },
   resolution: number
 ) => {
+  // Per-voxel ray casting is intended for modest voxel resolutions and triangle counts.
   const safeResolution = clampResolution(resolution, 12);
   const triangles = collectMeshTriangles(mesh);
   const size = resolveBoundsSize(bounds);
