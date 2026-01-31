@@ -7701,10 +7701,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const RIG_PORTS_BOTTOM_PADDING = 18;
     const RIG_SLIDER_PORT_OFFSET = 6;
 
-    const GROUP_MIN_WIDTH = Math.max(RIG_NODE_WIDTH + GROUP_PADDING * 2, 230);
+    const CANVAS_GROUP_MIN_WIDTH = 230;
+    const CANVAS_GROUP_MIN_HEIGHT = 160;
+    const GROUP_MIN_WIDTH = Math.max(RIG_NODE_WIDTH + GROUP_PADDING * 2, CANVAS_GROUP_MIN_WIDTH);
     const GROUP_MIN_HEIGHT = Math.max(
       RIG_NODE_MIN_HEIGHT + GROUP_PADDING * 2 + GROUP_HEADER_HEIGHT,
-      160
+      CANVAS_GROUP_MIN_HEIGHT
     );
 
     type RigFrame = {
@@ -7731,6 +7733,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         Number.isFinite(frame.position.y) &&
         Number.isFinite(frame.size.width) &&
         Number.isFinite(frame.size.height) &&
+        // Strict: zero-sized nodes shouldn't exist in this rig builder.
         frame.size.width > 0 &&
         frame.size.height > 0;
 
@@ -7763,6 +7766,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       });
 
       if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) {
+        // Defensive: even after filtering frames, ensure bounds are finite.
         console.warn(
           "Chemistry solver rig: falling back to default group bounds (invalid min/max)",
           { minX, minY, maxX, maxY }
@@ -7786,6 +7790,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       };
     };
 
+    // Approximate node sizing for initial rig layout; keep in sync with
+    // `NumericalCanvas.tsx`'s `computeNodeLayout()`.
     const resolveRigFrame = (node: WorkflowNode): RigFrame => {
       const ports = resolveNodePorts(node);
       const rowCount = Math.max(ports.inputs.length, ports.outputs.length, 1);
@@ -8205,6 +8211,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }
 
     const groupTitleById = new Map(groups.map((group) => [group.groupId, group.title] as const));
+    // Rig template invariant: a node should not appear in multiple groups.
     const groupOwnerByNodeId = new Map<string, string>();
     groups.forEach((group) => {
       group.nodes.forEach((node) => {
