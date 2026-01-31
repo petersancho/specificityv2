@@ -6,27 +6,29 @@
   --icon-button-border: color-mix(in srgb, var(--icon-button-fg) 92%, transparent);
   --icon-button-shadow: var(--shadow-xs);
   --icon-button-shadow-hover: var(--shadow-sm);
-  --icon-button-shadow-pressed: var(--shadow-sm-pressed);
   width: var(--icon-button-size);
   height: var(--icon-button-size);
   border-radius: var(--icon-button-radius);
-  border: 1px solid var(--icon-button-border);
+  border: 2px solid var(--icon-button-border);
   background: var(--icon-button-bg);
   color: var(--icon-button-fg);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   box-shadow: var(--icon-button-shadow);
-  transition: transform 120ms ease, box-shadow 120ms ease,
-    background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+  transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease, color 120ms ease, border-color 120ms ease;
+  cursor: pointer;
 }
 
 .button:hover:not(:disabled) {
+  background: #faf8f5;
+  border-color: #00d4ff;
   transform: translateY(-1px);
   box-shadow: var(--icon-button-shadow-hover);
 }
 
 .button:active:not(:disabled) {
+  background: #f0f0f0;
   transform: translateY(1px);
   box-shadow: var(--icon-button-shadow-pressed);
 }

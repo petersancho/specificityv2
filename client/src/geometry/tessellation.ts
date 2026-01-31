@@ -30,11 +30,11 @@ export type TessellationOptions = {
 };
 
 const DEFAULT_OPTIONS: Required<TessellationOptions> = {
-  maxSegmentLength: 1.0,
-  maxAngle: 0.1,
-  minSamples: 8,
-  maxSamples: 1024,
-  curvatureTolerance: 0.01,
+  maxSegmentLength: 0.5,
+  maxAngle: 0.05,
+  minSamples: 16,
+  maxSamples: 2048,
+  curvatureTolerance: 0.002,
 };
 
 export function tessellateCurveAdaptive(

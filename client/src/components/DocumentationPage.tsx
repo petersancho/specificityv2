@@ -2,6 +2,7 @@ import { Component, useCallback, useMemo, useState, type CSSProperties, type Rea
 import WebGLTitleLogo from "./WebGLTitleLogo";
 import WebGLButton from "./ui/WebGLButton";
 import Tooltip from "./ui/Tooltip";
+import { DocumentationPhilosophy as DocumentationPhilosophyNew } from "./DocumentationPhilosophyNew";
 import {
   NumericaNodeArt,
   NumericaWorkflowArt,
@@ -308,15 +309,6 @@ const CommandDetailCard = ({ command, accent, categoryLabel, onNavigate }: Comma
         </div>
       )}
       
-      <div className={styles.detailCardFooter}>
-        <WebGLButton
-          label="View Full Details"
-          variant="ghost"
-          size="sm"
-          accentColor={accent}
-          onClick={() => onNavigate({ kind: "roslyn", id: command.id })}
-        />
-      </div>
     </div>
   );
 };
@@ -434,15 +426,6 @@ const NodeDetailCard = ({ node, category, onNavigate }: NodeDetailCardProps) => 
         )}
       </div>
       
-      <div className={styles.detailCardFooter}>
-        <WebGLButton
-          label="View Full Details"
-          variant="ghost"
-          size="sm"
-          accentColor={accent}
-          onClick={() => onNavigate({ kind: "numerica", id: node.type })}
-        />
-      </div>
     </div>
   );
 };
@@ -592,7 +575,7 @@ const DocumentationIndex = ({ onNavigate }: DocumentationIndexProps) => {
             <h2>Roslyn command index</h2>
             <p>
               Command buttons map to precision modeling actions, with clear prompts and optional
-              shortcuts. {viewMode === "compact" ? "Hover for the extended prompt and input expectations." : "Browse detailed documentation inline or click to view full details."}
+              shortcuts. {viewMode === "compact" ? "Hover for the extended prompt and input expectations." : "Browse detailed documentation inline."}
             </p>
           </div>
           <ViewToggle mode={viewMode} onModeChange={handleViewModeChange} />
@@ -1994,7 +1977,7 @@ const DocumentationPage = ({ hash = "" }: DocumentationPageProps) => {
       >
         <div className={styles.pageContent}>
           {route.kind === "index" && <DocumentationIndex onNavigate={navigate} />}
-          {route.kind === "philosophy" && <DocumentationPhilosophy onNavigate={navigate} />}
+          {route.kind === "philosophy" && <DocumentationPhilosophyNew onNavigate={navigate} />}
           {route.kind === "inspirations" && <DocumentationInspirations onNavigate={navigate} />}
           {(route.kind === "roslyn" || route.kind === "numerica") && (
             <DocumentationDetail route={route} onNavigate={navigate} />

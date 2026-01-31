@@ -6721,6 +6721,118 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       get().recalculateWorkflow();
       return;
     }
+    
+    if (node.type === "chemistrySolver") {
+      const outputs = node.data?.outputs ?? {};
+      const mesh = outputs.mesh as RenderMesh | undefined;
+      if (!mesh || mesh.positions.length < 3) return;
+      
+      const materials = outputs.materials as any[] | undefined;
+      const materialParticles = outputs.materialParticles as any[] | undefined;
+      const materialField = outputs.materialField as any | undefined;
+      const history = outputs.history as any[] | undefined;
+      const totalEnergy = asNumber(outputs.totalEnergy, 0);
+      const status = typeof outputs.status === "string" ? outputs.status : "unknown";
+      
+      const metadata: Record<string, unknown> = {
+        label: node.data?.label ?? "Chemistry Solver Result",
+        chemistryResult: {
+          materials: materials ?? [],
+          particleCount: Array.isArray(materialParticles) ? materialParticles.length : 0,
+          fieldResolution: materialField?.resolution ?? { x: 0, y: 0, z: 0 },
+          totalEnergy,
+          status,
+          iterations: history?.length ?? 0,
+          hasColors: Boolean(mesh.colors && mesh.colors.length > 0),
+        },
+      };
+      
+      const geometryId = get().addGeometryMesh(mesh, {
+        geometryId: node.data?.geometryId,
+        sourceNodeId: nodeId,
+        recordHistory: true,
+        metadata,
+        selectIds: node.data?.geometryId ? [node.data.geometryId] : undefined,
+      });
+      
+      set((state) => ({
+        workflow: {
+          ...state.workflow,
+          nodes: state.workflow.nodes.map((entry) =>
+            entry.id === nodeId
+              ? {
+                  ...entry,
+                  data: {
+                    ...entry.data,
+                    geometryId,
+                    geometryType: "mesh",
+                    isLinked: true,
+                  },
+                }
+              : entry
+          ),
+        },
+      }));
+      
+      selectIfExists(geometryId);
+      get().recalculateWorkflow();
+      return;
+    }
+    
+    if (node.type === "physicsSolver") {
+      const outputs = node.data?.outputs ?? {};
+      const mesh = outputs.mesh as RenderMesh | undefined;
+      if (!mesh || mesh.positions.length < 3) return;
+      
+      const stressField = outputs.stressField as any[] | undefined;
+      const displacements = outputs.displacements as any[] | undefined;
+      const diagnostics = outputs.diagnostics as any | undefined;
+      const result = outputs.result as any | undefined;
+      
+      const metadata: Record<string, unknown> = {
+        label: node.data?.label ?? "Physics Solver Result",
+        physicsResult: {
+          hasStressField: Boolean(stressField && Array.isArray(stressField) && stressField.length > 0),
+          hasDisplacements: Boolean(displacements && Array.isArray(displacements) && displacements.length > 0),
+          hasColors: Boolean(mesh.colors && mesh.colors.length > 0),
+          analysisType: result?.analysisType ?? "static",
+          maxDeformation: result?.maxDeformation ?? 0,
+          maxStress: result?.maxStress ?? 0,
+          iterations: diagnostics?.iterations ?? 0,
+        },
+      };
+      
+      const geometryId = get().addGeometryMesh(mesh, {
+        geometryId: node.data?.geometryId,
+        sourceNodeId: nodeId,
+        recordHistory: true,
+        metadata,
+        selectIds: node.data?.geometryId ? [node.data.geometryId] : undefined,
+      });
+      
+      set((state) => ({
+        workflow: {
+          ...state.workflow,
+          nodes: state.workflow.nodes.map((entry) =>
+            entry.id === nodeId
+              ? {
+                  ...entry,
+                  data: {
+                    ...entry.data,
+                    geometryId,
+                    geometryType: "mesh",
+                    isLinked: true,
+                  },
+                }
+              : entry
+          ),
+        },
+      }));
+      
+      selectIfExists(geometryId);
+      get().recalculateWorkflow();
+      return;
+    }
 
     if (trySelectFromNode(node)) {
       return;
@@ -6783,6 +6895,19 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const NODE_HEIGHT = 120;
     const H_GAP = 60;
     const V_GAP = 40;
+
+    // Column 0: Solver parameter nodes
+    const maxIterationsId = `node-number-maxIterations-${ts}`;
+    const maxIterationsPos = { x: position.x, y: position.y - (NODE_HEIGHT + V_GAP) * 2 };
+
+    const convergenceId = `node-number-convergence-${ts}`;
+    const convergencePos = { x: position.x, y: position.y - (NODE_HEIGHT + V_GAP) };
+
+    const useGPUId = `node-toggleSwitch-useGPU-${ts}`;
+    const useGPUPos = { x: position.x + NODE_WIDTH + H_GAP, y: position.y - (NODE_HEIGHT + V_GAP) * 2 };
+
+    const chunkSizeId = `node-number-chunkSize-${ts}`;
+    const chunkSizePos = { x: position.x + NODE_WIDTH + H_GAP, y: position.y - (NODE_HEIGHT + V_GAP) };
 
     // Column 1: Geometry Reference
     const geoRefId = `node-geometryReference-${ts}`;
@@ -6856,6 +6981,43 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const loadListPos = { x: listColX, y: loadPos.y };
 
     const newNodes = [
+      // Parameter nodes
+      {
+        id: maxIterationsId,
+        type: "number" as const,
+        position: maxIterationsPos,
+        data: {
+          label: "Max Iterations",
+          parameters: { value: 1000 },
+        },
+      },
+      {
+        id: convergenceId,
+        type: "number" as const,
+        position: convergencePos,
+        data: {
+          label: "Convergence",
+          parameters: { value: 0.000001 },
+        },
+      },
+      {
+        id: useGPUId,
+        type: "toggleSwitch" as const,
+        position: useGPUPos,
+        data: {
+          label: "Use GPU",
+          parameters: { value: true },
+        },
+      },
+      {
+        id: chunkSizeId,
+        type: "number" as const,
+        position: chunkSizePos,
+        data: {
+          label: "Chunk Size",
+          parameters: { value: 1000 },
+        },
+      },
       {
         id: geoRefId,
         type: "geometryReference" as const,
@@ -6957,12 +7119,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           isLinked: true,
           parameters: {
             analysisType: "static",
-            maxIterations: 1000,
-            convergenceTolerance: 1e-6,
             maxDeformation: 10,
             maxStress: 1e9,
-            useGPU: true,
-            chunkSize: 1000,
           },
         },
       },
@@ -6974,8 +7132,40 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       },
     ];
 
-    // Wire connections: goals → solver, geometry → baseMesh, solver → viewer
+    // Wire connections: parameters → solver, goals → solver, geometry → baseMesh, solver → viewer
     const newEdges = [
+      // Max Iterations → Physics Solver
+      {
+        id: `edge-${maxIterationsId}-${solverId}-maxIterations`,
+        source: maxIterationsId,
+        sourceHandle: "value",
+        target: solverId,
+        targetHandle: "maxIterations",
+      },
+      // Convergence → Physics Solver
+      {
+        id: `edge-${convergenceId}-${solverId}-convergence`,
+        source: convergenceId,
+        sourceHandle: "value",
+        target: solverId,
+        targetHandle: "convergenceTolerance",
+      },
+      // Use GPU → Physics Solver
+      {
+        id: `edge-${useGPUId}-${solverId}-useGPU`,
+        source: useGPUId,
+        sourceHandle: "value",
+        target: solverId,
+        targetHandle: "useGPU",
+      },
+      // Chunk Size → Physics Solver
+      {
+        id: `edge-${chunkSizeId}-${solverId}-chunkSize`,
+        source: chunkSizeId,
+        sourceHandle: "value",
+        target: solverId,
+        targetHandle: "chunkSize",
+      },
       // Geometry Reference → Physics Solver (baseMesh)
       {
         id: `edge-${geoRefId}-${solverId}-baseMesh`,
@@ -7499,15 +7689,30 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const H_GAP = 60;
     const V_GAP = 40;
 
-    // Column 0: Solver controls
+    // Column 0: Solver controls and parameters
+    const toggleSwitchId = `node-conditionalToggleButton-${ts}`;
+    const toggleSwitchPos = { x: position.x, y: position.y - (NODE_HEIGHT + V_GAP) * 2 };
+
     const densitySliderId = `node-slider-density-${ts}`;
     const densitySliderPos = { x: position.x, y: position.y - (NODE_HEIGHT + V_GAP) };
 
-    const toggleSwitchId = `node-toggleSwitch-${ts}`;
-    const toggleSwitchPos = {
-      x: position.x + NODE_WIDTH + H_GAP,
-      y: position.y - (NODE_HEIGHT + V_GAP),
-    };
+    const particleCountId = `node-number-particleCount-${ts}`;
+    const particleCountPos = { x: position.x + NODE_WIDTH + H_GAP, y: position.y - (NODE_HEIGHT + V_GAP) * 2 };
+
+    const iterationsId = `node-number-iterations-${ts}`;
+    const iterationsPos = { x: position.x + NODE_WIDTH + H_GAP, y: position.y - (NODE_HEIGHT + V_GAP) };
+
+    const fieldResolutionId = `node-slider-fieldResolution-${ts}`;
+    const fieldResolutionPos = { x: position.x + (NODE_WIDTH + H_GAP) * 2, y: position.y - (NODE_HEIGHT + V_GAP) * 2 };
+
+    const isoValueId = `node-slider-isoValue-${ts}`;
+    const isoValuePos = { x: position.x + (NODE_WIDTH + H_GAP) * 2, y: position.y - (NODE_HEIGHT + V_GAP) };
+
+    const blendStrengthId = `node-slider-blendStrength-${ts}`;
+    const blendStrengthPos = { x: position.x + (NODE_WIDTH + H_GAP) * 3, y: position.y - (NODE_HEIGHT + V_GAP) * 2 };
+
+    const convergenceId = `node-number-convergence-${ts}`;
+    const convergencePos = { x: position.x + (NODE_WIDTH + H_GAP) * 3, y: position.y - (NODE_HEIGHT + V_GAP) };
 
     // Column 1: Geometry Reference nodes (domain + seed regions)
     const domainId = `node-geometryReference-domain-${ts}`;
@@ -7550,7 +7755,18 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const viewerPos = { x: col2X + (NODE_WIDTH + H_GAP) * 2, y: position.y + NODE_HEIGHT * 1.5 };
 
     const newNodes = [
-      // Solver controls
+      // Solver controls and parameters
+      {
+        id: toggleSwitchId,
+        type: "conditionalToggleButton" as const,
+        position: toggleSwitchPos,
+        data: {
+          label: "Solver Toggle",
+          parameters: {
+            enabled: true,
+          },
+        },
+      },
       {
         id: densitySliderId,
         type: "slider" as const,
@@ -7561,18 +7777,82 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             min: 0.1,
             max: 1,
             step: 0.05,
-            value: 0.6,
+            value: 0.5,
           },
         },
       },
       {
-        id: toggleSwitchId,
-        type: "toggleSwitch" as const,
-        position: toggleSwitchPos,
+        id: particleCountId,
+        type: "number" as const,
+        position: particleCountPos,
         data: {
-          label: "Solver Toggle",
+          label: "Particle Count",
           parameters: {
-            value: true,
+            value: 10000,
+          },
+        },
+      },
+      {
+        id: iterationsId,
+        type: "number" as const,
+        position: iterationsPos,
+        data: {
+          label: "Iterations",
+          parameters: {
+            value: 40,
+          },
+        },
+      },
+      {
+        id: fieldResolutionId,
+        type: "slider" as const,
+        position: fieldResolutionPos,
+        data: {
+          label: "Field Resolution",
+          parameters: {
+            min: 8,
+            max: 96,
+            step: 4,
+            value: 48,
+          },
+        },
+      },
+      {
+        id: isoValueId,
+        type: "slider" as const,
+        position: isoValuePos,
+        data: {
+          label: "Iso Value",
+          parameters: {
+            min: 0,
+            max: 1,
+            step: 0.01,
+            value: 0.12,
+          },
+        },
+      },
+      {
+        id: blendStrengthId,
+        type: "slider" as const,
+        position: blendStrengthPos,
+        data: {
+          label: "Blend Strength",
+          parameters: {
+            min: 0,
+            max: 2,
+            step: 0.05,
+            value: 0.7,
+          },
+        },
+      },
+      {
+        id: convergenceId,
+        type: "number" as const,
+        position: convergencePos,
+        data: {
+          label: "Convergence",
+          parameters: {
+            value: 0.002,
           },
         },
       },
@@ -7698,20 +7978,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           geometryType: "mesh",
           isLinked: true,
           parameters: {
-            particleCount: 2000, // Interactive mode
-            particleDensity: 0.6,
-            iterations: 60,
-            fieldResolution: 32,
-            isoValue: 0.35,
-            convergenceTolerance: 0.005,
-            blendStrength: 0.6,
             historyLimit: 100,
             seed: 1,
             materialOrder: "Steel, Ceramic, Glass",
             materialsText: JSON.stringify([
               { material: { name: "Steel", color: [0.75, 0.75, 0.78] } },
-              { material: { name: "Ceramic", color: [0.85, 0.2, 0.2] } },
-              { material: { name: "Glass", color: [0.2, 0.45, 0.9] } },
+              { material: { name: "Ceramic", color: [0.9, 0.2, 0.2] } },
+              { material: { name: "Glass", color: [0.2, 0.4, 0.9] } },
             ]),
             seedMaterial: "Steel",
             seedStrength: 0.85,
@@ -7730,6 +8003,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
     // Wire connections
     const newEdges = [
+      // Toggle Switch → Chemistry Solver (enabled)
+      {
+        id: `edge-${toggleSwitchId}-${solverId}-enabled`,
+        source: toggleSwitchId,
+        sourceHandle: "enabled",
+        target: solverId,
+        targetHandle: "enabled",
+      },
       // Density Slider → Chemistry Solver (particle density)
       {
         id: `edge-${densitySliderId}-${solverId}-density`,
@@ -7738,13 +8019,53 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         target: solverId,
         targetHandle: "particleDensity",
       },
-      // Toggle Switch → Chemistry Solver (enabled)
+      // Particle Count → Chemistry Solver
       {
-        id: `edge-${toggleSwitchId}-${solverId}-enabled`,
-        source: toggleSwitchId,
+        id: `edge-${particleCountId}-${solverId}-particleCount`,
+        source: particleCountId,
         sourceHandle: "value",
         target: solverId,
-        targetHandle: "enabled",
+        targetHandle: "particleCount",
+      },
+      // Iterations → Chemistry Solver
+      {
+        id: `edge-${iterationsId}-${solverId}-iterations`,
+        source: iterationsId,
+        sourceHandle: "value",
+        target: solverId,
+        targetHandle: "iterations",
+      },
+      // Field Resolution → Chemistry Solver
+      {
+        id: `edge-${fieldResolutionId}-${solverId}-fieldResolution`,
+        source: fieldResolutionId,
+        sourceHandle: "value",
+        target: solverId,
+        targetHandle: "fieldResolution",
+      },
+      // Iso Value → Chemistry Solver
+      {
+        id: `edge-${isoValueId}-${solverId}-isoValue`,
+        source: isoValueId,
+        sourceHandle: "value",
+        target: solverId,
+        targetHandle: "isoValue",
+      },
+      // Blend Strength → Chemistry Solver
+      {
+        id: `edge-${blendStrengthId}-${solverId}-blendStrength`,
+        source: blendStrengthId,
+        sourceHandle: "value",
+        target: solverId,
+        targetHandle: "blendStrength",
+      },
+      // Convergence → Chemistry Solver
+      {
+        id: `edge-${convergenceId}-${solverId}-convergence`,
+        source: convergenceId,
+        sourceHandle: "value",
+        target: solverId,
+        targetHandle: "convergenceTolerance",
       },
       // Domain Geometry → Chemistry Solver (domain input)
       {

@@ -6,46 +6,50 @@
   --webgl-button-min-height: 40px;
   --webgl-button-font-size: 13px;
   --webgl-button-icon-size: 22px;
-  --webgl-button-text-color: var(--color-text);
-  --webgl-button-fallback-fill: var(--color-surface);
-  --webgl-button-fallback-border: var(--color-border);
+  --button-bg: #ffffff;
+  --button-bg-hover: #faf8f5;
+  --button-bg-active: #f0f0f0;
+  --button-border: #000000;
+  --button-border-hover: #00d4ff;
+  --button-text: #000000;
+  --button-text-hover: #000000;
 
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--webgl-button-gap);
-  min-height: var(--webgl-button-min-height);
-  padding: var(--webgl-button-padding-y) var(--webgl-button-padding-x);
-  border: 1px solid var(--webgl-button-fallback-border);
-  border-radius: var(--webgl-button-radius);
-  background-color: var(--webgl-button-fallback-fill);
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: 100% 100%;
-  color: var(--webgl-button-text-color);
-  font-size: var(--webgl-button-font-size);
-  font-weight: 700;
+  gap: var(--webgl-button-gap, 6px);
+  min-height: var(--webgl-button-min-height, 36px);
+  padding: var(--webgl-button-padding-y, 6px) var(--webgl-button-padding-x, 12px);
+  border: 2px solid var(--button-border);
+  border-radius: 4px;
+  background: var(--button-bg);
+  color: var(--button-text);
+  font-size: var(--webgl-button-font-size, 12px);
+  font-weight: 600;
   letter-spacing: 0.02em;
-  line-height: 1;
   cursor: pointer;
   user-select: none;
-  transition: transform 120ms ease, filter 120ms ease, box-shadow 120ms ease;
-  box-shadow: var(--shadow-xs);
+  transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+  box-shadow: 0 3px 0 #000000;
   isolation: isolate;
 }
 
 .button[data-state="hover"]:not(:disabled) {
-  box-shadow: var(--shadow-sm);
+  background: var(--button-bg-hover);
+  border-color: var(--button-border-hover);
+  color: var(--button-text-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 0 #000000;
 }
 
 .button[data-state="pressed"]:not(:disabled) {
   transform: translateY(1px);
-  box-shadow: var(--shadow-sm-pressed);
+  box-shadow: 0 4px 0 #000000;
 }
 
 .button[data-active="true"]:not(:disabled) {
-  box-shadow: var(--shadow-sm-pressed);
+  box-shadow: 0 4px 0 #000000;
 }
 
 .button:disabled {

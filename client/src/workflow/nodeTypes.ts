@@ -136,6 +136,7 @@ export type NodeType =
   | "expression"
   | "scalarFunctions"
   | "toggleSwitch"
+  | "conditionalToggleButton"
   | "conditional"
   | "vectorConstruct"
   | "vectorDeconstruct"
@@ -336,6 +337,7 @@ export const SUPPORTED_WORKFLOW_NODE_TYPES: NodeType[] = [
   "expression",
   "scalarFunctions",
   "toggleSwitch",
+  "conditionalToggleButton",
   "conditional",
   "vectorConstruct",
   "vectorDeconstruct",

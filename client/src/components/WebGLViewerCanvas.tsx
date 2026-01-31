@@ -191,16 +191,14 @@ const resolveCustomMaterialOverrides = (metadata?: Geometry["metadata"]) => {
   let sheenIntensity: number | undefined;
 
   if (palette && paletteValues) {
-    if (!color) {
-      const paletteColor = resolvePaletteColor({
-        palette,
-        values: paletteValues,
-        swatch: paletteSwatch,
-        baseColor: color,
-      });
-      if (paletteColor) {
-        color = paletteColor;
-      }
+    const paletteColor = resolvePaletteColor({
+      palette,
+      values: paletteValues,
+      swatch: paletteSwatch,
+      baseColor: color,
+    });
+    if (paletteColor) {
+      color = paletteColor;
     }
     const shading = resolvePaletteShading(palette, paletteValues);
     ambientStrength = shading.ambientStrength;
@@ -753,7 +751,7 @@ const toCamera = (state: {
   fov: toRadians(state.fov),
   aspect: state.aspect,
   near: 0.05,
-  far: 200,
+  far: 4000,
 });
 
 const getSpherical = (position: Vec3, target: Vec3) => {

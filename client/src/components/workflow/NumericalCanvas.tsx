@@ -164,9 +164,9 @@ type CanvasPalette = {
 const NODE_WIDTH = 180;
 const NODE_MIN_HEIGHT = 98;
 const SLIDER_NODE_MIN_HEIGHT = 76;
-const NODE_BORDER_RADIUS = 3;
+const NODE_BORDER_RADIUS = 4;
 const NODE_BAND_HEIGHT = 16;
-const NODE_SHADOW_OFFSET = 3;
+const NODE_SHADOW_OFFSET = 4;
 const PORT_RADIUS = 5;
 const PORT_ROW_HEIGHT = 16;
 const PORTS_START_OFFSET = 64;
@@ -224,16 +224,16 @@ const GRID_MINOR_BASE = 24;
 const GRID_MAJOR_FACTOR = 5;
 const GRID_SNAP_KEY = "lingua.numericaGridSnap";
 const SHORTCUT_OVERLAY_KEY = "lingua.numericaShortcutOverlay";
-const SOLVER_NODE_FILL_TOP = "#7a5cff";
-const SOLVER_NODE_FILL_BOTTOM = "#6b4fe8";
-const SOLVER_NODE_FILL_TOP_HOVER = "#846dff";
-const SOLVER_NODE_FILL_BOTTOM_HOVER = "#7760f0";
-const SOLVER_NODE_BORDER = "#5940c9";
-const GOAL_NODE_FILL_TOP = "#b8a6ff";
-const GOAL_NODE_FILL_BOTTOM = "#a895f7";
-const GOAL_NODE_FILL_TOP_HOVER = "#c3b2ff";
-const GOAL_NODE_FILL_BOTTOM_HOVER = "#b1a0f8";
-const GOAL_NODE_BORDER = "#9780e8";
+const SOLVER_NODE_FILL_TOP = "#9933ff";
+const SOLVER_NODE_FILL_BOTTOM = "#7700dd";
+const SOLVER_NODE_FILL_TOP_HOVER = "#aa44ff";
+const SOLVER_NODE_FILL_BOTTOM_HOVER = "#8811ee";
+const SOLVER_NODE_BORDER = "#6600cc";
+const GOAL_NODE_FILL_TOP = "#cc99ff";
+const GOAL_NODE_FILL_BOTTOM = "#aa66ff";
+const GOAL_NODE_FILL_TOP_HOVER = "#ddaaff";
+const GOAL_NODE_FILL_BOTTOM_HOVER = "#bb77ff";
+const GOAL_NODE_BORDER = "#9933ff";
 const SOLVER_NODE_TEXT = "#ffffff";
 const SOLVER_NODE_TEXT_MUTED = "rgba(255, 255, 255, 0.78)";
 const GOAL_NODE_TEXT = "#2a2a2a";
@@ -440,24 +440,24 @@ const readCssVar = (name: string, fallback: string) => {
 };
 
 const getPalette = (): CanvasPalette => {
-  const bg = readCssVar("--sp-porcelain", "#f5f2ee");
-  const surface = readCssVar("--sp-porcelain", "#f5f2ee");
-  const surfaceMuted = readCssVar("--sp-uiGrey", "#e9e6e2");
-  const border = readCssVar("--sp-divider", "#c9c5c0");
-  const text = readCssVar("--sp-ink", "#1f1f22");
-  const muted = readCssVar("--sp-muted", "#6a6661");
-  const edge = readCssVar("--sp-ink", "#1f1f22");
-  const edgeSoft = readCssVar("--canvas-edge-soft", "rgba(31, 31, 34, 0.2)");
-  const accent = readCssVar("--sp-ink", "#1f1f22");
-  const gridMinor = readCssVar("--canvas-grid-minor", "rgba(20, 20, 20, 0.08)");
-  const gridMajor = readCssVar("--canvas-grid-major", "rgba(20, 20, 20, 0.18)");
-  const portFill = readCssVar("--sp-divider", "#c9c5c0");
-  const portFillHover = readCssVar("--sp-divider", "#c9c5c0");
-  const portStroke = readCssVar("--sp-ink", "#1f1f22");
-  const nodeErrorBorder = readCssVar("--sp-pink", "#c2166b");
-  const nodeErrorFill = readCssVar("--sp-pink", "#c2166b");
-  const nodeWarningBorder = readCssVar("--sp-yellow", "#c07a00");
-  const nodeWarningFill = readCssVar("--sp-yellow", "#c07a00");
+  const bg = "#f8f6f2";
+  const surface = "#ffffff";
+  const surfaceMuted = "#faf8f5";
+  const border = "#000000";
+  const text = "#000000";
+  const muted = "#666666";
+  const edge = "#000000";
+  const edgeSoft = "rgba(0, 0, 0, 0.25)";
+  const accent = "#00d4ff";
+  const gridMinor = "rgba(0, 0, 0, 0.06)";
+  const gridMajor = "rgba(0, 0, 0, 0.12)";
+  const portFill = "#8800ff";
+  const portFillHover = "#9933ff";
+  const portStroke = "#000000";
+  const nodeErrorBorder = "#ff0066";
+  const nodeErrorFill = "#ffcce6";
+  const nodeWarningBorder = "#ffdd00";
+  const nodeWarningFill = "#fff9cc";
 
   return {
     canvasBg: bg,
@@ -4481,8 +4481,8 @@ function drawConnections(
     const isHovered = hoveredTarget.type === "edge" && hoveredTarget.edgeId === edge.id;
     const isSelected = Boolean(edge.selected);
     const isActive = isHovered || isSelected;
-    const portColor = resolvePortColor(endpoints.sourcePort.port, palette.edge);
-    const baseColor = isActive ? palette.edgeHover : portColor;
+    const portColor = resolvePortColor(endpoints.sourcePort.port, "#8800ff");
+    const baseColor = isActive ? "#00d4ff" : portColor;
     const baseWidth =
       endpoints.sourcePort.port.type === "geometry"
         ? 2.6
@@ -4958,10 +4958,10 @@ function drawGroupNodes(
 
     ctx.save();
     ctx.fillStyle = fill;
-    ctx.strokeStyle = isHovered || isSelected ? palette.nodeStrokeHover : palette.nodeStroke;
-    ctx.lineWidth = isSelected ? 2 : 1.5;
+    ctx.strokeStyle = isHovered || isSelected ? "#00d4ff" : "#000000";
+    ctx.lineWidth = isSelected ? 3 : 2;
     if (isSelected) {
-      ctx.setLineDash([7, 5]);
+      ctx.setLineDash([8, 4]);
     }
     ctx.beginPath();
     ctx.roundRect(x, y, width, height, GROUP_BORDER_RADIUS);

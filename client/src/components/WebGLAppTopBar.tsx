@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { WebGLUIRenderer, type RGBA } from "../webgl/ui/WebGLUIRenderer";
 import { WebGLTextRenderer } from "../webgl/ui/WebGLTextRenderer";
 import { WebGLIconRenderer } from "../webgl/ui/WebGLIconRenderer";
+import LinguaLogo from "./LinguaLogo";
 import styles from "./WebGLAppTopBar.module.css";
 
 type WebGLAppTopBarProps = {
@@ -881,6 +882,9 @@ const WebGLAppTopBar = ({
 
   return (
     <header ref={containerRef} className={rootClassName}>
+      <div className={styles.logoContainer}>
+        <LinguaLogo size={32} variant="cmyk" />
+      </div>
       <canvas ref={canvasRef} className={styles.canvas} aria-hidden="true" />
       {docsHref && (
         <a

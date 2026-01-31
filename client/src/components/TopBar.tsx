@@ -1,5 +1,6 @@
 import logoLinguaSymbol from "../assets/logo-lingua-symbol.svg";
 import WebGLButton from "./ui/WebGLButton";
+import LinguaLogo from "./LinguaLogo";
 import styles from "./TopBar.module.css";
 
 type SaveEntry = {
@@ -120,6 +121,7 @@ const TopBar = ({
         <span className={styles.status}>{status}</span>
       </div>
       <div className={styles.brand}>
+        <LinguaLogo size={28} variant="cmyk" />
         <img
           className={styles.brandSymbol}
           src={logoLinguaSymbol}

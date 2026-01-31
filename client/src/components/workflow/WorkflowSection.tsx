@@ -14,6 +14,7 @@ import WebGLSlider from "../ui/WebGLSlider";
 import Tooltip from "../ui/Tooltip";
 import TooltipCard from "../ui/TooltipCard";
 import WebGLTitleLogo from "../WebGLTitleLogo";
+import NumericaLogo from "../NumericaLogo";
 import { SubCategoryDropdown } from "./SubCategoryDropdown";
 import { createIconSignature } from "./iconSignature";
 import { arrayBufferToBase64 } from "../../utils/binary";
@@ -36,30 +37,30 @@ import {
 import styles from "./WorkflowSection.module.css";
 
 const STICKER_TINTS: Record<string, string> = {
-  data: "#00B7EB",
-  basics: "#F6D21A",
-  lists: "#00B7EB",
-  primitives: "#FF4FA3",
-  curves: "#FF4FA3",
-  nurbs: "#00B7EB",
-  brep: "#5F259F",
-  mesh: "#5F259F",
-  tessellation: "#00B7EB",
-  modifiers: "#FF9E1B",
-  transforms: "#5F259F",
-  arrays: "#F6D21A",
-  euclidean: "#00B7EB",
-  ranges: "#F6D21A",
-  signals: "#5F259F",
-  analysis: "#FF4FA3",
-  interop: "#00B7EB",
-  measurement: "#FF9E1B",
-  voxel: "#FF9E1B",
-  solver: "#000000",
-  goal: "#FF4FA3",
-  optimization: "#F6D21A",
-  math: "#F6D21A",
-  logic: "#00B7EB",
+  data: "#0099cc",
+  basics: "#cc9900",
+  lists: "#00cccc",
+  primitives: "#00d4ff",
+  curves: "#ff0099",
+  nurbs: "#6600cc",
+  brep: "#ff6600",
+  mesh: "#8800ff",
+  tessellation: "#0066cc",
+  modifiers: "#ff9966",
+  transforms: "#cc0077",
+  arrays: "#ffdd00",
+  euclidean: "#6600ff",
+  ranges: "#9933ff",
+  signals: "#66cc00",
+  analysis: "#88ff00",
+  interop: "#0055aa",
+  measurement: "#00cccc",
+  voxel: "#66cc00",
+  solver: "#8800ff",
+  goal: "#b366ff",
+  optimization: "#ff0066",
+  math: "#cc9900",
+  logic: "#0066cc",
 };
 
 const resolveStickerTint = (categoryId?: string | null) => {
@@ -691,6 +692,7 @@ const WorkflowSection = ({
     >
       <div className={styles.header}>
         <div className={styles.headerCluster}>
+          <NumericaLogo size={24} />
           <WebGLTitleLogo title="Numerica" tone="numerica" />
           <div className={styles.headerSearch}>
             <span className={styles.srOnly}>Search nodes</span>

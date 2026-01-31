@@ -232,11 +232,11 @@ export const runChemistrySolverRig = () => {
 
   const parameters = {
     geometryId: "chemistry-out",
-    particleCount: 320,
-    particleDensity: 0.6,
+    particleCount: 10000,
+    particleDensity: 1.0,
     iterations: 40,
-    fieldResolution: 16,
-    isoValue: 0.2,
+    fieldResolution: 48,
+    isoValue: 0.12,
     convergenceTolerance: 0.002,
     blendStrength: 0.7,
     historyLimit: 60,
@@ -255,12 +255,12 @@ export const runChemistrySolverRig = () => {
         },
         {
           geometryId: baseGeometry.id,
-          material: { name: "Ceramic", color: [0.85, 0.2, 0.2] },
+          material: { name: "Ceramic", color: [0.9, 0.2, 0.2] },
           weight: 0.7,
         },
         {
           geometryId: baseGeometry.id,
-          material: { name: "Glass", color: [0.2, 0.45, 0.9] },
+          material: { name: "Glass", color: [0.2, 0.4, 0.9] },
           weight: 0.6,
         },
       ],
@@ -283,10 +283,13 @@ export const runChemistrySolverRig = () => {
     outputs.mesh as RenderMesh
   );
 
+  context.geometryById.set(outputGeometry.id, outputGeometry);
+
   return {
     outputs,
     outputGeometry,
     baseGeometry,
+    context,
   };
 };
 

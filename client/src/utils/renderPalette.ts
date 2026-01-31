@@ -5,9 +5,12 @@ export type RenderPaletteId = "color" | "cmyk" | "pms" | "hsl";
 export type RenderPaletteValues = [number, number];
 
 export const CMYK_SWATCHES = [
-  { value: "cyan", label: "Cyan", hex: "#00B7EB" },
-  { value: "pink", label: "Pink", hex: "#FF4FA3" },
-  { value: "yellow", label: "Yellow", hex: "#F6D21A" },
+  { value: "cyan", label: "Cyan", hex: "#00d4ff" },
+  { value: "magenta", label: "Magenta", hex: "#ff0099" },
+  { value: "yellow", label: "Yellow", hex: "#ffdd00" },
+  { value: "purple", label: "Purple", hex: "#8800ff" },
+  { value: "orange", label: "Orange", hex: "#ff6600" },
+  { value: "lime", label: "Lime", hex: "#88ff00" },
 ] as const;
 
 export const PMS_SWATCHES = [
@@ -79,7 +82,13 @@ export const hslToRgb = (hue: number, saturation: number, lightness: number): RG
     b = x;
   }
 
-  return [clamp01(r + m), clamp01(g + m), clamp01(b + m)];
+  // Boost vibrancy for "pop"
+  const boost = 0.05;
+  return [
+    clamp01(r + m + (r > 0.5 ? boost : 0)), 
+    clamp01(g + m + (g > 0.5 ? boost : 0)), 
+    clamp01(b + m + (b > 0.5 ? boost : 0))
+  ];
 };
 
 export const normalizePaletteValues = (value: unknown): RenderPaletteValues | null => {
@@ -131,20 +140,44 @@ export const resolvePaletteColor = ({
     case "cmyk": {
       const base = resolveCmykBase(swatch);
       if (!base) return null;
-      const inkLoad = clamp01(first);
-      const key = clamp01(second);
-      return applyTintShade(base, 1 - inkLoad, key * 0.85);
+      // CMYK "Solidity" slider (first) -> Ink Density (Vibrance)
+      // CMYK "Sheen" slider (second) -> Gloss/Black (Key)
+      const density = clamp01(first); 
+      const sheen = clamp01(second);
+      
+      // Higher density = more vibrant color, less white mix
+      const vibrant = mixRgb(WHITE, base, 0.2 + (0.8 * density));
+      
+      // Sheen affects the "key" (black) but we want to keep it subtle for "pop"
+      return mixRgb(vibrant, BLACK, sheen * 0.3); 
     }
     case "pms": {
-      const base = resolvePmsBase(first);
+      // PMS "Tint" (first) -> Mix with White
+      // PMS "Shade" (second) -> Mix with Black
+      // We fix the base to a specific set if swatch is not provided, 
+      // but here PMS relies on 'first' to pick the color from the range??
+      // Wait, resolvePmsBase uses 'first' (position) to pick the color! 
+      // But the slider label is "Pantone Tint". 
+      // Let's re-map: 
+      // Slider 1 (first): Color Selection (from the swatch list)
+      // Slider 2 (second): Tint/Shade Balance
+      
+      const colorPos = clamp01(first);
+      const intensity = clamp01(second);
+      
+      const base = resolvePmsBase(colorPos);
       if (!base) return null;
-      const shade = clamp01(second);
-      return applyTintShade(base, (1 - shade) * 0.35, shade * 0.45);
+      
+      // Intensity < 0.5 -> Tint (White mix), Intensity > 0.5 -> Shade (Black mix)
+      // But let's make it simpler: Intensity is "Richness"
+      // 0 = Washed out, 1 = Deep/Rich
+      return mixRgb(mixRgb(base, WHITE, 0.4), base, 0.2 + (0.8 * intensity));
     }
     case "hsl": {
       const hue = Number.isFinite(first) ? first : 0;
       const lightness = clamp01(second);
-      return hslToRgb(hue, 0.72, lightness);
+      // Boost saturation to 0.9 for "pop"
+      return hslToRgb(hue, 0.9, lightness);
     }
     default:
       return baseColor ?? null;
@@ -165,19 +198,19 @@ export const resolvePaletteShading = (
       };
     case "cmyk":
       return {
-        ambientStrength: lerp(0.4, 0.95, clamp01(first)),
-        sheenIntensity: lerp(0, 0.14, clamp01(second)),
+        ambientStrength: 0.8, // High ambient for clean look
+        sheenIntensity: lerp(0.05, 0.25, clamp01(second)), // Use sheen slider
       };
     case "pms":
       return {
-        ambientStrength: lerp(0.42, 0.9, clamp01(first)),
-        sheenIntensity: lerp(0.02, 0.16, clamp01(second)),
+        ambientStrength: 0.85, // Very clean
+        sheenIntensity: 0.15,  // Fixed nice sheen
       };
     case "hsl": {
       const lightness = clamp01(second);
       return {
-        ambientStrength: lerp(0.35, 0.95, lightness),
-        sheenIntensity: lerp(0, 0.12, lightness),
+        ambientStrength: lerp(0.5, 0.95, lightness),
+        sheenIntensity: 0.2, // Pop!
       };
     }
     default:

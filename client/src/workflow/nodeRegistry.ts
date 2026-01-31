@@ -2971,32 +2971,41 @@ const buildChemistryField = (
     x + y * res.x + z * res.x * res.y;
 
   particles.forEach((particle) => {
-    const ix = clampInt(
-      Math.floor((particle.position.x - bounds.min.x) / cellSize.x),
-      0,
-      res.x - 1,
-      0
-    );
-    const iy = clampInt(
-      Math.floor((particle.position.y - bounds.min.y) / cellSize.y),
-      0,
-      res.y - 1,
-      0
-    );
-    const iz = clampInt(
-      Math.floor((particle.position.z - bounds.min.z) / cellSize.z),
-      0,
-      res.z - 1,
-      0
-    );
-    const idx = toIndex(ix, iy, iz);
-    let sum = 0;
-    materialNames.forEach((name, materialIndex) => {
-      const value = particle.materials[name] ?? 0;
-      channels[materialIndex][idx] += value;
-      sum += value;
-    });
-    densities[idx] += sum;
+    const px = (particle.position.x - bounds.min.x) / cellSize.x;
+    const py = (particle.position.y - bounds.min.y) / cellSize.y;
+    const pz = (particle.position.z - bounds.min.z) / cellSize.z;
+    
+    const ix = Math.floor(px);
+    const iy = Math.floor(py);
+    const iz = Math.floor(pz);
+    
+    const splatRadius = 2;
+    for (let dz = -splatRadius; dz <= splatRadius; dz++) {
+      const z = iz + dz;
+      if (z < 0 || z >= res.z) continue;
+      for (let dy = -splatRadius; dy <= splatRadius; dy++) {
+        const y = iy + dy;
+        if (y < 0 || y >= res.y) continue;
+        for (let dx = -splatRadius; dx <= splatRadius; dx++) {
+          const x = ix + dx;
+          if (x < 0 || x >= res.x) continue;
+          
+          const distSq = dx * dx + dy * dy + dz * dz;
+          if (distSq > splatRadius * splatRadius) continue;
+          
+          const weight = Math.max(0, 1 - Math.sqrt(distSq) / (splatRadius + 1));
+          const idx = toIndex(x, y, z);
+          
+          let sum = 0;
+          materialNames.forEach((name, materialIndex) => {
+            const value = (particle.materials[name] ?? 0) * weight;
+            channels[materialIndex][idx] += value;
+            sum += value;
+          });
+          densities[idx] += sum;
+        }
+      }
+    }
   });
 
   let maxDensity = 0;
@@ -3471,6 +3480,25 @@ const runChemistrySolver = (args: {
   );
   const mesh = buildChemistryMesh(field, colorMaterials, clampNumber(args.isoValue, 0, 1));
 
+  if (mesh.positions.length > 0) {
+    console.log(`[Chemistry Solver] Generated mesh with ${mesh.positions.length / 3} vertices, ${mesh.indices.length / 3} triangles`);
+    let minX = Infinity, minY = Infinity, minZ = Infinity;
+    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+    for (let i = 0; i < mesh.positions.length; i += 3) {
+      minX = Math.min(minX, mesh.positions[i]);
+      maxX = Math.max(maxX, mesh.positions[i]);
+      minY = Math.min(minY, mesh.positions[i + 1]);
+      maxY = Math.max(maxY, mesh.positions[i + 1]);
+      minZ = Math.min(minZ, mesh.positions[i + 2]);
+      maxZ = Math.max(maxZ, mesh.positions[i + 2]);
+    }
+    console.log(`[Chemistry Solver] Mesh bounds: [${minX.toFixed(2)}, ${minY.toFixed(2)}, ${minZ.toFixed(2)}] to [${maxX.toFixed(2)}, ${maxY.toFixed(2)}, ${maxZ.toFixed(2)}]`);
+    console.log(`[Chemistry Solver] Mesh size: ${(maxX - minX).toFixed(2)} × ${(maxY - minY).toFixed(2)} × ${(maxZ - minZ).toFixed(2)}`);
+  } else {
+    console.warn(`[Chemistry Solver] Generated EMPTY mesh - no voxels exceeded isoValue ${args.isoValue.toFixed(3)}`);
+    console.log(`[Chemistry Solver] Field stats: ${particles.length} particles, ${field.resolution.x}³ resolution, maxDensity: ${field.maxDensity.toFixed(3)}`);
+  }
+
   return {
     particles,
     field,
@@ -3583,167 +3611,167 @@ export const NODE_CATEGORIES: NodeCategory[] = [
     id: "data",
     label: "Data",
     description: "References and parameters",
-    accent: "#223248",
-    band: "#d8e1ea",
-    port: "#9bb0c3",
+    accent: "#0099cc",
+    band: "#d4f0ff",
+    port: "#66ccff",
   },
   {
     id: "basics",
     label: "Basics",
     description: "Core constants and helpers",
-    accent: "#5d3a29",
-    band: "#e6d8cf",
-    port: "#b8947a",
+    accent: "#cc9900",
+    band: "#fff5cc",
+    port: "#ffdd66",
   },
   {
     id: "lists",
     label: "Lists",
     description: "List and data management",
-    accent: "#0f5a4f",
-    band: "#d7e7e3",
-    port: "#87a8a0",
+    accent: "#00cccc",
+    band: "#ccffff",
+    port: "#66eeee",
   },
   {
     id: "primitives",
     label: "Primitives",
     description: "Base geometry generators",
-    accent: "#0b5e70",
-    band: "#d4e8ec",
-    port: "#7fb2bd",
+    accent: "#00d4ff",
+    band: "#ccf5ff",
+    port: "#66e5ff",
   },
   {
     id: "curves",
     label: "Curves",
     description: "Curve builders and edits",
-    accent: "#9a1d60",
-    band: "#f1d6e5",
-    port: "#c982ab",
+    accent: "#ff0099",
+    band: "#ffccee",
+    port: "#ff66bb",
   },
   {
     id: "nurbs",
     label: "NURBS",
     description: "Parametric curve operations",
-    accent: "#0d5b55",
-    band: "#d5e6e4",
-    port: "#7faea6",
+    accent: "#6600cc",
+    band: "#e6ccff",
+    port: "#9966ff",
   },
   {
     id: "brep",
     label: "BREP",
     description: "Surface and solid operations",
-    accent: "#b3531c",
-    band: "#f0dccf",
-    port: "#c7926b",
+    accent: "#ff6600",
+    band: "#ffeacc",
+    port: "#ffaa66",
   },
   {
     id: "mesh",
     label: "Mesh",
     description: "Mesh conversion and editing",
-    accent: "#43206f",
-    band: "#e2d8f0",
-    port: "#a88bc8",
+    accent: "#8800ff",
+    band: "#e6ccff",
+    port: "#b366ff",
   },
   {
     id: "tessellation",
     label: "Tessellation",
     description: "Surface patterning and subdivision",
-    accent: "#0c4f8f",
-    band: "#d8e4f2",
-    port: "#8baad0",
+    accent: "#0066cc",
+    band: "#cce5ff",
+    port: "#66aaff",
   },
   {
     id: "modifiers",
     label: "Modifiers",
     description: "Offsets, shelling, materials",
-    accent: "#b34700",
-    band: "#f1d8c6",
-    port: "#c89a71",
+    accent: "#ff9966",
+    band: "#fff0e6",
+    port: "#ffbb88",
   },
   {
     id: "transforms",
     label: "Transforms",
     description: "Move, rotate, scale, align",
-    accent: "#8b3a2b",
-    band: "#eed9d2",
-    port: "#c28f83",
+    accent: "#cc0077",
+    band: "#ffd9ee",
+    port: "#ff66aa",
   },
   {
     id: "arrays",
     label: "Arrays",
     description: "Linear, polar, and grid distributions",
-    accent: "#7d5600",
-    band: "#f0e0c2",
-    port: "#c4a168",
+    accent: "#ffdd00",
+    band: "#fff9cc",
+    port: "#ffee66",
   },
   {
     id: "euclidean",
     label: "Euclidean",
     description: "Vectors, points, and spatial transforms",
-    accent: "#1f4b9b",
-    band: "#d9e4f5",
-    port: "#8ba9d6",
+    accent: "#6600ff",
+    band: "#e6ccff",
+    port: "#9966ff",
   },
   {
     id: "ranges",
     label: "Ranges",
     description: "Sequences, remaps, and generators",
-    accent: "#6a2fa6",
-    band: "#e5dbf3",
-    port: "#b08ad6",
+    accent: "#9933ff",
+    band: "#f0ccff",
+    port: "#cc66ff",
   },
   {
     id: "signals",
     label: "Signals",
     description: "Waveforms and oscillators",
-    accent: "#1f6a33",
-    band: "#d8e9db",
-    port: "#8fb698",
+    accent: "#66cc00",
+    band: "#e6ffcc",
+    port: "#99dd66",
   },
   {
     id: "analysis",
     label: "Analysis",
     description: "Measure and inspect",
-    accent: "#0e5f62",
-    band: "#d5e9ea",
-    port: "#7fb2b5",
+    accent: "#88ff00",
+    band: "#f0ffcc",
+    port: "#bbff66",
   },
   {
     id: "interop",
     label: "Interchange",
     description: "Import and export geometry",
-    accent: "#2345b5",
-    band: "#d8def5",
-    port: "#8fa0d5",
+    accent: "#0055aa",
+    band: "#cce0ff",
+    port: "#6699cc",
   },
   {
     id: "measurement",
     label: "Measurement",
     description: "Length, area, volume",
-    accent: "#0b6e9a",
-    band: "#d3e7f1",
-    port: "#88b7c8",
+    accent: "#00cccc",
+    band: "#ccffff",
+    port: "#66eeee",
   },
   {
     id: "voxel",
     label: "Voxel",
     description: "Voxel grids and utilities",
-    accent: "#0f5a30",
-    band: "#d6e8dc",
-    port: "#83b592",
+    accent: "#66cc00",
+    band: "#e6ffcc",
+    port: "#99dd66",
   },
   {
     id: "solver",
     label: "Solver",
     description: "Goal-based optimization and simulation",
-    accent: "#7a5cff",
+    accent: "#8800ff",
     band: "#f2edff",
-    port: "#b8a6ff",
+    port: "#b366ff",
   },
   {
     id: "goal",
     label: "Goal",
     description: "Solver input specifications",
-    accent: "#b8a6ff",
+    accent: "#b366ff",
     band: "#f7f3ff",
     port: "#d2c7ff",
   },
@@ -3751,25 +3779,25 @@ export const NODE_CATEGORIES: NodeCategory[] = [
     id: "optimization",
     label: "Optimization",
     description: "Topology and evolutionary tools",
-    accent: "#b2262f",
-    band: "#f1d5d7",
-    port: "#c9878e",
+    accent: "#ff0066",
+    band: "#ffcce6",
+    port: "#ff66aa",
   },
   {
     id: "math",
     label: "Math",
     description: "Scalar computation and expressions",
-    accent: "#8a5a00",
-    band: "#f0e0c2",
-    port: "#c4a06a",
+    accent: "#cc9900",
+    band: "#fff0cc",
+    port: "#ffcc66",
   },
   {
     id: "logic",
     label: "Logic",
     description: "Conditions and branching",
-    accent: "#3c2f88",
-    band: "#dedaf2",
-    port: "#9c93d0",
+    accent: "#0066cc",
+    band: "#cce5ff",
+    port: "#66aaff",
   },
 ];
 
@@ -11386,6 +11414,28 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     }),
   },
   {
+    type: "conditionalToggleButton",
+    label: "Conditional Toggle Button",
+    shortLabel: "BTN",
+    description: "Toggle button switch for conditional enable/disable control.",
+    category: "logic",
+    iconId: "conditional",
+    inputs: [],
+    outputs: [{ key: "enabled", label: "Enabled", type: "boolean" }],
+    parameters: [
+      {
+        key: "enabled",
+        label: "Enabled",
+        type: "boolean",
+        defaultValue: true,
+      },
+    ],
+    primaryOutputKey: "enabled",
+    compute: ({ parameters }) => ({
+      enabled: readBooleanParameter(parameters, "enabled", true),
+    }),
+  },
+  {
     type: "conditional",
     label: "Conditional",
     shortLabel: "IF",
@@ -12335,18 +12385,18 @@ export const NODE_CATEGORY_BY_ID = new Map<NodeCategoryId, NodeCategory>(
 );
 
 export const PORT_TYPE_COLOR: Record<WorkflowPortType, string> = {
-  any: "#c9c5c0",
-  boolean: "#c9c5c0",
-  geometry: "#c9c5c0",
-  goal: "#b8a6ff",
-  genomeSpec: "#7ccf9a",
-  phenotypeSpec: "#6fb4ff",
-  fitnessSpec: "#f2a76a",
-  number: "#c9c5c0",
-  solverResult: "#7a5cff",
-  string: "#c9c5c0",
-  vector: "#c9c5c0",
-  animation: "#7a5cff",
+  number: "#ffdd00",
+  boolean: "#ff0099",
+  string: "#00d4ff",
+  vector: "#88ff00",
+  geometry: "#8800ff",
+  goal: "#b366ff",
+  genomeSpec: "#ff66bb",
+  phenotypeSpec: "#ff66bb",
+  fitnessSpec: "#ff66bb",
+  solverResult: "#b366ff",
+  animation: "#66ccff",
+  any: "#999999",
 };
 
 export const isPortTypeCompatible = (source: WorkflowPortType, target: WorkflowPortType) => {

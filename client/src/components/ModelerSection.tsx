@@ -14,6 +14,7 @@ import WebGLViewerCanvas from "./WebGLViewerCanvas";
 import { type WebGLTopBarAction, resolveTopBarShortLabel } from "./WebGLPanelTopBar";
 import WebGLStatusFooter from "./WebGLStatusFooter";
 import WebGLTitleLogo from "./WebGLTitleLogo";
+import RoslynLogo from "./RoslynLogo";
 import { NumericalCanvas } from "./workflow/NumericalCanvas";
 import { createIconSignature } from "./workflow/iconSignature";
 import { safeLocalStorageGet, safeLocalStorageSet } from "../utils/safeStorage";
@@ -69,7 +70,11 @@ import { offsetPolyline2D } from "../geometry/booleans";
 import type { IconId } from "../webgl/ui/WebGLIconRenderer";
 import { VIEW_STYLE } from "../webgl/viewProfile";
 import { hexToRgb, normalizeHexColor, normalizeRgbInput, rgbToHex, type RGB } from "../utils/color";
-import { resolvePaletteColor, type RenderPaletteId } from "../utils/renderPalette";
+import {
+  resolvePaletteColor,
+  resolvePaletteShading,
+  type RenderPaletteId,
+} from "../utils/renderPalette";
 import { mergeRenderMeshes } from "../utils/meshIo";
 import {
   tessellateCurveAdaptive,
@@ -166,8 +171,8 @@ const RENDER_PALETTE_SLIDERS: Record<
 > = {
   color: [
     {
-      label: "solid",
-      tooltip: "Solid filter strength.",
+      label: "Solidity",
+      tooltip: "Blend from wireframe to solid.",
       min: 0,
       max: 1,
       step: 0.01,
@@ -175,8 +180,8 @@ const RENDER_PALETTE_SLIDERS: Record<
       iconId: "displayMode",
     },
     {
-      label: "white light",
-      tooltip: "Solid filter contrast.",
+      label: "Sheen",
+      tooltip: "Glossy highlight intensity (white light).",
       min: 0,
       max: 1,
       step: 0.01,
@@ -186,8 +191,8 @@ const RENDER_PALETTE_SLIDERS: Record<
   ],
   cmyk: [
     {
-      label: "Ink Load",
-      tooltip: "CMYK ink load.",
+      label: "Ink Density",
+      tooltip: "Adjust the density and vibrancy of the CMYK inks.",
       min: 0,
       max: 1,
       step: 0.01,
@@ -195,8 +200,8 @@ const RENDER_PALETTE_SLIDERS: Record<
       iconId: "displayMode",
     },
     {
-      label: "Key",
-      tooltip: "CMYK key (black).",
+      label: "Gloss",
+      tooltip: "Adjust the glossy highlight and key black mix.",
       min: 0,
       max: 1,
       step: 0.01,
@@ -206,17 +211,17 @@ const RENDER_PALETTE_SLIDERS: Record<
   ],
   pms: [
     {
-      label: "Pantone Tint",
-      tooltip: "Pantone tint strength.",
+      label: "Palette Color",
+      tooltip: "Select a color from the PMS swatch range.",
       min: 0,
       max: 1,
-      step: 0.01,
+      step: 0.001,
       accentColor: "#f97316",
       iconId: "displayMode",
     },
     {
-      label: "Pantone Shade",
-      tooltip: "Pantone shade depth.",
+      label: "Richness",
+      tooltip: "Adjust color richness (tint vs shade balance).",
       min: 0,
       max: 1,
       step: 0.01,
@@ -227,7 +232,7 @@ const RENDER_PALETTE_SLIDERS: Record<
   hsl: [
     {
       label: "Hue",
-      tooltip: "Hue angle (0-360).",
+      tooltip: "Hue angle (0-360). Saturation is boosted automatically.",
       min: 0,
       max: 360,
       step: 1,
@@ -246,12 +251,44 @@ const RENDER_PALETTE_SLIDERS: Record<
   ],
 };
 
-const createDefaultRenderPaletteSliders = (): RenderPaletteSliderValues => ({
-  color: [0.62, 0.28],
-  cmyk: [0.7, 0.18],
-  pms: [0.6, 0.35],
-  hsl: [210, 0.55],
-});
+const VIEW_FILTER_PALETTES = new Set<RenderPaletteId>(["color", "cmyk"]);
+const SHEEN_MAX_BY_PALETTE: Record<RenderPaletteId, number> = {
+  color: resolvePaletteShading("color", [0, 1]).sheenIntensity ?? 0.18,
+  cmyk: resolvePaletteShading("cmyk", [0, 1]).sheenIntensity ?? 0.25,
+  pms: resolvePaletteShading("pms", [0, 1]).sheenIntensity ?? 0.15,
+  hsl: resolvePaletteShading("hsl", [0, 1]).sheenIntensity ?? 0.20,
+};
+
+const resolveSheenSliderValue = (palette: RenderPaletteId, sheen: number) => {
+  const maxSheen = SHEEN_MAX_BY_PALETTE[palette] ?? 0.15;
+  if (!Number.isFinite(sheen) || maxSheen <= 0) return 0;
+  return clamp01(sheen / maxSheen);
+};
+
+type RenderPaletteDefaults = {
+  viewSolidity?: number;
+  sheen?: number;
+};
+
+const createDefaultRenderPaletteSliders = (
+  defaults: RenderPaletteDefaults = {}
+): RenderPaletteSliderValues => {
+  const baseSolidity =
+    typeof defaults.viewSolidity === "number" && Number.isFinite(defaults.viewSolidity)
+      ? clamp01(defaults.viewSolidity)
+      : 0.62;
+  const baseSheen =
+    typeof defaults.sheen === "number" && Number.isFinite(defaults.sheen)
+      ? defaults.sheen
+      : 0.08;
+
+  return {
+    color: [baseSolidity, resolveSheenSliderValue("color", baseSheen)],
+    cmyk: [0.8, 0.5], // High density, medium gloss default
+    pms: [0.5, 0.7],  // Mid palette, high richness
+    hsl: [210, 0.55], // Nice blue, balanced lightness
+  };
+};
 
 type ColorWheelPalette = RenderFilterId;
 type ColorWheelId = "material";
@@ -1111,7 +1148,12 @@ const ModelerSection = ({
   const [renderFilter, setRenderFilter] = useState<RenderFilterId>("color");
   const [renderPalette, setRenderPalette] = useState<RenderPaletteId>("color");
   const [renderPaletteSliders, setRenderPaletteSliders] =
-    useState<RenderPaletteSliderValues>(() => createDefaultRenderPaletteSliders());
+    useState<RenderPaletteSliderValues>(() =>
+      createDefaultRenderPaletteSliders({
+        viewSolidity,
+        sheen: viewSettings?.sheen ?? 0.08,
+      })
+    );
   const [activeColorWheel, setActiveColorWheel] = useState<ColorWheelId | null>(null);
   const colorWheelDragRef = useRef<ColorWheelId | null>(null);
   const [commandBarHeight, setCommandBarHeight] = useState(0);
@@ -1715,9 +1757,41 @@ const ModelerSection = ({
       color: rgb,
       hex: normalized,
       palette,
-      paletteValues: renderPaletteSliders[palette],
+      paletteValues: resolvePaletteValues(palette),
     }));
   };
+  const applyRenderPaletteViewSettings = useCallback(
+    (
+      palette: RenderPaletteId,
+      values: [number, number],
+      options?: { forceDisplayMode?: boolean }
+    ) => {
+      if (!VIEW_FILTER_PALETTES.has(palette)) return;
+      const nextSolidity = clamp01(values[0]);
+      const shading = resolvePaletteShading(palette, values);
+      const nextSheen = shading.sheenIntensity;
+      const currentSheen = viewSettings.sheen ?? 0;
+      const forceDisplayMode = options?.forceDisplayMode ?? false;
+
+      if (
+        forceDisplayMode ||
+        displayMode === "silhouette" ||
+        Math.abs(viewSolidity - nextSolidity) > 0.0005
+      ) {
+        setViewSolidity(nextSolidity, { overrideDisplayMode: true });
+      }
+      if (typeof nextSheen === "number" && Math.abs(currentSheen - nextSheen) > 0.0005) {
+        setViewSettings({ sheen: nextSheen });
+      }
+    },
+    [
+      displayMode,
+      setViewSettings,
+      setViewSolidity,
+      viewSettings.sheen,
+      viewSolidity,
+    ]
+  );
   const applyRenderPaletteToSelection = useCallback(
     (
       palette: RenderPaletteId,
@@ -1755,6 +1829,17 @@ const ModelerSection = ({
     },
     [materialPickerHex, selectedGeometryIds.length, updateSelectedCustomMaterial]
   );
+  const resolvePaletteValues = useCallback(
+    (palette: RenderPaletteId): [number, number] => {
+      const values = renderPaletteSliders[palette];
+      if (values) return values;
+      return createDefaultRenderPaletteSliders({
+        viewSolidity,
+        sheen: viewSettings?.sheen ?? 0.08,
+      })[palette];
+    },
+    [renderPaletteSliders, viewSettings?.sheen, viewSolidity]
+  );
   const handleRenderFilterChange = (event: ChangeEvent<HTMLSelectElement>) => {
     const next = event.target.value as RenderFilterId;
     setRenderFilter(next);
@@ -1763,10 +1848,12 @@ const ModelerSection = ({
       return;
     }
     setRenderPalette(next);
-    applyRenderPaletteToSelection(next, renderPaletteSliders[next], {
+    const paletteValues = resolvePaletteValues(next);
+    applyRenderPaletteToSelection(next, paletteValues, {
       updateColor: false,
     });
-    if (displayMode === "silhouette") {
+    applyRenderPaletteViewSettings(next, paletteValues, { forceDisplayMode: true });
+    if (displayMode === "silhouette" && !VIEW_FILTER_PALETTES.has(next)) {
       setViewSolidity(viewSolidity, { overrideDisplayMode: true });
     }
   };
@@ -1832,7 +1919,7 @@ const ModelerSection = ({
     index: 0 | 1,
     value: number
   ) => {
-    const current = renderPaletteSliders[palette];
+    const current = resolvePaletteValues(palette);
     const nextValues: [number, number] = index === 0 ? [value, current[1]] : [current[0], value];
     setRenderPaletteSliders((prev) => {
       const current = prev[palette];
@@ -1840,6 +1927,7 @@ const ModelerSection = ({
       return { ...prev, [palette]: next };
     });
     applyRenderPaletteToSelection(palette, nextValues, { updateColor: false });
+    applyRenderPaletteViewSettings(palette, nextValues);
   };
   const activeRenderPaletteSliders = RENDER_PALETTE_SLIDERS[renderPalette];
   const activeRenderPaletteValues = renderPaletteSliders[renderPalette];
@@ -5170,6 +5258,7 @@ const ModelerSection = ({
       <section className={styles.section} data-fullscreen={isFullscreen ? "true" : "false"}>
         <div className={styles.header}>
           <div className={styles.headerCluster}>
+            <RoslynLogo size={24} />
             <WebGLTitleLogo title="Roslyn" tone="roslyn" />
             <div
               className={styles.commandBarShell}

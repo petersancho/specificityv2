@@ -4591,19 +4591,19 @@ const drawSolverIcon = (
 };
 
 const STICKER_COLORS = {
-  goal: "#111827",
-  stiffness: "#2563eb",
-  volume: "#0f766e",
-  load: "#d97706",
-  anchor: "#15803d",
+  goal: "#8800ff",
+  stiffness: "#00d4ff",
+  volume: "#ff0099",
+  load: "#ffdd00",
+  anchor: "#66cc00",
 };
 
 const STICKER2_COLORS = {
-  goal: STICKER2_PALETTE.black,
-  stiffness: STICKER2_PALETTE.cyan,
-  volume: STICKER2_PALETTE.magenta,
-  load: STICKER2_PALETTE.yellow,
-  anchor: STICKER2_PALETTE.black,
+  goal: "#8800ff",
+  stiffness: "#00d4ff",
+  volume: "#ff0099",
+  load: "#ffdd00",
+  anchor: "#66cc00",
 };
 
 const resolveStickerColor = (key: keyof typeof STICKER_COLORS) =>

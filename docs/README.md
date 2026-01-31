@@ -12,7 +12,9 @@ Click it again while in the docs view to return to the Roslyn + Numerica workspa
 - Overview: `lingua_readme.md`
 - Architecture: `lingua_architecture.md`
 - Conventions: `lingua_conventions.md`
-- AI agent guide: `ai_agent_guide.md`
+- AI agent quick reference: `agents.md` (start here for fast context)
+- AI agent detailed guide: `ai_agent_guide.md`
+- Large refactor template: `plans.md`
 - Ontology treatise prompt: `lingua_ontology_comprehensive_prompt_v2.md`
 
 ## Core References
@@ -39,9 +41,11 @@ Click it again while in the docs view to return to the Roslyn + Numerica workspa
 - Numerica solver guide: `numerica_solvers_guide.md`
 - Biological solver implementation: `biological_solver_implementation.md`
 - Chemistry solver implementation: `epilytes_chemias_implementation.md`
+- Chemistry solver workflow guide: `chemistry_solver_workflow.md`
 
 ## UI + Interaction
 
+- **Brand Kit: `brandkit.md`** - **CMYK + Porcelain visual design system**
 - Panel UI spec: `panel_ui_specification.md`
 - Icon palette: `icon_palette.md`
 - Slider node implementation ticket: `SLIDER_NODE_IMPLEMENTATION_TICKET.md`

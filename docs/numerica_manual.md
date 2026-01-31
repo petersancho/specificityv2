@@ -12,9 +12,12 @@ This manual is the entry point for learning Numerica from zero. It is designed t
 4. Solvers & Optimization
 5. Interchange (Import/Export)
 6. Rendering & WebGL Previews
-7. Troubleshooting & Pitfalls
-8. Glossary
-9. Documentation Maintenance
+7. Visual Design (Brand Kit)
+8. Troubleshooting & Pitfalls
+9. Glossary
+10. Documentation Maintenance
+
+**Visual Design:** See `brandkit.md` for the complete CMYK + Porcelain design system — colors, shadows, and pixel-perfect specifications.
 
 ---
 
