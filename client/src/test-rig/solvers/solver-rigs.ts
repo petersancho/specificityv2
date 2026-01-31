@@ -331,6 +331,18 @@ export const runBiologicalSolverRig = () => {
 
   const best = gen1[1];
 
+  const buildStats = (population: Individual[]) => {
+    const fitnesses = population.map((entry) => entry.fitness);
+    const bestFitness = Math.max(...fitnesses);
+    const worstFitness = Math.min(...fitnesses);
+    const meanFitness = fitnesses.reduce((sum, entry) => sum + entry, 0) / fitnesses.length;
+    return {
+      bestFitness,
+      meanFitness,
+      worstFitness,
+    };
+  };
+
   const config: SolverConfig = {
     populationSize: 16,
     generations: 6,
@@ -363,9 +375,7 @@ export const runBiologicalSolverRig = () => {
           id: 0,
           population: gen0,
           statistics: {
-            bestFitness: 0.78,
-            meanFitness: (0.72 + 0.78) / 2,
-            worstFitness: 0.72,
+            ...buildStats(gen0),
             diversityStdDev: 0.05,
             evaluationTime: 0.1,
           },
@@ -378,9 +388,7 @@ export const runBiologicalSolverRig = () => {
           id: 1,
           population: gen1,
           statistics: {
-            bestFitness: 0.86,
-            meanFitness: (0.8 + 0.86) / 2,
-            worstFitness: 0.8,
+            ...buildStats(gen1),
             diversityStdDev: 0.04,
             evaluationTime: 0.09,
           },

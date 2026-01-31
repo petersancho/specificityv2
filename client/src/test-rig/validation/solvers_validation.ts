@@ -23,6 +23,9 @@ const ensureFinite = (value: number, message: string) => {
   ensure(Number.isFinite(value), message);
 };
 
+const approxEqual = (a: number, b: number, epsilon = 1e-6) =>
+  Math.abs(a - b) < epsilon;
+
 const ensureMesh = (mesh: RenderMesh, label: string) => {
   ensure(mesh.positions.length > 0, `${label}: positions empty`);
   ensure(mesh.indices.length > 0, `${label}: indices empty`);
@@ -164,8 +167,14 @@ const validateBiologicalSolver = () => {
 
 const validateBiologicalGoalTuning = () => {
   const baseline = deriveGoalTuning(null);
-  ensure(baseline.mutationRateScale === 1, "Expected baseline mutation scale 1");
-  ensure(baseline.populationScale === 1, "Expected baseline population scale 1");
+  ensure(
+    approxEqual(baseline.mutationRateScale, 1),
+    "Expected baseline mutation scale 1"
+  );
+  ensure(
+    approxEqual(baseline.populationScale, 1),
+    "Expected baseline population scale 1"
+  );
 
   const growthGoal: GoalSpecification = {
     goalType: "growth",
@@ -190,7 +199,7 @@ const validateBiologicalGoalTuning = () => {
     parameters: {
       stabilityTarget: 0.5,
       damping: 1,
-      stressLimit: 1,
+      stressLimit: 0.5,
     },
   };
 
@@ -198,6 +207,10 @@ const validateBiologicalGoalTuning = () => {
   ensure(
     tunedHomeostasis.mutationRateScale < 1,
     "Expected homeostasis to reduce mutation rate"
+  );
+  ensure(
+    tunedHomeostasis.populationScale < 1,
+    "Expected homeostasis to reduce population scale"
   );
 };
 

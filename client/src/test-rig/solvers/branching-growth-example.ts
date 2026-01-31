@@ -1,4 +1,5 @@
 import { deriveGoalTuning } from "../../workflow/nodes/solver/biological/evaluation";
+import type { SolverConfig } from "../../workflow/nodes/solver/biological/types";
 import type { GoalSpecification } from "../../workflow/nodes/solver/types";
 import type { RenderMesh } from "../../types";
 import { meshBounds } from "./rig-utils";
@@ -16,7 +17,49 @@ const summarizeMesh = (mesh: RenderMesh) => {
   };
 };
 
-export const generateBranchingGrowthSolverExample = () => {
+export type BranchingGrowthSolverExampleV1 = {
+  schemaVersion: 1;
+  solver: "biologicalSolver";
+  timestamp: string;
+  config: Pick<
+    SolverConfig,
+    | "populationSize"
+    | "generations"
+    | "mutationRate"
+    | "crossoverRate"
+    | "elitism"
+    | "selectionMethod"
+    | "mutationType"
+    | "crossoverType"
+    | "randomSeed"
+  >;
+  goals: {
+    growth: GoalSpecification;
+  };
+  goalTuning: {
+    mutationRateScale: number;
+    populationScale: number;
+  };
+  outputs: {
+    bestScore: number;
+    bestGenome: { x: number; y: number; z: number };
+    evaluations: number;
+    status: string;
+  };
+  bestIndividual: {
+    id: string;
+    genomeString: string;
+    fitness: number;
+    generation: number;
+    rank: number;
+  };
+  baseGeometry: {
+    id: string;
+    mesh: ReturnType<typeof summarizeMesh>;
+  };
+};
+
+export const generateBranchingGrowthSolverExample = (): BranchingGrowthSolverExampleV1 => {
   const { biologicalOutputs, baseGeometry, individual, config } = runBiologicalSolverRig();
 
   const growthGoal: GoalSpecification = {
@@ -39,32 +82,40 @@ export const generateBranchingGrowthSolverExample = () => {
     schemaVersion: 1,
     solver: "biologicalSolver",
     timestamp: new Date().toISOString(),
-    example: {
-      config,
-      goalTuning: {
-        growthGoal,
-        ...goalTuning,
-      },
-      outputs: {
-        bestScore: biologicalOutputs.bestScore,
-        bestGenome: biologicalOutputs.bestGenome,
-        evaluations: biologicalOutputs.evaluations,
-        populationSize: biologicalOutputs.populationSize,
-        generations: biologicalOutputs.generations,
-        mutationRate: biologicalOutputs.mutationRate,
-        status: biologicalOutputs.status,
-      },
-      bestIndividual: {
-        id: individual.id,
-        genomeString: individual.genomeString,
-        fitness: individual.fitness,
-        generation: individual.generation,
-        rank: individual.rank,
-      },
-      baseGeometry: {
-        id: baseGeometry.id,
-        mesh: summarizeMesh(baseGeometry.mesh),
-      },
+    config: {
+      populationSize: config.populationSize,
+      generations: config.generations,
+      mutationRate: config.mutationRate,
+      crossoverRate: config.crossoverRate,
+      elitism: config.elitism,
+      selectionMethod: config.selectionMethod,
+      mutationType: config.mutationType,
+      crossoverType: config.crossoverType,
+      randomSeed: config.randomSeed,
+    },
+    goals: {
+      growth: growthGoal,
+    },
+    goalTuning: {
+      mutationRateScale: goalTuning.mutationRateScale,
+      populationScale: goalTuning.populationScale,
+    },
+    outputs: {
+      bestScore: biologicalOutputs.bestScore,
+      bestGenome: biologicalOutputs.bestGenome,
+      evaluations: biologicalOutputs.evaluations,
+      status: biologicalOutputs.status,
+    },
+    bestIndividual: {
+      id: individual.id,
+      genomeString: individual.genomeString,
+      fitness: individual.fitness,
+      generation: individual.generation,
+      rank: individual.rank,
+    },
+    baseGeometry: {
+      id: baseGeometry.id,
+      mesh: summarizeMesh(baseGeometry.mesh),
     },
   };
 };
