@@ -5,7 +5,14 @@ import type { RenderMesh } from "../../types";
 import { meshBounds } from "./rig-utils";
 import { runBiologicalSolverRig } from "./solver-rigs";
 
-const summarizeMesh = (mesh: RenderMesh) => {
+type MeshSummary = {
+  vertexCount: number;
+  triangleCount: number;
+  bounds: ReturnType<typeof meshBounds>;
+  hasColors: boolean;
+};
+
+const summarizeMesh = (mesh: RenderMesh): MeshSummary => {
   const vertexCount = Math.floor(mesh.positions.length / 3);
   const triangleCount = Math.floor(mesh.indices.length / 3);
   const bounds = meshBounds(mesh);
@@ -56,7 +63,7 @@ export type BranchingGrowthSolverExampleV1 = {
   };
   baseGeometry: {
     id: string;
-    mesh: ReturnType<typeof summarizeMesh>;
+    mesh: MeshSummary;
   };
 };
 

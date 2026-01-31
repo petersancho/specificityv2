@@ -332,6 +332,13 @@ export const runBiologicalSolverRig = () => {
   const best = gen1[1];
 
   const buildStats = (population: Individual[]) => {
+    if (population.length === 0) {
+      return {
+        bestFitness: 0,
+        meanFitness: 0,
+        worstFitness: 0,
+      };
+    }
     const fitnesses = population.map((entry) => entry.fitness);
     const bestFitness = Math.max(...fitnesses);
     const worstFitness = Math.min(...fitnesses);
@@ -409,12 +416,18 @@ export const runBiologicalSolverRig = () => {
     selectedGeometry: [baseGeometry.id],
   };
 
+  const completedGenerations = outputs.history?.generations.length ?? 0;
+
   updateBiologicalSolverState(nodeId, {
     outputs,
     config,
     status: "stopped",
-    generation: 2,
-    progress: { current: 2, total: 2, status: "complete" },
+    generation: completedGenerations,
+    progress: {
+      current: completedGenerations,
+      total: completedGenerations,
+      status: "complete",
+    },
     metrics: [],
     error: null,
   });
