@@ -57,8 +57,8 @@ const runNodeValidation = (nodeName: string, fn: () => void) => {
   }
 };
 
-const validatePhysicsSolver = () => {
-  const { outputs, outputGeometry, baseGeometry } = runPhysicsSolverWorkflowRig();
+const validatePhysicsStatic = () => {
+  const { outputs, outputGeometry, baseGeometry } = runPhysicsSolverWorkflowRig("static");
   const baseVertexCount = Math.floor(baseGeometry.mesh.positions.length / 3);
   ensure(outputs.geometry === "physics-static-out", "Expected geometry id to match");
   ensure(outputs.result.success === true, "Expected physics solver success");
@@ -70,6 +70,39 @@ const validatePhysicsSolver = () => {
   ensureMesh(outputs.mesh as RenderMesh, "physics static mesh");
   ensureMesh(outputGeometry.mesh, "physics static geometry");
   ensureStressColors(outputGeometry.mesh, "physics static geometry");
+};
+
+const validatePhysicsDynamic = () => {
+  const { outputs, outputGeometry, baseGeometry, parameters } =
+    runPhysicsSolverWorkflowRig("dynamic");
+  const baseVertexCount = Math.floor(baseGeometry.mesh.positions.length / 3);
+  ensure(outputs.geometry === "physics-dynamic-out", "Expected geometry id to match");
+  ensure(outputs.result.success === true, "Expected physics solver success");
+  ensure(outputs.animation !== null, "Expected animation for dynamic analysis");
+  ensure(
+    outputs.animation?.frames.length === parameters.animationFrames,
+    "Expected frame count"
+  );
+  ensure(
+    outputs.animation?.timeStamps.length === parameters.animationFrames,
+    "Expected timestamp count"
+  );
+  ensure(outputs.displacements.length === baseVertexCount, "Expected displacement per vertex");
+  ensure(outputs.result.iterations === parameters.animationFrames, "Expected iterations to match frames");
+  ensureMesh(outputs.mesh as RenderMesh, "physics dynamic mesh");
+  ensureMesh(outputGeometry.mesh, "physics dynamic geometry");
+  ensureStressColors(outputGeometry.mesh, "physics dynamic geometry");
+};
+
+const validatePhysicsModal = () => {
+  const { outputs, outputGeometry } = runPhysicsSolverWorkflowRig("modal");
+  ensure(outputs.geometry === "physics-modal-out", "Expected geometry id to match");
+  ensure(outputs.result.success === true, "Expected physics solver success");
+  ensure(outputs.animation !== null, "Expected animation for modal analysis");
+  ensure(outputs.animation.frames.length > 0, "Expected modal frames");
+  ensureMesh(outputs.mesh as RenderMesh, "physics modal mesh");
+  ensureMesh(outputGeometry.mesh, "physics modal geometry");
+  ensureStressColors(outputGeometry.mesh, "physics modal geometry");
 };
 
 const validateTopologySolver = () => {
@@ -125,7 +158,9 @@ const validateBiologicalSolver = () => {
 export const runSolversValidation = () => {
   resetValidationLog();
 
-  runNodeValidation("physicsSolver", validatePhysicsSolver);
+  runNodeValidation("physicsSolver/static", validatePhysicsStatic);
+  runNodeValidation("physicsSolver/dynamic", validatePhysicsDynamic);
+  runNodeValidation("physicsSolver/modal", validatePhysicsModal);
   runNodeValidation("topologySolver", validateTopologySolver);
   runNodeValidation("voxelSolver", validateVoxelSolver);
   runNodeValidation("chemistrySolver", validateChemistrySolver);

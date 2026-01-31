@@ -3,13 +3,41 @@ import type { Geometry, MeshGeometry, RenderMesh, WorkflowEdge, WorkflowNode } f
 import { useProjectStore } from "../../store/useProjectStore";
 import { findVertexIndicesAtExtent, wrapMeshGeometry } from "./rig-utils";
 
+export type PhysicsAnalysisType = "static" | "dynamic" | "modal";
+
+export type PhysicsSolverWorkflowOutputs = {
+  geometry: string | null;
+  mesh: RenderMesh;
+  result: {
+    success: boolean;
+    iterations: number;
+    finalObjectiveValue: number;
+  };
+  animation: { frames: RenderMesh[]; timeStamps: number[] } | null;
+  stressField: number[];
+  displacements: unknown[];
+};
+
+export type ChemistrySolverWorkflowOutputs = {
+  status: string;
+  mesh: RenderMesh;
+  materialParticles: unknown[];
+  materialField:
+    | {
+        resolution: { x: number; y: number; z: number };
+        densities: number[];
+      }
+    | null;
+  materials: unknown[];
+};
+
 const resetProjectStore = () => {
   useProjectStore.setState(useProjectStore.getInitialState(), true);
 };
 
-const ensureNonEmpty = (value: number[], label: string) => {
+const ensureNonEmpty = (value: number[], label: string, context: string) => {
   if (!Array.isArray(value) || value.length === 0) {
-    throw new Error(`${label} is empty`);
+    throw new Error(`${label} is empty in ${context} (length=${value?.length ?? 0})`);
   }
 };
 
@@ -42,11 +70,13 @@ const baseRigState = (args: {
   workflowHistory: [],
 });
 
-export const runPhysicsSolverWorkflowRig = () => {
+export const runPhysicsSolverWorkflowRig = (analysisType: PhysicsAnalysisType) => {
   resetProjectStore();
 
   const baseGeometryId = "physics-base";
-  const outputGeometryId = "physics-static-out";
+  const outputGeometryId = `physics-${analysisType}-out`;
+  const animationFrames = analysisType === "static" ? 0 : 20;
+  const timeProfileId = "node-physics-time-profile";
 
   const baseGeometry = createBoxMeshGeometry(baseGeometryId);
   const outputGeometry: MeshGeometry = {
@@ -55,13 +85,15 @@ export const runPhysicsSolverWorkflowRig = () => {
     mesh: createEmptyMesh(),
     layerId: "layer-default",
     sourceNodeId: "node-physics-solver",
-    metadata: { label: "Physics Solver Output" },
+    metadata: {
+      label: `Physics Solver Output (${analysisType})`,
+    },
   };
 
   const anchorIndices = findVertexIndicesAtExtent(baseGeometry.mesh, "y", "min");
   const loadIndices = findVertexIndicesAtExtent(baseGeometry.mesh, "y", "max");
-  ensureNonEmpty(anchorIndices, "anchor indices");
-  ensureNonEmpty(loadIndices, "load indices");
+  ensureNonEmpty(anchorIndices, "anchor indices", "runPhysicsSolverWorkflowRig");
+  ensureNonEmpty(loadIndices, "load indices", "runPhysicsSolverWorkflowRig");
 
   const nodes: WorkflowNode[] = [
     {
@@ -92,6 +124,20 @@ export const runPhysicsSolverWorkflowRig = () => {
         },
       },
     },
+    ...(analysisType === "dynamic"
+      ? ([
+          {
+            id: timeProfileId,
+            type: "listCreate",
+            position: { x: 0, y: 460 },
+            data: {
+              parameters: {
+                itemsText: "0, 0.5, 1, 0.5, 0",
+              },
+            },
+          },
+        ] satisfies WorkflowNode[])
+      : []),
     {
       id: "node-physics-anchor-goal",
       type: "anchorGoal",
@@ -113,7 +159,7 @@ export const runPhysicsSolverWorkflowRig = () => {
           forceY: 0,
           forceZ: -1500,
           distributed: true,
-          loadType: "static",
+          loadType: analysisType === "dynamic" ? "dynamic" : "static",
           weight: 1.0,
         },
       },
@@ -151,9 +197,11 @@ export const runPhysicsSolverWorkflowRig = () => {
         geometryType: "mesh",
         isLinked: true,
         parameters: {
-          analysisType: "static",
+          analysisType,
           maxIterations: 120,
           convergenceTolerance: 1e-5,
+          animationFrames,
+          timeStep: analysisType === "dynamic" ? 0.02 : undefined,
           maxDeformation: 10,
           maxStress: 1e9,
           useGPU: false,
@@ -185,6 +233,17 @@ export const runPhysicsSolverWorkflowRig = () => {
       target: "node-physics-load-goal",
       targetHandle: "applicationPoints",
     },
+    ...(analysisType === "dynamic"
+      ? ([
+          {
+            id: "edge-time-profile-to-load-goal",
+            source: timeProfileId,
+            sourceHandle: "list",
+            target: "node-physics-load-goal",
+            targetHandle: "timeProfile",
+          },
+        ] satisfies WorkflowEdge[])
+      : []),
     {
       id: "edge-load-list-to-stiffness-goal",
       source: "node-physics-load-list",
@@ -233,7 +292,7 @@ export const runPhysicsSolverWorkflowRig = () => {
 
   const state = useProjectStore.getState();
   const solverNode = state.workflow.nodes.find((node) => node.id === "node-physics-solver");
-  const outputs = (solverNode?.data?.outputs ?? {}) as any;
+  const outputs = (solverNode?.data?.outputs ?? {}) as PhysicsSolverWorkflowOutputs;
   const nextOutputGeometry = state.geometry.find((item) => item.id === outputGeometryId);
   const nextBaseGeometry = state.geometry.find((item) => item.id === baseGeometryId);
 
@@ -248,6 +307,7 @@ export const runPhysicsSolverWorkflowRig = () => {
     outputs,
     outputGeometry: nextOutputGeometry,
     baseGeometry: nextBaseGeometry,
+    parameters: { analysisType, animationFrames },
   };
 };
 
@@ -341,7 +401,7 @@ export const runChemistrySolverWorkflowRig = () => {
 
   const state = useProjectStore.getState();
   const solverNode = state.workflow.nodes.find((node) => node.id === "node-chemistry-solver");
-  const outputs = (solverNode?.data?.outputs ?? {}) as any;
+  const outputs = (solverNode?.data?.outputs ?? {}) as ChemistrySolverWorkflowOutputs;
   const nextOutputGeometry = state.geometry.find((item) => item.id === outputGeometryId);
 
   if (!nextOutputGeometry || nextOutputGeometry.type !== "mesh") {
