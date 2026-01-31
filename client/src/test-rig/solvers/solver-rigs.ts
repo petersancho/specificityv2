@@ -22,8 +22,27 @@ import {
   createSphereGeometry,
   createTestContext,
   findVertexIndicesAtExtent,
+  translateMeshGeometry,
   wrapMeshGeometry,
 } from "./rig-utils";
+
+export const CHEMISTRY_SOLVER_RIG_VARIANTS = [
+  "basic",
+  "regions",
+  "textInputs",
+  "disabled",
+] as const;
+export type ChemistrySolverRigVariant = (typeof CHEMISTRY_SOLVER_RIG_VARIANTS)[number];
+
+export const DEFAULT_CHEMISTRY_SOLVER_RIG_VARIANT: ChemistrySolverRigVariant = "regions";
+
+const TEXT_INPUT_MATERIALS_OBJECT = [
+  { material: { name: "Steel", color: [0.75, 0.75, 0.78] }, weight: 1 },
+  { material: { name: "Ceramic", color: [0.9, 0.2, 0.2] }, weight: 0.7 },
+  { material: { name: "Glass", color: [0.2, 0.4, 0.9] }, weight: 0.6 },
+] as const;
+const TEXT_INPUT_MATERIALS = JSON.stringify(TEXT_INPUT_MATERIALS_OBJECT);
+const TEXT_INPUT_SEEDS = "0 0 0 0.6 0 0";
 
 const getNodeDefinition = (type: string) => {
   const node = NODE_DEFINITIONS.find((definition) => definition.type === type);
@@ -195,18 +214,39 @@ export const runTopologySolverRig = (nodeType: "topologySolver" | "voxelSolver")
   };
 };
 
-export const runChemistrySolverRig = () => {
+export const runChemistrySolverRig = (
+  variant: ChemistrySolverRigVariant = DEFAULT_CHEMISTRY_SOLVER_RIG_VARIANT
+) => {
   const solverNode = getNodeDefinition("chemistrySolver");
   const baseGeometry = createBoxGeometry("geo-chemistry", { width: 2.2, height: 1.4, depth: 1.6 });
-  const context = createTestContext("chemistry-context", [baseGeometry]);
+
+  const anchorTop = translateMeshGeometry(
+    createBoxGeometry("geo-chemistry-anchorTop", { width: 2.0, height: 0.25, depth: 1.4 }),
+    { x: 0, y: 0.55, z: 0 }
+  );
+  const anchorBottom = translateMeshGeometry(
+    createBoxGeometry("geo-chemistry-anchorBottom", { width: 2.0, height: 0.25, depth: 1.4 }),
+    { x: 0, y: -0.55, z: 0 }
+  );
+  const thermalCore = translateMeshGeometry(
+    createBoxGeometry("geo-chemistry-thermalCore", { width: 0.7, height: 1.2, depth: 0.6 }),
+    { x: 0, y: 0, z: 0 }
+  );
+  const visionStrip = translateMeshGeometry(
+    createBoxGeometry("geo-chemistry-visionStrip", { width: 2.0, height: 1.1, depth: 0.35 }),
+    { x: 0, y: 0, z: 0.55 }
+  );
+
+  const geometry = [baseGeometry, anchorTop, anchorBottom, thermalCore, visionStrip];
+  const context = createTestContext("chemistry-context", geometry);
 
   const blendGoal: ChemistryBlendGoal = {
     goalType: "chemBlend",
-    weight: 0.45,
+    weight: 0.55,
     geometry: { elements: [] },
     parameters: {
-      smoothness: 0.7,
-      diffusivity: 1.1,
+      smoothness: 0.75,
+      diffusivity: 1.25,
     },
   };
 
@@ -222,74 +262,145 @@ export const runChemistrySolverRig = () => {
 
   const stiffnessGoal: ChemistryStiffnessGoal = {
     goalType: "chemStiffness",
-    weight: 0.2,
+    weight: variant === "basic" ? 0.25 : 0.45,
     geometry: { elements: [] },
     parameters: {
       loadVector: { x: 0, y: 1, z: 0 },
-      structuralPenalty: 1.1,
+      structuralPenalty: 1.25,
+      regionGeometryIds:
+        variant === "regions" || variant === "textInputs"
+          ? [anchorTop.id, anchorBottom.id]
+          : undefined,
     },
+  };
+
+  const transparencyGoal = {
+    goalType: "chemTransparency" as const,
+    weight: 0.35,
+    geometry: { elements: [] },
+    parameters: {
+      opticalWeight: 2.0,
+      regionGeometryIds:
+        variant === "regions" || variant === "textInputs" ? [visionStrip.id] : undefined,
+    },
+  };
+
+  const thermalGoal = {
+    goalType: "chemThermal" as const,
+    weight: 0.45,
+    geometry: { elements: [] },
+    parameters: {
+      mode: "insulate" as const,
+      thermalWeight: 2.5,
+      regionGeometryIds:
+        variant === "regions" || variant === "textInputs" ? [thermalCore.id] : undefined,
+    },
+  };
+
+  const goals =
+    variant === "basic"
+      ? [blendGoal, massGoal, stiffnessGoal]
+      : [blendGoal, massGoal, stiffnessGoal, transparencyGoal, thermalGoal];
+
+  const goalRegions = {
+    stiffness: Array.isArray(stiffnessGoal.parameters.regionGeometryIds)
+      ? stiffnessGoal.parameters.regionGeometryIds
+      : [],
+    transparency: Array.isArray(transparencyGoal.parameters.regionGeometryIds)
+      ? transparencyGoal.parameters.regionGeometryIds
+      : [],
+    thermal: Array.isArray(thermalGoal.parameters.regionGeometryIds)
+      ? thermalGoal.parameters.regionGeometryIds
+      : [],
   };
 
   const parameters = {
     geometryId: "chemistry-out",
-    particleCount: 10000,
+    particleCount: variant === "disabled" ? 0 : 6000,
     particleDensity: 1.0,
-    iterations: 40,
-    fieldResolution: 48,
+    iterations: variant === "disabled" ? 0 : 55,
+    fieldResolution: variant === "disabled" ? 0 : 36,
     isoValue: 0.12,
     convergenceTolerance: 0.002,
     blendStrength: 0.7,
-    historyLimit: 60,
+    historyLimit: variant === "disabled" ? 0 : 80,
     seed: 7,
     materialOrder: "Steel, Ceramic, Glass",
+    seedMaterial: "Steel",
+    seedStrength: 0.85,
+    seedRadius: 0.25,
+    ...(variant === "textInputs"
+      ? {
+          materialsText: TEXT_INPUT_MATERIALS,
+          seedsText: TEXT_INPUT_SEEDS,
+        }
+      : {}),
   };
 
   const outputs = solverNode.compute({
     inputs: {
+      enabled: variant !== "disabled",
       domain: baseGeometry.id,
-      materials: [
-        {
-          geometryId: baseGeometry.id,
-          material: { name: "Steel", color: [0.75, 0.75, 0.78] },
-          weight: 1,
-        },
-        {
-          geometryId: baseGeometry.id,
-          material: { name: "Ceramic", color: [0.9, 0.2, 0.2] },
-          weight: 0.7,
-        },
-        {
-          geometryId: baseGeometry.id,
-          material: { name: "Glass", color: [0.2, 0.4, 0.9] },
-          weight: 0.6,
-        },
-      ],
-      seeds: [
-        {
-          position: { x: 0, y: 0, z: 0 },
-          material: "Glass",
-          strength: 0.9,
-          radius: 0.4,
-        },
-      ],
-      goals: [blendGoal, massGoal, stiffnessGoal],
+      materials:
+        variant === "textInputs"
+          ? []
+          : [
+              {
+                geometryId: baseGeometry.id,
+                material: { name: "Steel", color: [0.75, 0.75, 0.78] },
+                weight: 1,
+              },
+              {
+                geometryId: baseGeometry.id,
+                material: { name: "Ceramic", color: [0.9, 0.2, 0.2] },
+                weight: 0.7,
+              },
+              {
+                geometryId: baseGeometry.id,
+                material: { name: "Glass", color: [0.2, 0.4, 0.9] },
+                weight: 0.6,
+              },
+            ],
+      materialsText:
+        variant === "textInputs"
+          ? TEXT_INPUT_MATERIALS
+          : undefined,
+      seeds:
+        variant === "basic"
+          ? [
+              {
+                position: { x: 0, y: 0, z: 0 },
+                material: "Glass",
+                strength: 0.9,
+                radius: 0.4,
+              },
+            ]
+          : [
+              { position: { x: 0, y: -0.55, z: 0 }, material: "Steel", strength: 0.9, radius: 0.35 },
+              { position: { x: 0, y: 0, z: 0 }, material: "Ceramic", strength: 0.92, radius: 0.3 },
+              { position: { x: 0, y: 0, z: 0.55 }, material: "Glass", strength: 0.9, radius: 0.3 },
+            ],
+      goals,
     },
     parameters,
     context,
   });
 
-  const outputGeometry = wrapMeshGeometry(
-    parameters.geometryId,
-    outputs.mesh as RenderMesh
-  );
-
+  const outputGeometry = wrapMeshGeometry(parameters.geometryId, outputs.mesh as RenderMesh);
   context.geometryById.set(outputGeometry.id, outputGeometry);
 
   return {
+    variant,
     outputs,
     outputGeometry,
     baseGeometry,
     context,
+    regions:
+      variant === "regions" || variant === "textInputs"
+        ? { anchorTop, anchorBottom, thermalCore, visionStrip }
+        : null,
+    parameters,
+    goalRegions,
   };
 };
 
