@@ -102,6 +102,8 @@ These are point-in-time project logs and may reference legacy naming (e.g.
 `ViewerCanvas`) or early planning terminology. Current implementation uses
 `WebGLViewerCanvas` for the viewport and `NumericalCanvas` for the workflow editor.
 
+See `archive/README.md` for the full list.
+
 - `archive/PHASE1_AUDIT.md`
 - `archive/PHASE2_COMPLETE.md`
 - `archive/PHASE3_PROGRESS.md`
