@@ -186,20 +186,30 @@ const validateChemistrySolverTextInputs = () => {
       ensure(false, `Failed to parse materialsText JSON: ${String(error)}`);
       parsed = [];
     }
-    const expectedNames = Array.isArray(parsed)
-      ? parsed
-          .map((entry) => {
-            if (entry && typeof entry === "object") {
-              const material = (entry as any).material;
-              if (material && typeof material === "object") {
-                return typeof material.name === "string" ? material.name : null;
-              }
-              return typeof (entry as any).name === "string" ? (entry as any).name : null;
-            }
-            return null;
-          })
-          .filter((name): name is string => typeof name === "string")
-      : [];
+    type TextMaterialEntry =
+      | { material: { name: string } }
+      | { name: string };
+
+    const isTextMaterialEntry = (value: unknown): value is TextMaterialEntry => {
+      if (!value || typeof value !== "object") return false;
+      const entry = value as Record<string, unknown>;
+      const material = entry.material;
+      if (material && typeof material === "object") {
+        const m = material as Record<string, unknown>;
+        return typeof m.name === "string";
+      }
+      return typeof entry.name === "string";
+    };
+
+    const parsedList = Array.isArray(parsed) ? parsed : [];
+    ensure(
+      parsedList.every(isTextMaterialEntry),
+      "materialsText JSON shape did not match expected schema"
+    );
+
+    const expectedNames = parsedList
+      .filter(isTextMaterialEntry)
+      .map((entry) => ("material" in entry ? entry.material.name : entry.name));
     const outputNames = outputs.materials
       .map((material) => (material && typeof material === "object" ? (material as any).name : null))
       .filter((name): name is string => typeof name === "string");

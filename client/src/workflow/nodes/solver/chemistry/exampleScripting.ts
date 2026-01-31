@@ -1,5 +1,3 @@
-import type { RenderMesh } from "../../../../types";
-
 type ChemistryExampleScript = {
   schema: "numerica.chemistrySolverResult.v1";
   status: string;
@@ -73,9 +71,17 @@ export const buildChemistrySolverExampleScript = (
   const particleCount = Array.isArray(outputs.materialParticles)
     ? outputs.materialParticles.length
     : 0;
-  const mesh = outputs.mesh as RenderMesh;
+  const meshSummary = meshCounts(outputs.mesh);
   const history = readHistoryEntries(outputs.history);
   const trimmedHistory = history.slice(-12);
+  const fieldResolution = readFieldResolution(outputs.materialField);
+  const extendedWarnings = [
+    ...warnings,
+    ...(meshSummary.vertexCount === 0 ? ["No mesh vertices in chemistry result"] : []),
+    ...(fieldResolution.x === 0 && fieldResolution.y === 0 && fieldResolution.z === 0
+      ? ["No field resolution data in chemistry result"]
+      : []),
+  ];
 
   const summary: ChemistryExampleScript = {
     schema: "numerica.chemistrySolverResult.v1",
@@ -83,11 +89,11 @@ export const buildChemistrySolverExampleScript = (
     totalEnergy: asNumber(outputs.totalEnergy, 0),
     iterationsUsed: Math.round(asNumber(diagnostics?.iterations, history.length)),
     particleCount,
-    fieldResolution: readFieldResolution(outputs.materialField),
-    mesh: meshCounts(mesh),
+    fieldResolution,
+    mesh: meshSummary,
     materials: Array.isArray(outputs.materials) ? outputs.materials : [],
     history: trimmedHistory,
-    warnings,
+    warnings: extendedWarnings,
   };
 
   return {
