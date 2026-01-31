@@ -1570,6 +1570,8 @@ const buildVoxelGridFromGeometry = (
   }
 
   if (normalizedMode === "solid" && mesh) {
+    // Solid fill assumes the surface voxelization is sufficiently watertight at the chosen
+    // resolution; thin features or gaps can leak the flood fill and result in hollow interiors.
     const visited = new Uint8Array(cellCount);
     const queue = new Int32Array(cellCount);
     let head = 0;
@@ -12549,6 +12551,8 @@ const voxelizeGeometryDefinition = NODE_DEFINITIONS.find(
 );
 if (voxelizeGeometryDefinition) {
   NODE_DEFINITIONS.push(createVoxelSolverNode(voxelizeGeometryDefinition));
+} else {
+  console.warn("[nodeRegistry] Missing voxelizeGeometry definition; skipping voxelSolver registration.");
 }
 NODE_DEFINITIONS.push(
   StiffnessGoalNode,

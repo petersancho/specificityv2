@@ -57,9 +57,14 @@ export const createVoxelSolverNode = (
       }
       const fillRatio = cellCount > 0 ? filledCount / cellCount : 0;
 
+      const hasNumericDensities =
+        densities.length > 0 &&
+        densities.every((entry) => typeof entry === "number" && Number.isFinite(entry));
       const status =
         result.voxelGrid != null
-          ? "complete"
+          ? hasNumericDensities
+            ? "complete"
+            : "missing-density"
           : geometryId
             ? "missing-domain"
             : "waiting-for-domain";
