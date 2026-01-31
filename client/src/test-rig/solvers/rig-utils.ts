@@ -74,10 +74,10 @@ export const findVertexIndicesAtExtent = (
 };
 
 export const shallowCloneRenderMesh = (mesh: RenderMesh): RenderMesh => ({
-  positions: mesh.positions.slice(),
-  normals: mesh.normals.slice(),
-  uvs: mesh.uvs.slice(),
-  indices: mesh.indices.slice(),
+  positions: mesh.positions ? mesh.positions.slice() : [],
+  normals: mesh.normals ? mesh.normals.slice() : [],
+  uvs: mesh.uvs ? mesh.uvs.slice() : [],
+  indices: mesh.indices ? mesh.indices.slice() : [],
   colors: mesh.colors ? mesh.colors.slice() : undefined,
 });
 

@@ -153,9 +153,11 @@ const validateChemistrySolver = () => {
       }
     );
     const MIN_MAX_CONCENTRATION = 0.05;
+    const SAMPLE_LIMIT = 2000;
+    const sampledParticles = particles.slice(0, SAMPLE_LIMIT);
     materialNames.forEach((name) => {
       let max = 0;
-      particles.forEach((particle) => {
+      sampledParticles.forEach((particle) => {
         const raw = particle.materials?.[name];
         const value = typeof raw === "number" ? raw : 0;
         if (value > max) max = value;

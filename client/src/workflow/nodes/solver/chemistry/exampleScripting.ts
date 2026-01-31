@@ -49,9 +49,12 @@ const readHistoryEntries = (history: unknown) => {
     .map((entry) => {
       const candidate = asObject(entry);
       if (!candidate) return null;
+      const iteration = asNumber(candidate.iteration, Number.NaN);
+      const totalEnergy = asNumber(candidate.totalEnergy, Number.NaN);
+      if (!Number.isFinite(iteration) || !Number.isFinite(totalEnergy)) return null;
       return {
-        iteration: Math.round(asNumber(candidate.iteration, 0)),
-        totalEnergy: asNumber(candidate.totalEnergy, 0),
+        iteration: Math.round(iteration),
+        totalEnergy,
       };
     })
     .filter(Boolean) as Array<{ iteration: number; totalEnergy: number }>;

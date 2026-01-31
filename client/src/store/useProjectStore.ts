@@ -6751,8 +6751,15 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         outputs.diagnostics && typeof outputs.diagnostics === "object"
           ? (outputs.diagnostics as Record<string, unknown>)
           : undefined;
+      const chemistryWarnings: string[] = [];
       const rawTotalEnergy = outputs.totalEnergy;
       const totalEnergy = asNumber(rawTotalEnergy, 0);
+      if (
+        rawTotalEnergy !== undefined &&
+        typeof rawTotalEnergy !== "number"
+      ) {
+        chemistryWarnings.push("totalEnergy was non-numeric; defaulted to 0");
+      }
       if (
         import.meta.env.DEV &&
         rawTotalEnergy !== undefined &&
@@ -6825,6 +6832,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           ...(exampleScript ? { exampleScript } : {}),
           ...(exampleScriptError ? { exampleScriptError } : {}),
           ...(exampleSummary ? { exampleSummary } : {}),
+          ...(chemistryWarnings.length ? { warnings: chemistryWarnings } : {}),
         },
       };
       
