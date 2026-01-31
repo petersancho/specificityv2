@@ -7691,10 +7691,24 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
     const GROUP_PADDING = 14;
     const GROUP_HEADER_HEIGHT = 20;
+    const GROUP_MIN_WIDTH = 230;
+    const GROUP_MIN_HEIGHT = 160;
 
     type RigFrame = { id: string; position: { x: number; y: number } };
+    type PositionFrame = { position: { x: number; y: number } };
 
-    const computeGroupBox = (frames: RigFrame[]) => {
+    type GroupBox = {
+      position: { x: number; y: number };
+      groupSize: { width: number; height: number };
+    };
+
+    const computeGroupBox = (frames: PositionFrame[]): GroupBox => {
+      if (frames.length === 0) {
+        return {
+          position: { x: position.x, y: position.y },
+          groupSize: { width: GROUP_MIN_WIDTH, height: GROUP_MIN_HEIGHT },
+        };
+      }
       let minX = Number.POSITIVE_INFINITY;
       let minY = Number.POSITIVE_INFINITY;
       let maxX = Number.NEGATIVE_INFINITY;
@@ -7705,9 +7719,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         maxX = Math.max(maxX, frame.position.x + NODE_WIDTH);
         maxY = Math.max(maxY, frame.position.y + NODE_HEIGHT);
       });
-      const width = Math.max(230, maxX - minX + GROUP_PADDING * 2);
+      const width = Math.max(GROUP_MIN_WIDTH, maxX - minX + GROUP_PADDING * 2);
       const height = Math.max(
-        160,
+        GROUP_MIN_HEIGHT,
         maxY - minY + GROUP_PADDING * 2 + GROUP_HEADER_HEIGHT
       );
       return {
@@ -7718,6 +7732,23 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         groupSize: { width, height },
       };
     };
+
+    const createGroupNode = (
+      groupId: string,
+      title: string,
+      frames: RigFrame[],
+      groupBox: GroupBox
+    ) => ({
+      id: groupId,
+      type: "group" as const,
+      position: groupBox.position,
+      data: {
+        label: title,
+        groupSize: groupBox.groupSize,
+        groupNodeIds: frames.map((frame) => frame.id),
+        parameters: { title, color: "#f5f2ee" },
+      },
+    });
 
     // Column 0: Solver controls and parameters
     const toggleSwitchId = `node-conditionalToggleButton-${ts}`;
@@ -7823,50 +7854,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const outputGroup = computeGroupBox(outputFrames);
 
     const newNodes = [
-      {
-        id: controlsGroupId,
-        type: "group" as const,
-        position: controlsGroup.position,
-        data: {
-          label: "Solver Controls",
-          groupSize: controlsGroup.groupSize,
-          groupNodeIds: controlsFrames.map((frame) => frame.id),
-          parameters: { title: "Solver Controls", color: "#f5f2ee" },
-        },
-      },
-      {
-        id: inputsGroupId,
-        type: "group" as const,
-        position: inputsGroup.position,
-        data: {
-          label: "Domain + Seeds",
-          groupSize: inputsGroup.groupSize,
-          groupNodeIds: inputsFrames.map((frame) => frame.id),
-          parameters: { title: "Domain + Seeds", color: "#f5f2ee" },
-        },
-      },
-      {
-        id: goalsGroupId,
-        type: "group" as const,
-        position: goalsGroup.position,
-        data: {
-          label: "Goals",
-          groupSize: goalsGroup.groupSize,
-          groupNodeIds: goalsFrames.map((frame) => frame.id),
-          parameters: { title: "Goals", color: "#f5f2ee" },
-        },
-      },
-      {
-        id: outputGroupId,
-        type: "group" as const,
-        position: outputGroup.position,
-        data: {
-          label: "Solve + Preview",
-          groupSize: outputGroup.groupSize,
-          groupNodeIds: outputFrames.map((frame) => frame.id),
-          parameters: { title: "Solve + Preview", color: "#f5f2ee" },
-        },
-      },
+      createGroupNode(controlsGroupId, "Solver Controls", controlsFrames, controlsGroup),
+      createGroupNode(inputsGroupId, "Domain + Seeds", inputsFrames, inputsGroup),
+      createGroupNode(goalsGroupId, "Goals", goalsFrames, goalsGroup),
+      createGroupNode(outputGroupId, "Solve + Preview", outputFrames, outputGroup),
       // Solver controls and parameters
       {
         id: toggleSwitchId,
