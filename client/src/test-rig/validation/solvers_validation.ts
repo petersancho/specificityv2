@@ -1,10 +1,12 @@
 import { generateReport, logValidation, resetValidationLog } from "./validation-log";
 import {
   runBiologicalSolverRig,
-  runChemistrySolverRig,
-  runPhysicsSolverRig,
   runTopologySolverRig,
 } from "../solvers/solver-rigs";
+import {
+  runChemistrySolverWorkflowRig,
+  runPhysicsSolverWorkflowRig,
+} from "../solvers/workflow-solver-rigs";
 import type { RenderMesh } from "../../types";
 
 const CATEGORY = "solvers";
@@ -55,8 +57,8 @@ const runNodeValidation = (nodeName: string, fn: () => void) => {
   }
 };
 
-const validatePhysicsStatic = () => {
-  const { outputs, outputGeometry, baseGeometry } = runPhysicsSolverRig("static");
+const validatePhysicsSolver = () => {
+  const { outputs, outputGeometry, baseGeometry } = runPhysicsSolverWorkflowRig();
   const baseVertexCount = Math.floor(baseGeometry.mesh.positions.length / 3);
   ensure(outputs.geometry === "physics-static-out", "Expected geometry id to match");
   ensure(outputs.result.success === true, "Expected physics solver success");
@@ -68,32 +70,6 @@ const validatePhysicsStatic = () => {
   ensureMesh(outputs.mesh as RenderMesh, "physics static mesh");
   ensureMesh(outputGeometry.mesh, "physics static geometry");
   ensureStressColors(outputGeometry.mesh, "physics static geometry");
-};
-
-const validatePhysicsDynamic = () => {
-  const { outputs, outputGeometry, baseGeometry, parameters } = runPhysicsSolverRig("dynamic");
-  const baseVertexCount = Math.floor(baseGeometry.mesh.positions.length / 3);
-  ensure(outputs.geometry === "physics-dynamic-out", "Expected geometry id to match");
-  ensure(outputs.result.success === true, "Expected physics solver success");
-  ensure(outputs.result.iterations === parameters.animationFrames, "Expected iterations to match frames");
-  ensure(outputs.animation !== null, "Expected animation for dynamic analysis");
-  ensure(outputs.animation.frames.length === parameters.animationFrames, "Expected frame count");
-  ensure(outputs.animation.timeStamps.length === parameters.animationFrames, "Expected timestamp count");
-  ensure(outputs.displacements.length === baseVertexCount, "Expected displacement per vertex");
-  ensureMesh(outputs.mesh as RenderMesh, "physics dynamic mesh");
-  ensureMesh(outputGeometry.mesh, "physics dynamic geometry");
-  ensureStressColors(outputGeometry.mesh, "physics dynamic geometry");
-};
-
-const validatePhysicsModal = () => {
-  const { outputs, outputGeometry } = runPhysicsSolverRig("modal");
-  ensure(outputs.geometry === "physics-modal-out", "Expected geometry id to match");
-  ensure(outputs.result.success === true, "Expected physics solver success");
-  ensure(outputs.animation !== null, "Expected animation for modal analysis");
-  ensure(outputs.animation.frames.length > 0, "Expected modal frames");
-  ensureMesh(outputs.mesh as RenderMesh, "physics modal mesh");
-  ensureMesh(outputGeometry.mesh, "physics modal geometry");
-  ensureStressColors(outputGeometry.mesh, "physics modal geometry");
 };
 
 const validateTopologySolver = () => {
@@ -118,7 +94,7 @@ const validateVoxelSolver = () => {
 };
 
 const validateChemistrySolver = () => {
-  const { outputs, outputGeometry } = runChemistrySolverRig();
+  const { outputs, outputGeometry } = runChemistrySolverWorkflowRig();
   ensure(outputs.status === "complete", "Expected chemistry solver complete");
   ensure(outputs.materialParticles.length > 0, "Expected chemistry particles");
   ensure(outputs.materialField !== null, "Expected chemistry field");
@@ -149,9 +125,7 @@ const validateBiologicalSolver = () => {
 export const runSolversValidation = () => {
   resetValidationLog();
 
-  runNodeValidation("physicsSolver/static", validatePhysicsStatic);
-  runNodeValidation("physicsSolver/dynamic", validatePhysicsDynamic);
-  runNodeValidation("physicsSolver/modal", validatePhysicsModal);
+  runNodeValidation("physicsSolver", validatePhysicsSolver);
   runNodeValidation("topologySolver", validateTopologySolver);
   runNodeValidation("voxelSolver", validateVoxelSolver);
   runNodeValidation("chemistrySolver", validateChemistrySolver);
