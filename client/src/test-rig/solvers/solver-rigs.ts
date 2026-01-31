@@ -412,7 +412,7 @@ export const runBiologicalSolverRig = () => {
   updateBiologicalSolverState(nodeId, {
     outputs,
     config,
-    status: "running",
+    status: "stopped",
     generation: 2,
     progress: { current: 2, total: 2, status: "complete" },
     metrics: [],

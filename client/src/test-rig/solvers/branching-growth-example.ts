@@ -42,12 +42,13 @@ export type BranchingGrowthSolverExampleV1 = {
   };
   outputs: {
     bestScore: number;
-    bestGenome: { x: number; y: number; z: number };
+    bestGenomeVector3: { x: number; y: number; z: number };
     evaluations: number;
     status: string;
   };
   bestIndividual: {
     id: string;
+    genome: number[];
     genomeString: string;
     fitness: number;
     generation: number;
@@ -102,12 +103,13 @@ export const generateBranchingGrowthSolverExample = (): BranchingGrowthSolverExa
     },
     outputs: {
       bestScore: biologicalOutputs.bestScore,
-      bestGenome: biologicalOutputs.bestGenome,
+      bestGenomeVector3: biologicalOutputs.bestGenome,
       evaluations: biologicalOutputs.evaluations,
       status: biologicalOutputs.status,
     },
     bestIndividual: {
       id: individual.id,
+      genome: [...individual.genome],
       genomeString: individual.genomeString,
       fitness: individual.fitness,
       generation: individual.generation,

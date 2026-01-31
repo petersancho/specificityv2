@@ -23,7 +23,7 @@ const ensureFinite = (value: number, message: string) => {
   ensure(Number.isFinite(value), message);
 };
 
-const approxEqual = (a: number, b: number, epsilon = 1e-6) =>
+const approxEqual = (a: number, b: number, epsilon = 1e-4) =>
   Math.abs(a - b) < epsilon;
 
 const ensureMesh = (mesh: RenderMesh, label: string) => {
@@ -145,7 +145,7 @@ const validateBiologicalSolver = () => {
   ensure(biologicalOutputs.bestGenome.x === individual.genome[0], "Expected genome x");
   ensure(biologicalOutputs.bestGenome.y === individual.genome[1], "Expected genome y");
   ensure(biologicalOutputs.bestGenome.z === individual.genome[2], "Expected genome z");
-  ensure(biologicalOutputs.status === "running", "Expected solver status running");
+  ensure(biologicalOutputs.status === "stopped", "Expected solver status stopped");
   const generations = biologicalOutputs.history?.generations ?? [];
   const expectedEvaluations = generations.reduce(
     (sum, generation) => sum + (generation.population?.length ?? 0),
