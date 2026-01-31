@@ -218,7 +218,7 @@ grep -r "import.*reactflow" client/src/
 **Files to Update:**
 1. `docs/lingua_architecture.md` - Update workflow system section
 2. `docs/subsystems_guide.md` - Update custom node editor section
-3. `docs/README.md` (or equivalent docs index) - Mark the ReactFlow migration complete in the docs index
+3. `docs/README.md` - Mark the ReactFlow migration complete in the primary docs index
 
 ## References
 

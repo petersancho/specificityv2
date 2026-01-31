@@ -662,7 +662,7 @@ function rotate(geometry: Geometry, angle: number): Geometry {
 - `client/src/workflow/workflowEngine.ts` (evaluation engine - if exists)
 - `docs/numerica_technical_spec.md` (comprehensive workflow architecture)
 - `docs/commands_nodes_reference.md` (node catalog)
-- `docs/numerica-roslyn-semantics/PARAMETRIC_FLOW_DEEP_DIVE.md` (data flow philosophy)
+- `docs/numerica-roslyn-semantics/PARAMETRIC_FLOW_DEEP_DIVE.md` (data flow philosophy; update this prompt if moved)
 - `docs/numerica_nodes_reference.md` (current node inventory)
 
 **Philosophical Framework**: Nodes as Kantian categories, edges as synthetic a priori judgments, evaluation as transcendental deduction.
@@ -758,7 +758,7 @@ modes of representation and different types of operations."
    - The expression "2+2" has a sense (the computation) and a reference (the value 4)
 
 3. **Geometry Extractor**:
-   - From `numerica_technical_spec.md`: "converts implicit spatial information into explicit numerical data"
+   - From `docs/numerica_technical_spec.md`: "converts implicit spatial information into explicit numerical data"
    - Bridges spatial *res extensa* and computational *res cogitans*
    - Measurement is translation between domains
 

@@ -85,7 +85,7 @@ The file paths below are examples; replace them with the actual files for your t
 | File | Change Type | Risk Level |
 |------|-------------|------------|
 | `docs/subsystems_guide.md` (example) | Update | Low |
-| `client/src/components/X.tsx` (example) | Add prop | Medium |
+| `client/src/components/ExampleWidget.tsx` (example) | Add prop | Medium |
 
 **Checkpoint criteria:**
 - Can you describe what each change does?
@@ -198,7 +198,7 @@ Starting work on this issue.
 
 **Files I'll touch (examples):**
 - docs/subsystems_guide.md
-- client/src/components/Bar.tsx
+- client/src/components/ExampleWidget.tsx
 
 **Approach:**
 Brief description of planned changes.
@@ -213,11 +213,11 @@ Completed this issue.
 
 **Changes:**
 - Updated docs/subsystems_guide.md with new section
-- Added tooltip to Bar component
+- Added tooltip to ExampleWidget component
 
 **Files changed:**
 - docs/subsystems_guide.md
-- client/src/components/Bar.tsx
+- client/src/components/ExampleWidget.tsx
 
 **Tests:**
 - Manual verification: app loads, tooltip displays
