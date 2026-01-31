@@ -7720,6 +7720,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       groupSize: { width: number; height: number };
     };
 
+    const warnRig = (...args: Parameters<typeof console.warn>) => {
+      if (import.meta.env.DEV) {
+        console.warn(...args);
+      }
+    };
+
     const computeGroupBox = (
       frames: RigFrame[],
       fallbackPosition: { x: number; y: number }
@@ -7740,13 +7746,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const valid = frames.filter(isValidFrame);
       const invalid = frames.filter((frame) => !isValidFrame(frame));
       if (invalid.length > 0) {
-        console.warn(
+        warnRig(
           "Chemistry solver rig: ignoring invalid frames while computing group bounds",
           invalid.map((frame) => frame.id)
         );
       }
       if (valid.length === 0) {
-        console.warn(
+        warnRig(
           "Chemistry solver rig: falling back to default group bounds (no valid frames)",
           fallbackPosition
         );
@@ -7767,7 +7773,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
       if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) {
         // Defensive: even after filtering frames, ensure bounds are finite.
-        console.warn(
+        warnRig(
           "Chemistry solver rig: falling back to default group bounds (invalid min/max)",
           { minX, minY, maxX, maxY }
         );
