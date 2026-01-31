@@ -20,6 +20,9 @@ export type BiologicalSolverExampleSeed = {
 };
 
 const BIOLOGICAL_EXAMPLE_PARAMS = {
+  // NOTE: This seed is a test-only approximation of solver behavior.
+  // If genome structure or fitness metrics change, update this fixture to keep
+  // dashboard + validation behavior representative.
   genome: {
     gene0: { base: 0.1, generationStep: 0.06, indexStep: 0.04 },
     gene1: { base: -0.35, indexStep: 0.07 },
@@ -218,18 +221,21 @@ export const buildBiologicalSolverExampleSeed = (): BiologicalSolverExampleSeed 
   }
 
   const allIndividuals = generationRecords.flatMap((record) => record.population);
-  const bestIndividual = allIndividuals.reduce<Individual | null>((best, individual) => {
-    if (!best) return individual;
-    return individual.fitness > best.fitness ? individual : best;
-  }, null);
-
-  const safeBest = bestIndividual ?? allIndividuals[0];
-  if (!safeBest) {
+  if (allIndividuals.length === 0) {
     throw new Error("Expected at least one individual in the biological solver example seed.");
   }
 
+  const bestIndividual = allIndividuals.reduce((best, individual) =>
+    individual.fitness > best.fitness ? individual : best
+  );
+
+  const byGeneration: Record<number, Individual[]> = {};
+  generationRecords.forEach((record) => {
+    byGeneration[record.id] = record.population;
+  });
+
   const outputs: SolverOutputs = {
-    best: safeBest,
+    best: bestIndividual,
     populationBests: generationRecords.map((record) => ({
       generation: record.id,
       individuals: record.population.slice(0, 3),
@@ -240,13 +246,11 @@ export const buildBiologicalSolverExampleSeed = (): BiologicalSolverExampleSeed 
     },
     gallery: {
       allIndividuals,
-      byGeneration: Object.fromEntries(
-        generationRecords.map((record) => [record.id, record.population])
-      ) as Record<number, Individual[]>,
-      bestOverall: safeBest?.id ?? null,
-      userSelections: safeBest?.geometryIds?.length ? safeBest.geometryIds : [],
+      byGeneration,
+      bestOverall: bestIndividual.id,
+      userSelections: bestIndividual.geometryIds?.length ? bestIndividual.geometryIds : [],
     },
-    selectedGeometry: safeBest?.geometryIds?.length ? safeBest.geometryIds : [],
+    selectedGeometry: bestIndividual.geometryIds?.length ? bestIndividual.geometryIds : [],
   };
 
   return {
@@ -254,7 +258,7 @@ export const buildBiologicalSolverExampleSeed = (): BiologicalSolverExampleSeed 
     config,
     metrics,
     outputs,
-    bestIndividual: safeBest,
+    bestIndividual,
     evaluationCount: allIndividuals.length,
   };
 };

@@ -306,7 +306,7 @@ export const runBiologicalSolverRig = () => {
   updateBiologicalSolverState(nodeId, {
     outputs: seed.outputs,
     config: seed.config,
-    status: "running",
+    status: "stopped",
     generation: completedGenerationId,
     progress: { current: seed.config.generations, total: seed.config.generations, status: "complete" },
     metrics: seed.metrics,
