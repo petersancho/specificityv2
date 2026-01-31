@@ -7689,6 +7689,158 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const H_GAP = 60;
     const V_GAP = 40;
 
+    const GROUP_PADDING = 14;
+    const GROUP_HEADER_HEIGHT = 20;
+    // Keep in sync with `NumericalCanvas.tsx` node layout constants.
+    const RIG_NODE_WIDTH = 180;
+    const RIG_NODE_MIN_HEIGHT = 98;
+    const RIG_SLIDER_NODE_MIN_HEIGHT = 76;
+    const RIG_VIEWER_NODE_MIN_HEIGHT = 210;
+    const RIG_PORT_ROW_HEIGHT = 16;
+    const RIG_PORTS_START_OFFSET = 64;
+    const RIG_PORTS_BOTTOM_PADDING = 18;
+    const RIG_SLIDER_PORT_OFFSET = 6;
+
+    const CANVAS_GROUP_MIN_WIDTH = 230;
+    const CANVAS_GROUP_MIN_HEIGHT = 160;
+    const GROUP_MIN_WIDTH = Math.max(RIG_NODE_WIDTH + GROUP_PADDING * 2, CANVAS_GROUP_MIN_WIDTH);
+    const GROUP_MIN_HEIGHT = Math.max(
+      RIG_NODE_MIN_HEIGHT + GROUP_PADDING * 2 + GROUP_HEADER_HEIGHT,
+      CANVAS_GROUP_MIN_HEIGHT
+    );
+
+    type RigFrame = {
+      id: string;
+      position: { x: number; y: number };
+      size: { width: number; height: number };
+    };
+
+    type GroupBox = {
+      position: { x: number; y: number };
+      groupSize: { width: number; height: number };
+    };
+
+    const warnRig = (...args: Parameters<typeof console.warn>) => {
+      if (import.meta.env.DEV) {
+        console.warn(...args);
+      }
+    };
+
+    const computeGroupBox = (
+      frames: RigFrame[],
+      fallbackPosition: { x: number; y: number }
+    ): GroupBox => {
+      const fallbackGroupBox = (pos: { x: number; y: number }): GroupBox => ({
+        position: { x: pos.x, y: pos.y },
+        groupSize: { width: GROUP_MIN_WIDTH, height: GROUP_MIN_HEIGHT },
+      });
+      const isValidFrame = (frame: RigFrame) =>
+        Number.isFinite(frame.position.x) &&
+        Number.isFinite(frame.position.y) &&
+        Number.isFinite(frame.size.width) &&
+        Number.isFinite(frame.size.height) &&
+        // Strict: zero-sized nodes shouldn't exist in this rig builder.
+        frame.size.width > 0 &&
+        frame.size.height > 0;
+
+      const valid = frames.filter(isValidFrame);
+      const invalid = frames.filter((frame) => !isValidFrame(frame));
+      if (invalid.length > 0) {
+        warnRig(
+          "Chemistry solver rig: ignoring invalid frames while computing group bounds",
+          invalid.map((frame) => frame.id)
+        );
+      }
+      if (valid.length === 0) {
+        warnRig(
+          "Chemistry solver rig: falling back to default group bounds (no valid frames)",
+          fallbackPosition
+        );
+        return fallbackGroupBox(fallbackPosition);
+      }
+
+      let minX = Number.POSITIVE_INFINITY;
+      let minY = Number.POSITIVE_INFINITY;
+      let maxX = Number.NEGATIVE_INFINITY;
+      let maxY = Number.NEGATIVE_INFINITY;
+
+      valid.forEach((frame) => {
+        minX = Math.min(minX, frame.position.x);
+        minY = Math.min(minY, frame.position.y);
+        maxX = Math.max(maxX, frame.position.x + frame.size.width);
+        maxY = Math.max(maxY, frame.position.y + frame.size.height);
+      });
+
+      if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) {
+        // Defensive: even after filtering frames, ensure bounds are finite.
+        warnRig(
+          "Chemistry solver rig: falling back to default group bounds (invalid min/max)",
+          { minX, minY, maxX, maxY }
+        );
+        return fallbackGroupBox(fallbackPosition);
+      }
+
+      const width = Math.max(GROUP_MIN_WIDTH, maxX - minX + GROUP_PADDING * 2);
+      const height = Math.max(
+        GROUP_MIN_HEIGHT,
+        // Match `NumericalCanvas.tsx`: position is top-left of the header, and
+        // `groupSize.height` includes the header.
+        maxY - minY + GROUP_PADDING * 2 + GROUP_HEADER_HEIGHT
+      );
+      return {
+        position: {
+          x: minX - GROUP_PADDING,
+          y: minY - GROUP_PADDING - GROUP_HEADER_HEIGHT,
+        },
+        groupSize: { width, height },
+      };
+    };
+
+    // Approximate node sizing for initial rig layout; keep in sync with
+    // `NumericalCanvas.tsx`'s `computeNodeLayout()`.
+    const resolveRigFrame = (node: WorkflowNode): RigFrame => {
+      const ports = resolveNodePorts(node);
+      const rowCount = Math.max(ports.inputs.length, ports.outputs.length, 1);
+      const portsHeight = rowCount * RIG_PORT_ROW_HEIGHT;
+      const portsStartOffset =
+        node.type === "slider"
+          ? RIG_PORTS_START_OFFSET + RIG_SLIDER_PORT_OFFSET
+          : RIG_PORTS_START_OFFSET;
+      const isViewerNode =
+        node.type === "geometryViewer" ||
+        node.type === "customPreview" ||
+        node.type === "customViewer";
+      const minHeight = isViewerNode
+        ? RIG_VIEWER_NODE_MIN_HEIGHT
+        : node.type === "slider"
+          ? RIG_SLIDER_NODE_MIN_HEIGHT
+          : RIG_NODE_MIN_HEIGHT;
+      const height = Math.max(minHeight, portsStartOffset + portsHeight + RIG_PORTS_BOTTOM_PADDING);
+      return {
+        id: node.id,
+        position: node.position,
+        size: { width: RIG_NODE_WIDTH, height },
+      };
+    };
+
+    const createGroupNode = (
+      groupId: string,
+      title: string,
+      groupNodeIds: string[],
+      groupBox: GroupBox,
+      options?: { color?: string }
+    ) => ({
+      id: groupId,
+      type: "group" as const,
+      position: groupBox.position,
+      data: {
+        label: title,
+        groupSize: groupBox.groupSize,
+        groupNodeIds,
+        parameters: { title, color: options?.color ?? "#f5f2ee" },
+      },
+    });
+
     // Column 0: Solver controls and parameters
     const toggleSwitchId = `node-conditionalToggleButton-${ts}`;
     const toggleSwitchPos = { x: position.x, y: position.y - (NODE_HEIGHT + V_GAP) * 2 };
@@ -7754,8 +7906,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const viewerId = `node-geometryViewer-${ts}`;
     const viewerPos = { x: col2X + (NODE_WIDTH + H_GAP) * 2, y: position.y + NODE_HEIGHT * 1.5 };
 
-    const newNodes = [
-      // Solver controls and parameters
+    const controlsGroupId = `node-group-chemistry-controls-${ts}`;
+    const inputsGroupId = `node-group-chemistry-inputs-${ts}`;
+    const goalsGroupId = `node-group-chemistry-goals-${ts}`;
+    const outputGroupId = `node-group-chemistry-output-${ts}`;
+
+    const controlsNodes = [
       {
         id: toggleSwitchId,
         type: "conditionalToggleButton" as const,
@@ -7856,7 +8012,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           },
         },
       },
-      // Domain geometry reference
+    ];
+
+    const inputsNodes = [
       {
         id: domainId,
         type: "geometryReference" as const,
@@ -7866,7 +8024,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           parameters: {},
         },
       },
-      // Seed region: Anchor zones (for steel nucleation)
       {
         id: anchorZonesId,
         type: "geometryReference" as const,
@@ -7876,7 +8033,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           parameters: {},
         },
       },
-      // Seed region: Thermal core (for ceramic nucleation)
       {
         id: thermalCoreId,
         type: "geometryReference" as const,
@@ -7886,7 +8042,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           parameters: {},
         },
       },
-      // Seed region: Vision strip (for glass interface)
       {
         id: visionStripId,
         type: "geometryReference" as const,
@@ -7896,7 +8051,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           parameters: {},
         },
       },
-      // Stiffness Goal: bias steel toward structural load paths
+    ];
+
+    const goalsNodes = [
       {
         id: stiffnessGoalId,
         type: "chemistryStiffnessGoal" as const,
@@ -7912,7 +8069,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           },
         },
       },
-      // Mass Goal: minimize total mass for embodied carbon
       {
         id: massGoalId,
         type: "chemistryMassGoal" as const,
@@ -7926,7 +8082,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           },
         },
       },
-      // Blend Goal: smooth gradients for manufacturability
       {
         id: blendGoalId,
         type: "chemistryBlendGoal" as const,
@@ -7940,7 +8095,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           },
         },
       },
-      // Transparency Goal: glass at glazing interface
       {
         id: transparencyGoalId,
         type: "chemistryTransparencyGoal" as const,
@@ -7953,7 +8107,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           },
         },
       },
-      // Thermal Goal: ceramic insulation in core
       {
         id: thermalGoalId,
         type: "chemistryThermalGoal" as const,
@@ -7967,7 +8120,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           },
         },
       },
-      // Chemistry Solver
+    ];
+
+    const outputNodes = [
       {
         id: solverId,
         type: "chemistrySolver" as const,
@@ -7992,7 +8147,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           },
         },
       },
-      // Geometry Viewer for result visualization
       {
         id: viewerId,
         type: "geometryViewer" as const,
@@ -8000,6 +8154,94 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         data: { label: "Graded Material Preview" },
       },
     ];
+
+    const buildRigGroupNode = (
+      groupId: string,
+      title: string,
+      nodes: WorkflowNode[],
+      anchorPosition: { x: number; y: number },
+      options?: { color?: string }
+    ): ReturnType<typeof createGroupNode> | null => {
+      if (nodes.length === 0) {
+        return null;
+      }
+      const frames: RigFrame[] = nodes.map((node) => resolveRigFrame(node));
+      const groupBox = computeGroupBox(frames, anchorPosition);
+      return createGroupNode(
+        groupId,
+        title,
+        nodes.map((node) => node.id),
+        groupBox,
+        options
+      );
+    };
+
+    const groups = [
+      {
+        groupId: controlsGroupId,
+        title: "Solver Controls",
+        color: "#e3f2fd",
+        nodes: controlsNodes,
+      },
+      {
+        groupId: inputsGroupId,
+        title: "Domain + Seeds",
+        color: "#e8f5e9",
+        nodes: inputsNodes,
+      },
+      {
+        groupId: goalsGroupId,
+        title: "Goals",
+        color: "#fff3e0",
+        nodes: goalsNodes,
+      },
+      {
+        groupId: outputGroupId,
+        title: "Solve + Preview",
+        color: "#f3e5f5",
+        nodes: outputNodes,
+      },
+    ];
+
+    const groupNodes = groups
+      .map((group) =>
+        buildRigGroupNode(group.groupId, group.title, group.nodes, position, { color: group.color })
+      )
+      .filter((node): node is NonNullable<typeof node> => node != null);
+
+    class RigConfigError extends Error {
+      constructor(message: string) {
+        super(message);
+        this.name = "RigConfigError";
+      }
+    }
+
+    const groupTitleById = new Map(groups.map((group) => [group.groupId, group.title] as const));
+    // Rig template invariant: a node should not appear in multiple groups.
+    const groupOwnerByNodeId = new Map<string, string>();
+    groups.forEach((group) => {
+      group.nodes.forEach((node) => {
+        const prevOwner = groupOwnerByNodeId.get(node.id);
+        if (prevOwner && prevOwner !== group.groupId) {
+          const prevTitle = groupTitleById.get(prevOwner);
+          const currentTitle = groupTitleById.get(group.groupId);
+          throw new RigConfigError(
+            `Chemistry solver rig config error: node ${node.id} appears in multiple groups: ${prevOwner}${prevTitle ? ` ("${prevTitle}")` : ""}, ${group.groupId}${currentTitle ? ` ("${currentTitle}")` : ""}`
+          );
+        }
+        groupOwnerByNodeId.set(node.id, group.groupId);
+      });
+    });
+
+    const childNodes = Array.from(
+      new Map(
+        groups
+          .flatMap((group) => group.nodes)
+          .map((node) => [node.id, node] as const)
+      ).values()
+    );
+
+    const newNodes = [...groupNodes, ...childNodes];
 
     // Wire connections
     const newEdges = [
