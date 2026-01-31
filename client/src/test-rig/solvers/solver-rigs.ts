@@ -212,6 +212,10 @@ const translateMesh = (
   return {
     ...mesh,
     positions,
+    indices: [...mesh.indices],
+    normals: [...mesh.normals],
+    uvs: [...mesh.uvs],
+    colors: mesh.colors ? [...mesh.colors] : undefined,
   };
 };
 

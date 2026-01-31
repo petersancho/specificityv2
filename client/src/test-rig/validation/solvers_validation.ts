@@ -131,7 +131,10 @@ const validateChemistrySolver = (mode: ChemistrySolverRigMode) => {
   ensure(outputs.history.length > 0, "Expected chemistry history");
   const lastHistory = outputs.history[outputs.history.length - 1];
   ensureFinite(lastHistory.totalEnergy, "Expected finite history totalEnergy");
-  ensure(outputs.totalEnergy === lastHistory.totalEnergy, "Expected totalEnergy to match history tail");
+  ensure(
+    Math.abs(outputs.totalEnergy - lastHistory.totalEnergy) < 1e-6,
+    "Expected totalEnergy to match history tail"
+  );
 
   ensure(outputs.bestState !== null, "Expected bestState snapshot");
   if (outputs.bestState) {

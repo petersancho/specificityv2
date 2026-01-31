@@ -78,6 +78,9 @@ if (isNodeRuntime) {
           ? {
               iteration: outputs.bestState.iteration,
               totalEnergy: outputs.bestState.totalEnergy,
+              particleCount: Array.isArray(outputs.bestState.particles)
+                ? outputs.bestState.particles.length
+                : null,
             }
           : null,
     },
