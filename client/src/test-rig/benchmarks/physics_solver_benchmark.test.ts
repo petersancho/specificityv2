@@ -11,6 +11,7 @@ import type {
 } from "../../workflow/nodes/solver/types";
 import { solvePhysicsChunkedSync } from "../../workflow/nodes/solver/solverInterface";
 import { runPhysicsWorkerSolve } from "../../workflow/nodes/solver/physicsWorkerClient";
+import { buildPhysicsSolverReport } from "../solvers/physics-solver-report";
 
 const buildPhysicsGoals = (mesh: RenderMesh): GoalSpecification[] => {
   const vertexCount = Math.floor(mesh.positions.length / 3);
@@ -91,9 +92,11 @@ describe("Physics solver benchmark", () => {
       },
     };
 
-    solvePhysicsChunkedSync({ mesh, goals, config }, config.chunkSize);
+    const warmupResult = solvePhysicsChunkedSync({ mesh, goals, config }, config.chunkSize);
 
     const cpuTimings: number[] = [];
+    const cpuComputeTimes: number[] = [];
+    let lastCpuResult = warmupResult;
     for (let i = 0; i < 2; i += 1) {
       const start = performance.now();
       const result = solvePhysicsChunkedSync({ mesh, goals, config }, config.chunkSize);
@@ -102,12 +105,27 @@ describe("Physics solver benchmark", () => {
         throw new Error(result.errors.join(", "));
       }
       cpuTimings.push(end - start);
+      cpuComputeTimes.push(result.performanceMetrics.computeTime);
+      lastCpuResult = result;
     }
 
     const cpuAvg = average(cpuTimings);
-    console.log(`[BENCH] physics solver CPU avg: ${cpuAvg.toFixed(1)}ms`);
+    const cpuComputeAvg = average(cpuComputeTimes);
+    console.log(`[BENCH] physics solver CPU wall avg: ${cpuAvg.toFixed(1)}ms`);
+    console.log(`[BENCH] physics solver CPU compute avg: ${cpuComputeAvg.toFixed(1)}ms`);
+
+    const cpuReport = buildPhysicsSolverReport({
+      name: "physics-bench/cpu",
+      inputMesh: mesh,
+      outputMesh: lastCpuResult.deformedMesh ?? mesh,
+      goals,
+      config,
+      result: lastCpuResult,
+    });
 
     const workerTimings: number[] = [];
+    const workerComputeTimes: number[] = [];
+    let lastWorkerReport: ReturnType<typeof buildPhysicsSolverReport> | null = null;
     for (let i = 0; i < 2; i += 1) {
       const start = performance.now();
       const workerResult = await runPhysicsWorkerSolve({ mesh, goals, config: { ...config, useGPU: true } });
@@ -117,12 +135,66 @@ describe("Physics solver benchmark", () => {
       }
       if (workerResult.computeMode === "cpu-fallback") {
         console.log("[BENCH] worker unavailable in this environment; skipped worker timing.");
+        console.log("[BENCH_JSON]");
+        console.log(
+          JSON.stringify(
+            {
+              cpu: {
+                wallTimesMs: cpuTimings,
+                wallAvgMs: cpuAvg,
+                computeTimesMs: cpuComputeTimes,
+                computeAvgMs: cpuComputeAvg,
+                report: cpuReport,
+              },
+              worker: {
+                available: false,
+              },
+            },
+            null,
+            2
+          )
+        );
         return;
       }
       workerTimings.push(end - start);
+      workerComputeTimes.push(workerResult.result.performanceMetrics.computeTime);
+      lastWorkerReport = buildPhysicsSolverReport({
+        name: "physics-bench/worker",
+        inputMesh: mesh,
+        outputMesh: workerResult.result.deformedMesh ?? mesh,
+        goals,
+        config: { ...config, useGPU: true },
+        result: workerResult.result,
+      });
     }
 
     const workerAvg = average(workerTimings);
-    console.log(`[BENCH] physics solver worker avg: ${workerAvg.toFixed(1)}ms`);
+    const workerComputeAvg = average(workerComputeTimes);
+    console.log(`[BENCH] physics solver worker wall avg: ${workerAvg.toFixed(1)}ms`);
+    console.log(`[BENCH] physics solver worker compute avg: ${workerComputeAvg.toFixed(1)}ms`);
+    console.log("[BENCH_JSON]");
+    console.log(
+      JSON.stringify(
+        {
+          cpu: {
+            wallTimesMs: cpuTimings,
+            wallAvgMs: cpuAvg,
+            computeTimesMs: cpuComputeTimes,
+            computeAvgMs: cpuComputeAvg,
+            report: cpuReport,
+          },
+          worker: {
+            available: true,
+            wallTimesMs: workerTimings,
+            wallAvgMs: workerAvg,
+            computeTimesMs: workerComputeTimes,
+            computeAvgMs: workerComputeAvg,
+            report: lastWorkerReport,
+          },
+        },
+        null,
+        2
+      )
+    );
   }, 30000);
 });

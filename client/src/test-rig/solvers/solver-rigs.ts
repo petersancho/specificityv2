@@ -1,5 +1,5 @@
 import { NODE_DEFINITIONS } from "../../workflow/nodeRegistry";
-import type { RenderMesh } from "../../types";
+import type { RenderMesh, Vec3 } from "../../types";
 import { buildStressVertexColors } from "../../utils/stressColors";
 import type {
   AnchorGoal,
@@ -24,6 +24,7 @@ import {
   findVertexIndicesAtExtent,
   wrapMeshGeometry,
 } from "./rig-utils";
+import { buildPhysicsSolverReport, type PhysicsSolverReport } from "./physics-solver-report";
 
 const getNodeDefinition = (type: string) => {
   const node = NODE_DEFINITIONS.find((definition) => definition.type === type);
@@ -35,7 +36,8 @@ const getNodeDefinition = (type: string) => {
 
 const buildPhysicsGoals = (
   mesh: RenderMesh,
-  loadType: "static" | "dynamic" | "cyclic"
+  loadType: "static" | "dynamic" | "cyclic",
+  force: Vec3 = { x: 0, y: -120, z: 0 }
 ): GoalSpecification[] => {
   const anchorIndices = findVertexIndicesAtExtent(mesh, "y", "min");
   const loadIndices = findVertexIndicesAtExtent(mesh, "y", "max");
@@ -71,7 +73,7 @@ const buildPhysicsGoals = (
     target: 1,
     geometry: { elements: loadIndices },
     parameters: {
-      force: { x: 0, y: -120, z: 0 },
+      force,
       applicationPoints: loadIndices,
       distributed: true,
       loadType,
@@ -95,29 +97,45 @@ const buildPhysicsGoals = (
   return [stiffness, volume, load, anchor];
 };
 
-export const runPhysicsSolverRig = (analysisType: AnalysisType) => {
+export type PhysicsRigOverrides = Partial<{
+  meshSegments: number;
+  loadForce: Vec3;
+  maxIterations: number;
+  convergenceTolerance: number;
+  animationFrames: number;
+  timeStep: number;
+  maxDeformation: number;
+  maxStress: number;
+  useGPU: boolean;
+  chunkSize: number;
+}>;
+
+export const runPhysicsSolverRig = (analysisType: AnalysisType, overrides: PhysicsRigOverrides = {}) => {
   const node = getNodeDefinition("physicsSolver");
+  const segments = overrides.meshSegments ?? 1;
   const baseGeometry = createBoxGeometry(`geo-physics-${analysisType}`, {
     width: 2,
     height: 1.2,
     depth: 1.5,
-  });
+  }, segments);
   const context = createTestContext(`physics-${analysisType}`, [baseGeometry]);
   const goals = buildPhysicsGoals(
     baseGeometry.mesh,
-    analysisType === "dynamic" ? "dynamic" : "static"
+    analysisType === "dynamic" ? "dynamic" : "static",
+    overrides.loadForce
   );
   const parameters = {
     geometryId: `physics-${analysisType}-out`,
     analysisType,
-    maxIterations: 250,
-    convergenceTolerance: 1e-6,
-    animationFrames: analysisType === "static" ? 0 : 20,
-    timeStep: 0.02,
-    maxDeformation: 100,
-    maxStress: 1e12,
-    useGPU: false,
-    chunkSize: 64,
+    maxIterations: overrides.maxIterations ?? 250,
+    convergenceTolerance: overrides.convergenceTolerance ?? 1e-6,
+    animationFrames:
+      overrides.animationFrames ?? (analysisType === "static" ? 0 : 20),
+    timeStep: overrides.timeStep ?? 0.02,
+    maxDeformation: overrides.maxDeformation ?? 100,
+    maxStress: overrides.maxStress ?? 1e12,
+    useGPU: overrides.useGPU ?? false,
+    chunkSize: overrides.chunkSize ?? 64,
   };
 
   const outputs = node.compute({
@@ -125,6 +143,20 @@ export const runPhysicsSolverRig = (analysisType: AnalysisType) => {
     parameters,
     context,
   });
+
+  const config = {
+    maxIterations: parameters.maxIterations,
+    convergenceTolerance: parameters.convergenceTolerance,
+    analysisType: parameters.analysisType,
+    timeStep: parameters.timeStep,
+    animationFrames: parameters.animationFrames,
+    useGPU: parameters.useGPU,
+    chunkSize: parameters.chunkSize,
+    safetyLimits: {
+      maxDeformation: parameters.maxDeformation,
+      maxStress: parameters.maxStress,
+    },
+  };
 
   const outputMesh = (() => {
     const mesh = outputs.mesh as RenderMesh;
@@ -141,12 +173,22 @@ export const runPhysicsSolverRig = (analysisType: AnalysisType) => {
     outputMesh
   );
 
+  const report: PhysicsSolverReport = buildPhysicsSolverReport({
+    name: `physics-${analysisType}`,
+    inputMesh: baseGeometry.mesh,
+    outputMesh,
+    goals,
+    config,
+    result: outputs.result,
+  });
+
   return {
     outputs,
     outputGeometry,
     baseGeometry,
     goals,
     parameters,
+    report,
   };
 };
 

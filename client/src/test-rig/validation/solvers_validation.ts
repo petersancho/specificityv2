@@ -21,6 +21,21 @@ const ensureFinite = (value: number, message: string) => {
   ensure(Number.isFinite(value), message);
 };
 
+const ensureFiniteArray = (values: number[], label: string) => {
+  for (let i = 0; i < values.length; i += 1) {
+    ensureFinite(values[i], `${label}: non-finite value at ${i}`);
+  }
+};
+
+const ensureFiniteVec3Array = (values: Array<{ x: number; y: number; z: number }>, label: string) => {
+  for (let i = 0; i < values.length; i += 1) {
+    const value = values[i];
+    ensureFinite(value.x, `${label}: non-finite x at ${i}`);
+    ensureFinite(value.y, `${label}: non-finite y at ${i}`);
+    ensureFinite(value.z, `${label}: non-finite z at ${i}`);
+  }
+};
+
 const ensureMesh = (mesh: RenderMesh, label: string) => {
   ensure(mesh.positions.length > 0, `${label}: positions empty`);
   ensure(mesh.indices.length > 0, `${label}: indices empty`);
@@ -64,7 +79,10 @@ const validatePhysicsStatic = () => {
   ensure(Array.isArray(outputs.displacements), "Expected displacements array");
   ensure(outputs.displacements.length === baseVertexCount, "Expected displacement per vertex");
   ensure(Array.isArray(outputs.stressField), "Expected stress field array");
+  ensure(outputs.stressField.length === baseVertexCount, "Expected stress field per vertex");
   ensureFinite(outputs.result.finalObjectiveValue, "Expected finite objective value");
+  ensureFiniteVec3Array(outputs.displacements, "physics static displacements");
+  ensureFiniteArray(outputs.stressField, "physics static stress field");
   ensureMesh(outputs.mesh as RenderMesh, "physics static mesh");
   ensureMesh(outputGeometry.mesh, "physics static geometry");
   ensureStressColors(outputGeometry.mesh, "physics static geometry");
@@ -80,20 +98,48 @@ const validatePhysicsDynamic = () => {
   ensure(outputs.animation.frames.length === parameters.animationFrames, "Expected frame count");
   ensure(outputs.animation.timeStamps.length === parameters.animationFrames, "Expected timestamp count");
   ensure(outputs.displacements.length === baseVertexCount, "Expected displacement per vertex");
+  ensure(outputs.stressField.length === baseVertexCount, "Expected stress field per vertex");
+  ensureFiniteVec3Array(outputs.displacements, "physics dynamic displacements");
+  ensureFiniteArray(outputs.stressField, "physics dynamic stress field");
   ensureMesh(outputs.mesh as RenderMesh, "physics dynamic mesh");
   ensureMesh(outputGeometry.mesh, "physics dynamic geometry");
   ensureStressColors(outputGeometry.mesh, "physics dynamic geometry");
 };
 
 const validatePhysicsModal = () => {
-  const { outputs, outputGeometry } = runPhysicsSolverRig("modal");
+  const { outputs, outputGeometry, baseGeometry } = runPhysicsSolverRig("modal");
+  const baseVertexCount = Math.floor(baseGeometry.mesh.positions.length / 3);
   ensure(outputs.geometry === "physics-modal-out", "Expected geometry id to match");
   ensure(outputs.result.success === true, "Expected physics solver success");
   ensure(outputs.animation !== null, "Expected animation for modal analysis");
   ensure(outputs.animation.frames.length > 0, "Expected modal frames");
+  ensure(outputs.displacements.length === baseVertexCount, "Expected displacement per vertex");
+  ensure(outputs.stressField.length === baseVertexCount, "Expected stress field per vertex");
+  ensureFiniteVec3Array(outputs.displacements, "physics modal displacements");
+  ensureFiniteArray(outputs.stressField, "physics modal stress field");
   ensureMesh(outputs.mesh as RenderMesh, "physics modal mesh");
   ensureMesh(outputGeometry.mesh, "physics modal geometry");
   ensureStressColors(outputGeometry.mesh, "physics modal geometry");
+};
+
+const validatePhysicsSafetyWarnings = () => {
+  const { outputs } = runPhysicsSolverRig("static", {
+    meshSegments: 4,
+    maxIterations: 90,
+    chunkSize: 128,
+    loadForce: { x: 0, y: -25000, z: 0 },
+    maxDeformation: 1e-9,
+    maxStress: 1e-9,
+  });
+  ensure(outputs.result.success === true, "Expected physics solver success");
+  ensure(
+    outputs.result.warnings.some((warning) => warning.includes("Deformation exceeds specified limits")),
+    "Expected deformation warning"
+  );
+  ensure(
+    outputs.result.warnings.some((warning) => warning.includes("Stress exceeds specified limits")),
+    "Expected stress warning"
+  );
 };
 
 const validateTopologySolver = () => {
@@ -152,6 +198,7 @@ export const runSolversValidation = () => {
   runNodeValidation("physicsSolver/static", validatePhysicsStatic);
   runNodeValidation("physicsSolver/dynamic", validatePhysicsDynamic);
   runNodeValidation("physicsSolver/modal", validatePhysicsModal);
+  runNodeValidation("physicsSolver/safety-warnings", validatePhysicsSafetyWarnings);
   runNodeValidation("topologySolver", validateTopologySolver);
   runNodeValidation("voxelSolver", validateVoxelSolver);
   runNodeValidation("chemistrySolver", validateChemistrySolver);
