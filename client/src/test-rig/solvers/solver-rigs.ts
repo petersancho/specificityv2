@@ -380,6 +380,9 @@ export const runBiologicalSolverRig = () => {
 
   const best = generation1[1];
 
+  const selectedGeometry =
+    best.geometryIds && best.geometryIds.length > 0 ? best.geometryIds : [baseGeometry.id];
+
   const outputs: SolverOutputs = {
     best,
     populationBests: [
@@ -427,7 +430,7 @@ export const runBiologicalSolverRig = () => {
       bestOverall: best.id,
       userSelections: [],
     },
-    selectedGeometry: best.geometryIds ?? [],
+    selectedGeometry,
   };
 
   updateBiologicalSolverState(nodeId, {
