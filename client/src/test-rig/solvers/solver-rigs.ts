@@ -7,6 +7,8 @@ import type {
   ChemistryBlendGoal,
   ChemistryMassGoal,
   ChemistryStiffnessGoal,
+  ChemistryThermalGoal,
+  ChemistryTransparencyGoal,
   GoalSpecification,
   LoadGoal,
   StiffnessGoal,
@@ -195,10 +197,48 @@ export const runTopologySolverRig = (nodeType: "topologySolver" | "voxelSolver")
   };
 };
 
-export const runChemistrySolverRig = () => {
+export type ChemistrySolverRigMode = "structured" | "materialsText";
+
+const translateMesh = (
+  mesh: RenderMesh,
+  offset: { x: number; y: number; z: number }
+): RenderMesh => {
+  const positions = [...mesh.positions];
+  for (let i = 0; i < positions.length; i += 3) {
+    positions[i] += offset.x;
+    positions[i + 1] += offset.y;
+    positions[i + 2] += offset.z;
+  }
+  return {
+    ...mesh,
+    positions,
+  };
+};
+
+export const runChemistrySolverRig = (mode: ChemistrySolverRigMode = "structured") => {
   const solverNode = getNodeDefinition("chemistrySolver");
-  const baseGeometry = createBoxGeometry("geo-chemistry", { width: 2.2, height: 1.4, depth: 1.6 });
-  const context = createTestContext("chemistry-context", [baseGeometry]);
+  const domainGeometry = createBoxGeometry("geo-chemistry", { width: 2.2, height: 1.4, depth: 1.6 });
+  const anchorGeometryBase = createBoxGeometry("geo-chemistry-anchor", { width: 2.2, height: 0.35, depth: 1.6 });
+  const anchorGeometry = {
+    ...anchorGeometryBase,
+    mesh: translateMesh(anchorGeometryBase.mesh, { x: 0, y: -0.55, z: 0 }),
+  };
+  const thermalCoreGeometryBase = createBoxGeometry("geo-chemistry-thermal", { width: 1.1, height: 0.5, depth: 1.1 });
+  const thermalCoreGeometry = {
+    ...thermalCoreGeometryBase,
+    mesh: translateMesh(thermalCoreGeometryBase.mesh, { x: 0, y: 0, z: 0 }),
+  };
+  const visionGeometryBase = createBoxGeometry("geo-chemistry-vision", { width: 2.2, height: 0.35, depth: 1.6 });
+  const visionGeometry = {
+    ...visionGeometryBase,
+    mesh: translateMesh(visionGeometryBase.mesh, { x: 0, y: 0.55, z: 0 }),
+  };
+  const context = createTestContext("chemistry-context", [
+    domainGeometry,
+    anchorGeometry,
+    thermalCoreGeometry,
+    visionGeometry,
+  ]);
 
   const blendGoal: ChemistryBlendGoal = {
     goalType: "chemBlend",
@@ -227,6 +267,28 @@ export const runChemistrySolverRig = () => {
     parameters: {
       loadVector: { x: 0, y: 1, z: 0 },
       structuralPenalty: 1.1,
+      regionGeometryIds: [anchorGeometry.id],
+    },
+  };
+
+  const transparencyGoal: ChemistryTransparencyGoal = {
+    goalType: "chemTransparency",
+    weight: 0.3,
+    geometry: { elements: [] },
+    parameters: {
+      opticalWeight: 2.2,
+      regionGeometryIds: [visionGeometry.id],
+    },
+  };
+
+  const thermalGoal: ChemistryThermalGoal = {
+    goalType: "chemThermal",
+    weight: 0.3,
+    geometry: { elements: [] },
+    parameters: {
+      mode: "insulate",
+      thermalWeight: 2.6,
+      regionGeometryIds: [thermalCoreGeometry.id],
     },
   };
 
@@ -244,35 +306,57 @@ export const runChemistrySolverRig = () => {
     materialOrder: "Steel, Ceramic, Glass",
   };
 
+  const materialsText = [
+    `Steel: ${anchorGeometry.id}`,
+    `Ceramic: ${thermalCoreGeometry.id}`,
+    `Glass: ${visionGeometry.id}`,
+  ].join("\n");
+
   const outputs = solverNode.compute({
     inputs: {
-      domain: baseGeometry.id,
-      materials: [
-        {
-          geometryId: baseGeometry.id,
-          material: { name: "Steel", color: [0.75, 0.75, 0.78] },
-          weight: 1,
-        },
-        {
-          geometryId: baseGeometry.id,
-          material: { name: "Ceramic", color: [0.9, 0.2, 0.2] },
-          weight: 0.7,
-        },
-        {
-          geometryId: baseGeometry.id,
-          material: { name: "Glass", color: [0.2, 0.4, 0.9] },
-          weight: 0.6,
-        },
-      ],
+      domain: domainGeometry.id,
+      materials:
+        mode === "structured"
+          ? [
+              {
+                geometryId: anchorGeometry.id,
+                material: { name: "Steel", color: [0.75, 0.75, 0.78] },
+                weight: 1,
+              },
+              {
+                geometryId: thermalCoreGeometry.id,
+                material: { name: "Ceramic", color: [0.9, 0.2, 0.2] },
+                weight: 0.75,
+              },
+              {
+                geometryId: visionGeometry.id,
+                material: { name: "Glass", color: [0.2, 0.4, 0.9] },
+                weight: 0.65,
+              },
+            ]
+          : [],
+      materialsText: mode === "materialsText" ? materialsText : "",
       seeds: [
         {
+          position: { x: 0, y: -0.55, z: 0 },
+          material: "Steel",
+          strength: 0.92,
+          radius: 0.45,
+        },
+        {
           position: { x: 0, y: 0, z: 0 },
+          material: "Ceramic",
+          strength: 0.92,
+          radius: 0.35,
+        },
+        {
+          position: { x: 0, y: 0.55, z: 0 },
           material: "Glass",
-          strength: 0.9,
-          radius: 0.4,
+          strength: 0.92,
+          radius: 0.35,
         },
       ],
-      goals: [blendGoal, massGoal, stiffnessGoal],
+      goals: [blendGoal, massGoal, stiffnessGoal, transparencyGoal, thermalGoal],
     },
     parameters,
     context,
@@ -288,7 +372,12 @@ export const runChemistrySolverRig = () => {
   return {
     outputs,
     outputGeometry,
-    baseGeometry,
+    baseGeometry: domainGeometry,
+    regionGeometry: {
+      anchor: anchorGeometry,
+      thermalCore: thermalCoreGeometry,
+      vision: visionGeometry,
+    },
     context,
   };
 };
