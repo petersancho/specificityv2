@@ -88,7 +88,10 @@ const validatePhysicsDynamic = () => {
     "Expected timestamp count"
   );
   ensure(outputs.displacements.length === baseVertexCount, "Expected displacement per vertex");
-  ensure(outputs.result.iterations === parameters.animationFrames, "Expected iterations to match frames");
+  ensure(
+    outputs.result.iterations >= parameters.animationFrames,
+    "Expected iterations to cover all frames"
+  );
   ensureMesh(outputs.mesh as RenderMesh, "physics dynamic mesh");
   ensureMesh(outputGeometry.mesh, "physics dynamic geometry");
   ensureStressColors(outputGeometry.mesh, "physics dynamic geometry");

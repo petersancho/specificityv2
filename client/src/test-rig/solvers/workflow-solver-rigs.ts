@@ -32,6 +32,8 @@ export type ChemistrySolverWorkflowOutputs = {
 };
 
 const resetProjectStore = () => {
+  // These workflow rigs mutate the global `useProjectStore` singleton. They are
+  // intended to run sequentially (as part of the validation test harness).
   useProjectStore.setState(useProjectStore.getInitialState(), true);
 };
 
@@ -288,6 +290,8 @@ export const runPhysicsSolverWorkflowRig = (analysisType: PhysicsAnalysisType) =
       selectedGeometryIds: [baseGeometryId],
     })
   );
+  // `recalculateWorkflow()` is synchronous today; we rely on node outputs +
+  // geometry updates being available immediately after this call.
   useProjectStore.getState().recalculateWorkflow();
 
   const state = useProjectStore.getState();
@@ -397,6 +401,8 @@ export const runChemistrySolverWorkflowRig = () => {
       selectedGeometryIds: [baseGeometryId],
     })
   );
+  // `recalculateWorkflow()` is synchronous today; we rely on node outputs +
+  // geometry updates being available immediately after this call.
   useProjectStore.getState().recalculateWorkflow();
 
   const state = useProjectStore.getState();
