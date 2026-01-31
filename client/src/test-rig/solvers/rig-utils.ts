@@ -73,15 +73,38 @@ export const findVertexIndicesAtExtent = (
   return indices;
 };
 
+export const shallowCloneRenderMesh = (mesh: RenderMesh): RenderMesh => ({
+  positions: mesh.positions ? mesh.positions.slice() : [],
+  normals: mesh.normals ? mesh.normals.slice() : [],
+  uvs: mesh.uvs ? mesh.uvs.slice() : [],
+  indices: mesh.indices ? mesh.indices.slice() : [],
+  colors: mesh.colors ? mesh.colors.slice() : undefined,
+});
+
 export const wrapMeshGeometry = (id: string, mesh: RenderMesh): MeshGeometry => ({
   id,
   type: "mesh",
-  mesh: {
-    positions: [...mesh.positions],
-    normals: [...mesh.normals],
-    uvs: [...mesh.uvs],
-    indices: [...mesh.indices],
-    colors: mesh.colors ? [...mesh.colors] : undefined,
-  },
+  mesh: shallowCloneRenderMesh(mesh),
   layerId: "layer-test",
 });
+
+export const translateRenderMesh = (mesh: RenderMesh, offset: Vec3): RenderMesh => {
+  const next = shallowCloneRenderMesh(mesh);
+  const positions = next.positions;
+  if (positions.length % 3 !== 0) {
+    throw new Error(
+      `translateRenderMesh expected positions.length % 3 === 0, got ${positions.length}`
+    );
+  }
+  for (let i = 0; i < positions.length; i += 3) {
+    positions[i] += offset.x;
+    positions[i + 1] += offset.y;
+    positions[i + 2] += offset.z;
+  }
+  return next;
+};
+
+export const translateMeshGeometry = (geometry: MeshGeometry, offset: Vec3): MeshGeometry => {
+  const mesh = translateRenderMesh(geometry.mesh, offset);
+  return { ...geometry, mesh };
+};

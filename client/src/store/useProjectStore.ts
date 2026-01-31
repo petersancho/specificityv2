@@ -175,6 +175,7 @@ import {
 } from "../utils/meshIo";
 import { hexToRgb, normalizeHexColor, normalizeRgbInput, rgbToHex } from "../utils/color";
 import { buildStressVertexColors } from "../utils/stressColors";
+import { buildChemistrySolverExampleScript } from "../workflow/nodes/solver/chemistry/exampleScripting";
 export type { NodeType } from "../workflow/nodeTypes";
 
 type SaveEntry = {
@@ -6724,27 +6725,118 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }
     
     if (node.type === "chemistrySolver") {
-      const outputs = node.data?.outputs ?? {};
-      const mesh = outputs.mesh as RenderMesh | undefined;
-      if (!mesh || mesh.positions.length < 3) return;
+      const outputsRaw = node.data?.outputs;
+      if (!outputsRaw || typeof outputsRaw !== "object") {
+        if (import.meta.env.DEV) {
+          console.warn("Chemistry solver produced invalid outputs payload", {
+            nodeId,
+            outputsRaw,
+          });
+        }
+        return;
+      }
+      const outputs = outputsRaw as Record<string, unknown>;
+      const meshCandidate = outputs.mesh;
+      if (!meshCandidate || typeof meshCandidate !== "object") return;
+      const mesh = meshCandidate as RenderMesh;
+      const positions = (mesh as any).positions as { length?: unknown } | undefined;
+      if (!positions || typeof positions.length !== "number" || positions.length < 3) return;
       
-      const materials = outputs.materials as any[] | undefined;
-      const materialParticles = outputs.materialParticles as any[] | undefined;
-      const materialField = outputs.materialField as any | undefined;
-      const history = outputs.history as any[] | undefined;
-      const totalEnergy = asNumber(outputs.totalEnergy, 0);
+      const materials = Array.isArray(outputs.materials) ? outputs.materials : [];
+      const materialParticles = Array.isArray(outputs.materialParticles)
+        ? outputs.materialParticles
+        : [];
+      const materialField =
+        outputs.materialField && typeof outputs.materialField === "object"
+          ? (outputs.materialField as Record<string, unknown>)
+          : undefined;
+      const history = Array.isArray(outputs.history) ? outputs.history : [];
+      const diagnostics =
+        outputs.diagnostics && typeof outputs.diagnostics === "object"
+          ? (outputs.diagnostics as Record<string, unknown>)
+          : undefined;
+      const chemistryWarnings: string[] = [];
+      const rawTotalEnergy = outputs.totalEnergy;
+      const totalEnergy = asNumber(rawTotalEnergy, 0);
+      if (
+        rawTotalEnergy !== undefined &&
+        typeof rawTotalEnergy !== "number"
+      ) {
+        chemistryWarnings.push("totalEnergy was non-numeric; defaulted to 0");
+      }
+      if (
+        import.meta.env.DEV &&
+        rawTotalEnergy !== undefined &&
+        typeof rawTotalEnergy !== "number"
+      ) {
+        console.warn("Chemistry solver totalEnergy was non-numeric, defaulting to 0", {
+          nodeId,
+          rawTotalEnergy,
+        });
+      }
       const status = typeof outputs.status === "string" ? outputs.status : "unknown";
+      const diagnosticsIterations = diagnostics?.iterations;
+      const iterationsUsed =
+        typeof diagnosticsIterations === "number" &&
+        Number.isFinite(diagnosticsIterations) &&
+        diagnosticsIterations > 0
+          ? diagnosticsIterations
+          : history.length;
+
+      let exampleScript: string | undefined;
+      let exampleScriptError: string | undefined;
+      let exampleSummary: { fieldResolution: { x: number; y: number; z: number } } | undefined;
+      try {
+        const result = buildChemistrySolverExampleScript(outputs);
+        exampleSummary = result.summary;
+        exampleScript = result.script.trim().length > 0 ? result.script : undefined;
+      } catch (error) {
+        exampleScriptError = error instanceof Error ? error.message : String(error);
+        if (import.meta.env.DEV) {
+          console.warn("Chemistry example script generation failed", error);
+        }
+      }
+
+      const fallbackResolution = (() => {
+        if (!materialField || typeof materialField !== "object") {
+          return { x: 0, y: 0, z: 0 };
+        }
+        const resolution = (materialField as { resolution?: unknown }).resolution;
+        if (!resolution || typeof resolution !== "object") {
+          return { x: 0, y: 0, z: 0 };
+        }
+        const raw = resolution as Record<string, unknown>;
+        const x = raw.x;
+        const y = raw.y;
+        const z = raw.z;
+        if (
+          typeof x === "number" &&
+          Number.isFinite(x) &&
+          typeof y === "number" &&
+          Number.isFinite(y) &&
+          typeof z === "number" &&
+          Number.isFinite(z)
+        ) {
+          return { x, y, z };
+        }
+        return { x: 0, y: 0, z: 0 };
+      })();
+      const fieldResolution = exampleSummary?.fieldResolution ?? fallbackResolution;
       
       const metadata: Record<string, unknown> = {
         label: node.data?.label ?? "Chemistry Solver Result",
         chemistryResult: {
-          materials: materials ?? [],
-          particleCount: Array.isArray(materialParticles) ? materialParticles.length : 0,
-          fieldResolution: materialField?.resolution ?? { x: 0, y: 0, z: 0 },
+          materials,
+          particleCount: materialParticles.length,
+          fieldResolution,
           totalEnergy,
           status,
-          iterations: history?.length ?? 0,
+          iterations: iterationsUsed,
           hasColors: Boolean(mesh.colors && mesh.colors.length > 0),
+          ...(exampleScript ? { exampleScript } : {}),
+          ...(exampleScriptError ? { exampleScriptError } : {}),
+          ...(exampleSummary ? { exampleSummary } : {}),
+          ...(chemistryWarnings.length ? { warnings: chemistryWarnings } : {}),
         },
       };
       

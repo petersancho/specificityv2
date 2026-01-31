@@ -233,20 +233,125 @@ const validateVoxelSolver = () => {
 };
 
 const validateChemistrySolver = () => {
-  const { outputs, outputGeometry } = runChemistrySolverRig();
+  const { outputs, outputGeometry, goalRegions, context } = runChemistrySolverRig("regions");
   ensure(outputs.status === "complete", "Expected chemistry solver complete");
+  ensure(goalRegions.stiffness.length > 0, "Expected stiffness goal regions");
+  ensure(goalRegions.transparency.length > 0, "Expected transparency goal regions");
+  ensure(goalRegions.thermal.length > 0, "Expected thermal goal regions");
+  [...goalRegions.stiffness, ...goalRegions.transparency, ...goalRegions.thermal].forEach((id) => {
+    ensure(context.geometryById.has(id), `Expected region geometry ${id}`);
+  });
   ensure(outputs.materialParticles.length > 0, "Expected chemistry particles");
   ensure(outputs.materialField !== null, "Expected chemistry field");
+  ensure(Array.isArray(outputs.history), "Expected chemistry history array");
+  ensure(outputs.history.length > 0, "Expected chemistry history entries");
+  ensure(outputs.bestState !== null, "Expected chemistry best state");
+  ensureFinite(outputs.totalEnergy, "Expected chemistry energy");
+  ensure(outputs.materials.length > 0, "Expected materials list");
   if (outputs.materialField) {
     const cellCount =
       outputs.materialField.resolution.x *
       outputs.materialField.resolution.y *
       outputs.materialField.resolution.z;
     ensure(outputs.materialField.densities.length === cellCount, "Expected field density length");
+    ensure(outputs.materialField.channels.length === outputs.materialField.materials.length, "Expected one channel per material");
   }
-  ensure(outputs.materials.length > 0, "Expected materials list");
+  const materialNames = outputs.materials
+    .map((material) => (material && typeof material === "object" ? (material as { name?: unknown }).name : null))
+    .filter((name): name is string => typeof name === "string");
+  if (materialNames.length > 0) {
+    const particles = (outputs.materialParticles as unknown[]).filter(
+      (particle): particle is { materials?: Record<string, unknown> } => {
+        if (particle == null || typeof particle !== "object") return false;
+        const materials = (particle as any).materials;
+        return materials == null || typeof materials === "object";
+      }
+    );
+    const MIN_MAX_CONCENTRATION = 0.05;
+    const SAMPLE_LIMIT = 2000;
+    const sampledParticles = particles.slice(0, SAMPLE_LIMIT);
+    materialNames.forEach((name) => {
+      let max = 0;
+      sampledParticles.forEach((particle) => {
+        const raw = particle.materials?.[name];
+        const value = typeof raw === "number" ? raw : 0;
+        if (value > max) max = value;
+      });
+      ensure(max > MIN_MAX_CONCENTRATION, `Expected non-trivial concentration for ${name}`);
+    });
+  }
+
   ensureMesh(outputs.mesh as RenderMesh, "chemistry mesh");
   ensureMesh(outputGeometry.mesh, "chemistry output geometry");
+};
+
+const validateChemistrySolverTextInputs = () => {
+  const { outputs, outputGeometry, goalRegions, context, parameters } = runChemistrySolverRig("textInputs");
+  ensure(outputs.status === "complete", "Expected chemistry solver complete");
+  ensure(goalRegions.stiffness.length > 0, "Expected stiffness goal regions");
+  ensure(goalRegions.transparency.length > 0, "Expected transparency goal regions");
+  ensure(goalRegions.thermal.length > 0, "Expected thermal goal regions");
+  [...goalRegions.stiffness, ...goalRegions.transparency, ...goalRegions.thermal].forEach((id) => {
+    ensure(context.geometryById.has(id), `Expected region geometry ${id}`);
+  });
+  ensure(outputs.materialParticles.length > 0, "Expected chemistry particles");
+  ensure(outputs.materialField !== null, "Expected chemistry field");
+  ensure(outputs.materials.length >= 3, "Expected materials list");
+
+  const expectedMaterialsText = (parameters as { materialsText?: unknown }).materialsText;
+  if (typeof expectedMaterialsText === "string" && expectedMaterialsText.trim().length > 0) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(expectedMaterialsText) as unknown;
+    } catch (error) {
+      ensure(false, `Failed to parse materialsText JSON: ${String(error)}`);
+      parsed = [];
+    }
+    type TextMaterialEntry =
+      | { material: { name: string } }
+      | { name: string };
+
+    const isTextMaterialEntry = (value: unknown): value is TextMaterialEntry => {
+      if (!value || typeof value !== "object") return false;
+      const entry = value as Record<string, unknown>;
+      const material = entry.material;
+      if (material && typeof material === "object") {
+        const m = material as Record<string, unknown>;
+        return typeof m.name === "string";
+      }
+      return typeof entry.name === "string";
+    };
+
+    const parsedList = Array.isArray(parsed) ? parsed : [];
+    ensure(
+      parsedList.every(isTextMaterialEntry),
+      "materialsText JSON shape did not match expected schema"
+    );
+
+    const expectedNames = parsedList
+      .filter(isTextMaterialEntry)
+      .map((entry) => ("material" in entry ? entry.material.name : entry.name));
+    const outputNames = outputs.materials
+      .map((material) => (material && typeof material === "object" ? (material as any).name : null))
+      .filter((name): name is string => typeof name === "string");
+    expectedNames.forEach((name) => {
+      ensure(outputNames.includes(name), `Expected parsed materialsText to include ${name}`);
+    });
+  }
+
+  ensureMesh(outputs.mesh as RenderMesh, "chemistry mesh");
+  ensureMesh(outputGeometry.mesh, "chemistry output geometry");
+};
+
+const validateChemistrySolverDisabled = () => {
+  const { outputs } = runChemistrySolverRig("disabled");
+  ensure(outputs.status === "disabled", "Expected chemistry solver disabled");
+  ensure(outputs.materialParticles.length === 0, "Expected no chemistry particles");
+  ensure(outputs.materialField === null, "Expected no chemistry field");
+  ensure(outputs.materials.length === 0, "Expected no materials list");
+  ensure(Array.isArray(outputs.history) && outputs.history.length === 0, "Expected no history when disabled");
+  ensure(outputs.bestState === null, "Expected no best state when disabled");
+  ensure((outputs.mesh as RenderMesh).positions.length === 0, "Expected empty disabled mesh");
 };
 
 const validateBiologicalSolver = () => {
@@ -291,7 +396,9 @@ export const runSolversValidation = () => {
   runNodeValidation("physicsSolver/modal", validatePhysicsModal);
   runNodeValidation("topologySolver", validateTopologySolver);
   runNodeValidation("voxelSolver", validateVoxelSolver);
-  runNodeValidation("chemistrySolver", validateChemistrySolver);
+  runNodeValidation("chemistrySolver/regions", validateChemistrySolver);
+  runNodeValidation("chemistrySolver/textInputs", validateChemistrySolverTextInputs);
+  runNodeValidation("chemistrySolver/disabled", validateChemistrySolverDisabled);
   runNodeValidation("biologicalSolver", validateBiologicalSolver);
 
   return generateReport();
