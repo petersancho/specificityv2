@@ -7672,9 +7672,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
      * - Density Slider → controls solver particle density
      * - Toggle Switch → enable/disable solver execution
      * - Geometry Reference (Domain) → mullion profile from Roslyn
-     * - Geometry Reference (Anchor Zones) → steel nucleation regions
+     * - Geometry Reference (Anchor Zones) → steel seed regions
      * - Geometry Reference (Thermal Core) → ceramic thermal break region
      * - Geometry Reference (Vision Strip) → glass interface region
+     * - Material Goal (Ὕλη) → assign steel/ceramic/glass to geometry inputs
      * - Stiffness Goal (Τέλος Σκληρότητος) → bias steel toward load paths
      * - Mass Goal (Τέλος Ἐλαχίστου Ὄγκου) → minimize total mass
      * - Blend Goal (Τέλος Κράσεως) → smooth manufacturable gradients
@@ -7882,6 +7883,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     // Column 2: Goal nodes (stacked vertically)
     const col2X = position.x + NODE_WIDTH + H_GAP;
 
+    const materialGoalId = `node-chemistryMaterialGoal-${ts}`;
+    const materialGoalPos = { x: col2X, y: position.y - (NODE_HEIGHT + V_GAP) };
+
     const stiffnessGoalId = `node-chemistryStiffnessGoal-${ts}`;
     const stiffnessGoalPos = { x: col2X, y: position.y };
 
@@ -8055,6 +8059,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
     const goalsNodes = [
       {
+        id: materialGoalId,
+        type: "chemistryMaterialGoal" as const,
+        position: materialGoalPos,
+        data: {
+          label: "Ὕλη",
+        },
+      },
+      {
         id: stiffnessGoalId,
         type: "chemistryStiffnessGoal" as const,
         position: stiffnessGoalPos,
@@ -8136,11 +8148,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             historyLimit: 100,
             seed: 1,
             materialOrder: "Steel, Ceramic, Glass",
-            materialsText: JSON.stringify([
-              { material: { name: "Steel", color: [0.75, 0.75, 0.78] } },
-              { material: { name: "Ceramic", color: [0.9, 0.2, 0.2] } },
-              { material: { name: "Glass", color: [0.2, 0.4, 0.9] } },
-            ]),
             seedMaterial: "Steel",
             seedStrength: 0.85,
             seedRadius: 0.25,
@@ -8317,26 +8324,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         target: solverId,
         targetHandle: "domain",
       },
-      // Anchor Zones → Chemistry Solver (seeds for steel nucleation)
+      // Anchor Zones → Chemistry Solver (seeds)
       {
         id: `edge-${anchorZonesId}-${solverId}-seeds`,
         source: anchorZonesId,
-        sourceHandle: "geometry",
-        target: solverId,
-        targetHandle: "seeds",
-      },
-      // Thermal Core → Chemistry Solver (seeds for ceramic)
-      {
-        id: `edge-${thermalCoreId}-${solverId}-seeds`,
-        source: thermalCoreId,
-        sourceHandle: "geometry",
-        target: solverId,
-        targetHandle: "seeds",
-      },
-      // Vision Strip → Chemistry Solver (seeds for glass)
-      {
-        id: `edge-${visionStripId}-${solverId}-seeds`,
-        source: visionStripId,
         sourceHandle: "geometry",
         target: solverId,
         targetHandle: "seeds",
@@ -8364,6 +8355,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         sourceHandle: "geometry",
         target: solverId,
         targetHandle: "materials",
+      },
+      // Material Goal → Chemistry Solver (materialsText)
+      {
+        id: `edge-${materialGoalId}-${solverId}-materialsText`,
+        source: materialGoalId,
+        sourceHandle: "materialsText",
+        target: solverId,
+        targetHandle: "materialsText",
       },
       // Anchor Zones → Stiffness Goal (region input)
       {
