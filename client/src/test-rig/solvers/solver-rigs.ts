@@ -347,6 +347,9 @@ export const runBiologicalSolverRig = () => {
       throw new Error("Biological solver rig generation population must not be empty");
     }
     const fitnesses = population.map((entry) => entry.fitness);
+    if (fitnesses.some((fitness) => !Number.isFinite(fitness))) {
+      throw new Error("Biological solver rig population contains non-finite fitness value");
+    }
     const bestFitness = Math.max(...fitnesses);
     const worstFitness = Math.min(...fitnesses);
     const meanFitness = fitnesses.reduce((sum, entry) => sum + entry, 0) / fitnesses.length;

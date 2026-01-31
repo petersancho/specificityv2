@@ -13,8 +13,15 @@ type MeshSummary = {
 };
 
 const summarizeMesh = (mesh: RenderMesh): MeshSummary => {
-  const vertexCount = Math.floor(mesh.positions.length / 3);
-  const triangleCount = Math.floor(mesh.indices.length / 3);
+  if (mesh.positions.length % 3 !== 0) {
+    throw new Error("Mesh positions length must be a multiple of 3");
+  }
+  if (mesh.indices.length % 3 !== 0) {
+    throw new Error("Mesh indices length must be a multiple of 3");
+  }
+
+  const vertexCount = mesh.positions.length / 3;
+  const triangleCount = mesh.indices.length / 3;
   const bounds = meshBounds(mesh);
   return {
     vertexCount,
