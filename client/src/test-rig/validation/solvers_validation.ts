@@ -5,6 +5,7 @@ import {
   runPhysicsSolverRig,
   runTopologySolverRig,
 } from "../solvers/solver-rigs";
+import { buildPhysicsSolverRunReport } from "../solvers/physics-solver-report";
 import type { RenderMesh } from "../../types";
 
 const CATEGORY = "solvers";
@@ -56,7 +57,7 @@ const runNodeValidation = (nodeName: string, fn: () => void) => {
 };
 
 const validatePhysicsStatic = () => {
-  const { outputs, outputGeometry, baseGeometry } = runPhysicsSolverRig("static");
+  const { outputs, outputGeometry, baseGeometry, goals, config } = runPhysicsSolverRig("static");
   const baseVertexCount = Math.floor(baseGeometry.mesh.positions.length / 3);
   ensure(outputs.geometry === "physics-static-out", "Expected geometry id to match");
   ensure(outputs.result.success === true, "Expected physics solver success");
@@ -68,10 +69,27 @@ const validatePhysicsStatic = () => {
   ensureMesh(outputs.mesh as RenderMesh, "physics static mesh");
   ensureMesh(outputGeometry.mesh, "physics static geometry");
   ensureStressColors(outputGeometry.mesh, "physics static geometry");
+
+  const report = buildPhysicsSolverRunReport({
+    label: "validation/physics/static",
+    computeMode: "cpu",
+    mesh: baseGeometry.mesh,
+    goals,
+    config,
+    result: outputs.result,
+  });
+  ensure(
+    report.stats.displacements.nonFiniteCount === 0,
+    "Expected finite displacements"
+  );
+  ensure(
+    report.stats.stressField.nonFiniteCount === 0,
+    "Expected finite stress field"
+  );
 };
 
 const validatePhysicsDynamic = () => {
-  const { outputs, outputGeometry, baseGeometry, parameters } = runPhysicsSolverRig("dynamic");
+  const { outputs, outputGeometry, baseGeometry, parameters, goals, config } = runPhysicsSolverRig("dynamic");
   const baseVertexCount = Math.floor(baseGeometry.mesh.positions.length / 3);
   ensure(outputs.geometry === "physics-dynamic-out", "Expected geometry id to match");
   ensure(outputs.result.success === true, "Expected physics solver success");
@@ -83,10 +101,23 @@ const validatePhysicsDynamic = () => {
   ensureMesh(outputs.mesh as RenderMesh, "physics dynamic mesh");
   ensureMesh(outputGeometry.mesh, "physics dynamic geometry");
   ensureStressColors(outputGeometry.mesh, "physics dynamic geometry");
+
+  const report = buildPhysicsSolverRunReport({
+    label: "validation/physics/dynamic",
+    computeMode: "cpu",
+    mesh: baseGeometry.mesh,
+    goals,
+    config,
+    result: outputs.result,
+  });
+  ensure(
+    report.stats.displacements.nonFiniteCount === 0,
+    "Expected finite displacements"
+  );
 };
 
 const validatePhysicsModal = () => {
-  const { outputs, outputGeometry } = runPhysicsSolverRig("modal");
+  const { outputs, outputGeometry, baseGeometry, goals, config } = runPhysicsSolverRig("modal");
   ensure(outputs.geometry === "physics-modal-out", "Expected geometry id to match");
   ensure(outputs.result.success === true, "Expected physics solver success");
   ensure(outputs.animation !== null, "Expected animation for modal analysis");
@@ -94,6 +125,19 @@ const validatePhysicsModal = () => {
   ensureMesh(outputs.mesh as RenderMesh, "physics modal mesh");
   ensureMesh(outputGeometry.mesh, "physics modal geometry");
   ensureStressColors(outputGeometry.mesh, "physics modal geometry");
+
+  const report = buildPhysicsSolverRunReport({
+    label: "validation/physics/modal",
+    computeMode: "cpu",
+    mesh: baseGeometry.mesh,
+    goals,
+    config,
+    result: outputs.result,
+  });
+  ensure(
+    report.stats.displacements.nonFiniteCount === 0,
+    "Expected finite displacements"
+  );
 };
 
 const validateTopologySolver = () => {

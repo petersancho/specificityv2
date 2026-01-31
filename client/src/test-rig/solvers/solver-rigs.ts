@@ -2,15 +2,11 @@ import { NODE_DEFINITIONS } from "../../workflow/nodeRegistry";
 import type { Geometry, RenderMesh } from "../../types";
 import { buildStressVertexColors } from "../../utils/stressColors";
 import type {
-  AnchorGoal,
   AnalysisType,
   ChemistryBlendGoal,
   ChemistryMassGoal,
   ChemistryStiffnessGoal,
-  GoalSpecification,
-  LoadGoal,
-  StiffnessGoal,
-  VolumeGoal,
+  SolverConfiguration,
 } from "../../workflow/nodes/solver/types";
 import type { SolverOutputs, Individual, SolverConfig } from "../../workflow/nodes/solver/biological/types";
 import {
@@ -24,6 +20,7 @@ import {
   findVertexIndicesAtExtent,
   wrapMeshGeometry,
 } from "./rig-utils";
+import { buildPhysicsGoals } from "./physics-solver-fixtures";
 
 const getNodeDefinition = (type: string) => {
   const node = NODE_DEFINITIONS.find((definition) => definition.type === type);
@@ -31,68 +28,6 @@ const getNodeDefinition = (type: string) => {
     throw new Error(`Missing node definition for ${type}`);
   }
   return node;
-};
-
-const buildPhysicsGoals = (
-  mesh: RenderMesh,
-  loadType: "static" | "dynamic" | "cyclic"
-): GoalSpecification[] => {
-  const anchorIndices = findVertexIndicesAtExtent(mesh, "y", "min");
-  const loadIndices = findVertexIndicesAtExtent(mesh, "y", "max");
-
-  const stiffness: StiffnessGoal = {
-    goalType: "stiffness",
-    weight: 0.3,
-    target: 1,
-    constraint: { min: 0, max: 1 },
-    geometry: { elements: loadIndices },
-    parameters: {
-      youngModulus: 2.1e9,
-      poissonRatio: 0.3,
-      targetStiffness: 1,
-    },
-  };
-
-  const volume: VolumeGoal = {
-    goalType: "volume",
-    weight: 0.2,
-    target: 1,
-    geometry: { elements: [] },
-    parameters: {
-      targetVolume: 1,
-      materialDensity: 7800,
-      allowedDeviation: 0.1,
-    },
-  };
-
-  const load: LoadGoal = {
-    goalType: "load",
-    weight: 0.3,
-    target: 1,
-    geometry: { elements: loadIndices },
-    parameters: {
-      force: { x: 0, y: -120, z: 0 },
-      applicationPoints: loadIndices,
-      distributed: true,
-      loadType,
-      timeProfile: loadType === "dynamic" ? [0, 0.5, 1, 0.5, 0] : undefined,
-      frequency: loadType === "cyclic" ? 2 : undefined,
-    },
-  };
-
-  const anchor: AnchorGoal = {
-    goalType: "anchor",
-    weight: 0.2,
-    target: 0,
-    geometry: { elements: anchorIndices },
-    parameters: {
-      fixedDOF: { x: true, y: true, z: true },
-      anchorType: "fixed",
-      springStiffness: 0,
-    },
-  };
-
-  return [stiffness, volume, load, anchor];
 };
 
 export const runPhysicsSolverRig = (analysisType: AnalysisType) => {
@@ -107,17 +42,31 @@ export const runPhysicsSolverRig = (analysisType: AnalysisType) => {
     baseGeometry.mesh,
     analysisType === "dynamic" ? "dynamic" : "static"
   );
+  const config: SolverConfiguration = {
+    maxIterations: 250,
+    convergenceTolerance: 1e-6,
+    analysisType,
+    timeStep: analysisType === "dynamic" ? 0.02 : undefined,
+    animationFrames: analysisType === "static" ? undefined : 20,
+    useGPU: false,
+    chunkSize: 64,
+    safetyLimits: {
+      maxDeformation: 100,
+      maxStress: 1e12,
+    },
+  };
+
   const parameters = {
     geometryId: `physics-${analysisType}-out`,
     analysisType,
-    maxIterations: 250,
-    convergenceTolerance: 1e-6,
-    animationFrames: analysisType === "static" ? 0 : 20,
-    timeStep: 0.02,
-    maxDeformation: 100,
-    maxStress: 1e12,
-    useGPU: false,
-    chunkSize: 64,
+    maxIterations: config.maxIterations,
+    convergenceTolerance: config.convergenceTolerance,
+    animationFrames: analysisType === "static" ? 0 : (config.animationFrames ?? 0),
+    timeStep: config.timeStep ?? 0.02,
+    maxDeformation: config.safetyLimits.maxDeformation,
+    maxStress: config.safetyLimits.maxStress,
+    useGPU: config.useGPU,
+    chunkSize: config.chunkSize,
   };
 
   const outputs = node.compute({
@@ -147,6 +96,7 @@ export const runPhysicsSolverRig = (analysisType: AnalysisType) => {
     baseGeometry,
     goals,
     parameters,
+    config,
   };
 };
 
