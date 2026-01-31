@@ -7689,6 +7689,36 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const H_GAP = 60;
     const V_GAP = 40;
 
+    const GROUP_PADDING = 14;
+    const GROUP_HEADER_HEIGHT = 20;
+
+    type RigFrame = { id: string; position: { x: number; y: number } };
+
+    const computeGroupBox = (frames: RigFrame[]) => {
+      let minX = Number.POSITIVE_INFINITY;
+      let minY = Number.POSITIVE_INFINITY;
+      let maxX = Number.NEGATIVE_INFINITY;
+      let maxY = Number.NEGATIVE_INFINITY;
+      frames.forEach((frame) => {
+        minX = Math.min(minX, frame.position.x);
+        minY = Math.min(minY, frame.position.y);
+        maxX = Math.max(maxX, frame.position.x + NODE_WIDTH);
+        maxY = Math.max(maxY, frame.position.y + NODE_HEIGHT);
+      });
+      const width = Math.max(230, maxX - minX + GROUP_PADDING * 2);
+      const height = Math.max(
+        160,
+        maxY - minY + GROUP_PADDING * 2 + GROUP_HEADER_HEIGHT
+      );
+      return {
+        position: {
+          x: minX - GROUP_PADDING,
+          y: minY - GROUP_PADDING - GROUP_HEADER_HEIGHT,
+        },
+        groupSize: { width, height },
+      };
+    };
+
     // Column 0: Solver controls and parameters
     const toggleSwitchId = `node-conditionalToggleButton-${ts}`;
     const toggleSwitchPos = { x: position.x, y: position.y - (NODE_HEIGHT + V_GAP) * 2 };
@@ -7754,7 +7784,89 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const viewerId = `node-geometryViewer-${ts}`;
     const viewerPos = { x: col2X + (NODE_WIDTH + H_GAP) * 2, y: position.y + NODE_HEIGHT * 1.5 };
 
+    const controlsGroupId = `node-group-chemistry-controls-${ts}`;
+    const inputsGroupId = `node-group-chemistry-inputs-${ts}`;
+    const goalsGroupId = `node-group-chemistry-goals-${ts}`;
+    const outputGroupId = `node-group-chemistry-output-${ts}`;
+
+    const controlsFrames: RigFrame[] = [
+      { id: toggleSwitchId, position: toggleSwitchPos },
+      { id: densitySliderId, position: densitySliderPos },
+      { id: particleCountId, position: particleCountPos },
+      { id: iterationsId, position: iterationsPos },
+      { id: fieldResolutionId, position: fieldResolutionPos },
+      { id: isoValueId, position: isoValuePos },
+      { id: blendStrengthId, position: blendStrengthPos },
+      { id: convergenceId, position: convergencePos },
+    ];
+    const inputsFrames: RigFrame[] = [
+      { id: domainId, position: domainPos },
+      { id: anchorZonesId, position: anchorZonesPos },
+      { id: thermalCoreId, position: thermalCorePos },
+      { id: visionStripId, position: visionStripPos },
+    ];
+    const goalsFrames: RigFrame[] = [
+      { id: stiffnessGoalId, position: stiffnessGoalPos },
+      { id: massGoalId, position: massGoalPos },
+      { id: blendGoalId, position: blendGoalPos },
+      { id: transparencyGoalId, position: transparencyGoalPos },
+      { id: thermalGoalId, position: thermalGoalPos },
+    ];
+    const outputFrames: RigFrame[] = [
+      { id: solverId, position: solverPos },
+      { id: viewerId, position: viewerPos },
+    ];
+
+    const controlsGroup = computeGroupBox(controlsFrames);
+    const inputsGroup = computeGroupBox(inputsFrames);
+    const goalsGroup = computeGroupBox(goalsFrames);
+    const outputGroup = computeGroupBox(outputFrames);
+
     const newNodes = [
+      {
+        id: controlsGroupId,
+        type: "group" as const,
+        position: controlsGroup.position,
+        data: {
+          label: "Solver Controls",
+          groupSize: controlsGroup.groupSize,
+          groupNodeIds: controlsFrames.map((frame) => frame.id),
+          parameters: { title: "Solver Controls", color: "#f5f2ee" },
+        },
+      },
+      {
+        id: inputsGroupId,
+        type: "group" as const,
+        position: inputsGroup.position,
+        data: {
+          label: "Domain + Seeds",
+          groupSize: inputsGroup.groupSize,
+          groupNodeIds: inputsFrames.map((frame) => frame.id),
+          parameters: { title: "Domain + Seeds", color: "#f5f2ee" },
+        },
+      },
+      {
+        id: goalsGroupId,
+        type: "group" as const,
+        position: goalsGroup.position,
+        data: {
+          label: "Goals",
+          groupSize: goalsGroup.groupSize,
+          groupNodeIds: goalsFrames.map((frame) => frame.id),
+          parameters: { title: "Goals", color: "#f5f2ee" },
+        },
+      },
+      {
+        id: outputGroupId,
+        type: "group" as const,
+        position: outputGroup.position,
+        data: {
+          label: "Solve + Preview",
+          groupSize: outputGroup.groupSize,
+          groupNodeIds: outputFrames.map((frame) => frame.id),
+          parameters: { title: "Solve + Preview", color: "#f5f2ee" },
+        },
+      },
       // Solver controls and parameters
       {
         id: toggleSwitchId,
