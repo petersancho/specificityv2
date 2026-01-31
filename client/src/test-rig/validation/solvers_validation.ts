@@ -135,15 +135,37 @@ const validateChemistrySolver = () => {
 };
 
 const validateBiologicalSolver = () => {
-  const { biologicalOutputs, evolutionOutputs, individual, baseGeometry } = runBiologicalSolverRig();
-  ensure(biologicalOutputs.bestScore === individual.fitness, "Expected best score to match fitness");
-  ensure(biologicalOutputs.bestGenome.x === individual.genome[0], "Expected genome x");
-  ensure(biologicalOutputs.bestGenome.y === individual.genome[1], "Expected genome y");
-  ensure(biologicalOutputs.bestGenome.z === individual.genome[2], "Expected genome z");
+  const { biologicalOutputs, evolutionOutputs, best, baseGeometry, config } = runBiologicalSolverRig();
+
+  ensure(biologicalOutputs.bestScore === best.fitness, "Expected best score to match fitness");
+  ensure(biologicalOutputs.bestGenome.x === best.genome[0], "Expected genome x");
+  ensure(biologicalOutputs.bestGenome.y === best.genome[1], "Expected genome y");
+  ensure(biologicalOutputs.bestGenome.z === best.genome[2], "Expected genome z");
+  ensure(biologicalOutputs.populationSize === config.populationSize, "Expected population size to match");
+  ensure(biologicalOutputs.generations === config.generations, "Expected generations to match");
+  ensure(biologicalOutputs.mutationRate === config.mutationRate, "Expected mutation rate to match");
+
+  const historyGenerations = biologicalOutputs.history?.generations ?? [];
+  ensure(historyGenerations.length === config.generations, "Expected history generations length");
+  const expectedEvaluations = historyGenerations.reduce(
+    (sum, generation) => sum + (generation.population?.length ?? 0),
+    0
+  );
+  ensure(
+    biologicalOutputs.evaluations === expectedEvaluations,
+    "Expected evaluations to match history population sizes"
+  );
+
+  ensure(biologicalOutputs.best?.id === best.id, "Expected best id to match");
   ensure(biologicalOutputs.best?.geometry?.length === 1, "Expected best geometry payload");
   ensure(biologicalOutputs.best?.geometry?.[0].id === baseGeometry.id, "Expected geometry id match");
-  ensure(evolutionOutputs.best?.id === individual.id, "Expected evolution best id");
-  ensure(evolutionOutputs.gallery?.allIndividuals.length === 1, "Expected gallery entries");
+  ensure(biologicalOutputs.selectedGeometry.length > 0, "Expected selected geometry ids");
+
+  ensure(evolutionOutputs.best?.id === best.id, "Expected evolution best id");
+  ensure(
+    (evolutionOutputs.gallery?.allIndividuals.length ?? 0) >= config.populationSize,
+    "Expected gallery entries"
+  );
 };
 
 export const runSolversValidation = () => {
