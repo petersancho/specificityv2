@@ -9,6 +9,9 @@ When you need the current architecture and APIs, start with:
 - `docs/lingua_readme.md`
 - `docs/lingua_architecture.md`
 
+Some supporting reference docs remain "current" and live outside this archive folder
+(for example, `docs/SHADER_INVENTORY.md`).
+
 ## Phase docs
 
 - Phase 1 Audit: `PHASE1_AUDIT.md`
