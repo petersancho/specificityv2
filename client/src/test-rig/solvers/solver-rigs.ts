@@ -329,14 +329,28 @@ export const runBiologicalSolverRig = () => {
     };
   };
 
+  const makeDemoGenome = (base: [number, number, number]) => {
+    if (BRANCHING_GROWTH_GENOME_DIMENSION < 3) {
+      throw new Error(
+        `Biological solver rig expects genome dimension >= 3 (got ${BRANCHING_GROWTH_GENOME_DIMENSION})`
+      );
+    }
+
+    const genome: number[] = [...base];
+    while (genome.length < BRANCHING_GROWTH_GENOME_DIMENSION) {
+      genome.push(0);
+    }
+    return genome;
+  };
+
   const gen0 = [
-    makeIndividual("ind-0", [0.25, -0.35, 0.6], 0.72, 0, 2),
-    makeIndividual("ind-1", [0.4, 0.1, 0.55], 0.78, 0, 1),
+    makeIndividual("ind-0", makeDemoGenome([0.25, -0.35, 0.6]), 0.72, 0, 2),
+    makeIndividual("ind-1", makeDemoGenome([0.4, 0.1, 0.55]), 0.78, 0, 1),
   ];
 
   const gen1 = [
-    makeIndividual("ind-2", [0.33, -0.22, 0.71], 0.8, 1, 2),
-    makeIndividual("ind-3", [0.5, 0.18, 0.62], 0.86, 1, 1),
+    makeIndividual("ind-2", makeDemoGenome([0.33, -0.22, 0.71]), 0.8, 1, 2),
+    makeIndividual("ind-3", makeDemoGenome([0.5, 0.18, 0.62]), 0.86, 1, 1),
   ];
 
   const populations = [gen0, gen1];
