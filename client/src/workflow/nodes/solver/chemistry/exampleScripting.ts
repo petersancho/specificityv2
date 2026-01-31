@@ -75,8 +75,20 @@ export const buildChemistrySolverExampleScript = (
   const history = readHistoryEntries(outputs.history);
   const trimmedHistory = history.slice(-12);
   const fieldResolution = readFieldResolution(outputs.materialField);
+
+  const iterationsRaw = diagnostics?.iterations;
+  const iterationsNumeric = asNumber(iterationsRaw, Number.NaN);
+  const iterationWarnings: string[] = [];
+  const iterationsUsed = Number.isFinite(iterationsNumeric)
+    ? Math.round(iterationsNumeric)
+    : history.length;
+  if (!Number.isFinite(iterationsNumeric) && iterationsRaw !== undefined) {
+    iterationWarnings.push("diagnostics.iterations was non-numeric; using history length instead");
+  }
+
   const extendedWarnings = [
     ...warnings,
+    ...iterationWarnings,
     ...(meshSummary.vertexCount === 0 ? ["No mesh vertices in chemistry result"] : []),
     ...(fieldResolution.x === 0 && fieldResolution.y === 0 && fieldResolution.z === 0
       ? ["No field resolution data in chemistry result"]
@@ -87,7 +99,7 @@ export const buildChemistrySolverExampleScript = (
     schema: "numerica.chemistrySolverResult.v1",
     status: asString(outputs.status, "unknown"),
     totalEnergy: asNumber(outputs.totalEnergy, 0),
-    iterationsUsed: Math.round(asNumber(diagnostics?.iterations, history.length)),
+    iterationsUsed,
     particleCount,
     fieldResolution,
     mesh: meshSummary,

@@ -146,14 +146,18 @@ const validateChemistrySolver = () => {
     .filter((name): name is string => typeof name === "string");
   if (materialNames.length > 0) {
     const particles = (outputs.materialParticles as unknown[]).filter(
-      (particle): particle is { materials?: Record<string, number> } =>
-        particle != null && typeof particle === "object"
+      (particle): particle is { materials?: Record<string, unknown> } => {
+        if (particle == null || typeof particle !== "object") return false;
+        const materials = (particle as any).materials;
+        return materials == null || typeof materials === "object";
+      }
     );
     const MIN_MAX_CONCENTRATION = 0.05;
     materialNames.forEach((name) => {
       let max = 0;
       particles.forEach((particle) => {
-        const value = particle.materials?.[name] ?? 0;
+        const raw = particle.materials?.[name];
+        const value = typeof raw === "number" ? raw : 0;
         if (value > max) max = value;
       });
       ensure(max > MIN_MAX_CONCENTRATION, `Expected non-trivial concentration for ${name}`);

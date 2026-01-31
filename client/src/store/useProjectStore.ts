@@ -6751,7 +6751,18 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         outputs.diagnostics && typeof outputs.diagnostics === "object"
           ? (outputs.diagnostics as Record<string, unknown>)
           : undefined;
-      const totalEnergy = asNumber(outputs.totalEnergy as number | undefined, 0);
+      const rawTotalEnergy = outputs.totalEnergy;
+      const totalEnergy = asNumber(rawTotalEnergy, 0);
+      if (
+        import.meta.env.DEV &&
+        rawTotalEnergy !== undefined &&
+        typeof rawTotalEnergy !== "number"
+      ) {
+        console.warn("Chemistry solver totalEnergy was non-numeric, defaulting to 0", {
+          nodeId,
+          rawTotalEnergy,
+        });
+      }
       const status = typeof outputs.status === "string" ? outputs.status : "unknown";
       const diagnosticsIterations = diagnostics?.iterations;
       const iterationsUsed =
