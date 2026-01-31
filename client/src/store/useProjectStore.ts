@@ -7691,9 +7691,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
     const GROUP_PADDING = 14;
     const GROUP_HEADER_HEIGHT = 20;
-    const GROUP_MIN_WIDTH = 230;
-    const GROUP_MIN_HEIGHT = 160;
+    const GROUP_MIN_WIDTH = 230; // Match `NumericalCanvas.tsx` group layout.
+    const GROUP_MIN_HEIGHT = 160; // Match `NumericalCanvas.tsx` group layout.
 
+    // Keep in sync with `NumericalCanvas.tsx` node layout constants.
     const RIG_NODE_WIDTH = 180;
     const RIG_NODE_MIN_HEIGHT = 98;
     const RIG_SLIDER_NODE_MIN_HEIGHT = 76;
@@ -7733,10 +7734,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       );
       if (valid.length === 0) return fallbackGroupBox(fallbackPosition);
 
-      let minX = valid[0].position.x;
-      let minY = valid[0].position.y;
-      let maxX = valid[0].position.x + valid[0].size.width;
-      let maxY = valid[0].position.y + valid[0].size.height;
+      let minX = Number.POSITIVE_INFINITY;
+      let minY = Number.POSITIVE_INFINITY;
+      let maxX = Number.NEGATIVE_INFINITY;
+      let maxY = Number.NEGATIVE_INFINITY;
 
       valid.forEach((frame) => {
         minX = Math.min(minX, frame.position.x);
@@ -7744,6 +7745,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         maxX = Math.max(maxX, frame.position.x + frame.size.width);
         maxY = Math.max(maxY, frame.position.y + frame.size.height);
       });
+
+      if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) {
+        return fallbackGroupBox(fallbackPosition);
+      }
 
       const width = Math.max(GROUP_MIN_WIDTH, maxX - minX + GROUP_PADDING * 2);
       const height = Math.max(
@@ -8178,14 +8183,20 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         const prevOwner = groupOwnerByNodeId.get(node.id);
         if (prevOwner && prevOwner !== group.groupId) {
           throw new Error(
-            `Rig config error: node ${node.id} appears in multiple groups: ${prevOwner}, ${group.groupId}`
+            `Chemistry solver rig config error: node ${node.id} appears in multiple groups: ${prevOwner}, ${group.groupId}`
           );
         }
         groupOwnerByNodeId.set(node.id, group.groupId);
       });
     });
 
-    const childNodes = groups.flatMap((group) => group.nodes);
+    const childNodes = Array.from(
+      new Map(
+        groups
+          .flatMap((group) => group.nodes)
+          .map((node) => [node.id, node] as const)
+      ).values()
+    );
 
     const newNodes = [...groupNodes, ...childNodes];
 
