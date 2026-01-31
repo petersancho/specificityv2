@@ -7691,8 +7691,17 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
     const GROUP_PADDING = 14;
     const GROUP_HEADER_HEIGHT = 20;
-    const GROUP_MIN_WIDTH = NODE_WIDTH + GROUP_PADDING * 2;
-    const GROUP_MIN_HEIGHT = NODE_HEIGHT + GROUP_PADDING * 2 + GROUP_HEADER_HEIGHT;
+    const GROUP_MIN_WIDTH = 230;
+    const GROUP_MIN_HEIGHT = 160;
+
+    const RIG_NODE_WIDTH = 180;
+    const RIG_NODE_MIN_HEIGHT = 98;
+    const RIG_SLIDER_NODE_MIN_HEIGHT = 76;
+    const RIG_VIEWER_NODE_MIN_HEIGHT = 210;
+    const RIG_PORT_ROW_HEIGHT = 16;
+    const RIG_PORTS_START_OFFSET = 64;
+    const RIG_PORTS_BOTTOM_PADDING = 18;
+    const RIG_SLIDER_PORT_OFFSET = 6;
 
     type RigFrame = {
       id: string;
@@ -7713,31 +7722,34 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         position: { x: pos.x, y: pos.y },
         groupSize: { width: GROUP_MIN_WIDTH, height: GROUP_MIN_HEIGHT },
       });
-      if (frames.length === 0) {
-        return fallbackGroupBox(fallbackPosition);
-      }
-      let minX = Number.POSITIVE_INFINITY;
-      let minY = Number.POSITIVE_INFINITY;
-      let maxX = Number.NEGATIVE_INFINITY;
-      let maxY = Number.NEGATIVE_INFINITY;
-      frames.forEach((frame) => {
+      const valid = frames.filter(
+        (frame) =>
+          Number.isFinite(frame.position.x) &&
+          Number.isFinite(frame.position.y) &&
+          Number.isFinite(frame.size.width) &&
+          Number.isFinite(frame.size.height) &&
+          frame.size.width > 0 &&
+          frame.size.height > 0
+      );
+      if (valid.length === 0) return fallbackGroupBox(fallbackPosition);
+
+      let minX = valid[0].position.x;
+      let minY = valid[0].position.y;
+      let maxX = valid[0].position.x + valid[0].size.width;
+      let maxY = valid[0].position.y + valid[0].size.height;
+
+      valid.forEach((frame) => {
         minX = Math.min(minX, frame.position.x);
         minY = Math.min(minY, frame.position.y);
         maxX = Math.max(maxX, frame.position.x + frame.size.width);
         maxY = Math.max(maxY, frame.position.y + frame.size.height);
       });
 
-      if (
-        !Number.isFinite(minX) ||
-        !Number.isFinite(minY) ||
-        !Number.isFinite(maxX) ||
-        !Number.isFinite(maxY)
-      ) {
-        return fallbackGroupBox(fallbackPosition);
-      }
       const width = Math.max(GROUP_MIN_WIDTH, maxX - minX + GROUP_PADDING * 2);
       const height = Math.max(
         GROUP_MIN_HEIGHT,
+        // Match `NumericalCanvas.tsx`: position is top-left of the header, and
+        // `groupSize.height` includes the header.
         maxY - minY + GROUP_PADDING * 2 + GROUP_HEADER_HEIGHT
       );
       return {
@@ -7746,6 +7758,31 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           y: minY - GROUP_PADDING - GROUP_HEADER_HEIGHT,
         },
         groupSize: { width, height },
+      };
+    };
+
+    const resolveRigFrame = (node: WorkflowNode): RigFrame => {
+      const ports = resolveNodePorts(node);
+      const rowCount = Math.max(ports.inputs.length, ports.outputs.length, 1);
+      const portsHeight = rowCount * RIG_PORT_ROW_HEIGHT;
+      const portsStartOffset =
+        node.type === "slider"
+          ? RIG_PORTS_START_OFFSET + RIG_SLIDER_PORT_OFFSET
+          : RIG_PORTS_START_OFFSET;
+      const isViewerNode =
+        node.type === "geometryViewer" ||
+        node.type === "customPreview" ||
+        node.type === "customViewer";
+      const minHeight = isViewerNode
+        ? RIG_VIEWER_NODE_MIN_HEIGHT
+        : node.type === "slider"
+          ? RIG_SLIDER_NODE_MIN_HEIGHT
+          : RIG_NODE_MIN_HEIGHT;
+      const height = Math.max(minHeight, portsStartOffset + portsHeight + RIG_PORTS_BOTTOM_PADDING);
+      return {
+        id: node.id,
+        position: node.position,
+        size: { width: RIG_NODE_WIDTH, height },
       };
     };
 
@@ -8084,18 +8121,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const buildGroupNode = (
       groupId: string,
       title: string,
-      nodes: { id: string; position: { x: number; y: number }; size?: RigFrame["size"] }[],
+      nodes: WorkflowNode[],
       anchorPosition: { x: number; y: number },
       options?: { color?: string }
     ): ReturnType<typeof createGroupNode> | null => {
       if (nodes.length === 0) {
         return null;
       }
-      const frames: RigFrame[] = nodes.map((node) => ({
-        id: node.id,
-        position: node.position,
-        size: node.size ?? { width: NODE_WIDTH, height: NODE_HEIGHT },
-      }));
+      const frames: RigFrame[] = nodes.map((node) => resolveRigFrame(node));
       const groupBox = computeGroupBox(frames, anchorPosition);
       return createGroupNode(
         groupId,
@@ -8139,13 +8172,20 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       )
       .filter((node): node is NonNullable<typeof node> => node != null);
 
-    const childNodes = Array.from(
-      new Map(
-        groups
-          .flatMap((group) => group.nodes)
-          .map((node) => [node.id, node] as const)
-      ).values()
-    );
+    const groupOwnerByNodeId = new Map<string, string>();
+    groups.forEach((group) => {
+      group.nodes.forEach((node) => {
+        const prevOwner = groupOwnerByNodeId.get(node.id);
+        if (prevOwner && prevOwner !== group.groupId) {
+          throw new Error(
+            `Rig config error: node ${node.id} appears in multiple groups: ${prevOwner}, ${group.groupId}`
+          );
+        }
+        groupOwnerByNodeId.set(node.id, group.groupId);
+      });
+    });
+
+    const childNodes = groups.flatMap((group) => group.nodes);
 
     const newNodes = [...groupNodes, ...childNodes];
 
