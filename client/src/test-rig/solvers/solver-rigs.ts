@@ -156,23 +156,75 @@ export const runTopologySolverRig = (nodeType: "topologySolver" | "voxelSolver")
   const baseGeometry = createBoxGeometry(`geo-${nodeType}`, { width: 1.8, height: 1.2, depth: 1.4 });
   const context = createTestContext(`${nodeType}-context`, [baseGeometry]);
 
+  const anchorIndices = findVertexIndicesAtExtent(baseGeometry.mesh, "x", "min");
+  const loadIndices = findVertexIndicesAtExtent(baseGeometry.mesh, "x", "max");
+
+  const goals: GoalSpecification[] = [
+    {
+      goalType: "anchor",
+      weight: 0.35,
+      target: 0,
+      geometry: { elements: anchorIndices },
+      parameters: {
+        fixedDOF: { x: true, y: true, z: true },
+        anchorType: "fixed",
+        springStiffness: 0,
+      },
+    } satisfies AnchorGoal,
+    {
+      goalType: "load",
+      weight: 0.35,
+      target: 1,
+      geometry: { elements: loadIndices },
+      parameters: {
+        force: { x: 0, y: -120, z: 0 },
+        applicationPoints: loadIndices,
+        distributed: true,
+        loadType: "static",
+      },
+    } satisfies LoadGoal,
+    {
+      goalType: "stiffness",
+      weight: 0.2,
+      target: 1,
+      constraint: { min: 0, max: 1 },
+      geometry: { elements: loadIndices },
+      parameters: {
+        youngModulus: 2.0e9,
+        poissonRatio: 0.3,
+        targetStiffness: 1,
+      },
+    } satisfies StiffnessGoal,
+    {
+      goalType: "volume",
+      weight: 0.1,
+      target: 1,
+      geometry: { elements: [] },
+      parameters: {
+        materialDensity: 1200,
+        allowedDeviation: 0.05,
+        targetVolume: 1,
+      },
+    } satisfies VolumeGoal,
+  ];
+
   const parameters = {
-    volumeFraction: 0.6,
+    volumeFraction: 0.35,
     penaltyExponent: 3,
-    filterRadius: 1,
-    iterations: 24,
-    resolution: 12,
+    filterRadius: 2,
+    iterations: 40,
+    resolution: 16,
   };
 
   const outputs = solverNode.compute({
-    inputs: { domain: baseGeometry.id },
+    inputs: { domain: baseGeometry.id, goals },
     parameters,
     context,
   });
 
   const isoParams = {
     geometryId: `${nodeType}-iso`,
-    isoValue: 0.12,
+    isoValue: 0.35,
     resolution: outputs.resolution ?? 12,
   };
 
@@ -192,6 +244,8 @@ export const runTopologySolverRig = (nodeType: "topologySolver" | "voxelSolver")
     isoOutputs,
     outputGeometry,
     baseGeometry,
+    goals,
+    parameters,
   };
 };
 
