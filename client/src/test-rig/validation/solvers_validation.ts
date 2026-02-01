@@ -294,11 +294,18 @@ const validateVoxelSolver = () => {
   ensure(Array.isArray(outputs.densityField), "Expected density field array");
   ensure(outputs.densityField.length > 0, "Expected density field data");
   ensure(outputs.voxelGrid !== null, "Expected voxel grid output");
+  ensure(
+    (outputs.voxelGrid != null) === (isoOutputs.mesh != null),
+    "Expected voxel grid and iso mesh outputs to be both present (or both absent)"
+  );
+  if (typeof outputs.resolution === "number") {
+    ensureFinite(outputs.resolution, "Expected resolution to be finite");
+    ensure(outputs.resolution > 0, "Expected resolution > 0");
+  }
   ensureFinite(outputs.objective, "Expected objective to be finite");
   ensureFinite(outputs.constraint, "Expected constraint to be finite");
 
   if (outputs.voxelGrid) {
-    // Reuse the same voxel-grid invariants as topology: cubic grid + resolution match + density stats.
     validateVoxelGridConsistency(
       "voxel",
       {
