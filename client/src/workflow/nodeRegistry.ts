@@ -1731,6 +1731,53 @@ const buildVoxelMesh = (grid: VoxelGrid, isoValue: number) => {
     }
   }
   
+  // Add density gradient colors to mesh
+  if (mesh.positions.length > 0) {
+    const vertexCount = Math.floor(mesh.positions.length / 3);
+    const colors = new Array<number>(mesh.positions.length).fill(0);
+    
+    // Find density range for normalization
+    let minDensity = Number.POSITIVE_INFINITY;
+    let maxDensity = Number.NEGATIVE_INFINITY;
+    for (let i = 0; i < densities.length; i += 1) {
+      const d = densities[i];
+      if (Number.isFinite(d)) {
+        minDensity = Math.min(minDensity, d);
+        maxDensity = Math.max(maxDensity, d);
+      }
+    }
+    
+    const densityRange = Math.max(1e-9, maxDensity - minDensity);
+    
+    // Map each vertex to density gradient color
+    for (let i = 0; i < vertexCount; i += 1) {
+      const px = mesh.positions[i * 3];
+      const py = mesh.positions[i * 3 + 1];
+      const pz = mesh.positions[i * 3 + 2];
+      
+      // Find voxel cell for this vertex
+      const x = Math.max(0, Math.min(resX - 1, Math.floor((px - bounds.min.x) / cellSize.x)));
+      const y = Math.max(0, Math.min(resY - 1, Math.floor((py - bounds.min.y) / cellSize.y)));
+      const z = Math.max(0, Math.min(resZ - 1, Math.floor((pz - bounds.min.z) / cellSize.z)));
+      const idx = toIndex(x, y, z);
+      
+      const density = densities[idx] ?? 0;
+      const normalized = Number.isFinite(density) ? Math.max(0, Math.min(1, (density - minDensity) / densityRange)) : 0;
+      
+      // Density gradient: black (low) → white (high)
+      // Using a subtle blue-gray to white gradient for better visibility
+      const r = 0.08 + normalized * 0.87;  // 0.08 → 0.95
+      const g = 0.08 + normalized * 0.88;  // 0.08 → 0.96
+      const b = 0.12 + normalized * 0.85;  // 0.12 → 0.97
+      
+      colors[i * 3] = r;
+      colors[i * 3 + 1] = g;
+      colors[i * 3 + 2] = b;
+    }
+    
+    mesh.colors = colors;
+  }
+  
   return mesh;
 };
 
