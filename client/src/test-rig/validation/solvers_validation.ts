@@ -35,6 +35,97 @@ const ensureStressColors = (mesh: RenderMesh, label: string) => {
   );
 };
 
+// Shared tolerance parameters for voxel-based solvers; adjust with care.
+const MIN_VOLUME_TOLERANCE = 0.05;
+const RESOLUTION_TOLERANCE_SCALE = 0.8;
+
+// Allow tiny numerical drift from [0, 1] due to floating point error.
+const DENSITY_EPS = 1e-5;
+
+const computeVolumeToleranceForResolution = (res: number) =>
+  Math.max(MIN_VOLUME_TOLERANCE, RESOLUTION_TOLERANCE_SCALE / Math.max(1, res));
+
+const validateVoxelGridConsistency = (
+  label: string,
+  outputs: {
+    voxelGrid: { densities: number[]; resolution: unknown } | null;
+    densityField: number[];
+    resolution: number;
+  },
+  parameters: { volumeFraction: number }
+) => {
+  // Assumes the topology/voxel solvers emit a cubic grid where:
+  // - `outputs.resolution` matches `voxelGrid.resolution.{x,y,z}`
+  // - `densities.length === res^3`
+  // - density bounds allow `DENSITY_EPS` drift around [0, 1]
+  // - volume fraction tolerance uses inclusive `<=`
+  const eps = DENSITY_EPS;
+
+  ensure(
+    typeof outputs.resolution === "number" && Number.isFinite(outputs.resolution),
+    `${label}: expected resolution to be a finite number`
+  );
+  ensure(outputs.resolution > 0, `${label}: expected resolution > 0`);
+  ensure(outputs.voxelGrid !== null, `${label}: expected voxel grid output`);
+
+  const densities = outputs.voxelGrid.densities;
+  ensure(Array.isArray(densities) && densities.length > 0, `${label}: expected density data`);
+
+  const gridResolution = outputs.voxelGrid.resolution as unknown;
+  ensure(
+    gridResolution !== null && typeof gridResolution === "object",
+    `${label}: expected voxelGrid resolution object`
+  );
+  const { x, y, z } = gridResolution as {
+    x?: unknown;
+    y?: unknown;
+    z?: unknown;
+  };
+  ensure(
+    typeof x === "number" && Number.isFinite(x) &&
+      typeof y === "number" && Number.isFinite(y) &&
+      typeof z === "number" && Number.isFinite(z),
+    `${label}: expected voxelGrid resolution components to be finite numbers`
+  );
+  ensure(x > 0 && y > 0 && z > 0, `${label}: expected voxelGrid resolution > 0`);
+  ensure(
+    x === y && y === z,
+    `${label}: expected voxelGrid resolution to be cubic (x=${x}, y=${y}, z=${z})`
+  );
+  ensure(
+    outputs.resolution === x,
+    `${label}: expected resolution (${outputs.resolution}) to match voxelGrid resolution.x (${x})`
+  );
+
+  const res = outputs.resolution;
+  ensure(densities.length === outputs.densityField.length, `${label}: expected density field to match grid`);
+  ensure(densities.length === res * res * res, `${label}: expected density length to match resolution`);
+
+  let min = Number.POSITIVE_INFINITY;
+  let max = Number.NEGATIVE_INFINITY;
+  let mean = 0;
+  densities.forEach((value) => {
+    min = Math.min(min, value);
+    max = Math.max(max, value);
+    mean += value;
+  });
+  mean /= Math.max(1, densities.length);
+
+  ensure(Number.isFinite(min) && Number.isFinite(max), `${label}: expected finite density bounds`);
+  ensure(
+    min >= -eps && max <= 1 + eps,
+    `${label}: expected density values ~[0, 1] within eps=${eps} (min=${min.toFixed(6)}, max=${max.toFixed(6)})`
+  );
+
+  const volumeTolerance = computeVolumeToleranceForResolution(res);
+  ensure(
+    Math.abs(mean - parameters.volumeFraction) <= volumeTolerance,
+    `${label}: expected mean density ~ volume fraction (mean=${mean.toFixed(6)}, target=${parameters.volumeFraction.toFixed(6)}, tolerance=${volumeTolerance.toFixed(6)})`
+  );
+
+  return res;
+};
+
 const runNodeValidation = (nodeName: string, fn: () => void) => {
   try {
     fn();
@@ -152,24 +243,16 @@ const validateTopologySolver = () => {
   ensure(outputs.objective >= 0, "Expected objective >= 0");
 
   if (outputs.voxelGrid) {
-    const densities = outputs.voxelGrid.densities;
-    const res = outputs.voxelGrid.resolution.x;
-    const volumeTolerance = Math.max(0.05, 0.8 / Math.max(1, res));
-    ensure(densities.length === outputs.densityField.length, "Expected density field to match grid");
-    let min = Number.POSITIVE_INFINITY;
-    let max = Number.NEGATIVE_INFINITY;
-    let mean = 0;
-    densities.forEach((value) => {
-      min = Math.min(min, value);
-      max = Math.max(max, value);
-      mean += value;
-    });
-    mean /= Math.max(1, densities.length);
-    ensure(min >= 0 && max <= 1, "Expected density values clamped to [0, 1]");
-    ensure(
-      Math.abs(mean - parameters.volumeFraction) < volumeTolerance,
-      "Expected mean density ~ volume fraction"
+    const res = validateVoxelGridConsistency(
+      "topology",
+      {
+        voxelGrid: outputs.voxelGrid,
+        densityField: outputs.densityField,
+        resolution: outputs.resolution,
+      },
+      parameters
     );
+    const densities = outputs.voxelGrid.densities;
 
     if (res > 4) {
       const coreThreshold = Math.floor(res * 0.2);
@@ -215,17 +298,15 @@ const validateVoxelSolver = () => {
   ensureFinite(outputs.constraint, "Expected constraint to be finite");
 
   if (outputs.voxelGrid) {
-    const densities = outputs.voxelGrid.densities;
-    const res = outputs.voxelGrid.resolution.x;
-    const volumeTolerance = Math.max(0.05, 0.8 / Math.max(1, res));
-    let mean = 0;
-    densities.forEach((value) => {
-      mean += value;
-    });
-    mean /= Math.max(1, densities.length);
-    ensure(
-      Math.abs(mean - parameters.volumeFraction) < volumeTolerance,
-      "Expected mean density ~ volume fraction"
+    // Reuse the same voxel-grid invariants as topology: cubic grid + resolution match + density stats.
+    validateVoxelGridConsistency(
+      "voxel",
+      {
+        voxelGrid: outputs.voxelGrid,
+        densityField: outputs.densityField,
+        resolution: outputs.resolution,
+      },
+      parameters
     );
   }
   ensureMesh(isoOutputs.mesh as RenderMesh, "voxel iso mesh");
