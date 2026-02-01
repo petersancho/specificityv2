@@ -80,6 +80,11 @@ export type WorkflowPortType =
   | "string"
   | "vector"
   | "geometry"
+  | "mesh"
+  | "nurb"
+  | "brep"
+  | "renderMesh"
+  | "voxelGrid"
   | "goal"
   | "genomeSpec"
   | "phenotypeSpec"
@@ -4374,30 +4379,32 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     type: "mesh",
     label: "Mesh",
     shortLabel: "MESH",
-    description: "Pass-through node for geometry (mesh).",
+    description: "Pass-through node for mesh geometry.",
     category: "mesh",
     iconId: "mesh",
     inputs: [
       {
-        key: "geometry",
-        label: "Geometry",
-        type: "geometry",
+        key: "mesh",
+        label: "Mesh",
+        type: "mesh",
         required: true,
       },
     ],
     outputs: [
       {
-        key: "geometry",
-        label: "Geometry",
-        type: "geometry",
+        key: "mesh",
+        label: "Mesh",
+        type: "mesh",
         required: true,
       },
     ],
     parameters: [],
-    primaryOutputKey: "geometry",
-    compute: ({ inputs }) => {
+    primaryOutputKey: "mesh",
+    compute: ({ inputs, parameters }) => {
+      const inputMesh = typeof inputs.mesh === "string" ? inputs.mesh : null;
+      const paramMesh = typeof parameters.geometryId === "string" ? parameters.geometryId : null;
       return {
-        geometry: typeof inputs.geometry === "string" ? inputs.geometry : null,
+        mesh: inputMesh ?? paramMesh,
       };
     },
   },
@@ -12698,6 +12705,11 @@ export const PORT_TYPE_COLOR: Record<WorkflowPortType, string> = {
   string: "#00d4ff",
   vector: "#88ff00",
   geometry: "#8800ff",
+  mesh: "#cc44ff",
+  nurb: "#9944ff",
+  brep: "#6644ff",
+  renderMesh: "#ff88cc",
+  voxelGrid: "#88ccff",
   goal: "#b366ff",
   genomeSpec: "#ff66bb",
   phenotypeSpec: "#ff66bb",
@@ -12706,6 +12718,9 @@ export const PORT_TYPE_COLOR: Record<WorkflowPortType, string> = {
   animation: "#66ccff",
   any: "#999999",
 };
+
+const GEOMETRY_TYPES: WorkflowPortType[] = ["geometry", "mesh", "nurb", "brep"];
+const DATA_TYPES: WorkflowPortType[] = ["renderMesh", "voxelGrid"];
 
 export const isPortTypeCompatible = (source: WorkflowPortType, target: WorkflowPortType) => {
   if (source === target) return true;
@@ -12720,6 +12735,9 @@ export const isPortTypeCompatible = (source: WorkflowPortType, target: WorkflowP
   if (exclusive) return false;
   if (source === "any" || target === "any") return true;
   if ((source === "number" && target === "boolean") || (source === "boolean" && target === "number")) {
+    return true;
+  }
+  if (GEOMETRY_TYPES.includes(source) && GEOMETRY_TYPES.includes(target)) {
     return true;
   }
   return false;
@@ -12924,6 +12942,12 @@ export const resolveNodeParameters = (node: Pick<WorkflowNode, "type" | "data">)
     if (node.data?.geometryId) parameters.geometryId = node.data.geometryId;
   }
   if (type === "chemistrySolver") {
+    if (node.data?.geometryId) parameters.geometryId = node.data.geometryId;
+  }
+  if (type === "voxelSolver") {
+    if (node.data?.geometryId) parameters.geometryId = node.data.geometryId;
+  }
+  if (type === "mesh") {
     if (node.data?.geometryId) parameters.geometryId = node.data.geometryId;
   }
   if (type === "move") {

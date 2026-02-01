@@ -23,7 +23,7 @@ import {
   formatInlineValue,
   resolvePanelFormatOptions,
 } from "./panelFormat";
-import { inspectValue } from "./dataInspect";
+import { inspectValue, formatGeometrySummary } from "./dataInspect";
 import {
   NODE_CATEGORY_BY_ID,
   NODE_DEFINITIONS,
@@ -5830,11 +5830,17 @@ function drawNodes(
       );
       ctx.fillText(progressText, x + 10, detailY + DETAIL_LINE_HEIGHT + 2);
     } else {
+      const resolveGeom = (id: string) => geometry?.find((item: { id: string }) => item.id === id);
+      const geomSummary = primaryOutputValue != null
+        ? formatGeometrySummary(primaryOutputValue, 0, resolveGeom)
+        : null;
       const detailText =
-        primaryOutputValue != null
-          ? `= ${formatInlineValue(primaryOutputValue)}`
-          : definition?.description ??
-            (node.type ? `Type: ${node.type}` : `ID: ${node.id.slice(0, 8)}`);
+        geomSummary != null
+          ? geomSummary
+          : primaryOutputValue != null
+            ? `= ${formatInlineValue(primaryOutputValue)}`
+            : definition?.description ??
+              (node.type ? `Type: ${node.type}` : `ID: ${node.id.slice(0, 8)}`);
       ctx.fillStyle = nodeMutedTextColor;
       ctx.font = '500 11px "Montreal Neue", "Space Grotesk", sans-serif';
       const detailLabel = truncateToWidth(ctx, detailText, detailMaxWidth);

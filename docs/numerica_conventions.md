@@ -638,3 +638,9 @@ Geometry: voxels
 - Systems that are easy to debug
 
 **This is the Numerica way.** ✨
+
+---
+
+## Related Documents
+
+- **[numerica_data_types.md](./numerica_data_types.md)** - Comprehensive reference for all port types, data structures, and inspector display formats

@@ -2004,22 +2004,55 @@ const applySeedGeometryNodesToGeometry = (
       };
     }
 
+    if (node.type === "mesh") {
+      const inputGeometryId = typeof outputs?.mesh === "string" ? outputs.mesh : null;
+      const existingGeometryId = typeof node.data?.geometryId === "string" ? node.data.geometryId : null;
+      const geometryId = inputGeometryId ?? existingGeometryId;
+
+      if (!geometryId) {
+        return node;
+      }
+
+      const inputGeometry = geometryById.get(geometryId);
+      if (!inputGeometry || inputGeometry.type !== "mesh") {
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            geometryId,
+            geometryType: null,
+            isLinked: false,
+          },
+        };
+      }
+
+      touchedGeometryIds.add(geometryId);
+
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          geometryId,
+          geometryType: "mesh",
+          isLinked: true,
+        },
+      };
+    }
+
     if (node.type === "voxelSolver") {
       let geometryId =
-        typeof outputs?.geometry === "string"
-          ? outputs.geometry
-          : typeof node.data?.geometryId === "string"
-            ? node.data.geometryId
-            : null;
+        typeof node.data?.geometryId === "string"
+          ? node.data.geometryId
+          : null;
 
-      const mesh = outputs?.mesh as RenderMesh | undefined;
+      const meshData = outputs?.meshData as RenderMesh | undefined;
 
       if (
-        !mesh ||
-        !Array.isArray(mesh.positions) ||
-        !Array.isArray(mesh.indices) ||
-        mesh.positions.length === 0 ||
-        mesh.indices.length === 0
+        !meshData ||
+        !Array.isArray(meshData.positions) ||
+        !Array.isArray(meshData.indices) ||
+        meshData.positions.length === 0 ||
+        meshData.indices.length === 0
       ) {
         return node;
       }
@@ -2031,7 +2064,7 @@ const applySeedGeometryNodesToGeometry = (
 
       upsertMeshGeometry(
         geometryId,
-        mesh,
+        meshData,
         undefined,
         { geometryById, updates, itemsToAdd },
         node.id,
@@ -8125,10 +8158,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       { id: `edge-${modeId}-${voxelSolverId}`, source: modeId, sourceHandle: "value", target: voxelSolverId, targetHandle: "mode" },
       { id: `edge-${thicknessId}-${voxelSolverId}`, source: thicknessId, sourceHandle: "value", target: voxelSolverId, targetHandle: "thickness" },
       { id: `edge-${isoValueId}-${voxelSolverId}`, source: isoValueId, sourceHandle: "value", target: voxelSolverId, targetHandle: "isoValue" },
-      // Solver to Mesh
-      { id: `edge-${voxelSolverId}-${meshId}`, source: voxelSolverId, sourceHandle: "geometry", target: meshId, targetHandle: "geometry" },
+      // Solver to Mesh (mesh type ports)
+      { id: `edge-${voxelSolverId}-${meshId}`, source: voxelSolverId, sourceHandle: "mesh", target: meshId, targetHandle: "mesh" },
       // Mesh to TextNote (displays voxel data)
-      { id: `edge-${meshId}-${textNoteId}`, source: meshId, sourceHandle: "geometry", target: textNoteId, targetHandle: "data" },
+      { id: `edge-${meshId}-${textNoteId}`, source: meshId, sourceHandle: "mesh", target: textNoteId, targetHandle: "data" },
     ];
 
     const emptyMesh: RenderMesh = { positions: [], normals: [], uvs: [], indices: [] };
