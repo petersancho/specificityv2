@@ -1,6 +1,6 @@
 import { NODE_DEFINITIONS } from "../../workflow/nodeRegistry";
 import type { RenderMesh } from "../../types";
-import { createBoxGeometry, createTestContext, translateMeshGeometry, wrapMeshGeometry } from "./rig-utils";
+import { createTestContext, wrapMeshGeometry } from "./rig-utils";
 import {
   buildChemistryConfig,
   buildChemistryGoalsBasic,
@@ -13,6 +13,7 @@ import {
   type ChemistryFixtureVariant,
 } from "./chemistry-solver-fixtures";
 import { buildChemistrySolverRunReport, logChemistrySolverRunReport } from "./chemistry-solver-report";
+import { buildChemistryHeroGeometry } from "./solver-hero-geometry";
 
 const getNodeDefinition = (type: string) => {
   const node = NODE_DEFINITIONS.find((definition) => definition.type === type);
@@ -24,24 +25,13 @@ const getNodeDefinition = (type: string) => {
 
 export const runChemistrySolverExample = (variant: ChemistryFixtureVariant = "regions") => {
   const solverNode = getNodeDefinition("chemistrySolver");
-  const baseGeometry = createBoxGeometry("geo-chemistry", { width: 2.2, height: 1.4, depth: 1.6 });
+  const heroGeometry = buildChemistryHeroGeometry();
+  const baseGeometry = wrapMeshGeometry("geo-chemistry", heroGeometry.base);
 
-  const anchorTop = translateMeshGeometry(
-    createBoxGeometry("geo-chemistry-anchorTop", { width: 2.0, height: 0.25, depth: 1.4 }),
-    { x: 0, y: 0.55, z: 0 }
-  );
-  const anchorBottom = translateMeshGeometry(
-    createBoxGeometry("geo-chemistry-anchorBottom", { width: 2.0, height: 0.25, depth: 1.4 }),
-    { x: 0, y: -0.55, z: 0 }
-  );
-  const thermalCore = translateMeshGeometry(
-    createBoxGeometry("geo-chemistry-thermalCore", { width: 0.7, height: 1.2, depth: 0.6 }),
-    { x: 0, y: 0, z: 0 }
-  );
-  const visionStrip = translateMeshGeometry(
-    createBoxGeometry("geo-chemistry-visionStrip", { width: 2.0, height: 1.1, depth: 0.35 }),
-    { x: 0, y: 0, z: 0.55 }
-  );
+  const anchorTop = wrapMeshGeometry("geo-chemistry-shell", heroGeometry.regions.shell);
+  const anchorBottom = wrapMeshGeometry("geo-chemistry-core", heroGeometry.regions.core);
+  const thermalCore = wrapMeshGeometry("geo-chemistry-fibers", heroGeometry.regions.fibers);
+  const visionStrip = wrapMeshGeometry("geo-chemistry-inclusions", heroGeometry.regions.inclusions);
 
   const geometry = [baseGeometry, anchorTop, anchorBottom, thermalCore, visionStrip];
   const context = createTestContext("chemistry-context", geometry);

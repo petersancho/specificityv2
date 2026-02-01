@@ -19,11 +19,8 @@ import {
   updateBiologicalSolverState,
 } from "../../workflow/nodes/solver/biological/solverState";
 import {
-  createBoxGeometry,
-  createSphereGeometry,
   createTestContext,
   findVertexIndicesAtExtent,
-  translateMeshGeometry,
   wrapMeshGeometry,
 } from "./rig-utils";
 import { buildPhysicsGoals } from "./physics-solver-fixtures";
@@ -37,6 +34,12 @@ import {
   TEXT_INPUT_MATERIALS,
   TEXT_INPUT_SEEDS,
 } from "./chemistry-solver-fixtures";
+import {
+  buildPhysicsHeroGeometry,
+  buildChemistryHeroGeometry,
+  buildVoxelHeroGeometry,
+  buildBiologicalHeroGeometry,
+} from "./solver-hero-geometry";
 
 export const CHEMISTRY_SOLVER_RIG_VARIANTS = [
   "basic",
@@ -58,11 +61,8 @@ const getNodeDefinition = (type: string) => {
 
 export const runPhysicsSolverRig = (analysisType: AnalysisType) => {
   const node = getNodeDefinition("physicsSolver");
-  const baseGeometry = createBoxGeometry(`geo-physics-${analysisType}`, {
-    width: 2,
-    height: 1.2,
-    depth: 1.5,
-  });
+  const heroMesh = buildPhysicsHeroGeometry();
+  const baseGeometry = wrapMeshGeometry(`geo-physics-${analysisType}`, heroMesh);
   const context = createTestContext(`physics-${analysisType}`, [baseGeometry]);
   const goals = buildPhysicsGoals(
     baseGeometry.mesh,
@@ -129,7 +129,8 @@ export const runPhysicsSolverRig = (analysisType: AnalysisType) => {
 export const runTopologySolverRig = (nodeType: "topologySolver" | "voxelSolver") => {
   const solverNode = getNodeDefinition(nodeType);
   const isoNode = getNodeDefinition("extractIsosurface");
-  const baseGeometry = createBoxGeometry(`geo-${nodeType}`, { width: 1.8, height: 1.2, depth: 1.4 });
+  const heroMesh = buildVoxelHeroGeometry();
+  const baseGeometry = wrapMeshGeometry(`geo-${nodeType}`, heroMesh);
   const context = createTestContext(`${nodeType}-context`, [baseGeometry]);
 
   const anchorIndices = findVertexIndicesAtExtent(baseGeometry.mesh, "x", "min");
@@ -228,24 +229,13 @@ export const runChemistrySolverRig = (
   variant: ChemistrySolverRigVariant = DEFAULT_CHEMISTRY_SOLVER_RIG_VARIANT
 ) => {
   const solverNode = getNodeDefinition("chemistrySolver");
-  const baseGeometry = createBoxGeometry("geo-chemistry", { width: 2.2, height: 1.4, depth: 1.6 });
+  const heroGeometry = buildChemistryHeroGeometry();
+  const baseGeometry = wrapMeshGeometry("geo-chemistry", heroGeometry.base);
 
-  const anchorTop = translateMeshGeometry(
-    createBoxGeometry("geo-chemistry-anchorTop", { width: 2.0, height: 0.25, depth: 1.4 }),
-    { x: 0, y: 0.55, z: 0 }
-  );
-  const anchorBottom = translateMeshGeometry(
-    createBoxGeometry("geo-chemistry-anchorBottom", { width: 2.0, height: 0.25, depth: 1.4 }),
-    { x: 0, y: -0.55, z: 0 }
-  );
-  const thermalCore = translateMeshGeometry(
-    createBoxGeometry("geo-chemistry-thermalCore", { width: 0.7, height: 1.2, depth: 0.6 }),
-    { x: 0, y: 0, z: 0 }
-  );
-  const visionStrip = translateMeshGeometry(
-    createBoxGeometry("geo-chemistry-visionStrip", { width: 2.0, height: 1.1, depth: 0.35 }),
-    { x: 0, y: 0, z: 0.55 }
-  );
+  const anchorTop = wrapMeshGeometry("geo-chemistry-shell", heroGeometry.regions.shell);
+  const anchorBottom = wrapMeshGeometry("geo-chemistry-core", heroGeometry.regions.core);
+  const thermalCore = wrapMeshGeometry("geo-chemistry-fibers", heroGeometry.regions.fibers);
+  const visionStrip = wrapMeshGeometry("geo-chemistry-inclusions", heroGeometry.regions.inclusions);
 
   const geometry = [baseGeometry, anchorTop, anchorBottom, thermalCore, visionStrip];
   const context = createTestContext("chemistry-context", geometry);
@@ -313,7 +303,8 @@ export const runChemistrySolverRig = (
 export const runBiologicalSolverRig = () => {
   const biologicalNode = getNodeDefinition("biologicalSolver");
   const evolutionNode = getNodeDefinition("biologicalEvolutionSolver");
-  const baseGeometry = createSphereGeometry("geo-bio", 1, 10);
+  const heroMesh = buildBiologicalHeroGeometry();
+  const baseGeometry = wrapMeshGeometry("geo-bio", heroMesh);
   const nodeId = "biological-rig";
 
   resetBiologicalSolverState(nodeId);
