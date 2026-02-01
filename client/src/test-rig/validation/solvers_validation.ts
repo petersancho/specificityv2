@@ -48,8 +48,11 @@ const DENSITY_EPS = 1e-5;
 const computeVolumeToleranceForResolution = (res: number) =>
   Math.max(MIN_VOLUME_TOLERANCE, RESOLUTION_TOLERANCE_SCALE / Math.max(1, res));
 
-const computeResolutionEps = (value: number) =>
-  Math.max(RESOLUTION_ABS_EPS, RESOLUTION_REL_EPS * Math.max(1, Math.round(value)));
+const computeResolutionEps = (value: number) => {
+  const rounded = Math.round(value);
+  const scale = Math.max(1, rounded);
+  return Math.max(RESOLUTION_ABS_EPS, RESOLUTION_REL_EPS * scale);
+};
 
 const validateVoxelGridConsistency = (
   label: string,
@@ -325,7 +328,7 @@ const validateVoxelSolver = () => {
   ensure(outputs.densityField.length > 0, "Expected density field data");
   ensure(outputs.voxelGrid !== null, "Expected voxel grid output");
   // In this validation rig, successful voxel solver runs are expected to produce an iso surface mesh.
-  ensure(isoOutputs.mesh !== null, "Expected voxel iso mesh output");
+  ensure(isoOutputs.mesh !== null, "Expected voxel iso mesh output for voxelSolver rig");
   ensureFinite(outputs.objective, "Expected objective to be finite");
   ensureFinite(outputs.constraint, "Expected constraint to be finite");
 
