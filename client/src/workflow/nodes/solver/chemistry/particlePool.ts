@@ -102,56 +102,7 @@ export const createParticlePool = (config: ParticlePoolConfig): ParticlePool => 
   };
 };
 
-/**
- * Ensure pool has enough capacity, resizing if necessary
- */
-export const ensureCapacity = (pool: ParticlePool, needed: number): ParticlePool => {
-  if (needed <= pool.capacity) {
-    return pool;
-  }
-  
-  // Create new pool with larger capacity
-  const newCapacity = Math.max(needed, pool.capacity * 2);
-  const newPool = createParticlePool({ capacity: newCapacity, materialCount: pool.materialCount });
-  
-  // Copy existing data
-  newPool.count = pool.count;
-  newPool.posX.set(pool.posX.subarray(0, pool.count));
-  newPool.posY.set(pool.posY.subarray(0, pool.count));
-  newPool.posZ.set(pool.posZ.subarray(0, pool.count));
-  newPool.velX.set(pool.velX.subarray(0, pool.count));
-  newPool.velY.set(pool.velY.subarray(0, pool.count));
-  newPool.velZ.set(pool.velZ.subarray(0, pool.count));
-  newPool.radius.set(pool.radius.subarray(0, pool.count));
-  newPool.mass.set(pool.mass.subarray(0, pool.count));
-  newPool.pressure.set(pool.pressure.subarray(0, pool.count));
-  newPool.temperature.set(pool.temperature.subarray(0, pool.count));
-  
-  for (let m = 0; m < pool.materialCount; m++) {
-    newPool.materials[m].set(pool.materials[m].subarray(0, pool.count));
-  }
-  
-  return newPool;
-};
 
-/**
- * Set particle count (validates against capacity)
- */
-export const setParticleCount = (pool: ParticlePool, count: number): void => {
-  if (count > pool.capacity) {
-    throw new Error(`Cannot set count ${count} exceeding capacity ${pool.capacity}`);
-  }
-  pool.count = count;
-};
-
-/**
- * Zero all velocities
- */
-export const zeroVelocities = (pool: ParticlePool): void => {
-  pool.velX.fill(0);
-  pool.velY.fill(0);
-  pool.velZ.fill(0);
-};
 
 /**
  * Seed particles with initial material concentrations
@@ -722,56 +673,7 @@ export const computeSystemEnergyBatched = (
   return { total, byGoal };
 };
 
-// ═══════════════════════════════════════════════════════════════════════════
-// SEED APPLICATION
-// ═══════════════════════════════════════════════════════════════════════════
 
-/**
- * Apply seed concentrations to particles
- */
-export const applySeedsToPool = (
-  pool: ParticlePool,
-  seeds: Array<{
-    position: Vec3;
-    radius: number;
-    materialIndex: number;
-    strength: number;
-  }>
-): void => {
-  for (const seed of seeds) {
-    const radiusSq = seed.radius * seed.radius;
-    
-    for (let i = 0; i < pool.count; i++) {
-      const dx = pool.posX[i] - seed.position.x;
-      const dy = pool.posY[i] - seed.position.y;
-      const dz = pool.posZ[i] - seed.position.z;
-      const distSq = dx * dx + dy * dy + dz * dz;
-      
-      if (distSq <= radiusSq) {
-        const dist = Math.sqrt(distSq);
-        const t = 1 - (dist / seed.radius);
-        const influence = t * t * seed.strength;
-        
-        pool.materials[seed.materialIndex][i] = Math.min(
-          1,
-          pool.materials[seed.materialIndex][i] + influence
-        );
-        
-        // Normalize
-        let sum = 0;
-        for (let m = 0; m < pool.materialCount; m++) {
-          sum += pool.materials[m][i];
-        }
-        if (sum > EPSILON) {
-          const invSum = 1 / sum;
-          for (let m = 0; m < pool.materialCount; m++) {
-            pool.materials[m][i] *= invSum;
-          }
-        }
-      }
-    }
-  }
-};
 
 // ═══════════════════════════════════════════════════════════════════════════
 // VOXEL FIELD GENERATION (Optimized)

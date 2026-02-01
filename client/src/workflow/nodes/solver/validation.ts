@@ -1,4 +1,5 @@
 import type { GoalSpecification } from "./types";
+import { clamp } from "./utils";
 
 export type ValidationResult = {
   valid: boolean;
@@ -6,9 +7,6 @@ export type ValidationResult = {
   warnings: string[];
   normalizedGoals?: GoalSpecification[];
 };
-
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(max, Math.max(min, value));
 
 export const normalizeGoalWeights = (goals: GoalSpecification[]) => {
   const warnings: string[] = [];
@@ -153,64 +151,6 @@ export const validateChemistryGoals = (goals: GoalSpecification[]): ValidationRe
   goals.forEach((goal) => {
     if (!allowedTypes.has(goal.goalType)) {
       errors.push(`Goal type '${goal.goalType}' is not supported by Chemistry Solver.`);
-    }
-  });
-
-  const weightNormalization = normalizeGoalWeights(goals);
-  warnings.push(...weightNormalization.warnings);
-
-  return {
-    valid: errors.length === 0,
-    errors,
-    warnings,
-    normalizedGoals: weightNormalization.goals,
-  };
-};
-
-export const validateTopologyGoals = (goals: GoalSpecification[]): ValidationResult => {
-  const errors: string[] = [];
-  const warnings: string[] = [];
-  const allowedTypes = new Set(["stiffness", "volume", "load", "anchor"]);
-
-  if (!Array.isArray(goals) || goals.length === 0) {
-    return {
-      valid: false,
-      errors: ["Topology Solver requires goal inputs (volume, stiffness, load, anchor)."],
-      warnings,
-    };
-  }
-
-  const stiffnessGoals = goals.filter((goal) => goal.goalType === "stiffness");
-  const volumeGoals = goals.filter((goal) => goal.goalType === "volume");
-  const loadGoals = goals.filter((goal) => goal.goalType === "load");
-  const anchorGoals = goals.filter((goal) => goal.goalType === "anchor");
-
-  if (stiffnessGoals.length === 0) {
-    errors.push("Topology Solver requires at least one Stiffness goal.");
-  }
-  if (volumeGoals.length === 0) {
-    errors.push("Topology Solver requires a Volume goal.");
-  }
-  if (volumeGoals.length > 1) {
-    errors.push("Only one Volume goal is allowed per Topology Solver.");
-  }
-  if (loadGoals.length === 0) {
-    errors.push("Topology Solver requires at least one Load goal.");
-  }
-  if (anchorGoals.length === 0) {
-    errors.push("Topology Solver requires at least one Anchor goal.");
-  }
-
-  goals.forEach((goal) => {
-    if (!allowedTypes.has(goal.goalType)) {
-      errors.push(`Goal type '${goal.goalType}' is not supported by Topology Solver.`);
-      return;
-    }
-    if (goal.goalType === "volume") return;
-    const hasElements =
-      Array.isArray(goal.geometry?.elements) && goal.geometry.elements.length > 0;
-    if (!hasElements) {
-      errors.push(`${goal.goalType} goal has no geometric elements.`);
     }
   });
 
