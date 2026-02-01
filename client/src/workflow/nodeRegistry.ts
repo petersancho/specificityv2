@@ -4260,13 +4260,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     primaryOutputKey: "data",
     compute: ({ inputs, parameters }) => {
       const fallback = typeof parameters.text === "string" ? parameters.text : "";
-      let data = inputs.data;
-      if (Array.isArray(data)) {
-        data = data.find((item) => item != null) ?? null;
-      }
-      if (data == null && fallback.length > 0) {
-        data = fallback;
-      }
+      const data = inputs.data ?? (fallback.length > 0 ? fallback : null);
       return { data };
     },
   },
@@ -4305,13 +4299,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     primaryOutputKey: "data",
     compute: ({ inputs, parameters }) => {
       const fallback = typeof parameters.text === "string" ? parameters.text : "";
-      let data = inputs.data;
-      if (Array.isArray(data)) {
-        data = data.find((item) => item != null) ?? null;
-      }
-      if (data == null && fallback.length > 0) {
-        data = fallback;
-      }
+      const data = inputs.data ?? (fallback.length > 0 ? fallback : null);
       return { data };
     },
   },
@@ -12662,13 +12650,7 @@ const topologySolverDefinition = NODE_DEFINITIONS.find(
 );
 if (topologySolverDefinition) {
   NODE_DEFINITIONS.push(
-    createVoxelSolverNode(topologySolverDefinition, {
-      buildVoxelGridFromGeometry,
-      buildVoxelMesh,
-      resolveGeometryInput,
-      readNumberParameter,
-      clampNumber,
-    })
+    createVoxelSolverNode(topologySolverDefinition)
   );
 }
 NODE_DEFINITIONS.push(
