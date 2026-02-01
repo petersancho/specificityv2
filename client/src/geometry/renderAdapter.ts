@@ -311,6 +311,9 @@ export class GeometryRenderAdapter {
             nextPositions: chunk.nextPositions,
             sides: chunk.sides,
             edgeKinds: chunk.edgeKinds,
+            faceNormal1: chunk.faceNormal1,
+            faceNormal2: chunk.faceNormal2,
+            hasFace2: chunk.hasFace2,
             indices: chunk.indices,
           });
           nextBuffers.push(buffer);
@@ -569,12 +572,33 @@ const createFlatShadedMesh = (
   };
 };
 
+// Edge Classification by Dihedral Angle:
+//
+// INTERNAL (0):    Smooth edges (< 150°) - tessellation artifacts, hidden
+// CREASE (1):      Sharp edges (≥ 150°) - geometric features, visible when front-facing
+// SILHOUETTE (2):  Boundary edges - adjacent to only one face, visible when front-facing
+//
+// CREASE_ANGLE = 170° for minimal cartoon aesthetic:
+// - Box corners (90°): CREASE
+// - Most tessellation edges (<170°): INTERNAL (hidden)
 const EDGE_KIND_INTERNAL = 0;
 const EDGE_KIND_CREASE = 1;
 const EDGE_KIND_SILHOUETTE = 2;
-const CREASE_ANGLE = Math.PI / 6;
+const CREASE_ANGLE_DEG = 170;
+const CREASE_ANGLE = (CREASE_ANGLE_DEG * Math.PI) / 180;
 
-type EdgeSegment = { a: number; b: number; kind: number };
+type EdgeSegment = {
+  a: number;
+  b: number;
+  kind: number;
+  nx1: number;
+  ny1: number;
+  nz1: number;
+  nx2: number;
+  ny2: number;
+  nz2: number;
+  hasFace2: boolean;
+};
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
@@ -664,6 +688,8 @@ const buildEdgeSegments = (mesh: RenderMesh): EdgeSegment[] => {
   const segments: EdgeSegment[] = [];
   edges.forEach((edge) => {
     let kind = EDGE_KIND_INTERNAL;
+    const hasFace2 = edge.count >= 2;
+    
     if (edge.count === 1) {
       kind = EDGE_KIND_SILHOUETTE;
     } else if (edge.count >= 3) {
@@ -679,7 +705,19 @@ const buildEdgeSegments = (mesh: RenderMesh): EdgeSegment[] => {
         kind = EDGE_KIND_CREASE;
       }
     }
-    segments.push({ a: edge.a, b: edge.b, kind });
+    
+    segments.push({
+      a: edge.a,
+      b: edge.b,
+      kind,
+      nx1: edge.nx1,
+      ny1: edge.ny1,
+      nz1: edge.nz1,
+      nx2: hasFace2 ? edge.nx2 : edge.nx1,
+      ny2: hasFace2 ? edge.ny2 : edge.ny1,
+      nz2: hasFace2 ? edge.nz2 : edge.nz1,
+      hasFace2,
+    });
   });
 
   return segments;
@@ -958,6 +996,9 @@ const buildEdgeLineBufferChunks = (
   nextPositions: Float32Array;
   sides: Float32Array;
   edgeKinds: Float32Array;
+  faceNormal1: Float32Array;
+  faceNormal2: Float32Array;
+  hasFace2: Float32Array;
   indices: Uint16Array;
 }> => {
   if (edgeSegments.length === 0) return [];
@@ -1117,6 +1158,9 @@ const buildEdgeLineBufferChunks = (
     nextPositions: Float32Array;
     sides: Float32Array;
     edgeKinds: Float32Array;
+    faceNormal1: Float32Array;
+    faceNormal2: Float32Array;
+    hasFace2: Float32Array;
     indices: Uint16Array;
   }> = [];
 
@@ -1127,6 +1171,9 @@ const buildEdgeLineBufferChunks = (
     const nextPositionsOut = new Float32Array(chunkSegments * 12);
     const sides = new Float32Array(chunkSegments * 4);
     const edgeKinds = new Float32Array(chunkSegments * 4);
+    const faceNormal1Out = new Float32Array(chunkSegments * 12);
+    const faceNormal2Out = new Float32Array(chunkSegments * 12);
+    const hasFace2Out = new Float32Array(chunkSegments * 4);
     const indicesOut = new Uint16Array(chunkSegments * 6);
 
     for (let i = 0; i < chunkSegments; i += 1) {
@@ -1199,6 +1246,38 @@ const buildEdgeLineBufferChunks = (
       edgeKinds[sideOffset + 2] = edge.kind;
       edgeKinds[sideOffset + 3] = edge.kind;
 
+      faceNormal1Out[vertexOffset] = edge.nx1;
+      faceNormal1Out[vertexOffset + 1] = edge.ny1;
+      faceNormal1Out[vertexOffset + 2] = edge.nz1;
+      faceNormal1Out[vertexOffset + 3] = edge.nx1;
+      faceNormal1Out[vertexOffset + 4] = edge.ny1;
+      faceNormal1Out[vertexOffset + 5] = edge.nz1;
+      faceNormal1Out[vertexOffset + 6] = edge.nx1;
+      faceNormal1Out[vertexOffset + 7] = edge.ny1;
+      faceNormal1Out[vertexOffset + 8] = edge.nz1;
+      faceNormal1Out[vertexOffset + 9] = edge.nx1;
+      faceNormal1Out[vertexOffset + 10] = edge.ny1;
+      faceNormal1Out[vertexOffset + 11] = edge.nz1;
+
+      faceNormal2Out[vertexOffset] = edge.nx2;
+      faceNormal2Out[vertexOffset + 1] = edge.ny2;
+      faceNormal2Out[vertexOffset + 2] = edge.nz2;
+      faceNormal2Out[vertexOffset + 3] = edge.nx2;
+      faceNormal2Out[vertexOffset + 4] = edge.ny2;
+      faceNormal2Out[vertexOffset + 5] = edge.nz2;
+      faceNormal2Out[vertexOffset + 6] = edge.nx2;
+      faceNormal2Out[vertexOffset + 7] = edge.ny2;
+      faceNormal2Out[vertexOffset + 8] = edge.nz2;
+      faceNormal2Out[vertexOffset + 9] = edge.nx2;
+      faceNormal2Out[vertexOffset + 10] = edge.ny2;
+      faceNormal2Out[vertexOffset + 11] = edge.nz2;
+
+      const hasFace2Val = edge.hasFace2 ? 1.0 : 0.0;
+      hasFace2Out[sideOffset] = hasFace2Val;
+      hasFace2Out[sideOffset + 1] = hasFace2Val;
+      hasFace2Out[sideOffset + 2] = hasFace2Val;
+      hasFace2Out[sideOffset + 3] = hasFace2Val;
+
       const indexOffset = i * 6;
       const v = i * 4;
       indicesOut[indexOffset] = v;
@@ -1215,6 +1294,9 @@ const buildEdgeLineBufferChunks = (
       nextPositions: nextPositionsOut,
       sides,
       edgeKinds,
+      faceNormal1: faceNormal1Out,
+      faceNormal2: faceNormal2Out,
+      hasFace2: hasFace2Out,
       indices: indicesOut,
     });
   }

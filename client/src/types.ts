@@ -369,6 +369,8 @@ export type DisplayMode =
   | "ghosted"
   | "silhouette";
 
+export type EdgeDisplayMode = "silhouette" | "silhouette+crease";
+
 export type ViewSettings = {
   backfaceCulling: boolean;
   showNormals: boolean;
@@ -376,6 +378,7 @@ export type ViewSettings = {
   showPointPickDebug?: boolean;
   showEdges?: boolean;
   showControlPoints?: boolean;
+  edgeDisplayMode?: EdgeDisplayMode;
 };
 
 export type GumballSettings = {
