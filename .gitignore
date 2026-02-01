@@ -4,7 +4,11 @@ node_modules
 Thumbs.db
 *.log
 *.tsbuildinfo
+*.tgz
+*.zip
 client/.vite
 client/dist
 server/dist
-*.zip
+vite.config.js
+vite.config.d.ts
+docs/generated/
