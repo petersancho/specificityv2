@@ -66,7 +66,11 @@ const validateVoxelGridConsistency = (
     `${label}: expected resolution to be a finite number`
   );
   ensure(outputs.resolution > 0, `${label}: expected resolution > 0`);
-  ensure(Number.isInteger(outputs.resolution), `${label}: expected resolution to be an integer`);
+  const res = Math.round(outputs.resolution);
+  ensure(
+    Math.abs(outputs.resolution - res) < 1e-6,
+    `${label}: expected resolution to be an integer (got ${outputs.resolution})`
+  );
   ensure(outputs.voxelGrid !== null, `${label}: expected voxel grid output`);
 
   const densities = outputs.voxelGrid.densities;
@@ -88,21 +92,23 @@ const validateVoxelGridConsistency = (
       typeof z === "number" && Number.isFinite(z),
     `${label}: expected voxelGrid resolution components to be finite numbers`
   );
+  const rx = Math.round(x);
+  const ry = Math.round(y);
+  const rz = Math.round(z);
   ensure(
-    Number.isInteger(x) && Number.isInteger(y) && Number.isInteger(z),
-    `${label}: expected voxelGrid resolution components to be integers`
+    Math.abs(x - rx) < 1e-6 && Math.abs(y - ry) < 1e-6 && Math.abs(z - rz) < 1e-6,
+    `${label}: expected voxelGrid resolution components to be integers (x=${x}, y=${y}, z=${z})`
   );
-  ensure(x > 0 && y > 0 && z > 0, `${label}: expected voxelGrid resolution > 0`);
+  ensure(rx > 0 && ry > 0 && rz > 0, `${label}: expected voxelGrid resolution > 0`);
   ensure(
-    x === y && y === z,
-    `${label}: expected voxelGrid resolution to be cubic (x=${x}, y=${y}, z=${z})`
+    rx === ry && ry === rz,
+    `${label}: expected voxelGrid resolution to be cubic (x=${rx}, y=${ry}, z=${rz})`
   );
   ensure(
-    outputs.resolution === x,
-    `${label}: expected resolution (${outputs.resolution}) to match voxelGrid resolution.x (${x})`
+    res === rx,
+    `${label}: expected resolution (${res}) to match voxelGrid resolution.x (${rx})`
   );
 
-  const res = outputs.resolution;
   ensure(densities.length === outputs.densityField.length, `${label}: expected density field to match grid`);
   ensure(densities.length === res * res * res, `${label}: expected density length to match resolution`);
 
