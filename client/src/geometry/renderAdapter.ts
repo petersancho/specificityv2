@@ -8,6 +8,7 @@ import type {
   VertexGeometry,
   RenderMesh,
 } from "../types";
+import { toGPUMesh } from "../types";
 import type { GeometryBuffer } from "../webgl/BufferManager";
 import type { WebGLRenderer } from "../webgl/WebGLRenderer";
 import type { NURBSCurve, NURBSSurface } from "./nurbs";
@@ -226,6 +227,7 @@ export class GeometryRenderAdapter {
     });
   }
 
+  // NUMERICA: Returns computational mesh representation (number[] for serialization)
   private resolveMeshSource(geometry: Geometry): RenderMesh | null {
     if (geometry.type === "nurbsSurface") {
       const nurbsSurface = geometry as NurbsSurfaceGeometry;
@@ -291,8 +293,10 @@ export class GeometryRenderAdapter {
       if (!edgeBuffer) {
         edgeBuffer = this.renderer.createGeometryBuffer(edgeBufferId);
       }
+      // NUMERICA → ROSLYN: Convert mesh positions for edge rendering
+      const gpuMesh = toGPUMesh(meshSource);
       edgeBuffer.setData({
-        positions: new Float32Array(meshSource.positions),
+        positions: gpuMesh.positions,
         indices: edgeIndices,
       });
 
@@ -556,10 +560,12 @@ const createFlatShadedMesh = (
   }
 
   if (cursor > 65535) {
+    // Mesh too large for flat shading, use original mesh (NUMERICA → ROSLYN conversion)
+    const gpuMesh = toGPUMesh(mesh);
     return {
-      positions: new Float32Array(mesh.positions),
-      normals: new Float32Array(mesh.normals),
-      indices: new Uint16Array(mesh.indices),
+      positions: gpuMesh.positions,
+      normals: gpuMesh.normals,
+      indices: gpuMesh.indices,
       colors: hasColors ? new Float32Array(sourceColors) : undefined,
     };
   }

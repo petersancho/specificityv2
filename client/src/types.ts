@@ -54,6 +54,7 @@ export type PlaneDefinition = {
 
 export type CPlane = PlaneDefinition;
 
+// NUMERICA: Computational/storage representation (serializable, editable)
 export type RenderMesh = {
   positions: number[];
   normals: number[];
@@ -61,6 +62,37 @@ export type RenderMesh = {
   indices: number[];
   colors?: number[];
 };
+
+// ROSLYN: GPU representation (performance-optimized for rendering)
+export type GPUMesh = {
+  positions: Float32Array;
+  normals: Float32Array;
+  uvs: Float32Array;
+  indices: Uint16Array;
+  colors?: Float32Array;
+};
+
+// Conversion: NUMERICA → ROSLYN
+export function toGPUMesh(mesh: RenderMesh): GPUMesh {
+  return {
+    positions: new Float32Array(mesh.positions),
+    normals: new Float32Array(mesh.normals),
+    uvs: new Float32Array(mesh.uvs),
+    indices: new Uint16Array(mesh.indices),
+    colors: mesh.colors ? new Float32Array(mesh.colors) : undefined,
+  };
+}
+
+// Conversion: ROSLYN → NUMERICA
+export function toRenderMesh(gpuMesh: GPUMesh): RenderMesh {
+  return {
+    positions: Array.from(gpuMesh.positions),
+    normals: Array.from(gpuMesh.normals),
+    uvs: Array.from(gpuMesh.uvs),
+    indices: Array.from(gpuMesh.indices),
+    colors: gpuMesh.colors ? Array.from(gpuMesh.colors) : undefined,
+  };
+}
 
 export type InertiaTensor = {
   xx: number;
