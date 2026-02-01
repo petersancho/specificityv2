@@ -77,23 +77,23 @@ export const createVoxelSolverNode = (
   ],
   outputs: [
     {
-      key: "geometry",
-      label: "Geometry",
-      type: "geometry",
-      required: true,
-      description: "Voxelized geometry output.",
-    },
-    {
       key: "mesh",
       label: "Mesh",
-      type: "any",
-      description: "Extracted isosurface mesh.",
+      type: "mesh",
+      required: true,
+      description: "Voxelized mesh geometry ID.",
+    },
+    {
+      key: "meshData",
+      label: "Mesh Data",
+      type: "renderMesh",
+      description: "Raw mesh data (positions, indices, normals).",
     },
     {
       key: "voxelGrid",
       label: "Grid",
-      type: "any",
-      description: "Voxel grid with densities.",
+      type: "voxelGrid",
+      description: "Voxel grid (resolution, bounds, densities).",
     },
     {
       key: "resolution",
@@ -154,25 +154,22 @@ export const createVoxelSolverNode = (
       description: "Density threshold for isosurface extraction.",
     },
   ],
-  primaryOutputKey: "geometry",
+  primaryOutputKey: "mesh",
   compute: ({ inputs, parameters, context }) => {
+    const emptyResult = {
+      mesh: null,
+      meshData: null,
+      voxelGrid: null,
+      resolution: 12,
+    };
+    
     if (!helpers) {
-      return {
-        geometry: null,
-        mesh: { positions: [], normals: [], uvs: [], indices: [] },
-        voxelGrid: null,
-        resolution: 12,
-      };
+      return emptyResult;
     }
 
     const geometry = helpers.resolveGeometryInput(inputs, context, { allowMissing: true });
     if (!geometry) {
-      return {
-        geometry: null,
-        mesh: { positions: [], normals: [], uvs: [], indices: [] },
-        voxelGrid: null,
-        resolution: 12,
-      };
+      return emptyResult;
     }
 
     const readNumber = (inputKey: string, paramKey: string, fallback: number): number => {
@@ -199,13 +196,13 @@ export const createVoxelSolverNode = (
       thickness
     );
 
-    const mesh = helpers.buildVoxelMesh(grid, isoValue);
-
+    const meshData = helpers.buildVoxelMesh(grid, isoValue);
+    
     const geometryId = typeof parameters.geometryId === "string" ? parameters.geometryId : null;
 
     return {
-      geometry: geometryId,
-      mesh,
+      mesh: geometryId,
+      meshData,
       voxelGrid: grid,
       resolution: grid.resolution?.x ?? resolution,
     };

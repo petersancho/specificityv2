@@ -1,4 +1,4 @@
-import type { Geometry, RenderMesh, Vec3 } from "../../types";
+import type { Geometry, RenderMesh, Vec3, VoxelGrid } from "../../types";
 
 export type InspectContext = {
   resolveGeometry?: (id: string) => Geometry | undefined;
@@ -7,6 +7,7 @@ export type InspectContext = {
   maxObjectKeys?: number;
   maxLines?: number;
   showMeshPositions?: boolean;
+  portIndex?: number;
 };
 
 const DEFAULT_INSPECT_CONTEXT: Required<InspectContext> = {
@@ -16,6 +17,29 @@ const DEFAULT_INSPECT_CONTEXT: Required<InspectContext> = {
   maxObjectKeys: 50,
   maxLines: 500,
   showMeshPositions: false,
+  portIndex: 0,
+};
+
+const isRenderMesh = (v: unknown): v is RenderMesh => {
+  if (!v || typeof v !== "object") return false;
+  const obj = v as Partial<RenderMesh>;
+  return (
+    Array.isArray(obj.positions) &&
+    Array.isArray(obj.indices) &&
+    obj.positions.length > 0
+  );
+};
+
+const isVoxelGrid = (v: unknown): v is VoxelGrid => {
+  if (!v || typeof v !== "object") return false;
+  const obj = v as Partial<VoxelGrid>;
+  return (
+    obj.resolution !== undefined &&
+    typeof obj.resolution === "object" &&
+    "x" in obj.resolution &&
+    obj.bounds !== undefined &&
+    Array.isArray(obj.densities)
+  );
 };
 
 const formatNumber = (value: number, decimals = 2) => {
@@ -55,20 +79,122 @@ const meshStats = (mesh: RenderMesh): { vertexCount: number; faceCount: number }
   return { vertexCount, faceCount };
 };
 
+const formatRenderMesh = (mesh: RenderMesh, ctx: Required<InspectContext>): string[] => {
+  const lines: string[] = [];
+  const stats = meshStats(mesh);
+  
+  lines.push(`RenderMesh:`);
+  lines.push(`  vertexCount: ${stats.vertexCount}`);
+  lines.push(`  faceCount: ${stats.faceCount}`);
+  
+  if (mesh.normals && mesh.normals.length > 0) {
+    lines.push(`  hasNormals: true`);
+  }
+  if (mesh.uvs && mesh.uvs.length > 0) {
+    lines.push(`  hasUVs: true`);
+  }
+  if (mesh.colors && mesh.colors.length > 0) {
+    lines.push(`  hasColors: true`);
+  }
+  
+  if (ctx.showMeshPositions && mesh.positions.length > 0) {
+    const limit = Math.min(stats.vertexCount, 20);
+    lines.push(`  positions (${limit} of ${stats.vertexCount}):`);
+    for (let i = 0; i < limit; i++) {
+      const x = mesh.positions[i * 3] ?? 0;
+      const y = mesh.positions[i * 3 + 1] ?? 0;
+      const z = mesh.positions[i * 3 + 2] ?? 0;
+      lines.push(`    ${i}: (${formatNumber(x)}, ${formatNumber(y)}, ${formatNumber(z)})`);
+    }
+    if (stats.vertexCount > limit) {
+      lines.push(`    ... (${stats.vertexCount - limit} more)`);
+    }
+  }
+  
+  return lines;
+};
+
+const formatVoxelGrid = (grid: VoxelGrid, ctx: Required<InspectContext>): string[] => {
+  const lines: string[] = [];
+  const res = grid.resolution;
+  const totalVoxels = res.x * res.y * res.z;
+  const filledVoxels = grid.densities.filter(d => d > 0).length;
+  
+  lines.push(`VoxelGrid:`);
+  lines.push(`  resolution: (${res.x}, ${res.y}, ${res.z})`);
+  lines.push(`  totalVoxels: ${totalVoxels}`);
+  lines.push(`  filledVoxels: ${filledVoxels}`);
+  lines.push(`  fillRatio: ${formatNumber(filledVoxels / totalVoxels * 100, 1)}%`);
+  
+  if (grid.bounds) {
+    const min = grid.bounds.min;
+    const max = grid.bounds.max;
+    lines.push(`  bounds:`);
+    lines.push(`    min: (${formatNumber(min.x)}, ${formatNumber(min.y)}, ${formatNumber(min.z)})`);
+    lines.push(`    max: (${formatNumber(max.x)}, ${formatNumber(max.y)}, ${formatNumber(max.z)})`);
+  }
+  
+  if (grid.cellSize) {
+    const cs = grid.cellSize;
+    lines.push(`  cellSize: (${formatNumber(cs.x, 3)}, ${formatNumber(cs.y, 3)}, ${formatNumber(cs.z, 3)})`);
+  }
+  
+  if (ctx.showMeshPositions && grid.densities.length > 0) {
+    const limit = Math.min(grid.densities.length, 20);
+    lines.push(`  densities (${limit} of ${grid.densities.length}):`);
+    for (let i = 0; i < limit; i++) {
+      lines.push(`    ${i}: ${formatNumber(grid.densities[i], 3)}`);
+    }
+    if (grid.densities.length > limit) {
+      lines.push(`    ... (${grid.densities.length - limit} more)`);
+    }
+  }
+  
+  return lines;
+};
+
+const getGeometryTypeLabel = (geom: Geometry): string => {
+  if (geom.type === "mesh" && "subtype" in geom && geom.subtype === "voxels") {
+    return "voxels";
+  }
+  if (geom.type === "mesh" && "sourceNodeId" in geom && typeof geom.sourceNodeId === "string" && geom.sourceNodeId.includes("voxelSolver")) {
+    return "voxels";
+  }
+  return geom.type;
+};
+
+export const formatGeometrySummary = (
+  value: unknown,
+  portIndex: number,
+  resolveGeometry: (id: string) => Geometry | undefined
+): string | null => {
+  const ids = Array.isArray(value) ? value : [value];
+  const geomIds = ids.filter((v): v is string => typeof v === "string");
+  
+  const typeCounts = new Map<string, number>();
+  for (const id of geomIds) {
+    const geom = resolveGeometry(id);
+    if (geom) {
+      const label = getGeometryTypeLabel(geom);
+      typeCounts.set(label, (typeCounts.get(label) ?? 0) + 1);
+    }
+  }
+  
+  if (typeCounts.size === 0) return null;
+  
+  const parts: string[] = [];
+  typeCounts.forEach((count, type) => {
+    parts.push(`${portIndex}:${count} ${type}`);
+  });
+  
+  return parts.join(", ");
+};
+
 const formatGeometry = (g: Geometry, ctx: Required<InspectContext>): string[] => {
   const lines: string[] = [];
+  const typeLabel = getGeometryTypeLabel(g);
   
-  const geometryLabel = (geom: Geometry): string => {
-    if (geom.type === "mesh" && "subtype" in geom && geom.subtype === "voxels") {
-      return "voxels";
-    }
-    if (geom.type === "mesh" && "sourceNodeId" in geom && typeof geom.sourceNodeId === "string" && geom.sourceNodeId.includes("voxelSolver")) {
-      return "voxels";
-    }
-    return geom.type;
-  };
-  
-  lines.push(`Geometry: ${geometryLabel(g)}`);
+  lines.push(`Geometry: ${typeLabel}`);
   lines.push(`  id: ${g.id}`);
   lines.push(`  layerId: ${g.layerId}`);
   
@@ -225,6 +351,22 @@ export const inspectValue = (
         return;
       }
       seen.add(val);
+      
+      if (isRenderMesh(val)) {
+        const meshLines = formatRenderMesh(val, fullCtx);
+        meshLines.forEach((line, i) => {
+          lines.push(i === 0 ? `${prefix}${line}` : `${prefix}${line}`);
+        });
+        return;
+      }
+      
+      if (isVoxelGrid(val)) {
+        const gridLines = formatVoxelGrid(val, fullCtx);
+        gridLines.forEach((line, i) => {
+          lines.push(i === 0 ? `${prefix}${line}` : `${prefix}${line}`);
+        });
+        return;
+      }
       
       const typed = val as { type?: unknown; id?: unknown };
       if (typeof typed.type === "string" && typeof typed.id === "string") {
