@@ -23,6 +23,7 @@ import {
   formatInlineValue,
   resolvePanelFormatOptions,
 } from "./panelFormat";
+import { inspectValue } from "./dataInspect";
 import {
   NODE_CATEGORY_BY_ID,
   NODE_DEFINITIONS,
@@ -96,6 +97,12 @@ type DragState =
     }
   | {
       type: "resize";
+      nodeId: string;
+      startWorld: Vec2;
+      startSize: { width: number; height: number };
+    }
+  | {
+      type: "resizeText";
       nodeId: string;
       startWorld: Vec2;
       startSize: { width: number; height: number };
@@ -188,8 +195,12 @@ const GROUP_RESIZE_HANDLE = 14;
 const TEXT_NODE_DEFAULT_SIZE = 24;
 const TEXT_NODE_LINE_HEIGHT = 1.12;
 const TEXT_NODE_HIT_PADDING = 6;
-const TEXT_NODE_MIN_WIDTH = 14;
-const TEXT_NODE_MIN_HEIGHT = 14;
+const TEXT_NODE_MIN_WIDTH = 120;
+const TEXT_NODE_MIN_HEIGHT = 60;
+const TEXT_NODE_DEFAULT_WIDTH = 240;
+const TEXT_NODE_DEFAULT_HEIGHT = 120;
+const TEXT_NODE_PADDING_X = 10;
+const TEXT_NODE_PADDING_Y = 10;
 const TEXT_NODE_FONT_FAMILY =
   '"Caveat", "Kalam", "Patrick Hand", "Bradley Hand", "Segoe Print", cursive';
 const NOTE_WIDTH = 210;
@@ -203,6 +214,13 @@ const SLIDER_PORT_OFFSET = 6;
 const SLIDER_TRACK_HEIGHT = 7;
 const SLIDER_TRACK_INSET_X = 14;
 const SLIDER_THUMB_RADIUS = 6;
+const SLIDER_VALUE_WIDTH = 48;
+const SLIDER_VALUE_GAP = 6;
+const SLIDER_TRACK_COLOR = "#3a3632";
+const SLIDER_FILL_COLOR = "#f5a623";
+const SLIDER_THUMB_COLOR = "#ffffff";
+const SLIDER_THUMB_STROKE = "#f5a623";
+const SLIDER_VALUE_COLOR = "#f5a623";
 const ICON_SIZE = 28;
 const ICON_PADDING = 10;
 const DETAIL_BOTTOM_PADDING = 10;
@@ -218,8 +236,6 @@ const MINIMAP_PADDING_MAX = 56;
 const ZOOM_SPEED = 0.0012;
 const ZOOM_STEP = 1.12;
 const RIGHT_CLICK_HOLD_MS = 240;
-const RIGHT_DOUBLE_CLICK_MS = 320;
-const RIGHT_DOUBLE_CLICK_DISTANCE = 8;
 const GRID_MINOR_BASE = 24;
 const GRID_MAJOR_FACTOR = 5;
 const GRID_SNAP_KEY = "lingua.numericaGridSnap";
@@ -361,6 +377,33 @@ const measureTextWidth = (text: string, font: string, size: number) => {
   }
   ctx.font = font;
   return ctx.measureText(text).width;
+};
+
+const wrapTextToWidth = (text: string, font: string, size: number, maxWidth: number): string[] => {
+  const paragraphs = text.split("\n");
+  const lines: string[] = [];
+
+  for (const p of paragraphs) {
+    const words = p.split(/\s+/).filter(Boolean);
+    if (words.length === 0) {
+      lines.push("");
+      continue;
+    }
+
+    let current = words[0];
+    for (let i = 1; i < words.length; i++) {
+      const next = `${current} ${words[i]}`;
+      if (measureTextWidth(next, font, size) <= maxWidth) {
+        current = next;
+      } else {
+        lines.push(current);
+        current = words[i];
+      }
+    }
+    lines.push(current);
+  }
+
+  return lines;
 };
 
 const resolveStepDecimals = (step: number) => {
@@ -714,11 +757,14 @@ const getSliderBounds = (layout: NodeLayout) => {
   const minTrackY = layout.y + 40;
   const maxTrackY = portTop - 8 - SLIDER_TRACK_HEIGHT;
   const trackY = Math.min(Math.max(idealTrackY, minTrackY), maxTrackY);
+  const trackWidth = layout.width - SLIDER_TRACK_INSET_X * 2 - SLIDER_VALUE_WIDTH - SLIDER_VALUE_GAP;
   return {
     x: layout.x + SLIDER_TRACK_INSET_X,
     y: trackY,
-    width: layout.width - SLIDER_TRACK_INSET_X * 2,
+    width: trackWidth,
     height: SLIDER_TRACK_HEIGHT,
+    valueX: layout.x + SLIDER_TRACK_INSET_X + trackWidth + SLIDER_VALUE_GAP,
+    valueWidth: SLIDER_VALUE_WIDTH,
   };
 };
 
@@ -727,6 +773,13 @@ const getPanelContentBounds = (layout: NodeLayout) => ({
   y: layout.y + PANEL_CONTENT_TOP,
   width: layout.width - PANEL_TEXT_INSET_X * 2,
   height: Math.max(0, layout.height - PANEL_CONTENT_TOP - PANEL_CONTENT_BOTTOM),
+});
+
+const getTextNoteContentBounds = (layout: NodeLayout) => ({
+  x: layout.x + NOTE_TEXT_INSET_X,
+  y: layout.y + NOTE_PADDING_TOP,
+  width: layout.width - NOTE_TEXT_INSET_X * 2,
+  height: Math.max(0, layout.portsStartOffset - NOTE_PADDING_TOP - 8),
 });
 
 const truncateToWidth = (
@@ -771,7 +824,23 @@ const isPointInGroupResizeHandle = (
   );
 };
 
-const computeNodeLayout = (node: any): NodeLayout => {
+const isPointInTextResizeHandle = (
+  point: Vec2,
+  layout: NodeLayout,
+  scale: number
+) => {
+  const handleSize = resolveGroupResizeHandleSize(scale);
+  const handleX = layout.x + layout.width - handleSize;
+  const handleY = layout.y + layout.height - handleSize;
+  return (
+    point.x >= handleX &&
+    point.x <= layout.x + layout.width &&
+    point.y >= handleY &&
+    point.y <= layout.y + layout.height
+  );
+};
+
+const computeNodeLayout = (node: any, geometryItems?: any[]): NodeLayout => {
   const definition = getNodeDefinition(node.type);
   const parameters = resolveNodeParameters(node);
   if (node.type === "text") {
@@ -779,14 +848,23 @@ const computeNodeLayout = (node: any): NodeLayout => {
     const text = rawText.trim().length > 0 ? rawText : "Text";
     const size = Math.min(96, Math.max(8, readNumber(parameters.size, TEXT_NODE_DEFAULT_SIZE)));
     const font = resolveTextFont(size);
-    const lines = text.split("\n");
     const lineHeight = size * TEXT_NODE_LINE_HEIGHT;
-    const maxWidth = Math.max(
+
+    const stored = node.data?.textSize;
+    const width = Math.max(
       TEXT_NODE_MIN_WIDTH,
-      ...lines.map((line) => measureTextWidth(line || " ", font, size))
+      stored?.width ?? TEXT_NODE_DEFAULT_WIDTH
     );
-    const width = Math.max(TEXT_NODE_MIN_WIDTH, maxWidth);
-    const height = Math.max(TEXT_NODE_MIN_HEIGHT, lineHeight * lines.length);
+
+    const wrapWidth = Math.max(1, width - TEXT_NODE_PADDING_X * 2);
+    const lines = wrapTextToWidth(text, font, size, wrapWidth);
+
+    const contentHeight = TEXT_NODE_PADDING_Y * 2 + lines.length * lineHeight;
+    const height = Math.max(
+      TEXT_NODE_MIN_HEIGHT,
+      stored?.height ?? Math.max(TEXT_NODE_DEFAULT_HEIGHT, contentHeight)
+    );
+
     return {
       nodeId: node.id,
       x: node.position.x,
@@ -828,13 +906,23 @@ const computeNodeLayout = (node: any): NodeLayout => {
     const nodeOutputs = node.data?.outputs ?? {};
     const noteOutputKey = definition?.primaryOutputKey ?? "data";
     const fallbackText = typeof parameters.text === "string" ? parameters.text : "";
-    const noteValue =
+    let noteValue =
       nodeOutputs[noteOutputKey] ?? (fallbackText.length > 0 ? fallbackText : null);
+    
     const noteOptions = resolvePanelFormatOptions(parameters);
     const hasContent =
       noteValue != null &&
       !(typeof noteValue === "string" && noteValue.trim().length === 0);
-    const noteLines = hasContent ? buildPanelLines(noteValue, noteOptions) : ["Edit me!"];
+    
+    // Use the universal data inspector for textNote display
+    const noteLines = hasContent
+      ? inspectValue(noteValue, {
+          resolveGeometry: (id: string) =>
+            geometryItems?.find((item) => item.id === id),
+          maxLines: noteOptions.maxLines,
+          showMeshPositions: !!noteOptions.showMeshPositions,
+        })
+      : ["Edit me!"];
     const ports = resolveNodePorts(node, parameters);
     const inputCount = ports.inputs.length;
     const outputCount = ports.outputs.length;
@@ -909,11 +997,21 @@ const computeNodeLayout = (node: any): NodeLayout => {
   const panelOutputKey = definition?.primaryOutputKey ?? ports.outputs[0]?.key ?? "data";
   const panelFallback =
     node.type === "panel" && typeof parameters.text === "string" ? parameters.text : null;
-  const panelValue =
+  let panelValue =
     nodeOutputs[panelOutputKey] ?? (panelFallback && panelFallback.length > 0 ? panelFallback : null);
+  
   const panelOptions = node.type === "panel" ? resolvePanelFormatOptions(parameters) : null;
+  
+  // Use the universal data inspector for panel display
   const panelLines =
-    node.type === "panel" && panelOptions ? buildPanelLines(panelValue, panelOptions) : undefined;
+    node.type === "panel" && panelOptions
+      ? inspectValue(panelValue, {
+          resolveGeometry: (id: string) =>
+            geometryItems?.find((item) => item.id === id),
+          maxLines: panelOptions.maxLines,
+          showMeshPositions: !!panelOptions.showMeshPositions,
+        })
+      : undefined;
   const panelContentHeight = panelLines
     ? PANEL_CONTENT_TOP + panelLines.length * PANEL_LINE_HEIGHT + PANEL_CONTENT_BOTTOM
     : 0;
@@ -968,10 +1066,32 @@ const computeNodeLayout = (node: any): NodeLayout => {
   };
 };
 
-const computeNodeLayouts = (nodes: any[]) => {
+const computeNodeLayouts = (nodes: any[], geometryItems?: any[]) => {
   const layouts = new Map<string, NodeLayout>();
+  const nodeById = new Map<string, any>();
   nodes.forEach((node) => {
-    layouts.set(node.id, computeNodeLayout(node));
+    nodeById.set(node.id, node);
+    layouts.set(node.id, computeNodeLayout(node, geometryItems));
+  });
+  nodes.forEach((node) => {
+    if (node.parentNode) {
+      const parentNode = nodeById.get(node.parentNode);
+      if (parentNode) {
+        const layout = layouts.get(node.id);
+        if (layout) {
+          layout.x += parentNode.position.x;
+          layout.y += parentNode.position.y;
+          layout.inputs.forEach((p) => {
+            p.x += parentNode.position.x;
+            p.y += parentNode.position.y;
+          });
+          layout.outputs.forEach((p) => {
+            p.x += parentNode.position.x;
+            p.y += parentNode.position.y;
+          });
+        }
+      }
+    }
   });
   return layouts;
 };
@@ -1078,6 +1198,7 @@ export const NumericalCanvas = ({
   const [dragState, setDragState] = useState<DragState>({ type: "none" });
   const [hoveredTarget, setHoveredTarget] = useState<HitTarget>({ type: "none" });
   const [groupResizeHoverId, setGroupResizeHoverId] = useState<string | null>(null);
+  const [textResizeHoverId, setTextResizeHoverId] = useState<string | null>(null);
   const [sliderHover, setSliderHover] = useState<{
     nodeId: string;
     part: "track";
@@ -1114,6 +1235,7 @@ export const NumericalCanvas = ({
   const rightHoldTimeoutRef = useRef<number | null>(null);
   const rightClickHeldRef = useRef(false);
   const lastRightClickRef = useRef<{ time: number; screen: Vec2 } | null>(null);
+  const doubleRightClickRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const pendingFileAddRef = useRef<Vec2 | null>(null);
   const pendingFileTargetRef = useRef<string | null>(null);
@@ -1128,10 +1250,6 @@ export const NumericalCanvas = ({
   const deleteSelectedNodes = useProjectStore((state) => state.deleteSelectedNodes);
   const addNodeAt = useProjectStore((state) => state.addNodeAt);
   const addGeometryReferenceNode = useProjectStore((state) => state.addGeometryReferenceNode);
-  const addPhysicsSolverRig = useProjectStore((state) => state.addPhysicsSolverRig);
-  const addTopologySolverRig = useProjectStore((state) => state.addTopologySolverRig);
-  const addBiologicalSolverRig = useProjectStore((state) => state.addBiologicalSolverRig);
-  const addChemistrySolverRig = useProjectStore((state) => state.addChemistrySolverRig);
   const syncWorkflowGeometryToRoslyn = useProjectStore((state) => state.syncWorkflowGeometryToRoslyn);
   const setSelectedGeometryIds = useProjectStore((state) => state.setSelectedGeometryIds);
   const updateNodeData = useProjectStore((state) => state.updateNodeData);
@@ -1144,7 +1262,7 @@ export const NumericalCanvas = ({
         node.type === "customViewer"
     );
     if (targets.length === 0) return [];
-    const layouts = computeNodeLayouts(nodes);
+    const layouts = computeNodeLayouts(nodes, geometry);
     const availableGeometryIds = new Set(geometry.map((item) => item.id));
     const nodeById = new Map(nodes.map((node) => [node.id, node]));
     const fallbackId = selectedGeometryIds[0];
@@ -1152,7 +1270,7 @@ export const NumericalCanvas = ({
       fallbackId && availableGeometryIds.has(fallbackId) ? fallbackId : null;
 
     return targets.map((node) => {
-      const layout = layouts.get(node.id) ?? computeNodeLayout(node);
+      const layout = layouts.get(node.id) ?? computeNodeLayout(node, geometry);
       const inputKey = layout.defaultInputKey ?? "geometry";
       const edge = edges.find(
         (entry) =>
@@ -1268,7 +1386,7 @@ export const NumericalCanvas = ({
     if (!isMinimap) return;
     if (width <= 0 || height <= 0) return;
 
-    const layouts = computeNodeLayouts(nodes);
+    const layouts = computeNodeLayouts(nodes, geometry);
     if (layouts.size === 0) {
       setViewTransform((prev) => {
         const next = { x: width / 2, y: height / 2, scale: 1 };
@@ -1532,7 +1650,7 @@ export const NumericalCanvas = ({
       ctx.clearRect(0, 0, width, height);
 
       const palette = paletteRef.current;
-      const layouts = computeNodeLayouts(nodes);
+      const layouts = computeNodeLayouts(nodes, geometry);
       layoutRef.current = layouts;
       const connectedInputs = buildConnectedInputSet(edges, layouts);
 
@@ -1552,7 +1670,7 @@ export const NumericalCanvas = ({
       ctx.scale(viewTransform.scale, viewTransform.scale);
 
       drawBackground(ctx, width, height, viewTransform, palette, backgroundMode);
-      drawGroupNodes(ctx, nodes, layouts, hoveredTarget, palette);
+      drawGroupNodes(ctx, nodes, layouts, hoveredTarget, palette, geometry);
       drawConnections(ctx, edges, layouts, hoveredTarget, palette, viewTransform);
       const renderPortBodies =
         captureActive ||
@@ -1781,7 +1899,7 @@ export const NumericalCanvas = ({
     let maxY = Number.NEGATIVE_INFINITY;
 
     targetNodes.forEach((node) => {
-      const layout = layouts.get(node.id) ?? computeNodeLayout(node);
+      const layout = layouts.get(node.id) ?? computeNodeLayout(node, geometry);
       if (!layouts.has(node.id)) {
         layouts.set(node.id, layout);
       }
@@ -1941,7 +2059,7 @@ export const NumericalCanvas = ({
     let maxX = Number.NEGATIVE_INFINITY;
     let maxY = Number.NEGATIVE_INFINITY;
     selectedNodes.forEach((node) => {
-      const layout = layouts.get(node.id) ?? computeNodeLayout(node);
+      const layout = layouts.get(node.id) ?? computeNodeLayout(node, geometry);
       if (!layouts.has(node.id)) {
         layouts.set(node.id, layout);
       }
@@ -2158,7 +2276,7 @@ export const NumericalCanvas = ({
 
   const getLayouts = () => {
     if (layoutRef.current.size > 0) return layoutRef.current;
-    const computed = computeNodeLayouts(nodes);
+    const computed = computeNodeLayouts(nodes, geometry);
     layoutRef.current = computed;
     return computed;
   };
@@ -2467,6 +2585,19 @@ export const NumericalCanvas = ({
         onSelect: closeMenu(() => frameNodes(new Set([target.nodeId]))),
       });
 
+      actions.push({
+        label: node?.hidden ? "Show Node" : "Hide Node",
+        onSelect: closeMenu(() => {
+          onNodesChange([
+            {
+              id: target.nodeId,
+              type: "update" as const,
+              updates: { hidden: !node?.hidden },
+            },
+          ]);
+        }),
+      });
+
       if (node?.type === "biologicalEvolutionSolver" || node?.type === "biologicalSolver") {
         actions.push({
           label: "Open Biological Solver",
@@ -2654,14 +2785,44 @@ export const NumericalCanvas = ({
     }
 
     const world = contextMenu.world;
-    const selectedNodeIds = new Set(
-      nodes.filter((node) => node.selected).map((node) => node.id)
-    );
+    const selectedNodes = nodes.filter((node) => node.selected);
+    const selectedNodeIds = new Set(selectedNodes.map((node) => node.id));
     if (selectedNodeIds.size > 0) {
       actions.push({
         label: "Frame Selection",
         onSelect: closeMenu(() => frameNodes(selectedNodeIds)),
       });
+      
+      const allSelectedHidden = selectedNodes.every((node) => node.hidden);
+      const someSelectedHidden = selectedNodes.some((node) => node.hidden);
+      
+      if (someSelectedHidden) {
+        actions.push({
+          label: "Show Selected Nodes",
+          onSelect: closeMenu(() => {
+            const changes = selectedNodes.map((node) => ({
+              id: node.id,
+              type: "update" as const,
+              updates: { hidden: false },
+            }));
+            onNodesChange(changes);
+          }),
+        });
+      }
+      
+      if (!allSelectedHidden) {
+        actions.push({
+          label: "Hide Selected Nodes",
+          onSelect: closeMenu(() => {
+            const changes = selectedNodes.map((node) => ({
+              id: node.id,
+              type: "update" as const,
+              updates: { hidden: true },
+            }));
+            onNodesChange(changes);
+          }),
+        });
+      }
     }
     if (groupSelectionCount > 1) {
       actions.push({
@@ -2676,22 +2837,6 @@ export const NumericalCanvas = ({
     actions.push({
       label: "Add Text Note",
       onSelect: closeMenu(() => addTextNoteAt(world)),
-    });
-    actions.push({
-      label: "Add Physics Solver Rig",
-      onSelect: closeMenu(() => addPhysicsSolverRig(world)),
-    });
-    actions.push({
-      label: "Add Topology Solver Rig",
-      onSelect: closeMenu(() => addTopologySolverRig(world)),
-    });
-    actions.push({
-      label: "Add Biological Solver Rig",
-      onSelect: closeMenu(() => addBiologicalSolverRig(world)),
-    });
-    actions.push({
-      label: "Add Chemistry Solver Rig",
-      onSelect: closeMenu(() => addChemistrySolverRig(world)),
     });
     actions.push({
       label: "Frame All Nodes",
@@ -2749,10 +2894,6 @@ export const NumericalCanvas = ({
     interactionsEnabled,
     shortcutOverlayEnabled,
     addTextNoteAt,
-    addPhysicsSolverRig,
-    addTopologySolverRig,
-    addBiologicalSolverRig,
-    addChemistrySolverRig,
     openStlFilePicker,
     beginInlineEdit,
     createGroupFromSelection,
@@ -2957,7 +3098,7 @@ export const NumericalCanvas = ({
 
     for (let i = orderedNodes.length - 1; i >= 0; i -= 1) {
       const node = orderedNodes[i];
-      const layout = layouts.get(node.id) ?? computeNodeLayout(node);
+      const layout = layouts.get(node.id) ?? computeNodeLayout(node, geometry);
       if (!layouts.has(node.id)) {
         layouts.set(node.id, layout);
       }
@@ -3080,6 +3221,24 @@ export const NumericalCanvas = ({
 
     if (e.button === 2) {
       e.preventDefault();
+      
+      // Check for double-right-click
+      const now = Date.now();
+      const lastClick = lastRightClickRef.current;
+      const DOUBLE_CLICK_MS = 300;
+      
+      if (lastClick && now - lastClick.time < DOUBLE_CLICK_MS) {
+        // Double-right-click detected
+        doubleRightClickRef.current = true;
+        lastRightClickRef.current = null;
+        // Don't start panning, let the context menu show
+        return;
+      } else {
+        // Single right-click - start panning
+        lastRightClickRef.current = { time: now, screen: { x: screenX, y: screenY } };
+        doubleRightClickRef.current = false;
+      }
+      
       rightClickHeldRef.current = false;
       if (rightHoldTimeoutRef.current) {
         window.clearTimeout(rightHoldTimeoutRef.current);
@@ -3128,7 +3287,7 @@ export const NumericalCanvas = ({
       if (node) {
         if (node.type === "group") {
           const layouts = getLayouts();
-          const layout = layouts.get(node.id) ?? computeNodeLayout(node);
+          const layout = layouts.get(node.id) ?? computeNodeLayout(node, geometry);
           if (!layouts.has(node.id)) {
             layouts.set(node.id, layout);
           }
@@ -3149,9 +3308,32 @@ export const NumericalCanvas = ({
             return;
           }
         }
+        if (node.type === "text") {
+          const layouts = getLayouts();
+          const layout = layouts.get(node.id) ?? computeNodeLayout(node, geometry);
+          if (!layouts.has(node.id)) {
+            layouts.set(node.id, layout);
+          }
+          if (
+            isPointInTextResizeHandle(world, layout, viewTransform.scale) &&
+            e.button === 0
+          ) {
+            if (e.button === 0) {
+              setNodeSelection(target.nodeId, isMultiSelect);
+            }
+            setDragState({
+              type: "resizeText",
+              nodeId: node.id,
+              startWorld: world,
+              startSize: { width: layout.width, height: layout.height },
+            });
+            e.preventDefault();
+            return;
+          }
+        }
         if (node.type === "slider") {
           const layouts = getLayouts();
-          const layout = layouts.get(node.id) ?? computeNodeLayout(node);
+          const layout = layouts.get(node.id) ?? computeNodeLayout(node, geometry);
           if (!layouts.has(node.id)) {
             layouts.set(node.id, layout);
           }
@@ -3256,7 +3438,7 @@ export const NumericalCanvas = ({
     const node = nodes.find((entry) => entry.id === target.nodeId);
     if (!node) return;
     const layouts = getLayouts();
-    const layout = layouts.get(node.id) ?? computeNodeLayout(node);
+    const layout = layouts.get(node.id) ?? computeNodeLayout(node, geometry);
     if (!layouts.has(node.id)) {
       layouts.set(node.id, layout);
     }
@@ -3357,6 +3539,25 @@ export const NumericalCanvas = ({
       return;
     }
 
+    if (dragState.type === "resizeText") {
+      const dx = world.x - dragState.startWorld.x;
+      const dy = world.y - dragState.startWorld.y;
+      let nextWidth = dragState.startSize.width + dx;
+      let nextHeight = dragState.startSize.height + dy;
+      if (gridSnapEnabled && !e.altKey) {
+        const { minor } = resolveGridSteps(viewTransform.scale);
+        nextWidth = snapToGrid(nextWidth, minor);
+        nextHeight = snapToGrid(nextHeight, minor);
+      }
+      updateNodeData(dragState.nodeId, {
+        textSize: {
+          width: Math.max(TEXT_NODE_MIN_WIDTH, nextWidth),
+          height: Math.max(TEXT_NODE_MIN_HEIGHT, nextHeight),
+        },
+      });
+      return;
+    }
+
     if (dragState.type === "node") {
       const dx = (screenX - dragState.startPos.x) / viewTransform.scale;
       const dy = (screenY - dragState.startPos.y) / viewTransform.scale;
@@ -3400,11 +3601,12 @@ export const NumericalCanvas = ({
     setHoveredTarget(target);
     let nextSliderHover: { nodeId: string; part: "track" } | null = null;
     let nextGroupResizeHoverId: string | null = null;
+    let nextTextResizeHoverId: string | null = null;
     if (target.type === "node") {
       const node = nodes.find((entry) => entry.id === target.nodeId);
       if (node?.type === "group") {
         const layouts = getLayouts();
-        const layout = layouts.get(node.id) ?? computeNodeLayout(node);
+        const layout = layouts.get(node.id) ?? computeNodeLayout(node, geometry);
         if (!layouts.has(node.id)) {
           layouts.set(node.id, layout);
         }
@@ -3412,9 +3614,19 @@ export const NumericalCanvas = ({
           nextGroupResizeHoverId = node.id;
         }
       }
+      if (node?.type === "text") {
+        const layouts = getLayouts();
+        const layout = layouts.get(node.id) ?? computeNodeLayout(node, geometry);
+        if (!layouts.has(node.id)) {
+          layouts.set(node.id, layout);
+        }
+        if (isPointInTextResizeHandle(world, layout, viewTransform.scale)) {
+          nextTextResizeHoverId = node.id;
+        }
+      }
       if (node?.type === "slider") {
         const layouts = getLayouts();
-        const layout = layouts.get(node.id) ?? computeNodeLayout(node);
+        const layout = layouts.get(node.id) ?? computeNodeLayout(node, geometry);
         if (!layouts.has(node.id)) {
           layouts.set(node.id, layout);
         }
@@ -3427,6 +3639,9 @@ export const NumericalCanvas = ({
     setSliderHover(nextSliderHover);
     if (nextGroupResizeHoverId !== groupResizeHoverId) {
       setGroupResizeHoverId(nextGroupResizeHoverId);
+    }
+    if (nextTextResizeHoverId !== textResizeHoverId) {
+      setTextResizeHoverId(nextTextResizeHoverId);
     }
   };
 
@@ -3497,7 +3712,7 @@ export const NumericalCanvas = ({
         const maxY = Math.max(dragState.startWorld.y, dragState.currentWorld.y);
         const layouts = getLayouts();
         nodes.forEach((node) => {
-          const layout = layouts.get(node.id) ?? computeNodeLayout(node);
+          const layout = layouts.get(node.id) ?? computeNodeLayout(node, geometry);
           if (!layouts.has(node.id)) {
             layouts.set(node.id, layout);
           }
@@ -3568,7 +3783,7 @@ export const NumericalCanvas = ({
       const node = nodes.find((entry) => entry.id === target.nodeId);
       if (node?.type === "slider") {
         const layouts = getLayouts();
-        const layout = layouts.get(node.id) ?? computeNodeLayout(node);
+        const layout = layouts.get(node.id) ?? computeNodeLayout(node, geometry);
         if (!layouts.has(node.id)) {
           layouts.set(node.id, layout);
         }
@@ -3598,7 +3813,7 @@ export const NumericalCanvas = ({
       const node = nodes.find((entry) => entry.id === target.nodeId);
       if (node?.type === "panel") {
         const layouts = getLayouts();
-        const layout = layouts.get(node.id) ?? computeNodeLayout(node);
+        const layout = layouts.get(node.id) ?? computeNodeLayout(node, geometry);
         if (!layouts.has(node.id)) {
           layouts.set(node.id, layout);
         }
@@ -3626,6 +3841,37 @@ export const NumericalCanvas = ({
           }
         }
       }
+      
+      if (node?.type === "textNote") {
+        const layouts = getLayouts();
+        const layout = layouts.get(node.id) ?? computeNodeLayout(node, geometry);
+        if (!layouts.has(node.id)) {
+          layouts.set(node.id, layout);
+        }
+        const noteBounds = getTextNoteContentBounds(layout);
+        if (isPointInRect(world, noteBounds)) {
+          const rawLines = layout.noteLines ?? ["Edit me!"];
+          const visibleLines = Math.max(
+            1,
+            Math.floor(noteBounds.height / NOTE_LINE_HEIGHT)
+          );
+          const maxScroll = Math.max(0, rawLines.length - visibleLines);
+          if (maxScroll > 0) {
+            const baseStep = Math.max(1, NOTE_LINE_HEIGHT * viewTransform.scale);
+            const stepCount = Math.max(1, Math.round(Math.abs(deltaY) / baseStep));
+            const scrollDelta = Math.sign(deltaY) * stepCount;
+            const current = Math.round(readNumber(node.data?.textNoteScroll, 0));
+            const next = Math.min(maxScroll, Math.max(0, current + scrollDelta));
+            if (next !== current) {
+              updateNodeData(node.id, { textNoteScroll: next });
+            }
+            return;
+          }
+          if (node.data?.textNoteScroll) {
+            updateNodeData(node.id, { textNoteScroll: 0 });
+          }
+        }
+      }
     }
 
     setViewTransform((prev) => ({
@@ -3644,9 +3890,15 @@ export const NumericalCanvas = ({
       setNodeSearchPopup(null);
       setNodeSearchQuery("");
     }
+    // Only show context menu on double-right-click
+    if (!doubleRightClickRef.current) {
+      doubleRightClickRef.current = false;
+      return;
+    }
     if (suppressContextMenuRef.current || rightClickHeldRef.current) {
       suppressContextMenuRef.current = false;
       rightClickHeldRef.current = false;
+      doubleRightClickRef.current = false;
       return;
     }
 
@@ -3656,32 +3908,16 @@ export const NumericalCanvas = ({
     const world = screenToWorld(screenX, screenY);
     const target = hitTest(world.x, world.y);
 
-    const now = typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
-    const lastRightClick = lastRightClickRef.current;
-    const isDoubleRightClick =
-      Boolean(lastRightClick) &&
-      now - (lastRightClick?.time ?? 0) < RIGHT_DOUBLE_CLICK_MS &&
-      Math.hypot(
-        screenX - (lastRightClick?.screen.x ?? 0),
-        screenY - (lastRightClick?.screen.y ?? 0)
-      ) < RIGHT_DOUBLE_CLICK_DISTANCE;
-    lastRightClickRef.current = { time: now, screen: { x: screenX, y: screenY } };
-
-    if (isDoubleRightClick) {
-      if (target.type === "node") {
-        const node = nodes.find((entry) => entry.id === target.nodeId);
-        if (node?.type === "biologicalEvolutionSolver" || node?.type === "biologicalSolver") {
-          setContextMenu(null);
-          setNodeSearchPopup(null);
-          setBiologicalSolverPopupNodeId(node.id);
-          return;
-        }
+    // Check for biological solver nodes (special handling)
+    if (target.type === "node") {
+      const node = nodes.find((entry) => entry.id === target.nodeId);
+      if (node?.type === "biologicalEvolutionSolver" || node?.type === "biologicalSolver") {
+        setContextMenu(null);
+        setNodeSearchPopup(null);
+        setBiologicalSolverPopupNodeId(node.id);
+        doubleRightClickRef.current = false;
+        return;
       }
-      setContextMenu(null);
-      setNodeSearchPopup({ screen: { x: screenX, y: screenY }, world });
-      setNodeSearchQuery("");
-      setNodeSearchIndex(0);
-      return;
     }
 
     if (target.type === "edge") {
@@ -3700,6 +3936,7 @@ export const NumericalCanvas = ({
       world,
       target,
     });
+    doubleRightClickRef.current = false;
   };
 
   const activeSearchResult =
@@ -3813,11 +4050,15 @@ export const NumericalCanvas = ({
                 ? "grab"
                 : dragState.type === "resize"
                 ? "nwse-resize"
+                : dragState.type === "resizeText"
+                ? "nwse-resize"
                 : dragState.type === "slider"
                 ? "ew-resize"
                 : sliderHover?.part === "track"
                   ? "ew-resize"
                   : groupResizeHoverId
+                    ? "nwse-resize"
+                    : textResizeHoverId
                     ? "nwse-resize"
                     : dragState.type === "node"
                 ? "move"
@@ -4925,11 +5166,12 @@ function drawGroupNodes(
   nodes: any[],
   layouts: Map<string, NodeLayout>,
   hoveredTarget: HitTarget,
-  palette: CanvasPalette
+  palette: CanvasPalette,
+  geometry: any[]
 ) {
   nodes.forEach((node) => {
     if (node.type !== "group") return;
-    const layout = layouts.get(node.id) ?? computeNodeLayout(node);
+    const layout = layouts.get(node.id) ?? computeNodeLayout(node, geometry);
     if (!layouts.has(node.id)) {
       layouts.set(node.id, layout);
     }
@@ -5036,11 +5278,15 @@ function drawNodes(
 
   nodes.forEach((node) => {
     const isGhost = ghostNodeIds?.has(node.id) ?? false;
+    const isHidden = node.hidden ?? false;
     if (isGhost) {
       ctx.save();
       ctx.globalAlpha *= ghostAlpha;
+    } else if (isHidden) {
+      ctx.save();
+      ctx.globalAlpha *= 0.3;
     }
-    const layout = layouts.get(node.id) ?? computeNodeLayout(node);
+    const layout = layouts.get(node.id) ?? computeNodeLayout(node, geometry);
     if (!layouts.has(node.id)) {
       layouts.set(node.id, layout);
     }
@@ -5111,18 +5357,41 @@ function drawNodes(
       const lineHeight = layout.textLineHeight ?? fontSize * TEXT_NODE_LINE_HEIGHT;
       const font = resolveTextFont(fontSize);
       const textColor = palette.text;
+      const width = layout.width;
+      const height = layout.height;
 
       ctx.save();
+      ctx.beginPath();
+      ctx.rect(x, y, width, height);
+      ctx.clip();
+
       ctx.font = font;
       ctx.textAlign = "left";
       ctx.textBaseline = "top";
       ctx.fillStyle = textColor;
-      textLines.forEach((line, index) => {
-        ctx.fillText(line, x, y + index * lineHeight);
+
+      let cursorY = y + TEXT_NODE_PADDING_Y;
+      textLines.forEach((line) => {
+        ctx.fillText(line, x + TEXT_NODE_PADDING_X, cursorY);
+        cursorY += lineHeight;
       });
 
       ctx.restore();
-      if (isGhost) {
+
+      ctx.save();
+      ctx.strokeStyle = isHovered ? palette.nodeStrokeHover : palette.nodeStroke;
+      ctx.lineWidth = 1;
+      const handleOffset = 4;
+      for (let i = 0; i < 3; i += 1) {
+        const inset = handleOffset + i * 4;
+        ctx.beginPath();
+        ctx.moveTo(x + width - inset - 6, y + height - 2);
+        ctx.lineTo(x + width - 2, y + height - inset - 6);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      if (isGhost || isHidden) {
         ctx.restore();
       }
       return;
@@ -5144,7 +5413,7 @@ function drawNodes(
         noteOutputKey in noteOutputs && noteOutputs[noteOutputKey] != null;
       const hasFallback = fallbackText.trim().length > 0;
       const hasContent = hasUpstream || hasFallback;
-      const linesToDraw = layout.noteLines ?? ["Edit me!"];
+      const rawLines = layout.noteLines ?? ["Edit me!"];
       const isSelected = Boolean(node.selected);
       const fill = isHovered ? "#fff5d8" : "#fff1c6";
       const border = isSelected ? "#f59e0b" : "#bf8f45";
@@ -5166,18 +5435,25 @@ function drawNodes(
       ctx.stroke();
       ctx.restore();
 
+      const noteBounds = getTextNoteContentBounds(layout);
+      const visibleLines = Math.max(1, Math.floor(noteBounds.height / NOTE_LINE_HEIGHT));
+      const maxScroll = Math.max(0, rawLines.length - visibleLines);
+      const scrollRaw = readNumber(node.data?.textNoteScroll, 0);
+      const scroll = Math.min(maxScroll, Math.max(0, Math.round(scrollRaw)));
+      const linesToDraw = rawLines.slice(scroll, scroll + visibleLines);
+
       ctx.save();
       ctx.beginPath();
-      ctx.roundRect(x, y, layout.width, layout.height, NOTE_BORDER_RADIUS);
+      ctx.rect(noteBounds.x, noteBounds.y, noteBounds.width, noteBounds.height);
       ctx.clip();
       ctx.fillStyle = hasContent ? "#3b332d" : "#8c7a5f";
       ctx.font = '500 11px "Montreal Neue", "Space Grotesk", sans-serif';
       ctx.textAlign = "left";
       ctx.textBaseline = "top";
       linesToDraw.forEach((line, index) => {
-        const lineY = y + NOTE_PADDING_TOP + index * NOTE_LINE_HEIGHT;
-        const trimmed = truncateToWidth(ctx, line, layout.width - NOTE_TEXT_INSET_X * 2);
-        ctx.fillText(trimmed, x + NOTE_TEXT_INSET_X, lineY);
+        const lineY = noteBounds.y + index * NOTE_LINE_HEIGHT;
+        const trimmed = truncateToWidth(ctx, line, noteBounds.width);
+        ctx.fillText(trimmed, noteBounds.x, lineY);
       });
       ctx.restore();
 
@@ -5423,17 +5699,18 @@ function drawNodes(
         sliderBounds.width,
         Math.max(barHeight, sliderBounds.width * normalized)
       );
+
       ctx.save();
-      ctx.fillStyle = palette.nodeStroke;
+      ctx.fillStyle = SLIDER_TRACK_COLOR;
       ctx.beginPath();
-      ctx.rect(sliderBounds.x, barY, sliderBounds.width, barHeight);
+      ctx.roundRect(sliderBounds.x, barY, sliderBounds.width, barHeight, barHeight / 2);
       ctx.fill();
       ctx.restore();
 
       ctx.save();
-      ctx.fillStyle = categoryAccent;
+      ctx.fillStyle = SLIDER_FILL_COLOR;
       ctx.beginPath();
-      ctx.rect(sliderBounds.x, barY, fillWidth, barHeight);
+      ctx.roundRect(sliderBounds.x, barY, fillWidth, barHeight, barHeight / 2);
       ctx.fill();
       ctx.restore();
 
@@ -5467,17 +5744,17 @@ function drawNodes(
         const tickWidth = 2;
 
         ctx.save();
-        ctx.fillStyle = palette.text;
+        ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
         tickPositions.forEach((position) => {
-          const x = Math.round(position) - tickWidth / 2;
-          ctx.fillRect(x, tickTop, tickWidth, tickHeight);
+          const tickX = Math.round(position) - tickWidth / 2;
+          ctx.fillRect(tickX, tickTop, tickWidth, tickHeight);
         });
         ctx.restore();
       }
 
       if (isSliderFocused) {
         ctx.save();
-        ctx.strokeStyle = categoryAccent;
+        ctx.strokeStyle = SLIDER_FILL_COLOR;
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(sliderBounds.x, barY + barHeight + 4);
@@ -5487,13 +5764,22 @@ function drawNodes(
       }
 
       ctx.save();
-      ctx.fillStyle = isTrackHover || isSliderActive ? palette.nodeFillHover : palette.nodeFill;
-      ctx.strokeStyle = categoryAccent;
-      ctx.lineWidth = 1.5;
+      ctx.fillStyle = SLIDER_THUMB_COLOR;
+      ctx.strokeStyle = SLIDER_THUMB_STROKE;
+      ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(fillX, trackY, thumbRadius, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
+      ctx.restore();
+
+      const valueText = formatSliderValue(value, sliderConfig.step, sliderConfig.snapMode, sliderConfig.precisionOverride);
+      ctx.save();
+      ctx.fillStyle = SLIDER_VALUE_COLOR;
+      ctx.font = '700 12px "Montreal Neue", "Space Grotesk", sans-serif';
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      ctx.fillText(valueText, sliderBounds.valueX + sliderBounds.valueWidth - 4, trackY);
       ctx.restore();
 
       if (evaluationError && isHovered) {
@@ -5607,7 +5893,7 @@ function drawNodes(
 
     layout.inputs.forEach(drawPort);
     layout.outputs.forEach(drawPort);
-    if (isGhost) {
+    if (isGhost || isHidden) {
       ctx.restore();
     }
   });

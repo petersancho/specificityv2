@@ -16,6 +16,7 @@ import TooltipCard from "../ui/TooltipCard";
 import WebGLTitleLogo from "../WebGLTitleLogo";
 import NumericaLogo from "../NumericaLogo";
 import { SubCategoryDropdown } from "./SubCategoryDropdown";
+import { SavedScriptsDropdown } from "./SavedScriptsDropdown";
 import { createIconSignature } from "./iconSignature";
 import { arrayBufferToBase64 } from "../../utils/binary";
 import { downloadBlob } from "../../utils/download";
@@ -171,6 +172,11 @@ const WorkflowSection = ({
   const pruneWorkflow = useProjectStore((state) => state.pruneWorkflow);
   const undoWorkflow = useProjectStore((state) => state.undoWorkflow);
   const updateNodeData = useProjectStore((state) => state.updateNodeData);
+  const addPhysicsSolverRig = useProjectStore((state) => state.addPhysicsSolverRig);
+  const addBiologicalSolverRig = useProjectStore((state) => state.addBiologicalSolverRig);
+  const addChemistrySolverRig = useProjectStore((state) => state.addChemistrySolverRig);
+  const addTopologySolverRig = useProjectStore((state) => state.addTopologySolverRig);
+  const addVoxelSolverRig = useProjectStore((state) => state.addVoxelSolverRig);
   const [paletteCollapsed, setPaletteCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
     return safeLocalStorageGet(PALETTE_COLLAPSED_KEY) === "true";
@@ -868,13 +874,22 @@ const WorkflowSection = ({
                         })}
                       </div>
                       {section.id === "solver" && (
-                        <SubCategoryDropdown
-                          subCategory={solverInputCategory}
-                          onSelectNode={(type, event) => {
-                            beginNodePlacement(type, event);
-                            setSelectedType(type);
-                          }}
-                        />
+                        <>
+                          <SubCategoryDropdown
+                            subCategory={solverInputCategory}
+                            onSelectNode={(type, event) => {
+                              beginNodePlacement(type, event);
+                              setSelectedType(type);
+                            }}
+                          />
+                          <SavedScriptsDropdown
+                            onAddPhysicsRig={() => addPhysicsSolverRig({ x: 0, y: 0 })}
+                            onAddBiologicalRig={() => addBiologicalSolverRig({ x: 0, y: 0 })}
+                            onAddChemistryRig={() => addChemistrySolverRig({ x: 0, y: 0 })}
+                            onAddTopologyRig={() => addTopologySolverRig({ x: 0, y: 0 })}
+                            onAddVoxelRig={() => addVoxelSolverRig({ x: 0, y: 0 })}
+                          />
+                        </>
                       )}
                     </div>
                   ))}

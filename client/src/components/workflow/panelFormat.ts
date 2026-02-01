@@ -3,6 +3,7 @@ export type PanelFormatOptions = {
   showIndex: boolean;
   indexStart: number;
   indent: number;
+  showMeshPositions?: boolean;
 };
 
 type Vec3Value = { x: number; y: number; z: number };

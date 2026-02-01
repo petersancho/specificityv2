@@ -10,7 +10,8 @@ type Connection = {
 type NodeChange =
   | { id: string; type: "position"; position: { x: number; y: number } }
   | { id: string; type: "remove" }
-  | { id: string; type: "select"; selected: boolean };
+  | { id: string; type: "select"; selected: boolean }
+  | { id: string; type: "update"; updates: Partial<WorkflowNode> };
 
 type EdgeChange =
   | { id: string; type: "remove" }
@@ -31,6 +32,12 @@ function applyNodeChanges(changes: NodeChange[], nodes: any[]): any[] {
       result = result.map((node) =>
         node.id === change.id
           ? { ...node, selected: change.selected }
+          : node
+      );
+    } else if (change.type === "update") {
+      result = result.map((node) =>
+        node.id === change.id
+          ? { ...node, ...change.updates }
           : node
       );
     }
@@ -360,6 +367,7 @@ type ProjectStore = {
   addGeometryReferenceNode: (geometryId?: string) => string | null;
   addPhysicsSolverRig: (position: { x: number; y: number }) => void;
   addTopologySolverRig: (position: { x: number; y: number }) => void;
+  addVoxelSolverRig: (position: { x: number; y: number }) => void;
   addBiologicalSolverRig: (position: { x: number; y: number }) => void;
   addChemistrySolverRig: (position: { x: number; y: number }) => void;
   syncWorkflowGeometryToRoslyn: (nodeId: string) => void;
@@ -560,7 +568,7 @@ const createGeometrySceneNode = (geometryId: string, name?: string): SceneNode =
   locked: false,
 });
 
-const defaultSceneNodes: SceneNode[] = [createGeometrySceneNode("vertex-1", "Vertex 1")];
+const defaultSceneNodes: SceneNode[] = [];
 
 const buildSceneNodesFromGeometry = (geometry: Geometry[]): SceneNode[] =>
   geometry.map((item) =>
@@ -648,26 +656,7 @@ const reconcileGeometryCollections = (
   };
 };
 
-const defaultNodes: WorkflowNode[] = [
-  {
-    id: "node-geometry-ref",
-    type: "geometryReference",
-    position: { x: 20, y: 40 },
-    data: { label: "Geometry Reference", geometryId: "vertex-1" },
-  },
-  {
-    id: "node-point",
-    type: "point",
-    position: { x: 220, y: 40 },
-    data: {
-      label: "Point Generator",
-      geometryId: "vertex-1",
-      geometryType: "vertex",
-      isLinked: true,
-      point: { x: 0, y: 0, z: 0 },
-    },
-  },
-];
+const defaultNodes: WorkflowNode[] = [];
 
 const defaultEdges: WorkflowEdge[] = [];
 
@@ -1705,7 +1694,9 @@ const upsertMeshGeometry = (
     geometryById: Map<string, Geometry>;
     updates: Map<string, Partial<Geometry>>;
     itemsToAdd: Geometry[];
-  }
+  },
+  sourceNodeId?: string,
+  extra?: Partial<MeshGeometry>
 ) => {
   const { geometryById, updates, itemsToAdd } = state;
   const existing = geometryById.get(geometryId);
@@ -1731,6 +1722,9 @@ const upsertMeshGeometry = (
       centroid: physical.centroid ?? undefined,
       mass_kg: physical.mass_kg,
       inertiaTensor_kg_m2: physical.inertiaTensor_kg_m2,
+      // Preserve or update sourceNodeId
+      sourceNodeId: sourceNodeId ?? existing.sourceNodeId,
+      ...(extra ?? {}),
     });
     return;
   }
@@ -1746,7 +1740,9 @@ const upsertMeshGeometry = (
     mass_kg: physical.mass_kg,
     inertiaTensor_kg_m2: physical.inertiaTensor_kg_m2,
     primitive,
-  });
+    sourceNodeId,
+    ...(extra ?? {}),
+  } as MeshGeometry);
 };
 
 const applySeedGeometryNodesToGeometry = (
@@ -2008,6 +2004,54 @@ const applySeedGeometryNodesToGeometry = (
       };
     }
 
+    if (node.type === "voxelSolver") {
+      let geometryId =
+        typeof outputs?.geometry === "string"
+          ? outputs.geometry
+          : typeof node.data?.geometryId === "string"
+            ? node.data.geometryId
+            : null;
+
+      const mesh = outputs?.mesh as RenderMesh | undefined;
+
+      if (
+        !mesh ||
+        !Array.isArray(mesh.positions) ||
+        !Array.isArray(mesh.indices) ||
+        mesh.positions.length === 0 ||
+        mesh.indices.length === 0
+      ) {
+        return node;
+      }
+
+      const existing = geometryId ? geometryById.get(geometryId) : null;
+      if (!geometryId || (existing && existing.type !== "mesh")) {
+        geometryId = createGeometryId("mesh");
+      }
+
+      upsertMeshGeometry(
+        geometryId,
+        mesh,
+        undefined,
+        { geometryById, updates, itemsToAdd },
+        node.id,
+        { subtype: "voxels" }
+      );
+
+      didApply = true;
+      touchedGeometryIds.add(geometryId);
+
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          geometryId,
+          geometryType: "mesh",
+          isLinked: true,
+        },
+      };
+    }
+
     const primitiveKind =
       node.type === "primitive" && typeof outputs?.kind === "string"
         ? (outputs.kind as PrimitiveKind)
@@ -2067,7 +2111,8 @@ const applySeedGeometryNodesToGeometry = (
             origin,
             params: { ...(config as Record<string, number>) },
           },
-          { geometryById, updates, itemsToAdd }
+          { geometryById, updates, itemsToAdd },
+          node.id
         );
       }
       didApply = true;
@@ -5877,6 +5922,81 @@ const applyMeshConvertNodesToGeometry = (
   return { nodes: nextNodes, geometry: nextGeometry, didApply };
 };
 
+const applyMeshNodesToGeometry = (
+  nodes: WorkflowNode[],
+  edges: WorkflowEdge[],
+  geometry: Geometry[]
+) => {
+  const geometryById = new Map<string, Geometry>(
+    geometry.map((item) => [item.id, item])
+  );
+  const updates = new Map<string, Partial<Geometry>>();
+  let didApply = false;
+
+  const nextNodes = nodes.map((node) => {
+    if (node.type !== "mesh") return node;
+    const geometryId = node.data?.geometryId;
+    if (!geometryId) return node;
+
+    // Find the input geometry from edges
+    const inputEdge = edges.find(
+      (edge) => edge.target === node.id && edge.targetHandle === "geometry"
+    );
+    if (!inputEdge) return node;
+
+    // Find the source node's output geometry
+    const sourceNode = nodes.find((n) => n.id === inputEdge.source);
+    if (!sourceNode) return node;
+
+    const sourceOutputs = sourceNode.data?.outputs;
+    const sourceGeometryId =
+      typeof sourceOutputs?.geometry === "string"
+        ? sourceOutputs.geometry
+        : typeof sourceNode.data?.geometryId === "string"
+          ? sourceNode.data.geometryId
+          : null;
+
+    if (!sourceGeometryId) return node;
+
+    const sourceGeometry = geometryById.get(sourceGeometryId);
+    if (!sourceGeometry || !("mesh" in sourceGeometry) || !sourceGeometry.mesh) return node;
+
+    const existing = geometryById.get(geometryId);
+    if (!existing || !("mesh" in existing)) return node;
+
+    // Copy the source geometry's mesh to the mesh node's geometry
+    const { volume_m3, centroid } = computeMeshVolumeAndCentroid(sourceGeometry.mesh);
+    const density = resolveDensity(existing.metadata);
+    const mass_kg = density && volume_m3 > 0 ? density * volume_m3 : undefined;
+
+    updates.set(geometryId, {
+      mesh: sourceGeometry.mesh,
+      area_m2: computeMeshArea(sourceGeometry.mesh.positions, sourceGeometry.mesh.indices),
+      volume_m3,
+      centroid: centroid ?? undefined,
+      mass_kg,
+      sourceNodeId: node.id,
+      metadata: {
+        ...existing.metadata,
+        renderSettings: { wireframe: false, opacity: 1, transparent: false },
+      },
+    });
+    didApply = true;
+    return node;
+  });
+
+  if (!didApply) {
+    return { nodes: nextNodes, geometry, didApply };
+  }
+
+  const nextGeometry = geometry.map((item) => {
+    const update = updates.get(item.id);
+    return update ? ({ ...item, ...update } as Geometry) : item;
+  });
+
+  return { nodes: nextNodes, geometry: nextGeometry, didApply };
+};
+
 const applyPhysicsSolverNodesToGeometry = (
   nodes: WorkflowNode[],
   geometry: Geometry[]
@@ -6264,10 +6384,10 @@ const parsePointsText = (input?: string): Vec3[] => {
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
   materials: [],
-  geometry: [defaultGeometry],
+  geometry: [],
   layers: defaultLayers,
   assignments: defaultAssignments,
-  selectedGeometryIds: [defaultGeometry.id],
+  selectedGeometryIds: [],
   selectionMode: "object",
   componentSelection: [],
   sceneNodes: defaultSceneNodes,
@@ -7711,6 +7831,342 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       },
     };
     get().addGeometryItems([isoGeometry], {
+      selectIds: get().selectedGeometryIds,
+      recordHistory: true,
+    });
+
+    set((state) => ({
+      workflowHistory: appendWorkflowHistory(state.workflowHistory, state.workflow),
+      workflow: {
+        ...state.workflow,
+        nodes: [...state.workflow.nodes, ...newNodes],
+        edges: [...state.workflow.edges, ...newEdges],
+      },
+    }));
+    get().recalculateWorkflow();
+  },
+  addVoxelSolverRig: (position) => {
+    /**
+     * Voxel Solver Example Script
+     * 
+     * Layout: Sliders positioned to the LEFT of nodes (next to input ports)
+     * - Input Geometry group: Sliders on left → Box on right
+     * - Voxelization Parameters group: Sliders on left → Solver in middle → Mesh on right
+     */
+    const ts = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+    
+    const NODE_WIDTH = 180;
+    const NODE_HEIGHT = 100;
+    const SLIDER_WIDTH = 180;
+    const SLIDER_HEIGHT = 76;
+    const GROUP_PADDING = 20;
+    const SLIDER_GAP = 10;
+    const GROUP_GAP = 100;
+    const TEXT_WIDTH = 240;
+    const TEXT_HEIGHT = 120;
+    const TEXT_GAP = 20;
+
+    // IDs
+    const inputGroupId = `node-group-input-${ts}`;
+    const outputGroupId = `node-group-output-${ts}`;
+    const inputTextId = `node-text-input-${ts}`;
+    const outputTextId = `node-text-output-${ts}`;
+    const boxId = `node-box-${ts}`;
+    const boxGeometryId = createGeometryId("mesh");
+    const voxelSolverId = `node-voxelSolver-${ts}`;
+    const voxelGeometryId = createGeometryId("mesh");
+    const meshId = `node-mesh-${ts}`;
+    const meshGeometryId = createGeometryId("mesh");
+    const textNoteId = `node-textNote-${ts}`;
+    const widthSliderId = `node-slider-width-${ts}`;
+    const heightSliderId = `node-slider-height-${ts}`;
+    const depthSliderId = `node-slider-depth-${ts}`;
+    const resolutionId = `node-slider-resolution-${ts}`;
+    const paddingId = `node-slider-padding-${ts}`;
+    const modeId = `node-slider-mode-${ts}`;
+    const thicknessId = `node-slider-thickness-${ts}`;
+    const isoValueId = `node-slider-isoValue-${ts}`;
+
+    // GROUP 1: Input Geometry (Sliders LEFT → Box RIGHT)
+    const inputTextX = position.x;
+    const inputTextY = position.y;
+    const inputGroupX = position.x;
+    const inputGroupY = inputTextY + TEXT_HEIGHT + TEXT_GAP;
+    
+    // Child positions are RELATIVE to the group
+    // Sliders on the left (relative to group)
+    const sliderStartX = GROUP_PADDING;
+    const widthSliderY = GROUP_PADDING;
+    const heightSliderY = widthSliderY + SLIDER_HEIGHT + SLIDER_GAP;
+    const depthSliderY = heightSliderY + SLIDER_HEIGHT + SLIDER_GAP;
+    
+    // Box on the right (relative to group)
+    const boxX = sliderStartX + SLIDER_WIDTH + SLIDER_GAP;
+    const boxY = GROUP_PADDING;
+    
+    const inputGroupWidth = SLIDER_WIDTH + SLIDER_GAP + NODE_WIDTH + GROUP_PADDING * 2;
+    const inputGroupHeight = depthSliderY + SLIDER_HEIGHT + GROUP_PADDING;
+
+    // GROUP 2: Voxelization Parameters (Sliders LEFT → Solver MIDDLE → Mesh RIGHT)
+    const outputTextX = inputGroupX + inputGroupWidth + GROUP_GAP;
+    const outputTextY = position.y;
+    const outputGroupX = outputTextX;
+    const outputGroupY = outputTextY + TEXT_HEIGHT + TEXT_GAP;
+    
+    // Child positions are RELATIVE to the group
+    // Sliders on the left (relative to group)
+    const paramSliderStartX = GROUP_PADDING;
+    const resolutionSliderY = GROUP_PADDING;
+    const paddingSliderY = resolutionSliderY + SLIDER_HEIGHT + SLIDER_GAP;
+    const modeSliderY = paddingSliderY + SLIDER_HEIGHT + SLIDER_GAP;
+    const thicknessSliderY = modeSliderY + SLIDER_HEIGHT + SLIDER_GAP;
+    const isoValueSliderY = thicknessSliderY + SLIDER_HEIGHT + SLIDER_GAP;
+    
+    // Solver in the middle (relative to group)
+    const solverX = paramSliderStartX + SLIDER_WIDTH + SLIDER_GAP;
+    const solverY = GROUP_PADDING;
+    
+    // Mesh on the right (relative to group)
+    const meshX = solverX + NODE_WIDTH + SLIDER_GAP;
+    const meshY = solverY;
+    
+    const outputGroupWidth = SLIDER_WIDTH + SLIDER_GAP + NODE_WIDTH + SLIDER_GAP + NODE_WIDTH + GROUP_PADDING * 2;
+    const outputGroupHeight = isoValueSliderY + SLIDER_HEIGHT + GROUP_PADDING;
+
+    // TextNote node (outside group, to the right of the mesh)
+    const textNoteX = outputGroupX + outputGroupWidth + GROUP_GAP;
+    const textNoteY = outputGroupY + GROUP_PADDING;
+    const TEXT_NOTE_WIDTH = 240;
+    const TEXT_NOTE_HEIGHT = 300;
+
+    const newNodes: WorkflowNode[] = [
+      // Text nodes
+      {
+        id: inputTextId,
+        type: "text" as const,
+        position: { x: inputTextX, y: inputTextY },
+        data: {
+          parameters: {
+            text: "Input geometry is created using a Box primitive. Sliders control the box dimensions (width, height, depth) and connect directly to the box's input ports.",
+            size: 10,
+          },
+          textSize: { width: TEXT_WIDTH, height: TEXT_HEIGHT },
+        },
+      },
+      {
+        id: outputTextId,
+        type: "text" as const,
+        position: { x: outputTextX, y: outputTextY },
+        data: {
+          parameters: {
+            text: "The Voxel Solver converts input geometry to a voxel grid. Parameter sliders connect to the solver's inputs. The Mesh node receives the voxelized geometry output. Double-right-click the Mesh node to ontologize.",
+            size: 10,
+          },
+          textSize: { width: TEXT_WIDTH + 180, height: TEXT_HEIGHT },
+        },
+      },
+      // Groups
+      {
+        id: inputGroupId,
+        type: "group" as const,
+        position: { x: inputGroupX, y: inputGroupY },
+        data: {
+          label: "Input Geometry",
+          groupSize: { width: inputGroupWidth, height: inputGroupHeight },
+          parameters: { title: "Input Geometry", color: "#e8f4f8" },
+        },
+      },
+      {
+        id: outputGroupId,
+        type: "group" as const,
+        position: { x: outputGroupX, y: outputGroupY },
+        data: {
+          label: "Voxelization Parameters",
+          groupSize: { width: outputGroupWidth, height: outputGroupHeight },
+          parameters: { title: "Voxelization Parameters", color: "#fff4e6" },
+        },
+      },
+      // Box node
+      {
+        id: boxId,
+        type: "box" as const,
+        position: { x: boxX, y: boxY },
+        data: {
+          geometryId: boxGeometryId,
+          geometryType: "mesh" as const,
+          isLinked: true,
+          parameters: { boxWidth: 2, boxHeight: 2, boxDepth: 2, centerMode: true },
+        },
+        parentNode: inputGroupId,
+        extent: "parent" as const,
+      },
+      // Dimension sliders (next to box)
+      {
+        id: widthSliderId,
+        type: "slider" as const,
+        position: { x: sliderStartX, y: widthSliderY },
+        data: { parameters: { value: 2, min: 0.5, max: 5, step: 0.1 } },
+        parentNode: inputGroupId,
+        extent: "parent" as const,
+      },
+      {
+        id: heightSliderId,
+        type: "slider" as const,
+        position: { x: sliderStartX, y: heightSliderY },
+        data: { parameters: { value: 2, min: 0.5, max: 5, step: 0.1 } },
+        parentNode: inputGroupId,
+        extent: "parent" as const,
+      },
+      {
+        id: depthSliderId,
+        type: "slider" as const,
+        position: { x: sliderStartX, y: depthSliderY },
+        data: { parameters: { value: 2, min: 0.5, max: 5, step: 0.1 } },
+        parentNode: inputGroupId,
+        extent: "parent" as const,
+      },
+      // Voxel Solver
+      {
+        id: voxelSolverId,
+        type: "voxelSolver" as const,
+        position: { x: solverX, y: solverY },
+        data: {
+          geometryId: voxelGeometryId,
+          geometryType: "mesh" as const,
+          isLinked: true,
+          parameters: { resolution: 16, padding: 0.2, mode: 0, thickness: 1, isoValue: 0.5 },
+        },
+        parentNode: outputGroupId,
+        extent: "parent" as const,
+      },
+      // Parameter sliders (next to solver)
+      {
+        id: resolutionId,
+        type: "slider" as const,
+        position: { x: paramSliderStartX, y: resolutionSliderY },
+        data: { parameters: { value: 16, min: 8, max: 24, step: 1 } },
+        parentNode: outputGroupId,
+        extent: "parent" as const,
+      },
+      {
+        id: paddingId,
+        type: "slider" as const,
+        position: { x: paramSliderStartX, y: paddingSliderY },
+        data: { parameters: { value: 0.2, min: 0, max: 2, step: 0.1 } },
+        parentNode: outputGroupId,
+        extent: "parent" as const,
+      },
+      {
+        id: modeId,
+        type: "slider" as const,
+        position: { x: paramSliderStartX, y: modeSliderY },
+        data: { parameters: { value: 0, min: 0, max: 1, step: 1 } },
+        parentNode: outputGroupId,
+        extent: "parent" as const,
+      },
+      {
+        id: thicknessId,
+        type: "slider" as const,
+        position: { x: paramSliderStartX, y: thicknessSliderY },
+        data: { parameters: { value: 1, min: 0, max: 4, step: 1 } },
+        parentNode: outputGroupId,
+        extent: "parent" as const,
+      },
+      {
+        id: isoValueId,
+        type: "slider" as const,
+        position: { x: paramSliderStartX, y: isoValueSliderY },
+        data: { parameters: { value: 0.5, min: 0, max: 1, step: 0.05 } },
+        parentNode: outputGroupId,
+        extent: "parent" as const,
+      },
+      // Mesh output
+      {
+        id: meshId,
+        type: "mesh" as const,
+        position: { x: meshX, y: meshY },
+        data: {
+          geometryId: meshGeometryId,
+          geometryType: "mesh" as const,
+          isLinked: true,
+        },
+        parentNode: outputGroupId,
+        extent: "parent" as const,
+      },
+      // TextNote node (displays voxel data from mesh)
+      {
+        id: textNoteId,
+        type: "textNote" as const,
+        position: { x: textNoteX, y: textNoteY },
+        data: {
+          parameters: {
+            text: "",
+            maxLines: 50,
+            showIndex: true,
+            showMeshPositions: true,
+            indexStart: 0,
+            indent: 0,
+          },
+          textSize: { width: TEXT_NOTE_WIDTH, height: TEXT_NOTE_HEIGHT },
+        },
+      },
+    ];
+
+    const newEdges = [
+      // Dimension sliders to Box
+      { id: `edge-${widthSliderId}-${boxId}`, source: widthSliderId, sourceHandle: "value", target: boxId, targetHandle: "width" },
+      { id: `edge-${heightSliderId}-${boxId}`, source: heightSliderId, sourceHandle: "value", target: boxId, targetHandle: "height" },
+      { id: `edge-${depthSliderId}-${boxId}`, source: depthSliderId, sourceHandle: "value", target: boxId, targetHandle: "depth" },
+      // Box to Solver
+      { id: `edge-${boxId}-${voxelSolverId}`, source: boxId, sourceHandle: "geometry", target: voxelSolverId, targetHandle: "geometry" },
+      // Parameter sliders to Solver
+      { id: `edge-${resolutionId}-${voxelSolverId}`, source: resolutionId, sourceHandle: "value", target: voxelSolverId, targetHandle: "resolution" },
+      { id: `edge-${paddingId}-${voxelSolverId}`, source: paddingId, sourceHandle: "value", target: voxelSolverId, targetHandle: "padding" },
+      { id: `edge-${modeId}-${voxelSolverId}`, source: modeId, sourceHandle: "value", target: voxelSolverId, targetHandle: "mode" },
+      { id: `edge-${thicknessId}-${voxelSolverId}`, source: thicknessId, sourceHandle: "value", target: voxelSolverId, targetHandle: "thickness" },
+      { id: `edge-${isoValueId}-${voxelSolverId}`, source: isoValueId, sourceHandle: "value", target: voxelSolverId, targetHandle: "isoValue" },
+      // Solver to Mesh
+      { id: `edge-${voxelSolverId}-${meshId}`, source: voxelSolverId, sourceHandle: "geometry", target: meshId, targetHandle: "geometry" },
+      // Mesh to TextNote (displays voxel data)
+      { id: `edge-${meshId}-${textNoteId}`, source: meshId, sourceHandle: "geometry", target: textNoteId, targetHandle: "data" },
+    ];
+
+    const emptyMesh: RenderMesh = { positions: [], normals: [], uvs: [], indices: [] };
+    
+    const boxGeometry: Geometry = {
+      id: boxGeometryId,
+      type: "mesh",
+      mesh: emptyMesh,
+      layerId: "layer-default",
+      sourceNodeId: boxId,
+      metadata: { label: "Box Primitive" },
+    };
+    
+    const voxelGeometry: Geometry = {
+      id: voxelGeometryId,
+      type: "mesh",
+      mesh: emptyMesh,
+      layerId: "layer-default",
+      sourceNodeId: voxelSolverId,
+      metadata: {
+        label: "Voxelized Geometry",
+        renderSettings: { wireframe: false, opacity: 1, transparent: false },
+      },
+    };
+    
+    const meshGeometry: Geometry = {
+      id: meshGeometryId,
+      type: "mesh",
+      mesh: emptyMesh,
+      layerId: "layer-default",
+      sourceNodeId: meshId,
+      metadata: {
+        label: "Mesh Output",
+        renderSettings: { wireframe: false, opacity: 1, transparent: false },
+      },
+    };
+    
+    get().addGeometryItems([boxGeometry, voxelGeometry, meshGeometry], {
       selectIds: get().selectedGeometryIds,
       recordHistory: true,
     });
@@ -10587,6 +11043,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       customViewer: "Custom Viewer",
       customPreview: "Custom Preview",
       previewFilter: "Filter",
+      mesh: "Mesh",
       meshConvert: "Mesh Convert",
       nurbsToMesh: "NURBS to Mesh",
       brepToMesh: "B-Rep to Mesh",
@@ -11653,9 +12110,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         arrayApplied.nodes,
         arrayApplied.geometry
       );
-      const meshApplied = applyMeshConvertNodesToGeometry(
+      const meshConvertApplied = applyMeshConvertNodesToGeometry(
         isoApplied.nodes,
         isoApplied.geometry
+      );
+      const meshApplied = applyMeshNodesToGeometry(
+        meshConvertApplied.nodes,
+        evaluatedAfterCreate.edges,
+        meshConvertApplied.geometry
       );
       const solverApplied = applyPhysicsSolverNodesToGeometry(
         meshApplied.nodes,

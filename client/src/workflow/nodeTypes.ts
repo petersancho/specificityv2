@@ -15,6 +15,7 @@ export type NodeType =
   | "nurbsToMesh"
   | "brepToMesh"
   | "meshToBrep"
+  | "mesh"
   | "subdivideMesh"
   | "dualMesh"
   | "insetFaces"
@@ -212,6 +213,7 @@ export const SUPPORTED_WORKFLOW_NODE_TYPES: NodeType[] = [
   "customViewer",
   "customPreview",
   "previewFilter",
+  "mesh",
   "meshConvert",
   "nurbsToMesh",
   "brepToMesh",

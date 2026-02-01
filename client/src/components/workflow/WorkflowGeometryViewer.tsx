@@ -293,6 +293,7 @@ const WorkflowGeometryViewer = ({
   const globalViewSettings = useProjectStore((state) => state.viewSettings);
   const selectedGeometryIds = useProjectStore((state) => state.selectedGeometryIds);
   const hiddenGeometryIds = useProjectStore((state) => state.hiddenGeometryIds);
+  const workflowNodes = useProjectStore((state) => state.workflow.nodes);
   const geometry = geometryItems ?? storeGeometry;
 
   const customMaterialMap = useMemo(() => {
@@ -326,6 +327,7 @@ const WorkflowGeometryViewer = ({
   const viewSettingsRef = useRef(resolvedViewSettings);
   const selectedRef = useRef(selectedGeometryIds);
   const hiddenRef = useRef(hiddenGeometryIds);
+  const hiddenNodeIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     viewSolidityRef.current = resolvedViewSolidity;
@@ -350,6 +352,13 @@ const WorkflowGeometryViewer = ({
   useEffect(() => {
     hiddenRef.current = hiddenGeometryIds;
   }, [hiddenGeometryIds]);
+
+  useEffect(() => {
+    const nodes = workflowNodes ?? [];
+    hiddenNodeIdsRef.current = new Set(
+      nodes.filter((node) => node.hidden).map((node) => node.id)
+    );
+  }, [workflowNodes]);
 
   const geometryById = useMemo(
     () => new Map(geometry.map((item) => [item.id, item])),
@@ -686,11 +695,17 @@ const WorkflowGeometryViewer = ({
 
       const selected = new Set(selectedRef.current);
       const hidden = new Set(hiddenRef.current);
+      const hiddenNodeIds = hiddenNodeIdsRef.current;
       const hasSelection = selected.size > 0;
       const viewDir = normalize(sub(cameraRef.current.target, cameraRef.current.position));
       const renderables = adapter
         .getAllRenderables()
-        .filter((renderable) => !hidden.has(renderable.id));
+        .filter((renderable) => {
+          if (hidden.has(renderable.id)) return false;
+          const item = geometryRef.current.find((entry) => entry.id === renderable.id);
+          if (item?.sourceNodeId && hiddenNodeIds.has(item.sourceNodeId)) return false;
+          return true;
+        });
       const meshRenderables = renderables
         .filter((renderable) => renderable.type !== "polyline")
         .map((renderable) => {

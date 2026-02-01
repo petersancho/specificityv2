@@ -1651,7 +1651,9 @@ const appendBoxMesh = (
 };
 
 const FACE_UVS = [0, 0, 1, 0, 1, 1, 0, 1];
-const MAX_VOXEL_FACES = 160000;
+const MAX_VERTICES_U16 = 65535;
+const VERTS_PER_FACE = 4;
+const MAX_VOXEL_FACES = Math.floor(MAX_VERTICES_U16 / VERTS_PER_FACE);
 
 type VoxelFace = "px" | "nx" | "py" | "ny" | "pz" | "nz";
 
@@ -1834,6 +1836,7 @@ const buildVoxelMesh = (grid: VoxelGrid, isoValue: number) => {
       }
     }
   }
+  
   return mesh;
 };
 
@@ -3532,25 +3535,6 @@ const runChemistrySolver = (args: {
   );
   const mesh = buildChemistryMesh(field, colorMaterials, clampNumber(args.isoValue, 0, 1));
 
-  if (mesh.positions.length > 0) {
-    console.log(`[Chemistry Solver] Generated mesh with ${mesh.positions.length / 3} vertices, ${mesh.indices.length / 3} triangles`);
-    let minX = Infinity, minY = Infinity, minZ = Infinity;
-    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
-    for (let i = 0; i < mesh.positions.length; i += 3) {
-      minX = Math.min(minX, mesh.positions[i]);
-      maxX = Math.max(maxX, mesh.positions[i]);
-      minY = Math.min(minY, mesh.positions[i + 1]);
-      maxY = Math.max(maxY, mesh.positions[i + 1]);
-      minZ = Math.min(minZ, mesh.positions[i + 2]);
-      maxZ = Math.max(maxZ, mesh.positions[i + 2]);
-    }
-    console.log(`[Chemistry Solver] Mesh bounds: [${minX.toFixed(2)}, ${minY.toFixed(2)}, ${minZ.toFixed(2)}] to [${maxX.toFixed(2)}, ${maxY.toFixed(2)}, ${maxZ.toFixed(2)}]`);
-    console.log(`[Chemistry Solver] Mesh size: ${(maxX - minX).toFixed(2)} × ${(maxY - minY).toFixed(2)} × ${(maxZ - minZ).toFixed(2)}`);
-  } else {
-    console.warn(`[Chemistry Solver] Generated EMPTY mesh - no voxels exceeded isoValue ${args.isoValue.toFixed(3)}`);
-    console.log(`[Chemistry Solver] Field stats: ${particles.length} particles, ${field.resolution.x}³ resolution, maxDensity: ${field.maxDensity.toFixed(3)}`);
-  }
-
   return {
     particles,
     field,
@@ -4271,7 +4255,13 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     primaryOutputKey: "data",
     compute: ({ inputs, parameters }) => {
       const fallback = typeof parameters.text === "string" ? parameters.text : "";
-      const data = inputs.data ?? (fallback.length > 0 ? fallback : null);
+      let data = inputs.data;
+      if (Array.isArray(data)) {
+        data = data.find((item) => item != null) ?? null;
+      }
+      if (data == null && fallback.length > 0) {
+        data = fallback;
+      }
       return { data };
     },
   },
@@ -4310,7 +4300,13 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     primaryOutputKey: "data",
     compute: ({ inputs, parameters }) => {
       const fallback = typeof parameters.text === "string" ? parameters.text : "";
-      const data = inputs.data ?? (fallback.length > 0 ? fallback : null);
+      let data = inputs.data;
+      if (Array.isArray(data)) {
+        data = data.find((item) => item != null) ?? null;
+      }
+      if (data == null && fallback.length > 0) {
+        data = fallback;
+      }
       return { data };
     },
   },
@@ -4372,6 +4368,37 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       const rounded = precision != null ? roundToPrecision(snapped, precision) : snapped;
       const value = clampNumber(rounded, lo, hi);
       return { value };
+    },
+  },
+  {
+    type: "mesh",
+    label: "Mesh",
+    shortLabel: "MESH",
+    description: "Pass-through node for geometry (mesh).",
+    category: "mesh",
+    iconId: "mesh",
+    inputs: [
+      {
+        key: "geometry",
+        label: "Geometry",
+        type: "geometry",
+        required: true,
+      },
+    ],
+    outputs: [
+      {
+        key: "geometry",
+        label: "Geometry",
+        type: "geometry",
+        required: true,
+      },
+    ],
+    parameters: [],
+    primaryOutputKey: "geometry",
+    compute: ({ inputs }) => {
+      return {
+        geometry: typeof inputs.geometry === "string" ? inputs.geometry : null,
+      };
     },
   },
   {
@@ -4610,11 +4637,13 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
         "silhouette",
       ]);
       const displayMode = displayModes.has(displayModeRaw) ? displayModeRaw : "shaded";
+      
       const viewSolidity = clampNumber(
         readNumberParameter(parameters, "viewSolidity", 0.7),
         0,
         1
       );
+      
       const sheen = clampNumber(readNumberParameter(parameters, "sheen", 0.08), 0, 1);
       const backfaceCulling = toBoolean(parameters.backfaceCulling as WorkflowValue, true);
       const showNormals = toBoolean(parameters.showNormals as WorkflowValue, false);
@@ -12625,7 +12654,15 @@ const topologySolverDefinition = NODE_DEFINITIONS.find(
   (definition) => definition.type === "topologySolver"
 );
 if (topologySolverDefinition) {
-  NODE_DEFINITIONS.push(createVoxelSolverNode(topologySolverDefinition));
+  NODE_DEFINITIONS.push(
+    createVoxelSolverNode(topologySolverDefinition, {
+      buildVoxelGridFromGeometry,
+      buildVoxelMesh,
+      resolveGeometryInput,
+      readNumberParameter,
+      clampNumber,
+    })
+  );
 }
 NODE_DEFINITIONS.push(
   StiffnessGoalNode,

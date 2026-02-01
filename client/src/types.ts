@@ -4,6 +4,9 @@ export type WorkflowNode = {
   position: { x: number; y: number };
   data: WorkflowNodeData;
   selected?: boolean;
+  hidden?: boolean;
+  parentNode?: string;
+  extent?: "parent";
 };
 
 export type WorkflowEdge = {
@@ -280,6 +283,7 @@ export type MeshGeometry = {
   mesh: RenderMesh;
   layerId: string;
   primitive?: MeshPrimitiveInfo;
+  subtype?: "voxels" | "regular";
   area_m2?: number;
   volume_m3?: number;
   centroid?: Vec3;
@@ -538,8 +542,10 @@ export type WorkflowNodeData = {
   topologySettings?: TopologyOptimizationSettings;
   topologyProgress?: TopologyOptimizationProgress;
   groupSize?: { width: number; height: number };
+  textSize?: { width: number; height: number };
   groupNodeIds?: string[];
   panelScroll?: number;
+  textNoteScroll?: number;
   parameters?: Record<string, unknown>;
   evaluationError?: string;
   outputs?: Record<string, WorkflowValue>;

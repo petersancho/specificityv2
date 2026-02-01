@@ -1085,6 +1085,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
   const selectionRef = useRef(useProjectStore.getState().selectedGeometryIds);
   const selectionModeRef = useRef(useProjectStore.getState().selectionMode);
   const hiddenRef = useRef(useProjectStore.getState().hiddenGeometryIds);
+  const hiddenNodeIdsRef = useRef<Set<string>>(new Set());
   const viewSettingsRef = useRef(useProjectStore.getState().viewSettings);
   const viewSolidityRef = useRef(useProjectStore.getState().viewSolidity);
   const displayModeRef = useRef(useProjectStore.getState().displayMode);
@@ -5616,6 +5617,13 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
   }, [hiddenGeometryIds]);
 
   useEffect(() => {
+    const nodes = workflowNodes ?? [];
+    hiddenNodeIdsRef.current = new Set(
+      nodes.filter((node) => node.hidden).map((node) => node.id)
+    );
+  }, [workflowNodes]);
+
+  useEffect(() => {
     viewSettingsRef.current = viewSettings;
   }, [viewSettings]);
 
@@ -7136,7 +7144,12 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
 
       const renderables = adapter
         .getAllRenderables()
-        .filter((renderable) => !hidden.has(renderable.id));
+        .filter((renderable) => {
+          if (hidden.has(renderable.id)) return false;
+          const item = geometryRef.current.find((entry) => entry.id === renderable.id);
+          if (item?.sourceNodeId && hiddenNodeIdsRef.current.has(item.sourceNodeId)) return false;
+          return true;
+        });
       const viewDir = normalize(sub(cameraState.target, cameraState.position));
       const meshRenderables = renderables
         .filter((renderable) => renderable.type !== "polyline")
@@ -7587,6 +7600,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         const nurbsItems = currentGeometry.filter(
           (item) =>
             !hidden.has(item.id) &&
+            !(item.sourceNodeId && hiddenNodeIdsRef.current.has(item.sourceNodeId)) &&
             (item.type === "nurbsCurve" || item.type === "nurbsSurface")
         );
         nurbsItems.forEach((item) => {
