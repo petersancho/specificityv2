@@ -2141,6 +2141,75 @@ const applySeedGeometryNodesToGeometry = (
       };
     }
 
+    if (node.type === "physicsSolver") {
+      let geometryId =
+        typeof outputs?.geometry === "string"
+          ? outputs.geometry
+          : typeof node.data?.geometryId === "string"
+            ? node.data.geometryId
+            : null;
+
+      const mesh = outputs?.mesh as RenderMesh | undefined;
+
+      if (
+        !mesh ||
+        !Array.isArray(mesh.positions) ||
+        !Array.isArray(mesh.indices) ||
+        mesh.positions.length === 0 ||
+        mesh.indices.length === 0
+      ) {
+        return node;
+      }
+
+      const existing = geometryId ? geometryById.get(geometryId) : null;
+      if (!geometryId || (existing && existing.type !== "mesh")) {
+        geometryId = createGeometryId("mesh");
+      }
+
+      const stressField = outputs?.stressField as any[] | undefined;
+      const displacements = outputs?.displacements as any[] | undefined;
+      const diagnostics = outputs?.diagnostics as any | undefined;
+      const result = outputs?.result as any | undefined;
+
+      const metadata: Record<string, unknown> = {
+        label: node.data?.label ?? "Physics Solver Result",
+        physicsResult: {
+          hasStressField: Boolean(stressField && Array.isArray(stressField) && stressField.length > 0),
+          hasDisplacements: Boolean(displacements && Array.isArray(displacements) && displacements.length > 0),
+          hasColors: Boolean(mesh.colors && mesh.colors.length > 0),
+          analysisType: result?.analysisType ?? "static",
+          maxDeformation: result?.maxDeformation ?? 0,
+          maxStress: result?.maxStress ?? 0,
+          iterations: diagnostics?.iterations ?? 0,
+        },
+      };
+
+      upsertMeshGeometry(
+        geometryId,
+        mesh,
+        undefined,
+        { geometryById, updates, itemsToAdd },
+        node.id,
+        {
+          metadata,
+          renderOptions: { forceSolidPreview: true },
+        }
+      );
+
+      didApply = true;
+      touchedGeometryIds.add(geometryId);
+
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          geometryId,
+          geometryType: "mesh",
+          isLinked: true,
+        },
+      };
+    }
+
     const primitiveKind =
       node.type === "primitive" && typeof outputs?.kind === "string"
         ? (outputs.kind as PrimitiveKind)
