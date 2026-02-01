@@ -38,6 +38,7 @@ const ensureStressColors = (mesh: RenderMesh, label: string) => {
 // Shared tolerance parameters for voxel-based solvers; adjust with care.
 const MIN_VOLUME_TOLERANCE = 0.05;
 const RESOLUTION_TOLERANCE_SCALE = 0.8;
+const RESOLUTION_EPS = 1e-6;
 
 // Allow tiny numerical drift from [0, 1] due to floating point error.
 const DENSITY_EPS = 1e-5;
@@ -68,7 +69,7 @@ const validateVoxelGridConsistency = (
   ensure(outputs.resolution > 0, `${label}: expected resolution > 0`);
   const res = Math.round(outputs.resolution);
   ensure(
-    Math.abs(outputs.resolution - res) < 1e-6,
+    Math.abs(outputs.resolution - res) < RESOLUTION_EPS,
     `${label}: expected resolution to be an integer (got ${outputs.resolution})`
   );
   ensure(outputs.voxelGrid !== null, `${label}: expected voxel grid output`);
@@ -96,7 +97,9 @@ const validateVoxelGridConsistency = (
   const ry = Math.round(y);
   const rz = Math.round(z);
   ensure(
-    Math.abs(x - rx) < 1e-6 && Math.abs(y - ry) < 1e-6 && Math.abs(z - rz) < 1e-6,
+    Math.abs(x - rx) < RESOLUTION_EPS &&
+      Math.abs(y - ry) < RESOLUTION_EPS &&
+      Math.abs(z - rz) < RESOLUTION_EPS,
     `${label}: expected voxelGrid resolution components to be integers (x=${x}, y=${y}, z=${z})`
   );
   ensure(rx > 0 && ry > 0 && rz > 0, `${label}: expected voxelGrid resolution > 0`);
@@ -106,7 +109,7 @@ const validateVoxelGridConsistency = (
   );
   ensure(
     res === rx,
-    `${label}: expected resolution (${res}) to match voxelGrid resolution.x (${rx})`
+    `${label}: expected resolution (${outputs.resolution}→${res}) to match voxelGrid resolution.x (${x}→${rx})`
   );
 
   ensure(densities.length === outputs.densityField.length, `${label}: expected density field to match grid`);
@@ -305,6 +308,7 @@ const validateVoxelSolver = () => {
   ensure(Array.isArray(outputs.densityField), "Expected density field array");
   ensure(outputs.densityField.length > 0, "Expected density field data");
   ensure(outputs.voxelGrid !== null, "Expected voxel grid output");
+  // In this validation rig, successful voxel solver runs are expected to produce an iso surface mesh.
   ensure(isoOutputs.mesh !== null, "Expected voxel iso mesh output");
   ensureFinite(outputs.objective, "Expected objective to be finite");
   ensureFinite(outputs.constraint, "Expected constraint to be finite");
