@@ -7303,7 +7303,6 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
                   resolution: [canvas.width, canvas.height],
                   edgeWidths,
                   edgeOpacities,
-                  edgeColorInternal: silhouetteColor,
                   edgeColorCrease: silhouetteColor,
                   edgeColorSilhouette: silhouetteColor,
                   depthBias: edgeDepthBias,
@@ -7325,7 +7324,6 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
                   resolution: [canvas.width, canvas.height],
                   edgeWidths,
                   edgeOpacities,
-                  edgeColorInternal: silhouetteColor,
                   edgeColorCrease: silhouetteColor,
                   edgeColorSilhouette: silhouetteColor,
                   depthBias: edgeDepthBias,
@@ -7366,7 +7364,6 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
                   resolution: [canvas.width, canvas.height],
                   edgeWidths,
                   edgeOpacities,
-                  edgeColorInternal: silhouetteColor,
                   edgeColorCrease: silhouetteColor,
                   edgeColorSilhouette: silhouetteColor,
                   depthBias: edgeDepthBias,
@@ -7429,6 +7426,10 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         ];
 
         if (edgeLineBuffers && edgeLineBuffers.length > 0) {
+          const edgeDisplayMode = viewSettings.edgeDisplayMode ?? "silhouette";
+          const uShowSilhouette = 1.0;
+          const uShowCrease = edgeDisplayMode === "silhouette" ? 0.0 : 1.0;
+          
           edgeLineBuffers.forEach((edgeLineBuffer) => {
             renderer.renderEdgeLines(
               edgeLineBuffer,
@@ -7437,12 +7438,13 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
                 resolution: [canvas.width, canvas.height],
                 edgeWidths,
                 edgeOpacities,
-                edgeColorInternal: edgeInternalColor,
                 edgeColorCrease: edgeCreaseColor,
                 edgeColorSilhouette: edgeSilhouetteColor,
                 depthBias: edgeDepthBias,
                 edgeAAStrength,
                 edgePixelSnap,
+                uShowSilhouette,
+                uShowCrease,
               },
               {
                 depthFunc: "lequal",
@@ -7459,7 +7461,6 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
                 resolution: [canvas.width, canvas.height],
                 edgeWidths,
                 edgeOpacities,
-                edgeColorInternal: edgeInternalColor,
                 edgeColorCrease: edgeCreaseColor,
                 edgeColorSilhouette: edgeSilhouetteColor,
                 depthBias: edgeDepthBias,
@@ -7494,7 +7495,6 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
                 resolution: [canvas.width, canvas.height],
                 edgeWidths,
                 edgeOpacities,
-                edgeColorInternal: edgeInternalColor,
                 edgeColorCrease: edgeCreaseColor,
                 edgeColorSilhouette: edgeSilhouetteColor,
                 depthBias: edgeDepthBias,
@@ -7560,10 +7560,10 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
       });
 
       // Render control points when enabled or in vertex selection mode
-      const showControlPoints =
-        viewSettingsRef.current.showControlPoints === true ||
-        selectionModeRef.current === "vertex";
-      if (showControlPoints) {
+      const showNurbsControlPoints = viewSettingsRef.current.showControlPoints === true;
+      const showMeshVertices = selectionModeRef.current === "vertex";
+      
+      if (showNurbsControlPoints || showMeshVertices) {
         const renderControlPointBuffer = (
           bufferId: string,
           positions: Float32Array,
@@ -7604,52 +7604,59 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         };
 
         const currentGeometry = geometryRef.current;
-        const nurbsItems = currentGeometry.filter(
-          (item) =>
-            !hidden.has(item.id) &&
-            !(item.sourceNodeId && hiddenNodeIdsRef.current.has(item.sourceNodeId)) &&
-            (item.type === "nurbsCurve" || item.type === "nurbsSurface")
-        );
-        nurbsItems.forEach((item) => {
-          const isSelected = selection.has(item.id);
-          let controlPoints: Vec3[] = [];
-          if (item.type === "nurbsCurve") {
-            controlPoints = item.nurbs.controlPoints;
-          } else if (item.type === "nurbsSurface") {
-            item.nurbs.controlPoints.forEach((row) => {
-              row.forEach((cp) => controlPoints.push(cp));
+        
+        // Render NURBS control points when CP button is enabled
+        if (showNurbsControlPoints) {
+          const nurbsItems = currentGeometry.filter(
+            (item) =>
+              !hidden.has(item.id) &&
+              !(item.sourceNodeId && hiddenNodeIdsRef.current.has(item.sourceNodeId)) &&
+              (item.type === "nurbsCurve" || item.type === "nurbsSurface")
+          );
+          nurbsItems.forEach((item) => {
+            const isSelected = selection.has(item.id);
+            let controlPoints: Vec3[] = [];
+            if (item.type === "nurbsCurve") {
+              controlPoints = item.nurbs.controlPoints;
+            } else if (item.type === "nurbsSurface") {
+              item.nurbs.controlPoints.forEach((row) => {
+                row.forEach((cp) => controlPoints.push(cp));
+              });
+            }
+            if (controlPoints.length === 0) return;
+
+            const positions = new Float32Array(controlPoints.length * 3);
+            controlPoints.forEach((cp, index) => {
+              positions[index * 3] = cp.x;
+              positions[index * 3 + 1] = cp.y;
+              positions[index * 3 + 2] = cp.z;
             });
-          }
-          if (controlPoints.length === 0) return;
-
-          const positions = new Float32Array(controlPoints.length * 3);
-          controlPoints.forEach((cp, index) => {
-            positions[index * 3] = cp.x;
-            positions[index * 3 + 1] = cp.y;
-            positions[index * 3 + 2] = cp.z;
+            renderControlPointBuffer(`__nurbs_cp_${item.id}`, positions, isSelected, 0.85, 0.95);
           });
-          renderControlPointBuffer(`__nurbs_cp_${item.id}`, positions, isSelected, 0.85, 0.95);
-        });
+        }
 
-        const meshItems = currentGeometry.filter((item) => {
-          if (hidden.has(item.id)) return false;
-          if (item.type === "nurbsCurve" || item.type === "nurbsSurface") return false;
-          if ("nurbs" in item && item.nurbs) return false;
-          return "mesh" in item && Boolean(item.mesh);
-        });
-        meshItems.forEach((item) => {
-          const mesh = "mesh" in item ? item.mesh : null;
-          if (!mesh) return;
-          const positionsArray = mesh.positions;
-          const vertexCount = Math.floor(positionsArray.length / 3);
-          if (vertexCount <= 0 || vertexCount > MAX_CONTROL_POINT_VERTICES) return;
-          const positions =
-            positionsArray instanceof Float32Array
-              ? positionsArray
-              : new Float32Array(positionsArray);
-          const isSelected = selection.has(item.id);
-          renderControlPointBuffer(`__mesh_cp_${item.id}`, positions, isSelected, 0.7, 0.85);
-        });
+        // Render mesh vertices only in vertex selection mode
+        if (showMeshVertices) {
+          const meshItems = currentGeometry.filter((item) => {
+            if (hidden.has(item.id)) return false;
+            if (item.type === "nurbsCurve" || item.type === "nurbsSurface") return false;
+            if ("nurbs" in item && item.nurbs) return false;
+            return "mesh" in item && Boolean(item.mesh);
+          });
+          meshItems.forEach((item) => {
+            const mesh = "mesh" in item ? item.mesh : null;
+            if (!mesh) return;
+            const positionsArray = mesh.positions;
+            const vertexCount = Math.floor(positionsArray.length / 3);
+            if (vertexCount <= 0 || vertexCount > MAX_CONTROL_POINT_VERTICES) return;
+            const positions =
+              positionsArray instanceof Float32Array
+                ? positionsArray
+                : new Float32Array(positionsArray);
+            const isSelected = selection.has(item.id);
+            renderControlPointBuffer(`__mesh_cp_${item.id}`, positions, isSelected, 0.7, 0.85);
+          });
+        }
       }
 
       const selectedLineBuffer = selectedLineBufferRef.current;
@@ -7950,7 +7957,6 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
                   edgePrimaryWidth * 1.1,
                 ],
                 edgeOpacities: scaledOpacities,
-                edgeColorInternal: edgeInternalColor,
                 edgeColorCrease: edgeCreaseColor,
                 edgeColorSilhouette: edgeSilhouetteColor,
                 depthBias: edgeDepthBias,
@@ -8289,20 +8295,20 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         <button
           type="button"
           onClick={() => setViewSettings({ showEdges: !viewSettings.showEdges })}
-          title={viewSettings.showEdges !== false ? "Hide edges" : "Show edges"}
+          title={viewSettings.showEdges ? "Hide edges" : "Show edges"}
           style={{
             width: 28,
             height: 28,
             borderRadius: 4,
             border: "1px solid rgba(0, 0, 0, 0.15)",
-            background: viewSettings.showEdges !== false ? "rgba(43, 38, 32, 0.08)" : "transparent",
+            background: viewSettings.showEdges ? "rgba(43, 38, 32, 0.08)" : "transparent",
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             fontSize: 11,
             fontWeight: 600,
-            color: viewSettings.showEdges !== false ? "#2b2620" : "#8a847a",
+            color: viewSettings.showEdges ? "#2b2620" : "#8a847a",
             pointerEvents: "auto",
           }}
         >
@@ -8310,10 +8316,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         </button>
         <button
           type="button"
-          onClick={() => {
-            const next = !viewSettings.showControlPoints;
-            setViewSettings({ showControlPoints: next });
-          }}
+          onClick={() => setViewSettings({ showControlPoints: !viewSettings.showControlPoints })}
           title={viewSettings.showControlPoints ? "Hide control points" : "Show control points"}
           style={{
             width: 28,

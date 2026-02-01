@@ -371,20 +371,23 @@ export class WebGLRenderer {
     const viewMatrix = this.computeViewMatrix(camera);
     const projectionMatrix = this.computeProjectionMatrix(camera);
     const modelMatrix = uniforms.modelMatrix || this.identityMatrix();
+    const normalMatrix = this.computeNormalMatrix(modelMatrix);
 
     this.shaderManager.setUniforms(program, {
       modelMatrix,
       viewMatrix,
       projectionMatrix,
+      normalMatrix,
       resolution: uniforms.resolution ?? [this.width, this.height],
       depthBias: uniforms.depthBias ?? 0,
-      edgeWidths: uniforms.edgeWidths ?? [1.25, 1.75, 2.25],
-      edgeOpacities: uniforms.edgeOpacities ?? [0.4, 0.65, 0.85],
-      edgeColorInternal: uniforms.edgeColorInternal ?? [0.25, 0.25, 0.25],
-      edgeColorCrease: uniforms.edgeColorCrease ?? [0.18, 0.18, 0.18],
-      edgeColorSilhouette: uniforms.edgeColorSilhouette ?? [0.1, 0.1, 0.1],
+      edgeWidths: uniforms.edgeWidths ?? [1.5, 2.2, 3.0],
+      edgeOpacities: uniforms.edgeOpacities ?? [0.4, 0.75, 0.95],
+      edgeColorCrease: uniforms.edgeColorCrease ?? [0.08, 0.08, 0.08],
+      edgeColorSilhouette: uniforms.edgeColorSilhouette ?? [0.05, 0.05, 0.05],
       edgeAAStrength: uniforms.edgeAAStrength ?? 1.0,
       edgePixelSnap: uniforms.edgePixelSnap ?? 0.0,
+      uShowSilhouette: uniforms.uShowSilhouette ?? 1.0,
+      uShowCrease: uniforms.uShowCrease ?? 0.0,
     });
 
     buffer.bind(program);
@@ -427,11 +430,10 @@ export class WebGLRenderer {
       viewMatrix,
       projectionMatrix,
       resolution: uniforms.resolution ?? [this.width, this.height],
-      edgeWidths: uniforms.edgeWidths ?? [1.25, 1.75, 2.25],
-      edgeOpacities: uniforms.edgeOpacities ?? [0.4, 0.65, 0.85],
-      edgeColorInternal: uniforms.edgeColorInternal ?? [0.25, 0.25, 0.25],
-      edgeColorCrease: uniforms.edgeColorCrease ?? [0.18, 0.18, 0.18],
-      edgeColorSilhouette: uniforms.edgeColorSilhouette ?? [0.1, 0.1, 0.1],
+      edgeWidths: uniforms.edgeWidths ?? [1.5, 2.2, 3.0],
+      edgeOpacities: uniforms.edgeOpacities ?? [0.4, 0.75, 0.95],
+      edgeColorCrease: uniforms.edgeColorCrease ?? [0.08, 0.08, 0.08],
+      edgeColorSilhouette: uniforms.edgeColorSilhouette ?? [0.05, 0.05, 0.05],
       edgeAAStrength: uniforms.edgeAAStrength ?? 1.0,
       depthBias: uniforms.depthBias ?? 0,
       edgePixelSnap: uniforms.edgePixelSnap ?? 0,

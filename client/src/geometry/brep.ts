@@ -1,4 +1,4 @@
-import { ShapeUtils, Vector2 } from "three";
+import { triangulatePolygon } from "./triangulate";
 import type {
   BRepCurve,
   BRepData,
@@ -110,11 +110,11 @@ const tessellatePlaneFace = (
 
   const contour = points.map((point) => {
     const projected = projectPointToPlane(point, plane);
-    return new Vector2(projected.u, projected.v);
+    return { x: projected.u, y: projected.v };
   });
 
-  const triangles = ShapeUtils.triangulateShape(contour, []);
-  if (triangles.length === 0) return null;
+  const indices = triangulatePolygon(contour, []);
+  if (indices.length === 0) return null;
 
   const positions: number[] = [];
   const uvs: number[] = [];
@@ -122,10 +122,6 @@ const tessellatePlaneFace = (
     const world = unprojectPointFromPlane({ u: point.x, v: point.y }, plane);
     positions.push(world.x, world.y, world.z);
     uvs.push(point.x, point.y);
-  });
-  const indices: number[] = [];
-  triangles.forEach(([a, b, c]) => {
-    indices.push(a, b, c);
   });
   const normals = new Array(positions.length).fill(0);
   return { positions, normals, uvs, indices };

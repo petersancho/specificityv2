@@ -9,6 +9,9 @@ export type BufferData = {
   edgeKinds?: Float32Array;
   edgeWeights?: Float32Array;
   corners?: Float32Array;
+  faceNormal1?: Float32Array;
+  faceNormal2?: Float32Array;
+  hasFace2?: Float32Array;
 };
 
 export class BufferManager {
@@ -78,6 +81,9 @@ export class GeometryBuffer {
   public edgeKindBuffer?: WebGLBuffer;
   public edgeWeightBuffer?: WebGLBuffer;
   public cornerBuffer?: WebGLBuffer;
+  public faceNormal1Buffer?: WebGLBuffer;
+  public faceNormal2Buffer?: WebGLBuffer;
+  public hasFace2Buffer?: WebGLBuffer;
   public vertexCount: number = 0;
   public indexCount: number = 0;
 
@@ -231,6 +237,54 @@ export class GeometryBuffer {
         );
       }
     }
+
+    if (data.faceNormal1) {
+      if (this.faceNormal1Buffer) {
+        this.bufferManager.updateBuffer(
+          `${this.id}_face_normal1`,
+          gl.ARRAY_BUFFER,
+          data.faceNormal1
+        );
+      } else {
+        this.faceNormal1Buffer = this.bufferManager.createBuffer(
+          `${this.id}_face_normal1`,
+          gl.ARRAY_BUFFER,
+          data.faceNormal1
+        );
+      }
+    }
+
+    if (data.faceNormal2) {
+      if (this.faceNormal2Buffer) {
+        this.bufferManager.updateBuffer(
+          `${this.id}_face_normal2`,
+          gl.ARRAY_BUFFER,
+          data.faceNormal2
+        );
+      } else {
+        this.faceNormal2Buffer = this.bufferManager.createBuffer(
+          `${this.id}_face_normal2`,
+          gl.ARRAY_BUFFER,
+          data.faceNormal2
+        );
+      }
+    }
+
+    if (data.hasFace2) {
+      if (this.hasFace2Buffer) {
+        this.bufferManager.updateBuffer(
+          `${this.id}_has_face2`,
+          gl.ARRAY_BUFFER,
+          data.hasFace2
+        );
+      } else {
+        this.hasFace2Buffer = this.bufferManager.createBuffer(
+          `${this.id}_has_face2`,
+          gl.ARRAY_BUFFER,
+          data.hasFace2
+        );
+      }
+    }
   }
 
   bind(program: WebGLProgram): void {
@@ -314,6 +368,33 @@ export class GeometryBuffer {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.cornerBuffer);
         gl.enableVertexAttribArray(cornerLoc);
         gl.vertexAttribPointer(cornerLoc, 2, gl.FLOAT, false, 0, 0);
+      }
+    }
+
+    if (this.faceNormal1Buffer) {
+      const faceNormal1Loc = gl.getAttribLocation(program, "faceNormal1");
+      if (faceNormal1Loc !== -1) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.faceNormal1Buffer);
+        gl.enableVertexAttribArray(faceNormal1Loc);
+        gl.vertexAttribPointer(faceNormal1Loc, 3, gl.FLOAT, false, 0, 0);
+      }
+    }
+
+    if (this.faceNormal2Buffer) {
+      const faceNormal2Loc = gl.getAttribLocation(program, "faceNormal2");
+      if (faceNormal2Loc !== -1) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.faceNormal2Buffer);
+        gl.enableVertexAttribArray(faceNormal2Loc);
+        gl.vertexAttribPointer(faceNormal2Loc, 3, gl.FLOAT, false, 0, 0);
+      }
+    }
+
+    if (this.hasFace2Buffer) {
+      const hasFace2Loc = gl.getAttribLocation(program, "hasFace2");
+      if (hasFace2Loc !== -1) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.hasFace2Buffer);
+        gl.enableVertexAttribArray(hasFace2Loc);
+        gl.vertexAttribPointer(hasFace2Loc, 1, gl.FLOAT, false, 0, 0);
       }
     }
 

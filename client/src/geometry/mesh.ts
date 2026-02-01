@@ -7,17 +7,16 @@ import {
   IcosahedronGeometry,
   OctahedronGeometry,
   RingGeometry,
-  ShapeUtils,
   SphereGeometry,
   TetrahedronGeometry,
   TorusGeometry,
   TorusKnotGeometry,
-  Vector2,
   Vector3,
   type BufferGeometry,
 } from "three";
 import { ConvexGeometry } from "three/examples/jsm/geometries/ConvexGeometry.js";
 import { TeapotGeometry } from "three/examples/jsm/geometries/TeapotGeometry.js";
+import { triangulatePolygon } from "./triangulate";
 import type { PlaneDefinition, PrimitiveKind, RenderMesh, Vec3 } from "../types";
 import {
   add,
@@ -32,7 +31,7 @@ import {
 } from "./math";
 import { interpolatePolyline, resampleByArcLength } from "./curves";
 
-const signedArea2D = (points: Vector2[]) => {
+const signedArea2D = (points: { x: number; y: number }[]) => {
   let area = 0;
   for (let i = 0; i < points.length; i += 1) {
     const current = points[i];
@@ -1032,7 +1031,7 @@ export const generateSurfaceMesh = (
   const loops2D = loops.map((loop) =>
     loop.map((point) => {
       const projected = projectPointToPlane(point, computedPlane);
-      return new Vector2(projected.u, projected.v);
+      return { x: projected.u, y: projected.v };
     })
   );
   const [outer, ...holes] = loops2D;
@@ -1042,7 +1041,7 @@ export const generateSurfaceMesh = (
     const area = signedArea2D(hole);
     return area > 0 ? [...hole].reverse() : hole;
   });
-  const triangles = ShapeUtils.triangulateShape(orientedOuter, orientedHoles);
+  const triangleIndices = triangulatePolygon(orientedOuter, orientedHoles);
   const combined = [
     ...orientedOuter,
     ...orientedHoles.flatMap((hole) => hole),
@@ -1070,9 +1069,7 @@ export const generateSurfaceMesh = (
     positions.push(world.x, world.y, world.z);
     uvs.push((point.x - minU) / rangeU, (point.y - minV) / rangeV);
   });
-  triangles.forEach(([a, b, c]) => {
-    indices.push(a, b, c);
-  });
+  indices.push(...triangleIndices);
   const normals = computeVertexNormals(positions, indices);
   return { mesh: { positions, normals, uvs, indices }, plane: computedPlane };
 };
@@ -1129,19 +1126,25 @@ export const generateExtrudeMesh = (
       const plane = computeBestFitPlane(basePoints);
       const contour = basePoints.map((point) => {
         const projected = projectPointToPlane(point, plane);
-        return new Vector2(projected.u, projected.v);
+        return { x: projected.u, y: projected.v };
       });
-      const triangles = ShapeUtils.triangulateShape(contour, []);
-      triangles.forEach(([a, b, c]) => {
+      const triangleIndices = triangulatePolygon(contour, []);
+      for (let i = 0; i < triangleIndices.length; i += 3) {
+        const a = triangleIndices[i];
+        const b = triangleIndices[i + 1];
+        const c = triangleIndices[i + 2];
         indices.push(baseIndex + c, baseIndex + b, baseIndex + a);
-      });
-      triangles.forEach(([a, b, c]) => {
+      }
+      for (let i = 0; i < triangleIndices.length; i += 3) {
+        const a = triangleIndices[i];
+        const b = triangleIndices[i + 1];
+        const c = triangleIndices[i + 2];
         indices.push(
           baseIndex + ringCount + a,
           baseIndex + ringCount + b,
           baseIndex + ringCount + c
         );
-      });
+      }
     }
   });
   const normals = computeVertexNormals(positions, indices);

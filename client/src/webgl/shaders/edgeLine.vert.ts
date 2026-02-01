@@ -4,18 +4,25 @@ attribute vec3 prevPosition;
 attribute vec3 nextPosition;
 attribute float side;
 attribute float edgeKind;
+attribute vec3 faceNormal1;
+attribute vec3 faceNormal2;
+attribute float hasFace2;
 
 uniform mat4 modelMatrix;
 uniform mat4 viewMatrix;
 uniform mat4 projectionMatrix;
+uniform mat3 normalMatrix;
 uniform vec2 resolution;
 uniform vec3 edgeWidths;
 uniform float depthBias;
 uniform float edgePixelSnap;
+uniform float uShowSilhouette;
+uniform float uShowCrease;
 
 varying float vSide;
 varying float vEdgeKind;
 varying float vMiterLen;
+varying float vKeep;
 
 void main() {
   vec4 prevClip = projectionMatrix * viewMatrix * modelMatrix * vec4(prevPosition, 1.0);
@@ -83,6 +90,32 @@ void main() {
   positionOut.z -= depthBias * biasScale * positionOut.w;
   gl_Position = positionOut;
 
+  // Backface culling: edges are visible only when at least one adjacent face is front-facing
+  vec3 viewPos = (viewMatrix * modelMatrix * vec4(position, 1.0)).xyz;
+  vec3 viewDir = normalize(-viewPos);
+  
+  vec3 n1 = normalize(normalMatrix * faceNormal1);
+  float f1 = step(0.0, dot(n1, viewDir));  // 1.0 if face 1 is front-facing
+  
+  float f2 = 0.0;
+  if (hasFace2 > 0.5) {
+    vec3 n2 = normalize(normalMatrix * faceNormal2);
+    f2 = step(0.0, dot(n2, viewDir));  // 1.0 if face 2 is front-facing
+  }
+  
+  // Edge visibility by kind and display mode:
+  // - INTERNAL (0): Always hidden
+  // - CREASE (1): Visible when front-facing AND uShowCrease enabled
+  // - SILHOUETTE (2): Visible when front-facing AND uShowSilhouette enabled
+  float isSilhouette = step(1.5, edgeKind);
+  float isCrease = step(0.5, edgeKind) * (1.0 - isSilhouette);
+  float isInternal = 1.0 - step(0.5, edgeKind);
+  
+  float anyFaceFront = max(f1, f2);
+  float keepSilhouette = isSilhouette * anyFaceFront * uShowSilhouette;
+  float keepCrease = isCrease * anyFaceFront * uShowCrease;
+  
+  vKeep = max(keepSilhouette, keepCrease);
   vSide = side;
   vEdgeKind = edgeKind;
   vMiterLen = miterLen;

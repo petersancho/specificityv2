@@ -502,6 +502,7 @@ const defaultViewSettings: ViewSettings = {
   showPointPickDebug: false,
   showEdges: true,
   showControlPoints: false,
+  edgeDisplayMode: "silhouette",
 };
 
 const defaultGumballSettings: GumballSettings = {

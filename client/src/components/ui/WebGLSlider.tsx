@@ -182,9 +182,10 @@ const WebGLSlider = ({
   };
 
   const tooltipContent = tooltip ?? label;
+  const tooltipDisabled = !tooltipContent;
 
   return (
-    <Tooltip content={tooltipContent} position={tooltipPosition}>
+    <Tooltip content={tooltipContent} position={tooltipPosition} disabled={tooltipDisabled}>
       <label
         ref={controlRef}
         className={[styles.control, styles.slider, className].filter(Boolean).join(" ")}

@@ -155,7 +155,7 @@ const RENDER_FILTER_OPTIONS = [
 
 type RenderPaletteSliderSpec = {
   label: string;
-  tooltip: string;
+  tooltip?: string;
   min: number;
   max: number;
   step: number;
@@ -181,7 +181,6 @@ const RENDER_PALETTE_SLIDERS: Record<
     },
     {
       label: "Sheen",
-      tooltip: "Glossy highlight intensity (white light).",
       min: 0,
       max: 1,
       step: 0.01,
@@ -5696,7 +5695,6 @@ const ModelerSection = ({
                         <span className={styles.renderMaterialFieldLabel}>Sheen</span>
                         <WebGLSlider
                           label="Sheen"
-                          tooltip="Glossy highlight intensity (white light)."
                           iconId="sphere"
                           value={viewSettings.sheen ?? 0.08}
                           min={0}
