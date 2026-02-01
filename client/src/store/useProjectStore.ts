@@ -2041,9 +2041,11 @@ const applySeedGeometryNodesToGeometry = (
 
     if (node.type === "voxelSolver") {
       let geometryId =
-        typeof node.data?.geometryId === "string"
-          ? node.data.geometryId
-          : null;
+        typeof outputs?.geometry === "string"
+          ? outputs.geometry
+          : typeof node.data?.geometryId === "string"
+            ? node.data.geometryId
+            : null;
 
       const meshData = outputs?.meshData as RenderMesh | undefined;
 
@@ -2068,7 +2070,10 @@ const applySeedGeometryNodesToGeometry = (
         undefined,
         { geometryById, updates, itemsToAdd },
         node.id,
-        { subtype: "voxels" }
+        {
+          subtype: "voxels",
+          renderOptions: { forceSolidPreview: true },
+        }
       );
 
       didApply = true;

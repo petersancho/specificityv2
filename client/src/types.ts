@@ -277,6 +277,11 @@ export type MeshPrimitiveInfo = {
   params?: Record<string, number>;
 };
 
+export type GeometryRenderOptions = {
+  forceSolidPreview?: boolean;
+  opacityOverride?: number;
+};
+
 export type MeshGeometry = {
   id: string;
   type: "mesh";
@@ -284,6 +289,7 @@ export type MeshGeometry = {
   layerId: string;
   primitive?: MeshPrimitiveInfo;
   subtype?: "voxels" | "regular";
+  renderOptions?: GeometryRenderOptions;
   area_m2?: number;
   volume_m3?: number;
   centroid?: Vec3;

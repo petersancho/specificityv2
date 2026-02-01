@@ -184,7 +184,7 @@ type WorkflowPrimitive =
 
 export type WorkflowValue = WorkflowPrimitive | WorkflowValue[] | null | undefined;
 
-type WorkflowComputeContext = {
+export type WorkflowComputeContext = {
   nodeId: string;
   geometryById: Map<string, Geometry>;
   vertexById: Map<string, VertexGeometry>;
