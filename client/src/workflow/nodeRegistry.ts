@@ -47,6 +47,7 @@ import type { NodeType } from "./nodeTypes";
 import { PRIMITIVE_NODE_CATALOG, PRIMITIVE_NODE_TYPE_IDS } from "../data/primitiveCatalog";
 import { hexToRgb, normalizeHexColor, normalizeRgbInput, rgbToHex } from "../utils/color";
 import { PhysicsSolverNode } from "./nodes/solver/PhysicsSolver";
+import { ChemistrySolverNode } from "./nodes/solver/ChemistrySolver";
 import { BiologicalEvolutionSolverNode } from "./nodes/solver/BiologicalEvolutionSolver";
 import { createVoxelSolverNode } from "./nodes/solver/VoxelSolver";
 import { AnchorGoalNode, LoadGoalNode, StiffnessGoalNode, VolumeGoalNode } from "./nodes/solver/goals/physics";
@@ -12528,7 +12529,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
 ];
 
-NODE_DEFINITIONS.push(PhysicsSolverNode, BiologicalEvolutionSolverNode);
+NODE_DEFINITIONS.push(PhysicsSolverNode, ChemistrySolverNode, BiologicalEvolutionSolverNode);
 const topologySolverDefinition = NODE_DEFINITIONS.find(
   (definition) => definition.type === "topologySolver"
 );
