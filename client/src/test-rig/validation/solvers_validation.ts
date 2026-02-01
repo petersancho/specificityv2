@@ -298,10 +298,11 @@ const validateVoxelSolver = () => {
     (outputs.voxelGrid != null) === (isoOutputs.mesh != null),
     "Expected voxel grid and iso mesh outputs to be both present (or both absent)"
   );
-  if (typeof outputs.resolution === "number") {
-    ensureFinite(outputs.resolution, "Expected resolution to be finite");
-    ensure(outputs.resolution > 0, "Expected resolution > 0");
-  }
+  ensure(
+    typeof outputs.resolution === "number" && Number.isFinite(outputs.resolution),
+    "Expected resolution to be a finite number"
+  );
+  ensure(outputs.resolution > 0, "Expected resolution > 0");
   ensureFinite(outputs.objective, "Expected objective to be finite");
   ensureFinite(outputs.constraint, "Expected constraint to be finite");
 
