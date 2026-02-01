@@ -38,7 +38,8 @@ const ensureStressColors = (mesh: RenderMesh, label: string) => {
 // Shared tolerance parameters for voxel-based solvers; adjust with care.
 const MIN_VOLUME_TOLERANCE = 0.05;
 const RESOLUTION_TOLERANCE_SCALE = 0.8;
-const RESOLUTION_EPS = 1e-6;
+// Resolution values are conceptually integers; allow small float drift.
+const RESOLUTION_EPS = 1e-4;
 
 // Allow tiny numerical drift from [0, 1] due to floating point error.
 const DENSITY_EPS = 1e-5;
