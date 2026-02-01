@@ -24,7 +24,8 @@ describe("geometry primitives", () => {
     expect(brep.faces.length).toBe(6);
     expect(brep.loops.length).toBe(6);
     expect(brep.solids).toBeDefined();
-    expect(brep.solids!.length).toBe(1);
+    expect(Array.isArray(brep.solids)).toBe(true);
+    expect(brep.solids?.length).toBe(1);
   });
 
   it("tessellates B-Rep sphere and cylinder", () => {

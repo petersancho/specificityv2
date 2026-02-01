@@ -100,6 +100,10 @@ export type {
   WorkflowValue,
 } from "./registry/types";
 
+type PortResolver = (parameters: Record<string, unknown>) => WorkflowPortSpec[];
+
+type PortsDefinition = WorkflowPortSpec[] | PortResolver;
+
 const EPSILON = 1e-10;
 const EMPTY_MESH: RenderMesh = { positions: [], normals: [], uvs: [], indices: [] };
 
@@ -4144,7 +4148,14 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     primaryOutputKey: "data",
     compute: ({ inputs, parameters }) => {
       const fallback = typeof parameters.text === "string" ? parameters.text : "";
-      const data = inputs.data ?? (fallback.length > 0 ? fallback : null);
+      let data = inputs.data;
+      if (Array.isArray(data)) {
+        const filtered = data.filter((item) => item != null);
+        data = filtered.length > 0 ? filtered : null;
+      }
+      if (data == null && fallback.length > 0) {
+        data = fallback;
+      }
       return { data };
     },
   },
