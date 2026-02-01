@@ -49,7 +49,7 @@ const computeVolumeToleranceForResolution = (res: number) =>
   Math.max(MIN_VOLUME_TOLERANCE, RESOLUTION_TOLERANCE_SCALE / Math.max(1, res));
 
 const computeResolutionEps = (value: number) =>
-  Math.max(RESOLUTION_ABS_EPS, RESOLUTION_REL_EPS * value);
+  Math.max(RESOLUTION_ABS_EPS, RESOLUTION_REL_EPS * Math.max(1, Math.round(value)));
 
 const validateVoxelGridConsistency = (
   label: string,
