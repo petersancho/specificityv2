@@ -39,13 +39,17 @@ const ensureStressColors = (mesh: RenderMesh, label: string) => {
 const MIN_VOLUME_TOLERANCE = 0.05;
 const RESOLUTION_TOLERANCE_SCALE = 0.8;
 // Resolution values are conceptually integers; allow small float drift.
-const RESOLUTION_EPS = 1e-4;
+const RESOLUTION_ABS_EPS = 1e-4;
+const RESOLUTION_REL_EPS = 1e-8;
 
 // Allow tiny numerical drift from [0, 1] due to floating point error.
 const DENSITY_EPS = 1e-5;
 
 const computeVolumeToleranceForResolution = (res: number) =>
   Math.max(MIN_VOLUME_TOLERANCE, RESOLUTION_TOLERANCE_SCALE / Math.max(1, res));
+
+const computeResolutionEps = (value: number) =>
+  Math.max(RESOLUTION_ABS_EPS, RESOLUTION_REL_EPS * Math.max(1, Math.abs(value)));
 
 const validateVoxelGridConsistency = (
   label: string,
@@ -69,9 +73,10 @@ const validateVoxelGridConsistency = (
   );
   ensure(outputs.resolution > 0, `${label}: expected resolution > 0`);
   const res = Math.round(outputs.resolution);
+  const resolutionEps = computeResolutionEps(outputs.resolution);
   ensure(
-    Math.abs(outputs.resolution - res) < RESOLUTION_EPS,
-    `${label}: expected resolution to be an integer (got ${outputs.resolution})`
+    Math.abs(outputs.resolution - res) < resolutionEps,
+    `${label}: expected resolution to be an integer (got ${outputs.resolution}, nearest ${res})`
   );
   ensure(outputs.voxelGrid !== null, `${label}: expected voxel grid output`);
 
@@ -97,16 +102,26 @@ const validateVoxelGridConsistency = (
   const rx = Math.round(x);
   const ry = Math.round(y);
   const rz = Math.round(z);
+  const gridResolutionEps = Math.max(computeResolutionEps(x), computeResolutionEps(y), computeResolutionEps(z));
   ensure(
-    Math.abs(x - rx) < RESOLUTION_EPS &&
-      Math.abs(y - ry) < RESOLUTION_EPS &&
-      Math.abs(z - rz) < RESOLUTION_EPS,
+    Math.abs(x - rx) < gridResolutionEps &&
+      Math.abs(y - ry) < gridResolutionEps &&
+      Math.abs(z - rz) < gridResolutionEps,
     `${label}: expected voxelGrid resolution components to be integers (x=${x}, y=${y}, z=${z})`
   );
   ensure(rx > 0 && ry > 0 && rz > 0, `${label}: expected voxelGrid resolution > 0`);
   ensure(
+    Math.abs(x - y) < gridResolutionEps && Math.abs(y - z) < gridResolutionEps,
+    `${label}: expected voxelGrid resolution to be cubic (x=${x}, y=${y}, z=${z}, tol=${gridResolutionEps})`
+  );
+  ensure(
     rx === ry && ry === rz,
     `${label}: expected voxelGrid resolution to be cubic (x=${rx}, y=${ry}, z=${rz})`
+  );
+  const matchResolutionEps = Math.max(resolutionEps, gridResolutionEps);
+  ensure(
+    Math.abs(outputs.resolution - x) < matchResolutionEps,
+    `${label}: expected resolution (${outputs.resolution}) to match voxelGrid resolution.x (${x}) within tol=${matchResolutionEps}`
   );
   ensure(
     res === rx,
