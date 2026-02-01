@@ -1,17 +1,22 @@
-import type { WorkflowNodeDefinition } from "../../nodeRegistry";
+import type { WorkflowNodeDefinition, WorkflowComputeContext } from "../../nodeRegistry";
+import type { Geometry, VoxelGrid, RenderMesh } from "../../../types";
 
 type VoxelSolverHelpers = {
   buildVoxelGridFromGeometry: (
-    geometry: any,
-    context: any,
+    geometry: Geometry,
+    context: WorkflowComputeContext,
     resolution: number,
     padding: number,
     mode: string,
     thickness: number
-  ) => any;
-  buildVoxelMesh: (grid: any, isoValue: number) => any;
-  resolveGeometryInput: (inputs: any, context: any, options?: any) => any;
-  readNumberParameter: (parameters: any, key: string, fallback: number) => number;
+  ) => VoxelGrid;
+  buildVoxelMesh: (grid: VoxelGrid, isoValue: number) => RenderMesh;
+  resolveGeometryInput: (
+    inputs: Record<string, unknown>,
+    context: WorkflowComputeContext,
+    options?: { allowMissing?: boolean }
+  ) => Geometry | null;
+  readNumberParameter: (parameters: Record<string, unknown>, key: string, fallback: number) => number;
   clampNumber: (value: number, min: number, max: number) => number;
 };
 
@@ -77,8 +82,8 @@ export const createVoxelSolverNode = (
   ],
   outputs: [
     {
-      key: "mesh",
-      label: "Mesh",
+      key: "geometry",
+      label: "Geometry",
       type: "mesh",
       required: true,
       description: "Voxelized mesh geometry ID.",
@@ -154,22 +159,15 @@ export const createVoxelSolverNode = (
       description: "Density threshold for isosurface extraction.",
     },
   ],
-  primaryOutputKey: "mesh",
+  primaryOutputKey: "geometry",
   compute: ({ inputs, parameters, context }) => {
-    const emptyResult = {
-      mesh: null,
-      meshData: null,
-      voxelGrid: null,
-      resolution: 12,
-    };
-    
     if (!helpers) {
-      return emptyResult;
+      throw new Error("VoxelSolver: helpers not initialized");
     }
 
-    const geometry = helpers.resolveGeometryInput(inputs, context, { allowMissing: true });
+    const geometry = helpers.resolveGeometryInput(inputs, context, { allowMissing: false });
     if (!geometry) {
-      return emptyResult;
+      throw new Error("VoxelSolver: no input geometry provided");
     }
 
     const readNumber = (inputKey: string, paramKey: string, fallback: number): number => {
@@ -180,11 +178,11 @@ export const createVoxelSolverNode = (
       return helpers!.readNumberParameter(parameters, paramKey, fallback);
     };
 
-    const resolution = Math.max(4, Math.min(36, Math.round(readNumber("resolution", "resolution", 12))));
-    const padding = Math.max(0, readNumber("padding", "padding", 0.2));
+    const resolution = Math.round(helpers.clampNumber(readNumber("resolution", "resolution", 12), 4, 36));
+    const padding = helpers.clampNumber(readNumber("padding", "padding", 0.2), 0, 10);
     const modeValue = Math.round(readNumber("mode", "mode", 0));
     const mode = modeValue === 1 ? "surface" : "solid";
-    const thickness = Math.max(0, Math.min(4, Math.round(readNumber("thickness", "thickness", 1))));
+    const thickness = Math.round(helpers.clampNumber(readNumber("thickness", "thickness", 1), 0, 4));
     const isoValue = helpers.clampNumber(readNumber("isoValue", "isoValue", 0.5), 0, 1);
 
     const grid = helpers.buildVoxelGridFromGeometry(
@@ -201,7 +199,7 @@ export const createVoxelSolverNode = (
     const geometryId = typeof parameters.geometryId === "string" ? parameters.geometryId : null;
 
     return {
-      mesh: geometryId,
+      geometry: geometryId,
       meshData,
       voxelGrid: grid,
       resolution: grid.resolution?.x ?? resolution,

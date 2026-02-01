@@ -2,7 +2,7 @@
 
 **Purpose:** Fast onboarding for AI agents working on Lingua. Read this first, then dive into specific docs as needed.
 
-**Last Updated:** After comprehensive codebase sweep
+**Last Updated:** 2026-01-31 (Added testing, linting, and build system sections)
 
 ---
 
@@ -81,6 +81,13 @@
 - `client/src/workflow/nodes/solver/validation.ts` - goal validation
 - `client/src/workflow/nodes/solver/goals/` - goal node definitions
 
+### Test Infrastructure
+- `client/src/__tests__/` - unit tests (geometry, workflow conversions)
+- `client/src/test-rig/` - comprehensive test infrastructure:
+  - `validation/` - solver validation tests (physics, chemistry, biology, topology)
+  - `solvers/` - solver test rigs and fixtures
+  - `benchmarks/` - performance benchmarks
+
 ---
 
 ## Quick Architecture Overview
@@ -148,6 +155,30 @@ const evaluateWorkflow = (
 ```
 
 **Dirty flags propagate downstream on param changes.**
+
+---
+
+## Development Environment
+
+**Build & Run:**
+```bash
+npm run dev             # Start both client + server
+npm run dev:client      # Client only (Vite dev server)
+npm run dev:server      # Server only (with hot reload)
+npm run build           # Production build (includes TypeScript checking)
+```
+
+**Testing:**
+```bash
+npm run test            # Run all tests (Vitest)
+npx vitest              # Interactive watch mode
+```
+- Tests: `client/src/__tests__/` (unit) and `client/src/test-rig/` (integration)
+- Framework: Vitest with custom assertion helpers for solvers
+
+**Linting:**
+- No linting currently configured
+- TypeScript strict mode enforced during build (`npm run build`)
 
 ---
 
@@ -1184,10 +1215,16 @@ export const tessellateCurveAdaptive = (
 ### Before Committing Changes
 
 **TypeScript**
-- [ ] `npm run type-check` passes
+- [ ] `npm run build` passes (includes type checking)
 - [ ] No `@ts-ignore` or `@ts-expect-error` added
 - [ ] All discriminated unions exhaustive
 - [ ] No `any` types (use `unknown` if needed)
+
+**Tests**
+- [ ] `npm run test` passes
+- [ ] New features have corresponding tests
+- [ ] Test rigs updated for solver changes
+- [ ] Validation tests pass for affected solvers
 
 **Undo/Redo**
 - [ ] Geometry changes call `recordModelerHistory()`

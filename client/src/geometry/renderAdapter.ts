@@ -23,6 +23,7 @@ export type RenderableGeometry = {
   edgeLineBuffers?: GeometryBuffer[];
   type: "vertex" | "polyline" | "surface" | "mesh";
   needsUpdate: boolean;
+  renderOptions?: import("../types").GeometryRenderOptions;
 };
 
 const resolvePolylineCurve = (
@@ -338,6 +339,9 @@ export class GeometryRenderAdapter {
       });
     }
 
+    const renderOptions =
+      geometry.type === "mesh" ? geometry.renderOptions : undefined;
+
     this.renderables.set(geometry.id, {
       id: geometry.id,
       buffer,
@@ -346,6 +350,7 @@ export class GeometryRenderAdapter {
       edgeLineBuffers,
       type: "mesh",
       needsUpdate: false,
+      renderOptions,
     });
   }
 

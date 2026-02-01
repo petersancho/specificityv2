@@ -7190,7 +7190,14 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
 
       const renderMesh = (renderable: RenderableGeometry, isSelected: boolean) => {
         if (renderable.type === "vertex") return;
-        if (!showMesh || baseMeshOpacity <= 0) return;
+        
+        const forceSolid = renderable.renderOptions?.forceSolidPreview ?? false;
+        const effectiveShowMesh = forceSolid ? true : showMesh;
+        const effectiveOpacity = forceSolid
+          ? (renderable.renderOptions?.opacityOverride ?? 1)
+          : baseMeshOpacity;
+        
+        if (!effectiveShowMesh || effectiveOpacity <= 0) return;
         if (isSilhouette) {
           const fillOpacity = clamp01(silhouetteFill);
           if (fillOpacity <= 0.01) return;
@@ -7220,14 +7227,14 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
               1,
               isSelected
                 ? 1.02
-                : baseMeshOpacity > 0.7
+                : effectiveOpacity > 0.7
                   ? 0.9
                   : 0.75,
               clamp01(nonSolidBlend)
             )
           : 1;
         const opacity = clamp(
-          baseMeshOpacity * selectionFactor,
+          effectiveOpacity * selectionFactor,
           0.2,
           1
         );
