@@ -118,8 +118,7 @@ export const runPhysicsSolverRig = (analysisType: AnalysisType) => {
   };
 };
 
-export const runTopologySolverRig = () => {
-  const nodeType = "topologySolver";
+export const runTopologySolverRig = (nodeType: "topologySolver" | "voxelSolver") => {
   const solverNode = getNodeDefinition(nodeType);
   const isoNode = getNodeDefinition("extractIsosurface");
   const baseGeometry = createBoxGeometry(`geo-${nodeType}`, { width: 1.8, height: 1.2, depth: 1.4 });
@@ -216,39 +215,6 @@ export const runTopologySolverRig = () => {
     outputGeometry,
     baseGeometry,
     goals,
-    parameters,
-  };
-};
-
-export const runVoxelSolverRig = () => {
-  const solverNode = getNodeDefinition("voxelSolver");
-  const baseGeometry = createBoxGeometry("geo-voxelSolver", { width: 1.8, height: 1.2, depth: 1.4 });
-  const context = createTestContext("voxelSolver-context", [baseGeometry]);
-
-  const parameters = {
-    geometryId: "voxelSolver-out",
-    resolution: 14,
-    padding: 0.2,
-    mode: 0,
-    thickness: 1,
-    isoValue: 0.5,
-  };
-
-  const outputs = solverNode.compute({
-    inputs: { geometry: baseGeometry.id },
-    parameters,
-    context,
-  });
-
-  const outputGeometry = wrapMeshGeometry(
-    parameters.geometryId,
-    outputs.meshData as RenderMesh
-  );
-
-  return {
-    outputs,
-    outputGeometry,
-    baseGeometry,
     parameters,
   };
 };

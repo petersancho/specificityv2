@@ -4,7 +4,6 @@ import {
   runChemistrySolverRig,
   runPhysicsSolverRig,
   runTopologySolverRig,
-  runVoxelSolverRig,
 } from "../solvers/solver-rigs";
 import { buildPhysicsSolverRunReport } from "../solvers/physics-solver-report";
 import type { RenderMesh } from "../../types";
@@ -142,7 +141,7 @@ const validatePhysicsModal = () => {
 };
 
 const validateTopologySolver = () => {
-  const { outputs, isoOutputs, outputGeometry, parameters } = runTopologySolverRig();
+  const { outputs, isoOutputs, outputGeometry, parameters } = runTopologySolverRig("topologySolver");
   ensure(outputs.status === "complete", "Expected topology solver complete");
   ensure(Array.isArray(outputs.densityField), "Expected density field array");
   ensure(outputs.densityField.length > 0, "Expected density field data");
@@ -207,12 +206,30 @@ const validateTopologySolver = () => {
 };
 
 const validateVoxelSolver = () => {
-  const { outputs, outputGeometry, parameters } = runVoxelSolverRig();
-  ensure(outputs.geometry === parameters.geometryId, "Expected geometry id to match");
+  const { outputs, isoOutputs, outputGeometry, parameters } = runTopologySolverRig("voxelSolver");
+  ensure(outputs.status === "complete", "Expected voxel solver complete");
+  ensure(Array.isArray(outputs.densityField), "Expected density field array");
+  ensure(outputs.densityField.length > 0, "Expected density field data");
   ensure(outputs.voxelGrid !== null, "Expected voxel grid output");
-  ensureFinite(outputs.resolution, "Expected resolution to be finite");
-  ensure(outputs.resolution >= 4, "Expected resolution >= 4");
-  ensureMesh(outputs.meshData as RenderMesh, "voxel meshData");
+  ensure(outputs.resolution > 0, "Expected resolution > 0");
+  ensureFinite(outputs.objective, "Expected objective to be finite");
+  ensureFinite(outputs.constraint, "Expected constraint to be finite");
+
+  if (outputs.voxelGrid) {
+    const densities = outputs.voxelGrid.densities;
+    const res = outputs.voxelGrid.resolution.x;
+    const volumeTolerance = Math.max(0.05, 0.8 / Math.max(1, res));
+    let mean = 0;
+    densities.forEach((value) => {
+      mean += value;
+    });
+    mean /= Math.max(1, densities.length);
+    ensure(
+      Math.abs(mean - parameters.volumeFraction) < volumeTolerance,
+      "Expected mean density ~ volume fraction"
+    );
+  }
+  ensureMesh(isoOutputs.mesh as RenderMesh, "voxel iso mesh");
   ensureMesh(outputGeometry.mesh, "voxel output geometry");
 };
 

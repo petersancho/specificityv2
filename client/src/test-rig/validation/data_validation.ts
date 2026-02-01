@@ -103,7 +103,7 @@ const validatePanel = () => {
 
   const context = createContext();
   const resultDirect = node.compute({
-    inputs: { data: [[1, 2, 3]] },
+    inputs: { data: [1, 2, 3] },
     parameters: { text: "Fallback" },
     context,
   });
@@ -128,7 +128,7 @@ const validateTextNote = () => {
 
   const context = createContext();
   const resultDirect = node.compute({
-    inputs: { data: ["Payload"] },
+    inputs: { data: "Payload" },
     parameters: { text: "Note" },
     context,
   });
