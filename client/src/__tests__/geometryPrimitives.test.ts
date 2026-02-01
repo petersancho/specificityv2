@@ -24,6 +24,7 @@ describe("geometry primitives", () => {
     expect(brep.faces.length).toBe(6);
     expect(brep.loops.length).toBe(6);
     expect(brep.solids).toBeDefined();
+    expect(Array.isArray(brep.solids)).toBe(true);
     expect(brep.solids!.length).toBe(1);
   });
 
