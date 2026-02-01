@@ -211,12 +211,37 @@ const validateVoxelSolver = () => {
   ensure(Array.isArray(outputs.densityField), "Expected density field array");
   ensure(outputs.densityField.length > 0, "Expected density field data");
   ensure(outputs.voxelGrid !== null, "Expected voxel grid output");
+  if (typeof outputs.resolution === "number") {
+    ensureFinite(outputs.resolution, "Expected resolution to be finite");
+    ensure(outputs.resolution > 0, "Expected resolution > 0");
+  }
   ensureFinite(outputs.objective, "Expected objective to be finite");
   ensureFinite(outputs.constraint, "Expected constraint to be finite");
 
   if (outputs.voxelGrid) {
     const densities = outputs.voxelGrid.densities;
-    const res = outputs.voxelGrid.resolution.x;
+    const gridResolution = outputs.voxelGrid.resolution;
+    ensureFinite(gridResolution.x, "Expected voxel grid resolution x to be finite");
+    ensureFinite(gridResolution.y, "Expected voxel grid resolution y to be finite");
+    ensureFinite(gridResolution.z, "Expected voxel grid resolution z to be finite");
+    ensure(gridResolution.x > 0, "Expected voxel grid resolution x > 0");
+    ensure(gridResolution.y > 0, "Expected voxel grid resolution y > 0");
+    ensure(gridResolution.z > 0, "Expected voxel grid resolution z > 0");
+
+    if (typeof outputs.resolution === "number") {
+      ensure(
+        gridResolution.x === outputs.resolution &&
+          gridResolution.y === outputs.resolution &&
+          gridResolution.z === outputs.resolution,
+        "Expected voxel grid resolution to match output resolution"
+      );
+    }
+
+    const cellCount = gridResolution.x * gridResolution.y * gridResolution.z;
+    ensure(densities.length === cellCount, "Expected voxel densities length to match resolution");
+    ensure(outputs.densityField.length === cellCount, "Expected density field to match voxel grid");
+
+    const res = gridResolution.x;
     const volumeTolerance = Math.max(0.05, 0.8 / Math.max(1, res));
     let mean = 0;
     densities.forEach((value) => {
