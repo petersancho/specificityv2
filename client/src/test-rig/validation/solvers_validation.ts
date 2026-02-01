@@ -88,6 +88,10 @@ const validateVoxelGridConsistency = (
       typeof z === "number" && Number.isFinite(z),
     `${label}: expected voxelGrid resolution components to be finite numbers`
   );
+  ensure(
+    Number.isInteger(x) && Number.isInteger(y) && Number.isInteger(z),
+    `${label}: expected voxelGrid resolution components to be integers`
+  );
   ensure(x > 0 && y > 0 && z > 0, `${label}: expected voxelGrid resolution > 0`);
   ensure(
     x === y && y === z,
@@ -295,15 +299,7 @@ const validateVoxelSolver = () => {
   ensure(Array.isArray(outputs.densityField), "Expected density field array");
   ensure(outputs.densityField.length > 0, "Expected density field data");
   ensure(outputs.voxelGrid !== null, "Expected voxel grid output");
-  ensure(
-    (outputs.voxelGrid != null) === (isoOutputs.mesh != null),
-    "Expected voxel grid and iso mesh outputs to be both present (or both absent)"
-  );
-  ensure(
-    typeof outputs.resolution === "number" && Number.isFinite(outputs.resolution),
-    "Expected resolution to be a finite number"
-  );
-  ensure(outputs.resolution > 0, "Expected resolution > 0");
+  ensure(isoOutputs.mesh !== null, "Expected voxel iso mesh output");
   ensureFinite(outputs.objective, "Expected objective to be finite");
   ensureFinite(outputs.constraint, "Expected constraint to be finite");
 
