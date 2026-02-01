@@ -3,10 +3,15 @@ import type { Geometry, RenderMesh } from "../../types";
 import { buildStressVertexColors } from "../../utils/stressColors";
 import type {
   AnalysisType,
+  AnchorGoal,
   ChemistryBlendGoal,
   ChemistryMassGoal,
   ChemistryStiffnessGoal,
+  GoalSpecification,
+  LoadGoal,
   SolverConfiguration,
+  StiffnessGoal,
+  VolumeGoal,
 } from "../../workflow/nodes/solver/types";
 import type { SolverOutputs, Individual, SolverConfig } from "../../workflow/nodes/solver/biological/types";
 import {
