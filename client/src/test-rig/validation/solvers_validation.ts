@@ -75,7 +75,7 @@ const validateVoxelGridConsistency = (
   const res = Math.round(outputs.resolution);
   const resolutionEps = computeResolutionEps(outputs.resolution);
   ensure(
-    Math.abs(outputs.resolution - res) < resolutionEps,
+    Math.abs(outputs.resolution - res) <= resolutionEps,
     `${label}: expected resolution to be an integer (got ${outputs.resolution}, nearest ${res})`
   );
   ensure(outputs.voxelGrid !== null, `${label}: expected voxel grid output`);
@@ -104,14 +104,14 @@ const validateVoxelGridConsistency = (
   const rz = Math.round(z);
   const gridResolutionEps = Math.max(computeResolutionEps(x), computeResolutionEps(y), computeResolutionEps(z));
   ensure(
-    Math.abs(x - rx) < gridResolutionEps &&
-      Math.abs(y - ry) < gridResolutionEps &&
-      Math.abs(z - rz) < gridResolutionEps,
+    Math.abs(x - rx) <= gridResolutionEps &&
+      Math.abs(y - ry) <= gridResolutionEps &&
+      Math.abs(z - rz) <= gridResolutionEps,
     `${label}: expected voxelGrid resolution components to be integers (x=${x}, y=${y}, z=${z})`
   );
   ensure(rx > 0 && ry > 0 && rz > 0, `${label}: expected voxelGrid resolution > 0`);
   ensure(
-    Math.abs(x - y) < gridResolutionEps && Math.abs(y - z) < gridResolutionEps,
+    Math.abs(x - y) <= gridResolutionEps && Math.abs(y - z) <= gridResolutionEps,
     `${label}: expected voxelGrid resolution to be cubic (x=${x}, y=${y}, z=${z}, tol=${gridResolutionEps})`
   );
   ensure(
@@ -120,7 +120,7 @@ const validateVoxelGridConsistency = (
   );
   const matchResolutionEps = Math.max(resolutionEps, gridResolutionEps);
   ensure(
-    Math.abs(outputs.resolution - x) < matchResolutionEps,
+    Math.abs(outputs.resolution - x) <= matchResolutionEps,
     `${label}: expected resolution (${outputs.resolution}) to match voxelGrid resolution.x (${x}) within tol=${matchResolutionEps}`
   );
   ensure(
