@@ -3,9 +3,6 @@ import type { Geometry, RenderMesh } from "../../types";
 import { buildStressVertexColors } from "../../utils/stressColors";
 import type {
   AnalysisType,
-  ChemistryBlendGoal,
-  ChemistryMassGoal,
-  ChemistryStiffnessGoal,
   SolverConfiguration,
 } from "../../workflow/nodes/solver/types";
 import type { SolverOutputs, Individual, SolverConfig } from "../../workflow/nodes/solver/biological/types";
@@ -22,6 +19,16 @@ import {
   wrapMeshGeometry,
 } from "./rig-utils";
 import { buildPhysicsGoals } from "./physics-solver-fixtures";
+import {
+  buildChemistryConfig,
+  buildChemistryGoalsBasic,
+  buildChemistryGoalsRegions,
+  buildChemistryMaterials,
+  buildChemistrySeedsBasic,
+  buildChemistrySeedsRegions,
+  TEXT_INPUT_MATERIALS,
+  TEXT_INPUT_SEEDS,
+} from "./chemistry-solver-fixtures";
 
 export const CHEMISTRY_SOLVER_RIG_VARIANTS = [
   "basic",
@@ -32,14 +39,6 @@ export const CHEMISTRY_SOLVER_RIG_VARIANTS = [
 export type ChemistrySolverRigVariant = (typeof CHEMISTRY_SOLVER_RIG_VARIANTS)[number];
 
 export const DEFAULT_CHEMISTRY_SOLVER_RIG_VARIANT: ChemistrySolverRigVariant = "regions";
-
-const TEXT_INPUT_MATERIALS_OBJECT = [
-  { material: { name: "Steel", color: [0.75, 0.75, 0.78] }, weight: 1 },
-  { material: { name: "Ceramic", color: [0.9, 0.2, 0.2] }, weight: 0.7 },
-  { material: { name: "Glass", color: [0.2, 0.4, 0.9] }, weight: 0.6 },
-] as const;
-const TEXT_INPUT_MATERIALS = JSON.stringify(TEXT_INPUT_MATERIALS_OBJECT);
-const TEXT_INPUT_SEEDS = "0 0 0 0.6 0 0";
 
 const getNodeDefinition = (type: string) => {
   const node = NODE_DEFINITIONS.find((definition) => definition.type === type);
@@ -244,95 +243,27 @@ export const runChemistrySolverRig = (
   const geometry = [baseGeometry, anchorTop, anchorBottom, thermalCore, visionStrip];
   const context = createTestContext("chemistry-context", geometry);
 
-  const blendGoal: ChemistryBlendGoal = {
-    goalType: "chemBlend",
-    weight: 0.55,
-    geometry: { elements: [] },
-    parameters: {
-      smoothness: 0.75,
-      diffusivity: 1.25,
-    },
-  };
-
-  const massGoal: ChemistryMassGoal = {
-    goalType: "chemMass",
-    weight: 0.35,
-    geometry: { elements: [] },
-    parameters: {
-      targetMassFraction: 0.6,
-      densityPenalty: 1.2,
-    },
-  };
-
-  const stiffnessGoal: ChemistryStiffnessGoal = {
-    goalType: "chemStiffness",
-    weight: variant === "basic" ? 0.25 : 0.45,
-    geometry: { elements: [] },
-    parameters: {
-      loadVector: { x: 0, y: 1, z: 0 },
-      structuralPenalty: 1.25,
-      regionGeometryIds:
-        variant === "regions" || variant === "textInputs"
-          ? [anchorTop.id, anchorBottom.id]
-          : undefined,
-    },
-  };
-
-  const transparencyGoal = {
-    goalType: "chemTransparency" as const,
-    weight: 0.35,
-    geometry: { elements: [] },
-    parameters: {
-      opticalWeight: 2.0,
-      regionGeometryIds:
-        variant === "regions" || variant === "textInputs" ? [visionStrip.id] : undefined,
-    },
-  };
-
-  const thermalGoal = {
-    goalType: "chemThermal" as const,
-    weight: 0.45,
-    geometry: { elements: [] },
-    parameters: {
-      mode: "insulate" as const,
-      thermalWeight: 2.5,
-      regionGeometryIds:
-        variant === "regions" || variant === "textInputs" ? [thermalCore.id] : undefined,
-    },
-  };
-
   const goals =
     variant === "basic"
-      ? [blendGoal, massGoal, stiffnessGoal]
-      : [blendGoal, massGoal, stiffnessGoal, transparencyGoal, thermalGoal];
+      ? buildChemistryGoalsBasic()
+      : buildChemistryGoalsRegions({ anchorTop, anchorBottom, thermalCore, visionStrip });
+
+  const seeds = variant === "basic" ? buildChemistrySeedsBasic() : buildChemistrySeedsRegions();
+
+  const materials = variant === "textInputs" ? [] : buildChemistryMaterials(baseGeometry.id);
+
+  const config = buildChemistryConfig();
 
   const goalRegions = {
-    stiffness: Array.isArray(stiffnessGoal.parameters.regionGeometryIds)
-      ? stiffnessGoal.parameters.regionGeometryIds
-      : [],
-    transparency: Array.isArray(transparencyGoal.parameters.regionGeometryIds)
-      ? transparencyGoal.parameters.regionGeometryIds
-      : [],
-    thermal: Array.isArray(thermalGoal.parameters.regionGeometryIds)
-      ? thermalGoal.parameters.regionGeometryIds
-      : [],
+    stiffness:
+      variant === "regions" || variant === "textInputs" ? [anchorTop.id, anchorBottom.id] : [],
+    transparency: variant === "regions" || variant === "textInputs" ? [visionStrip.id] : [],
+    thermal: variant === "regions" || variant === "textInputs" ? [thermalCore.id] : [],
   };
 
   const parameters = {
     geometryId: "chemistry-out",
-    particleCount: 6000,
-    particleDensity: 1.0,
-    iterations: 55,
-    fieldResolution: 36,
-    isoValue: 0.12,
-    convergenceTolerance: 0.002,
-    blendStrength: 0.7,
-    historyLimit: 80,
-    seed: 7,
-    materialOrder: "Steel, Ceramic, Glass",
-    seedMaterial: "Steel",
-    seedStrength: 0.85,
-    seedRadius: 0.25,
+    ...config,
     ...(variant === "textInputs"
       ? {
           materialsText: TEXT_INPUT_MATERIALS,
@@ -345,45 +276,9 @@ export const runChemistrySolverRig = (
     inputs: {
       enabled: variant !== "disabled",
       domain: baseGeometry.id,
-      materials:
-        variant === "textInputs"
-          ? []
-          : [
-              {
-                geometryId: baseGeometry.id,
-                material: { name: "Steel", color: [0.75, 0.75, 0.78] },
-                weight: 1,
-              },
-              {
-                geometryId: baseGeometry.id,
-                material: { name: "Ceramic", color: [0.9, 0.2, 0.2] },
-                weight: 0.7,
-              },
-              {
-                geometryId: baseGeometry.id,
-                material: { name: "Glass", color: [0.2, 0.4, 0.9] },
-                weight: 0.6,
-              },
-            ],
-      materialsText:
-        variant === "textInputs"
-          ? TEXT_INPUT_MATERIALS
-          : undefined,
-      seeds:
-        variant === "basic"
-          ? [
-              {
-                position: { x: 0, y: 0, z: 0 },
-                material: "Glass",
-                strength: 0.9,
-                radius: 0.4,
-              },
-            ]
-          : [
-              { position: { x: 0, y: -0.55, z: 0 }, material: "Steel", strength: 0.9, radius: 0.35 },
-              { position: { x: 0, y: 0, z: 0 }, material: "Ceramic", strength: 0.92, radius: 0.3 },
-              { position: { x: 0, y: 0, z: 0.55 }, material: "Glass", strength: 0.9, radius: 0.3 },
-            ],
+      materials,
+      materialsText: variant === "textInputs" ? TEXT_INPUT_MATERIALS : undefined,
+      seeds,
       goals,
     },
     parameters,
