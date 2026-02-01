@@ -103,6 +103,107 @@ export const createParticlePool = (config: ParticlePoolConfig): ParticlePool => 
 };
 
 /**
+ * Ensure pool has enough capacity, resizing if necessary
+ */
+export const ensureCapacity = (pool: ParticlePool, needed: number): ParticlePool => {
+  if (needed <= pool.capacity) {
+    return pool;
+  }
+  
+  // Create new pool with larger capacity
+  const newCapacity = Math.max(needed, pool.capacity * 2);
+  const newPool = createParticlePool({ capacity: newCapacity, materialCount: pool.materialCount });
+  
+  // Copy existing data
+  newPool.count = pool.count;
+  newPool.posX.set(pool.posX.subarray(0, pool.count));
+  newPool.posY.set(pool.posY.subarray(0, pool.count));
+  newPool.posZ.set(pool.posZ.subarray(0, pool.count));
+  newPool.velX.set(pool.velX.subarray(0, pool.count));
+  newPool.velY.set(pool.velY.subarray(0, pool.count));
+  newPool.velZ.set(pool.velZ.subarray(0, pool.count));
+  newPool.radius.set(pool.radius.subarray(0, pool.count));
+  newPool.mass.set(pool.mass.subarray(0, pool.count));
+  newPool.pressure.set(pool.pressure.subarray(0, pool.count));
+  newPool.temperature.set(pool.temperature.subarray(0, pool.count));
+  
+  for (let m = 0; m < pool.materialCount; m++) {
+    newPool.materials[m].set(pool.materials[m].subarray(0, pool.count));
+  }
+  
+  return newPool;
+};
+
+/**
+ * Set particle count (validates against capacity)
+ */
+export const setParticleCount = (pool: ParticlePool, count: number): void => {
+  if (count > pool.capacity) {
+    throw new Error(`Cannot set count ${count} exceeding capacity ${pool.capacity}`);
+  }
+  pool.count = count;
+};
+
+/**
+ * Zero all velocities
+ */
+export const zeroVelocities = (pool: ParticlePool): void => {
+  pool.velX.fill(0);
+  pool.velY.fill(0);
+  pool.velZ.fill(0);
+};
+
+/**
+ * Seed particles with initial material concentrations
+ */
+export const seedParticles = (
+  pool: ParticlePool,
+  seeds: Array<{
+    position: Vec3;
+    radius: number;
+    materialIndex: number;
+    strength: number;
+  }>
+): void => {
+  const EPSILON = 1e-10;
+  
+  for (const seed of seeds) {
+    for (let i = 0; i < pool.count; i++) {
+      const dx = pool.posX[i] - seed.position.x;
+      const dy = pool.posY[i] - seed.position.y;
+      const dz = pool.posZ[i] - seed.position.z;
+      const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      
+      if (distance <= seed.radius) {
+        const t = 1 - (distance / seed.radius);
+        const influence = t * t * seed.strength;
+        
+        const currentConc = pool.materials[seed.materialIndex][i];
+        pool.materials[seed.materialIndex][i] = Math.min(1, currentConc + influence);
+        
+        // Normalize to maintain sum = 1
+        let sum = 0;
+        for (let m = 0; m < pool.materialCount; m++) {
+          pool.materials[m][i] = Math.max(0, pool.materials[m][i]);
+          sum += pool.materials[m][i];
+        }
+        if (sum > EPSILON) {
+          const invSum = 1 / sum;
+          for (let m = 0; m < pool.materialCount; m++) {
+            pool.materials[m][i] *= invSum;
+          }
+        } else {
+          const uniform = 1 / pool.materialCount;
+          for (let m = 0; m < pool.materialCount; m++) {
+            pool.materials[m][i] = uniform;
+          }
+        }
+      }
+    }
+  }
+};
+
+/**
  * Initialize pool with random particles
  */
 export const initializePool = (
@@ -379,7 +480,7 @@ export const diffuseMaterialsBatched = (
 export const applyGoalForcesBatched = (
   pool: ParticlePool,
   goals: Array<{
-    type: "stiffness" | "mass" | "transparency" | "thermal";
+    type: "stiffness" | "mass" | "transparency" | "thermal" | "blend";
     weight: number;
     parameters: Record<string, unknown>;
     region?: { min: Vec3; max: Vec3 };
