@@ -2091,6 +2091,56 @@ const applySeedGeometryNodesToGeometry = (
       };
     }
 
+    if (node.type === "chemistrySolver") {
+      let geometryId =
+        typeof outputs?.geometry === "string"
+          ? outputs.geometry
+          : typeof node.data?.geometryId === "string"
+            ? node.data.geometryId
+            : null;
+
+      const mesh = outputs?.mesh as RenderMesh | undefined;
+
+      if (
+        !mesh ||
+        !Array.isArray(mesh.positions) ||
+        !Array.isArray(mesh.indices) ||
+        mesh.positions.length === 0 ||
+        mesh.indices.length === 0
+      ) {
+        return node;
+      }
+
+      const existing = geometryId ? geometryById.get(geometryId) : null;
+      if (!geometryId || (existing && existing.type !== "mesh")) {
+        geometryId = createGeometryId("mesh");
+      }
+
+      upsertMeshGeometry(
+        geometryId,
+        mesh,
+        undefined,
+        { geometryById, updates, itemsToAdd },
+        node.id,
+        {
+          renderOptions: { forceSolidPreview: true },
+        }
+      );
+
+      didApply = true;
+      touchedGeometryIds.add(geometryId);
+
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          geometryId,
+          geometryType: "mesh",
+          isLinked: true,
+        },
+      };
+    }
+
     const primitiveKind =
       node.type === "primitive" && typeof outputs?.kind === "string"
         ? (outputs.kind as PrimitiveKind)
