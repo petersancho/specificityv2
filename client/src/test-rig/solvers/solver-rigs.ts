@@ -185,13 +185,8 @@ export const runTopologySolverRig = (nodeType: "topologySolver" | "voxelSolver")
     resolution: 16,
   };
 
-  const solverInputs =
-    nodeType === "voxelSolver"
-      ? { geometry: baseGeometry.id, goals }
-      : { domain: baseGeometry.id, goals };
-
   const outputs = solverNode.compute({
-    inputs: solverInputs,
+    inputs: { domain: baseGeometry.id, goals },
     parameters,
     context,
   });

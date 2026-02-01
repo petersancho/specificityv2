@@ -100,6 +100,10 @@ export type {
   WorkflowValue,
 } from "./registry/types";
 
+type PortResolver = (parameters: Record<string, unknown>) => WorkflowPortSpec[];
+
+type PortsDefinition = WorkflowPortSpec[] | PortResolver;
+
 const EPSILON = 1e-10;
 const EMPTY_MESH: RenderMesh = { positions: [], normals: [], uvs: [], indices: [] };
 
