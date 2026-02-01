@@ -66,6 +66,7 @@ const validateVoxelGridConsistency = (
     `${label}: expected resolution to be a finite number`
   );
   ensure(outputs.resolution > 0, `${label}: expected resolution > 0`);
+  ensure(Number.isInteger(outputs.resolution), `${label}: expected resolution to be an integer`);
   ensure(outputs.voxelGrid !== null, `${label}: expected voxel grid output`);
 
   const densities = outputs.voxelGrid.densities;
