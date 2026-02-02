@@ -87,6 +87,8 @@ export const SEMANTIC_OP_IDS = [
   'data.reduce',
   'data.sort',
   'data.unique',
+  'geometry.brep',
+  'geometry.mesh',
   'logic.and',
   'logic.compare',
   'logic.if',

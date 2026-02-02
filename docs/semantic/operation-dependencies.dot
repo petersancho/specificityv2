@@ -157,6 +157,8 @@ digraph SemanticOperations {
   "command.outliner" [label="Outliner", fillcolor="#FFFFFF", style=filled];
   "command.tolerance" [label="Tolerance", fillcolor="#FFFFFF", style=filled];
   "command.status" [label="Status", fillcolor="#FFFFFF", style=filled];
+  "geometry.mesh" [label="Mesh", fillcolor="#FFFFFF", style=filled];
+  "geometry.brep" [label="B-Rep", fillcolor="#FFFFFF", style=filled];
   "mesh.generateBox" [label="Generate Box Mesh", fillcolor="#FFE6CC", style=filled];
   "mesh.generateSphere" [label="Generate Sphere Mesh", fillcolor="#FFE6CC", style=filled];
   "mesh.generateCylinder" [label="Generate Cylinder Mesh", fillcolor="#FFE6CC", style=filled];

@@ -11,3 +11,4 @@ export * from './colorOps';
 export * from './workflowOps';
 export * from './solverOps';
 export * from './commandOps';
+export * from './geometryOps';

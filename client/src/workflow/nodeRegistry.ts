@@ -4089,6 +4089,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "mesh",
     label: "Mesh",
+    semanticOps: ["geometry.mesh"],
     shortLabel: "MESH",
     description: "Pass-through node for mesh geometry.",
     category: "mesh",
@@ -8486,6 +8487,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "arc",
     label: "Arc",
+    semanticOps: ["command.createArc"],
     shortLabel: "ARC",
     description: "Create a circular arc through three points.",
     category: "nurbs",
@@ -8620,6 +8622,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "polyline",
     label: "Polyline",
+    semanticOps: ["command.createPolyline"],
     shortLabel: "PL",
     description: "Connect points into a polyline.",
     category: "curves",
