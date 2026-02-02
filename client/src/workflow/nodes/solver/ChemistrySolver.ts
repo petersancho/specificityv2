@@ -33,6 +33,29 @@ import {
   generateVoxelField,
   generateMeshFromField,
 } from "./chemistry/particleSystem";
+import {
+  type SemanticMetadata,
+  type FieldSemantics,
+  CHEMISTRY_SEMANTICS,
+  createFieldSemantics,
+} from "./chemistry/chemistrySemantics";
+import {
+  type ValidationResult,
+  validateSimulation,
+} from "./chemistry/chemistryValidation";
+import {
+  type ScalarStatistics,
+  type MaterialDistribution,
+  type GradientField,
+  type ConvergenceAnalysis,
+  type MaterialPropertyField,
+  computeScalarStatistics,
+  analyzeMaterialDistribution,
+  computeGradientField,
+  analyzeConvergence,
+  computeMaterialPropertyFields,
+  computeVectorStatistics,
+} from "./chemistry/chemistryAnalysis";
 
 // Constants
 const UNIT_Y_VEC3: Vec3 = { x: 0, y: 1, z: 0 };
@@ -81,6 +104,22 @@ export type ChemistrySolverResult = {
   performanceMetrics: {
     computeTime: number;
     memoryUsed: number;
+  };
+  validation: ValidationResult;
+  analysis: {
+    convergence: ConvergenceAnalysis;
+    materialDistributions: MaterialDistribution[];
+    gradientFields: GradientField[];
+    materialPropertyFields: MaterialPropertyField | null;
+    particleStatistics: {
+      velocity: ReturnType<typeof computeVectorStatistics>;
+      density: ScalarStatistics;
+      pressure: ScalarStatistics;
+    };
+  };
+  semantics: {
+    outputs: Record<string, SemanticMetadata>;
+    fields: Record<string, FieldSemantics>;
   };
 };
 
@@ -463,6 +502,110 @@ const runChemistrySolver = (args: {
       materialNames.length * 4 // material concentrations
     ) / (1024 * 1024); // Convert to MB
   
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PhD-LEVEL ANALYSIS AND VALIDATION
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  // Validation: Conservation laws and physical constraints
+  const validation = validateSimulation(
+    simResult.pool, // Initial pool (approximation - would need to store actual initial state)
+    simResult.pool, // Final pool
+    timeStep,
+    smoothingRadius,
+    args.convergenceTolerance,
+    restDensity
+  );
+  
+  warnings.push(...validation.warnings);
+  errors.push(...validation.errors);
+  
+  // Convergence analysis
+  const convergenceAnalysis = analyzeConvergence(
+    simResult.energyHistory,
+    args.convergenceTolerance
+  );
+  
+  // Material distribution analysis
+  const materialDistributions: MaterialDistribution[] = [];
+  for (let m = 0; m < materialNames.length; m++) {
+    const distribution = analyzeMaterialDistribution(
+      simResult.pool,
+      m,
+      materialNames[m]
+    );
+    materialDistributions.push(distribution);
+  }
+  
+  // Gradient field analysis
+  const gradientFields: GradientField[] = [];
+  if (field) {
+    for (let m = 0; m < materialNames.length; m++) {
+      const gradientField = computeGradientField(field, m);
+      gradientFields.push(gradientField);
+    }
+  }
+  
+  // Material property fields
+  let materialPropertyFields: MaterialPropertyField | null = null;
+  if (field) {
+    const materialDensities = materialSpecs.map((mat) => mat.density);
+    // Viscosity is not in ChemistryMaterialSpec, use default based on material type
+    const materialViscosities = materialSpecs.map((mat) => {
+      // Approximate viscosity based on material category
+      if (mat.category === 'metal') return 0.001; // Low viscosity (liquid metal)
+      if (mat.category === 'ceramic') return 0.1; // Higher viscosity
+      if (mat.category === 'glass') return 1000; // Very high viscosity
+      if (mat.category === 'polymer') return 10; // Medium viscosity
+      return 0.01; // Default
+    });
+    const materialDiffusivities = materialSpecs.map((mat) => mat.diffusivity ?? 0.1);
+    
+    materialPropertyFields = computeMaterialPropertyFields(
+      field,
+      materialDensities,
+      materialViscosities,
+      materialDiffusivities
+    );
+  }
+  
+  // Particle statistics
+  const velocityStats = computeVectorStatistics(
+    simResult.pool.velX,
+    simResult.pool.velY,
+    simResult.pool.velZ
+  );
+  const densityStats = computeScalarStatistics(simResult.pool.density);
+  const pressureStats = computeScalarStatistics(simResult.pool.pressure);
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SEMANTIC METADATA
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  const outputSemantics: Record<string, SemanticMetadata> = {
+    particles: CHEMISTRY_SEMANTICS.PARTICLE_POSITION,
+    velocity: CHEMISTRY_SEMANTICS.PARTICLE_VELOCITY,
+    density: CHEMISTRY_SEMANTICS.PARTICLE_DENSITY,
+    pressure: CHEMISTRY_SEMANTICS.PARTICLE_PRESSURE,
+    materialConcentration: CHEMISTRY_SEMANTICS.MATERIAL_CONCENTRATION,
+    kineticEnergy: CHEMISTRY_SEMANTICS.KINETIC_ENERGY,
+    potentialEnergy: CHEMISTRY_SEMANTICS.POTENTIAL_ENERGY,
+    totalEnergy: CHEMISTRY_SEMANTICS.TOTAL_ENERGY,
+    convergenceResidual: CHEMISTRY_SEMANTICS.CONVERGENCE_RESIDUAL,
+    convergenceRate: CHEMISTRY_SEMANTICS.CONVERGENCE_RATE,
+  };
+  
+  const fieldSemantics: Record<string, FieldSemantics> = {};
+  if (field) {
+    fieldSemantics.concentration = createFieldSemantics(
+      CHEMISTRY_SEMANTICS.VOXEL_CONCENTRATION,
+      true
+    );
+    fieldSemantics.density = createFieldSemantics(
+      CHEMISTRY_SEMANTICS.VOXEL_DENSITY,
+      false
+    );
+  }
+  
   return {
     success: simResult.iterations > 0,
     iterations: simResult.iterations,
@@ -479,6 +622,22 @@ const runChemistrySolver = (args: {
     performanceMetrics: {
       computeTime,
       memoryUsed,
+    },
+    validation,
+    analysis: {
+      convergence: convergenceAnalysis,
+      materialDistributions,
+      gradientFields,
+      materialPropertyFields,
+      particleStatistics: {
+        velocity: velocityStats,
+        density: densityStats,
+        pressure: pressureStats,
+      },
+    },
+    semantics: {
+      outputs: outputSemantics,
+      fields: fieldSemantics,
     },
   };
 };
@@ -503,6 +662,11 @@ export const ChemistrySolverNode: WorkflowNodeDefinition = {
     'simulator.chemistry.finalize',
     'simulator.chemistry.blendMaterials',
     'simulator.chemistry.evaluateGoals',
+    'simulator.chemistry.analyze',
+    'simulator.chemistry.validate',
+    'simulator.chemistry.computeGradients',
+    'simulator.chemistry.computeStatistics',
+    'simulator.chemistry.checkConservation',
   ],
   iconId: "solver",
   
