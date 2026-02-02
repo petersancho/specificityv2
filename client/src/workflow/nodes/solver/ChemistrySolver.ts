@@ -58,7 +58,7 @@ export type ChemistryParticle = {
 };
 
 export type ChemistryField = {
-  resolution: { x: number; y: number; z: number };
+  resolution: number;
   bounds: { min: Vec3; max: Vec3 };
   cellSize: Vec3;
   data: Float32Array[];
@@ -385,7 +385,7 @@ const runChemistrySolver = (args: {
   const simulationMaterials: MaterialSpec[] = Array.from(materialByName.values()).map((mat) => ({
     name: mat.name,
     density: mat.density,
-    stiffness: mat.youngsModulus,
+    stiffness: mat.stiffness,
     thermalConductivity: mat.thermalConductivity,
     opticalTransmission: mat.opticalTransmission,
     diffusivity: mat.diffusivity ?? 0.1,
@@ -405,10 +405,10 @@ const runChemistrySolver = (args: {
   
   // Convert goals to simulation format
   const simGoals = args.goals.map((goal) => ({
-    type: goal.type as "stiffness" | "mass" | "transparency" | "thermal" | "blend",
+    type: goal.goalType as "stiffness" | "mass" | "transparency" | "thermal" | "blend",
     weight: goal.weight ?? 1.0,
     parameters: goal.parameters ?? {},
-    region: goal.region,
+    region: goal.geometry?.region,
   }));
   
   // Run simulation

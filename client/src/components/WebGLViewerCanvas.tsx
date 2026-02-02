@@ -1422,7 +1422,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
             return;
           }
           if (vertexSelection.vertexIndex != null) {
-            if ("mesh" in item) {
+            if ("mesh" in item && item.mesh) {
               points.push(getMeshPoint(item.mesh, vertexSelection.vertexIndex));
             } else if (item.type === "nurbsCurve") {
               const cp = item.nurbs.controlPoints[vertexSelection.vertexIndex];
@@ -1450,7 +1450,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
             return;
           }
           if (edgeSelection.vertexIndices) {
-            if ("mesh" in item) {
+            if ("mesh" in item && item.mesh) {
               edgeSelection.vertexIndices.forEach((index) => {
                 points.push(getMeshPoint(item.mesh, index));
               });
@@ -1474,7 +1474,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
           return;
         }
         const faceSelection = asFaceSelection(selection);
-        if (faceSelection && "mesh" in item) {
+        if (faceSelection && "mesh" in item && item.mesh) {
           faceSelection.vertexIndices.forEach((index) => {
             points.push(getMeshPoint(item.mesh, index));
           });
@@ -1495,7 +1495,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
       const faceSelection = asFaceSelection(selection);
       if (!faceSelection) return;
       const item = geometry.find((entry) => entry.id === faceSelection.geometryId);
-      if (!item || !("mesh" in item)) return;
+      if (!item || !("mesh" in item) || !item.mesh) return;
       const [i0, i1, i2] = faceSelection.vertexIndices;
       const a = getMeshPoint(item.mesh, i0);
       const b = getMeshPoint(item.mesh, i1);
@@ -1581,7 +1581,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
   };
 
   const resolveGumballStep = (value: number | undefined, fallback: number) => {
-    if (!Number.isFinite(value)) return fallback;
+    if (value === undefined || !Number.isFinite(value)) return fallback;
     if (value <= 0) return fallback;
     return value;
   };
@@ -2697,7 +2697,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     }
     if (selection.vertexIndex != null) {
       const item = geometryRef.current.find((entry) => entry.id === selection.geometryId);
-      if (item && "mesh" in item) {
+      if (item && "mesh" in item && item.mesh) {
         return getMeshPoint(item.mesh, selection.vertexIndex);
       }
       if (item?.type === "nurbsCurve") {
@@ -4240,7 +4240,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     handles.forEach((entry) => {
       if (baseMeshes.has(entry.geometryId)) return;
       const item = geometryRef.current.find((geom) => geom.id === entry.geometryId);
-      if (!item || !("mesh" in item)) return;
+      if (!item || !("mesh" in item) || !item.mesh) return;
       baseMeshes.set(entry.geometryId, {
         positions: item.mesh.positions.slice(),
         indices: item.mesh.indices.slice(),
@@ -5020,7 +5020,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
 
     if (hover.kind === "face") {
       const item = geometryRef.current.find((entry) => entry.id === hover.geometryId);
-      if (!item || !("mesh" in item)) {
+      if (!item || !("mesh" in item) || !item.mesh) {
         clearBuffers();
         hoverDirtyRef.current = false;
         return;
@@ -5066,7 +5066,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         }
       } else if (hover.vertexIndices) {
         const item = geometryRef.current.find((entry) => entry.id === hover.geometryId);
-        if (item && "mesh" in item) {
+        if (item && "mesh" in item && item.mesh) {
           a = getMeshPoint(item.mesh, hover.vertexIndices[0]);
           b = getMeshPoint(item.mesh, hover.vertexIndices[1]);
         }
@@ -5087,7 +5087,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         if (vertex) position = vertex.position;
       } else if (hover.vertexIndex != null) {
         const item = geometryRef.current.find((entry) => entry.id === hover.geometryId);
-        if (item && "mesh" in item) {
+        if (item && "mesh" in item && item.mesh) {
           position = getMeshPoint(item.mesh, hover.vertexIndex);
         }
       }
@@ -5215,7 +5215,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
 
         selections.forEach((selection) => {
           const item = geometryRef.current.find((entry) => entry.id === selection.geometryId);
-          if (!item || !("mesh" in item)) return;
+          if (!item || !("mesh" in item) || !item.mesh) return;
           const mesh = item.mesh;
           const [i0, i1, i2] = selection.vertexIndices;
           const addEdge = (aIndex: number, bIndex: number) => {
@@ -5355,7 +5355,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         }
         if (selection.vertexIndex != null) {
           const item = geometryRef.current.find((entry) => entry.id === selection.geometryId);
-          if (item && "mesh" in item) {
+          if (item && "mesh" in item && item.mesh) {
             const point = getMeshPoint(item.mesh, selection.vertexIndex);
             pointPositions.push(point.x, point.y, point.z);
           } else if (item?.type === "nurbsCurve") {
@@ -5390,7 +5390,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
           }
         } else if (selection.vertexIndices) {
           const item = geometryRef.current.find((entry) => entry.id === selection.geometryId);
-          if (item && "mesh" in item) {
+          if (item && "mesh" in item && item.mesh) {
             a = getMeshPoint(item.mesh, selection.vertexIndices[0]);
             b = getMeshPoint(item.mesh, selection.vertexIndices[1]);
           } else if (item?.type === "nurbsCurve") {
@@ -5426,7 +5426,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
 
       if (selection.kind === "face") {
         const item = geometryRef.current.find((entry) => entry.id === selection.geometryId);
-        if (!item || !("mesh" in item)) return;
+        if (!item || !("mesh" in item) || !item.mesh) return;
         const [i0, i1, i2] = selection.vertexIndices;
         const a = getMeshPoint(item.mesh, i0);
         const b = getMeshPoint(item.mesh, i1);
@@ -7578,7 +7578,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
             isSelected,
             hasSelection
           );
-          let tempBuffer = renderer.getBuffer(bufferId);
+          let tempBuffer = renderer.getGeometryBuffer(bufferId);
           if (!tempBuffer) {
             tempBuffer = renderer.createGeometryBuffer(bufferId);
           }
@@ -8071,8 +8071,8 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
             );
             const isActive = gumballDragRef.current?.handle.kind === "extrude";
             const isHover = Boolean(extrudeHoverRef.current);
-            const color = isActive || isHover ? gumballHighlight : [0.94, 0.94, 0.94];
-            const connectorColor = color ?? [0.94, 0.94, 0.94];
+            const color = isActive || isHover ? gumballHighlight : ([0.94, 0.94, 0.94] as [number, number, number]);
+            const connectorColor: [number, number, number] = (color ?? [0.94, 0.94, 0.94]) as [number, number, number];
             const connectorMatrix = buildModelMatrix(
               basis,
               widgetState.center,

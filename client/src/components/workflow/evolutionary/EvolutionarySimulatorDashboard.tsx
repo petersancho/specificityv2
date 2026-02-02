@@ -15,6 +15,20 @@ type TabId = "setup" | "simulator" | "output";
 
 type SimulationState = "idle" | "running" | "paused" | "complete";
 
+type SimulatorParameters = {
+  populationSize: number;
+  generations: number;
+  mutationRate: number;
+  crossoverRate: number;
+  elitismCount: number;
+  selectionMethod: string;
+  crossoverMethod: string;
+  mutationMethod: string;
+  fitnessFunction: string;
+  convergenceTolerance: number;
+  seed: number;
+};
+
 type Individual = {
   id: string;
   genome: Record<string, number>;
@@ -58,20 +72,20 @@ const EvolutionarySimulatorDashboard = ({
   );
 
   // Parameters from solver node
-  const parameters = useMemo(() => {
+  const parameters = useMemo<SimulatorParameters>(() => {
     const params = solverNode?.data?.parameters ?? {};
     return {
-      populationSize: params.populationSize ?? 50,
-      generations: params.generations ?? 100,
-      mutationRate: params.mutationRate ?? 0.1,
-      crossoverRate: params.crossoverRate ?? 0.8,
-      elitismCount: params.elitismCount ?? 2,
-      selectionMethod: params.selectionMethod ?? "tournament",
-      crossoverMethod: params.crossoverMethod ?? "uniform",
-      mutationMethod: params.mutationMethod ?? "gaussian",
-      fitnessFunction: params.fitnessFunction ?? "minimize-area",
-      convergenceTolerance: params.convergenceTolerance ?? 1e-6,
-      seed: params.seed ?? 42,
+      populationSize: Number(params.populationSize ?? 50),
+      generations: Number(params.generations ?? 100),
+      mutationRate: Number(params.mutationRate ?? 0.1),
+      crossoverRate: Number(params.crossoverRate ?? 0.8),
+      elitismCount: Number(params.elitismCount ?? 2),
+      selectionMethod: String(params.selectionMethod ?? "tournament"),
+      crossoverMethod: String(params.crossoverMethod ?? "uniform"),
+      mutationMethod: String(params.mutationMethod ?? "gaussian"),
+      fitnessFunction: String(params.fitnessFunction ?? "minimize-area"),
+      convergenceTolerance: Number(params.convergenceTolerance ?? 1e-6),
+      seed: Number(params.seed ?? 42),
     };
   }, [solverNode]);
 

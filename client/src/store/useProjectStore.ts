@@ -774,6 +774,7 @@ type MeshInsertOptions = {
 type LoftInsertOptions = {
   degree: 1 | 2 | 3;
   closed: boolean;
+  samples?: number;
   geometryId?: string;
   layerId?: string;
   recordHistory?: boolean;
