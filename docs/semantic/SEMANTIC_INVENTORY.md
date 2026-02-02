@@ -1,13 +1,13 @@
 # Semantic Inventory
 
-Generated: 2026-02-02T18:51:04.620Z
+Generated: 2026-02-02T19:07:47.253Z
 
 ## Summary
 
 - **Total Operations**: 292
-- **Total Nodes**: 142
+- **Total Nodes**: 173
 - **Total Dashboards**: 3
-- **Orphan Operations**: 79
+- **Orphan Operations**: 48
 - **Dangling References**: 0
 
 ## Operations by Domain
@@ -124,37 +124,37 @@ Generated: 2026-02-02T18:51:04.620Z
 | `geometry.plasticwrap` | Plastic Wrap | operation | ✅ | plasticwrap |
 | `geometry.solid` | Solid | operation | ✅ | solid |
 | `geometry.primitive` | Primitive | creation | ✅ | primitive |
-| `geometry.primitive.cylinder` | Cylinder | primitives | ✅ | (none) |
-| `geometry.primitive.torus` | Torus | primitives | ✅ | (none) |
-| `geometry.primitive.pyramid` | Pyramid | primitives | ✅ | (none) |
-| `geometry.primitive.tetrahedron` | Tetrahedron | primitives | ✅ | (none) |
-| `geometry.primitive.octahedron` | Octahedron | primitives | ✅ | (none) |
-| `geometry.primitive.icosahedron` | Icosahedron | primitives | ✅ | (none) |
-| `geometry.primitive.dodecahedron` | Dodecahedron | primitives | ✅ | (none) |
-| `geometry.primitive.hemisphere` | Hemisphere | primitives | ✅ | (none) |
-| `geometry.primitive.capsule` | Capsule | primitives | ✅ | (none) |
-| `geometry.primitive.disk` | Disk | primitives | ✅ | (none) |
-| `geometry.primitive.ring` | Ring | primitives | ✅ | (none) |
-| `geometry.primitive.triangularPrism` | Triangular Prism | primitives | ✅ | (none) |
-| `geometry.primitive.hexagonalPrism` | Hexagonal Prism | primitives | ✅ | (none) |
-| `geometry.primitive.pentagonalPrism` | Pentagonal Prism | primitives | ✅ | (none) |
-| `geometry.primitive.torusKnot` | Torus Knot | primitives | ✅ | (none) |
-| `geometry.primitive.utahTeapot` | Utah Teapot | primitives | ✅ | (none) |
-| `geometry.primitive.frustum` | Frustum | primitives | ✅ | (none) |
-| `geometry.primitive.mobiusStrip` | Mobius Strip | primitives | ✅ | (none) |
-| `geometry.primitive.ellipsoid` | Ellipsoid | primitives | ✅ | (none) |
-| `geometry.primitive.wedge` | Wedge | primitives | ✅ | (none) |
-| `geometry.primitive.sphericalCap` | Spherical Cap | primitives | ✅ | (none) |
-| `geometry.primitive.bipyramid` | Bipyramid | primitives | ✅ | (none) |
-| `geometry.primitive.rhombicDodecahedron` | Rhombic Dodecahedron | primitives | ✅ | (none) |
-| `geometry.primitive.truncatedCube` | Truncated Cube | primitives | ✅ | (none) |
-| `geometry.primitive.truncatedOctahedron` | Truncated Octahedron | primitives | ✅ | (none) |
-| `geometry.primitive.truncatedIcosahedron` | Truncated Icosahedron | primitives | ✅ | (none) |
-| `geometry.primitive.pipe` | Pipe | primitives | ✅ | (none) |
-| `geometry.primitive.superellipsoid` | Superellipsoid | primitives | ✅ | (none) |
-| `geometry.primitive.hyperbolicParaboloid` | Hyperbolic Paraboloid | primitives | ✅ | (none) |
-| `geometry.primitive.geodesicDome` | Geodesic Dome | primitives | ✅ | (none) |
-| `geometry.primitive.oneSheetHyperboloid` | One-Sheet Hyperboloid | primitives | ✅ | (none) |
+| `geometry.primitive.cylinder` | Cylinder | primitives | ✅ | cylinder |
+| `geometry.primitive.torus` | Torus | primitives | ✅ | torus |
+| `geometry.primitive.pyramid` | Pyramid | primitives | ✅ | pyramid |
+| `geometry.primitive.tetrahedron` | Tetrahedron | primitives | ✅ | tetrahedron |
+| `geometry.primitive.octahedron` | Octahedron | primitives | ✅ | octahedron |
+| `geometry.primitive.icosahedron` | Icosahedron | primitives | ✅ | icosahedron |
+| `geometry.primitive.dodecahedron` | Dodecahedron | primitives | ✅ | dodecahedron |
+| `geometry.primitive.hemisphere` | Hemisphere | primitives | ✅ | hemisphere |
+| `geometry.primitive.capsule` | Capsule | primitives | ✅ | capsule |
+| `geometry.primitive.disk` | Disk | primitives | ✅ | disk |
+| `geometry.primitive.ring` | Ring | primitives | ✅ | ring |
+| `geometry.primitive.triangularPrism` | Triangular Prism | primitives | ✅ | triangular-prism |
+| `geometry.primitive.hexagonalPrism` | Hexagonal Prism | primitives | ✅ | hexagonal-prism |
+| `geometry.primitive.pentagonalPrism` | Pentagonal Prism | primitives | ✅ | pentagonal-prism |
+| `geometry.primitive.torusKnot` | Torus Knot | primitives | ✅ | torus-knot |
+| `geometry.primitive.utahTeapot` | Utah Teapot | primitives | ✅ | utah-teapot |
+| `geometry.primitive.frustum` | Frustum | primitives | ✅ | frustum |
+| `geometry.primitive.mobiusStrip` | Mobius Strip | primitives | ✅ | mobius-strip |
+| `geometry.primitive.ellipsoid` | Ellipsoid | primitives | ✅ | ellipsoid |
+| `geometry.primitive.wedge` | Wedge | primitives | ✅ | wedge |
+| `geometry.primitive.sphericalCap` | Spherical Cap | primitives | ✅ | spherical-cap |
+| `geometry.primitive.bipyramid` | Bipyramid | primitives | ✅ | bipyramid |
+| `geometry.primitive.rhombicDodecahedron` | Rhombic Dodecahedron | primitives | ✅ | rhombic-dodecahedron |
+| `geometry.primitive.truncatedCube` | Truncated Cube | primitives | ✅ | truncated-cube |
+| `geometry.primitive.truncatedOctahedron` | Truncated Octahedron | primitives | ✅ | truncated-octahedron |
+| `geometry.primitive.truncatedIcosahedron` | Truncated Icosahedron | primitives | ✅ | truncated-icosahedron |
+| `geometry.primitive.pipe` | Pipe | primitives | ✅ | pipe |
+| `geometry.primitive.superellipsoid` | Superellipsoid | primitives | ✅ | superellipsoid |
+| `geometry.primitive.hyperbolicParaboloid` | Hyperbolic Paraboloid | primitives | ✅ | hyperbolic-paraboloid |
+| `geometry.primitive.geodesicDome` | Geodesic Dome | primitives | ✅ | geodesic-dome |
+| `geometry.primitive.oneSheetHyperboloid` | One-Sheet Hyperboloid | primitives | ✅ | one-sheet-hyperboloid |
 | `geometry.array.linear` | Linear Array | array | ✅ | linearArray |
 | `geometry.array.polar` | Polar Array | array | ✅ | polarArray |
 | `geometry.array.grid` | Grid Array | array | ✅ | gridArray |
@@ -454,6 +454,37 @@ Generated: 2026-02-02T18:51:04.620Z
 | `primitive` | Primitive | primitives | `geometry.primitive` |
 | `box` | Box Builder | primitives | `command.createPrimitive` |
 | `sphere` | Sphere | primitives | `command.createPrimitive` |
+| `cylinder` | Cylinder | primitives | `geometry.primitive.cylinder` |
+| `torus` | Torus | primitives | `geometry.primitive.torus` |
+| `pyramid` | Pyramid | primitives | `geometry.primitive.pyramid` |
+| `tetrahedron` | Tetrahedron | primitives | `geometry.primitive.tetrahedron` |
+| `octahedron` | Octahedron | primitives | `geometry.primitive.octahedron` |
+| `icosahedron` | Icosahedron | primitives | `geometry.primitive.icosahedron` |
+| `dodecahedron` | Dodecahedron | primitives | `geometry.primitive.dodecahedron` |
+| `hemisphere` | Hemisphere | primitives | `geometry.primitive.hemisphere` |
+| `capsule` | Capsule | primitives | `geometry.primitive.capsule` |
+| `disk` | Disk | primitives | `geometry.primitive.disk` |
+| `ring` | Ring / Annulus | primitives | `geometry.primitive.ring` |
+| `triangular-prism` | Triangular Prism | primitives | `geometry.primitive.triangularPrism` |
+| `hexagonal-prism` | Hexagonal Prism | primitives | `geometry.primitive.hexagonalPrism` |
+| `pentagonal-prism` | Pentagonal Prism | primitives | `geometry.primitive.pentagonalPrism` |
+| `torus-knot` | Torus Knot | primitives | `geometry.primitive.torusKnot` |
+| `utah-teapot` | Utah Teapot | primitives | `geometry.primitive.utahTeapot` |
+| `frustum` | Frustum | primitives | `geometry.primitive.frustum` |
+| `mobius-strip` | Mobius Strip | primitives | `geometry.primitive.mobiusStrip` |
+| `ellipsoid` | Ellipsoid | primitives | `geometry.primitive.ellipsoid` |
+| `wedge` | Wedge | primitives | `geometry.primitive.wedge` |
+| `spherical-cap` | Spherical Cap / Dome | primitives | `geometry.primitive.sphericalCap` |
+| `bipyramid` | Bipyramid | primitives | `geometry.primitive.bipyramid` |
+| `rhombic-dodecahedron` | Rhombic Dodecahedron | primitives | `geometry.primitive.rhombicDodecahedron` |
+| `truncated-cube` | Truncated Cube | primitives | `geometry.primitive.truncatedCube` |
+| `truncated-octahedron` | Truncated Octahedron | primitives | `geometry.primitive.truncatedOctahedron` |
+| `truncated-icosahedron` | Truncated Icosahedron | primitives | `geometry.primitive.truncatedIcosahedron` |
+| `pipe` | Pipe / Hollow Cylinder | primitives | `geometry.primitive.pipe` |
+| `superellipsoid` | Superellipsoid | primitives | `geometry.primitive.superellipsoid` |
+| `hyperbolic-paraboloid` | Hyperbolic Paraboloid | primitives | `geometry.primitive.hyperbolicParaboloid` |
+| `geodesic-dome` | Geodesic Dome | primitives | `geometry.primitive.geodesicDome` |
+| `one-sheet-hyperboloid` | One-Sheet Hyperboloid | primitives | `geometry.primitive.oneSheetHyperboloid` |
 | `voxelizeGeometry` | Voxelize Geometry | voxel | `solver.voxel.voxelize` |
 | `extractIsosurface` | Extract Isosurface | voxel | `solver.voxel.extractIsosurface` |
 | `topologyOptimize` | Topology Optimize | voxel | `solver.topologyOptimization.optimize` |
@@ -590,37 +621,6 @@ These operations are defined but never used by any node:
 - `command.tolerance`
 - `command.status`
 - `geometry.brep`
-- `geometry.primitive.cylinder`
-- `geometry.primitive.torus`
-- `geometry.primitive.pyramid`
-- `geometry.primitive.tetrahedron`
-- `geometry.primitive.octahedron`
-- `geometry.primitive.icosahedron`
-- `geometry.primitive.dodecahedron`
-- `geometry.primitive.hemisphere`
-- `geometry.primitive.capsule`
-- `geometry.primitive.disk`
-- `geometry.primitive.ring`
-- `geometry.primitive.triangularPrism`
-- `geometry.primitive.hexagonalPrism`
-- `geometry.primitive.pentagonalPrism`
-- `geometry.primitive.torusKnot`
-- `geometry.primitive.utahTeapot`
-- `geometry.primitive.frustum`
-- `geometry.primitive.mobiusStrip`
-- `geometry.primitive.ellipsoid`
-- `geometry.primitive.wedge`
-- `geometry.primitive.sphericalCap`
-- `geometry.primitive.bipyramid`
-- `geometry.primitive.rhombicDodecahedron`
-- `geometry.primitive.truncatedCube`
-- `geometry.primitive.truncatedOctahedron`
-- `geometry.primitive.truncatedIcosahedron`
-- `geometry.primitive.pipe`
-- `geometry.primitive.superellipsoid`
-- `geometry.primitive.hyperbolicParaboloid`
-- `geometry.primitive.geodesicDome`
-- `geometry.primitive.oneSheetHyperboloid`
 - `tess.tessellateCurveAdaptive`
 - `tess.tessellateSurfaceAdaptive`
 

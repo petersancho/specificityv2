@@ -3808,6 +3808,7 @@ const PRIMITIVE_NODE_DEFINITIONS: WorkflowNodeDefinition[] = PRIMITIVE_NODE_CATA
     description: `Create a ${entry.label} primitive.`,
     category: "primitives",
     iconId: `primitive:${entry.id}`,
+    semanticOps: [`geometry.primitive.${entry.kind}`],
     inputs: PRIMITIVE_PARAMETER_PORTS,
     outputs: [
       { key: "geometry", label: entry.label, type: "geometry", required: true },
