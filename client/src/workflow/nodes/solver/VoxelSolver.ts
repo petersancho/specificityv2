@@ -85,6 +85,12 @@ export const VoxelSolverNode: WorkflowNodeDefinition = {
     romanization: "Epilýtēs Fogkel",
     description: "Converts geometry into a uniform voxel grid.",
   },
+  customUI: {
+    dashboardButton: {
+      label: "Open Voxel Simulator",
+      component: "VoxelSimulatorDashboard",
+    },
+  },
   compute: (args) => {
     const { parameters, inputs, context } = args;
     
