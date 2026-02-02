@@ -12,3 +12,8 @@ export * from './workflowOps';
 export * from './solverOps';
 export * from './commandOps';
 export * from './geometryOps';
+export * from './primitiveOps';
+export * from './arrayOps';
+export * from './analysisOps';
+export * from './waveOps';
+export * from './fieldOps';

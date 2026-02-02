@@ -5900,6 +5900,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "STL",
     description: "Import STL geometry into the scene.",
     category: "interop",
+    semanticOps: ["command.import.stl"],
     iconId: "load",
     inputs: [],
     outputs: [
@@ -5937,6 +5938,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "STL",
     description: "Export geometry to an STL file.",
     category: "interop",
+    semanticOps: ["command.export.stl"],
     iconId: "download",
     inputs: [
       {
@@ -5980,6 +5982,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "ORG",
     description: "Emit the world origin vector (0, 0, 0).",
     category: "basics",
+    semanticOps: ["vector.constant.origin"],
     iconId: "origin",
     inputs: [],
     outputs: [{ key: "vector", label: "Origin", type: "vector" }],
@@ -5993,6 +5996,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "X",
     description: "Emit the unit X axis vector.",
     category: "basics",
+    semanticOps: ["vector.constant.unitX"],
     iconId: "unitX",
     inputs: [],
     outputs: [{ key: "vector", label: "X", type: "vector" }],
@@ -6006,6 +6010,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "Y",
     description: "Emit the unit Y axis vector.",
     category: "basics",
+    semanticOps: ["vector.constant.unitY"],
     iconId: "unitY",
     inputs: [],
     outputs: [{ key: "vector", label: "Y", type: "vector" }],
@@ -6019,6 +6024,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "Z",
     description: "Emit the unit Z axis vector.",
     category: "basics",
+    semanticOps: ["vector.constant.unitZ"],
     iconId: "unitZ",
     inputs: [],
     outputs: [{ key: "vector", label: "Z", type: "vector" }],
@@ -6032,6 +6038,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "XYZ",
     description: "Emit a unit vector with all components equal to one.",
     category: "basics",
+    semanticOps: ["vector.constant.unitXYZ"],
     iconId: "unitXYZ",
     inputs: [],
     outputs: [{ key: "vector", label: "XYZ", type: "vector" }],
@@ -6045,6 +6052,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "MOVE",
     description: "Move a vector by an offset vector.",
     category: "basics",
+    semanticOps: ["vector.moveVector"],
     iconId: "movePoint",
     inputs: [
       { key: "vector", label: "Vector", type: "vector", required: true },
@@ -6074,6 +6082,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "SCL",
     description: "Scale a vector by a scalar multiplier.",
     category: "basics",
+    semanticOps: ["vector.scaleVector"],
     iconId: "vectorScale",
     inputs: [
       { key: "vector", label: "Vector", type: "vector", required: true },
@@ -6262,6 +6271,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "FIND",
     description: "Find the index of an item in a list using deep comparison.",
     category: "lists",
+    semanticOps: ["data.indexOf"],
     iconId: "listIndexOf",
     inputs: [
       { key: "list", label: "List", type: "any", required: true },
@@ -6308,6 +6318,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "PART",
     description: "Split a list into partitions of fixed size and step.",
     category: "lists",
+    semanticOps: ["data.partition"],
     iconId: "listPartition",
     inputs: [
       { key: "list", label: "List", type: "any", required: true },
@@ -6419,6 +6430,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "SLICE",
     description: "Extract a slice of a list with start, end, and step.",
     category: "lists",
+    semanticOps: ["data.slice"],
     iconId: "listSlice",
     inputs: [
       { key: "list", label: "List", type: "any", required: true },
@@ -6499,6 +6511,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "REV",
     description: "Reverse the order of items in a list.",
     category: "lists",
+    semanticOps: ["data.reverse"],
     iconId: "listReverse",
     inputs: [
       { key: "list", label: "List", type: "any", required: true },
@@ -6523,6 +6536,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "RNG",
     description: "Generate a numeric sequence from Start to End using Step.",
     category: "ranges",
+    semanticOps: ["data.range"],
     iconId: "range",
     inputs: [
       {
@@ -6590,6 +6604,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "LIN",
     description: "Generate evenly spaced values between Start and End.",
     category: "ranges",
+    semanticOps: ["data.linspace"],
     iconId: "linspace",
     inputs: [
       {
@@ -6806,6 +6821,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "REP",
     description: "Repeat a value a specified number of times.",
     category: "ranges",
+    semanticOps: ["data.repeat"],
     iconId: "repeat",
     inputs: [
       {
@@ -6869,6 +6885,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "LARR",
     description: "Duplicate points along a direction at a fixed spacing.",
     category: "arrays",
+    semanticOps: ["geometry.array.linear"],
     iconId: "arrayLinear",
     inputs: [
       { key: "base", label: "Base", type: "vector", required: true },
@@ -6957,6 +6974,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "PARR",
     description: "Distribute points around an axis with a sweep angle.",
     category: "arrays",
+    semanticOps: ["geometry.array.polar"],
     iconId: "arrayPolar",
     inputs: [
       { key: "center", label: "Center", type: "vector", required: true },
@@ -7092,6 +7110,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "GRID",
     description: "Create a rectangular grid of points from two axes.",
     category: "arrays",
+    semanticOps: ["geometry.array.grid"],
     iconId: "arrayGrid",
     inputs: [
       { key: "origin", label: "Origin", type: "vector", required: true },
@@ -7243,6 +7262,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "ARR",
     description: "Duplicate geometry in linear, grid, or polar patterns.",
     category: "arrays",
+    semanticOps: ["geometry.array.geometry"],
     iconId: "arrayGrid",
     inputs: [
       { key: "geometry", label: "Geometry", type: "geometry", required: true },
@@ -7305,6 +7325,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "SUM",
     description: "Sum numeric values from a list.",
     category: "analysis",
+    semanticOps: ["math.sum"],
     iconId: "listSum",
     inputs: [{ key: "list", label: "List", type: "any", required: true }],
     outputs: [
@@ -7325,6 +7346,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "AVG",
     description: "Average numeric values from a list.",
     category: "analysis",
+    semanticOps: ["math.average"],
     iconId: "listAverage",
     inputs: [{ key: "list", label: "List", type: "any", required: true }],
     outputs: [
@@ -7351,6 +7373,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "MIN",
     description: "Find the minimum numeric value in a list.",
     category: "analysis",
+    semanticOps: ["math.min"],
     iconId: "listMin",
     inputs: [{ key: "list", label: "List", type: "any", required: true }],
     outputs: [
@@ -7373,6 +7396,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "MAX",
     description: "Find the maximum numeric value in a list.",
     category: "analysis",
+    semanticOps: ["math.max"],
     iconId: "listMax",
     inputs: [{ key: "list", label: "List", type: "any", required: true }],
     outputs: [
@@ -7395,6 +7419,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "MED",
     description: "Find the median numeric value in a list.",
     category: "analysis",
+    semanticOps: ["math.median"],
     iconId: "listMedian",
     inputs: [{ key: "list", label: "List", type: "any", required: true }],
     outputs: [
@@ -7422,6 +7447,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "STD",
     description: "Compute the population standard deviation of a list.",
     category: "analysis",
+    semanticOps: ["math.stdDev"],
     iconId: "listStdDev",
     inputs: [{ key: "list", label: "List", type: "any", required: true }],
     outputs: [
@@ -7453,6 +7479,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "INFO",
     description: "Summarize geometry type and core element counts.",
     category: "analysis",
+    semanticOps: ["geometry.analyze.info"],
     iconId: "geometryInfo",
     inputs: [{ key: "geometry", label: "Geometry", type: "geometry", required: true }],
     outputs: [
@@ -7585,6 +7612,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "DIM",
     description: "Measure bounding box dimensions for geometry.",
     category: "measurement",
+    semanticOps: ["geometry.analyze.dimensions"],
     iconId: "ruler",
     inputs: [{ key: "geometry", label: "Geometry", type: "geometry", required: true }],
     outputs: [
@@ -7634,6 +7662,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "VERT",
     description: "Extract vertex positions from geometry as a list.",
     category: "analysis",
+    semanticOps: ["geometry.analyze.vertices"],
     iconId: "geometryVertices",
     inputs: [{ key: "geometry", label: "Geometry", type: "geometry", required: true }],
     outputs: [
@@ -7663,6 +7692,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "EDGE",
     description: "Extract edge segments as vector pairs.",
     category: "analysis",
+    semanticOps: ["geometry.analyze.edges"],
     iconId: "geometryEdges",
     inputs: [{ key: "geometry", label: "Geometry", type: "geometry", required: true }],
     outputs: [
@@ -7692,6 +7722,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "FACE",
     description: "Extract face centroids from mesh geometry.",
     category: "analysis",
+    semanticOps: ["geometry.analyze.faces"],
     iconId: "geometryFaces",
     inputs: [{ key: "geometry", label: "Geometry", type: "geometry", required: true }],
     outputs: [
@@ -7721,6 +7752,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "NORM",
     description: "Extract normals from mesh geometry.",
     category: "analysis",
+    semanticOps: ["geometry.analyze.normals"],
     iconId: "geometryNormals",
     inputs: [{ key: "geometry", label: "Geometry", type: "geometry", required: true }],
     outputs: [
@@ -7750,6 +7782,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "CTRL",
     description: "Extract control points or defining points from geometry.",
     category: "analysis",
+    semanticOps: ["geometry.analyze.controlPoints"],
     iconId: "geometryControlPoints",
     inputs: [{ key: "geometry", label: "Geometry", type: "geometry", required: true }],
     outputs: [
@@ -7779,6 +7812,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "PROX3",
     description: "Find nearby points in 3D and output connection pairs.",
     category: "analysis",
+    semanticOps: ["geometry.analyze.proximity3d"],
     iconId: "distance",
     inputs: [
       { key: "points", label: "Points", type: "any", required: true },
@@ -7878,6 +7912,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "PROX2",
     description: "Find nearby points in 2D (projected) and output connection pairs.",
     category: "analysis",
+    semanticOps: ["geometry.analyze.proximity2d"],
     iconId: "distance",
     inputs: [
       { key: "points", label: "Points", type: "any", required: true },
@@ -7991,6 +8026,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "CPROX",
     description: "Find closest points on a curve for a list of points.",
     category: "analysis",
+    semanticOps: ["geometry.analyze.curveProximity"],
     iconId: "distance",
     inputs: [
       { key: "curve", label: "Curve", type: "geometry", required: true },
@@ -8081,6 +8117,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "SIN",
     description: "Generate a sine wave signal.",
     category: "signals",
+    semanticOps: ["math.wave.sine"],
     iconId: "sineWave",
     inputs: baseWaveInputPorts(),
     outputs: [
@@ -8103,6 +8140,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "COS",
     description: "Generate a cosine wave signal.",
     category: "signals",
+    semanticOps: ["math.wave.cosine"],
     iconId: "cosineWave",
     inputs: baseWaveInputPorts(),
     outputs: [
@@ -8125,6 +8163,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "SAW",
     description: "Generate a sawtooth wave signal in the -1 to 1 range.",
     category: "signals",
+    semanticOps: ["math.wave.sawtooth"],
     iconId: "sawtoothWave",
     inputs: baseWaveInputPorts(),
     outputs: [
@@ -8149,6 +8188,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "TRI",
     description: "Generate a triangle wave signal in the -1 to 1 range.",
     category: "signals",
+    semanticOps: ["math.wave.triangle"],
     iconId: "triangleWave",
     inputs: baseWaveInputPorts(),
     outputs: [
@@ -8173,6 +8213,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "SQR",
     description: "Generate a square wave signal with adjustable duty cycle.",
     category: "signals",
+    semanticOps: ["math.wave.square"],
     iconId: "squareWave",
     inputs: [
       ...baseWaveInputPorts(),
@@ -8254,6 +8295,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "PCLD",
     description: "Create a point cloud from a list of points or geometry.",
     category: "primitives",
+    semanticOps: ["geometry.pointCloud"],
     iconId: "geometryVertices",
     inputs: [
       {
@@ -9346,6 +9388,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "FIL",
     description: "Round corners on curves or edges.",
     category: "modifiers",
+    semanticOps: ["geometry.fillet"],
     iconId: "arc",
     inputs: [
       { key: "geometry", label: "Geometry", type: "geometry", required: true },
@@ -9390,6 +9433,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "EDGE",
     description: "Round selected mesh edges by a given radius.",
     category: "mesh",
+    semanticOps: ["geometry.filletEdges"],
     iconId: "arc",
     inputs: [
       { key: "geometry", label: "Geometry", type: "geometry", required: true },
@@ -9438,6 +9482,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "OSRF",
     description: "Offset a surface along its normals by a distance.",
     category: "brep",
+    semanticOps: ["geometry.offsetSurface"],
     iconId: "surface",
     inputs: [
       { key: "geometry", label: "Surface", type: "geometry", required: true },
@@ -9469,6 +9514,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "THK",
     description: "Add thickness to a mesh by offsetting inward/outward.",
     category: "mesh",
+    semanticOps: ["geometry.thickenMesh"],
     iconId: "offset",
     inputs: [
       { key: "geometry", label: "Mesh", type: "geometry", required: true },
@@ -9523,6 +9569,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "WRAP",
     description: "Shrinkwrap geometry onto a target with a projection distance.",
     category: "modifiers",
+    semanticOps: ["geometry.plasticwrap"],
     iconId: "surface",
     inputs: [
       { key: "geometry", label: "Geometry", type: "geometry", required: true },
@@ -9574,6 +9621,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "CAP",
     description: "Cap a surface or open mesh into a closed solid.",
     category: "mesh",
+    semanticOps: ["geometry.solid"],
     iconId: "extrude",
     inputs: [
       { key: "geometry", label: "Geometry", type: "geometry", required: true },
@@ -9628,6 +9676,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "PRIM",
     description: "Create a parametric primitive shape.",
     category: "primitives",
+    semanticOps: ["geometry.primitive"],
     iconId: "primitive:generic",
     inputs: [
       {
@@ -9786,6 +9835,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "VOX",
     description: "Convert geometry into a voxel grid domain.",
     category: "voxel",
+    semanticOps: ["solver.voxel.voxelize"],
     iconId: "box",
     inputs: [
       {
@@ -9918,6 +9968,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "ISO",
     description: "Create a mesh from a voxel density field.",
     category: "voxel",
+    semanticOps: ["solver.voxel.extractIsosurface"],
     iconId: "surface",
     inputs: [
       {
@@ -10003,6 +10054,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "TOPO",
     description: "Authoritative topology optimization settings and progress metadata.",
     category: "voxel",
+    semanticOps: ["solver.topologyOptimization.optimize"],
     iconId: "topologyOptimize",
     inputs: [
       {
@@ -10149,6 +10201,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "SOLVE",
     description: "Fast density solver prototype for a geometry domain.",
     category: "voxel",
+    semanticOps: ["solver.topologyOptimization"],
     iconId: "topologySolver",
     inputs: [
       {
@@ -11237,6 +11290,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "EXPR",
     description: "Evaluate a mathematical expression.",
     category: "math",
+    semanticOps: ["math.expression"],
     iconId: "expression",
     inputs: expressionInputPorts,
     outputs: [{ key: "result", label: "Result", type: "number" }],
@@ -11397,6 +11451,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "SW",
     description: "Manual on/off switch for boolean control signals.",
     category: "logic",
+    semanticOps: ["logic.toggle"],
     iconId: "conditional",
     inputs: [],
     outputs: [{ key: "value", label: "Value", type: "boolean" }],
@@ -11419,6 +11474,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "BTN",
     description: "Toggle button switch for conditional enable/disable control.",
     category: "logic",
+    semanticOps: ["logic.conditionalToggle"],
     iconId: "conditional",
     inputs: [],
     outputs: [{ key: "enabled", label: "Enabled", type: "boolean" }],
@@ -11526,6 +11582,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "VEC",
     description: "Compose a vector from X, Y, and Z scalar inputs.",
     category: "euclidean",
+    semanticOps: ["vector.construct"],
     iconId: "vectorConstruct",
     inputs: [
       {
@@ -11571,6 +11628,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "XYZ",
     description: "Break a vector into its scalar components.",
     category: "euclidean",
+    semanticOps: ["vector.deconstruct"],
     iconId: "vectorDeconstruct",
     inputs: [
       {
@@ -11781,6 +11839,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "DIST",
     description: "Measure the distance between two points or vectors.",
     category: "euclidean",
+    semanticOps: ["vector.distance"],
     iconId: "distance",
     inputs: [
       { key: "a", label: "A", type: "vector", required: true },
@@ -11806,6 +11865,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "A->B",
     description: "Create a direction vector that points from A to B.",
     category: "euclidean",
+    semanticOps: ["vector.fromPoints"],
     iconId: "vectorFromPoints",
     inputs: [
       { key: "start", label: "A", type: "vector", required: true },
@@ -11836,6 +11896,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "ANG",
     description: "Measure the angle between two vectors.",
     category: "euclidean",
+    semanticOps: ["vector.angle"],
     iconId: "vectorAngle",
     inputs: [
       { key: "a", label: "A", type: "vector", required: true },
@@ -11913,6 +11974,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "PROJ",
     description: "Project a vector onto another vector.",
     category: "euclidean",
+    semanticOps: ["vector.project"],
     iconId: "vectorProject",
     inputs: [
       { key: "vector", label: "Vector", type: "vector", required: true },
@@ -11947,6 +12009,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "ATTR",
     description: "Generate attraction vectors toward a target point.",
     category: "euclidean",
+    semanticOps: ["vector.attractor"],
     iconId: "point",
     inputs: [
       { key: "point", label: "Point", type: "vector", required: true },
@@ -12143,6 +12206,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "FIELD",
     description: "Transform geometry using a scalar or vector field.",
     category: "transforms",
+    semanticOps: ["geometry.field.transform"],
     iconId: "transform",
     inputs: [
       { key: "geometry", label: "Geometry", type: "geometry", required: true },
@@ -12191,6 +12255,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "MOVE",
     description: "Move a point along a direction vector by a distance.",
     category: "euclidean",
+    semanticOps: ["geometry.field.movePoint"],
     iconId: "movePoint",
     inputs: [
       { key: "point", label: "Point", type: "vector", required: true },
@@ -12256,6 +12321,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "OFFSET",
     description: "Move a point directly by an offset vector.",
     category: "euclidean",
+    semanticOps: ["geometry.field.movePointByVector"],
     iconId: "movePointByVector",
     inputs: [
       { key: "point", label: "Point", type: "vector", required: true },
@@ -12285,6 +12351,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "ROT",
     description: "Rotate a vector around an axis by an angle in degrees.",
     category: "euclidean",
+    semanticOps: ["geometry.field.rotateVectorAxis"],
     iconId: "rotateVectorAxis",
     inputs: [
       { key: "vector", label: "Vector", type: "vector", required: true },
@@ -12332,6 +12399,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     shortLabel: "MIR",
     description: "Reflect a vector across a plane defined by a normal.",
     category: "euclidean",
+    semanticOps: ["geometry.field.mirrorVector"],
     iconId: "mirrorVector",
     inputs: [
       { key: "vector", label: "Vector", type: "vector", required: true },

@@ -91,5 +91,33 @@ export const LOGIC_OPS: readonly SemanticOpMeta[] = [
     summary: 'Compares two values',
     stable: true,
     since: '1.0.0'
+  },
+  {
+    id: 'logic.toggle',
+    domain: 'logic',
+    name: 'Toggle',
+    category: 'control',
+    tags: ['boolean', 'pure', 'deterministic'],
+    complexity: 'O(1)',
+    cost: 'low',
+    pure: true,
+    deterministic: true,
+    summary: 'Toggles between two values based on a boolean',
+    stable: true,
+    since: '1.0.0'
+  },
+  {
+    id: 'logic.conditionalToggle',
+    domain: 'logic',
+    name: 'Conditional Toggle',
+    category: 'control',
+    tags: ['boolean', 'conditional', 'pure', 'deterministic'],
+    complexity: 'O(1)',
+    cost: 'low',
+    pure: true,
+    deterministic: true,
+    summary: 'Toggles between values based on a condition',
+    stable: true,
+    since: '1.0.0'
   }
 ] as const;

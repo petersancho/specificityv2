@@ -327,5 +327,54 @@ export const SOLVER_OPS: readonly SemanticOpMeta[] = [
     summary: 'Computes stress field from displacement solution',
     stable: true,
     since: '1.0.0'
+  },
+  
+  // Voxel Solver Operations
+  {
+    id: 'solver.voxel.voxelize',
+    domain: 'solver',
+    name: 'Voxelize Geometry',
+    category: 'conversion',
+    tags: ['voxel', 'discretization', '3d'],
+    complexity: 'O(n)',
+    cost: 'medium',
+    pure: true,
+    deterministic: true,
+    sideEffects: [],
+    summary: 'Converts geometry to voxel grid representation',
+    stable: true,
+    since: '1.0.0'
+  },
+  {
+    id: 'solver.voxel.extractIsosurface',
+    domain: 'solver',
+    name: 'Extract Isosurface',
+    category: 'conversion',
+    tags: ['voxel', 'isosurface', 'marching-cubes'],
+    complexity: 'O(n)',
+    cost: 'medium',
+    pure: true,
+    deterministic: true,
+    sideEffects: [],
+    summary: 'Extracts mesh isosurface from voxel field using marching cubes',
+    stable: true,
+    since: '1.0.0'
+  },
+  
+  // Topology Optimization Solver Operations
+  {
+    id: 'solver.topologyOptimization.optimize',
+    domain: 'solver',
+    name: 'Optimize Topology',
+    category: 'optimization',
+    tags: ['topology', 'optimization', 'structural'],
+    complexity: 'O(n*iterations)',
+    cost: 'high',
+    pure: false,
+    deterministic: true,
+    sideEffects: ['geometry', 'state'],
+    summary: 'Optimizes material layout for structural performance',
+    stable: true,
+    since: '1.0.0'
   }
 ] as const;

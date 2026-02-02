@@ -1,13 +1,13 @@
 # Semantic Inventory
 
-Generated: 2026-02-02T18:18:55.470Z
+Generated: 2026-02-02T18:51:04.620Z
 
 ## Summary
 
-- **Total Operations**: 197
-- **Total Nodes**: 74
+- **Total Operations**: 292
+- **Total Nodes**: 142
 - **Total Dashboards**: 3
-- **Orphan Operations**: 48
+- **Orphan Operations**: 79
 - **Dangling References**: 0
 
 ## Operations by Domain
@@ -23,7 +23,7 @@ Generated: 2026-02-02T18:18:55.470Z
 | `color.blend` | Blend | operator | ✅ | colorPicker |
 | `color.clamp` | Clamp | utility | ✅ | colorPicker |
 
-### command (59 operations)
+### command (61 operations)
 
 | ID | Name | Category | Stable | Used By |
 |----|------|----------|--------|----------|
@@ -86,8 +86,10 @@ Generated: 2026-02-02T18:18:55.470Z
 | `command.outliner` | Outliner | ui | ✅ | (none) |
 | `command.tolerance` | Tolerance | ui | ✅ | (none) |
 | `command.status` | Status | ui | ✅ | (none) |
+| `command.import.stl` | Import STL | io | ✅ | stlImport |
+| `command.export.stl` | Export STL | io | ✅ | stlExport |
 
-### data (9 operations)
+### data (16 operations)
 
 | ID | Name | Category | Stable | Used By |
 |----|------|----------|--------|----------|
@@ -100,13 +102,78 @@ Generated: 2026-02-02T18:18:55.470Z
 | `data.unique` | Unique | utility | ✅ | listCreate |
 | `data.length` | Length | analysis | ✅ | listLength |
 | `data.index` | Index | utility | ✅ | listItem |
+| `data.indexOf` | Index Of | utility | ✅ | listIndexOf |
+| `data.partition` | Partition | utility | ✅ | listPartition |
+| `data.slice` | Slice | utility | ✅ | listSlice |
+| `data.reverse` | Reverse | utility | ✅ | listReverse |
+| `data.range` | Range | generation | ✅ | range |
+| `data.linspace` | Linspace | generation | ✅ | linspace |
+| `data.repeat` | Repeat | generation | ✅ | repeat |
 
-### geometry (42 operations)
+### geometry (100 operations)
 
 | ID | Name | Category | Stable | Used By |
 |----|------|----------|--------|----------|
 | `geometry.mesh` | Mesh | passthrough | ✅ | mesh |
 | `geometry.brep` | B-Rep | passthrough | ✅ | (none) |
+| `geometry.pointCloud` | Point Cloud | creation | ✅ | pointCloud |
+| `geometry.fillet` | Fillet | operation | ✅ | fillet |
+| `geometry.filletEdges` | Fillet Edges | operation | ✅ | filletEdges |
+| `geometry.offsetSurface` | Offset Surface | operation | ✅ | offsetSurface |
+| `geometry.thickenMesh` | Thicken Mesh | operation | ✅ | thickenMesh |
+| `geometry.plasticwrap` | Plastic Wrap | operation | ✅ | plasticwrap |
+| `geometry.solid` | Solid | operation | ✅ | solid |
+| `geometry.primitive` | Primitive | creation | ✅ | primitive |
+| `geometry.primitive.cylinder` | Cylinder | primitives | ✅ | (none) |
+| `geometry.primitive.torus` | Torus | primitives | ✅ | (none) |
+| `geometry.primitive.pyramid` | Pyramid | primitives | ✅ | (none) |
+| `geometry.primitive.tetrahedron` | Tetrahedron | primitives | ✅ | (none) |
+| `geometry.primitive.octahedron` | Octahedron | primitives | ✅ | (none) |
+| `geometry.primitive.icosahedron` | Icosahedron | primitives | ✅ | (none) |
+| `geometry.primitive.dodecahedron` | Dodecahedron | primitives | ✅ | (none) |
+| `geometry.primitive.hemisphere` | Hemisphere | primitives | ✅ | (none) |
+| `geometry.primitive.capsule` | Capsule | primitives | ✅ | (none) |
+| `geometry.primitive.disk` | Disk | primitives | ✅ | (none) |
+| `geometry.primitive.ring` | Ring | primitives | ✅ | (none) |
+| `geometry.primitive.triangularPrism` | Triangular Prism | primitives | ✅ | (none) |
+| `geometry.primitive.hexagonalPrism` | Hexagonal Prism | primitives | ✅ | (none) |
+| `geometry.primitive.pentagonalPrism` | Pentagonal Prism | primitives | ✅ | (none) |
+| `geometry.primitive.torusKnot` | Torus Knot | primitives | ✅ | (none) |
+| `geometry.primitive.utahTeapot` | Utah Teapot | primitives | ✅ | (none) |
+| `geometry.primitive.frustum` | Frustum | primitives | ✅ | (none) |
+| `geometry.primitive.mobiusStrip` | Mobius Strip | primitives | ✅ | (none) |
+| `geometry.primitive.ellipsoid` | Ellipsoid | primitives | ✅ | (none) |
+| `geometry.primitive.wedge` | Wedge | primitives | ✅ | (none) |
+| `geometry.primitive.sphericalCap` | Spherical Cap | primitives | ✅ | (none) |
+| `geometry.primitive.bipyramid` | Bipyramid | primitives | ✅ | (none) |
+| `geometry.primitive.rhombicDodecahedron` | Rhombic Dodecahedron | primitives | ✅ | (none) |
+| `geometry.primitive.truncatedCube` | Truncated Cube | primitives | ✅ | (none) |
+| `geometry.primitive.truncatedOctahedron` | Truncated Octahedron | primitives | ✅ | (none) |
+| `geometry.primitive.truncatedIcosahedron` | Truncated Icosahedron | primitives | ✅ | (none) |
+| `geometry.primitive.pipe` | Pipe | primitives | ✅ | (none) |
+| `geometry.primitive.superellipsoid` | Superellipsoid | primitives | ✅ | (none) |
+| `geometry.primitive.hyperbolicParaboloid` | Hyperbolic Paraboloid | primitives | ✅ | (none) |
+| `geometry.primitive.geodesicDome` | Geodesic Dome | primitives | ✅ | (none) |
+| `geometry.primitive.oneSheetHyperboloid` | One-Sheet Hyperboloid | primitives | ✅ | (none) |
+| `geometry.array.linear` | Linear Array | array | ✅ | linearArray |
+| `geometry.array.polar` | Polar Array | array | ✅ | polarArray |
+| `geometry.array.grid` | Grid Array | array | ✅ | gridArray |
+| `geometry.array.geometry` | Geometry Array | array | ✅ | geometryArray |
+| `geometry.analyze.info` | Geometry Info | analysis | ✅ | geometryInfo |
+| `geometry.analyze.dimensions` | Dimensions | analysis | ✅ | dimensions |
+| `geometry.analyze.vertices` | Geometry Vertices | analysis | ✅ | geometryVertices |
+| `geometry.analyze.edges` | Geometry Edges | analysis | ✅ | geometryEdges |
+| `geometry.analyze.faces` | Geometry Faces | analysis | ✅ | geometryFaces |
+| `geometry.analyze.normals` | Geometry Normals | analysis | ✅ | geometryNormals |
+| `geometry.analyze.controlPoints` | Geometry Control Points | analysis | ✅ | geometryControlPoints |
+| `geometry.analyze.proximity3d` | 3D Proximity | analysis | ✅ | proximity3d |
+| `geometry.analyze.proximity2d` | 2D Proximity | analysis | ✅ | proximity2d |
+| `geometry.analyze.curveProximity` | Curve Proximity | analysis | ✅ | curveProximity |
+| `geometry.field.transform` | Field Transformation | field | ✅ | fieldTransformation |
+| `geometry.field.movePoint` | Move Point | field | ✅ | movePoint |
+| `geometry.field.movePointByVector` | Move Point By Vector | field | ✅ | movePointByVector |
+| `geometry.field.rotateVectorAxis` | Rotate Vector Axis | field | ✅ | rotateVectorAxis |
+| `geometry.field.mirrorVector` | Mirror Vector | field | ✅ | mirrorVector |
 | `boolean.offsetPolyline2D` | Offset Polyline 2D | modifier | ✅ | offset |
 | `math.computeBestFitPlane` | Compute Best Fit Plane | analysis | ✅ | voronoiPattern, hexagonalTiling, offset |
 | `math.projectPointToPlane` | Project Point To Plane | transform | ✅ | voronoiPattern, hexagonalTiling, offset |
@@ -148,7 +215,7 @@ Generated: 2026-02-02T18:18:55.470Z
 | `tess.tessellateCurveAdaptive` | Tessellate Curve Adaptive | tessellation | ✅ | (none) |
 | `tess.tessellateSurfaceAdaptive` | Tessellate Surface Adaptive | tessellation | ✅ | (none) |
 
-### logic (6 operations)
+### logic (8 operations)
 
 | ID | Name | Category | Stable | Used By |
 |----|------|----------|--------|----------|
@@ -158,8 +225,10 @@ Generated: 2026-02-02T18:18:55.470Z
 | `logic.xor` | Xor | operator | ✅ | conditional |
 | `logic.if` | If | control | ✅ | conditional |
 | `logic.compare` | Compare | operator | ✅ | conditional |
+| `logic.toggle` | Toggle | control | ✅ | toggleSwitch |
+| `logic.conditionalToggle` | Conditional Toggle | control | ✅ | conditionalToggleButton |
 
-### math (34 operations)
+### math (44 operations)
 
 | ID | Name | Category | Stable | Used By |
 |----|------|----------|--------|----------|
@@ -185,8 +254,8 @@ Generated: 2026-02-02T18:18:55.470Z
 | `math.exp` | Exponential | operator | ✅ | scalarFunctions |
 | `math.log` | Natural Logarithm | operator | ✅ | scalarFunctions |
 | `math.log10` | Base-10 Logarithm | operator | ✅ | scalarFunctions |
-| `math.min` | Minimum | aggregation | ✅ | min |
-| `math.max` | Maximum | aggregation | ✅ | max |
+| `math.min` | Minimum | aggregation | ✅ | listMin, min |
+| `math.max` | Maximum | aggregation | ✅ | listMax, max |
 | `math.clamp` | Clamp | utility | ✅ | clamp |
 | `math.lerp` | Linear Interpolation | utility | ✅ | scalarFunctions |
 | `math.remap` | Remap | utility | ✅ | remap |
@@ -197,8 +266,18 @@ Generated: 2026-02-02T18:18:55.470Z
 | `math.greaterThan` | Greater Than | operator | ✅ | conditional |
 | `math.greaterThanOrEqual` | Greater Than or Equal | operator | ✅ | conditional |
 | `math.random` | Random | utility | ✅ | random |
+| `math.sum` | Sum | statistics | ✅ | listSum |
+| `math.average` | Average | statistics | ✅ | listAverage |
+| `math.median` | Median | statistics | ✅ | listMedian |
+| `math.stdDev` | Standard Deviation | statistics | ✅ | listStdDev |
+| `math.expression` | Expression | utility | ✅ | expression |
+| `math.wave.sine` | Sine Wave | wave | ✅ | sineWave |
+| `math.wave.cosine` | Cosine Wave | wave | ✅ | cosineWave |
+| `math.wave.sawtooth` | Sawtooth Wave | wave | ✅ | sawtoothWave |
+| `math.wave.triangle` | Triangle Wave | wave | ✅ | triangleWave |
+| `math.wave.square` | Square Wave | wave | ✅ | squareWave |
 
-### solver (21 operations)
+### solver (24 operations)
 
 | ID | Name | Category | Stable | Used By |
 |----|------|----------|--------|----------|
@@ -206,7 +285,7 @@ Generated: 2026-02-02T18:18:55.470Z
 | `solver.chemistry` | Chemistry Solver | utility | ✅ | chemistrySolver, chemistrySolver |
 | `solver.evolutionary` | Evolutionary Solver | utility | ✅ | evolutionarySolver |
 | `solver.voxel` | Voxel Solver | conversion | ✅ | voxelSolver |
-| `solver.topologyOptimization` | Topology Optimization Solver | utility | ⚠️ | topologyOptimizationSolver |
+| `solver.topologyOptimization` | Topology Optimization Solver | utility | ⚠️ | topologySolver, topologyOptimizationSolver |
 | `simulator.initialize` | Initialize Simulator | utility | ✅ | evolutionarySolver |
 | `simulator.step` | Step Simulator | utility | ✅ | evolutionarySolver |
 | `simulator.converge` | Check Convergence | query | ✅ | evolutionarySolver |
@@ -223,6 +302,9 @@ Generated: 2026-02-02T18:18:55.470Z
 | `simulator.physics.finalize` | Finalize Physics Simulator | utility | ✅ | physicsSolver |
 | `simulator.physics.applyLoads` | Apply Loads | utility | ✅ | physicsSolver |
 | `simulator.physics.computeStress` | Compute Stress Field | utility | ✅ | physicsSolver |
+| `solver.voxel.voxelize` | Voxelize Geometry | conversion | ✅ | voxelizeGeometry |
+| `solver.voxel.extractIsosurface` | Extract Isosurface | conversion | ✅ | extractIsosurface |
+| `solver.topologyOptimization.optimize` | Optimize Topology | optimization | ✅ | topologyOptimize |
 
 ### string (7 operations)
 
@@ -236,7 +318,7 @@ Generated: 2026-02-02T18:18:55.470Z
 | `string.toNumber` | To Number | utility | ✅ | text |
 | `string.format` | Format | utility | ✅ | text |
 
-### vector (10 operations)
+### vector (23 operations)
 
 | ID | Name | Category | Stable | Used By |
 |----|------|----------|--------|----------|
@@ -248,8 +330,21 @@ Generated: 2026-02-02T18:18:55.470Z
 | `vector.cross` | Cross Product | operator | ✅ | vectorCross |
 | `vector.normalize` | Normalize | utility | ✅ | vectorNormalize |
 | `vector.length` | Length | analysis | ✅ | vectorLength |
-| `vector.distance` | Distance | analysis | ✅ | vectorLength |
+| `vector.distance` | Distance | analysis | ✅ | vectorLength, distance |
 | `vector.lerp` | Vector Lerp | utility | ✅ | vectorLerp |
+| `vector.construct` | Construct Vector | utility | ✅ | vectorConstruct |
+| `vector.deconstruct` | Deconstruct Vector | utility | ✅ | vectorDeconstruct |
+| `vector.angle` | Vector Angle | analysis | ✅ | vectorAngle |
+| `vector.project` | Vector Project | utility | ✅ | vectorProject |
+| `vector.attractor` | Point Attractor | field | ✅ | pointAttractor |
+| `vector.constant.origin` | Origin | constant | ✅ | origin |
+| `vector.constant.unitX` | Unit X | constant | ✅ | unitX |
+| `vector.constant.unitY` | Unit Y | constant | ✅ | unitY |
+| `vector.constant.unitZ` | Unit Z | constant | ✅ | unitZ |
+| `vector.constant.unitXYZ` | Unit XYZ | constant | ✅ | unitXYZ |
+| `vector.moveVector` | Move Vector | utility | ✅ | moveVector |
+| `vector.scaleVector` | Scale Vector | utility | ✅ | scaleVector |
+| `vector.fromPoints` | Vector From Points | utility | ✅ | vectorFromPoints |
 
 ### workflow (3 operations)
 
@@ -287,14 +382,56 @@ Generated: 2026-02-02T18:18:55.470Z
 | `meshUVs` | Generate UVs | tessellation | `meshTess.generateMeshUVs`, `meshTess.getTessellationMetadata`, `meshTess.tessellationMeshToRenderMesh`, `meshTess.toTessellationMesh`, `meshTess.toTessellationMeshData` |
 | `meshDecimate` | Mesh Decimate | tessellation | `meshTess.decimateMesh`, `meshTess.getTessellationMetadata`, `meshTess.tessellationMeshToRenderMesh`, `meshTess.toTessellationMesh`, `meshTess.toTessellationMeshData` |
 | `quadRemesh` | Quad Remesh | tessellation | `meshTess.getTessellationMetadata`, `meshTess.quadDominantRemesh`, `meshTess.tessellationMeshToRenderMesh`, `meshTess.toTessellationMesh`, `meshTess.toTessellationMeshData` |
+| `stlImport` | STL Import | interop | `command.import.stl` |
+| `stlExport` | STL Export | interop | `command.export.stl` |
+| `origin` | Origin | basics | `vector.constant.origin` |
+| `unitX` | Unit X | basics | `vector.constant.unitX` |
+| `unitY` | Unit Y | basics | `vector.constant.unitY` |
+| `unitZ` | Unit Z | basics | `vector.constant.unitZ` |
+| `unitXYZ` | Unit XYZ | basics | `vector.constant.unitXYZ` |
+| `moveVector` | Move Vector | basics | `vector.moveVector` |
+| `scaleVector` | Scale Vector | basics | `vector.scaleVector` |
 | `listCreate` | List Create | lists | `data.collect`, `data.filter`, `data.map`, `data.reduce`, `data.sort`, `data.unique` |
 | `listLength` | List Length | lists | `data.length` |
 | `listItem` | List Item | lists | `data.index` |
+| `listIndexOf` | List Index Of | lists | `data.indexOf` |
+| `listPartition` | List Partition | lists | `data.partition` |
 | `listFlatten` | List Flatten | lists | `data.flatten` |
+| `listSlice` | List Slice | lists | `data.slice` |
+| `listReverse` | List Reverse | lists | `data.reverse` |
+| `range` | Range | ranges | `data.range` |
+| `linspace` | Linspace | ranges | `data.linspace` |
 | `remap` | Remap | ranges | `math.remap` |
 | `random` | Random | ranges | `math.random` |
+| `repeat` | Repeat | ranges | `data.repeat` |
+| `linearArray` | Linear Array | arrays | `geometry.array.linear` |
+| `polarArray` | Polar Array | arrays | `geometry.array.polar` |
+| `gridArray` | Grid Array | arrays | `geometry.array.grid` |
+| `geometryArray` | Geometry Array | arrays | `geometry.array.geometry` |
+| `listSum` | List Sum | analysis | `math.sum` |
+| `listAverage` | List Average | analysis | `math.average` |
+| `listMin` | List Min | analysis | `math.min` |
+| `listMax` | List Max | analysis | `math.max` |
+| `listMedian` | List Median | analysis | `math.median` |
+| `listStdDev` | List Std Dev | analysis | `math.stdDev` |
+| `geometryInfo` | Geometry Info | analysis | `geometry.analyze.info` |
 | `measurement` | Measurement | measurement | `mesh.computeArea` |
+| `dimensions` | Dimensions | measurement | `geometry.analyze.dimensions` |
+| `geometryVertices` | Geometry Vertices | analysis | `geometry.analyze.vertices` |
+| `geometryEdges` | Geometry Edges | analysis | `geometry.analyze.edges` |
+| `geometryFaces` | Geometry Faces | analysis | `geometry.analyze.faces` |
+| `geometryNormals` | Geometry Normals | analysis | `geometry.analyze.normals` |
+| `geometryControlPoints` | Control Points | analysis | `geometry.analyze.controlPoints` |
+| `proximity3d` | Proximity 3D | analysis | `geometry.analyze.proximity3d` |
+| `proximity2d` | Proximity 2D | analysis | `geometry.analyze.proximity2d` |
+| `curveProximity` | Curve Proximity | analysis | `geometry.analyze.curveProximity` |
+| `sineWave` | Sine Wave | signals | `math.wave.sine` |
+| `cosineWave` | Cosine Wave | signals | `math.wave.cosine` |
+| `sawtoothWave` | Sawtooth Wave | signals | `math.wave.sawtooth` |
+| `triangleWave` | Triangle Wave | signals | `math.wave.triangle` |
+| `squareWave` | Square Wave | signals | `math.wave.square` |
 | `point` | Point Generator | primitives | `command.createPoint` |
+| `pointCloud` | Point Cloud | primitives | `geometry.pointCloud` |
 | `line` | Line | curves | `command.createLine` |
 | `rectangle` | Rectangle | curves | `command.createRectangle` |
 | `circle` | Circle | nurbs | `command.createCircle` |
@@ -308,8 +445,19 @@ Generated: 2026-02-02T18:18:55.470Z
 | `pipeMerge` | Pipe Merge | mesh | `mesh.generateSphere` |
 | `boolean` | Boolean | brep | `mesh.generateBox`, `mesh.computeVertexNormals` |
 | `offset` | Offset | modifiers | `boolean.offsetPolyline2D`, `curve.resampleByArcLength`, `math.computeBestFitPlane`, `math.projectPointToPlane`, `math.unprojectPointFromPlane` |
+| `fillet` | Fillet | modifiers | `geometry.fillet` |
+| `filletEdges` | Fillet Edges | mesh | `geometry.filletEdges` |
+| `offsetSurface` | Offset Surface | brep | `geometry.offsetSurface` |
+| `thickenMesh` | Thicken Mesh | mesh | `geometry.thickenMesh` |
+| `plasticwrap` | Plasticwrap | modifiers | `geometry.plasticwrap` |
+| `solid` | Solid | mesh | `geometry.solid` |
+| `primitive` | Primitive | primitives | `geometry.primitive` |
 | `box` | Box Builder | primitives | `command.createPrimitive` |
 | `sphere` | Sphere | primitives | `command.createPrimitive` |
+| `voxelizeGeometry` | Voxelize Geometry | voxel | `solver.voxel.voxelize` |
+| `extractIsosurface` | Extract Isosurface | voxel | `solver.voxel.extractIsosurface` |
+| `topologyOptimize` | Topology Optimize | voxel | `solver.topologyOptimization.optimize` |
+| `topologySolver` | Topology Solver | voxel | `solver.topologyOptimization` |
 | `chemistrySolver` | Ἐπιλύτης Χημείας | solver | `solver.chemistry` |
 | `number` | Number | math | `workflow.literal` |
 | `add` | Add | math | `math.add` |
@@ -319,8 +467,13 @@ Generated: 2026-02-02T18:18:55.470Z
 | `clamp` | Clamp | math | `math.clamp` |
 | `min` | Min | math | `math.min` |
 | `max` | Max | math | `math.max` |
+| `expression` | Expression | math | `math.expression` |
 | `scalarFunctions` | Scalar Functions | math | `math.abs`, `math.sqrt`, `math.exp`, `math.log`, `math.sin`, `math.cos`, `math.tan`, `math.floor`, `math.ceil`, `math.round`, `math.power`, `math.modulo`, `math.negate`, `math.asin`, `math.acos`, `math.atan`, `math.atan2`, `math.log10`, `math.lerp` |
+| `toggleSwitch` | Toggle Switch | logic | `logic.toggle` |
+| `conditionalToggleButton` | Conditional Toggle Button | logic | `logic.conditionalToggle` |
 | `conditional` | Conditional | logic | `logic.if`, `math.equal`, `math.notEqual`, `math.lessThan`, `math.lessThanOrEqual`, `math.greaterThan`, `math.greaterThanOrEqual`, `logic.and`, `logic.or`, `logic.not`, `logic.xor`, `logic.compare` |
+| `vectorConstruct` | Vector Compose | euclidean | `vector.construct` |
+| `vectorDeconstruct` | Vector Decompose | euclidean | `vector.deconstruct` |
 | `vectorAdd` | Vector Add | euclidean | `vector.add` |
 | `vectorSubtract` | Vector Subtract | euclidean | `vector.subtract` |
 | `vectorScale` | Vector Scale | transforms | `vector.multiply`, `vector.divide` |
@@ -328,10 +481,20 @@ Generated: 2026-02-02T18:18:55.470Z
 | `vectorNormalize` | Vector Normalize | euclidean | `vector.normalize` |
 | `vectorDot` | Vector Dot | euclidean | `vector.dot` |
 | `vectorCross` | Vector Cross | euclidean | `vector.cross` |
+| `distance` | Distance | euclidean | `vector.distance` |
+| `vectorFromPoints` | Vector From Points | euclidean | `vector.fromPoints` |
+| `vectorAngle` | Vector Angle | euclidean | `vector.angle` |
 | `vectorLerp` | Vector Lerp | euclidean | `vector.lerp` |
+| `vectorProject` | Vector Project | euclidean | `vector.project` |
+| `pointAttractor` | Point Attractor | euclidean | `vector.attractor` |
 | `move` | Move | transforms | `command.move` |
 | `rotate` | Rotate | transforms | `command.rotate` |
 | `scale` | Scale | transforms | `command.scale` |
+| `fieldTransformation` | Field Transformation | transforms | `geometry.field.transform` |
+| `movePoint` | Move Point | euclidean | `geometry.field.movePoint` |
+| `movePointByVector` | Move Point By Vector | euclidean | `geometry.field.movePointByVector` |
+| `rotateVectorAxis` | Rotate Vector | euclidean | `geometry.field.rotateVectorAxis` |
+| `mirrorVector` | Mirror Vector | euclidean | `geometry.field.mirrorVector` |
 | `physicsSolver` | Ἐπιλύτης Φυσικῆς | solver | `solver.physics`, `simulator.physics.initialize`, `simulator.physics.step`, `simulator.physics.converge`, `simulator.physics.finalize`, `simulator.physics.applyLoads`, `simulator.physics.computeStress` |
 | `chemistrySolver` | Ἐπιλύτης Χημείας | solver | `solver.chemistry`, `simulator.chemistry.initialize`, `simulator.chemistry.step`, `simulator.chemistry.converge`, `simulator.chemistry.finalize`, `simulator.chemistry.blendMaterials`, `simulator.chemistry.evaluateGoals` |
 | `evolutionarySolver` | Evolutionary Solver | solver | `solver.evolutionary`, `simulator.initialize`, `simulator.step`, `simulator.converge`, `simulator.finalize` |
@@ -427,6 +590,37 @@ These operations are defined but never used by any node:
 - `command.tolerance`
 - `command.status`
 - `geometry.brep`
+- `geometry.primitive.cylinder`
+- `geometry.primitive.torus`
+- `geometry.primitive.pyramid`
+- `geometry.primitive.tetrahedron`
+- `geometry.primitive.octahedron`
+- `geometry.primitive.icosahedron`
+- `geometry.primitive.dodecahedron`
+- `geometry.primitive.hemisphere`
+- `geometry.primitive.capsule`
+- `geometry.primitive.disk`
+- `geometry.primitive.ring`
+- `geometry.primitive.triangularPrism`
+- `geometry.primitive.hexagonalPrism`
+- `geometry.primitive.pentagonalPrism`
+- `geometry.primitive.torusKnot`
+- `geometry.primitive.utahTeapot`
+- `geometry.primitive.frustum`
+- `geometry.primitive.mobiusStrip`
+- `geometry.primitive.ellipsoid`
+- `geometry.primitive.wedge`
+- `geometry.primitive.sphericalCap`
+- `geometry.primitive.bipyramid`
+- `geometry.primitive.rhombicDodecahedron`
+- `geometry.primitive.truncatedCube`
+- `geometry.primitive.truncatedOctahedron`
+- `geometry.primitive.truncatedIcosahedron`
+- `geometry.primitive.pipe`
+- `geometry.primitive.superellipsoid`
+- `geometry.primitive.hyperbolicParaboloid`
+- `geometry.primitive.geodesicDome`
+- `geometry.primitive.oneSheetHyperboloid`
 - `tess.tessellateCurveAdaptive`
 - `tess.tessellateSurfaceAdaptive`
 

@@ -614,6 +614,96 @@
     "stable": true,
     "since": "1.0.0"
   },
+  "math.sum": {
+    "id": "math.sum",
+    "domain": "math",
+    "name": "Sum",
+    "category": "statistics",
+    "tags": [
+      "statistics",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(n)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Computes the sum of an array of numbers",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.average": {
+    "id": "math.average",
+    "domain": "math",
+    "name": "Average",
+    "category": "statistics",
+    "tags": [
+      "statistics",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(n)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Computes the average of an array of numbers",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.median": {
+    "id": "math.median",
+    "domain": "math",
+    "name": "Median",
+    "category": "statistics",
+    "tags": [
+      "statistics",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(n log n)",
+    "cost": "medium",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Computes the median of an array of numbers",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.stdDev": {
+    "id": "math.stdDev",
+    "domain": "math",
+    "name": "Standard Deviation",
+    "category": "statistics",
+    "tags": [
+      "statistics",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(n)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Computes the standard deviation of an array of numbers",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.expression": {
+    "id": "math.expression",
+    "domain": "math",
+    "name": "Expression",
+    "category": "utility",
+    "tags": [
+      "expression",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(n)",
+    "cost": "medium",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Evaluates a mathematical expression",
+    "stable": true,
+    "since": "1.0.0"
+  },
   "vector.add": {
     "id": "vector.add",
     "domain": "vector",
@@ -801,6 +891,246 @@
     "stable": true,
     "since": "1.0.0"
   },
+  "vector.construct": {
+    "id": "vector.construct",
+    "domain": "vector",
+    "name": "Construct Vector",
+    "category": "utility",
+    "tags": [
+      "vector3",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Constructs a vector from x, y, z components",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "vector.deconstruct": {
+    "id": "vector.deconstruct",
+    "domain": "vector",
+    "name": "Deconstruct Vector",
+    "category": "utility",
+    "tags": [
+      "vector3",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Deconstructs a vector into x, y, z components",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "vector.angle": {
+    "id": "vector.angle",
+    "domain": "vector",
+    "name": "Vector Angle",
+    "category": "analysis",
+    "tags": [
+      "vector3",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Computes the angle between two vectors",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "vector.project": {
+    "id": "vector.project",
+    "domain": "vector",
+    "name": "Vector Project",
+    "category": "utility",
+    "tags": [
+      "vector3",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Projects one vector onto another",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "vector.attractor": {
+    "id": "vector.attractor",
+    "domain": "vector",
+    "name": "Point Attractor",
+    "category": "field",
+    "tags": [
+      "vector3",
+      "field",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Creates an attractor field from a point",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "vector.constant.origin": {
+    "id": "vector.constant.origin",
+    "domain": "vector",
+    "name": "Origin",
+    "category": "constant",
+    "tags": [
+      "vector3",
+      "constant",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Returns the origin vector (0, 0, 0)",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "vector.constant.unitX": {
+    "id": "vector.constant.unitX",
+    "domain": "vector",
+    "name": "Unit X",
+    "category": "constant",
+    "tags": [
+      "vector3",
+      "constant",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Returns the unit X vector (1, 0, 0)",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "vector.constant.unitY": {
+    "id": "vector.constant.unitY",
+    "domain": "vector",
+    "name": "Unit Y",
+    "category": "constant",
+    "tags": [
+      "vector3",
+      "constant",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Returns the unit Y vector (0, 1, 0)",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "vector.constant.unitZ": {
+    "id": "vector.constant.unitZ",
+    "domain": "vector",
+    "name": "Unit Z",
+    "category": "constant",
+    "tags": [
+      "vector3",
+      "constant",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Returns the unit Z vector (0, 0, 1)",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "vector.constant.unitXYZ": {
+    "id": "vector.constant.unitXYZ",
+    "domain": "vector",
+    "name": "Unit XYZ",
+    "category": "constant",
+    "tags": [
+      "vector3",
+      "constant",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Returns the unit XYZ vector (1, 1, 1)",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "vector.moveVector": {
+    "id": "vector.moveVector",
+    "domain": "vector",
+    "name": "Move Vector",
+    "category": "utility",
+    "tags": [
+      "vector3",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Creates a movement vector from two points",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "vector.scaleVector": {
+    "id": "vector.scaleVector",
+    "domain": "vector",
+    "name": "Scale Vector",
+    "category": "utility",
+    "tags": [
+      "vector3",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Creates a scale vector from a scalar or components",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "vector.fromPoints": {
+    "id": "vector.fromPoints",
+    "domain": "vector",
+    "name": "Vector From Points",
+    "category": "utility",
+    "tags": [
+      "vector3",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Creates a vector from two points (end - start)",
+    "stable": true,
+    "since": "1.0.0"
+  },
   "logic.and": {
     "id": "logic.and",
     "domain": "logic",
@@ -906,6 +1236,43 @@
     "pure": true,
     "deterministic": true,
     "summary": "Compares two values",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "logic.toggle": {
+    "id": "logic.toggle",
+    "domain": "logic",
+    "name": "Toggle",
+    "category": "control",
+    "tags": [
+      "boolean",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Toggles between two values based on a boolean",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "logic.conditionalToggle": {
+    "id": "logic.conditionalToggle",
+    "domain": "logic",
+    "name": "Conditional Toggle",
+    "category": "control",
+    "tags": [
+      "boolean",
+      "conditional",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Toggles between values based on a condition",
     "stable": true,
     "since": "1.0.0"
   },
@@ -1072,6 +1439,133 @@
     "pure": true,
     "deterministic": true,
     "summary": "Gets element at index",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "data.indexOf": {
+    "id": "data.indexOf",
+    "domain": "data",
+    "name": "Index Of",
+    "category": "utility",
+    "tags": [
+      "array",
+      "search",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(n)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Finds the index of an element in an array",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "data.partition": {
+    "id": "data.partition",
+    "domain": "data",
+    "name": "Partition",
+    "category": "utility",
+    "tags": [
+      "array",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(n)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Partitions an array into chunks",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "data.slice": {
+    "id": "data.slice",
+    "domain": "data",
+    "name": "Slice",
+    "category": "utility",
+    "tags": [
+      "array",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(n)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Extracts a slice of an array",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "data.reverse": {
+    "id": "data.reverse",
+    "domain": "data",
+    "name": "Reverse",
+    "category": "utility",
+    "tags": [
+      "array",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(n)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Reverses an array",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "data.range": {
+    "id": "data.range",
+    "domain": "data",
+    "name": "Range",
+    "category": "generation",
+    "tags": [
+      "array",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(n)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Generates a range of numbers",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "data.linspace": {
+    "id": "data.linspace",
+    "domain": "data",
+    "name": "Linspace",
+    "category": "generation",
+    "tags": [
+      "array",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(n)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Generates linearly spaced numbers",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "data.repeat": {
+    "id": "data.repeat",
+    "domain": "data",
+    "name": "Repeat",
+    "category": "generation",
+    "tags": [
+      "array",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(n)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Repeats a value n times",
     "stable": true,
     "since": "1.0.0"
   },
@@ -1782,6 +2276,66 @@
     "deterministic": true,
     "sideEffects": [],
     "summary": "Computes stress field from displacement solution",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "solver.voxel.voxelize": {
+    "id": "solver.voxel.voxelize",
+    "domain": "solver",
+    "name": "Voxelize Geometry",
+    "category": "conversion",
+    "tags": [
+      "voxel",
+      "discretization",
+      "3d"
+    ],
+    "complexity": "O(n)",
+    "cost": "medium",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Converts geometry to voxel grid representation",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "solver.voxel.extractIsosurface": {
+    "id": "solver.voxel.extractIsosurface",
+    "domain": "solver",
+    "name": "Extract Isosurface",
+    "category": "conversion",
+    "tags": [
+      "voxel",
+      "isosurface",
+      "marching-cubes"
+    ],
+    "complexity": "O(n)",
+    "cost": "medium",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Extracts mesh isosurface from voxel field using marching cubes",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "solver.topologyOptimization.optimize": {
+    "id": "solver.topologyOptimization.optimize",
+    "domain": "solver",
+    "name": "Optimize Topology",
+    "category": "optimization",
+    "tags": [
+      "topology",
+      "optimization",
+      "structural"
+    ],
+    "complexity": "O(n*iterations)",
+    "cost": "high",
+    "pure": false,
+    "deterministic": true,
+    "sideEffects": [
+      "geometry",
+      "state"
+    ],
+    "summary": "Optimizes material layout for structural performance",
     "stable": true,
     "since": "1.0.0"
   },
@@ -2966,6 +3520,51 @@
     "stable": true,
     "since": "1.0.0"
   },
+  "command.import.stl": {
+    "id": "command.import.stl",
+    "domain": "command",
+    "name": "Import STL",
+    "category": "io",
+    "tags": [
+      "import",
+      "stl",
+      "mesh",
+      "file"
+    ],
+    "complexity": "O(n)",
+    "cost": "high",
+    "pure": false,
+    "deterministic": true,
+    "sideEffects": [
+      "file",
+      "geometry"
+    ],
+    "summary": "Imports geometry from an STL file",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "command.export.stl": {
+    "id": "command.export.stl",
+    "domain": "command",
+    "name": "Export STL",
+    "category": "io",
+    "tags": [
+      "export",
+      "stl",
+      "mesh",
+      "file"
+    ],
+    "complexity": "O(n)",
+    "cost": "high",
+    "pure": false,
+    "deterministic": true,
+    "sideEffects": [
+      "file"
+    ],
+    "summary": "Exports geometry to an STL file",
+    "stable": true,
+    "since": "1.0.0"
+  },
   "geometry.mesh": {
     "id": "geometry.mesh",
     "domain": "geometry",
@@ -3001,6 +3600,1303 @@
     "deterministic": true,
     "sideEffects": [],
     "summary": "Pass-through node for B-Rep geometry",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.pointCloud": {
+    "id": "geometry.pointCloud",
+    "domain": "geometry",
+    "name": "Point Cloud",
+    "category": "creation",
+    "tags": [
+      "geometry",
+      "point",
+      "cloud"
+    ],
+    "complexity": "O(n)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a point cloud from a list of points",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.fillet": {
+    "id": "geometry.fillet",
+    "domain": "geometry",
+    "name": "Fillet",
+    "category": "operation",
+    "tags": [
+      "geometry",
+      "fillet",
+      "curve",
+      "smooth"
+    ],
+    "complexity": "O(n)",
+    "cost": "medium",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a fillet between curves or edges",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.filletEdges": {
+    "id": "geometry.filletEdges",
+    "domain": "geometry",
+    "name": "Fillet Edges",
+    "category": "operation",
+    "tags": [
+      "geometry",
+      "fillet",
+      "edge",
+      "smooth"
+    ],
+    "complexity": "O(n)",
+    "cost": "medium",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates fillets on edges of a solid",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.offsetSurface": {
+    "id": "geometry.offsetSurface",
+    "domain": "geometry",
+    "name": "Offset Surface",
+    "category": "operation",
+    "tags": [
+      "geometry",
+      "offset",
+      "surface"
+    ],
+    "complexity": "O(n)",
+    "cost": "medium",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Offsets a surface by a distance",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.thickenMesh": {
+    "id": "geometry.thickenMesh",
+    "domain": "geometry",
+    "name": "Thicken Mesh",
+    "category": "operation",
+    "tags": [
+      "geometry",
+      "thicken",
+      "mesh"
+    ],
+    "complexity": "O(n)",
+    "cost": "medium",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Thickens a mesh by offsetting faces",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.plasticwrap": {
+    "id": "geometry.plasticwrap",
+    "domain": "geometry",
+    "name": "Plastic Wrap",
+    "category": "operation",
+    "tags": [
+      "geometry",
+      "wrap",
+      "convex",
+      "hull"
+    ],
+    "complexity": "O(n log n)",
+    "cost": "medium",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a convex hull around geometry",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.solid": {
+    "id": "geometry.solid",
+    "domain": "geometry",
+    "name": "Solid",
+    "category": "operation",
+    "tags": [
+      "geometry",
+      "solid",
+      "brep"
+    ],
+    "complexity": "O(n)",
+    "cost": "medium",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a solid from surfaces",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive": {
+    "id": "geometry.primitive",
+    "domain": "geometry",
+    "name": "Primitive",
+    "category": "creation",
+    "tags": [
+      "geometry",
+      "primitive",
+      "3d"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a primitive geometry shape",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive.cylinder": {
+    "id": "geometry.primitive.cylinder",
+    "domain": "geometry",
+    "name": "Cylinder",
+    "category": "primitives",
+    "tags": [
+      "geometry",
+      "primitive",
+      "cylinder",
+      "3d"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a cylindrical primitive with specified radius and height",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive.torus": {
+    "id": "geometry.primitive.torus",
+    "domain": "geometry",
+    "name": "Torus",
+    "category": "primitives",
+    "tags": [
+      "geometry",
+      "primitive",
+      "torus",
+      "3d"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a toroidal primitive with major and minor radii",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive.pyramid": {
+    "id": "geometry.primitive.pyramid",
+    "domain": "geometry",
+    "name": "Pyramid",
+    "category": "primitives",
+    "tags": [
+      "geometry",
+      "primitive",
+      "pyramid",
+      "3d"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a pyramidal primitive with square base",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive.tetrahedron": {
+    "id": "geometry.primitive.tetrahedron",
+    "domain": "geometry",
+    "name": "Tetrahedron",
+    "category": "primitives",
+    "tags": [
+      "geometry",
+      "primitive",
+      "tetrahedron",
+      "platonic",
+      "3d"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a tetrahedral primitive (4 faces, Platonic solid)",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive.octahedron": {
+    "id": "geometry.primitive.octahedron",
+    "domain": "geometry",
+    "name": "Octahedron",
+    "category": "primitives",
+    "tags": [
+      "geometry",
+      "primitive",
+      "octahedron",
+      "platonic",
+      "3d"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates an octahedral primitive (8 faces, Platonic solid)",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive.icosahedron": {
+    "id": "geometry.primitive.icosahedron",
+    "domain": "geometry",
+    "name": "Icosahedron",
+    "category": "primitives",
+    "tags": [
+      "geometry",
+      "primitive",
+      "icosahedron",
+      "platonic",
+      "3d"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates an icosahedral primitive (20 faces, Platonic solid)",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive.dodecahedron": {
+    "id": "geometry.primitive.dodecahedron",
+    "domain": "geometry",
+    "name": "Dodecahedron",
+    "category": "primitives",
+    "tags": [
+      "geometry",
+      "primitive",
+      "dodecahedron",
+      "platonic",
+      "3d"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a dodecahedral primitive (12 faces, Platonic solid)",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive.hemisphere": {
+    "id": "geometry.primitive.hemisphere",
+    "domain": "geometry",
+    "name": "Hemisphere",
+    "category": "primitives",
+    "tags": [
+      "geometry",
+      "primitive",
+      "hemisphere",
+      "sphere",
+      "3d"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a hemispherical primitive (half sphere)",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive.capsule": {
+    "id": "geometry.primitive.capsule",
+    "domain": "geometry",
+    "name": "Capsule",
+    "category": "primitives",
+    "tags": [
+      "geometry",
+      "primitive",
+      "capsule",
+      "pill",
+      "3d"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a capsule primitive (cylinder with hemispherical caps)",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive.disk": {
+    "id": "geometry.primitive.disk",
+    "domain": "geometry",
+    "name": "Disk",
+    "category": "primitives",
+    "tags": [
+      "geometry",
+      "primitive",
+      "disk",
+      "circle",
+      "2d"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a circular disk primitive",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive.ring": {
+    "id": "geometry.primitive.ring",
+    "domain": "geometry",
+    "name": "Ring",
+    "category": "primitives",
+    "tags": [
+      "geometry",
+      "primitive",
+      "ring",
+      "annulus",
+      "2d"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a ring primitive (annulus with inner and outer radii)",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive.triangularPrism": {
+    "id": "geometry.primitive.triangularPrism",
+    "domain": "geometry",
+    "name": "Triangular Prism",
+    "category": "primitives",
+    "tags": [
+      "geometry",
+      "primitive",
+      "prism",
+      "triangular",
+      "3d"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a triangular prism primitive",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive.hexagonalPrism": {
+    "id": "geometry.primitive.hexagonalPrism",
+    "domain": "geometry",
+    "name": "Hexagonal Prism",
+    "category": "primitives",
+    "tags": [
+      "geometry",
+      "primitive",
+      "prism",
+      "hexagonal",
+      "3d"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a hexagonal prism primitive",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive.pentagonalPrism": {
+    "id": "geometry.primitive.pentagonalPrism",
+    "domain": "geometry",
+    "name": "Pentagonal Prism",
+    "category": "primitives",
+    "tags": [
+      "geometry",
+      "primitive",
+      "prism",
+      "pentagonal",
+      "3d"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a pentagonal prism primitive",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive.torusKnot": {
+    "id": "geometry.primitive.torusKnot",
+    "domain": "geometry",
+    "name": "Torus Knot",
+    "category": "primitives",
+    "tags": [
+      "geometry",
+      "primitive",
+      "torus",
+      "knot",
+      "3d"
+    ],
+    "complexity": "O(n)",
+    "cost": "medium",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a torus knot primitive with p and q parameters",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive.utahTeapot": {
+    "id": "geometry.primitive.utahTeapot",
+    "domain": "geometry",
+    "name": "Utah Teapot",
+    "category": "primitives",
+    "tags": [
+      "geometry",
+      "primitive",
+      "teapot",
+      "utah",
+      "3d",
+      "classic"
+    ],
+    "complexity": "O(1)",
+    "cost": "medium",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates the classic Utah teapot primitive",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive.frustum": {
+    "id": "geometry.primitive.frustum",
+    "domain": "geometry",
+    "name": "Frustum",
+    "category": "primitives",
+    "tags": [
+      "geometry",
+      "primitive",
+      "frustum",
+      "truncated",
+      "3d"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a frustum primitive (truncated pyramid or cone)",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive.mobiusStrip": {
+    "id": "geometry.primitive.mobiusStrip",
+    "domain": "geometry",
+    "name": "Mobius Strip",
+    "category": "primitives",
+    "tags": [
+      "geometry",
+      "primitive",
+      "mobius",
+      "strip",
+      "topology",
+      "3d"
+    ],
+    "complexity": "O(n)",
+    "cost": "medium",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a Mobius strip primitive (non-orientable surface)",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive.ellipsoid": {
+    "id": "geometry.primitive.ellipsoid",
+    "domain": "geometry",
+    "name": "Ellipsoid",
+    "category": "primitives",
+    "tags": [
+      "geometry",
+      "primitive",
+      "ellipsoid",
+      "sphere",
+      "3d"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates an ellipsoidal primitive with three radii",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive.wedge": {
+    "id": "geometry.primitive.wedge",
+    "domain": "geometry",
+    "name": "Wedge",
+    "category": "primitives",
+    "tags": [
+      "geometry",
+      "primitive",
+      "wedge",
+      "3d"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a wedge primitive (triangular prism)",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive.sphericalCap": {
+    "id": "geometry.primitive.sphericalCap",
+    "domain": "geometry",
+    "name": "Spherical Cap",
+    "category": "primitives",
+    "tags": [
+      "geometry",
+      "primitive",
+      "spherical",
+      "cap",
+      "3d"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a spherical cap primitive (portion of sphere)",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive.bipyramid": {
+    "id": "geometry.primitive.bipyramid",
+    "domain": "geometry",
+    "name": "Bipyramid",
+    "category": "primitives",
+    "tags": [
+      "geometry",
+      "primitive",
+      "bipyramid",
+      "3d"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a bipyramid primitive (two pyramids base-to-base)",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive.rhombicDodecahedron": {
+    "id": "geometry.primitive.rhombicDodecahedron",
+    "domain": "geometry",
+    "name": "Rhombic Dodecahedron",
+    "category": "primitives",
+    "tags": [
+      "geometry",
+      "primitive",
+      "rhombic",
+      "dodecahedron",
+      "3d"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a rhombic dodecahedron primitive (Catalan solid)",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive.truncatedCube": {
+    "id": "geometry.primitive.truncatedCube",
+    "domain": "geometry",
+    "name": "Truncated Cube",
+    "category": "primitives",
+    "tags": [
+      "geometry",
+      "primitive",
+      "truncated",
+      "cube",
+      "archimedean",
+      "3d"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a truncated cube primitive (Archimedean solid)",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive.truncatedOctahedron": {
+    "id": "geometry.primitive.truncatedOctahedron",
+    "domain": "geometry",
+    "name": "Truncated Octahedron",
+    "category": "primitives",
+    "tags": [
+      "geometry",
+      "primitive",
+      "truncated",
+      "octahedron",
+      "archimedean",
+      "3d"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a truncated octahedron primitive (Archimedean solid)",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive.truncatedIcosahedron": {
+    "id": "geometry.primitive.truncatedIcosahedron",
+    "domain": "geometry",
+    "name": "Truncated Icosahedron",
+    "category": "primitives",
+    "tags": [
+      "geometry",
+      "primitive",
+      "truncated",
+      "icosahedron",
+      "archimedean",
+      "soccer",
+      "3d"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a truncated icosahedron primitive (soccer ball, Archimedean solid)",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive.pipe": {
+    "id": "geometry.primitive.pipe",
+    "domain": "geometry",
+    "name": "Pipe",
+    "category": "primitives",
+    "tags": [
+      "geometry",
+      "primitive",
+      "pipe",
+      "tube",
+      "3d"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a pipe primitive (hollow cylinder)",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive.superellipsoid": {
+    "id": "geometry.primitive.superellipsoid",
+    "domain": "geometry",
+    "name": "Superellipsoid",
+    "category": "primitives",
+    "tags": [
+      "geometry",
+      "primitive",
+      "superellipsoid",
+      "superquadric",
+      "3d"
+    ],
+    "complexity": "O(n)",
+    "cost": "medium",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a superellipsoid primitive with exponent parameters",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive.hyperbolicParaboloid": {
+    "id": "geometry.primitive.hyperbolicParaboloid",
+    "domain": "geometry",
+    "name": "Hyperbolic Paraboloid",
+    "category": "primitives",
+    "tags": [
+      "geometry",
+      "primitive",
+      "hyperbolic",
+      "paraboloid",
+      "saddle",
+      "3d"
+    ],
+    "complexity": "O(n)",
+    "cost": "medium",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a hyperbolic paraboloid primitive (saddle surface)",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive.geodesicDome": {
+    "id": "geometry.primitive.geodesicDome",
+    "domain": "geometry",
+    "name": "Geodesic Dome",
+    "category": "primitives",
+    "tags": [
+      "geometry",
+      "primitive",
+      "geodesic",
+      "dome",
+      "buckminster",
+      "3d"
+    ],
+    "complexity": "O(n)",
+    "cost": "medium",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a geodesic dome primitive with frequency parameter",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive.oneSheetHyperboloid": {
+    "id": "geometry.primitive.oneSheetHyperboloid",
+    "domain": "geometry",
+    "name": "One-Sheet Hyperboloid",
+    "category": "primitives",
+    "tags": [
+      "geometry",
+      "primitive",
+      "hyperboloid",
+      "ruled",
+      "3d"
+    ],
+    "complexity": "O(n)",
+    "cost": "medium",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a one-sheet hyperboloid primitive (ruled surface)",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.array.linear": {
+    "id": "geometry.array.linear",
+    "domain": "geometry",
+    "name": "Linear Array",
+    "category": "array",
+    "tags": [
+      "geometry",
+      "array",
+      "linear",
+      "transform"
+    ],
+    "complexity": "O(n)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a linear array of geometry along a vector",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.array.polar": {
+    "id": "geometry.array.polar",
+    "domain": "geometry",
+    "name": "Polar Array",
+    "category": "array",
+    "tags": [
+      "geometry",
+      "array",
+      "polar",
+      "circular",
+      "transform"
+    ],
+    "complexity": "O(n)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a polar array of geometry around an axis",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.array.grid": {
+    "id": "geometry.array.grid",
+    "domain": "geometry",
+    "name": "Grid Array",
+    "category": "array",
+    "tags": [
+      "geometry",
+      "array",
+      "grid",
+      "2d",
+      "transform"
+    ],
+    "complexity": "O(n*m)",
+    "cost": "medium",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a 2D grid array of geometry",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.array.geometry": {
+    "id": "geometry.array.geometry",
+    "domain": "geometry",
+    "name": "Geometry Array",
+    "category": "array",
+    "tags": [
+      "geometry",
+      "array",
+      "custom",
+      "transform"
+    ],
+    "complexity": "O(n)",
+    "cost": "medium",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates an array of geometry along a custom path or pattern",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.analyze.info": {
+    "id": "geometry.analyze.info",
+    "domain": "geometry",
+    "name": "Geometry Info",
+    "category": "analysis",
+    "tags": [
+      "geometry",
+      "analysis",
+      "info",
+      "metadata"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Extracts general information about geometry (type, bounds, etc.)",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.analyze.dimensions": {
+    "id": "geometry.analyze.dimensions",
+    "domain": "geometry",
+    "name": "Dimensions",
+    "category": "analysis",
+    "tags": [
+      "geometry",
+      "analysis",
+      "dimensions",
+      "size"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Extracts dimensional information (width, height, depth)",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.analyze.vertices": {
+    "id": "geometry.analyze.vertices",
+    "domain": "geometry",
+    "name": "Geometry Vertices",
+    "category": "analysis",
+    "tags": [
+      "geometry",
+      "analysis",
+      "vertices",
+      "points"
+    ],
+    "complexity": "O(n)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Extracts all vertices from geometry",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.analyze.edges": {
+    "id": "geometry.analyze.edges",
+    "domain": "geometry",
+    "name": "Geometry Edges",
+    "category": "analysis",
+    "tags": [
+      "geometry",
+      "analysis",
+      "edges",
+      "curves"
+    ],
+    "complexity": "O(n)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Extracts all edges from geometry",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.analyze.faces": {
+    "id": "geometry.analyze.faces",
+    "domain": "geometry",
+    "name": "Geometry Faces",
+    "category": "analysis",
+    "tags": [
+      "geometry",
+      "analysis",
+      "faces",
+      "surfaces"
+    ],
+    "complexity": "O(n)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Extracts all faces from geometry",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.analyze.normals": {
+    "id": "geometry.analyze.normals",
+    "domain": "geometry",
+    "name": "Geometry Normals",
+    "category": "analysis",
+    "tags": [
+      "geometry",
+      "analysis",
+      "normals",
+      "vectors"
+    ],
+    "complexity": "O(n)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Extracts normal vectors from geometry",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.analyze.controlPoints": {
+    "id": "geometry.analyze.controlPoints",
+    "domain": "geometry",
+    "name": "Geometry Control Points",
+    "category": "analysis",
+    "tags": [
+      "geometry",
+      "analysis",
+      "control",
+      "points",
+      "nurbs"
+    ],
+    "complexity": "O(n)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Extracts control points from NURBS geometry",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.analyze.proximity3d": {
+    "id": "geometry.analyze.proximity3d",
+    "domain": "geometry",
+    "name": "3D Proximity",
+    "category": "analysis",
+    "tags": [
+      "geometry",
+      "analysis",
+      "proximity",
+      "distance",
+      "3d"
+    ],
+    "complexity": "O(n*m)",
+    "cost": "medium",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Computes proximity between 3D geometries",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.analyze.proximity2d": {
+    "id": "geometry.analyze.proximity2d",
+    "domain": "geometry",
+    "name": "2D Proximity",
+    "category": "analysis",
+    "tags": [
+      "geometry",
+      "analysis",
+      "proximity",
+      "distance",
+      "2d"
+    ],
+    "complexity": "O(n*m)",
+    "cost": "medium",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Computes proximity between 2D geometries",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.analyze.curveProximity": {
+    "id": "geometry.analyze.curveProximity",
+    "domain": "geometry",
+    "name": "Curve Proximity",
+    "category": "analysis",
+    "tags": [
+      "geometry",
+      "analysis",
+      "proximity",
+      "distance",
+      "curve"
+    ],
+    "complexity": "O(n*m)",
+    "cost": "medium",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Computes proximity between curves",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.wave.sine": {
+    "id": "math.wave.sine",
+    "domain": "math",
+    "name": "Sine Wave",
+    "category": "wave",
+    "tags": [
+      "math",
+      "wave",
+      "sine",
+      "periodic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Generates a sine wave function",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.wave.cosine": {
+    "id": "math.wave.cosine",
+    "domain": "math",
+    "name": "Cosine Wave",
+    "category": "wave",
+    "tags": [
+      "math",
+      "wave",
+      "cosine",
+      "periodic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Generates a cosine wave function",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.wave.sawtooth": {
+    "id": "math.wave.sawtooth",
+    "domain": "math",
+    "name": "Sawtooth Wave",
+    "category": "wave",
+    "tags": [
+      "math",
+      "wave",
+      "sawtooth",
+      "periodic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Generates a sawtooth wave function",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.wave.triangle": {
+    "id": "math.wave.triangle",
+    "domain": "math",
+    "name": "Triangle Wave",
+    "category": "wave",
+    "tags": [
+      "math",
+      "wave",
+      "triangle",
+      "periodic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Generates a triangle wave function",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.wave.square": {
+    "id": "math.wave.square",
+    "domain": "math",
+    "name": "Square Wave",
+    "category": "wave",
+    "tags": [
+      "math",
+      "wave",
+      "square",
+      "periodic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Generates a square wave function",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.field.transform": {
+    "id": "geometry.field.transform",
+    "domain": "geometry",
+    "name": "Field Transformation",
+    "category": "field",
+    "tags": [
+      "geometry",
+      "field",
+      "transform"
+    ],
+    "complexity": "O(n)",
+    "cost": "medium",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Applies a field transformation to geometry",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.field.movePoint": {
+    "id": "geometry.field.movePoint",
+    "domain": "geometry",
+    "name": "Move Point",
+    "category": "field",
+    "tags": [
+      "geometry",
+      "field",
+      "point",
+      "transform"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Moves a point using a field",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.field.movePointByVector": {
+    "id": "geometry.field.movePointByVector",
+    "domain": "geometry",
+    "name": "Move Point By Vector",
+    "category": "field",
+    "tags": [
+      "geometry",
+      "field",
+      "point",
+      "vector",
+      "transform"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Moves a point by a vector field",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.field.rotateVectorAxis": {
+    "id": "geometry.field.rotateVectorAxis",
+    "domain": "geometry",
+    "name": "Rotate Vector Axis",
+    "category": "field",
+    "tags": [
+      "geometry",
+      "field",
+      "vector",
+      "rotate",
+      "transform"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Rotates a vector around an axis",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.field.mirrorVector": {
+    "id": "geometry.field.mirrorVector",
+    "domain": "geometry",
+    "name": "Mirror Vector",
+    "category": "field",
+    "tags": [
+      "geometry",
+      "field",
+      "vector",
+      "mirror",
+      "transform"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Mirrors a vector across a plane",
     "stable": true,
     "since": "1.0.0"
   },

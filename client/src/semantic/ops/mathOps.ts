@@ -501,5 +501,79 @@ export const MATH_OPS: readonly SemanticOpMeta[] = [
     summary: 'Generates a random number',
     stable: true,
     since: '1.0.0'
+  },
+  
+  // Statistics operations
+  {
+    id: 'math.sum',
+    domain: 'math',
+    name: 'Sum',
+    category: 'statistics',
+    tags: ['statistics', 'pure', 'deterministic'],
+    complexity: 'O(n)',
+    cost: 'low',
+    pure: true,
+    deterministic: true,
+    summary: 'Computes the sum of an array of numbers',
+    stable: true,
+    since: '1.0.0'
+  },
+  {
+    id: 'math.average',
+    domain: 'math',
+    name: 'Average',
+    category: 'statistics',
+    tags: ['statistics', 'pure', 'deterministic'],
+    complexity: 'O(n)',
+    cost: 'low',
+    pure: true,
+    deterministic: true,
+    summary: 'Computes the average of an array of numbers',
+    stable: true,
+    since: '1.0.0'
+  },
+  {
+    id: 'math.median',
+    domain: 'math',
+    name: 'Median',
+    category: 'statistics',
+    tags: ['statistics', 'pure', 'deterministic'],
+    complexity: 'O(n log n)',
+    cost: 'medium',
+    pure: true,
+    deterministic: true,
+    summary: 'Computes the median of an array of numbers',
+    stable: true,
+    since: '1.0.0'
+  },
+  {
+    id: 'math.stdDev',
+    domain: 'math',
+    name: 'Standard Deviation',
+    category: 'statistics',
+    tags: ['statistics', 'pure', 'deterministic'],
+    complexity: 'O(n)',
+    cost: 'low',
+    pure: true,
+    deterministic: true,
+    summary: 'Computes the standard deviation of an array of numbers',
+    stable: true,
+    since: '1.0.0'
+  },
+  
+  // Expression operations
+  {
+    id: 'math.expression',
+    domain: 'math',
+    name: 'Expression',
+    category: 'utility',
+    tags: ['expression', 'pure', 'deterministic'],
+    complexity: 'O(n)',
+    cost: 'medium',
+    pure: true,
+    deterministic: true,
+    summary: 'Evaluates a mathematical expression',
+    stable: true,
+    since: '1.0.0'
   }
 ] as const;

@@ -16,6 +16,11 @@ import { WORKFLOW_OPS } from './ops/workflowOps';
 import { SOLVER_OPS } from './ops/solverOps';
 import { COMMAND_OPS } from './ops/commandOps';
 import { GEOMETRY_OPS } from './ops/geometryOps';
+import { PRIMITIVE_OPS } from './ops/primitiveOps';
+import { ARRAY_OPS } from './ops/arrayOps';
+import { ANALYSIS_OPS } from './ops/analysisOps';
+import { WAVE_OPS } from './ops/waveOps';
+import { FIELD_OPS } from './ops/fieldOps';
 
 /**
  * Registers all semantic operations into the global registry
@@ -34,6 +39,11 @@ export function registerAllSemanticOps(): void {
   operationRegistry.registerMetaBatch(SOLVER_OPS);
   operationRegistry.registerMetaBatch(COMMAND_OPS);
   operationRegistry.registerMetaBatch(GEOMETRY_OPS);
+  operationRegistry.registerMetaBatch(PRIMITIVE_OPS);
+  operationRegistry.registerMetaBatch(ARRAY_OPS);
+  operationRegistry.registerMetaBatch(ANALYSIS_OPS);
+  operationRegistry.registerMetaBatch(WAVE_OPS);
+  operationRegistry.registerMetaBatch(FIELD_OPS);
   
   // Geometry operations are already registered via their wrapper modules
   // (meshOps, meshTessellationOps, etc.) when they're imported
