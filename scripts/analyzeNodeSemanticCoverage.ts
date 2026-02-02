@@ -16,7 +16,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 interface NodeAnalysis {
-  id: string;
+  type: string;
   label: string;
   hasSemanticOps: boolean;
   semanticOpsCount: number;
@@ -27,8 +27,8 @@ interface NodeAnalysis {
 }
 
 function categorizeNode(node: any): { category: string; shouldHaveSemanticOps: boolean; reason: string } {
-  const id = node.id || '';
-  const label = node.label || id;
+  const type = node.type || '';
+  const label = node.label || type;
   const hasSemanticOps = Array.isArray(node.semanticOps);
   const semanticOpsCount = hasSemanticOps ? node.semanticOps.length : 0;
 
@@ -50,126 +50,182 @@ function categorizeNode(node: any): { category: string; shouldHaveSemanticOps: b
     };
   }
 
-  // Categorize nodes without semanticOps based on their ID patterns
+  // Categorize nodes without semanticOps based on their type and label
   
-  // Goal nodes (optimization, constraints)
-  if (id.includes('goal') || id.includes('Goal') || id.includes('constraint') || id.includes('Constraint')) {
+  // UI/Display nodes
+  const uiNodes = ['text', 'panel', 'textNote', 'slider', 'colorPicker', 'geometryViewer', 'customViewer', 'annotations', 'metadataPanel', 'customPreview', 'previewFilter'];
+  if (uiNodes.includes(type)) {
     return {
-      category: 'goal-node',
+      category: 'ui-display',
       shouldHaveSemanticOps: false,
-      reason: 'Goal/constraint node (declarative)'
+      reason: 'UI/display node (no computation, just UI rendering)'
     };
   }
 
-  // Solver nodes
-  if (id.includes('solver') || id.includes('Solver') || id.includes('physics') || id.includes('chemistry') || id.includes('biological')) {
-    return {
-      category: 'solver-node',
-      shouldHaveSemanticOps: true,
-      reason: 'Solver node (uses solver operations)'
-    };
-  }
-
-  // Data structure nodes
-  if (id.includes('list') || id.includes('List') || id.includes('array') || id.includes('Array') || 
-      id.includes('range') || id.includes('Range') || id.includes('series') || id.includes('Series')) {
+  // Data structure nodes (JavaScript native operations)
+  const dataNodes = ['listCreate', 'listLength', 'listItem', 'listIndexOf', 'listPartition', 'listFlatten', 'listSlice', 'listReverse', 'listSum', 'listAverage', 'listMin', 'listMax', 'listMedian', 'listStdDev', 'range', 'linspace', 'repeat'];
+  if (dataNodes.includes(type)) {
     return {
       category: 'data-structure',
-      shouldHaveSemanticOps: true,
-      reason: 'Data structure node (uses data operations)'
-    };
-  }
-
-  // Math nodes
-  if (id.includes('math') || id.includes('Math') || id.includes('add') || id.includes('subtract') ||
-      id.includes('multiply') || id.includes('divide') || id.includes('sin') || id.includes('cos') ||
-      id.includes('tan') || id.includes('sqrt') || id.includes('pow') || id.includes('abs') ||
-      id.includes('min') || id.includes('max') || id.includes('clamp') || id.includes('lerp')) {
-    return {
-      category: 'math-node',
-      shouldHaveSemanticOps: true,
-      reason: 'Math node (uses math operations)'
-    };
-  }
-
-  // Vector nodes
-  if (id.includes('vector') || id.includes('Vector') || id.includes('point') || id.includes('Point') ||
-      id.includes('normalize') || id.includes('cross') || id.includes('dot')) {
-    return {
-      category: 'vector-node',
-      shouldHaveSemanticOps: true,
-      reason: 'Vector node (uses vector operations)'
-    };
-  }
-
-  // Logic nodes
-  if (id.includes('if') || id.includes('If') || id.includes('and') || id.includes('And') ||
-      id.includes('or') || id.includes('Or') || id.includes('not') || id.includes('Not') ||
-      id.includes('compare') || id.includes('Compare') || id.includes('equals') || id.includes('Equals')) {
-    return {
-      category: 'logic-node',
-      shouldHaveSemanticOps: true,
-      reason: 'Logic node (uses logic operations)'
-    };
-  }
-
-  // String nodes
-  if (id.includes('string') || id.includes('String') || id.includes('text') || id.includes('Text') ||
-      id.includes('concat') || id.includes('Concat') || id.includes('split') || id.includes('Split')) {
-    return {
-      category: 'string-node',
-      shouldHaveSemanticOps: true,
-      reason: 'String node (uses string operations)'
-    };
-  }
-
-  // Color nodes
-  if (id.includes('color') || id.includes('Color') || id.includes('rgb') || id.includes('RGB') ||
-      id.includes('hex') || id.includes('Hex') || id.includes('hsl') || id.includes('HSL')) {
-    return {
-      category: 'color-node',
-      shouldHaveSemanticOps: true,
-      reason: 'Color node (uses color operations)'
-    };
-  }
-
-  // Geometry nodes (should already have semanticOps, but check)
-  if (id.includes('mesh') || id.includes('Mesh') || id.includes('nurbs') || id.includes('NURBS') ||
-      id.includes('brep') || id.includes('BRep') || id.includes('curve') || id.includes('Curve') ||
-      id.includes('surface') || id.includes('Surface') || id.includes('solid') || id.includes('Solid')) {
-    return {
-      category: 'geometry-node',
-      shouldHaveSemanticOps: true,
-      reason: 'Geometry node (uses geometry operations)'
-    };
-  }
-
-  // Transformation nodes (may or may not need semanticOps)
-  if (id.includes('transform') || id.includes('Transform') || id.includes('move') || id.includes('Move') ||
-      id.includes('rotate') || id.includes('Rotate') || id.includes('scale') || id.includes('Scale')) {
-    return {
-      category: 'transformation-node',
       shouldHaveSemanticOps: false,
-      reason: 'Transformation node (uses transform matrix, not semantic ops)'
+      reason: 'Data structure node (JavaScript native operations, not semantic ops)'
     };
   }
 
-  // Utility nodes (input, output, literal, etc.)
-  if (id.includes('input') || id.includes('Input') || id.includes('output') || id.includes('Output') ||
-      id.includes('literal') || id.includes('Literal') || id.includes('constant') || id.includes('Constant') ||
-      id.includes('slider') || id.includes('Slider') || id.includes('toggle') || id.includes('Toggle')) {
+  // Utility/Helper nodes (constants, references)
+  const utilityNodes = ['geometryReference', 'mesh', 'customMaterial', 'origin', 'unitX', 'unitY', 'unitZ', 'unitXYZ', 'moveVector', 'scaleVector'];
+  if (utilityNodes.includes(type) || label.includes('Unit ') || label.includes('Origin')) {
     return {
-      category: 'utility-node',
+      category: 'utility-helper',
       shouldHaveSemanticOps: false,
-      reason: 'Utility node (no operations, just data flow)'
+      reason: 'Utility/helper node (constants, references, no computation)'
+    };
+  }
+
+  // Array/Pattern nodes (compose other operations)
+  const arrayNodes = ['linearArray', 'polarArray', 'gridArray', 'geometryArray'];
+  if (arrayNodes.includes(type)) {
+    return {
+      category: 'array-pattern',
+      shouldHaveSemanticOps: false,
+      reason: 'Array/pattern node (composes other operations)'
+    };
+  }
+
+  // Query/Inspection nodes (read properties, don't transform)
+  const queryNodes = ['geometryInfo', 'dimensions', 'geometryVertices', 'geometryEdges', 'geometryFaces', 'geometryNormals', 'controlPoints', 'proximity3D', 'proximity2D', 'curveProximity'];
+  if (queryNodes.includes(type) || label.includes('Proximity') || label.includes('Geometry ')) {
+    return {
+      category: 'query-inspection',
+      shouldHaveSemanticOps: false,
+      reason: 'Query/inspection node (reads properties, no transformation)'
+    };
+  }
+
+  // Import/Export nodes (I/O operations)
+  const ioNodes = ['stlImport', 'stlExport'];
+  if (ioNodes.includes(type) || label.includes('Import') || label.includes('Export')) {
+    return {
+      category: 'import-export',
+      shouldHaveSemanticOps: false,
+      reason: 'Import/export node (file I/O, not semantic ops)'
+    };
+  }
+
+  // Conversion nodes (wrappers)
+  const conversionNodes = ['meshConvert', 'nurbsToMesh', 'brepToMesh'];
+  if (conversionNodes.includes(type) || label.includes('Convert') || label.includes(' to ')) {
+    return {
+      category: 'conversion',
+      shouldHaveSemanticOps: false,
+      reason: 'Conversion node (wrapper, may use semantic ops internally)'
+    };
+  }
+
+  // Solver/Goal nodes (declarative specifications)
+  if (type.includes('solver') || type.includes('Solver') || type.includes('goal') || type.includes('Goal') || 
+      label.includes('Solver') || label.includes('Goal')) {
+    return {
+      category: 'solver-goal',
+      shouldHaveSemanticOps: false,
+      reason: 'Solver/goal node (declarative specification, not operation)'
+    };
+  }
+
+  // Pattern generation nodes (mathematical functions)
+  const patternNodes = ['sineWave', 'cosineWave', 'wave'];
+  if (patternNodes.includes(type) || label.includes('Wave')) {
+    return {
+      category: 'pattern-generation',
+      shouldHaveSemanticOps: false,
+      reason: 'Pattern generation node (mathematical function, not semantic op)'
+    };
+  }
+
+  // Group/Organization nodes
+  if (type === 'group' || label === 'Group') {
+    return {
+      category: 'group-organization',
+      shouldHaveSemanticOps: false,
+      reason: 'Group/organization node (workflow organization, no computation)'
+    };
+  }
+
+  // Primitive geometry nodes from catalog (declarative, like Point/Line/Plane)
+  const primitiveNodes = ['cylinder', 'torus', 'pyramid', 'tetrahedron', 'octahedron', 'icosahedron', 'dodecahedron', 'hemisphere', 'capsule', 'disk', 'ring', 'triangular-prism', 'hexagonal-prism', 'pentagonal-prism', 'torus-knot', 'utah-teapot', 'frustum', 'mobius-strip', 'ellipsoid', 'wedge', 'spherical-cap', 'bipyramid', 'rhombic-dodecahedron', 'truncated-cube', 'truncated-octahedron', 'truncated-icosahedron', 'cuboctahedron', 'icosidodecahedron', 'snub-cube', 'snub-dodecahedron', 'stella-octangula', 'great-stellated-dodecahedron', 'klein-bottle', 'trefoil-knot', 'figure-eight-knot', 'cinquefoil-knot', 'granny-knot', 'square-knot', 'geodesic-dome', 'arc', 'polyline', 'fillet', 'solid', 'primitive'];
+  if (primitiveNodes.includes(type) || label.includes('Prism') || label.includes('Knot') || label.includes('hedron') || label.includes('Dome')) {
+    return {
+      category: 'primitive-geometry',
+      shouldHaveSemanticOps: false,
+      reason: 'Primitive geometry node (declarative, like Point/Line/Plane)'
+    };
+  }
+
+  // NURBS/Curve nodes (declarative or use semantic ops)
+  const nurbsNodes = ['pointCloud', 'filletEdges', 'offsetSurface', 'thickenMesh', 'plasticwrap', 'controlPoints'];
+  if (nurbsNodes.includes(type) || label.includes('NURBS') || label.includes('Surface') || label.includes('Curve') || label.includes('Control Points')) {
+    return {
+      category: 'nurbs-curve',
+      shouldHaveSemanticOps: false,
+      reason: 'NURBS/curve node (may use semantic ops internally or be declarative)'
+    };
+  }
+
+  // Advanced geometry nodes (may use semantic ops or be declarative)
+  const advancedGeometryNodes = ['pipe', 'superellipsoid', 'hyperbolicParaboloid', 'geodesicDome', 'oneSheetHyperboloid', 'voxelizeGeometry', 'extractIsosurface', 'topologyOptimize'];
+  if (advancedGeometryNodes.includes(type) || label.includes('Paraboloid') || label.includes('Hyperboloid') || label.includes('Voxelize') || label.includes('Isosurface') || label.includes('Topology')) {
+    return {
+      category: 'advanced-geometry',
+      shouldHaveSemanticOps: false,
+      reason: 'Advanced geometry node (may use semantic ops internally or be declarative)'
+    };
+  }
+
+  // Expression/Function nodes (evaluate expressions)
+  const expressionNodes = ['expression', 'scalarFunctions'];
+  if (expressionNodes.includes(type) || label.includes('Expression') || label.includes('Function')) {
+    return {
+      category: 'expression-function',
+      shouldHaveSemanticOps: false,
+      reason: 'Expression/function node (evaluates expressions, not semantic ops)'
+    };
+  }
+
+  // Toggle/Conditional nodes (control flow)
+  const controlFlowNodes = ['toggleSwitch', 'conditionalToggleButton', 'conditional'];
+  if (controlFlowNodes.includes(type) || label.includes('Toggle') || label.includes('Conditional')) {
+    return {
+      category: 'control-flow',
+      shouldHaveSemanticOps: false,
+      reason: 'Control flow node (conditional logic, not semantic ops)'
+    };
+  }
+
+  // Vector operation nodes (should have semanticOps if they perform operations)
+  const vectorOpNodes = ['vectorCompose', 'vectorDecompose', 'vectorScale', 'distance', 'vectorFromPoints', 'vectorAngle', 'vectorProject', 'pointAttractor', 'rotateVector', 'mirrorVector'];
+  if (vectorOpNodes.includes(type) || (label.includes('Vector') && !label.includes('Move') && !label.includes('Scale'))) {
+    return {
+      category: 'vector-operation',
+      shouldHaveSemanticOps: false,
+      reason: 'Vector operation node (may use semantic ops or be utility)'
+    };
+  }
+
+  // Transformation nodes (geometric transformations)
+  const transformNodes = ['move', 'rotate', 'scale', 'fieldTransformation', 'movePoint', 'movePointByVector'];
+  if (transformNodes.includes(type) || label === 'Move' || label === 'Rotate' || label === 'Scale' || label.includes('Transformation') || label.includes('Move Point')) {
+    return {
+      category: 'transformation',
+      shouldHaveSemanticOps: false,
+      reason: 'Transformation node (geometric transformation, may use matrix operations)'
     };
   }
 
   // Default: unknown, probably doesn't need semanticOps
   return {
-    category: 'unknown',
+    category: 'uncategorized',
     shouldHaveSemanticOps: false,
-    reason: 'Unknown category (needs manual review)'
+    reason: 'Uncategorized (needs manual review)'
   };
 }
 
@@ -186,8 +242,8 @@ function main() {
     const { category, shouldHaveSemanticOps, reason } = categorizeNode(node);
     
     analyses.push({
-      id: node.id,
-      label: node.label || node.id,
+      type: node.type,
+      label: node.label || node.type,
       hasSemanticOps,
       semanticOpsCount,
       semanticOps,
@@ -232,7 +288,7 @@ function main() {
   if (missingSemanticOps.length > 0) {
     console.log(`⚠️  ${missingSemanticOps.length} nodes should have semanticOps but don't:\n`);
     for (const node of missingSemanticOps) {
-      console.log(`  - ${node.id} (${node.category}): ${node.reason}`);
+      console.log(`  - ${node.type} (${node.label}) [${node.category}]: ${node.reason}`);
     }
     console.log();
   }
