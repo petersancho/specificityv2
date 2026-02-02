@@ -1,0 +1,146 @@
+{
+  "subdivideMesh": [
+    "meshTess.getTessellationMetadata",
+    "meshTess.subdivideAdaptive",
+    "meshTess.subdivideCatmullClark",
+    "meshTess.subdivideLinear",
+    "meshTess.subdivideLoop",
+    "meshTess.tessellationMeshToRenderMesh",
+    "meshTess.toTessellationMesh",
+    "meshTess.toTessellationMeshData"
+  ],
+  "voronoiPattern": [
+    "math.computeBestFitPlane",
+    "math.projectPointToPlane",
+    "meshTess.generateVoronoiPattern",
+    "meshTess.getTessellationMetadata",
+    "meshTess.tessellationMeshToRenderMesh",
+    "meshTess.toTessellationMesh",
+    "meshTess.toTessellationMeshData"
+  ],
+  "hexagonalTiling": [
+    "math.computeBestFitPlane",
+    "math.projectPointToPlane",
+    "meshTess.generateHexagonalTiling",
+    "meshTess.getTessellationMetadata",
+    "meshTess.tessellationMeshToRenderMesh",
+    "meshTess.toTessellationMesh",
+    "meshTess.toTessellationMeshData"
+  ],
+  "dualMesh": [
+    "meshTess.dualMesh",
+    "meshTess.getTessellationMetadata",
+    "meshTess.tessellationMeshToRenderMesh",
+    "meshTess.toTessellationMesh",
+    "meshTess.toTessellationMeshData"
+  ],
+  "insetFaces": [
+    "meshTess.getTessellationMetadata",
+    "meshTess.insetFaces",
+    "meshTess.tessellationMeshToRenderMesh",
+    "meshTess.toTessellationMesh",
+    "meshTess.toTessellationMeshData"
+  ],
+  "extrudeFaces": [
+    "meshTess.extrudeFaces",
+    "meshTess.getTessellationMetadata",
+    "meshTess.tessellationMeshToRenderMesh",
+    "meshTess.toTessellationMesh",
+    "meshTess.toTessellationMeshData"
+  ],
+  "meshRelax": [
+    "meshTess.getTessellationMetadata",
+    "meshTess.meshRelax",
+    "meshTess.tessellationMeshToRenderMesh",
+    "meshTess.toTessellationMesh",
+    "meshTess.toTessellationMeshData"
+  ],
+  "triangulateMesh": [
+    "meshTess.getTessellationMetadata",
+    "meshTess.tessellationMeshToRenderMesh",
+    "meshTess.toTessellationMesh",
+    "meshTess.toTessellationMeshData",
+    "meshTess.triangulateMesh"
+  ],
+  "offsetPattern": [
+    "meshTess.getTessellationMetadata",
+    "meshTess.offsetPattern",
+    "meshTess.tessellationMeshToRenderMesh",
+    "meshTess.toTessellationMesh",
+    "meshTess.toTessellationMeshData"
+  ],
+  "meshRepair": [
+    "meshTess.getTessellationMetadata",
+    "meshTess.repairMesh",
+    "meshTess.tessellationMeshToRenderMesh",
+    "meshTess.toTessellationMesh",
+    "meshTess.toTessellationMeshData"
+  ],
+  "meshUVs": [
+    "meshTess.generateMeshUVs",
+    "meshTess.getTessellationMetadata",
+    "meshTess.tessellationMeshToRenderMesh",
+    "meshTess.toTessellationMesh",
+    "meshTess.toTessellationMeshData"
+  ],
+  "meshDecimate": [
+    "meshTess.decimateMesh",
+    "meshTess.getTessellationMetadata",
+    "meshTess.tessellationMeshToRenderMesh",
+    "meshTess.toTessellationMesh",
+    "meshTess.toTessellationMeshData"
+  ],
+  "quadRemesh": [
+    "meshTess.getTessellationMetadata",
+    "meshTess.quadDominantRemesh",
+    "meshTess.tessellationMeshToRenderMesh",
+    "meshTess.toTessellationMesh",
+    "meshTess.toTessellationMeshData"
+  ],
+  "offset": [
+    "boolean.offsetPolyline2D",
+    "curve.resampleByArcLength",
+    "math.computeBestFitPlane",
+    "math.projectPointToPlane",
+    "math.unprojectPointFromPlane"
+  ],
+  "selectFaces": [
+    "meshTess.getTessellationMetadata",
+    "meshTess.selectFaces",
+    "meshTess.toTessellationMesh"
+  ],
+  "meshBoolean": [
+    "meshTess.meshBoolean",
+    "meshTess.toTessellationMesh",
+    "meshTess.toTessellationMeshData"
+  ],
+  "geodesicSphere": [
+    "meshTess.generateGeodesicSphere",
+    "meshTess.tessellationMeshToRenderMesh",
+    "meshTess.toTessellationMeshData"
+  ],
+  "pipeSweep": [
+    "mesh.generateCylinder",
+    "mesh.generatePipe",
+    "mesh.generateSphere"
+  ],
+  "boolean": [
+    "mesh.computeVertexNormals",
+    "mesh.generateBox"
+  ],
+  "meshToBrep": [
+    "brep.brepFromMesh"
+  ],
+  "measurement": [
+    "mesh.computeArea"
+  ],
+  "loft": [
+    "mesh.generateLoft"
+  ],
+  "extrude": [
+    "mesh.generateExtrude"
+  ],
+  "pipeMerge": [
+    "mesh.generateSphere"
+  ]
+}
