@@ -381,8 +381,8 @@ const runChemistrySolver = (args: {
     gravity: { x: 0, y: 0, z: 0 }, // No gravity for material optimization
   };
   
-  // Convert materials to MaterialSpec format
-  const materialSpecs: MaterialSpec[] = Array.from(materialByName.values()).map((mat) => ({
+  // Convert materials to MaterialSpec format for simulation
+  const simulationMaterials: MaterialSpec[] = Array.from(materialByName.values()).map((mat) => ({
     name: mat.name,
     density: mat.density,
     stiffness: mat.youngsModulus,
@@ -414,7 +414,7 @@ const runChemistrySolver = (args: {
   // Run simulation
   const simResult = runSimulation(
     simConfig,
-    materialSpecs,
+    simulationMaterials,
     simSeeds,
     simGoals,
     args.iterations,
