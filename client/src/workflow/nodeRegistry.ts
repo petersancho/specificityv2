@@ -60,6 +60,7 @@ import {
 } from "./nodes/solver/goals/chemistry";
 import { validateChemistryGoals } from "./nodes/solver/validation";
 import type { GoalSpecification } from "./nodes/solver/types";
+import { isFiniteNumber, toNumber, toBoolean } from "./nodes/solver/utils";
 
 import type {
   NodeCategory,
@@ -94,34 +95,6 @@ type PortsDefinition = WorkflowPortSpec[] | PortResolver;
 
 const EPSILON = 1e-10;
 const EMPTY_MESH: RenderMesh = { positions: [], normals: [], uvs: [], indices: [] };
-
-const isFiniteNumber = (value: unknown): value is number =>
-  typeof value === "number" && Number.isFinite(value);
-
-const toNumber = (value: WorkflowValue, fallback: number) => {
-  if (isFiniteNumber(value)) return value;
-  if (typeof value === "boolean") return value ? 1 : 0;
-  if (typeof value === "string" && value.trim().length > 0) {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return fallback;
-};
-
-const toBoolean = (value: WorkflowValue, fallback: boolean) => {
-  if (typeof value === "boolean") return value;
-  if (isFiniteNumber(value)) return Math.abs(value) > EPSILON;
-  if (typeof value === "string") {
-    const normalized = value.trim().toLowerCase();
-    if (normalized === "true") return true;
-    if (normalized === "false") return false;
-    if (normalized.length > 0) {
-      const parsed = Number(normalized);
-      if (Number.isFinite(parsed)) return Math.abs(parsed) > EPSILON;
-    }
-  }
-  return fallback;
-};
 
 const readNumberParameter = (
   parameters: Record<string, unknown>,

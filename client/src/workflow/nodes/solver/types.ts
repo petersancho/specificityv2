@@ -5,10 +5,6 @@ export type GoalType =
   | "volume"
   | "load"
   | "anchor"
-  | "growth"
-  | "nutrient"
-  | "morphogenesis"
-  | "homeostasis"
   | "chemStiffness"
   | "chemMass"
   | "chemBlend"
@@ -81,41 +77,7 @@ export interface AnchorGoal extends GoalSpecification {
   };
 }
 
-export interface GrowthGoal extends GoalSpecification {
-  goalType: "growth";
-  parameters: {
-    growthRate: number;
-    targetBiomass?: number;
-    carryingCapacity: number;
-  };
-}
 
-export interface NutrientGoal extends GoalSpecification {
-  goalType: "nutrient";
-  parameters: {
-    sourceStrength: number;
-    uptakeRate: number;
-    diffusionRate: number;
-  };
-}
-
-export interface MorphogenesisGoal extends GoalSpecification {
-  goalType: "morphogenesis";
-  parameters: {
-    branchingFactor: number;
-    patternScale: number;
-    anisotropy: number;
-  };
-}
-
-export interface HomeostasisGoal extends GoalSpecification {
-  goalType: "homeostasis";
-  parameters: {
-    stabilityTarget: number;
-    damping: number;
-    stressLimit: number;
-  };
-}
 
 export interface ChemistryStiffnessGoal extends GoalSpecification {
   goalType: "chemStiffness";

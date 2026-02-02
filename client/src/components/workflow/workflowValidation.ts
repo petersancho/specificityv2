@@ -1,7 +1,5 @@
 import type { Geometry, Vec3, WorkflowNodeData } from "../../types";
-
-const isFiniteNumber = (value: unknown): value is number =>
-  typeof value === "number" && Number.isFinite(value);
+import { isFiniteNumber } from "../../workflow/nodes/solver/utils";
 
 const isValidVec3 = (point?: Vec3) =>
   Boolean(point) &&
