@@ -238,114 +238,17 @@ export const generateVoxelField = (
 
 /**
  * Generate mesh from voxel field using marching cubes
+ * 
+ * Now uses proper marching cubes with edge interpolation (PhD-level implementation)
  */
 export const generateMeshFromField = (
   field: VoxelField,
   isovalue: number,
   materialColors: Array<[number, number, number]>
 ): RenderMesh => {
-  const positions: number[] = [];
-  const normals: number[] = [];
-  const indices: number[] = [];
-  const colors: number[] = [];
-  const uvs: number[] = [];
-  
-  const res = field.resolution;
-  const { cellSize } = field;
-  const materialCount = field.data.length;
-  
-  // Simplified marching cubes (cube corners)
-  for (let z = 0; z < res - 1; z++) {
-    for (let y = 0; y < res - 1; y++) {
-      for (let x = 0; x < res - 1; x++) {
-        const idx000 = x + y * res + z * res * res;
-        const idx100 = (x + 1) + y * res + z * res * res;
-        const idx010 = x + (y + 1) * res + z * res * res;
-        const idx110 = (x + 1) + (y + 1) * res + z * res * res;
-        const idx001 = x + y * res + (z + 1) * res * res;
-        const idx101 = (x + 1) + y * res + (z + 1) * res * res;
-        const idx011 = x + (y + 1) * res + (z + 1) * res * res;
-        const idx111 = (x + 1) + (y + 1) * res + (z + 1) * res * res;
-        
-        const d000 = field.densities[idx000];
-        const d100 = field.densities[idx100];
-        const d010 = field.densities[idx010];
-        const d110 = field.densities[idx110];
-        const d001 = field.densities[idx001];
-        const d101 = field.densities[idx101];
-        const d011 = field.densities[idx011];
-        const d111 = field.densities[idx111];
-        
-        // Check if cell contains isosurface
-        const hasInside = d000 >= isovalue || d100 >= isovalue || d010 >= isovalue || d110 >= isovalue ||
-                          d001 >= isovalue || d101 >= isovalue || d011 >= isovalue || d111 >= isovalue;
-        const hasOutside = d000 < isovalue || d100 < isovalue || d010 < isovalue || d110 < isovalue ||
-                           d001 < isovalue || d101 < isovalue || d011 < isovalue || d111 < isovalue;
-        
-        if (!hasInside || !hasOutside) continue;
-        
-        // Simplified: create triangles at cell center
-        const cx = field.bounds.min.x + (x + 0.5) * cellSize.x;
-        const cy = field.bounds.min.y + (y + 0.5) * cellSize.y;
-        const cz = field.bounds.min.z + (z + 0.5) * cellSize.z;
-        
-        // Compute material blend at center
-        const centerIdx = Math.floor(x + 0.5) + Math.floor(y + 0.5) * res + Math.floor(z + 0.5) * res * res;
-        let r = 0, g = 0, b = 0;
-        for (let m = 0; m < materialCount; m++) {
-          const conc = field.data[m][centerIdx] || 0;
-          r += materialColors[m][0] * conc;
-          g += materialColors[m][1] * conc;
-          b += materialColors[m][2] * conc;
-        }
-        
-        // Add cube vertices (simplified)
-        const baseIdx = positions.length / 3;
-        const halfSize = Math.min(cellSize.x, cellSize.y, cellSize.z) * 0.4;
-        
-        // 8 cube corners
-        positions.push(cx - halfSize, cy - halfSize, cz - halfSize);
-        positions.push(cx + halfSize, cy - halfSize, cz - halfSize);
-        positions.push(cx + halfSize, cy + halfSize, cz - halfSize);
-        positions.push(cx - halfSize, cy + halfSize, cz - halfSize);
-        positions.push(cx - halfSize, cy - halfSize, cz + halfSize);
-        positions.push(cx + halfSize, cy - halfSize, cz + halfSize);
-        positions.push(cx + halfSize, cy + halfSize, cz + halfSize);
-        positions.push(cx - halfSize, cy + halfSize, cz + halfSize);
-        
-        // Normals (face normals)
-        for (let i = 0; i < 8; i++) {
-          normals.push(0, 1, 0);
-        }
-        
-        // Colors
-        for (let i = 0; i < 8; i++) {
-          colors.push(r, g, b);
-        }
-        
-        // UVs
-        for (let i = 0; i < 8; i++) {
-          uvs.push(0, 0);
-        }
-        
-        // Indices (12 triangles for cube)
-        const faces = [
-          [0, 1, 2], [0, 2, 3], // Front
-          [4, 6, 5], [4, 7, 6], // Back
-          [0, 4, 5], [0, 5, 1], // Bottom
-          [2, 6, 7], [2, 7, 3], // Top
-          [0, 3, 7], [0, 7, 4], // Left
-          [1, 5, 6], [1, 6, 2], // Right
-        ];
-        
-        for (const face of faces) {
-          indices.push(baseIdx + face[0], baseIdx + face[1], baseIdx + face[2]);
-        }
-      }
-    }
-  }
-  
-  return { positions, normals, indices, colors, uvs };
+  // Import the proper marching cubes implementation
+  const { marchingCubes } = require('./marchingCubes');
+  return marchingCubes(field, isovalue, materialColors);
 };
 
 /**
