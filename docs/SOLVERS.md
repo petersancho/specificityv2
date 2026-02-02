@@ -14,11 +14,9 @@ These solvers run iterative simulations with temporal dynamics, convergence chec
 
 | Solver | Greek Name | Ontological Type | Simulator Dashboard | Status |
 |--------|------------|------------------|---------------------|--------|
-| **Evolutionary** | Γαληνός (Galen) | Evolutionary Optimization | ✅ Setup, Simulator, Output | ✅ Implemented |
+| **Evolutionary** | Ἐπιλύτης Ἐξελικτικός (Darwin) | Evolutionary Optimization | ✅ Setup, Simulator, Output | ✅ Implemented |
 | **Chemistry** | Ἐπιλύτης Χημείας (Apollonius) | Material Distribution | ✅ Setup, Simulator, Output | ✅ Implemented |
 | **Physics** | Ἐπιλύτης Φυσικῆς (Pythagoras) | Stress Analysis | ⏳ Future | ✅ Implemented |
-
-**Note:** The Evolutionary Solver is also known as the Biological Solver in the codebase (node type: `biologicalSolver`). They are the same solver.
 
 ### Solvers without Simulators
 
@@ -59,14 +57,11 @@ User Interaction (UI)
 
 | Operation ID | Solver | Simulator | Deterministic | Pure |
 |--------------|--------|-----------|---------------|------|
-| `solver.biological` | Evolutionary (Biological) | Yes | No (seeded) | No |
+| `solver.evolutionary` | Evolutionary | Yes | No (seeded) | No |
 | `solver.chemistry` | Chemistry | Yes | No (seeded) | No |
 | `solver.physics` | Physics | Yes | Yes | No |
 | `solver.voxel` | Voxel | No | Yes | Yes |
-| `solver.evolutionary` | (Alias for solver.biological) | Yes | No (seeded) | No |
 | `solver.topologyOptimization` | Topology Optimization | No | Yes | No |
-
-**Note:** `solver.biological` and `solver.evolutionary` refer to the same solver. The node type is `biologicalSolver` but it implements evolutionary/genetic algorithm optimization.
 
 #### Layer 2: Simulator Operations
 
@@ -145,12 +140,12 @@ User Interaction (UI)
 
 ---
 
-### 3. Evolutionary Solver (Biological Solver)
+### 3. Evolutionary Solver
 
-**Greek Name:** Γαληνός (Galēnós)  
-**English Name:** Evolutionary Solver (also known as Biological Solver)  
-**Node Type:** `biologicalSolver`  
-**Named After:** Galen (physician, philosopher)  
+**Greek Name:** Ἐπιλύτης Ἐξελικτικός (Epilýtēs Exeliktikos)  
+**English Name:** Evolutionary Solver  
+**Node Type:** `evolutionarySolver`  
+**Named After:** Charles Darwin (evolutionary theory)  
 **Ontological Type:** Evolutionary Optimization
 
 **Purpose:** Runs evolutionary/genetic algorithm through generations of populations to find optimized geometry configurations. Uses fitness functions to converge on optimal geometric variants.
@@ -163,7 +158,7 @@ User Interaction (UI)
 - **Output Page** - View optimized geometry variants for each generation
 
 **Semantic Operations:**
-- `solver.biological` - Primary solver operation (also aliased as `solver.evolutionary`)
+- `solver.evolutionary` - Primary solver operation
 
 **Goal Nodes:** (To be defined - fitness function goals)
 
@@ -177,11 +172,9 @@ User Interaction (UI)
 7. Converges to optimal variation
 8. Outputs geometric variants
 
-**Mathematical Foundation:** Genetic algorithms, fitness functions, selection operators (tournament, roulette, rank), crossover operators (single-point, two-point, uniform, arithmetic), mutation operators (gaussian, uniform, creep, swap)
+**Mathematical Foundation:** Genetic algorithms, fitness functions, selection operators (tournament, roulette, rank), crossover operators (single-point, two-point, uniform, arithmetic), mutation operators (gaussian, uniform, creep)
 
-**Documentation:** [docs/solvers/BIOLOGICAL_SOLVER.md](./solvers/BIOLOGICAL_SOLVER.md)
-
-**Note:** This solver is called "Biological" in the codebase but implements evolutionary/genetic algorithm optimization, not biological morphogenesis.
+**Documentation:** [docs/solvers/EVOLUTIONARY_SOLVER.md](./solvers/EVOLUTIONARY_SOLVER.md)
 
 ---
 
@@ -309,7 +302,7 @@ The solver system embodies this philosophy:
 
 1. **Language** - Solver names (Greek), goal descriptions, semantic operation IDs
 2. **Code** - Solver implementations, simulation loops, convergence checks
-3. **Math** - Physics equations, chemistry dynamics, biological patterns, evolutionary algorithms
+3. **Math** - Physics equations, chemistry dynamics, evolutionary algorithms
 4. **Mechanical** - The system validates itself automatically through semantic linkage
 
 **Lingua can maintain and understand itself through its code:**
@@ -334,13 +327,11 @@ Every user interaction with a solver:
 
 | Solver | Node | Semantic Ops | Goals | Test Rig | Docs | Dashboard | Status |
 |--------|------|--------------|-------|----------|------|-----------|--------|
-| Evolutionary (Biological) | ✅ | ✅ | ⏳ | ✅ | ⚠️ | ✅ | Needs Update |
+| Evolutionary | ✅ | ✅ | ⏳ | ✅ | ✅ | ✅ | Complete |
 | Chemistry | ✅ | ✅ | ✅ (6) | ✅ | ✅ | ✅ | Complete |
 | Physics | ✅ | ✅ | ✅ (4) | ✅ | ✅ | ⏳ | Complete |
 | Voxel | ✅ | ✅ | ❌ (0) | ✅ | ✅ | ❌ | Almost Complete |
 | Topology Opt | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ❌ | Planned |
-
-**Note:** Evolutionary Solver (node type: `biologicalSolver`) currently implements Gray-Scott reaction-diffusion but should implement genetic algorithm. Documentation needs update to reflect evolutionary nature.
 
 ---
 
@@ -359,7 +350,7 @@ Real-time visualization of solver simulation:
 Chaining solvers together:
 - Physics → Chemistry (structural + material optimization)
 - Voxel → Topology (voxelization + optimization)
-- Biological → Chemistry (pattern + material)
+- Evolutionary → Chemistry (optimized geometry + material)
 
 ### Advanced Goal System
 
@@ -387,13 +378,12 @@ Lingua's solver system provides:
 
 ---
 
-**Status:** 4 solvers implemented (1 needs update), 1 planned  
+**Status:** 4 solvers implemented, 1 planned  
 **Validation:** 100% pass rate (0 errors, 0 warnings)  
 **Coverage:** 100% semantic coverage for implemented solvers
 
 **Key Clarifications:**
-- Biological Solver = Evolutionary Solver (same solver, node type: `biologicalSolver`)
-- Evolutionary Solver implements genetic algorithm optimization (not Gray-Scott reaction-diffusion)
+- Evolutionary Solver implements genetic algorithm optimization (node type: `evolutionarySolver`)
 - Physics Solver is an analysis/visualization tool (colored gradient mesh for stress points)
 - Chemistry Solver blends geometry and particles with simulator dashboard
 - Voxel Solver voxelizes any geometry (almost complete)

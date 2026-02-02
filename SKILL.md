@@ -310,7 +310,7 @@ npm run validate:all
 
 ### Rule 1: Solvers with Simulators
 
-Solvers that run iterative simulations (Physics, Chemistry, Biological, Evolutionary) have special requirements:
+Solvers that run iterative simulations (Physics, Chemistry, Evolutionary) have special requirements:
 
 **Must have:**
 - Simulation loop with convergence checking
@@ -396,11 +396,9 @@ These solvers have simulator dashboards with setup, simulator, and output pages.
 
 | Solver | Greek Name | Ontological Type | Semantic Op | Dashboard |
 |--------|------------|------------------|-------------|-----------|
-| **Evolutionary** | Γαληνός (Galen) | Evolutionary Optimization | `solver.biological` | ✅ Setup, Simulator, Output |
+| **Evolutionary** | Ἐπιλύτης Ἐξελικτικός (Darwin) | Evolutionary Optimization | `solver.evolutionary` | ✅ Setup, Simulator, Output |
 | **Chemistry** | Ἐπιλύτης Χημείας (Apollonius) | Material Distribution | `solver.chemistry` | ✅ Setup, Simulator, Output |
 | **Physics** | Ἐπιλύτης Φυσικῆς (Pythagoras) | Stress Analysis | `solver.physics` | ⏳ Future |
-
-**Note:** The Evolutionary Solver is also known as the Biological Solver in the codebase (node type: `biologicalSolver`). They are the same solver.
 
 **Characteristics:**
 - Iterative simulation loop
