@@ -260,7 +260,7 @@
   --space-7: 32px;
   --transition-fast: var(--fast) var(--easing);
   --transition-base: var(--norm) var(--easing);
-  --topbar-height: 96px;
+  --topbar-height: 44px;
 }
 
 :root[data-theme="dark"] {
