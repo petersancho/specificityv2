@@ -5,6 +5,7 @@ import { validatePhysicsGoals } from "./validation";
 import { solvePhysicsChunkedSync } from "./solverInterface";
 import { solvePhysicsWithWorker } from "./physicsWorkerClient";
 import { clamp, toBoolean, toNumber } from "./utils";
+import { createSolverMetadata, attachSolverMetadata } from "../../../numerica/solverGeometry";
 
 export const PhysicsSolverNode: WorkflowNodeDefinition = {
   type: "physicsSolver",
@@ -256,25 +257,37 @@ export const PhysicsSolverNode: WorkflowNodeDefinition = {
       throw new Error(`Physics solver failed: ${finalResult.errors.join(", ")}`);
     }
 
-    // Register the deformed mesh as geometry
+    // Register the deformed mesh as geometry with solver metadata
     const outputMesh = finalResult.deformedMesh ?? mesh;
     const geometryId = `${context.nodeId}:physics-mesh:${Date.now()}`;
-    const meshGeometry: Geometry = {
+    
+    const solverMetadata = createSolverMetadata(
+      "physics",
+      "PhysicsSolver (Pythagoras)",
+      finalResult.iterations,
+      finalResult.convergenceAchieved,
+      {
+        goals: validatedGoals,
+        parameters: {
+          analysisType,
+          maxIterations,
+          tolerance,
+          maxStress: finalResult.stressField.length > 0 
+            ? Math.max(...finalResult.stressField) 
+            : 0,
+        },
+      }
+    );
+    
+    const baseGeometry: Geometry = {
       id: geometryId,
       type: "mesh",
       mesh: outputMesh,
       layerId: "default",
       sourceNodeId: context.nodeId,
-      metadata: {
-        solver: "PhysicsSolver",
-        analysisType: analysisType,
-        iterations: finalResult.iterations,
-        convergence: finalResult.convergenceAchieved,
-        maxStress: finalResult.stressField.length > 0 
-          ? Math.max(...finalResult.stressField) 
-          : 0,
-      },
     };
+    
+    const meshGeometry = attachSolverMetadata(baseGeometry, solverMetadata);
     context.geometryById.set(geometryId, meshGeometry);
 
     return {

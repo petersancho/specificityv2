@@ -19,6 +19,7 @@ import { toBoolean, toNumber, isFiniteNumber, isVec3, clamp } from "./utils";
 import { resolveMeshFromGeometry } from "../../../geometry/meshTessellation";
 import { resolveChemistryMaterialSpec, type ChemistryMaterialSpec } from "../../../data/chemistryMaterials";
 import { computeBoundsFromPositions } from "../../../geometry/bounds";
+import { createSolverMetadata, attachSolverMetadata } from "../../../numerica/solverGeometry";
 import { createSeededRandom, hashStringToSeed } from "../../../utils/random";
 import { 
   length as lengthVec3, 
@@ -594,21 +595,34 @@ export const ChemistrySolverNode: WorkflowNodeDefinition = {
       throw new Error(`Chemistry solver failed: ${result.errors.join(", ")}`);
     }
     
-    // Register the generated mesh as geometry
+    // Register the generated mesh as geometry with solver metadata
     const geometryId = `${context.nodeId}:chemistry-mesh:${Date.now()}`;
-    const meshGeometry: Geometry = {
+    
+    const solverMetadata = createSolverMetadata(
+      "chemistry",
+      "ChemistrySolver (Apollonius)",
+      result.iterations,
+      result.convergenceAchieved,
+      {
+        goals: validatedGoals,
+        parameters: {
+          maxIterations,
+          tolerance,
+          particleCount: result.particles.length,
+          materialCount: materials.length,
+        },
+      }
+    );
+    
+    const baseGeometry: Geometry = {
       id: geometryId,
       type: "mesh",
       mesh: result.mesh,
       layerId: "default",
       sourceNodeId: context.nodeId,
-      metadata: {
-        solver: "ChemistrySolver",
-        iterations: result.iterations,
-        convergence: result.convergenceAchieved,
-        particleCount: result.particles.length,
-      },
     };
+    
+    const meshGeometry = attachSolverMetadata(baseGeometry, solverMetadata);
     context.geometryById.set(geometryId, meshGeometry);
     
     return {
