@@ -176,11 +176,15 @@ export type OpTag =
   | 'edges'          // Edges operations
   | 'curves'         // Curves operations
   | 'faces'          // Faces operations
+  | 'surfaces'       // Surfaces operations
   | 'normals-analysis' // Normals analysis
   | 'curvature'      // Curvature operations
   | 'area'           // Area operations
   | 'volume'         // Volume operations
   | 'centroid'       // Centroid operations
+  | 'vectors'        // Vectors operations
+  | 'proximity'      // Proximity operations
+  | 'distance'       // Distance operations
   // Wave tags
   | 'wave'           // Wave operations
   | 'oscillation'    // Oscillation operations
