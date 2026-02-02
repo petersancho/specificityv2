@@ -8004,23 +8004,25 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
   addVoxelSolverRig: (position) => {
     /**
-     * Voxel Solver Example Script
+     * Voxelizer Example Script
      * 
-     * Layout: Sliders positioned to the LEFT of nodes (next to input ports)
-     * - Input Geometry group: Sliders on left → Box on right
-     * - Voxelization Parameters group: Sliders on left → Solver in middle → Mesh on right
+     * Simple geometry voxelization:
+     * - Input: Any geometry (Box in this example)
+     * - Output: Voxel grid representation
+     * 
+     * The Voxelizer converts geometry into a uniform voxel grid.
+     * What users do with the voxels after is up to them.
      */
     const ts = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     
     const NODE_WIDTH = 180;
-    const NODE_HEIGHT = 100;
     const SLIDER_WIDTH = 180;
     const SLIDER_HEIGHT = 76;
     const GROUP_PADDING = 20;
     const SLIDER_GAP = 10;
-    const GROUP_GAP = 100;
-    const TEXT_WIDTH = 240;
-    const TEXT_HEIGHT = 120;
+    const GROUP_GAP = 80;
+    const TEXT_WIDTH = 280;
+    const TEXT_HEIGHT = 80;
     const TEXT_GAP = 20;
 
     // IDs
@@ -8030,18 +8032,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const outputTextId = `node-text-output-${ts}`;
     const boxId = `node-box-${ts}`;
     const boxGeometryId = createGeometryId("mesh");
-    const voxelSolverId = `node-voxelSolver-${ts}`;
-    const extractIsosurfaceId = `node-extractIsosurface-${ts}`;
-    const extractIsosurfaceGeometryId = createGeometryId("mesh");
+    const voxelizerId = `node-voxelizer-${ts}`;
+    const voxelizerGeometryId = createGeometryId("mesh");
     const textNoteId = `node-textNote-${ts}`;
     const widthSliderId = `node-slider-width-${ts}`;
     const heightSliderId = `node-slider-height-${ts}`;
     const depthSliderId = `node-slider-depth-${ts}`;
     const resolutionId = `node-slider-resolution-${ts}`;
-    const paddingId = `node-slider-padding-${ts}`;
-    const modeId = `node-slider-mode-${ts}`;
-    const thicknessId = `node-slider-thickness-${ts}`;
-    const isoValueId = `node-slider-isoValue-${ts}`;
 
     // GROUP 1: Input Geometry (Sliders LEFT → Box RIGHT)
     const inputTextX = position.x;
@@ -8049,61 +8046,47 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const inputGroupX = position.x;
     const inputGroupY = inputTextY + TEXT_HEIGHT + TEXT_GAP;
     
-    // Child positions are RELATIVE to the group
-    // Sliders on the left (relative to group)
     const sliderStartX = GROUP_PADDING;
     const widthSliderY = GROUP_PADDING;
     const heightSliderY = widthSliderY + SLIDER_HEIGHT + SLIDER_GAP;
     const depthSliderY = heightSliderY + SLIDER_HEIGHT + SLIDER_GAP;
     
-    // Box on the right (relative to group)
     const boxX = sliderStartX + SLIDER_WIDTH + SLIDER_GAP;
     const boxY = GROUP_PADDING;
     
     const inputGroupWidth = SLIDER_WIDTH + SLIDER_GAP + NODE_WIDTH + GROUP_PADDING * 2;
     const inputGroupHeight = depthSliderY + SLIDER_HEIGHT + GROUP_PADDING;
 
-    // GROUP 2: Voxelization Parameters (Sliders LEFT → Solver MIDDLE → ExtractIsosurface RIGHT)
+    // GROUP 2: Voxelization (Resolution slider LEFT → Voxelizer RIGHT)
     const outputTextX = inputGroupX + inputGroupWidth + GROUP_GAP;
     const outputTextY = position.y;
     const outputGroupX = outputTextX;
     const outputGroupY = outputTextY + TEXT_HEIGHT + TEXT_GAP;
     
-    // Child positions are RELATIVE to the group
-    // Sliders on the left (relative to group)
     const paramSliderStartX = GROUP_PADDING;
     const resolutionSliderY = GROUP_PADDING;
-    const paddingSliderY = resolutionSliderY + SLIDER_HEIGHT + SLIDER_GAP;
-    const modeSliderY = paddingSliderY + SLIDER_HEIGHT + SLIDER_GAP;
-    const thicknessSliderY = modeSliderY + SLIDER_HEIGHT + SLIDER_GAP;
-    const isoValueSliderY = thicknessSliderY + SLIDER_HEIGHT + SLIDER_GAP;
     
-    // Solver in the middle (relative to group)
-    const solverX = paramSliderStartX + SLIDER_WIDTH + SLIDER_GAP;
-    const solverY = GROUP_PADDING;
+    const voxelizerX = paramSliderStartX + SLIDER_WIDTH + SLIDER_GAP;
+    const voxelizerY = GROUP_PADDING;
     
-    // ExtractIsosurface node on the right (relative to group)
-    const extractIsosurfaceX = solverX + NODE_WIDTH + SLIDER_GAP;
-    const extractIsosurfaceY = solverY;
-    
-    const outputGroupWidth = SLIDER_WIDTH + SLIDER_GAP + NODE_WIDTH + SLIDER_GAP + NODE_WIDTH + GROUP_PADDING * 2;
-    const outputGroupHeight = isoValueSliderY + SLIDER_HEIGHT + GROUP_PADDING;
+    const outputGroupWidth = SLIDER_WIDTH + SLIDER_GAP + NODE_WIDTH + GROUP_PADDING * 2;
+    const outputGroupHeight = resolutionSliderY + SLIDER_HEIGHT + GROUP_PADDING;
 
-    // TextNote node (outside group, to the right of extractIsosurface)
+    // TextNote node (outside group, to the right)
     const textNoteX = outputGroupX + outputGroupWidth + GROUP_GAP;
     const textNoteY = outputGroupY + GROUP_PADDING;
-    const TEXT_NOTE_WIDTH = 240;
-    const TEXT_NOTE_HEIGHT = 300;
+    const TEXT_NOTE_WIDTH = 200;
+    const TEXT_NOTE_HEIGHT = 180;
 
     const newNodes: WorkflowNode[] = [
-      // Text nodes
+      // Text descriptions
       {
         id: inputTextId,
         type: "text" as const,
         position: { x: inputTextX, y: inputTextY },
         data: {
           parameters: {
-            text: "Input geometry is created using a Box primitive. Sliders control the box dimensions (width, height, depth) and connect directly to the box's input ports.",
+            text: "Input geometry (Box). Sliders control dimensions.",
             size: 10,
           },
           textSize: { width: TEXT_WIDTH, height: TEXT_HEIGHT },
@@ -8115,10 +8098,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         position: { x: outputTextX, y: outputTextY },
         data: {
           parameters: {
-            text: "The Voxel Solver performs topology optimization on the input domain. The Extract Isosurface node converts the voxel density field to a mesh using marching cubes. Parameter sliders control resolution, volume fraction, penalty exponent, filter radius, and iso value. The isosurface mesh is visible in Roslyn.",
+            text: "Voxelizer converts geometry into a voxel grid. Resolution controls voxel density.",
             size: 10,
           },
-          textSize: { width: TEXT_WIDTH + 180, height: TEXT_HEIGHT },
+          textSize: { width: TEXT_WIDTH, height: TEXT_HEIGHT },
         },
       },
       // Groups
@@ -8137,12 +8120,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         type: "group" as const,
         position: { x: outputGroupX, y: outputGroupY },
         data: {
-          label: "Voxelization Parameters",
+          label: "Voxelization",
           groupSize: { width: outputGroupWidth, height: outputGroupHeight },
-          parameters: { title: "Voxelization Parameters", color: "#fff4e6" },
+          parameters: { title: "Voxelization", color: "#fff4e6" },
         },
       },
-      // Box node
+      // Box node (input geometry)
       {
         id: boxId,
         type: "box" as const,
@@ -8156,7 +8139,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         parentNode: inputGroupId,
         extent: "parent" as const,
       },
-      // Dimension sliders (next to box)
+      // Dimension sliders
       {
         id: widthSliderId,
         type: "slider" as const,
@@ -8181,73 +8164,30 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         parentNode: inputGroupId,
         extent: "parent" as const,
       },
-      // Voxel Solver (outputs voxelGrid data, not geometry)
+      // Voxelizer node (outputs voxel grid + visible geometry)
       {
-        id: voxelSolverId,
+        id: voxelizerId,
         type: "voxelSolver" as const,
-        position: { x: solverX, y: solverY },
+        position: { x: voxelizerX, y: voxelizerY },
         data: {
-          parameters: { resolution: 16, volumeFraction: 0.35, penaltyExponent: 3, filterRadius: 2, iterations: 40 },
-        },
-        parentNode: outputGroupId,
-        extent: "parent" as const,
-      },
-      // Extract Isosurface node (outputs visible geometry)
-      {
-        id: extractIsosurfaceId,
-        type: "extractIsosurface" as const,
-        position: { x: extractIsosurfaceX, y: extractIsosurfaceY },
-        data: {
-          geometryId: extractIsosurfaceGeometryId,
+          geometryId: voxelizerGeometryId,
           geometryType: "mesh" as const,
           isLinked: true,
-          parameters: { isoValue: 0.5, resolution: 16 },
+          parameters: { resolution: 16 },
         },
         parentNode: outputGroupId,
         extent: "parent" as const,
       },
-      // Parameter sliders (next to solver)
+      // Resolution slider
       {
         id: resolutionId,
         type: "slider" as const,
         position: { x: paramSliderStartX, y: resolutionSliderY },
-        data: { parameters: { value: 16, min: 8, max: 32, step: 1 } },
+        data: { parameters: { value: 16, min: 4, max: 64, step: 1 } },
         parentNode: outputGroupId,
         extent: "parent" as const,
       },
-      {
-        id: paddingId,
-        type: "slider" as const,
-        position: { x: paramSliderStartX, y: paddingSliderY },
-        data: { parameters: { value: 0.35, min: 0.05, max: 0.95, step: 0.05 } },
-        parentNode: outputGroupId,
-        extent: "parent" as const,
-      },
-      {
-        id: modeId,
-        type: "slider" as const,
-        position: { x: paramSliderStartX, y: modeSliderY },
-        data: { parameters: { value: 3, min: 1, max: 6, step: 0.5 } },
-        parentNode: outputGroupId,
-        extent: "parent" as const,
-      },
-      {
-        id: thicknessId,
-        type: "slider" as const,
-        position: { x: paramSliderStartX, y: thicknessSliderY },
-        data: { parameters: { value: 2, min: 0, max: 8, step: 0.5 } },
-        parentNode: outputGroupId,
-        extent: "parent" as const,
-      },
-      {
-        id: isoValueId,
-        type: "slider" as const,
-        position: { x: paramSliderStartX, y: isoValueSliderY },
-        data: { parameters: { value: 0.5, min: 0, max: 1, step: 0.05 } },
-        parentNode: outputGroupId,
-        extent: "parent" as const,
-      },
-      // TextNote node (displays isosurface mesh data)
+      // TextNote node (displays voxel stats)
       {
         id: textNoteId,
         type: "textNote" as const,
@@ -8255,9 +8195,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         data: {
           parameters: {
             text: "",
-            maxLines: 50,
-            showIndex: true,
-            showMeshPositions: true,
+            maxLines: 20,
+            showIndex: false,
+            showMeshPositions: false,
             indexStart: 0,
             indent: 0,
           },
@@ -8271,21 +8211,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       { id: `edge-${widthSliderId}-${boxId}`, source: widthSliderId, sourceHandle: "value", target: boxId, targetHandle: "width" },
       { id: `edge-${heightSliderId}-${boxId}`, source: heightSliderId, sourceHandle: "value", target: boxId, targetHandle: "height" },
       { id: `edge-${depthSliderId}-${boxId}`, source: depthSliderId, sourceHandle: "value", target: boxId, targetHandle: "depth" },
-      // Box to Solver (domain input)
-      { id: `edge-${boxId}-${voxelSolverId}`, source: boxId, sourceHandle: "geometry", target: voxelSolverId, targetHandle: "domain" },
-      // Parameter sliders to Solver
-      { id: `edge-${resolutionId}-${voxelSolverId}`, source: resolutionId, sourceHandle: "value", target: voxelSolverId, targetHandle: "resolution" },
-      { id: `edge-${paddingId}-${voxelSolverId}`, source: paddingId, sourceHandle: "value", target: voxelSolverId, targetHandle: "volumeFraction" },
-      { id: `edge-${modeId}-${voxelSolverId}`, source: modeId, sourceHandle: "value", target: voxelSolverId, targetHandle: "penaltyExponent" },
-      { id: `edge-${thicknessId}-${voxelSolverId}`, source: thicknessId, sourceHandle: "value", target: voxelSolverId, targetHandle: "filterRadius" },
-      // Solver to ExtractIsosurface (voxelGrid output)
-      { id: `edge-${voxelSolverId}-${extractIsosurfaceId}`, source: voxelSolverId, sourceHandle: "voxelGrid", target: extractIsosurfaceId, targetHandle: "voxelGrid" },
-      // IsoValue slider to ExtractIsosurface
-      { id: `edge-${isoValueId}-${extractIsosurfaceId}`, source: isoValueId, sourceHandle: "value", target: extractIsosurfaceId, targetHandle: "isoValue" },
-      // Resolution slider to ExtractIsosurface
-      { id: `edge-${resolutionId}-${extractIsosurfaceId}`, source: resolutionId, sourceHandle: "value", target: extractIsosurfaceId, targetHandle: "resolution" },
-      // ExtractIsosurface to TextNote (displays mesh data)
-      { id: `edge-${extractIsosurfaceId}-${textNoteId}`, source: extractIsosurfaceId, sourceHandle: "mesh", target: textNoteId, targetHandle: "data" },
+      // Box to Voxelizer (geometry input)
+      { id: `edge-${boxId}-${voxelizerId}`, source: boxId, sourceHandle: "geometry", target: voxelizerId, targetHandle: "geometry" },
+      // Resolution slider to Voxelizer
+      { id: `edge-${resolutionId}-${voxelizerId}`, source: resolutionId, sourceHandle: "value", target: voxelizerId, targetHandle: "resolution" },
+      // Voxelizer stats to TextNote
+      { id: `edge-${voxelizerId}-${textNoteId}`, source: voxelizerId, sourceHandle: "fillRatio", target: textNoteId, targetHandle: "data" },
     ];
 
     const emptyMesh: RenderMesh = { positions: [], normals: [], uvs: [], indices: [] };
@@ -8296,22 +8227,22 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       mesh: emptyMesh,
       layerId: "layer-default",
       sourceNodeId: boxId,
-      metadata: { label: "Box Primitive (Input Domain)" },
+      metadata: { label: "Box (Input)" },
     };
     
-    const extractIsosurfaceGeometry: Geometry = {
-      id: extractIsosurfaceGeometryId,
+    const voxelizerGeometry: Geometry = {
+      id: voxelizerGeometryId,
       type: "mesh",
       mesh: emptyMesh,
       layerId: "layer-default",
-      sourceNodeId: extractIsosurfaceId,
+      sourceNodeId: voxelizerId,
       metadata: {
-        label: "Voxel Solver Output (Isosurface)",
+        label: "Voxelized Output",
         renderSettings: { wireframe: false, opacity: 1, transparent: false },
       },
     };
     
-    get().addGeometryItems([boxGeometry, extractIsosurfaceGeometry], {
+    get().addGeometryItems([boxGeometry, voxelizerGeometry], {
       selectIds: get().selectedGeometryIds,
       recordHistory: true,
     });
