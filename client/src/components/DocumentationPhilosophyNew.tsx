@@ -2,8 +2,15 @@ import WebGLButton from "./ui/WebGLButton";
 import pageStyles from "./DocumentationNewUsersPage.module.css";
 import CubeLogo from "./CubeLogo";
 
+type DocsRoute =
+  | { kind: "index" }
+  | { kind: "philosophy" }
+  | { kind: "inspirations" }
+  | { kind: "roslyn"; id: string }
+  | { kind: "numerica"; id: string };
+
 type DocumentationNarrativeProps = {
-  onNavigate: (route: { kind: "index" | "philosophy" | "inspirations" | "roslyn" | "numerica"; id?: string }) => void;
+  onNavigate: (route: DocsRoute) => void;
 };
 
 export const DocumentationPhilosophy = ({ onNavigate }: DocumentationNarrativeProps) => {

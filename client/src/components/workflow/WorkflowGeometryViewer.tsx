@@ -482,27 +482,23 @@ const WorkflowGeometryViewer = ({
 
   useEffect(() => {
     if (resolvedGeometries.length === 0) return;
-    let bounds: Bounds | null = null;
-    resolvedGeometries.forEach((item) => {
+    const bounds = resolvedGeometries.reduce<Bounds | null>((acc, item) => {
       const nextBounds = computeBoundsForGeometry(item, geometryById);
-      if (!nextBounds) return;
-      if (!bounds) {
-        bounds = nextBounds;
-        return;
-      }
-      bounds = {
+      if (!nextBounds) return acc;
+      if (!acc) return nextBounds;
+      return {
         min: {
-          x: Math.min(bounds.min.x, nextBounds.min.x),
-          y: Math.min(bounds.min.y, nextBounds.min.y),
-          z: Math.min(bounds.min.z, nextBounds.min.z),
+          x: Math.min(acc.min.x, nextBounds.min.x),
+          y: Math.min(acc.min.y, nextBounds.min.y),
+          z: Math.min(acc.min.z, nextBounds.min.z),
         },
         max: {
-          x: Math.max(bounds.max.x, nextBounds.max.x),
-          y: Math.max(bounds.max.y, nextBounds.max.y),
-          z: Math.max(bounds.max.z, nextBounds.max.z),
+          x: Math.max(acc.max.x, nextBounds.max.x),
+          y: Math.max(acc.max.y, nextBounds.max.y),
+          z: Math.max(acc.max.z, nextBounds.max.z),
         },
       };
-    });
+    }, null);
     if (!bounds) return;
 
     const size = {
@@ -732,7 +728,7 @@ const WorkflowGeometryViewer = ({
                   const count = Math.max(1, points.length);
                   return { x: sum.x / count, y: sum.y / count, z: sum.z / count };
                 }
-                if ("mesh" in item) {
+                if ("mesh" in item && item.mesh) {
                   const positions = item.mesh.positions;
                   const count = Math.max(1, positions.length / 3);
                   let sx = 0;

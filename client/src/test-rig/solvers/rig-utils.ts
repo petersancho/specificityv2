@@ -32,7 +32,7 @@ export const createSphereGeometry = (
 ): MeshGeometry => ({
   id,
   type: "mesh",
-  mesh: generateSphereMesh({ radius }, segments),
+  mesh: generateSphereMesh(radius, segments),
   layerId: "layer-test",
 });
 

@@ -855,12 +855,13 @@ const collectGeometryEdges = (
   }
 
   if ("mesh" in geometry && geometry.mesh?.indices && geometry.mesh?.positions) {
-    const edgeIndices = collectMeshEdges(geometry.mesh.indices, maxItems);
+    const meshData = geometry.mesh;
+    const edgeIndices = collectMeshEdges(meshData.indices, maxItems);
     edgeIndices.forEach(([a, b]) => {
       if (edges.length >= maxItems) return;
       edges.push([
-        vec3FromPositions(geometry.mesh.positions, a),
-        vec3FromPositions(geometry.mesh.positions, b),
+        vec3FromPositions(meshData.positions, a),
+        vec3FromPositions(meshData.positions, b),
       ]);
     });
     return edges;
@@ -2998,8 +2999,8 @@ const runChemistrySolver = (args: {
       })
       .filter(Boolean) as Array<{ min: Vec3Value; max: Vec3Value }>;
     const loadVector =
-      goal.goalType === "chemStiffness" && params.loadVector && isVec3Value(params.loadVector)
-        ? normalizeVec3Safe(params.loadVector, UNIT_Y_VEC3)
+      goal.goalType === "chemStiffness" && params.loadVector && isVec3Value(params.loadVector as Record<string, unknown>)
+        ? normalizeVec3Safe(params.loadVector as Vec3Value, UNIT_Y_VEC3)
         : UNIT_Y_VEC3;
     const smoothness = clampNumber(toNumber(params.smoothness, 0.7), 0, 1);
     const diffusivity = clampNumber(toNumber(params.diffusivity, 1), 0, 4);
@@ -4458,15 +4459,16 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
           thickness: 0,
         };
       }
+      const geom = geometry as any;
       const metadata = {
         id: geometry.id,
         type: geometry.type,
         layerId: geometry.layerId,
         area_m2: geometry.area_m2 ?? null,
-        volume_m3: geometry.volume_m3 ?? null,
-        centroid: geometry.centroid ?? null,
-        mass_kg: geometry.mass_kg ?? null,
-        inertiaTensor_kg_m2: geometry.inertiaTensor_kg_m2 ?? null,
+        volume_m3: geom.volume_m3 ?? null,
+        centroid: geom.centroid ?? null,
+        mass_kg: geom.mass_kg ?? null,
+        inertiaTensor_kg_m2: geom.inertiaTensor_kg_m2 ?? null,
         thickness_m: geometry.thickness_m ?? null,
         metadata: geometry.metadata ?? null,
       };
@@ -4476,10 +4478,10 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
         type: geometry.type,
         layer: geometry.layerId,
         area: geometry.area_m2 ?? 0,
-        volume: geometry.volume_m3 ?? 0,
-        mass: geometry.mass_kg ?? 0,
-        centroid: geometry.centroid ?? ZERO_VEC3,
-        inertia: geometry.inertiaTensor_kg_m2 ?? null,
+        volume: geom.volume_m3 ?? 0,
+        mass: geom.mass_kg ?? 0,
+        centroid: geom.centroid ?? ZERO_VEC3,
+        inertia: geom.inertiaTensor_kg_m2 ?? null,
         thickness: geometry.thickness_m ?? 0,
       };
     },
@@ -4675,7 +4677,6 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     ],
     parameters: [],
     primaryOutputKey: "geometry",
-    semanticOps: ["brep.brepFromMesh"] as const,
     compute: ({ inputs, parameters, context }) => {
       const geometryId = typeof parameters.geometryId === "string" ? parameters.geometryId : null;
       const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
@@ -4700,7 +4701,6 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "subdivideMesh",
-    semanticOps: ["meshTess.subdivideLinear"],
     label: "Subdivide Mesh",
     shortLabel: "SUBD",
     description: "Subdivide a mesh using linear, Catmull-Clark, Loop, or adaptive schemes.",
@@ -4855,7 +4855,6 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "dualMesh",
-    semanticOps: ["meshTess.dualMesh"],
     label: "Dual Mesh",
     shortLabel: "DUAL",
     description: "Flip faces and vertices to create a dual mesh.",
@@ -4899,7 +4898,6 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "insetFaces",
-    semanticOps: ["meshTess.insetFaces"],
     label: "Inset Faces",
     shortLabel: "INSET",
     description: "Inset mesh faces to create panels and borders.",
@@ -4995,7 +4993,6 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "extrudeFaces",
-    semanticOps: ["meshTess.extrudeFaces"],
     label: "Extrude Faces",
     shortLabel: "XTRD",
     description: "Extrude selected faces along normals or a fixed axis.",
@@ -5087,7 +5084,6 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "meshRelax",
-    semanticOps: ["meshTess.meshRelax"],
     label: "Mesh Relax",
     shortLabel: "RELX",
     description: "Smooth a mesh with Laplacian relaxation.",
@@ -5171,7 +5167,6 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "selectFaces",
-    semanticOps: ["meshTess.selectFaces"],
     label: "Select Faces",
     shortLabel: "SEL",
     description: "Select mesh faces by area, normal direction, or index pattern.",
@@ -5260,7 +5255,6 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "meshBoolean",
-    semanticOps: ["meshTess.meshBoolean"],
     label: "Mesh Boolean",
     shortLabel: "MBOOL",
     description: "Combine two meshes with union, difference, or intersection.",
@@ -5330,7 +5324,6 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "triangulateMesh",
-    semanticOps: ["meshTess.triangulateMesh"],
     label: "Triangulate Mesh",
     shortLabel: "TRI",
     description: "Convert all faces to triangles.",
@@ -5372,7 +5365,6 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "geodesicSphere",
-    semanticOps: ["meshTess.generateGeodesicSphere"],
     label: "Geodesic Sphere",
     shortLabel: "GEO",
     description: "Generate a geodesic sphere mesh.",
@@ -5431,7 +5423,6 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "voronoiPattern",
-    semanticOps: ["meshTess.generateVoronoiPattern"],
     label: "Voronoi Pattern",
     shortLabel: "VOR",
     description: "Generate a Voronoi pattern from a boundary surface.",
@@ -5529,7 +5520,6 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "hexagonalTiling",
-    semanticOps: ["meshTess.generateHexagonalTiling"],
     label: "Hexagonal Tiling",
     shortLabel: "HEX",
     description: "Generate a hexagonal tiling over a surface plane.",
@@ -5605,7 +5595,6 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "offsetPattern",
-    semanticOps: ["meshTess.offsetPattern"],
     label: "Offset Pattern",
     shortLabel: "OFST",
     description: "Inset and extrude faces to create panelized patterns.",
@@ -5668,7 +5657,6 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "meshRepair",
-    semanticOps: ["meshTess.repairMesh"],
     label: "Mesh Repair",
     shortLabel: "REPR",
     description: "Repair holes and weld close vertices.",
@@ -5722,7 +5710,6 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "meshUVs",
-    semanticOps: ["meshTess.generateMeshUVs"],
     label: "Generate UVs",
     shortLabel: "UV",
     description: "Generate UV coordinates for a mesh.",
@@ -5786,7 +5773,6 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "meshDecimate",
-    semanticOps: ["meshTess.decimateMesh"],
     label: "Mesh Decimate",
     shortLabel: "DEC",
     description: "Reduce mesh density via vertex clustering.",
@@ -5849,7 +5835,6 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "quadRemesh",
-    semanticOps: ["meshTess.quadDominantRemesh"],
     label: "Quad Remesh",
     shortLabel: "QUAD",
     description: "Merge adjacent triangles into quad-dominant faces.",
@@ -7577,11 +7562,12 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
           length += distanceVec3(vertices[vertices.length - 1], vertices[0]);
         }
       }
+      const geomAny = geometry as any;
       const hasArea = typeof geometry.area_m2 === "number" && Number.isFinite(geometry.area_m2);
       const hasVolume =
-        typeof geometry.volume_m3 === "number" && Number.isFinite(geometry.volume_m3);
+        typeof geomAny.volume_m3 === "number" && Number.isFinite(geomAny.volume_m3);
       let area = hasArea ? (geometry.area_m2 as number) : 0;
-      let volume = hasVolume ? (geometry.volume_m3 as number) : 0;
+      let volume = hasVolume ? (geomAny.volume_m3 as number) : 0;
       if ("mesh" in geometry && geometry.mesh?.positions && geometry.mesh?.indices) {
         if (!hasArea) {
           area = computeMeshArea(geometry.mesh.positions, geometry.mesh.indices);

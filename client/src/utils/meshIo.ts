@@ -43,7 +43,7 @@ export const mergeRenderMeshes = (meshes: RenderMesh[]): RenderMesh => {
   const uvs: number[] = [];
   const indices: number[] = [];
   const includeColors = meshes.every(
-    (mesh) => Boolean(mesh.colors) && mesh.colors.length === (mesh.positions?.length ?? 0)
+    (mesh) => Boolean(mesh.colors) && (mesh.colors?.length ?? 0) === (mesh.positions?.length ?? 0)
   );
   const colors: number[] = [];
   let vertexOffset = 0;

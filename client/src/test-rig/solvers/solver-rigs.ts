@@ -82,7 +82,7 @@ export const runPhysicsSolverRig = (analysisType: AnalysisType) => {
   };
 
   const outputs = node.compute({
-    inputs: { baseMesh: baseGeometry.id, goals },
+    inputs: { baseMesh: baseGeometry.id, goals: goals as unknown as Record<string, unknown>[] },
     parameters,
     context,
   });
@@ -179,7 +179,7 @@ export const runTopologySolverRig = (nodeType: "topologySolver" | "voxelSolver")
     resolution: 16,
   };
   const outputs = solverNode.compute({
-    inputs: { domain: baseGeometry.id, goals },
+    inputs: { domain: baseGeometry.id, goals: goals as unknown as Record<string, unknown>[] },
     parameters,
     context,
   });
@@ -262,7 +262,7 @@ export const runChemistrySolverRig = (
       materials,
       materialsText: variant === "textInputs" ? TEXT_INPUT_MATERIALS : undefined,
       seeds,
-      goals,
+      goals: goals as unknown as Record<string, unknown>[],
     },
     parameters,
     context,

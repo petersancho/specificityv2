@@ -3762,7 +3762,7 @@
     "id": "geometry.primitive.cylinder",
     "domain": "geometry",
     "name": "Cylinder",
-    "category": "primitives",
+    "category": "primitive",
     "tags": [
       "geometry",
       "primitive",
@@ -3782,7 +3782,7 @@
     "id": "geometry.primitive.torus",
     "domain": "geometry",
     "name": "Torus",
-    "category": "primitives",
+    "category": "primitive",
     "tags": [
       "geometry",
       "primitive",
@@ -3802,7 +3802,7 @@
     "id": "geometry.primitive.pyramid",
     "domain": "geometry",
     "name": "Pyramid",
-    "category": "primitives",
+    "category": "primitive",
     "tags": [
       "geometry",
       "primitive",
@@ -3822,7 +3822,7 @@
     "id": "geometry.primitive.tetrahedron",
     "domain": "geometry",
     "name": "Tetrahedron",
-    "category": "primitives",
+    "category": "primitive",
     "tags": [
       "geometry",
       "primitive",
@@ -3843,7 +3843,7 @@
     "id": "geometry.primitive.octahedron",
     "domain": "geometry",
     "name": "Octahedron",
-    "category": "primitives",
+    "category": "primitive",
     "tags": [
       "geometry",
       "primitive",
@@ -3864,7 +3864,7 @@
     "id": "geometry.primitive.icosahedron",
     "domain": "geometry",
     "name": "Icosahedron",
-    "category": "primitives",
+    "category": "primitive",
     "tags": [
       "geometry",
       "primitive",
@@ -3885,7 +3885,7 @@
     "id": "geometry.primitive.dodecahedron",
     "domain": "geometry",
     "name": "Dodecahedron",
-    "category": "primitives",
+    "category": "primitive",
     "tags": [
       "geometry",
       "primitive",
@@ -3906,7 +3906,7 @@
     "id": "geometry.primitive.hemisphere",
     "domain": "geometry",
     "name": "Hemisphere",
-    "category": "primitives",
+    "category": "primitive",
     "tags": [
       "geometry",
       "primitive",
@@ -3927,7 +3927,7 @@
     "id": "geometry.primitive.capsule",
     "domain": "geometry",
     "name": "Capsule",
-    "category": "primitives",
+    "category": "primitive",
     "tags": [
       "geometry",
       "primitive",
@@ -3948,7 +3948,7 @@
     "id": "geometry.primitive.disk",
     "domain": "geometry",
     "name": "Disk",
-    "category": "primitives",
+    "category": "primitive",
     "tags": [
       "geometry",
       "primitive",
@@ -3969,7 +3969,7 @@
     "id": "geometry.primitive.ring",
     "domain": "geometry",
     "name": "Ring",
-    "category": "primitives",
+    "category": "primitive",
     "tags": [
       "geometry",
       "primitive",
@@ -3990,7 +3990,7 @@
     "id": "geometry.primitive.triangularPrism",
     "domain": "geometry",
     "name": "Triangular Prism",
-    "category": "primitives",
+    "category": "primitive",
     "tags": [
       "geometry",
       "primitive",
@@ -4011,7 +4011,7 @@
     "id": "geometry.primitive.hexagonalPrism",
     "domain": "geometry",
     "name": "Hexagonal Prism",
-    "category": "primitives",
+    "category": "primitive",
     "tags": [
       "geometry",
       "primitive",
@@ -4032,7 +4032,7 @@
     "id": "geometry.primitive.pentagonalPrism",
     "domain": "geometry",
     "name": "Pentagonal Prism",
-    "category": "primitives",
+    "category": "primitive",
     "tags": [
       "geometry",
       "primitive",
@@ -4053,7 +4053,7 @@
     "id": "geometry.primitive.torusKnot",
     "domain": "geometry",
     "name": "Torus Knot",
-    "category": "primitives",
+    "category": "primitive",
     "tags": [
       "geometry",
       "primitive",
@@ -4074,7 +4074,7 @@
     "id": "geometry.primitive.utahTeapot",
     "domain": "geometry",
     "name": "Utah Teapot",
-    "category": "primitives",
+    "category": "primitive",
     "tags": [
       "geometry",
       "primitive",
@@ -4096,7 +4096,7 @@
     "id": "geometry.primitive.frustum",
     "domain": "geometry",
     "name": "Frustum",
-    "category": "primitives",
+    "category": "primitive",
     "tags": [
       "geometry",
       "primitive",
@@ -4117,7 +4117,7 @@
     "id": "geometry.primitive.mobiusStrip",
     "domain": "geometry",
     "name": "Mobius Strip",
-    "category": "primitives",
+    "category": "primitive",
     "tags": [
       "geometry",
       "primitive",
@@ -4139,7 +4139,7 @@
     "id": "geometry.primitive.ellipsoid",
     "domain": "geometry",
     "name": "Ellipsoid",
-    "category": "primitives",
+    "category": "primitive",
     "tags": [
       "geometry",
       "primitive",
@@ -4160,7 +4160,7 @@
     "id": "geometry.primitive.wedge",
     "domain": "geometry",
     "name": "Wedge",
-    "category": "primitives",
+    "category": "primitive",
     "tags": [
       "geometry",
       "primitive",
@@ -4180,7 +4180,7 @@
     "id": "geometry.primitive.sphericalCap",
     "domain": "geometry",
     "name": "Spherical Cap",
-    "category": "primitives",
+    "category": "primitive",
     "tags": [
       "geometry",
       "primitive",
@@ -4201,7 +4201,7 @@
     "id": "geometry.primitive.bipyramid",
     "domain": "geometry",
     "name": "Bipyramid",
-    "category": "primitives",
+    "category": "primitive",
     "tags": [
       "geometry",
       "primitive",
@@ -4221,7 +4221,7 @@
     "id": "geometry.primitive.rhombicDodecahedron",
     "domain": "geometry",
     "name": "Rhombic Dodecahedron",
-    "category": "primitives",
+    "category": "primitive",
     "tags": [
       "geometry",
       "primitive",
@@ -4242,7 +4242,7 @@
     "id": "geometry.primitive.truncatedCube",
     "domain": "geometry",
     "name": "Truncated Cube",
-    "category": "primitives",
+    "category": "primitive",
     "tags": [
       "geometry",
       "primitive",
@@ -4264,7 +4264,7 @@
     "id": "geometry.primitive.truncatedOctahedron",
     "domain": "geometry",
     "name": "Truncated Octahedron",
-    "category": "primitives",
+    "category": "primitive",
     "tags": [
       "geometry",
       "primitive",
@@ -4286,7 +4286,7 @@
     "id": "geometry.primitive.truncatedIcosahedron",
     "domain": "geometry",
     "name": "Truncated Icosahedron",
-    "category": "primitives",
+    "category": "primitive",
     "tags": [
       "geometry",
       "primitive",
@@ -4309,7 +4309,7 @@
     "id": "geometry.primitive.pipe",
     "domain": "geometry",
     "name": "Pipe",
-    "category": "primitives",
+    "category": "primitive",
     "tags": [
       "geometry",
       "primitive",
@@ -4330,7 +4330,7 @@
     "id": "geometry.primitive.superellipsoid",
     "domain": "geometry",
     "name": "Superellipsoid",
-    "category": "primitives",
+    "category": "primitive",
     "tags": [
       "geometry",
       "primitive",
@@ -4351,7 +4351,7 @@
     "id": "geometry.primitive.hyperbolicParaboloid",
     "domain": "geometry",
     "name": "Hyperbolic Paraboloid",
-    "category": "primitives",
+    "category": "primitive",
     "tags": [
       "geometry",
       "primitive",
@@ -4373,7 +4373,7 @@
     "id": "geometry.primitive.geodesicDome",
     "domain": "geometry",
     "name": "Geodesic Dome",
-    "category": "primitives",
+    "category": "primitive",
     "tags": [
       "geometry",
       "primitive",
@@ -4395,7 +4395,7 @@
     "id": "geometry.primitive.oneSheetHyperboloid",
     "domain": "geometry",
     "name": "One-Sheet Hyperboloid",
-    "category": "primitives",
+    "category": "primitive",
     "tags": [
       "geometry",
       "primitive",
@@ -4647,12 +4647,12 @@
       "distance",
       "3d"
     ],
-    "complexity": "O(n*m)",
+    "complexity": "O(n^2)",
     "cost": "medium",
     "pure": true,
     "deterministic": true,
     "sideEffects": [],
-    "summary": "Computes proximity between 3D geometries",
+    "summary": "Computes proximity between 3D geometries (O(n*m))",
     "stable": true,
     "since": "1.0.0"
   },
@@ -5120,8 +5120,8 @@
       "mesh",
       "3d"
     ],
-    "complexity": "O(n * iterations)",
-    "summary": "Smooths mesh by averaging vertex positions",
+    "complexity": "varies",
+    "summary": "Smooths mesh by averaging vertex positions (O(n * iterations))",
     "stable": true,
     "since": "1.0.0"
   },

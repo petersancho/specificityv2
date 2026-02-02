@@ -5018,9 +5018,9 @@ const renderWebGLPorts = ({
         hoveredTarget.isOutput === portLayout.isOutput;
       const isActive =
         Boolean(activePort) &&
-        activePort.nodeId === nodeId &&
-        activePort.portKey === port.key &&
-        activePort.isOutput === portLayout.isOutput;
+        activePort?.nodeId === nodeId &&
+        activePort?.portKey === port.key &&
+        activePort?.isOutput === portLayout.isOutput;
       const connected = portLayout.isOutput
         ? outputConnections?.has(port.key) ?? false
         : inputConnections?.has(port.key) ?? false;
@@ -5320,7 +5320,7 @@ function drawNodes(
     const label = node.type === "panel" ? "DATA" : baseLabel;
     const isSlider = node.type === "slider";
     const sliderHoverPart =
-      isGhost || !isSlider || sliderHover?.nodeId !== node.id ? null : sliderHover.part;
+      isGhost || !isSlider || !sliderHover || sliderHover.nodeId !== node.id ? null : sliderHover.part;
     const isSliderFocused = !isGhost && isSlider && focusedSliderId === node.id;
     const isSliderActive =
       !isGhost && isSlider && dragState.type === "slider" && dragState.nodeId === node.id;
@@ -5714,7 +5714,7 @@ function drawNodes(
         } else {
           const tickCount = 7;
           for (let i = 0; i < tickCount; i += 1) {
-            const t = tickCount === 1 ? 0.5 : i / (tickCount - 1);
+            const t = i / (tickCount - 1);
             tickPositions.push(sliderBounds.x + sliderBounds.width * t);
           }
         }

@@ -24,9 +24,9 @@ export interface SolverMetadata {
   parameters?: Record<string, unknown>;
 }
 
-export interface SolverGeometry extends Geometry {
+export type SolverGeometry = Geometry & {
   solverMetadata?: SolverMetadata;
-}
+};
 
 export interface PhysicsSolverResult {
   geometry: string;
@@ -102,10 +102,10 @@ export const createSolverMetadata = (
 export const attachSolverMetadata = (
   geometry: Geometry,
   metadata: SolverMetadata
-): Geometry => ({
+): SolverGeometry => ({
   ...geometry,
   solverMetadata: metadata,
-} as Geometry);
+} as SolverGeometry);
 
 export const isSolverGeometry = (geometry: Geometry): geometry is SolverGeometry => {
   return "solverMetadata" in geometry && geometry.solverMetadata !== undefined;

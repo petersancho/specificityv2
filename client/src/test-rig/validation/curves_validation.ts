@@ -57,7 +57,7 @@ const runNodeValidation = (nodeName: string, fn: () => void) => {
 
 const validateLine = () => {
   const node = getNodeDefinition("line");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "curves", "Expected category curves");
 
   const context = createContext();
@@ -69,15 +69,15 @@ const validateLine = () => {
 
   ensure(result.geometry === "line-geom", "Expected geometry output to match geometryId");
   ensure(Array.isArray(result.points), "Expected points array");
-  ensure(result.points.length === 2, "Expected 2 points");
+  ensure((result.points as unknown[]).length === 2, "Expected 2 points");
   ensureVec3(result.start, "Expected start vector");
   ensureVec3(result.end, "Expected end vector");
-  ensure(approxEqual(result.length, 5), "Expected length 5");
+  ensure(approxEqual(result.length as number, 5), "Expected length 5");
 };
 
 const validateRectangle = () => {
   const node = getNodeDefinition("rectangle");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "curves", "Expected category curves");
 
   const context = createContext();
@@ -94,7 +94,7 @@ const validateRectangle = () => {
 
 const validatePolyline = () => {
   const node = getNodeDefinition("polyline");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "curves", "Expected category curves");
 
   const context = createContext();
@@ -113,7 +113,7 @@ const validatePolyline = () => {
 
   ensure(result.geometry === "poly-geom", "Expected geometry output to match geometryId");
   ensure(Array.isArray(result.points), "Expected points array");
-  ensure(result.points.length === 3, "Expected 3 points");
+  ensure((result.points as unknown[]).length === 3, "Expected 3 points");
   ensure(result.closed === true, "Expected closed true");
 };
 

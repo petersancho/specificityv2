@@ -1,6 +1,6 @@
 # Semantic Inventory
 
-Generated: 2026-02-02T19:38:05.140Z
+Generated: 2026-02-02T21:18:21.907Z
 
 ## Summary
 
@@ -124,37 +124,37 @@ Generated: 2026-02-02T19:38:05.140Z
 | `geometry.plasticwrap` | Plastic Wrap | operation | ✅ | plasticwrap |
 | `geometry.solid` | Solid | operation | ✅ | solid |
 | `geometry.primitive` | Primitive | creation | ✅ | primitive |
-| `geometry.primitive.cylinder` | Cylinder | primitives | ✅ | cylinder |
-| `geometry.primitive.torus` | Torus | primitives | ✅ | torus |
-| `geometry.primitive.pyramid` | Pyramid | primitives | ✅ | pyramid |
-| `geometry.primitive.tetrahedron` | Tetrahedron | primitives | ✅ | tetrahedron |
-| `geometry.primitive.octahedron` | Octahedron | primitives | ✅ | octahedron |
-| `geometry.primitive.icosahedron` | Icosahedron | primitives | ✅ | icosahedron |
-| `geometry.primitive.dodecahedron` | Dodecahedron | primitives | ✅ | dodecahedron |
-| `geometry.primitive.hemisphere` | Hemisphere | primitives | ✅ | hemisphere |
-| `geometry.primitive.capsule` | Capsule | primitives | ✅ | capsule |
-| `geometry.primitive.disk` | Disk | primitives | ✅ | disk |
-| `geometry.primitive.ring` | Ring | primitives | ✅ | ring |
-| `geometry.primitive.triangularPrism` | Triangular Prism | primitives | ✅ | triangular-prism |
-| `geometry.primitive.hexagonalPrism` | Hexagonal Prism | primitives | ✅ | hexagonal-prism |
-| `geometry.primitive.pentagonalPrism` | Pentagonal Prism | primitives | ✅ | pentagonal-prism |
-| `geometry.primitive.torusKnot` | Torus Knot | primitives | ✅ | torus-knot |
-| `geometry.primitive.utahTeapot` | Utah Teapot | primitives | ✅ | utah-teapot |
-| `geometry.primitive.frustum` | Frustum | primitives | ✅ | frustum |
-| `geometry.primitive.mobiusStrip` | Mobius Strip | primitives | ✅ | mobius-strip |
-| `geometry.primitive.ellipsoid` | Ellipsoid | primitives | ✅ | ellipsoid |
-| `geometry.primitive.wedge` | Wedge | primitives | ✅ | wedge |
-| `geometry.primitive.sphericalCap` | Spherical Cap | primitives | ✅ | spherical-cap |
-| `geometry.primitive.bipyramid` | Bipyramid | primitives | ✅ | bipyramid |
-| `geometry.primitive.rhombicDodecahedron` | Rhombic Dodecahedron | primitives | ✅ | rhombic-dodecahedron |
-| `geometry.primitive.truncatedCube` | Truncated Cube | primitives | ✅ | truncated-cube |
-| `geometry.primitive.truncatedOctahedron` | Truncated Octahedron | primitives | ✅ | truncated-octahedron |
-| `geometry.primitive.truncatedIcosahedron` | Truncated Icosahedron | primitives | ✅ | truncated-icosahedron |
-| `geometry.primitive.pipe` | Pipe | primitives | ✅ | pipe |
-| `geometry.primitive.superellipsoid` | Superellipsoid | primitives | ✅ | superellipsoid |
-| `geometry.primitive.hyperbolicParaboloid` | Hyperbolic Paraboloid | primitives | ✅ | hyperbolic-paraboloid |
-| `geometry.primitive.geodesicDome` | Geodesic Dome | primitives | ✅ | geodesic-dome |
-| `geometry.primitive.oneSheetHyperboloid` | One-Sheet Hyperboloid | primitives | ✅ | one-sheet-hyperboloid |
+| `geometry.primitive.cylinder` | Cylinder | primitive | ✅ | cylinder |
+| `geometry.primitive.torus` | Torus | primitive | ✅ | torus |
+| `geometry.primitive.pyramid` | Pyramid | primitive | ✅ | pyramid |
+| `geometry.primitive.tetrahedron` | Tetrahedron | primitive | ✅ | tetrahedron |
+| `geometry.primitive.octahedron` | Octahedron | primitive | ✅ | octahedron |
+| `geometry.primitive.icosahedron` | Icosahedron | primitive | ✅ | icosahedron |
+| `geometry.primitive.dodecahedron` | Dodecahedron | primitive | ✅ | dodecahedron |
+| `geometry.primitive.hemisphere` | Hemisphere | primitive | ✅ | hemisphere |
+| `geometry.primitive.capsule` | Capsule | primitive | ✅ | capsule |
+| `geometry.primitive.disk` | Disk | primitive | ✅ | disk |
+| `geometry.primitive.ring` | Ring | primitive | ✅ | ring |
+| `geometry.primitive.triangularPrism` | Triangular Prism | primitive | ✅ | triangular-prism |
+| `geometry.primitive.hexagonalPrism` | Hexagonal Prism | primitive | ✅ | hexagonal-prism |
+| `geometry.primitive.pentagonalPrism` | Pentagonal Prism | primitive | ✅ | pentagonal-prism |
+| `geometry.primitive.torusKnot` | Torus Knot | primitive | ✅ | torus-knot |
+| `geometry.primitive.utahTeapot` | Utah Teapot | primitive | ✅ | utah-teapot |
+| `geometry.primitive.frustum` | Frustum | primitive | ✅ | frustum |
+| `geometry.primitive.mobiusStrip` | Mobius Strip | primitive | ✅ | mobius-strip |
+| `geometry.primitive.ellipsoid` | Ellipsoid | primitive | ✅ | ellipsoid |
+| `geometry.primitive.wedge` | Wedge | primitive | ✅ | wedge |
+| `geometry.primitive.sphericalCap` | Spherical Cap | primitive | ✅ | spherical-cap |
+| `geometry.primitive.bipyramid` | Bipyramid | primitive | ✅ | bipyramid |
+| `geometry.primitive.rhombicDodecahedron` | Rhombic Dodecahedron | primitive | ✅ | rhombic-dodecahedron |
+| `geometry.primitive.truncatedCube` | Truncated Cube | primitive | ✅ | truncated-cube |
+| `geometry.primitive.truncatedOctahedron` | Truncated Octahedron | primitive | ✅ | truncated-octahedron |
+| `geometry.primitive.truncatedIcosahedron` | Truncated Icosahedron | primitive | ✅ | truncated-icosahedron |
+| `geometry.primitive.pipe` | Pipe | primitive | ✅ | pipe |
+| `geometry.primitive.superellipsoid` | Superellipsoid | primitive | ✅ | superellipsoid |
+| `geometry.primitive.hyperbolicParaboloid` | Hyperbolic Paraboloid | primitive | ✅ | hyperbolic-paraboloid |
+| `geometry.primitive.geodesicDome` | Geodesic Dome | primitive | ✅ | geodesic-dome |
+| `geometry.primitive.oneSheetHyperboloid` | One-Sheet Hyperboloid | primitive | ✅ | one-sheet-hyperboloid |
 | `geometry.array.linear` | Linear Array | array | ✅ | linearArray |
 | `geometry.array.polar` | Polar Array | array | ✅ | polarArray |
 | `geometry.array.grid` | Grid Array | array | ✅ | gridArray |

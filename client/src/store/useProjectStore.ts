@@ -83,6 +83,7 @@ import type {
   Layer,
   Material,
   MaterialAssignment,
+  MeshGeometry,
   ModelerSnapshot,
   PlaneDefinition,
   PivotMode,
@@ -1276,23 +1277,23 @@ const applyMoveDeltaToGeometry = (
       ...(existing ?? {}),
       mesh: nextMesh,
     };
-    const baseCentroid = (existing as Partial<Geometry> | undefined)?.centroid ?? geometry.centroid;
+    const existingGeometry = existing as any;
+    const baseCentroid = existingGeometry?.centroid ?? (geometry as any).centroid;
     if (baseCentroid) {
-      nextUpdate.centroid = addVec3(baseCentroid, delta);
+      (nextUpdate as any).centroid = addVec3(baseCentroid, delta);
     }
-    const existingGeometry = existing as Partial<Geometry> | undefined;
-    if (existingGeometry?.volume_m3 !== undefined || geometry.volume_m3 !== undefined) {
-      nextUpdate.volume_m3 = existingGeometry?.volume_m3 ?? geometry.volume_m3;
+    if (existingGeometry?.volume_m3 !== undefined || (geometry as any).volume_m3 !== undefined) {
+      (nextUpdate as any).volume_m3 = existingGeometry?.volume_m3 ?? (geometry as any).volume_m3;
     }
-    if (existingGeometry?.mass_kg !== undefined || geometry.mass_kg !== undefined) {
-      nextUpdate.mass_kg = existingGeometry?.mass_kg ?? geometry.mass_kg;
+    if (existingGeometry?.mass_kg !== undefined || (geometry as any).mass_kg !== undefined) {
+      (nextUpdate as any).mass_kg = existingGeometry?.mass_kg ?? (geometry as any).mass_kg;
     }
     if (
       existingGeometry?.inertiaTensor_kg_m2 !== undefined ||
-      geometry.inertiaTensor_kg_m2 !== undefined
+      (geometry as any).inertiaTensor_kg_m2 !== undefined
     ) {
-      nextUpdate.inertiaTensor_kg_m2 =
-        existingGeometry?.inertiaTensor_kg_m2 ?? geometry.inertiaTensor_kg_m2;
+      (nextUpdate as any).inertiaTensor_kg_m2 =
+        existingGeometry?.inertiaTensor_kg_m2 ?? (geometry as any).inertiaTensor_kg_m2;
     }
     if (geometry.type === "mesh" && geometry.primitive) {
       const existingMesh = existing as Partial<MeshPrimitiveGeometry> | undefined;
@@ -1685,7 +1686,7 @@ const upsertBRepGeometry = (
     layerId,
     ...(physical ? physical : null),
     metadata,
-  });
+  } as Geometry);
 };
 
 const upsertMeshGeometry = (
@@ -2217,7 +2218,7 @@ const applySeedGeometryNodesToGeometry = (
           {
             kind: primitiveKind,
             origin,
-            params: { ...(config as Record<string, number>) },
+            params: { ...(config as unknown as Record<string, number>) },
           },
           { geometryById, updates, itemsToAdd },
           node.id
@@ -3351,11 +3352,12 @@ const applyOffsetSurfaceNodesToGeometry = (
       mass_kg,
     };
     if (existing.type === "surface" && existing.mesh.positions.length >= 3) {
-      const indices = resolveMeshIndices(existing.mesh);
+      const surfaceGeometry = existing as SurfaceGeometry;
+      const indices = resolveMeshIndices(surfaceGeometry.mesh);
       const baseNormals =
-        existing.mesh.normals.length === existing.mesh.positions.length
-          ? existing.mesh.normals
-          : computeVertexNormals(existing.mesh.positions, indices);
+        surfaceGeometry.mesh.normals.length === surfaceGeometry.mesh.positions.length
+          ? surfaceGeometry.mesh.normals
+          : computeVertexNormals(surfaceGeometry.mesh.positions, indices);
       let normalSum = { x: 0, y: 0, z: 0 };
       for (let i = 0; i + 2 < baseNormals.length; i += 3) {
         normalSum = addVec3(normalSum, {
@@ -3366,14 +3368,14 @@ const applyOffsetSurfaceNodesToGeometry = (
       }
       const avgNormal = normalizeVec3Safe(normalSum, { x: 0, y: 1, z: 0 });
       const alignedNormal =
-        existing.plane && dotVec3(existing.plane.normal, avgNormal) < 0
-          ? scaleVec3(existing.plane.normal, -1)
-          : existing.plane?.normal ?? avgNormal;
+        surfaceGeometry.plane && dotVec3(surfaceGeometry.plane.normal, avgNormal) < 0
+          ? scaleVec3(surfaceGeometry.plane.normal, -1)
+          : surfaceGeometry.plane?.normal ?? avgNormal;
       const offsetVec = scaleVec3(alignedNormal, delta);
-      if (existing.plane) {
-        geometryUpdate.plane = {
-          ...existing.plane,
-          origin: addVec3(existing.plane.origin, offsetVec),
+      if (surfaceGeometry.plane) {
+        (geometryUpdate as any).plane = {
+          ...surfaceGeometry.plane,
+          origin: addVec3(surfaceGeometry.plane.origin, offsetVec),
           normal: alignedNormal,
         };
       } else {
@@ -3390,12 +3392,12 @@ const applyOffsetSurfaceNodesToGeometry = (
           dotVec3(computedPlane.normal, avgNormal) < 0
             ? scaleVec3(computedPlane.normal, -1)
             : computedPlane.normal;
-        geometryUpdate.plane = {
+        (geometryUpdate as any).plane = {
           ...computedPlane,
           normal: planeNormal,
         };
       }
-      existing.loops.forEach((loop) => {
+      surfaceGeometry.loops.forEach((loop) => {
         loop.forEach((vertexId) => {
           const vertex = geometryById.get(vertexId);
           if (!vertex || vertex.type !== "vertex") return;
@@ -5077,26 +5079,27 @@ const applySolidNodesToGeometry = (
     if (!geometryId) return node;
     const existing = geometryById.get(geometryId);
     if (!existing || !("mesh" in existing) || !existing.mesh) return node;
-    const indices = resolveMeshIndices(existing.mesh);
+    const existingMesh = existing.mesh;
+    const indices = resolveMeshIndices(existingMesh);
     const boundaryEdges = collectBoundaryEdges(indices);
-    let mesh = existing.mesh;
+    let mesh = existingMesh;
     if (boundaryEdges.length > 0) {
       const loops = buildBoundaryLoops(boundaryEdges);
       const capMeshes: RenderMesh[] = [];
       loops.forEach((loop) => {
         if (loop.length < 3) return;
-        const loopPoints = loop.map((index) => vec3FromPositions(existing.mesh.positions, index));
+        const loopPoints = loop.map((index) => vec3FromPositions(existingMesh.positions, index));
         const cap = generateSurfaceMesh([loopPoints]).mesh;
         if (cap.positions.length > 0 && cap.indices.length > 0) {
           capMeshes.push(cap);
         }
       });
       if (capMeshes.length > 0) {
-        mesh = mergeRenderMeshes([existing.mesh, ...capMeshes]);
+        mesh = mergeRenderMeshes([existingMesh, ...capMeshes]);
       }
     }
     if (boundaryEdges.length === 0) {
-      mesh = ensureDoubleSidedMesh(existing.mesh);
+      mesh = ensureDoubleSidedMesh(existingMesh);
     }
     const { volume_m3, centroid } = computeMeshVolumeAndCentroid(mesh);
     const density = resolveDensity(existing.metadata);
@@ -5696,10 +5699,10 @@ const applyGeometryArrayNodesToGeometry = (
       }
       const volumeAndCentroid = computeMeshVolumeAndCentroid(mesh);
       const density = resolveDensity(source.metadata);
-      base.area_m2 = computeMeshArea(mesh.positions, mesh.indices);
-      base.volume_m3 = volumeAndCentroid.volume_m3;
-      base.centroid = volumeAndCentroid.centroid ?? undefined;
-      base.mass_kg =
+      (base as any).area_m2 = computeMeshArea(mesh.positions, mesh.indices);
+      (base as any).volume_m3 = volumeAndCentroid.volume_m3;
+      (base as any).centroid = volumeAndCentroid.centroid ?? undefined;
+      (base as any).mass_kg =
         density && volumeAndCentroid.volume_m3 > 0
           ? density * volumeAndCentroid.volume_m3
           : undefined;
@@ -7386,7 +7389,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const loadListId = `node-listCreate-load-${ts}`;
     const loadListPos = { x: listColX, y: loadPos.y };
 
-    const newNodes = [
+    const newNodes: WorkflowNode[] = [
       // Parameter nodes
       {
         id: maxIterationsId,
@@ -7872,7 +7875,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const loadListId = `node-listCreate-topology-load-${ts}`;
     const loadListPos = { x: listColX, y: loadPos.y };
 
-    const newNodes = [
+    const newNodes: WorkflowNode[] = [
       {
         id: geoRefId,
         type: "geometryReference" as const,
@@ -8229,6 +8232,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         type: "text" as const,
         position: { x: inputTextX, y: inputTextY },
         data: {
+          label: "Text",
           parameters: {
             text: "Input geometry (Box). Sliders control dimensions.",
             size: 10,
@@ -8241,6 +8245,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         type: "text" as const,
         position: { x: outputTextX, y: outputTextY },
         data: {
+          label: "Text",
           parameters: {
             text: "Voxelizer converts geometry into a voxel grid. Resolution controls voxel density.",
             size: 10,
@@ -8275,6 +8280,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         type: "box" as const,
         position: { x: boxX, y: boxY },
         data: {
+          label: "Box",
           geometryId: boxGeometryId,
           geometryType: "mesh" as const,
           isLinked: true,
@@ -8288,7 +8294,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         id: widthSliderId,
         type: "slider" as const,
         position: { x: sliderStartX, y: widthSliderY },
-        data: { parameters: { value: 2, min: 0.5, max: 5, step: 0.1 } },
+        data: { label: "Width", parameters: { value: 2, min: 0.5, max: 5, step: 0.1 } },
         parentNode: inputGroupId,
         extent: "parent" as const,
       },
@@ -8296,7 +8302,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         id: heightSliderId,
         type: "slider" as const,
         position: { x: sliderStartX, y: heightSliderY },
-        data: { parameters: { value: 2, min: 0.5, max: 5, step: 0.1 } },
+        data: { label: "Height", parameters: { value: 2, min: 0.5, max: 5, step: 0.1 } },
         parentNode: inputGroupId,
         extent: "parent" as const,
       },
@@ -8304,7 +8310,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         id: depthSliderId,
         type: "slider" as const,
         position: { x: sliderStartX, y: depthSliderY },
-        data: { parameters: { value: 2, min: 0.5, max: 5, step: 0.1 } },
+        data: { label: "Depth", parameters: { value: 2, min: 0.5, max: 5, step: 0.1 } },
         parentNode: inputGroupId,
         extent: "parent" as const,
       },
@@ -8314,6 +8320,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         type: "voxelSolver" as const,
         position: { x: voxelizerX, y: voxelizerY },
         data: {
+          label: "Voxelizer",
           geometryId: voxelizerGeometryId,
           geometryType: "mesh" as const,
           isLinked: true,
@@ -8327,7 +8334,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         id: resolutionId,
         type: "slider" as const,
         position: { x: paramSliderStartX, y: resolutionSliderY },
-        data: { parameters: { value: 16, min: 4, max: 64, step: 1 } },
+        data: { label: "Resolution", parameters: { value: 16, min: 4, max: 64, step: 1 } },
         parentNode: outputGroupId,
         extent: "parent" as const,
       },
@@ -8337,6 +8344,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         type: "textNote" as const,
         position: { x: textNoteX, y: textNoteY },
         data: {
+          label: "Stats",
           parameters: {
             text: "",
             maxLines: 20,
@@ -8932,30 +8940,30 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       );
     };
 
-    const groups = [
+    const groups: { groupId: string; title: string; color: string; nodes: WorkflowNode[] }[] = [
       {
         groupId: controlsGroupId,
         title: "Solver Controls",
         color: "#e3f2fd",
-        nodes: controlsNodes,
+        nodes: controlsNodes as WorkflowNode[],
       },
       {
         groupId: inputsGroupId,
         title: "Domain + Seeds",
         color: "#e8f5e9",
-        nodes: inputsNodes,
+        nodes: inputsNodes as WorkflowNode[],
       },
       {
         groupId: goalsGroupId,
         title: "Goals",
         color: "#fff3e0",
-        nodes: goalsNodes,
+        nodes: goalsNodes as WorkflowNode[],
       },
       {
         groupId: outputGroupId,
         title: "Solve + Preview",
         color: "#f3e5f5",
-        nodes: outputNodes,
+        nodes: outputNodes as WorkflowNode[],
       },
     ];
 
@@ -8963,7 +8971,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       .map((group) =>
         buildRigGroupNode(group.groupId, group.title, group.nodes, position, { color: group.color })
       )
-      .filter((node): node is NonNullable<typeof node> => node != null);
+      .filter((node): node is NonNullable<typeof node> => node != null) as WorkflowNode[];
 
     class RigConfigError extends Error {
       constructor(message: string) {
@@ -8995,9 +9003,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           .flatMap((group) => group.nodes)
           .map((node) => [node.id, node] as const)
       ).values()
-    );
+    ) as WorkflowNode[];
 
-    const newNodes = [...groupNodes, ...childNodes];
+    const newNodes: WorkflowNode[] = [...groupNodes, ...childNodes];
 
     // Wire connections
     const newEdges = [
@@ -11601,7 +11609,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
               return node;
             }
             const nextGroupNodeIds = node.data.groupNodeIds.filter(
-              (groupNodeId) => !removedNodeIds.has(groupNodeId)
+              (groupNodeId: string) => !removedNodeIds.has(groupNodeId)
             );
             if (nextGroupNodeIds.length === node.data.groupNodeIds.length) {
               return node;
@@ -11826,7 +11834,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       state.cPlane
     );
       const evaluatedAfterSeed = evaluateWorkflow(
-        seedApplied.nodes,
+        seedApplied.nodes as WorkflowNode[],
         evaluated.edges,
         seedApplied.geometry
       );
@@ -11836,7 +11844,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       state.cPlane
     );
     const evaluatedAfterCreate = evaluateWorkflow(
-      dependentApplied.nodes,
+      dependentApplied.nodes as WorkflowNode[],
       evaluatedAfterSeed.edges,
       dependentApplied.geometry
     );
@@ -11945,23 +11953,23 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         solverApplied.geometry
       );
       const voxelApplied = applyVoxelSolverNodesToGeometry(
-        chemistryApplied.nodes,
+        chemistryApplied.nodes as WorkflowNode[],
         chemistryApplied.geometry
       );
       const importApplied = applyImportNodesToGeometry(
-        voxelApplied.nodes,
+        voxelApplied.nodes as WorkflowNode[],
         voxelApplied.geometry
       );
       const customMaterialApplied = applyCustomMaterialNodesToGeometry(
-        importApplied.nodes,
+        importApplied.nodes as WorkflowNode[],
         importApplied.geometry
       );
       const exportHandled = handleExportNodes(
-        customMaterialApplied.nodes,
+        customMaterialApplied.nodes as WorkflowNode[],
         customMaterialApplied.geometry
       );
       const finalEvaluated = evaluateWorkflow(
-        exportHandled.nodes,
+        exportHandled.nodes as WorkflowNode[],
         evaluatedAfterCreate.edges,
         customMaterialApplied.geometry
       );

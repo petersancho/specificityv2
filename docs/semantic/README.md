@@ -91,8 +91,8 @@
   - Tags: mesh, 3d
 
 - **Mesh Relax** (`meshTess.meshRelax`)
-  - Smooths mesh by averaging vertex positions
-  - Complexity: O(n * iterations)
+  - Smooths mesh by averaging vertex positions (O(n * iterations))
+  - Complexity: varies
   - Tags: mesh, 3d
 
 - **Triangulate Mesh** (`meshTess.triangulateMesh`)

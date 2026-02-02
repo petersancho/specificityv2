@@ -109,7 +109,7 @@ const resolveCmykBase = (swatch?: string | null): RGB | null => {
 
 const resolvePmsBase = (position: number): RGB | null => {
   const total = PMS_SWATCHES.length;
-  if (total === 0) return null;
+  if (total <= 0) return null;
   const clamped = clamp01(position);
   const scaled = clamped * (total - 1);
   const lowIndex = Math.floor(scaled);

@@ -57,7 +57,7 @@ export const runChemistrySolverExample = (variant: ChemistryFixtureVariant = "re
       materials,
       materialsText: variant === "textInputs" ? TEXT_INPUT_MATERIALS : undefined,
       seeds,
-      goals,
+      goals: goals as unknown as Record<string, unknown>[],
     },
     parameters,
     context,
@@ -74,10 +74,10 @@ export const runChemistrySolverExample = (variant: ChemistryFixtureVariant = "re
     outputs: {
       status: outputs.status,
       totalEnergy: outputs.totalEnergy,
-      materials: outputs.materials,
-      materialParticles: outputs.materialParticles,
+      materials: outputs.materials as unknown[],
+      materialParticles: outputs.materialParticles as unknown[],
       materialField: outputs.materialField,
-      history: outputs.history,
+      history: outputs.history as unknown[],
     },
   });
 

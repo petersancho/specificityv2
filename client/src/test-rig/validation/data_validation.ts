@@ -43,11 +43,11 @@ const runNodeValidation = (nodeName: string, fn: () => void) => {
 
 const validateGeometryReference = () => {
   const node = getNodeDefinition("geometryReference");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "data", "Expected category data");
   ensure(node.inputs.length === 0, "Expected 0 inputs");
   ensure(node.outputs.length === 1, "Expected 1 output");
-  ensure(node.outputs[0].key === "geometry", "Expected output key geometry");
+  ensure((node.outputs as any)[0].key === "geometry", "Expected output key geometry");
 
   const context = createContext();
   const result = node.compute({
@@ -61,7 +61,7 @@ const validateGeometryReference = () => {
 
 const validateText = () => {
   const node = getNodeDefinition("text");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "data", "Expected category data");
   ensure(node.inputs.length === 0, "Expected 0 inputs");
   ensure(node.outputs.length === 0, "Expected 0 outputs");

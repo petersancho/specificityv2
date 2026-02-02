@@ -204,8 +204,8 @@ function earcutLinked(
   let current: Node | null = ear;
 
   while (current && current.prev !== current.next) {
-    const prev = current.prev;
-    const next = current.next;
+    const prev: Node = current.prev;
+    const next: Node = current.next;
 
     if (_invSize ? isEarHashed(current, _minX, _minY, _invSize) : isEar(current)) {
       triangles.push(prev.i, current.i, next.i);
@@ -505,7 +505,7 @@ function sortLinked(list: Node): Node {
   let inSize = 1;
 
   while (true) {
-    let p = list;
+    let p: Node | null = list;
     list = null as any;
     let tail: Node | null = null;
     let numMerges = 0;
