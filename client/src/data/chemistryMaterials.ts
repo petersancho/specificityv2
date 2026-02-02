@@ -638,6 +638,17 @@ export const getMaterialByName = (name: string): ChemistryMaterialSpec | null =>
 };
 
 /**
+ * Resolve material spec by name with fallback to Steel
+ */
+export const resolveChemistryMaterialSpec = (name: string): ChemistryMaterialSpec => {
+  const material = getMaterialByName(name);
+  if (material) {
+    return material;
+  }
+  return CHEMISTRY_MATERIAL_DATABASE.steel;
+};
+
+/**
  * Category display information
  */
 export const CATEGORY_INFO: Record<ChemistryMaterialCategory, { label: string; color: string }> = {
