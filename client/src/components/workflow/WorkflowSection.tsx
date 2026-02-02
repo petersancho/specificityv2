@@ -173,7 +173,7 @@ const WorkflowSection = ({
   const undoWorkflow = useProjectStore((state) => state.undoWorkflow);
   const updateNodeData = useProjectStore((state) => state.updateNodeData);
   const addPhysicsSolverRig = useProjectStore((state) => state.addPhysicsSolverRig);
-  const addBiologicalSolverRig = useProjectStore((state) => state.addBiologicalSolverRig);
+  const addEvolutionarySolverRig = useProjectStore((state) => state.addEvolutionarySolverRig);
   const addChemistrySolverRig = useProjectStore((state) => state.addChemistrySolverRig);
   const addTopologySolverRig = useProjectStore((state) => state.addTopologySolverRig);
   const addVoxelSolverRig = useProjectStore((state) => state.addVoxelSolverRig);
@@ -259,7 +259,7 @@ const WorkflowSection = ({
     ]
       .map((type) => buildNode(type as NodeType))
       .filter((node): node is NonNullable<ReturnType<typeof buildNode>> => Boolean(node));
-    const biologicalNodes = [
+    const evolutionaryNodes = [
       "growthGoal",
       "nutrientGoal",
       "morphogenesisGoal",
@@ -285,7 +285,7 @@ const WorkflowSection = ({
       description: "Goal nodes that define optimization objectives for solvers.",
       subSubCategories: [
         { name: "Physics Goals", nodes: physicsNodes },
-        { name: "Biological Goals", nodes: biologicalNodes },
+        { name: "Evolutionary Goals", nodes: evolutionaryNodes },
         { name: "Chemistry Goals", nodes: chemistryNodes },
         { name: "Voxel Goals", nodes: [] },
       ],
@@ -884,7 +884,7 @@ const WorkflowSection = ({
                           />
                           <SavedScriptsDropdown
                             onAddPhysicsRig={() => addPhysicsSolverRig({ x: 0, y: 0 })}
-                            onAddBiologicalRig={() => addBiologicalSolverRig({ x: 0, y: 0 })}
+                            onAddEvolutionaryRig={() => addEvolutionarySolverRig({ x: 0, y: 0 })}
                             onAddChemistryRig={() => addChemistrySolverRig({ x: 0, y: 0 })}
                             onAddTopologyRig={() => addTopologySolverRig({ x: 0, y: 0 })}
                             onAddVoxelRig={() => addVoxelSolverRig({ x: 0, y: 0 })}

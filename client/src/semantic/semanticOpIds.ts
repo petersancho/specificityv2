@@ -165,7 +165,6 @@ export const SEMANTIC_OP_IDS = [
   'simulator.finalize',
   'simulator.initialize',
   'simulator.step',
-  'solver.biological',
   'solver.chemistry',
   'solver.evolutionary',
   'solver.physics',

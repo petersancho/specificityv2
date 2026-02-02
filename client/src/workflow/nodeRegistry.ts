@@ -49,7 +49,7 @@ import { PRIMITIVE_NODE_CATALOG, PRIMITIVE_NODE_TYPE_IDS } from "../data/primiti
 import { hexToRgb, normalizeHexColor, normalizeRgbInput, rgbToHex } from "../utils/color";
 import { PhysicsSolverNode } from "./nodes/solver/PhysicsSolver";
 import { ChemistrySolverNode } from "./nodes/solver/ChemistrySolver";
-import { BiologicalSolver } from "./nodes/solver/BiologicalSolver";
+import { EvolutionarySolver } from "./nodes/solver/EvolutionarySolver";
 import { VoxelSolverNode } from "./nodes/solver/VoxelSolver";
 import { AnchorGoalNode, LoadGoalNode, StiffnessGoalNode, VolumeGoalNode } from "./nodes/solver/goals/physics";
 import {
@@ -12324,7 +12324,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
 ];
 
-NODE_DEFINITIONS.push(PhysicsSolverNode, ChemistrySolverNode, BiologicalSolver, VoxelSolverNode);
+NODE_DEFINITIONS.push(PhysicsSolverNode, ChemistrySolverNode, EvolutionarySolver, VoxelSolverNode);
 NODE_DEFINITIONS.push(
   StiffnessGoalNode,
   VolumeGoalNode,

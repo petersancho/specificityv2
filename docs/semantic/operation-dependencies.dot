@@ -79,7 +79,6 @@ digraph SemanticOperations {
   "workflow.constant" [label="Constant", fillcolor="#FFE6CC", style=filled];
   "solver.physics" [label="Physics Solver", fillcolor="#FFFFCC", style=filled];
   "solver.chemistry" [label="Chemistry Solver", fillcolor="#FFFFCC", style=filled];
-  "solver.biological" [label="Biological Solver", fillcolor="#FFFFCC", style=filled];
   "solver.evolutionary" [label="Evolutionary Solver", fillcolor="#FFFFCC", style=filled];
   "solver.voxel" [label="Voxel Solver", fillcolor="#FFFFFF", style=filled];
   "solver.topologyOptimization" [label="Topology Optimization Solver", fillcolor="#FFFFCC", style=filled];

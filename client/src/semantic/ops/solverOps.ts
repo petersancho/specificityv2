@@ -38,21 +38,7 @@ export const SOLVER_OPS: readonly SemanticOpMeta[] = [
     stable: true,
     since: '1.0.0'
   },
-  {
-    id: 'solver.biological',
-    domain: 'solver',
-    name: 'Biological Solver',
-    category: 'utility',
-    tags: ['3d', 'simulation', 'morphogenesis'],
-    complexity: 'O(n*iterations)',
-    cost: 'high',
-    pure: false,
-    deterministic: false,
-    sideEffects: ['geometry', 'state', 'random'],
-    summary: 'Solves reaction-diffusion morphogenesis with Gray-Scott dynamics',
-    stable: true,
-    since: '1.0.0'
-  },
+
   {
     id: 'solver.evolutionary',
     domain: 'solver',

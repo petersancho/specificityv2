@@ -12769,21 +12769,21 @@ export const NODE_DOCUMENTATION = {
       }
     ]
   },
-  "biologicalSolver": {
-    "label": "Biological Solver",
+  "evolutionarySolver": {
+    "label": "Evolutionary Solver",
     "category": "solver",
-    "description": "Reaction-diffusion morphogenesis solver (Gray-Scott model) generating organic patterns",
+    "description": "Genetic algorithm-based evolutionary optimization solver for geometry configuration",
     "semanticOps": [
-      "solver.biological"
+      "solver.evolutionary"
     ],
     "semanticOpDescriptions": [
-      "Biological Solver: Solves reaction-diffusion morphogenesis with Gray-Scott dynamics"
+      "Evolutionary Solver: Solves optimization problems using genetic algorithms"
     ],
     "inputs": [
       {
         "name": "domain",
         "type": "geometry",
-        "description": "Domain geometry for pattern generation",
+        "description": "Domain geometry for optimization",
         "required": true
       }
     ],
@@ -12791,79 +12791,86 @@ export const NODE_DOCUMENTATION = {
       {
         "name": "geometry",
         "type": "geometry",
-        "description": "Generated pattern mesh with concentration gradients"
+        "description": "Optimized geometry configuration"
       }
     ],
     "parameters": [
       {
-        "name": "gridResolution",
+        "name": "populationSize",
         "type": "number",
-        "label": "Grid Resolution",
-        "default": 64,
-        "description": "Voxel grid resolution (higher = more detail, slower)"
+        "label": "Population Size",
+        "default": 50,
+        "description": "Number of individuals per generation"
       },
       {
-        "name": "feedRate",
+        "name": "generations",
         "type": "number",
-        "label": "Feed Rate (F)",
-        "default": 0.035,
-        "description": "Substrate replenishment rate (0.01-0.1)"
+        "label": "Generations",
+        "default": 100,
+        "description": "Maximum number of generations"
       },
       {
-        "name": "killRate",
+        "name": "mutationRate",
         "type": "number",
-        "label": "Kill Rate (k)",
-        "default": 0.065,
-        "description": "Product removal rate (0.04-0.07)"
+        "label": "Mutation Rate",
+        "default": 0.1,
+        "description": "Probability of mutation (0-1)"
       },
       {
-        "name": "diffusionU",
+        "name": "crossoverRate",
         "type": "number",
-        "label": "Diffusion U",
-        "default": 0.16,
-        "description": "Substrate diffusion rate"
+        "label": "Crossover Rate",
+        "default": 0.8,
+        "description": "Probability of crossover (0-1)"
       },
       {
-        "name": "diffusionV",
+        "name": "elitismCount",
         "type": "number",
-        "label": "Diffusion V",
-        "default": 0.08,
-        "description": "Product diffusion rate"
+        "label": "Elitism Count",
+        "default": 2,
+        "description": "Number of best individuals to preserve"
       },
       {
-        "name": "timeStep",
-        "type": "number",
-        "label": "Time Step",
-        "default": 1,
-        "description": "Integration time step"
+        "name": "selectionMethod",
+        "type": "string",
+        "label": "Selection Method",
+        "default": "tournament",
+        "description": "Parent selection method"
       },
       {
-        "name": "maxIterations",
-        "type": "number",
-        "label": "Max Iterations",
-        "default": 10000,
-        "description": "Maximum simulation iterations"
+        "name": "crossoverMethod",
+        "type": "string",
+        "label": "Crossover Method",
+        "default": "single-point",
+        "description": "Crossover operator"
+      },
+      {
+        "name": "mutationMethod",
+        "type": "string",
+        "label": "Mutation Method",
+        "default": "gaussian",
+        "description": "Mutation operator"
+      },
+      {
+        "name": "fitnessFunction",
+        "type": "string",
+        "label": "Fitness Function",
+        "default": "minimize-area",
+        "description": "Optimization objective"
       },
       {
         "name": "convergenceTolerance",
         "type": "number",
         "label": "Convergence Tolerance",
         "default": 0.000001,
-        "description": "Variance change threshold for convergence"
-      },
-      {
-        "name": "isoValue",
-        "type": "number",
-        "label": "Iso Value",
-        "default": 0.5,
-        "description": "Threshold for isosurface extraction"
+        "description": "Fitness change threshold for convergence"
       },
       {
         "name": "seed",
         "type": "number",
         "label": "Random Seed",
         "default": 42,
-        "description": "Seed for deterministic random initialization"
+        "description": "Seed for deterministic random generation"
       }
     ]
   },
