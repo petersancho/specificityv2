@@ -63,6 +63,8 @@ import {
 import { validateChemistryGoals } from "./nodes/solver/validation";
 import type { GoalSpecification } from "./nodes/solver/types";
 import { isFiniteNumber, toNumber, toBoolean } from "./nodes/solver/utils";
+import { warnOnce } from "../utils/warnOnce";
+import { normalizeNonNegative, clamp01 } from "../geometry/validation";
 
 import type {
   NodeCategory,
@@ -1771,30 +1773,45 @@ const buildChemistryMesh = (
       resZ - 1
     );
     const idx = toIndex(x, y, z);
-    let sum = 0;
+    
+    // Collect concentrations and validate/normalize
+    const concentrations: number[] = [];
     for (let m = 0; m < field.channels.length; m += 1) {
-      sum += field.channels[m][idx] ?? 0;
+      concentrations.push(field.channels[m][idx] ?? 0);
     }
+    const normalized = normalizeNonNegative(concentrations, EPSILON);
+    
     let r = 0;
     let g = 0;
     let b = 0;
-    if (sum > EPSILON) {
-      for (let m = 0; m < field.channels.length; m += 1) {
-        const conc = (field.channels[m][idx] ?? 0) / sum;
-        const name = field.materials[m];
-        const color = materialColorByName.get(name) ?? [0.5, 0.5, 0.5];
-        r += conc * color[0];
-        g += conc * color[1];
-        b += conc * color[2];
+    let hasColor = false;
+    
+    for (let m = 0; m < field.channels.length; m += 1) {
+      const conc = normalized[m];
+      if (conc <= 0) continue;
+      
+      const name = field.materials[m];
+      const color = materialColorByName.get(name);
+      if (!color) {
+        warnOnce(`unknown-material:${name}`, `[Chemistry] Unknown material '${name}', falling back to gray`);
       }
-    } else {
+      const rgb = color ?? [0.5, 0.5, 0.5];
+      
+      r += conc * rgb[0];
+      g += conc * rgb[1];
+      b += conc * rgb[2];
+      hasColor = true;
+    }
+    
+    if (!hasColor) {
       r = 0.5;
       g = 0.5;
       b = 0.5;
     }
-    colors[i] = r;
-    colors[i + 1] = g;
-    colors[i + 2] = b;
+    
+    colors[i] = clamp01(r);
+    colors[i + 1] = clamp01(g);
+    colors[i + 2] = clamp01(b);
   }
 
   return { ...mesh, colors };

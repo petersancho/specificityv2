@@ -15,6 +15,7 @@ import type { NURBSCurve, NURBSSurface } from "./nurbs";
 import { tessellateCurveAdaptive, tessellateSurfaceAdaptive } from "./tessellation";
 import { createNurbsCurveFromPoints } from "./nurbs";
 import { tessellateBRepToMesh } from "./brep";
+import { assertPositionsValid, validateColorsLength, clamp01 } from "./validation";
 
 export type RenderableGeometry = {
   id: string;
@@ -496,11 +497,14 @@ const createFlatShadedMesh = (
   indices: Uint16Array;
   colors?: Float32Array;
 } => {
+  // Validate positions array is properly aligned
+  assertPositionsValid(mesh.positions, "createFlatShadedMesh");
+  
   const baseIndices = toTriangleIndices(mesh);
   const positionsOut: number[] = [];
   const normalsOut: number[] = [];
   const indicesOut: number[] = [];
-  const hasColors = Boolean(mesh.colors) && mesh.colors.length === mesh.positions.length;
+  const hasColors = validateColorsLength(mesh.positions, mesh.colors, "createFlatShadedMesh");
   const colorsOut: number[] = [];
   const sourceColors = mesh.colors ?? [];
 
@@ -543,15 +547,15 @@ const createFlatShadedMesh = (
     positionsOut.push(ax, ay, az, bx, by, bz, cx, cy, cz);
     if (hasColors) {
       colorsOut.push(
-        sourceColors[ia] ?? 0,
-        sourceColors[ia + 1] ?? 0,
-        sourceColors[ia + 2] ?? 0,
-        sourceColors[ib] ?? 0,
-        sourceColors[ib + 1] ?? 0,
-        sourceColors[ib + 2] ?? 0,
-        sourceColors[ic] ?? 0,
-        sourceColors[ic + 1] ?? 0,
-        sourceColors[ic + 2] ?? 0
+        clamp01(sourceColors[ia] ?? 0),
+        clamp01(sourceColors[ia + 1] ?? 0),
+        clamp01(sourceColors[ia + 2] ?? 0),
+        clamp01(sourceColors[ib] ?? 0),
+        clamp01(sourceColors[ib + 1] ?? 0),
+        clamp01(sourceColors[ib + 2] ?? 0),
+        clamp01(sourceColors[ic] ?? 0),
+        clamp01(sourceColors[ic + 1] ?? 0),
+        clamp01(sourceColors[ic + 2] ?? 0)
       );
     }
     pushNormal(nx, ny, nz);
