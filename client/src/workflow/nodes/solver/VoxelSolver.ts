@@ -29,6 +29,8 @@ export const VoxelSolverNode: WorkflowNodeDefinition = {
       key: "resolution",
       label: "Resolution",
       type: "number",
+      parameterKey: "resolution",
+      defaultValue: 16,
       description: "Number of voxels along the longest axis (8-128).",
     },
   ],
