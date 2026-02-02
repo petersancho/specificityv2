@@ -151,15 +151,15 @@ const buildVertexStress = (mesh: RenderMesh, stressField: number[]) => {
         const ia = mesh.indices[base];
         const ib = mesh.indices[base + 1];
         const ic = mesh.indices[base + 2];
-        if (ia != null) {
+        if (ia != null && ia >= 0 && ia < vertexCount) {
           values[ia] += value;
           counts[ia] += 1;
         }
-        if (ib != null) {
+        if (ib != null && ib >= 0 && ib < vertexCount) {
           values[ib] += value;
           counts[ib] += 1;
         }
-        if (ic != null) {
+        if (ic != null && ic >= 0 && ic < vertexCount) {
           values[ic] += value;
           counts[ic] += 1;
         }
