@@ -8203,7 +8203,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "point",
     label: "Point Generator",
-    semanticOps: [],
+    semanticOps: ["command.createPoint"],
     shortLabel: "PT",
     description: "Create a point from coordinates.",
     category: "primitives",
@@ -8337,7 +8337,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "line",
     label: "Line",
-    semanticOps: [],
+    semanticOps: ["command.createLine"],
     shortLabel: "LN",
     description: "Create a straight line between two points.",
     category: "curves",
@@ -8387,7 +8387,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "rectangle",
     label: "Rectangle",
-    semanticOps: [],
+    semanticOps: ["command.createRectangle"],
     shortLabel: "RECT",
     description: "Create a rectangle on the construction plane.",
     category: "curves",
@@ -8433,7 +8433,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "circle",
     label: "Circle",
-    semanticOps: [],
+    semanticOps: ["command.createCircle"],
     shortLabel: "CIRC",
     description: "Create a circular curve on the construction plane.",
     category: "nurbs",
@@ -8537,7 +8537,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "curve",
     label: "Curve",
-    semanticOps: [],
+    semanticOps: ["command.createCurve"],
     shortLabel: "CRV",
     description: "Create a smooth curve through points.",
     category: "nurbs",
@@ -8673,7 +8673,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "surface",
     label: "Surface",
-    semanticOps: [],
+    semanticOps: ["command.surface"],
     shortLabel: "SRF",
     description: "Generate a surface from boundary curves.",
     category: "brep",
@@ -9666,7 +9666,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "box",
     label: "Box Builder",
-    semanticOps: [],
+    semanticOps: ["command.createPrimitive"],
     shortLabel: "BOX",
     description: "Create a box primitive.",
     category: "primitives",
@@ -9733,7 +9733,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "sphere",
     label: "Sphere",
-    semanticOps: [],
+    semanticOps: ["command.createPrimitive"],
     shortLabel: "SPH",
     description: "Create a sphere primitive.",
     category: "primitives",

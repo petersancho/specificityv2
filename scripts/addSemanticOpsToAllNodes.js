@@ -104,8 +104,9 @@ const NODE_SEMANTIC_OPS = {
   // Solver nodes
   'physicsSolver': ['solver.physics'],
   'chemistrySolver': ['solver.chemistry'],
-  'biologicalSolver': ['solver.biological'],
+  'evolutionarySolver': ['solver.evolutionary'],
   'voxelSolver': ['solver.voxel'],
+  'topologyOptimizationSolver': ['solver.topologyOptimization'],
   
   // Goal nodes (no operations - they're data structures)
   'anchorGoal': [],

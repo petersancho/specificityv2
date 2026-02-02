@@ -69,8 +69,9 @@ const WORKFLOW_OPS = [
 const SOLVER_OPS = [
   { id: 'solver.physics', name: 'Physics Solver', category: 'utility', tags: ['3d'], summary: 'Solves physics simulation', cost: 'high', pure: false, deterministic: true },
   { id: 'solver.chemistry', name: 'Chemistry Solver', category: 'utility', tags: ['3d'], summary: 'Solves chemistry simulation', cost: 'high', pure: false, deterministic: false },
-  { id: 'solver.biological', name: 'Biological Solver', category: 'utility', tags: ['3d'], summary: 'Solves biological simulation', cost: 'high', pure: false, deterministic: false },
+  { id: 'solver.evolutionary', name: 'Evolutionary Solver', category: 'utility', tags: ['3d'], summary: 'Solves evolutionary optimization', cost: 'high', pure: false, deterministic: false },
   { id: 'solver.voxel', name: 'Voxel Solver', category: 'utility', tags: ['3d'], summary: 'Converts geometry to voxels', cost: 'high', pure: true, deterministic: true },
+  { id: 'solver.topologyOptimization', name: 'Topology Optimization Solver', category: 'utility', tags: ['3d'], summary: 'Optimizes structural topology', cost: 'high', pure: true, deterministic: true },
 ];
 
 // Generate semantic op file for a domain

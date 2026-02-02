@@ -89,10 +89,10 @@ const resolveSubcategory = (node) => {
   }
   if (node.category === "solver") {
     if (node.type === "physicsSolver") return "Physics Solver";
-    if (node.type === "biologicalSolver" || node.type === "biologicalEvolutionSolver")
-      return "Biological Solver";
+    if (node.type === "evolutionarySolver") return "Evolutionary Solver";
     if (node.type === "chemistrySolver") return "Chemistry Solver";
     if (node.type === "voxelSolver") return "Voxel Solver";
+    if (node.type === "topologyOptimizationSolver") return "Topology Optimization Solver";
   }
   if (node.category === "voxel") return "Voxel Utilities";
   return null;

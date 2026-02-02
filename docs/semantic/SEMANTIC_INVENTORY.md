@@ -1,13 +1,13 @@
 # Semantic Inventory
 
-Generated: 2026-02-02T17:20:55.082Z
+Generated: 2026-02-02T17:34:21.872Z
 
 ## Summary
 
 - **Total Operations**: 195
-- **Total Nodes**: 56
+- **Total Nodes**: 64
 - **Total Dashboards**: 3
-- **Orphan Operations**: 101
+- **Orphan Operations**: 94
 - **Dangling References**: 0
 
 ## Operations by Domain
@@ -27,20 +27,20 @@ Generated: 2026-02-02T17:20:55.082Z
 
 | ID | Name | Category | Stable | Used By |
 |----|------|----------|--------|----------|
-| `command.createPoint` | Create Point | creation | ✅ | (none) |
-| `command.createLine` | Create Line | creation | ✅ | (none) |
+| `command.createPoint` | Create Point | creation | ✅ | point |
+| `command.createLine` | Create Line | creation | ✅ | line |
 | `command.createPolyline` | Create Polyline | creation | ✅ | (none) |
-| `command.createRectangle` | Create Rectangle | creation | ✅ | (none) |
-| `command.createCircle` | Create Circle | creation | ✅ | (none) |
+| `command.createRectangle` | Create Rectangle | creation | ✅ | rectangle |
+| `command.createCircle` | Create Circle | creation | ✅ | circle |
 | `command.createArc` | Create Arc | creation | ✅ | (none) |
-| `command.createCurve` | Create Curve | creation | ✅ | (none) |
-| `command.createPrimitive` | Create Primitive | creation | ✅ | (none) |
+| `command.createCurve` | Create Curve | creation | ✅ | curve |
+| `command.createPrimitive` | Create Primitive | creation | ✅ | box, sphere |
 | `command.createNurbsBox` | Create NURBS Box | creation | ✅ | (none) |
 | `command.createNurbsSphere` | Create NURBS Sphere | creation | ✅ | (none) |
 | `command.createNurbsCylinder` | Create NURBS Cylinder | creation | ✅ | (none) |
 | `command.boolean` | Boolean | operation | ✅ | (none) |
 | `command.loft` | Loft | operation | ✅ | (none) |
-| `command.surface` | Surface | operation | ✅ | (none) |
+| `command.surface` | Surface | operation | ✅ | surface |
 | `command.extrude` | Extrude | operation | ✅ | (none) |
 | `command.meshMerge` | Mesh Merge | operation | ✅ | (none) |
 | `command.meshFlip` | Mesh Flip | operation | ✅ | (none) |
@@ -288,12 +288,20 @@ Generated: 2026-02-02T17:20:55.082Z
 | `remap` | Remap | ranges | `math.remap` |
 | `random` | Random | ranges | `math.random` |
 | `measurement` | Measurement | measurement | `mesh.computeArea` |
+| `point` | Point Generator | primitives | `command.createPoint` |
+| `line` | Line | curves | `command.createLine` |
+| `rectangle` | Rectangle | curves | `command.createRectangle` |
+| `circle` | Circle | nurbs | `command.createCircle` |
+| `curve` | Curve | nurbs | `command.createCurve` |
+| `surface` | Surface | brep | `command.surface` |
 | `loft` | Loft | brep | `mesh.generateLoft` |
 | `extrude` | Extrude | brep | `mesh.generateExtrude` |
 | `pipeSweep` | Pipe | brep | `mesh.generateCylinder`, `mesh.generatePipe`, `mesh.generateSphere` |
 | `pipeMerge` | Pipe Merge | mesh | `mesh.generateSphere` |
 | `boolean` | Boolean | brep | `mesh.generateBox`, `mesh.computeVertexNormals` |
 | `offset` | Offset | modifiers | `boolean.offsetPolyline2D`, `curve.resampleByArcLength`, `math.computeBestFitPlane`, `math.projectPointToPlane`, `math.unprojectPointFromPlane` |
+| `box` | Box Builder | primitives | `command.createPrimitive` |
+| `sphere` | Sphere | primitives | `command.createPrimitive` |
 | `chemistrySolver` | Ἐπιλύτης Χημείας | solver | `solver.chemistry` |
 | `number` | Number | math | `workflow.literal` |
 | `add` | Add | math | `math.add` |
@@ -403,20 +411,13 @@ These operations are defined but never used by any node:
 - `color.clamp`
 - `workflow.identity`
 - `workflow.constant`
-- `command.createPoint`
-- `command.createLine`
 - `command.createPolyline`
-- `command.createRectangle`
-- `command.createCircle`
 - `command.createArc`
-- `command.createCurve`
-- `command.createPrimitive`
 - `command.createNurbsBox`
 - `command.createNurbsSphere`
 - `command.createNurbsCylinder`
 - `command.boolean`
 - `command.loft`
-- `command.surface`
 - `command.extrude`
 - `command.meshMerge`
 - `command.meshFlip`

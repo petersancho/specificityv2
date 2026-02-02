@@ -24,7 +24,6 @@ These solvers run iterative simulations with temporal dynamics, convergence chec
 |--------|-----------|------------------|--------|
 | **Physics** | ✅ Yes | Equilibrium | Structural mechanics, force balance |
 | **Chemistry** | ✅ Yes | Distribution | Material distribution, particle dynamics |
-| **Biological** | ✅ Yes | Morphogenesis | Pattern formation, reaction-diffusion |
 | **Evolutionary** | ✅ Yes | Optimization | Genetic algorithms, fitness evolution |
 
 **Characteristics:**
@@ -65,7 +64,6 @@ These operations represent the high-level solver computation.
 |--------------|--------|-----------|---------------|------|
 | `solver.physics` | Physics | Yes | Yes | No |
 | `solver.chemistry` | Chemistry | Yes | No (seeded) | No |
-| `solver.biological` | Biological | Yes | No (seeded) | No |
 | `solver.evolutionary` | Evolutionary | Yes | No (seeded) | No |
 | `solver.voxel` | Voxel | No | Yes | Yes |
 | `solver.topologyOptimization` | Topology | No | Yes | No |
@@ -114,6 +112,12 @@ These operations represent solver-specific computations.
 | `solver.physics.computeForces` | Compute structural forces |
 | `solver.physics.applyConstraints` | Apply boundary conditions |
 | `solver.physics.solveEquilibrium` | Solve force equilibrium |
+| `simulator.physics.initialize` | Initialize physics simulation state |
+| `simulator.physics.step` | Execute single physics simulation step |
+| `simulator.physics.converge` | Check physics convergence criteria |
+| `simulator.physics.finalize` | Finalize physics simulation result |
+| `simulator.physics.applyLoads` | Apply loads to physics simulation |
+| `simulator.physics.computeStress` | Compute stress distribution on geometry |
 
 #### Chemistry Solver
 
@@ -125,16 +129,12 @@ These operations represent solver-specific computations.
 | `solver.chemistry.applyGoalForces` | Apply optimization goals |
 | `solver.chemistry.generateVoxelField` | Generate voxel field from particles |
 | `solver.chemistry.extractIsosurface` | Extract mesh from voxel field |
-
-#### Biological Solver
-
-| Operation ID | Purpose |
-|--------------|---------|
-| `solver.biological.initializeGrid` | Initialize reaction-diffusion grid |
-| `solver.biological.computeLaplacian` | Compute 3D Laplacian |
-| `solver.biological.stepReactionDiffusion` | Step Gray-Scott equations |
-| `solver.biological.checkConvergence` | Check variance stabilization |
-| `solver.biological.extractIsosurface` | Extract mesh from concentration field |
+| `simulator.chemistry.initialize` | Initialize chemistry simulation state |
+| `simulator.chemistry.step` | Execute single chemistry simulation step |
+| `simulator.chemistry.converge` | Check chemistry convergence criteria |
+| `simulator.chemistry.finalize` | Finalize chemistry simulation result |
+| `simulator.chemistry.blendMaterials` | Blend materials based on particle concentrations |
+| `simulator.chemistry.evaluateGoals` | Evaluate chemistry optimization goals |
 
 #### Evolutionary Solver
 
