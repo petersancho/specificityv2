@@ -17,6 +17,7 @@ export const VoxelSolverNode: WorkflowNodeDefinition = {
   shortLabel: "VOX",
   description: "Converts geometry into a voxel grid at a specified resolution.",
   category: "voxel",
+  semanticOps: ['solver.voxel'],
   iconId: "voxelSolver",
   inputs: [
     {

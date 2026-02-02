@@ -273,6 +273,7 @@ function extractIsosurface(
 export const BiologicalSolver: WorkflowNodeDefinition = {
   type: "biologicalSolver",
   category: "solver",
+  semanticOps: ['solver.biological'],
   label: "Biological Solver",
   shortLabel: "Biological",
   description: "Reaction-diffusion morphogenesis solver (Gray-Scott model) generating organic patterns",

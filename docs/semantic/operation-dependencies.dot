@@ -80,7 +80,13 @@ digraph SemanticOperations {
   "solver.physics" [label="Physics Solver", fillcolor="#FFFFCC", style=filled];
   "solver.chemistry" [label="Chemistry Solver", fillcolor="#FFFFCC", style=filled];
   "solver.biological" [label="Biological Solver", fillcolor="#FFFFCC", style=filled];
-  "solver.voxel" [label="Voxel Solver", fillcolor="#FFFFCC", style=filled];
+  "solver.evolutionary" [label="Evolutionary Solver", fillcolor="#FFFFCC", style=filled];
+  "solver.voxel" [label="Voxel Solver", fillcolor="#FFFFFF", style=filled];
+  "solver.topologyOptimization" [label="Topology Optimization Solver", fillcolor="#FFFFCC", style=filled];
+  "simulator.initialize" [label="Initialize Simulator", fillcolor="#FFFFCC", style=filled];
+  "simulator.step" [label="Step Simulator", fillcolor="#FFFFCC", style=filled];
+  "simulator.converge" [label="Check Convergence", fillcolor="#FFFFFF", style=filled];
+  "simulator.finalize" [label="Finalize Simulator", fillcolor="#FFFFCC", style=filled];
   "command.createPoint" [label="Create Point", fillcolor="#FFFFFF", style=filled];
   "command.createLine" [label="Create Line", fillcolor="#FFFFFF", style=filled];
   "command.createPolyline" [label="Create Polyline", fillcolor="#FFFFFF", style=filled];
