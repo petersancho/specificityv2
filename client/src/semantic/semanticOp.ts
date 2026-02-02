@@ -201,6 +201,106 @@ export type OpTag =
   | 'prism'          // Prism operations
   | 'parametric'     // Parametric operations
   | 'special'        // Special operations
+  // Shape-specific tags
+  | 'torus'          // Torus shape
+  | 'pyramid'        // Pyramid shape
+  | 'tetrahedron'    // Tetrahedron shape
+  | 'octahedron'     // Octahedron shape
+  | 'icosahedron'    // Icosahedron shape
+  | 'dodecahedron'   // Dodecahedron shape
+  | 'hemisphere'     // Hemisphere shape
+  | 'capsule'        // Capsule shape
+  | 'disk'           // Disk shape
+  | 'ring'           // Ring shape
+  | 'triangular'     // Triangular shape
+  | 'hexagonal'      // Hexagonal shape
+  | 'pentagonal'     // Pentagonal shape
+  | 'knot'           // Knot shape
+  | 'teapot'         // Teapot shape
+  | 'utah'           // Utah teapot
+  | 'frustum'        // Frustum shape
+  | 'mobius'         // Mobius strip
+  | 'strip'          // Strip shape
+  | 'ellipsoid'      // Ellipsoid shape
+  | 'wedge'          // Wedge shape
+  | 'spherical'      // Spherical shape
+  | 'cap'            // Cap shape
+  | 'bipyramid'      // Bipyramid shape
+  | 'rhombic'        // Rhombic shape
+  | 'truncated'      // Truncated shape
+  | 'cube'           // Cube shape
+  | 'pipe'           // Pipe shape
+  | 'tube'           // Tube shape
+  | 'superellipsoid' // Superellipsoid shape
+  | 'superquadric'   // Superquadric shape
+  | 'hyperbolic'     // Hyperbolic shape
+  | 'paraboloid'     // Paraboloid shape
+  | 'saddle'         // Saddle shape
+  | 'geodesic'       // Geodesic shape
+  | 'dome'           // Dome shape
+  | 'hyperboloid'    // Hyperboloid shape
+  | 'annulus'        // Annulus shape
+  | 'archimedean'    // Archimedean solid
+  | 'buckminster'    // Buckminster shape
+  | 'soccer'         // Soccer ball shape
+  | 'convex'         // Convex shape
+  | 'hull'           // Hull shape
+  | 'classic'        // Classic shape
+  | 'pill'           // Pill shape
+  // Solver/simulation tags
+  | 'physics'        // Physics simulation
+  | 'chemistry'      // Chemistry simulation
+  | 'voxel'          // Voxel operations
+  | 'topology'       // Topology operations
+  | 'optimization'   // Optimization operations
+  | 'fea'            // Finite element analysis
+  | 'structural'     // Structural analysis
+  | 'stress'         // Stress analysis
+  | 'forces'         // Forces analysis
+  | 'equilibrium'    // Equilibrium analysis
+  | 'goals'          // Goals/objectives
+  | 'materials'      // Materials
+  | 'particles'      // Particle simulation
+  | 'simulation'     // Simulation
+  | 'isosurface'     // Isosurface extraction
+  | 'marching-cubes' // Marching cubes algorithm
+  | 'discretization' // Discretization
+  | 'discrete'       // Discrete operations
+  // Math/data tags
+  | 'expression'     // Expression evaluation
+  | 'statistics'     // Statistics operations
+  | 'constant'       // Constant values
+  | 'vector'         // Vector operations
+  | 'transform'      // Transform operations
+  | 'conversion'     // Conversion operations
+  | 'distribution'   // Distribution operations
+  | 'spacing'        // Spacing operations
+  | 'smooth'         // Smooth operations
+  // Wave tags (additional)
+  | 'sine'           // Sine wave
+  | 'cosine'         // Cosine wave
+  | 'sawtooth'       // Sawtooth wave
+  | 'square'         // Square wave
+  | 'triangle'       // Triangle wave
+  // Geometry tags (additional)
+  | 'fillet'         // Fillet operations
+  | 'edge'           // Edge operations
+  | 'ruled'          // Ruled surface
+  | 'wrap'           // Wrap operations
+  | 'cloud'          // Point cloud
+  | 'tessellation'   // Tessellation
+  | 'circular'       // Circular operations
+  // IO tags
+  | 'import'         // Import operations
+  | 'file'           // File operations
+  | 'stl'            // STL format
+  // UI/control tags (additional)
+  | 'pivot'          // Pivot operations
+  | 'status'         // Status operations
+  | 'units'          // Units operations
+  | 'search'         // Search operations
+  | 'custom'         // Custom operations
+  | 'internal'       // Internal operations
   // General tags
   | 'pure'           // Pure function (no side effects)
   | 'deterministic'  // Deterministic (same input → same output)
