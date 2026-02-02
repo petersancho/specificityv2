@@ -388,6 +388,71 @@ semanticOps: ['simulator.step']  // Too low-level
 
 ---
 
+## Solver Taxonomy
+
+### Solvers with Simulators
+
+| Solver | Greek Name | Ontological Type | Semantic Op |
+|--------|------------|------------------|-------------|
+| **Physics** | Ἐπιλύτης Φυσικῆς (Pythagoras) | Equilibrium | `solver.physics` |
+| **Chemistry** | Ἐπιλύτης Χημείας (Apollonius) | Distribution | `solver.chemistry` |
+| **Biological** | Γαληνός (Galen) | Morphogenesis | `solver.biological` |
+| **Evolutionary** | (Future) | Optimization | `solver.evolutionary` |
+
+**Characteristics:**
+- Iterative simulation loop
+- Temporal dynamics (time steps)
+- Convergence checking
+- State history tracking
+- Energy/fitness minimization
+
+### Solvers without Simulators
+
+| Solver | Greek Name | Ontological Type | Semantic Op |
+|--------|------------|------------------|-------------|
+| **Voxel** | Ἐπιλύτης Φογκελ (Archimedes) | Discrete Conversion | `solver.voxel` |
+| **Topology Optimization** | (Future) | Structural Optimization | `solver.topologyOptimization` |
+
+**Characteristics:**
+- Direct computation
+- No temporal dynamics
+- No convergence loop
+- Single-pass or optimization-based
+- Deterministic output
+
+### Simulator Semantic Layer
+
+Simulators have their own semantic layer (internal, not exposed to nodes):
+
+| Operation | Purpose | Used By |
+|-----------|---------|---------|
+| `simulator.initialize` | Initialize simulation state | All simulators |
+| `simulator.step` | Execute single simulation step | All simulators |
+| `simulator.converge` | Check convergence criteria | All simulators |
+| `simulator.finalize` | Finalize simulation result | All simulators |
+
+**Rule:** Simulator operations are internal infrastructure. Nodes reference solver operations, not simulator operations.
+
+### Goal Nodes by Solver
+
+**Physics Goals:**
+- AnchorGoal - Fix vertices in space
+- LoadGoal - Apply forces to vertices
+- StiffnessGoal - Control material stiffness
+- VolumeGoal - Maintain volume constraints
+
+**Chemistry Goals:**
+- BlendGoal - Control material blending
+- MassGoal - Target mass distribution
+- MaterialGoal - Assign materials to regions
+- StiffnessGoal - Target stiffness distribution
+- ThermalGoal - Target thermal properties
+- TransparencyGoal - Target optical properties
+
+**Rule:** Goal nodes are declarative and must NOT have `semanticOps`.
+
+---
+
 ## Ontological Purity Principles
 
 ### Principle 1: Semantic Specificity
