@@ -13,11 +13,6 @@ import type {
   StiffnessGoal,
   VolumeGoal,
 } from "../../workflow/nodes/solver/types";
-import type { SolverOutputs, Individual, SolverConfig } from "../../workflow/nodes/solver/biological/types";
-import {
-  resetBiologicalSolverState,
-  updateBiologicalSolverState,
-} from "../../workflow/nodes/solver/biological/solverState";
 import {
   createTestContext,
   findVertexIndicesAtExtent,

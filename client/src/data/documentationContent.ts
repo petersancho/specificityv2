@@ -794,7 +794,7 @@ export const NODE_DOCUMENTATION: Record<string, NodeDocumentation> = {
       "Use integer steps for countable things (array count, floor levels)",
       "Use decimal steps for continuous measures (dimensions, angles)",
     ],
-    relatedNodes: ["number", "remap", "expression", "genomeCollector"],
+    relatedNodes: ["number", "remap", "expression"],
     workflowNotes: "Slider is the fundamental interactive control node. It outputs a numeric value that drives downstream parameters. Connect multiple sliders for multi-parameter design exploration.",
   },
   colorPicker: {
