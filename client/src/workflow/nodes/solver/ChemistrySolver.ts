@@ -495,7 +495,15 @@ export const ChemistrySolverNode: WorkflowNodeDefinition = {
   shortLabel: "Chem",
   description: "Optimizes material distribution within a domain using particle-based simulation and goal specifications.",
   category: "solver",
-  semanticOps: ['solver.chemistry'],
+  semanticOps: [
+    'solver.chemistry',
+    'simulator.chemistry.initialize',
+    'simulator.chemistry.step',
+    'simulator.chemistry.converge',
+    'simulator.chemistry.finalize',
+    'simulator.chemistry.blendMaterials',
+    'simulator.chemistry.evaluateGoals',
+  ],
   iconId: "solver",
   
   display: {

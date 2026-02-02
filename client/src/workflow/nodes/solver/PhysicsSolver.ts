@@ -13,7 +13,15 @@ export const PhysicsSolverNode: WorkflowNodeDefinition = {
   shortLabel: "Physics",
   description: "Computes physical equilibrium states for structural systems.",
   category: "solver",
-  semanticOps: ['solver.physics'],
+  semanticOps: [
+    'solver.physics',
+    'simulator.physics.initialize',
+    'simulator.physics.step',
+    'simulator.physics.converge',
+    'simulator.physics.finalize',
+    'simulator.physics.applyLoads',
+    'simulator.physics.computeStress',
+  ],
   iconId: "solver",
   display: {
     nameGreek: "Ἐπιλύτης Φυσικῆς",

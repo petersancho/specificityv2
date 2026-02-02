@@ -4481,6 +4481,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "meshConvert",
+    semanticOps: ["command.meshConvert"],
     label: "Mesh Convert",
     shortLabel: "MSH",
     description: "Convert geometry into a mesh for export.",
@@ -4549,6 +4550,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "nurbsToMesh",
+    semanticOps: ["command.meshConvert"],
     label: "NURBS to Mesh",
     shortLabel: "N2M",
     description: "Convert NURBS curves or surfaces into a mesh.",
@@ -4620,6 +4622,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "brepToMesh",
+    semanticOps: ["brep.tessellateBRepToMesh","command.brepToMesh"],
     label: "B-Rep to Mesh",
     shortLabel: "B2M",
     description: "Tessellate a B-Rep into a renderable mesh.",
@@ -4650,6 +4653,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "meshToBrep",
+    semanticOps: ["brep.brepFromMesh","command.meshToBrep"],
     label: "Mesh to B-Rep",
     shortLabel: "M2B",
     description: "Convert a mesh into a triangle-based B-Rep.",
@@ -4691,6 +4695,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "subdivideMesh",
+    semanticOps: ["meshTess.subdivideLinear"],
     label: "Subdivide Mesh",
     shortLabel: "SUBD",
     description: "Subdivide a mesh using linear, Catmull-Clark, Loop, or adaptive schemes.",
@@ -4845,6 +4850,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "dualMesh",
+    semanticOps: ["meshTess.dualMesh"],
     label: "Dual Mesh",
     shortLabel: "DUAL",
     description: "Flip faces and vertices to create a dual mesh.",
@@ -4888,6 +4894,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "insetFaces",
+    semanticOps: ["meshTess.insetFaces"],
     label: "Inset Faces",
     shortLabel: "INSET",
     description: "Inset mesh faces to create panels and borders.",
@@ -4983,6 +4990,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "extrudeFaces",
+    semanticOps: ["meshTess.extrudeFaces"],
     label: "Extrude Faces",
     shortLabel: "XTRD",
     description: "Extrude selected faces along normals or a fixed axis.",
@@ -5074,6 +5082,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "meshRelax",
+    semanticOps: ["meshTess.meshRelax"],
     label: "Mesh Relax",
     shortLabel: "RELX",
     description: "Smooth a mesh with Laplacian relaxation.",
@@ -5157,6 +5166,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "selectFaces",
+    semanticOps: ["meshTess.selectFaces"],
     label: "Select Faces",
     shortLabel: "SEL",
     description: "Select mesh faces by area, normal direction, or index pattern.",
@@ -5245,6 +5255,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "meshBoolean",
+    semanticOps: ["meshTess.meshBoolean"],
     label: "Mesh Boolean",
     shortLabel: "MBOOL",
     description: "Combine two meshes with union, difference, or intersection.",
@@ -5314,6 +5325,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "triangulateMesh",
+    semanticOps: ["meshTess.triangulateMesh"],
     label: "Triangulate Mesh",
     shortLabel: "TRI",
     description: "Convert all faces to triangles.",
@@ -5355,6 +5367,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "geodesicSphere",
+    semanticOps: ["meshTess.generateGeodesicSphere"],
     label: "Geodesic Sphere",
     shortLabel: "GEO",
     description: "Generate a geodesic sphere mesh.",
@@ -5413,6 +5426,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "voronoiPattern",
+    semanticOps: ["meshTess.generateVoronoiPattern"],
     label: "Voronoi Pattern",
     shortLabel: "VOR",
     description: "Generate a Voronoi pattern from a boundary surface.",
@@ -5510,6 +5524,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "hexagonalTiling",
+    semanticOps: ["meshTess.generateHexagonalTiling"],
     label: "Hexagonal Tiling",
     shortLabel: "HEX",
     description: "Generate a hexagonal tiling over a surface plane.",
@@ -5585,6 +5600,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "offsetPattern",
+    semanticOps: ["meshTess.offsetPattern"],
     label: "Offset Pattern",
     shortLabel: "OFST",
     description: "Inset and extrude faces to create panelized patterns.",
@@ -5647,6 +5663,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "meshRepair",
+    semanticOps: ["meshTess.repairMesh"],
     label: "Mesh Repair",
     shortLabel: "REPR",
     description: "Repair holes and weld close vertices.",
@@ -5700,6 +5717,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "meshUVs",
+    semanticOps: ["meshTess.generateMeshUVs"],
     label: "Generate UVs",
     shortLabel: "UV",
     description: "Generate UV coordinates for a mesh.",
@@ -5763,6 +5781,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "meshDecimate",
+    semanticOps: ["meshTess.decimateMesh"],
     label: "Mesh Decimate",
     shortLabel: "DEC",
     description: "Reduce mesh density via vertex clustering.",
@@ -5825,6 +5844,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "quadRemesh",
+    semanticOps: ["meshTess.quadDominantRemesh"],
     label: "Quad Remesh",
     shortLabel: "QUAD",
     description: "Merge adjacent triangles into quad-dominant faces.",
@@ -6087,6 +6107,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "listCreate",
+    semanticOps: ["data.collect"],
     label: "List Create",
     shortLabel: "LIST",
     description: "Collect values into a list for downstream data operations.",
@@ -6138,6 +6159,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "listLength",
+    semanticOps: ["data.length"],
     label: "List Length",
     shortLabel: "LEN",
     description: "Return the number of items in a list.",
@@ -6166,6 +6188,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "listItem",
+    semanticOps: ["data.index"],
     label: "List Item",
     shortLabel: "ITEM",
     description: "Pick a single item by index with clamp or wrap behavior.",
@@ -6343,6 +6366,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "listFlatten",
+    semanticOps: ["data.flatten"],
     label: "List Flatten",
     shortLabel: "FLAT",
     description: "Flatten nested lists by a specified depth.",
@@ -11266,6 +11290,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "scalarFunctions",
+    semanticOps: ["math.abs", "math.sqrt", "math.exp", "math.log", "math.sin", "math.cos", "math.tan", "math.floor", "math.ceil", "math.round", "math.power"],
     label: "Scalar Functions",
     shortLabel: "FUNC",
     description: "Apply common scalar functions to a value.",
@@ -11406,6 +11431,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "conditional",
+    semanticOps: ["logic.if"],
     label: "Conditional",
     shortLabel: "IF",
     description: "Select between two values using a condition.",

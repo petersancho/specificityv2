@@ -1,13 +1,13 @@
 # Semantic Inventory
 
-Generated: 2026-02-02T17:09:44.572Z
+Generated: 2026-02-02T17:20:55.082Z
 
 ## Summary
 
 - **Total Operations**: 195
-- **Total Nodes**: 47
+- **Total Nodes**: 56
 - **Total Dashboards**: 3
-- **Orphan Operations**: 132
+- **Orphan Operations**: 101
 - **Dangling References**: 0
 
 ## Operations by Domain
@@ -46,8 +46,8 @@ Generated: 2026-02-02T17:09:44.572Z
 | `command.meshFlip` | Mesh Flip | operation | ✅ | (none) |
 | `command.meshThicken` | Mesh Thicken | operation | ✅ | (none) |
 | `command.morph` | Morph | operation | ✅ | (none) |
-| `command.meshConvert` | NURBS to Mesh | conversion | ✅ | (none) |
-| `command.brepToMesh` | B-Rep to Mesh | conversion | ✅ | (none) |
+| `command.meshConvert` | NURBS to Mesh | conversion | ✅ | meshConvert, nurbsToMesh |
+| `command.brepToMesh` | B-Rep to Mesh | conversion | ✅ | brepToMesh |
 | `command.meshToBrep` | Mesh to B-Rep | conversion | ✅ | (none) |
 | `command.nurbsRestore` | Mesh to NURBS | conversion | ✅ | (none) |
 | `command.interpolate` | Interpolate | conversion | ✅ | (none) |
@@ -91,15 +91,15 @@ Generated: 2026-02-02T17:09:44.572Z
 
 | ID | Name | Category | Stable | Used By |
 |----|------|----------|--------|----------|
-| `data.collect` | Collect | aggregation | ✅ | (none) |
-| `data.flatten` | Flatten | utility | ✅ | (none) |
+| `data.collect` | Collect | aggregation | ✅ | listCreate |
+| `data.flatten` | Flatten | utility | ✅ | listFlatten |
 | `data.filter` | Filter | utility | ✅ | (none) |
 | `data.map` | Map | utility | ✅ | (none) |
 | `data.reduce` | Reduce | aggregation | ✅ | (none) |
 | `data.sort` | Sort | utility | ✅ | (none) |
 | `data.unique` | Unique | utility | ✅ | (none) |
-| `data.length` | Length | analysis | ✅ | (none) |
-| `data.index` | Index | utility | ✅ | (none) |
+| `data.length` | Length | analysis | ✅ | listLength |
+| `data.index` | Index | utility | ✅ | listItem |
 
 ### geometry (40 operations)
 
@@ -142,7 +142,7 @@ Generated: 2026-02-02T17:09:44.572Z
 | `meshTess.toTessellationMeshData` | To Tessellation Mesh Data | tessellation | ✅ | subdivideMesh, dualMesh, insetFaces, extrudeFaces, meshRelax, meshBoolean, triangulateMesh, geodesicSphere, voronoiPattern, hexagonalTiling, offsetPattern, meshRepair, meshUVs, meshDecimate, quadRemesh |
 | `meshTess.tessellationMeshToRenderMesh` | Tessellation Mesh To Render Mesh | tessellation | ✅ | subdivideMesh, dualMesh, insetFaces, extrudeFaces, meshRelax, triangulateMesh, geodesicSphere, voronoiPattern, hexagonalTiling, offsetPattern, meshRepair, meshUVs, meshDecimate, quadRemesh |
 | `brep.brepFromMesh` | B-Rep From Mesh | tessellation | ✅ | meshToBrep |
-| `brep.tessellateBRepToMesh` | Tessellate B-Rep To Mesh | tessellation | ✅ | (none) |
+| `brep.tessellateBRepToMesh` | Tessellate B-Rep To Mesh | tessellation | ✅ | brepToMesh |
 | `tess.tessellateCurveAdaptive` | Tessellate Curve Adaptive | tessellation | ✅ | (none) |
 | `tess.tessellateSurfaceAdaptive` | Tessellate Surface Adaptive | tessellation | ✅ | (none) |
 
@@ -154,7 +154,7 @@ Generated: 2026-02-02T17:09:44.572Z
 | `logic.or` | Or | operator | ✅ | (none) |
 | `logic.not` | Not | operator | ✅ | (none) |
 | `logic.xor` | Xor | operator | ✅ | (none) |
-| `logic.if` | If | control | ✅ | (none) |
+| `logic.if` | If | control | ✅ | conditional |
 | `logic.compare` | Compare | operator | ✅ | (none) |
 
 ### math (34 operations)
@@ -166,22 +166,22 @@ Generated: 2026-02-02T17:09:44.572Z
 | `math.multiply` | Multiply | operator | ✅ | multiply |
 | `math.divide` | Divide | operator | ✅ | divide |
 | `math.modulo` | Modulo | operator | ✅ | (none) |
-| `math.power` | Power | operator | ✅ | (none) |
-| `math.floor` | Floor | operator | ✅ | (none) |
-| `math.ceil` | Ceiling | operator | ✅ | (none) |
-| `math.round` | Round | operator | ✅ | (none) |
-| `math.abs` | Absolute Value | operator | ✅ | (none) |
+| `math.power` | Power | operator | ✅ | scalarFunctions |
+| `math.floor` | Floor | operator | ✅ | scalarFunctions |
+| `math.ceil` | Ceiling | operator | ✅ | scalarFunctions |
+| `math.round` | Round | operator | ✅ | scalarFunctions |
+| `math.abs` | Absolute Value | operator | ✅ | scalarFunctions |
 | `math.negate` | Negate | operator | ✅ | (none) |
-| `math.sqrt` | Square Root | operator | ✅ | (none) |
-| `math.sin` | Sine | operator | ✅ | (none) |
-| `math.cos` | Cosine | operator | ✅ | (none) |
-| `math.tan` | Tangent | operator | ✅ | (none) |
+| `math.sqrt` | Square Root | operator | ✅ | scalarFunctions |
+| `math.sin` | Sine | operator | ✅ | scalarFunctions |
+| `math.cos` | Cosine | operator | ✅ | scalarFunctions |
+| `math.tan` | Tangent | operator | ✅ | scalarFunctions |
 | `math.asin` | Arcsine | operator | ✅ | (none) |
 | `math.acos` | Arccosine | operator | ✅ | (none) |
 | `math.atan` | Arctangent | operator | ✅ | (none) |
 | `math.atan2` | Arctangent2 | operator | ✅ | (none) |
-| `math.exp` | Exponential | operator | ✅ | (none) |
-| `math.log` | Natural Logarithm | operator | ✅ | (none) |
+| `math.exp` | Exponential | operator | ✅ | scalarFunctions |
+| `math.log` | Natural Logarithm | operator | ✅ | scalarFunctions |
 | `math.log10` | Base-10 Logarithm | operator | ✅ | (none) |
 | `math.min` | Minimum | aggregation | ✅ | min |
 | `math.max` | Maximum | aggregation | ✅ | max |
@@ -205,22 +205,22 @@ Generated: 2026-02-02T17:09:44.572Z
 | `solver.evolutionary` | Evolutionary Solver | utility | ✅ | evolutionarySolver |
 | `solver.voxel` | Voxel Solver | conversion | ✅ | voxelSolver |
 | `solver.topologyOptimization` | Topology Optimization Solver | utility | ⚠️ | topologyOptimizationSolver |
-| `simulator.initialize` | Initialize Simulator | utility | ✅ | (none) |
-| `simulator.step` | Step Simulator | utility | ✅ | (none) |
-| `simulator.converge` | Check Convergence | query | ✅ | (none) |
-| `simulator.finalize` | Finalize Simulator | utility | ✅ | (none) |
-| `simulator.chemistry.initialize` | Initialize Chemistry Simulator | utility | ✅ | (none) |
-| `simulator.chemistry.step` | Step Chemistry Simulator | utility | ✅ | (none) |
-| `simulator.chemistry.converge` | Check Chemistry Convergence | query | ✅ | (none) |
-| `simulator.chemistry.finalize` | Finalize Chemistry Simulator | utility | ✅ | (none) |
-| `simulator.chemistry.blendMaterials` | Blend Materials | utility | ✅ | (none) |
-| `simulator.chemistry.evaluateGoals` | Evaluate Chemistry Goals | query | ✅ | (none) |
-| `simulator.physics.initialize` | Initialize Physics Simulator | utility | ✅ | (none) |
-| `simulator.physics.step` | Step Physics Simulator | utility | ✅ | (none) |
-| `simulator.physics.converge` | Check Physics Convergence | query | ✅ | (none) |
-| `simulator.physics.finalize` | Finalize Physics Simulator | utility | ✅ | (none) |
-| `simulator.physics.applyLoads` | Apply Loads | utility | ✅ | (none) |
-| `simulator.physics.computeStress` | Compute Stress Field | utility | ✅ | (none) |
+| `simulator.initialize` | Initialize Simulator | utility | ✅ | evolutionarySolver |
+| `simulator.step` | Step Simulator | utility | ✅ | evolutionarySolver |
+| `simulator.converge` | Check Convergence | query | ✅ | evolutionarySolver |
+| `simulator.finalize` | Finalize Simulator | utility | ✅ | evolutionarySolver |
+| `simulator.chemistry.initialize` | Initialize Chemistry Simulator | utility | ✅ | chemistrySolver |
+| `simulator.chemistry.step` | Step Chemistry Simulator | utility | ✅ | chemistrySolver |
+| `simulator.chemistry.converge` | Check Chemistry Convergence | query | ✅ | chemistrySolver |
+| `simulator.chemistry.finalize` | Finalize Chemistry Simulator | utility | ✅ | chemistrySolver |
+| `simulator.chemistry.blendMaterials` | Blend Materials | utility | ✅ | chemistrySolver |
+| `simulator.chemistry.evaluateGoals` | Evaluate Chemistry Goals | query | ✅ | chemistrySolver |
+| `simulator.physics.initialize` | Initialize Physics Simulator | utility | ✅ | physicsSolver |
+| `simulator.physics.step` | Step Physics Simulator | utility | ✅ | physicsSolver |
+| `simulator.physics.converge` | Check Physics Convergence | query | ✅ | physicsSolver |
+| `simulator.physics.finalize` | Finalize Physics Simulator | utility | ✅ | physicsSolver |
+| `simulator.physics.applyLoads` | Apply Loads | utility | ✅ | physicsSolver |
+| `simulator.physics.computeStress` | Compute Stress Field | utility | ✅ | physicsSolver |
 
 ### string (7 operations)
 
@@ -261,6 +261,9 @@ Generated: 2026-02-02T17:09:44.572Z
 
 | Node Type | Label | Category | Semantic Operations |
 |-----------|-------|----------|---------------------|
+| `meshConvert` | Mesh Convert | mesh | `command.meshConvert` |
+| `nurbsToMesh` | NURBS to Mesh | mesh | `command.meshConvert` |
+| `brepToMesh` | B-Rep to Mesh | mesh | `brep.tessellateBRepToMesh`, `command.brepToMesh` |
 | `meshToBrep` | Mesh to B-Rep | mesh | `brep.brepFromMesh` |
 | `subdivideMesh` | Subdivide Mesh | tessellation | `meshTess.getTessellationMetadata`, `meshTess.subdivideAdaptive`, `meshTess.subdivideCatmullClark`, `meshTess.subdivideLinear`, `meshTess.subdivideLoop`, `meshTess.tessellationMeshToRenderMesh`, `meshTess.toTessellationMesh`, `meshTess.toTessellationMeshData` |
 | `dualMesh` | Dual Mesh | tessellation | `meshTess.dualMesh`, `meshTess.getTessellationMetadata`, `meshTess.tessellationMeshToRenderMesh`, `meshTess.toTessellationMesh`, `meshTess.toTessellationMeshData` |
@@ -278,6 +281,10 @@ Generated: 2026-02-02T17:09:44.572Z
 | `meshUVs` | Generate UVs | tessellation | `meshTess.generateMeshUVs`, `meshTess.getTessellationMetadata`, `meshTess.tessellationMeshToRenderMesh`, `meshTess.toTessellationMesh`, `meshTess.toTessellationMeshData` |
 | `meshDecimate` | Mesh Decimate | tessellation | `meshTess.decimateMesh`, `meshTess.getTessellationMetadata`, `meshTess.tessellationMeshToRenderMesh`, `meshTess.toTessellationMesh`, `meshTess.toTessellationMeshData` |
 | `quadRemesh` | Quad Remesh | tessellation | `meshTess.getTessellationMetadata`, `meshTess.quadDominantRemesh`, `meshTess.tessellationMeshToRenderMesh`, `meshTess.toTessellationMesh`, `meshTess.toTessellationMeshData` |
+| `listCreate` | List Create | lists | `data.collect` |
+| `listLength` | List Length | lists | `data.length` |
+| `listItem` | List Item | lists | `data.index` |
+| `listFlatten` | List Flatten | lists | `data.flatten` |
 | `remap` | Remap | ranges | `math.remap` |
 | `random` | Random | ranges | `math.random` |
 | `measurement` | Measurement | measurement | `mesh.computeArea` |
@@ -296,6 +303,8 @@ Generated: 2026-02-02T17:09:44.572Z
 | `clamp` | Clamp | math | `math.clamp` |
 | `min` | Min | math | `math.min` |
 | `max` | Max | math | `math.max` |
+| `scalarFunctions` | Scalar Functions | math | `math.abs`, `math.sqrt`, `math.exp`, `math.log`, `math.sin`, `math.cos`, `math.tan`, `math.floor`, `math.ceil`, `math.round`, `math.power` |
+| `conditional` | Conditional | logic | `logic.if` |
 | `vectorAdd` | Vector Add | euclidean | `vector.add` |
 | `vectorSubtract` | Vector Subtract | euclidean | `vector.subtract` |
 | `vectorLength` | Vector Length | euclidean | `vector.length` |
@@ -303,9 +312,9 @@ Generated: 2026-02-02T17:09:44.572Z
 | `vectorDot` | Vector Dot | euclidean | `vector.dot` |
 | `vectorCross` | Vector Cross | euclidean | `vector.cross` |
 | `vectorLerp` | Vector Lerp | euclidean | `vector.lerp` |
-| `physicsSolver` | Ἐπιλύτης Φυσικῆς | solver | `solver.physics` |
-| `chemistrySolver` | Ἐπιλύτης Χημείας | solver | `solver.chemistry` |
-| `evolutionarySolver` | Evolutionary Solver | solver | `solver.evolutionary` |
+| `physicsSolver` | Ἐπιλύτης Φυσικῆς | solver | `solver.physics`, `simulator.physics.initialize`, `simulator.physics.step`, `simulator.physics.converge`, `simulator.physics.finalize`, `simulator.physics.applyLoads`, `simulator.physics.computeStress` |
+| `chemistrySolver` | Ἐπιλύτης Χημείας | solver | `solver.chemistry`, `simulator.chemistry.initialize`, `simulator.chemistry.step`, `simulator.chemistry.converge`, `simulator.chemistry.finalize`, `simulator.chemistry.blendMaterials`, `simulator.chemistry.evaluateGoals` |
+| `evolutionarySolver` | Evolutionary Solver | solver | `solver.evolutionary`, `simulator.initialize`, `simulator.step`, `simulator.converge`, `simulator.finalize` |
 | `voxelSolver` | Voxelizer | voxel | `solver.voxel` |
 | `topologyOptimizationSolver` | Topology Optimization | solver | `solver.topologyOptimization` |
 
@@ -353,22 +362,11 @@ Generated: 2026-02-02T17:09:44.572Z
 These operations are defined but never used by any node:
 
 - `math.modulo`
-- `math.power`
-- `math.floor`
-- `math.ceil`
-- `math.round`
-- `math.abs`
 - `math.negate`
-- `math.sqrt`
-- `math.sin`
-- `math.cos`
-- `math.tan`
 - `math.asin`
 - `math.acos`
 - `math.atan`
 - `math.atan2`
-- `math.exp`
-- `math.log`
 - `math.log10`
 - `math.lerp`
 - `math.equal`
@@ -384,17 +382,12 @@ These operations are defined but never used by any node:
 - `logic.or`
 - `logic.not`
 - `logic.xor`
-- `logic.if`
 - `logic.compare`
-- `data.collect`
-- `data.flatten`
 - `data.filter`
 - `data.map`
 - `data.reduce`
 - `data.sort`
 - `data.unique`
-- `data.length`
-- `data.index`
 - `string.concat`
 - `string.split`
 - `string.replace`
@@ -410,18 +403,6 @@ These operations are defined but never used by any node:
 - `color.clamp`
 - `workflow.identity`
 - `workflow.constant`
-- `simulator.chemistry.initialize`
-- `simulator.chemistry.step`
-- `simulator.chemistry.converge`
-- `simulator.chemistry.finalize`
-- `simulator.chemistry.blendMaterials`
-- `simulator.chemistry.evaluateGoals`
-- `simulator.physics.initialize`
-- `simulator.physics.step`
-- `simulator.physics.converge`
-- `simulator.physics.finalize`
-- `simulator.physics.applyLoads`
-- `simulator.physics.computeStress`
 - `command.createPoint`
 - `command.createLine`
 - `command.createPolyline`
@@ -441,8 +422,6 @@ These operations are defined but never used by any node:
 - `command.meshFlip`
 - `command.meshThicken`
 - `command.morph`
-- `command.meshConvert`
-- `command.brepToMesh`
 - `command.meshToBrep`
 - `command.nurbsRestore`
 - `command.interpolate`
@@ -481,7 +460,6 @@ These operations are defined but never used by any node:
 - `command.outliner`
 - `command.tolerance`
 - `command.status`
-- `brep.tessellateBRepToMesh`
 - `tess.tessellateCurveAdaptive`
 - `tess.tessellateSurfaceAdaptive`
 

@@ -484,7 +484,13 @@ function runEvolution(
 export const EvolutionarySolver: WorkflowNodeDefinition = {
   type: "evolutionarySolver",
   category: "solver",
-  semanticOps: ['solver.evolutionary'],
+  semanticOps: [
+    'solver.evolutionary',
+    'simulator.initialize',
+    'simulator.step',
+    'simulator.converge',
+    'simulator.finalize',
+  ],
   label: "Evolutionary Solver",
   shortLabel: "Evolutionary",
   description: "Genetic algorithm-based evolutionary optimization solver for geometry configuration",
