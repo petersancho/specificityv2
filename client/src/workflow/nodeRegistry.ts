@@ -10906,7 +10906,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     type: "subtract",
     label: "Subtract",
     shortLabel: "SUB",
-    description: "Subtract B from A.",
+    description: "Computes the difference A - B for numeric values.",
     category: "math",
     iconId: "subtract",
     inputs: numberPorts({ a: "A", b: "B" }).inputs,
