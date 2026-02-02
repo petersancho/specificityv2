@@ -3896,6 +3896,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     description: "Reference existing geometry into the graph.",
     category: "data",
     iconId: "geometryReference",
+    semanticOps: ["workflow.identity", "workflow.constant"],
     inputs: [],
     outputs: [
       {
@@ -3918,6 +3919,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     description: "Floating canvas text with a handwritten style.",
     category: "data",
     iconId: "script",
+    semanticOps: ["string.concat", "string.split", "string.replace", "string.substring", "string.length", "string.toNumber", "string.format"],
     inputs: [],
     outputs: [],
     parameters: [
@@ -4127,6 +4129,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     description: "Pick a color swatch and output RGB + hex.",
     category: "data",
     iconId: "displayMode",
+    semanticOps: ["color.hexToRgb", "color.rgbToHex", "color.rgbToHsl", "color.hslToRgb", "color.blend", "color.clamp"],
     inputs: [],
     outputs: [
       { key: "color", label: "Color", type: "vector", required: true },
@@ -6108,7 +6111,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "listCreate",
-    semanticOps: ["data.collect"],
+    semanticOps: ["data.collect", "data.filter", "data.map", "data.reduce", "data.sort", "data.unique"],
     label: "List Create",
     shortLabel: "LIST",
     description: "Collect values into a list for downstream data operations.",
@@ -11293,7 +11296,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "scalarFunctions",
-    semanticOps: ["math.abs", "math.sqrt", "math.exp", "math.log", "math.sin", "math.cos", "math.tan", "math.floor", "math.ceil", "math.round", "math.power"],
+    semanticOps: ["math.abs", "math.sqrt", "math.exp", "math.log", "math.sin", "math.cos", "math.tan", "math.floor", "math.ceil", "math.round", "math.power", "math.modulo", "math.negate", "math.asin", "math.acos", "math.atan", "math.atan2", "math.log10", "math.lerp"],
     label: "Scalar Functions",
     shortLabel: "FUNC",
     description: "Apply common scalar functions to a value.",
@@ -11434,7 +11437,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "conditional",
-    semanticOps: ["logic.if"],
+    semanticOps: ["logic.if", "math.equal", "math.notEqual", "math.lessThan", "math.lessThanOrEqual", "math.greaterThan", "math.greaterThanOrEqual", "logic.and", "logic.or", "logic.not", "logic.xor", "logic.compare"],
     label: "Conditional",
     shortLabel: "IF",
     description: "Select between two values using a condition.",
@@ -11651,6 +11654,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     description: "Scale a vector by a scalar multiplier.",
     category: "transforms",
     iconId: "vectorScale",
+    semanticOps: ["vector.multiply", "vector.divide"],
     inputs: [
       { key: "vector", label: "Vector", type: "vector", required: true },
       {
@@ -11684,7 +11688,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "vectorLength",
     label: "Vector Length",
-    semanticOps: ['vector.length'],
+    semanticOps: ['vector.length', 'vector.distance'],
     shortLabel: "|V|",
     description: "Measure the magnitude of a vector.",
     category: "euclidean",
@@ -12045,6 +12049,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       { key: "worldZ", label: "World Z", type: "number", defaultValue: 0, step: 0.1 },
     ],
     primaryOutputKey: "geometry",
+    semanticOps: ["command.move"],
     compute: ({ inputs, parameters }) => {
       const geometry = typeof inputs.geometry === "string" ? inputs.geometry : null;
       const worldX = toNumber(inputs.worldX, readNumberParameter(parameters, "worldX", 0));
@@ -12084,6 +12089,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       { key: "angle", label: "Angle", type: "number", defaultValue: 0, step: 5 },
     ],
     primaryOutputKey: "geometry",
+    semanticOps: ["command.rotate"],
     compute: ({ inputs, parameters }) => {
       const geometry = typeof inputs.geometry === "string" ? inputs.geometry : null;
       const axis = resolveVectorInput(inputs, parameters, "axis", "axis", UNIT_Y_VEC3);
@@ -12119,6 +12125,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       ...vectorParameterSpecs("pivot", "Pivot", ZERO_VEC3),
     ],
     primaryOutputKey: "geometry",
+    semanticOps: ["command.scale"],
     compute: ({ inputs, parameters }) => {
       const geometry = typeof inputs.geometry === "string" ? inputs.geometry : null;
       const scale = resolveVectorInput(inputs, parameters, "scale", "scale", UNIT_XYZ_VEC3);

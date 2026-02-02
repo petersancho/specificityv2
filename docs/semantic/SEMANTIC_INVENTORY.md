@@ -1,13 +1,13 @@
 # Semantic Inventory
 
-Generated: 2026-02-02T17:34:21.872Z
+Generated: 2026-02-02T18:18:55.470Z
 
 ## Summary
 
-- **Total Operations**: 195
-- **Total Nodes**: 64
+- **Total Operations**: 197
+- **Total Nodes**: 74
 - **Total Dashboards**: 3
-- **Orphan Operations**: 94
+- **Orphan Operations**: 48
 - **Dangling References**: 0
 
 ## Operations by Domain
@@ -16,12 +16,12 @@ Generated: 2026-02-02T17:34:21.872Z
 
 | ID | Name | Category | Stable | Used By |
 |----|------|----------|--------|----------|
-| `color.hexToRgb` | Hex to RGB | utility | ✅ | (none) |
-| `color.rgbToHex` | RGB to Hex | utility | ✅ | (none) |
-| `color.rgbToHsl` | RGB to HSL | utility | ✅ | (none) |
-| `color.hslToRgb` | HSL to RGB | utility | ✅ | (none) |
-| `color.blend` | Blend | operator | ✅ | (none) |
-| `color.clamp` | Clamp | utility | ✅ | (none) |
+| `color.hexToRgb` | Hex to RGB | utility | ✅ | colorPicker |
+| `color.rgbToHex` | RGB to Hex | utility | ✅ | colorPicker |
+| `color.rgbToHsl` | RGB to HSL | utility | ✅ | colorPicker |
+| `color.hslToRgb` | HSL to RGB | utility | ✅ | colorPicker |
+| `color.blend` | Blend | operator | ✅ | colorPicker |
+| `color.clamp` | Clamp | utility | ✅ | colorPicker |
 
 ### command (59 operations)
 
@@ -29,10 +29,10 @@ Generated: 2026-02-02T17:34:21.872Z
 |----|------|----------|--------|----------|
 | `command.createPoint` | Create Point | creation | ✅ | point |
 | `command.createLine` | Create Line | creation | ✅ | line |
-| `command.createPolyline` | Create Polyline | creation | ✅ | (none) |
+| `command.createPolyline` | Create Polyline | creation | ✅ | polyline |
 | `command.createRectangle` | Create Rectangle | creation | ✅ | rectangle |
 | `command.createCircle` | Create Circle | creation | ✅ | circle |
-| `command.createArc` | Create Arc | creation | ✅ | (none) |
+| `command.createArc` | Create Arc | creation | ✅ | arc |
 | `command.createCurve` | Create Curve | creation | ✅ | curve |
 | `command.createPrimitive` | Create Primitive | creation | ✅ | box, sphere |
 | `command.createNurbsBox` | Create NURBS Box | creation | ✅ | (none) |
@@ -51,9 +51,9 @@ Generated: 2026-02-02T17:34:21.872Z
 | `command.meshToBrep` | Mesh to B-Rep | conversion | ✅ | (none) |
 | `command.nurbsRestore` | Mesh to NURBS | conversion | ✅ | (none) |
 | `command.interpolate` | Interpolate | conversion | ✅ | (none) |
-| `command.move` | Move | transform | ✅ | (none) |
-| `command.rotate` | Rotate | transform | ✅ | (none) |
-| `command.scale` | Scale | transform | ✅ | (none) |
+| `command.move` | Move | transform | ✅ | move |
+| `command.rotate` | Rotate | transform | ✅ | rotate |
+| `command.scale` | Scale | transform | ✅ | scale |
 | `command.offset` | Offset | transform | ✅ | (none) |
 | `command.mirror` | Mirror | transform | ✅ | (none) |
 | `command.array` | Array | transform | ✅ | (none) |
@@ -93,18 +93,20 @@ Generated: 2026-02-02T17:34:21.872Z
 |----|------|----------|--------|----------|
 | `data.collect` | Collect | aggregation | ✅ | listCreate |
 | `data.flatten` | Flatten | utility | ✅ | listFlatten |
-| `data.filter` | Filter | utility | ✅ | (none) |
-| `data.map` | Map | utility | ✅ | (none) |
-| `data.reduce` | Reduce | aggregation | ✅ | (none) |
-| `data.sort` | Sort | utility | ✅ | (none) |
-| `data.unique` | Unique | utility | ✅ | (none) |
+| `data.filter` | Filter | utility | ✅ | listCreate |
+| `data.map` | Map | utility | ✅ | listCreate |
+| `data.reduce` | Reduce | aggregation | ✅ | listCreate |
+| `data.sort` | Sort | utility | ✅ | listCreate |
+| `data.unique` | Unique | utility | ✅ | listCreate |
 | `data.length` | Length | analysis | ✅ | listLength |
 | `data.index` | Index | utility | ✅ | listItem |
 
-### geometry (40 operations)
+### geometry (42 operations)
 
 | ID | Name | Category | Stable | Used By |
 |----|------|----------|--------|----------|
+| `geometry.mesh` | Mesh | passthrough | ✅ | mesh |
+| `geometry.brep` | B-Rep | passthrough | ✅ | (none) |
 | `boolean.offsetPolyline2D` | Offset Polyline 2D | modifier | ✅ | offset |
 | `math.computeBestFitPlane` | Compute Best Fit Plane | analysis | ✅ | voronoiPattern, hexagonalTiling, offset |
 | `math.projectPointToPlane` | Project Point To Plane | transform | ✅ | voronoiPattern, hexagonalTiling, offset |
@@ -150,12 +152,12 @@ Generated: 2026-02-02T17:34:21.872Z
 
 | ID | Name | Category | Stable | Used By |
 |----|------|----------|--------|----------|
-| `logic.and` | And | operator | ✅ | (none) |
-| `logic.or` | Or | operator | ✅ | (none) |
-| `logic.not` | Not | operator | ✅ | (none) |
-| `logic.xor` | Xor | operator | ✅ | (none) |
+| `logic.and` | And | operator | ✅ | conditional |
+| `logic.or` | Or | operator | ✅ | conditional |
+| `logic.not` | Not | operator | ✅ | conditional |
+| `logic.xor` | Xor | operator | ✅ | conditional |
 | `logic.if` | If | control | ✅ | conditional |
-| `logic.compare` | Compare | operator | ✅ | (none) |
+| `logic.compare` | Compare | operator | ✅ | conditional |
 
 ### math (34 operations)
 
@@ -165,35 +167,35 @@ Generated: 2026-02-02T17:34:21.872Z
 | `math.subtract` | Subtract | operator | ✅ | subtract |
 | `math.multiply` | Multiply | operator | ✅ | multiply |
 | `math.divide` | Divide | operator | ✅ | divide |
-| `math.modulo` | Modulo | operator | ✅ | (none) |
+| `math.modulo` | Modulo | operator | ✅ | scalarFunctions |
 | `math.power` | Power | operator | ✅ | scalarFunctions |
 | `math.floor` | Floor | operator | ✅ | scalarFunctions |
 | `math.ceil` | Ceiling | operator | ✅ | scalarFunctions |
 | `math.round` | Round | operator | ✅ | scalarFunctions |
 | `math.abs` | Absolute Value | operator | ✅ | scalarFunctions |
-| `math.negate` | Negate | operator | ✅ | (none) |
+| `math.negate` | Negate | operator | ✅ | scalarFunctions |
 | `math.sqrt` | Square Root | operator | ✅ | scalarFunctions |
 | `math.sin` | Sine | operator | ✅ | scalarFunctions |
 | `math.cos` | Cosine | operator | ✅ | scalarFunctions |
 | `math.tan` | Tangent | operator | ✅ | scalarFunctions |
-| `math.asin` | Arcsine | operator | ✅ | (none) |
-| `math.acos` | Arccosine | operator | ✅ | (none) |
-| `math.atan` | Arctangent | operator | ✅ | (none) |
-| `math.atan2` | Arctangent2 | operator | ✅ | (none) |
+| `math.asin` | Arcsine | operator | ✅ | scalarFunctions |
+| `math.acos` | Arccosine | operator | ✅ | scalarFunctions |
+| `math.atan` | Arctangent | operator | ✅ | scalarFunctions |
+| `math.atan2` | Arctangent2 | operator | ✅ | scalarFunctions |
 | `math.exp` | Exponential | operator | ✅ | scalarFunctions |
 | `math.log` | Natural Logarithm | operator | ✅ | scalarFunctions |
-| `math.log10` | Base-10 Logarithm | operator | ✅ | (none) |
+| `math.log10` | Base-10 Logarithm | operator | ✅ | scalarFunctions |
 | `math.min` | Minimum | aggregation | ✅ | min |
 | `math.max` | Maximum | aggregation | ✅ | max |
 | `math.clamp` | Clamp | utility | ✅ | clamp |
-| `math.lerp` | Linear Interpolation | utility | ✅ | (none) |
+| `math.lerp` | Linear Interpolation | utility | ✅ | scalarFunctions |
 | `math.remap` | Remap | utility | ✅ | remap |
-| `math.equal` | Equal | operator | ✅ | (none) |
-| `math.notEqual` | Not Equal | operator | ✅ | (none) |
-| `math.lessThan` | Less Than | operator | ✅ | (none) |
-| `math.lessThanOrEqual` | Less Than or Equal | operator | ✅ | (none) |
-| `math.greaterThan` | Greater Than | operator | ✅ | (none) |
-| `math.greaterThanOrEqual` | Greater Than or Equal | operator | ✅ | (none) |
+| `math.equal` | Equal | operator | ✅ | conditional |
+| `math.notEqual` | Not Equal | operator | ✅ | conditional |
+| `math.lessThan` | Less Than | operator | ✅ | conditional |
+| `math.lessThanOrEqual` | Less Than or Equal | operator | ✅ | conditional |
+| `math.greaterThan` | Greater Than | operator | ✅ | conditional |
+| `math.greaterThanOrEqual` | Greater Than or Equal | operator | ✅ | conditional |
 | `math.random` | Random | utility | ✅ | random |
 
 ### solver (21 operations)
@@ -226,13 +228,13 @@ Generated: 2026-02-02T17:34:21.872Z
 
 | ID | Name | Category | Stable | Used By |
 |----|------|----------|--------|----------|
-| `string.concat` | Concatenate | operator | ✅ | (none) |
-| `string.split` | Split | utility | ✅ | (none) |
-| `string.replace` | Replace | utility | ✅ | (none) |
-| `string.substring` | Substring | utility | ✅ | (none) |
-| `string.length` | Length | analysis | ✅ | (none) |
-| `string.toNumber` | To Number | utility | ✅ | (none) |
-| `string.format` | Format | utility | ✅ | (none) |
+| `string.concat` | Concatenate | operator | ✅ | text |
+| `string.split` | Split | utility | ✅ | text |
+| `string.replace` | Replace | utility | ✅ | text |
+| `string.substring` | Substring | utility | ✅ | text |
+| `string.length` | Length | analysis | ✅ | text |
+| `string.toNumber` | To Number | utility | ✅ | text |
+| `string.format` | Format | utility | ✅ | text |
 
 ### vector (10 operations)
 
@@ -240,13 +242,13 @@ Generated: 2026-02-02T17:34:21.872Z
 |----|------|----------|--------|----------|
 | `vector.add` | Vector Add | operator | ✅ | vectorAdd |
 | `vector.subtract` | Vector Subtract | operator | ✅ | vectorSubtract |
-| `vector.multiply` | Vector Multiply | operator | ✅ | (none) |
-| `vector.divide` | Vector Divide | operator | ✅ | (none) |
+| `vector.multiply` | Vector Multiply | operator | ✅ | vectorScale |
+| `vector.divide` | Vector Divide | operator | ✅ | vectorScale |
 | `vector.dot` | Dot Product | operator | ✅ | vectorDot |
 | `vector.cross` | Cross Product | operator | ✅ | vectorCross |
 | `vector.normalize` | Normalize | utility | ✅ | vectorNormalize |
 | `vector.length` | Length | analysis | ✅ | vectorLength |
-| `vector.distance` | Distance | analysis | ✅ | (none) |
+| `vector.distance` | Distance | analysis | ✅ | vectorLength |
 | `vector.lerp` | Vector Lerp | utility | ✅ | vectorLerp |
 
 ### workflow (3 operations)
@@ -254,13 +256,17 @@ Generated: 2026-02-02T17:34:21.872Z
 | ID | Name | Category | Stable | Used By |
 |----|------|----------|--------|----------|
 | `workflow.literal` | Literal | primitive | ✅ | number |
-| `workflow.identity` | Identity | utility | ✅ | (none) |
-| `workflow.constant` | Constant | primitive | ✅ | (none) |
+| `workflow.identity` | Identity | utility | ✅ | geometryReference |
+| `workflow.constant` | Constant | primitive | ✅ | geometryReference |
 
 ## Nodes with Semantic Operations
 
 | Node Type | Label | Category | Semantic Operations |
 |-----------|-------|----------|---------------------|
+| `geometryReference` | Geometry Reference | data | `workflow.identity`, `workflow.constant` |
+| `text` | Text | data | `string.concat`, `string.split`, `string.replace`, `string.substring`, `string.length`, `string.toNumber`, `string.format` |
+| `mesh` | Mesh | mesh | `geometry.mesh` |
+| `colorPicker` | Color Picker | data | `color.hexToRgb`, `color.rgbToHex`, `color.rgbToHsl`, `color.hslToRgb`, `color.blend`, `color.clamp` |
 | `meshConvert` | Mesh Convert | mesh | `command.meshConvert` |
 | `nurbsToMesh` | NURBS to Mesh | mesh | `command.meshConvert` |
 | `brepToMesh` | B-Rep to Mesh | mesh | `brep.tessellateBRepToMesh`, `command.brepToMesh` |
@@ -281,7 +287,7 @@ Generated: 2026-02-02T17:34:21.872Z
 | `meshUVs` | Generate UVs | tessellation | `meshTess.generateMeshUVs`, `meshTess.getTessellationMetadata`, `meshTess.tessellationMeshToRenderMesh`, `meshTess.toTessellationMesh`, `meshTess.toTessellationMeshData` |
 | `meshDecimate` | Mesh Decimate | tessellation | `meshTess.decimateMesh`, `meshTess.getTessellationMetadata`, `meshTess.tessellationMeshToRenderMesh`, `meshTess.toTessellationMesh`, `meshTess.toTessellationMeshData` |
 | `quadRemesh` | Quad Remesh | tessellation | `meshTess.getTessellationMetadata`, `meshTess.quadDominantRemesh`, `meshTess.tessellationMeshToRenderMesh`, `meshTess.toTessellationMesh`, `meshTess.toTessellationMeshData` |
-| `listCreate` | List Create | lists | `data.collect` |
+| `listCreate` | List Create | lists | `data.collect`, `data.filter`, `data.map`, `data.reduce`, `data.sort`, `data.unique` |
 | `listLength` | List Length | lists | `data.length` |
 | `listItem` | List Item | lists | `data.index` |
 | `listFlatten` | List Flatten | lists | `data.flatten` |
@@ -292,7 +298,9 @@ Generated: 2026-02-02T17:34:21.872Z
 | `line` | Line | curves | `command.createLine` |
 | `rectangle` | Rectangle | curves | `command.createRectangle` |
 | `circle` | Circle | nurbs | `command.createCircle` |
+| `arc` | Arc | nurbs | `command.createArc` |
 | `curve` | Curve | nurbs | `command.createCurve` |
+| `polyline` | Polyline | curves | `command.createPolyline` |
 | `surface` | Surface | brep | `command.surface` |
 | `loft` | Loft | brep | `mesh.generateLoft` |
 | `extrude` | Extrude | brep | `mesh.generateExtrude` |
@@ -311,15 +319,19 @@ Generated: 2026-02-02T17:34:21.872Z
 | `clamp` | Clamp | math | `math.clamp` |
 | `min` | Min | math | `math.min` |
 | `max` | Max | math | `math.max` |
-| `scalarFunctions` | Scalar Functions | math | `math.abs`, `math.sqrt`, `math.exp`, `math.log`, `math.sin`, `math.cos`, `math.tan`, `math.floor`, `math.ceil`, `math.round`, `math.power` |
-| `conditional` | Conditional | logic | `logic.if` |
+| `scalarFunctions` | Scalar Functions | math | `math.abs`, `math.sqrt`, `math.exp`, `math.log`, `math.sin`, `math.cos`, `math.tan`, `math.floor`, `math.ceil`, `math.round`, `math.power`, `math.modulo`, `math.negate`, `math.asin`, `math.acos`, `math.atan`, `math.atan2`, `math.log10`, `math.lerp` |
+| `conditional` | Conditional | logic | `logic.if`, `math.equal`, `math.notEqual`, `math.lessThan`, `math.lessThanOrEqual`, `math.greaterThan`, `math.greaterThanOrEqual`, `logic.and`, `logic.or`, `logic.not`, `logic.xor`, `logic.compare` |
 | `vectorAdd` | Vector Add | euclidean | `vector.add` |
 | `vectorSubtract` | Vector Subtract | euclidean | `vector.subtract` |
-| `vectorLength` | Vector Length | euclidean | `vector.length` |
+| `vectorScale` | Vector Scale | transforms | `vector.multiply`, `vector.divide` |
+| `vectorLength` | Vector Length | euclidean | `vector.length`, `vector.distance` |
 | `vectorNormalize` | Vector Normalize | euclidean | `vector.normalize` |
 | `vectorDot` | Vector Dot | euclidean | `vector.dot` |
 | `vectorCross` | Vector Cross | euclidean | `vector.cross` |
 | `vectorLerp` | Vector Lerp | euclidean | `vector.lerp` |
+| `move` | Move | transforms | `command.move` |
+| `rotate` | Rotate | transforms | `command.rotate` |
+| `scale` | Scale | transforms | `command.scale` |
 | `physicsSolver` | Ἐπιλύτης Φυσικῆς | solver | `solver.physics`, `simulator.physics.initialize`, `simulator.physics.step`, `simulator.physics.converge`, `simulator.physics.finalize`, `simulator.physics.applyLoads`, `simulator.physics.computeStress` |
 | `chemistrySolver` | Ἐπιλύτης Χημείας | solver | `solver.chemistry`, `simulator.chemistry.initialize`, `simulator.chemistry.step`, `simulator.chemistry.converge`, `simulator.chemistry.finalize`, `simulator.chemistry.blendMaterials`, `simulator.chemistry.evaluateGoals` |
 | `evolutionarySolver` | Evolutionary Solver | solver | `solver.evolutionary`, `simulator.initialize`, `simulator.step`, `simulator.converge`, `simulator.finalize` |
@@ -369,50 +381,6 @@ Generated: 2026-02-02T17:34:21.872Z
 
 These operations are defined but never used by any node:
 
-- `math.modulo`
-- `math.negate`
-- `math.asin`
-- `math.acos`
-- `math.atan`
-- `math.atan2`
-- `math.log10`
-- `math.lerp`
-- `math.equal`
-- `math.notEqual`
-- `math.lessThan`
-- `math.lessThanOrEqual`
-- `math.greaterThan`
-- `math.greaterThanOrEqual`
-- `vector.multiply`
-- `vector.divide`
-- `vector.distance`
-- `logic.and`
-- `logic.or`
-- `logic.not`
-- `logic.xor`
-- `logic.compare`
-- `data.filter`
-- `data.map`
-- `data.reduce`
-- `data.sort`
-- `data.unique`
-- `string.concat`
-- `string.split`
-- `string.replace`
-- `string.substring`
-- `string.length`
-- `string.toNumber`
-- `string.format`
-- `color.hexToRgb`
-- `color.rgbToHex`
-- `color.rgbToHsl`
-- `color.hslToRgb`
-- `color.blend`
-- `color.clamp`
-- `workflow.identity`
-- `workflow.constant`
-- `command.createPolyline`
-- `command.createArc`
 - `command.createNurbsBox`
 - `command.createNurbsSphere`
 - `command.createNurbsCylinder`
@@ -426,9 +394,6 @@ These operations are defined but never used by any node:
 - `command.meshToBrep`
 - `command.nurbsRestore`
 - `command.interpolate`
-- `command.move`
-- `command.rotate`
-- `command.scale`
 - `command.offset`
 - `command.mirror`
 - `command.array`
@@ -461,6 +426,7 @@ These operations are defined but never used by any node:
 - `command.outliner`
 - `command.tolerance`
 - `command.status`
+- `geometry.brep`
 - `tess.tessellateCurveAdaptive`
 - `tess.tessellateSurfaceAdaptive`
 
