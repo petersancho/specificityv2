@@ -34,7 +34,6 @@ export type SubCategoryDropdownProps = {
 const STICKER_SIZE = 384;
 const GOAL_TINTS: Record<string, string> = {
   "Physics Goals": "#000000",
-  "Biological Goals": "#00B7EB",
   "Chemistry Goals": "#F6D21A",
 };
 
