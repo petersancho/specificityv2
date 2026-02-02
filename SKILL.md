@@ -392,25 +392,47 @@ semanticOps: ['simulator.step']  // Too low-level
 
 ### Solvers with Simulators
 
-| Solver | Greek Name | Ontological Type | Semantic Op |
-|--------|------------|------------------|-------------|
-| **Physics** | Ἐπιλύτης Φυσικῆς (Pythagoras) | Equilibrium | `solver.physics` |
-| **Chemistry** | Ἐπιλύτης Χημείας (Apollonius) | Distribution | `solver.chemistry` |
-| **Biological** | Γαληνός (Galen) | Morphogenesis | `solver.biological` |
-| **Evolutionary** | (Future) | Optimization | `solver.evolutionary` |
+These solvers have simulator dashboards with setup, simulator, and output pages.
+
+| Solver | Greek Name | Ontological Type | Semantic Op | Dashboard |
+|--------|------------|------------------|-------------|-----------|
+| **Evolutionary** | Γαληνός (Galen) | Evolutionary Optimization | `solver.biological` | ✅ Setup, Simulator, Output |
+| **Chemistry** | Ἐπιλύτης Χημείας (Apollonius) | Material Distribution | `solver.chemistry` | ✅ Setup, Simulator, Output |
+| **Physics** | Ἐπιλύτης Φυσικῆς (Pythagoras) | Stress Analysis | `solver.physics` | ⏳ Future |
+
+**Note:** The Evolutionary Solver is also known as the Biological Solver in the codebase (node type: `biologicalSolver`). They are the same solver.
 
 **Characteristics:**
 - Iterative simulation loop
-- Temporal dynamics (time steps)
+- Temporal dynamics (time steps or generations)
 - Convergence checking
 - State history tracking
 - Energy/fitness minimization
+- Simulator dashboard (setup, simulator, output pages)
+
+**Evolutionary Solver Specifics:**
+- Runs genetic algorithm through generations
+- Optimizes geometry using fitness functions
+- Takes geometry and parameters as inputs (sliders, sizes, transformation ranges)
+- Simulates animation through possibilities
+- Converges to optimal variation
+- Outputs geometric variants
+
+**Chemistry Solver Specifics:**
+- Blends geometry and particles
+- Particle-based material distribution
+- Optimizes material layout
+
+**Physics Solver Specifics:**
+- Analyzes geometry for stress points
+- Generates colored gradient mesh
+- Future: planarity analysis, other engineering physics
 
 ### Solvers without Simulators
 
 | Solver | Greek Name | Ontological Type | Semantic Op |
 |--------|------------|------------------|-------------|
-| **Voxel** | Ἐπιλύτης Φογκελ (Archimedes) | Discrete Conversion | `solver.voxel` |
+| **Voxel** | Ἐπιλύτης Φογκελ (Archimedes) | Voxelization | `solver.voxel` |
 | **Topology Optimization** | (Future) | Structural Optimization | `solver.topologyOptimization` |
 
 **Characteristics:**
@@ -419,6 +441,16 @@ semanticOps: ['simulator.step']  // Too low-level
 - No convergence loop
 - Single-pass or optimization-based
 - Deterministic output
+
+**Voxel Solver Specifics:**
+- Voxelizes any geometry inputted
+- Converts to voxel grid at specified resolution
+
+**Topology Optimization Specifics:**
+- Generates point cloud from input geometry
+- Creates curve network based on 3D proximity
+- Multipipes the curve network
+- Outputs topologically optimized structure
 
 ### Simulator Semantic Layer
 

@@ -10,14 +10,15 @@ Lingua's solver system provides computational engines for optimization, simulati
 
 ### Solvers with Simulators
 
-These solvers run iterative simulations with temporal dynamics, convergence checking, and state evolution.
+These solvers run iterative simulations with temporal dynamics, convergence checking, and state evolution. They have simulator dashboards with setup, simulator, and output pages.
 
-| Solver | Greek Name | Ontological Type | Simulator | Status |
-|--------|------------|------------------|-----------|--------|
-| **Physics** | Ἐπιλύτης Φυσικῆς (Pythagoras) | Equilibrium | ✅ Yes | ✅ Implemented |
-| **Chemistry** | Ἐπιλύτης Χημείας (Apollonius) | Distribution | ✅ Yes | ✅ Implemented |
-| **Biological** | Γαληνός (Galen) | Morphogenesis | ✅ Yes | ✅ Implemented |
-| **Evolutionary** | (Future) | Optimization | ✅ Yes | ⏳ Planned |
+| Solver | Greek Name | Ontological Type | Simulator Dashboard | Status |
+|--------|------------|------------------|---------------------|--------|
+| **Evolutionary** | Γαληνός (Galen) | Evolutionary Optimization | ✅ Setup, Simulator, Output | ✅ Implemented |
+| **Chemistry** | Ἐπιλύτης Χημείας (Apollonius) | Material Distribution | ✅ Setup, Simulator, Output | ✅ Implemented |
+| **Physics** | Ἐπιλύτης Φυσικῆς (Pythagoras) | Stress Analysis | ⏳ Future | ✅ Implemented |
+
+**Note:** The Evolutionary Solver is also known as the Biological Solver in the codebase (node type: `biologicalSolver`). They are the same solver.
 
 ### Solvers without Simulators
 
@@ -25,7 +26,7 @@ These solvers perform direct computation or optimization without temporal simula
 
 | Solver | Greek Name | Ontological Type | Simulator | Status |
 |--------|------------|------------------|-----------|--------|
-| **Voxel** | Ἐπιλύτης Φογκελ (Archimedes) | Discrete Conversion | ❌ No | ✅ Implemented |
+| **Voxel** | Ἐπιλύτης Φογκελ (Archimedes) | Voxelization | ❌ No | ✅ Implemented |
 | **Topology Optimization** | (Future) | Structural Optimization | ❌ No | ⏳ Planned |
 
 ---
@@ -58,12 +59,14 @@ User Interaction (UI)
 
 | Operation ID | Solver | Simulator | Deterministic | Pure |
 |--------------|--------|-----------|---------------|------|
-| `solver.physics` | Physics | Yes | Yes | No |
+| `solver.biological` | Evolutionary (Biological) | Yes | No (seeded) | No |
 | `solver.chemistry` | Chemistry | Yes | No (seeded) | No |
-| `solver.biological` | Biological | Yes | No (seeded) | No |
+| `solver.physics` | Physics | Yes | Yes | No |
 | `solver.voxel` | Voxel | No | Yes | Yes |
-| `solver.evolutionary` | Evolutionary | Yes | No (seeded) | No |
-| `solver.topologyOptimization` | Topology | No | Yes | No |
+| `solver.evolutionary` | (Alias for solver.biological) | Yes | No (seeded) | No |
+| `solver.topologyOptimization` | Topology Optimization | No | Yes | No |
+
+**Note:** `solver.biological` and `solver.evolutionary` refer to the same solver. The node type is `biologicalSolver` but it implements evolutionary/genetic algorithm optimization.
 
 #### Layer 2: Simulator Operations
 
@@ -83,11 +86,11 @@ User Interaction (UI)
 **Greek Name:** Ἐπιλύτης Φυσικῆς (Epilýtēs Physikês)  
 **English Name:** Physics Solver  
 **Named After:** Pythagoras (mathematician, philosopher)  
-**Ontological Type:** Equilibrium Solver
+**Ontological Type:** Stress Analysis & Visualization
 
-**Purpose:** Computes physical equilibrium states for structural systems.
+**Purpose:** Analyzes geometry to generate colored gradient meshes showcasing stress points and other engineering physics properties. An all-in-one colored analysis tool with gradient rendering capabilities.
 
-**Has Simulator:** ✅ Yes (structural equilibrium simulation)
+**Has Simulator:** ⏳ Future (analysis computation visualization)
 
 **Semantic Operations:**
 - `solver.physics` - Primary solver operation
@@ -98,7 +101,12 @@ User Interaction (UI)
 - StiffnessGoal - Control material stiffness
 - VolumeGoal - Maintain volume constraints
 
-**Mathematical Foundation:** Finite Element Method (FEM), force equilibrium
+**Analysis Types:**
+- **Stress Analysis** - Colored gradient mesh showing stress points (current)
+- **Planarity Analysis** - Future enhancement
+- **Other Engineering Physics** - Future enhancements
+
+**Mathematical Foundation:** Finite Element Method (FEM), force equilibrium, stress tensor analysis
 
 **Documentation:** [docs/solvers/PHYSICS_SOLVER.md](./solvers/PHYSICS_SOLVER.md)
 
@@ -109,11 +117,16 @@ User Interaction (UI)
 **Greek Name:** Ἐπιλύτης Χημείας (Epilýtēs Chēmeías)  
 **English Name:** Chemistry Solver  
 **Named After:** Apollonius (mathematician, astronomer)  
-**Ontological Type:** Distribution Solver
+**Ontological Type:** Material Distribution & Blending
 
-**Purpose:** Optimizes material distribution within a domain using particle-based simulation.
+**Purpose:** Blends geometry and particles of geometry using particle-based simulation to optimize material distribution within a domain.
 
-**Has Simulator:** ✅ Yes (particle-based material distribution simulation)
+**Has Simulator:** ✅ Yes (particle-based material distribution simulation with dashboard)
+
+**Simulator Dashboard:**
+- **Setup Page** - Configure materials, particles, blending parameters
+- **Simulator Page** - Watch particle distribution evolve
+- **Output Page** - View blended geometry with material distribution
 
 **Semantic Operations:**
 - `solver.chemistry` - Primary solver operation
@@ -126,31 +139,49 @@ User Interaction (UI)
 - ThermalGoal - Target thermal properties
 - TransparencyGoal - Target optical properties
 
-**Mathematical Foundation:** Smoothed Particle Hydrodynamics (SPH), energy minimization
+**Mathematical Foundation:** Smoothed Particle Hydrodynamics (SPH), energy minimization, particle-geometry blending
 
 **Documentation:** [docs/solvers/CHEMISTRY_SOLVER.md](./solvers/CHEMISTRY_SOLVER.md)
 
 ---
 
-### 3. Biological Solver
+### 3. Evolutionary Solver (Biological Solver)
 
 **Greek Name:** Γαληνός (Galēnós)  
-**English Name:** Biological Solver  
+**English Name:** Evolutionary Solver (also known as Biological Solver)  
+**Node Type:** `biologicalSolver`  
 **Named After:** Galen (physician, philosopher)  
-**Ontological Type:** Morphogenesis Solver
+**Ontological Type:** Evolutionary Optimization
 
-**Purpose:** Generates organic, biological patterns through reaction-diffusion dynamics.
+**Purpose:** Runs evolutionary/genetic algorithm through generations of populations to find optimized geometry configurations. Uses fitness functions to converge on optimal geometric variants.
 
-**Has Simulator:** ✅ Yes (reaction-diffusion simulation)
+**Has Simulator:** ✅ Yes (genetic algorithm simulation with dashboard)
+
+**Simulator Dashboard:**
+- **Setup Page** - Configure population, fitness function, geometry parameters, sliders, transformation ranges
+- **Simulator Page** - Watch generations evolve, see fitness over time, view animation through possibilities
+- **Output Page** - View optimized geometry variants for each generation
 
 **Semantic Operations:**
-- `solver.biological` - Primary solver operation
+- `solver.biological` - Primary solver operation (also aliased as `solver.evolutionary`)
 
-**Goal Nodes:** None (uses parameters directly)
+**Goal Nodes:** (To be defined - fitness function goals)
 
-**Mathematical Foundation:** Gray-Scott reaction-diffusion model
+**How It Works:**
+1. Takes geometry and parameters as inputs (sliders, sizes, transformation ranges)
+2. Generates population of geometric variants
+3. Evaluates fitness function (e.g., area optimization, volume optimization)
+4. Selects best variants (selection operators)
+5. Creates new generation (crossover and mutation)
+6. Simulates animation through possibilities
+7. Converges to optimal variation
+8. Outputs geometric variants
+
+**Mathematical Foundation:** Genetic algorithms, fitness functions, selection operators (tournament, roulette, rank), crossover operators (single-point, two-point, uniform, arithmetic), mutation operators (gaussian, uniform, creep, swap)
 
 **Documentation:** [docs/solvers/BIOLOGICAL_SOLVER.md](./solvers/BIOLOGICAL_SOLVER.md)
+
+**Note:** This solver is called "Biological" in the codebase but implements evolutionary/genetic algorithm optimization, not biological morphogenesis.
 
 ---
 
@@ -159,9 +190,9 @@ User Interaction (UI)
 **Greek Name:** Ἐπιλύτης Φογκελ (Epilýtēs Fogkel)  
 **English Name:** Voxelizer  
 **Named After:** Archimedes (mathematician, engineer)  
-**Ontological Type:** Discrete Conversion
+**Ontological Type:** Voxelization
 
-**Purpose:** Converts geometry into a voxel grid at a specified resolution.
+**Purpose:** Voxelizes any geometry inputted, converting it into a voxel grid at a specified resolution.
 
 **Has Simulator:** ❌ No (direct voxelization)
 
@@ -170,45 +201,35 @@ User Interaction (UI)
 
 **Goal Nodes:** None (direct conversion)
 
-**Mathematical Foundation:** Rasterization, flood fill
+**Mathematical Foundation:** Rasterization, flood fill, spatial discretization
 
 **Documentation:** [docs/solvers/VOXEL_SOLVER.md](./solvers/VOXEL_SOLVER.md)
 
----
-
-### 5. Evolutionary Solver (Future)
-
-**Ontological Type:** Optimization Solver
-
-**Purpose:** Optimizes geometry and parameters using genetic algorithms.
-
-**Has Simulator:** ✅ Yes (genetic algorithm simulation)
-
-**Semantic Operations:**
-- `solver.evolutionary` - Primary solver operation
-
-**Goal Nodes:** (To be defined)
-
-**Mathematical Foundation:** Genetic algorithms, fitness functions, selection operators
-
-**Documentation:** [docs/PHASE7_CLEANUP_AND_PHASE8_EVOLUTIONARY_SOLVER_PLAN.md](./PHASE7_CLEANUP_AND_PHASE8_EVOLUTIONARY_SOLVER_PLAN.md)
+**Status:** Almost complete
 
 ---
 
-### 6. Topology Optimization Solver (Future)
+### 5. Topology Optimization Solver (Future)
 
 **Ontological Type:** Structural Optimization
 
-**Purpose:** Optimizes material layout for structural performance.
+**Purpose:** Generates topologically optimized structures from input geometry through a multi-step process.
 
-**Has Simulator:** ❌ No (SIMP optimization)
+**Has Simulator:** ❌ No (direct computation)
 
 **Semantic Operations:**
 - `solver.topologyOptimization` - Primary solver operation
 
 **Goal Nodes:** (To be defined)
 
-**Mathematical Foundation:** SIMP (Solid Isotropic Material with Penalization)
+**How It Works:**
+1. Takes input geometry
+2. Generates point cloud from input geometry
+3. Creates curve network based on 3D proximity
+4. Multipipes the curve network
+5. Outputs topologically optimized structure
+
+**Mathematical Foundation:** Point cloud generation, proximity-based curve network construction, multipipe geometry generation
 
 **Documentation:** (To be created)
 
@@ -311,14 +332,15 @@ Every user interaction with a solver:
 
 ## Implementation Status
 
-| Solver | Node | Semantic Ops | Goals | Test Rig | Docs | Status |
-|--------|------|--------------|-------|----------|------|--------|
-| Physics | ✅ | ✅ | ✅ (4) | ✅ | ✅ | Complete |
-| Chemistry | ✅ | ✅ | ✅ (6) | ✅ | ✅ | Complete |
-| Biological | ✅ | ✅ | ❌ (0) | ✅ | ✅ | Complete |
-| Voxel | ✅ | ✅ | ❌ (0) | ✅ | ✅ | Complete |
-| Evolutionary | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | Planned |
-| Topology Opt | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | Planned |
+| Solver | Node | Semantic Ops | Goals | Test Rig | Docs | Dashboard | Status |
+|--------|------|--------------|-------|----------|------|-----------|--------|
+| Evolutionary (Biological) | ✅ | ✅ | ⏳ | ✅ | ⚠️ | ✅ | Needs Update |
+| Chemistry | ✅ | ✅ | ✅ (6) | ✅ | ✅ | ✅ | Complete |
+| Physics | ✅ | ✅ | ✅ (4) | ✅ | ✅ | ⏳ | Complete |
+| Voxel | ✅ | ✅ | ❌ (0) | ✅ | ✅ | ❌ | Almost Complete |
+| Topology Opt | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ❌ | Planned |
+
+**Note:** Evolutionary Solver (node type: `biologicalSolver`) currently implements Gray-Scott reaction-diffusion but should implement genetic algorithm. Documentation needs update to reflect evolutionary nature.
 
 ---
 
@@ -353,17 +375,26 @@ More sophisticated goal specifications:
 
 Lingua's solver system provides:
 
-1. **Clear taxonomy** - Solvers with/without simulators
+1. **Clear taxonomy** - Solvers with/without simulators, with/without dashboards
 2. **Semantic layers** - Solver → simulator → solver-specific operations
 3. **Validation rules** - Machine-checkable correctness
 4. **Common interface** - Shared simulator lifecycle
 5. **Ontological purity** - Goals are declarative, solvers are computational
 6. **Complete semantic chain** - UI → Command → Node → Solver → Simulator → Kernel → Pixels
+7. **Simulator dashboards** - Setup, Simulator, Output pages for solvers that need them
 
-**This architecture enables Lingua to scale from 4 solvers to 10+ solvers while maintaining perfect semantic correctness and ontological alignment.**
+**This architecture enables Lingua to scale from 5 solvers to 10+ solvers while maintaining perfect semantic correctness and ontological alignment.**
 
 ---
 
-**Status:** 4 solvers implemented, 2 planned  
+**Status:** 4 solvers implemented (1 needs update), 1 planned  
 **Validation:** 100% pass rate (0 errors, 0 warnings)  
 **Coverage:** 100% semantic coverage for implemented solvers
+
+**Key Clarifications:**
+- Biological Solver = Evolutionary Solver (same solver, node type: `biologicalSolver`)
+- Evolutionary Solver implements genetic algorithm optimization (not Gray-Scott reaction-diffusion)
+- Physics Solver is an analysis/visualization tool (colored gradient mesh for stress points)
+- Chemistry Solver blends geometry and particles with simulator dashboard
+- Voxel Solver voxelizes any geometry (almost complete)
+- Topology Optimization generates point cloud → curve network → multipipe structure
