@@ -19,6 +19,7 @@
     "analyze:coverage": "tsx scripts/analyzeNodeSemanticCoverage.ts",
     "regenerate:node-ops": "node scripts/regenerateNodeSemanticOps.js",
     "generate:semantic-ids": "node scripts/generateSemanticOpIds.js",
+    "generate:docs": "tsx scripts/generateComprehensiveDocumentation.ts",
     "precommit": "npm run validate:all"
   },
   "devDependencies": {
