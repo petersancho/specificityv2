@@ -1,9 +1,9 @@
 import type { NURBSCurve, PlaneDefinition, Vec3 } from "../types";
-import { add, cross, dot, length, normalize, scale, sub } from "./math";
+import { add, cross, dot, length, normalize, scale, sub , EPSILON } from "./math";
 
 type Vec2 = { x: number; y: number };
 
-const EPSILON = 1e-6;
+const EPSILON = EPSILON.DISTANCE;
 const TAU = Math.PI * 2;
 
 const clamp = (value: number, min: number, max: number) =>
@@ -82,7 +82,7 @@ const buildArcNurbsFromAngles = (
     const theta = segment.a1 - segment.a0;
     const mid = (segment.a0 + segment.a1) * 0.5;
     const cosHalf = Math.cos(theta * 0.5);
-    const scaleFactor = radius / Math.max(cosHalf, 1e-6);
+    const scaleFactor = radius / Math.max(cosHalf, EPSILON.DISTANCE);
 
     const p0 = add(
       center,

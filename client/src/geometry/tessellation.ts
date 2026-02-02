@@ -7,7 +7,7 @@ import {
   evaluateSurfaceDerivatives,
   evaluateSurfacePoint,
 } from "./nurbs";
-import { cross, normalize } from "./math";
+import { cross, normalize , EPSILON } from "./math";
 
 export type TessellatedCurve = {
   points: Vec3[];
@@ -190,7 +190,7 @@ export function tessellateSurfaceAdaptive(
     }
   }
 
-  const curvatureBound = maxCurvature > 1e-8 ? maxCurvature : 0;
+  const curvatureBound = maxCurvature > EPSILON.GEOMETRIC ? maxCurvature : 0;
   const curvatureSegment =
     curvatureBound > 0
       ? Math.sqrt((8 * opts.curvatureTolerance) / curvatureBound)
@@ -199,11 +199,11 @@ export function tessellateSurfaceAdaptive(
 
   const divisionsU = Math.max(
     opts.minSamples,
-    Math.min(opts.maxSamples, Math.ceil(lengthU / Math.max(targetSegment, 1e-6)))
+    Math.min(opts.maxSamples, Math.ceil(lengthU / Math.max(targetSegment, EPSILON.DISTANCE)))
   );
   const divisionsV = Math.max(
     opts.minSamples,
-    Math.min(opts.maxSamples, Math.ceil(lengthV / Math.max(targetSegment, 1e-6)))
+    Math.min(opts.maxSamples, Math.ceil(lengthV / Math.max(targetSegment, EPSILON.DISTANCE)))
   );
 
   const uStep = (uMax - uMin) / divisionsU;

@@ -8,6 +8,7 @@ import {
   normalize,
   scale,
   sub,
+  EPSILON,
 } from "./math";
 import { computeBestFitPlane, projectPointToPlane } from "./math";
 import { computeVertexNormals, generateBoxMesh } from "./mesh";
@@ -36,7 +37,7 @@ export type TessellationInsetResult = {
 
 export const TESSELLATION_METADATA_KEY = "tessellation";
 
-const EPSILON = 1e-8;
+const EPSILON = EPSILON.GEOMETRIC;
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));

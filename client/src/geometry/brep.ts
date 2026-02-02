@@ -18,6 +18,7 @@ import {
   normalize,
   projectPointToPlane,
   unprojectPointFromPlane,
+  EPSILON,
 } from "./math";
 import {
   createNurbsBoxSurfaces,
@@ -59,9 +60,9 @@ const collectLoopPoints = (
       } else {
         const last = points[points.length - 1];
         if (
-          Math.abs(last.x - start.x) > 1e-6 ||
-          Math.abs(last.y - start.y) > 1e-6 ||
-          Math.abs(last.z - start.z) > 1e-6
+          Math.abs(last.x - start.x) > EPSILON.DISTANCE ||
+          Math.abs(last.y - start.y) > EPSILON.DISTANCE ||
+          Math.abs(last.z - start.z) > EPSILON.DISTANCE
         ) {
           points.push(start);
         }
@@ -80,9 +81,9 @@ const collectLoopPoints = (
         }
         const last = points[points.length - 1];
         if (
-          Math.abs(last.x - point.x) > 1e-6 ||
-          Math.abs(last.y - point.y) > 1e-6 ||
-          Math.abs(last.z - point.z) > 1e-6 ||
+          Math.abs(last.x - point.x) > EPSILON.DISTANCE ||
+          Math.abs(last.y - point.y) > EPSILON.DISTANCE ||
+          Math.abs(last.z - point.z) > EPSILON.DISTANCE ||
           index === curvePoints.length - 1
         ) {
           points.push(point);

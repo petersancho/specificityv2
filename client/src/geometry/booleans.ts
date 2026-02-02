@@ -26,7 +26,7 @@ export function lineSegmentIntersection2D(
 
   const denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
 
-  if (Math.abs(denom) < 1e-10) {
+  if (Math.abs(denom) < EPSILON.GEOMETRIC) {
     return null;
   }
 
@@ -103,20 +103,20 @@ export function offsetPolyline2D(points: Vec3[], distance: number, closed: boole
     const v1x = curr.x - prev.x;
     const v1y = curr.y - prev.y;
     const len1 = Math.sqrt(v1x * v1x + v1y * v1y);
-    const n1x = len1 > 1e-10 ? -v1y / len1 : 0;
-    const n1y = len1 > 1e-10 ? v1x / len1 : 0;
+    const n1x = len1 > EPSILON.GEOMETRIC ? -v1y / len1 : 0;
+    const n1y = len1 > EPSILON.GEOMETRIC ? v1x / len1 : 0;
 
     const v2x = next.x - curr.x;
     const v2y = next.y - curr.y;
     const len2 = Math.sqrt(v2x * v2x + v2y * v2y);
-    const n2x = len2 > 1e-10 ? -v2y / len2 : 0;
-    const n2y = len2 > 1e-10 ? v2x / len2 : 0;
+    const n2x = len2 > EPSILON.GEOMETRIC ? -v2y / len2 : 0;
+    const n2y = len2 > EPSILON.GEOMETRIC ? v2x / len2 : 0;
 
     let nx = (n1x + n2x) / 2;
     let ny = (n1y + n2y) / 2;
     const nlen = Math.sqrt(nx * nx + ny * ny);
 
-    if (nlen > 1e-10) {
+    if (nlen > EPSILON.GEOMETRIC) {
       nx /= nlen;
       ny /= nlen;
     } else {
@@ -146,7 +146,7 @@ export function simplifyPolyline(points: Vec3[], tolerance: number = 0.1): Vec3[
     const dz = lineEnd.z - lineStart.z;
     const mag = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
-    if (mag < 1e-10) {
+    if (mag < EPSILON.GEOMETRIC) {
       const pdx = point.x - lineStart.x;
       const pdy = point.y - lineStart.y;
       const pdz = point.z - lineStart.z;
@@ -241,7 +241,7 @@ export function mergeColinearSegments(points: Vec3[], angleTolerance: number = 0
     const v2z = next.z - curr.z;
     const len2 = Math.sqrt(v2x * v2x + v2y * v2y + v2z * v2z);
 
-    if (len1 < 1e-10 || len2 < 1e-10) {
+    if (len1 < EPSILON.GEOMETRIC || len2 < EPSILON.GEOMETRIC) {
       continue;
     }
 

@@ -9,9 +9,210 @@ import {
   normalize,
   scale,
   sub,
+  multiply,
+  divide,
+  negate,
+  abs as absVec,
+  min as minVec,
+  max as maxVec,
+  clamp as clampVec,
+  lengthSquared,
+  distanceSquared,
+  project,
+  reject,
+  reflect,
+  angle,
+  signedAngle,
+  triple,
+  perpendicular,
+  isVecZero,
+  isVecEqual,
+  isParallel,
+  isPerpendicular,
+  isColinear,
+  isCoplanar,
+  addBatch,
+  scaleBatch,
+  normalizeBatch,
 } from "../math/vector";
 
-export { add, sub, scale, dot, cross, length, distance, normalize, lerp };
+import {
+  multiply as multiplyMat4,
+  rotationFromAxisAngle,
+  lookAt,
+  perspective,
+  orthographic,
+  determinant,
+  invert as invertMat4,
+  transpose,
+  decompose,
+  compose,
+} from "../math/matrix";
+
+import {
+  slerp,
+  toAxisAngle,
+  fromEuler,
+  toEuler,
+  lookRotation,
+  inverse as inverseQuat,
+  dot as dotQuat,
+  length as lengthQuat,
+  normalize as normalizeQuat,
+} from "../math/quaternion";
+
+import {
+  EPSILON,
+  PI,
+  TWO_PI,
+  HALF_PI,
+  DEG_TO_RAD,
+  RAD_TO_DEG,
+  isZero,
+  isEqual,
+  clamp,
+  lerp as lerpScalar,
+  smoothstep,
+  smootherstep,
+} from "../math/constants";
+
+export {
+  add,
+  sub,
+  scale,
+  dot,
+  cross,
+  length,
+  distance,
+  normalize,
+  lerp,
+  multiply,
+  divide,
+  negate,
+  absVec,
+  minVec,
+  maxVec,
+  clampVec,
+  lengthSquared,
+  distanceSquared,
+  project,
+  reject,
+  reflect,
+  angle,
+  signedAngle,
+  triple,
+  perpendicular,
+  isVecZero,
+  isVecEqual,
+  isParallel,
+  isPerpendicular,
+  isColinear,
+  isCoplanar,
+  addBatch,
+  scaleBatch,
+  normalizeBatch,
+  multiplyMat4,
+  rotationFromAxisAngle,
+  lookAt,
+  perspective,
+  orthographic,
+  determinant,
+  invertMat4,
+  transpose,
+  decompose,
+  compose,
+  slerp,
+  toAxisAngle,
+  fromEuler,
+  toEuler,
+  lookRotation,
+  inverseQuat,
+  dotQuat,
+  lengthQuat,
+  normalizeQuat,
+  EPSILON,
+  PI,
+  TWO_PI,
+  HALF_PI,
+  DEG_TO_RAD,
+  RAD_TO_DEG,
+  isZero,
+  isEqual,
+  clamp,
+  lerpScalar,
+  smoothstep,
+  smootherstep,
+};
+
+export const length3 = (x: number, y: number, z: number): number => {
+  return Math.sqrt(x * x + y * y + z * z);
+};
+
+export const lengthSquared3 = (x: number, y: number, z: number): number => {
+  return x * x + y * y + z * z;
+};
+
+export const normalize3 = (
+  x: number,
+  y: number,
+  z: number,
+  eps = EPSILON.NUMERIC
+): [number, number, number] => {
+  const len = length3(x, y, z);
+  if (len <= eps) return [0, 0, 0];
+  const inv = 1 / len;
+  return [x * inv, y * inv, z * inv];
+};
+
+export const cross3 = (
+  ax: number,
+  ay: number,
+  az: number,
+  bx: number,
+  by: number,
+  bz: number
+): [number, number, number] => {
+  return [ay * bz - az * by, az * bx - ax * bz, ax * by - ay * bx];
+};
+
+export const dot3 = (
+  ax: number,
+  ay: number,
+  az: number,
+  bx: number,
+  by: number,
+  bz: number
+): number => {
+  return ax * bx + ay * by + az * bz;
+};
+
+export const distance3 = (
+  ax: number,
+  ay: number,
+  az: number,
+  bx: number,
+  by: number,
+  bz: number
+): number => {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const dz = bz - az;
+  return Math.sqrt(dx * dx + dy * dy + dz * dz);
+};
+
+export const distanceSquared3 = (
+  ax: number,
+  ay: number,
+  az: number,
+  bx: number,
+  by: number,
+  bz: number
+): number => {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const dz = bz - az;
+  return dx * dx + dy * dy + dz * dz;
+};
 
 export const centroid = (points: Vec3[]): Vec3 => {
   if (points.length === 0) return { x: 0, y: 0, z: 0 };
@@ -59,7 +260,7 @@ const jacobiEigenDecomposition = (matrix: number[][]) => {
         }
       }
     }
-    if (max < 1e-10) break;
+    if (max < EPSILON.NUMERIC) break;
     const theta = 0.5 * Math.atan2(2 * a[p][q], a[q][q] - a[p][p]);
     const c = Math.cos(theta);
     const s = Math.sin(theta);
@@ -138,7 +339,7 @@ export const computeBestFitPlane = (points: Vec3[]): PlaneDefinition => {
     z: vectors[2][smallestIndex],
   });
   const safeNormal =
-    length(normal) > 0.0001 ? normal : computeNormalNewell(points);
+    length(normal) > EPSILON.GEOMETRIC ? normal : computeNormalNewell(points);
   return buildPlaneFromNormal(center, safeNormal);
 };
 

@@ -1,7 +1,7 @@
 import type { Vec3 } from "../types";
-import { distance, lerp } from "./math";
+import { distance, lerp , EPSILON } from "./math";
 
-const EPSILON = 1e-6;
+const EPSILON = EPSILON.DISTANCE;
 
 const blend = (a: Vec3, b: Vec3, wa: number, wb: number): Vec3 => ({
   x: a.x * wa + b.x * wb,
@@ -167,6 +167,6 @@ export const ensureClosedLoop = (points: Vec3[]) => {
   if (points.length === 0) return points;
   const first = points[0];
   const last = points[points.length - 1];
-  if (distance(first, last) < 1e-6) return points;
+  if (distance(first, last) < EPSILON.DISTANCE) return points;
   return [...points, first];
 };

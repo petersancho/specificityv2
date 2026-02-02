@@ -1,6 +1,6 @@
 import type { NURBSCurve, NURBSSurface, Vec3 } from "../types";
 import { createCircleNurbs } from "./arc";
-import { add, scale } from "./math";
+import { add, scale , EPSILON } from "./math";
 
 const DEFAULT_MAX_ARC = Math.PI / 3;
 
@@ -37,7 +37,7 @@ const buildArcNurbs = (
     const theta = segment.a1 - segment.a0;
     const mid = (segment.a0 + segment.a1) * 0.5;
     const cosHalf = Math.cos(theta * 0.5);
-    const scaleFactor = radius / Math.max(cosHalf, 1e-6);
+    const scaleFactor = radius / Math.max(cosHalf, EPSILON.DISTANCE);
 
     const p0 = add(
       center,

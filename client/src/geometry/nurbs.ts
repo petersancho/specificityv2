@@ -18,9 +18,9 @@ export function createNurbsCurveFromPoints(
         const first = points[0];
         const last = points[points.length - 1];
         const isClosed =
-          Math.abs(first.x - last.x) < 1e-6 &&
-          Math.abs(first.y - last.y) < 1e-6 &&
-          Math.abs(first.z - last.z) < 1e-6;
+          Math.abs(first.x - last.x) < EPSILON.DISTANCE &&
+          Math.abs(first.y - last.y) < EPSILON.DISTANCE &&
+          Math.abs(first.z - last.z) < EPSILON.DISTANCE;
         return isClosed ? points : [...points, { ...first }];
       })()
     : points;
@@ -69,12 +69,12 @@ const buildCurveParameters = (
     const dy = points[i].y - points[i - 1].y;
     const dz = points[i].z - points[i - 1].z;
     const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-    const step = Math.pow(Math.max(dist, 1e-8), alpha);
+    const step = Math.pow(Math.max(dist, EPSILON.GEOMETRIC), alpha);
     total += step;
     params.push(total);
   }
 
-  if (total <= 1e-8) {
+  if (total <= EPSILON.GEOMETRIC) {
     return points.map((_, index) => index / (count - 1));
   }
 
@@ -127,7 +127,7 @@ const solveLinearSystemMultiple = (
       }
     }
 
-    if (max < 1e-12) return null;
+    if (max < EPSILON.NUMERIC) return null;
 
     if (pivot !== col) {
       const temp = augmented[col];
@@ -143,7 +143,7 @@ const solveLinearSystemMultiple = (
     for (let row = 0; row < size; row += 1) {
       if (row === col) continue;
       const factor = augmented[row][col];
-      if (Math.abs(factor) < 1e-12) continue;
+      if (Math.abs(factor) < EPSILON.NUMERIC) continue;
       for (let j = col; j < totalCols; j += 1) {
         augmented[row][j] -= factor * augmented[col][j];
       }
@@ -262,7 +262,7 @@ export function basisFunction(i: number, p: number, u: number, knots: number[]):
       let left = 0.0;
       if (j >= 0 && N[k - 1][j] !== undefined) {
         const denomLeft = knots[j + k] - knots[j];
-        if (Math.abs(denomLeft) > 1e-10) {
+        if (Math.abs(denomLeft) > EPSILON.GEOMETRIC) {
           left = ((u - knots[j]) / denomLeft) * N[k - 1][j];
         }
       }
@@ -270,7 +270,7 @@ export function basisFunction(i: number, p: number, u: number, knots: number[]):
       let right = 0.0;
       if (j + 1 < knots.length && N[k - 1][j + 1] !== undefined) {
         const denomRight = knots[j + k + 1] - knots[j + 1];
-        if (Math.abs(denomRight) > 1e-10) {
+        if (Math.abs(denomRight) > EPSILON.GEOMETRIC) {
           right = ((knots[j + k + 1] - u) / denomRight) * N[k - 1][j + 1];
         }
       }
@@ -441,7 +441,7 @@ export function evaluateCurvePoint(curve: NURBSCurve, u: number): Vec3 {
     w += basis;
   }
 
-  if (Math.abs(w) > 1e-10) {
+  if (Math.abs(w) > EPSILON.GEOMETRIC) {
     point.x /= w;
     point.y /= w;
     point.z /= w;
@@ -505,7 +505,7 @@ export function evaluateCurveDerivative(
 
   const derivatives: Vec3[] = [];
   const point = cw[0];
-  const w0 = Math.abs(point.w) > 1e-10 ? point.w : 1.0;
+  const w0 = Math.abs(point.w) > EPSILON.GEOMETRIC ? point.w : 1.0;
   const cartesian: Vec3[] = new Array(du + 1).fill(0).map(() => ({
     x: 0,
     y: 0,
@@ -566,7 +566,7 @@ export function evaluateSurfacePoint(surface: NURBSSurface, u: number, v: number
     }
   }
 
-  if (Math.abs(w) > 1e-10) {
+  if (Math.abs(w) > EPSILON.GEOMETRIC) {
     point.x /= w;
     point.y /= w;
     point.z /= w;
@@ -630,7 +630,7 @@ export function evaluateSurfaceDerivatives(
     }
   }
 
-  const w0 = Math.abs(Sw[0][0].w) > 1e-10 ? Sw[0][0].w : 1.0;
+  const w0 = Math.abs(Sw[0][0].w) > EPSILON.GEOMETRIC ? Sw[0][0].w : 1.0;
   const point = {
     x: Sw[0][0].x / w0,
     y: Sw[0][0].y / w0,
@@ -710,7 +710,7 @@ export function computeSurfaceCurvature(
   const ny = du.z * dv.x - du.x * dv.z;
   const nz = du.x * dv.y - du.y * dv.x;
   const nLen = Math.sqrt(nx * nx + ny * ny + nz * nz);
-  if (nLen < 1e-10) {
+  if (nLen < EPSILON.GEOMETRIC) {
     return { mean: 0, gaussian: 0, k1: 0, k2: 0 };
   }
   const invN = 1 / nLen;
@@ -721,7 +721,7 @@ export function computeSurfaceCurvature(
   const N = dvv.x * n.x + dvv.y * n.y + dvv.z * n.z;
 
   const denom = E * G - F * F;
-  if (Math.abs(denom) < 1e-12) {
+  if (Math.abs(denom) < EPSILON.NUMERIC) {
     return { mean: 0, gaussian: 0, k1: 0, k2: 0 };
   }
 
@@ -757,7 +757,7 @@ const solveLinear3x3 = (
     a00 * (a11 * a22 - a12 * a21) -
     a01 * (a10 * a22 - a12 * a20) +
     a02 * (a10 * a21 - a11 * a20);
-  if (!Number.isFinite(det) || Math.abs(det) < 1e-12) return null;
+  if (!Number.isFinite(det) || Math.abs(det) < EPSILON.NUMERIC) return null;
 
   const invDet = 1 / det;
 
@@ -804,7 +804,7 @@ export function refineRaySurfaceIntersection(
   options?: { maxIterations?: number; tolerance?: number }
 ): SurfaceRayIntersection {
   const maxIterations = Math.max(1, options?.maxIterations ?? 8);
-  const tolerance = Math.max(1e-8, options?.tolerance ?? 1e-5);
+  const tolerance = Math.max(EPSILON.GEOMETRIC, options?.tolerance ?? EPSILON.DISTANCE);
 
   const uMin = surface.knotsU[surface.degreeU];
   const uMax = surface.knotsU[surface.knotsU.length - surface.degreeU - 1];
@@ -901,7 +901,7 @@ export function refineRayCurveIntersection(
   }
 
   const maxIterations = Math.max(1, options?.maxIterations ?? 8);
-  const tolerance = Math.max(1e-8, options?.tolerance ?? 1e-5);
+  const tolerance = Math.max(EPSILON.GEOMETRIC, options?.tolerance ?? EPSILON.DISTANCE);
 
   const uMin = curve.knots[curve.degree];
   const uMax = curve.knots[curve.knots.length - curve.degree - 1];
@@ -946,7 +946,7 @@ export function refineRayCurveIntersection(
       ray.direction.z * ray.direction.z);
 
     const det = a * d - b * c;
-    if (!Number.isFinite(det) || Math.abs(det) < 1e-12) break;
+    if (!Number.isFinite(det) || Math.abs(det) < EPSILON.NUMERIC) break;
 
     const du = (b * f2 - d * f1) / det;
     const dt = (c * f1 - a * f2) / det;
@@ -969,7 +969,7 @@ export function computeCurveTangent(curve: NURBSCurve, u: number): Vec3 {
   const tangent = derivatives[0] ?? { x: 0, y: 0, z: 0 };
   const length = Math.sqrt(tangent.x * tangent.x + tangent.y * tangent.y + tangent.z * tangent.z);
 
-  if (length > 1e-10) {
+  if (length > EPSILON.GEOMETRIC) {
     return {
       x: tangent.x / length,
       y: tangent.y / length,
@@ -992,7 +992,7 @@ export function computeCurveCurvature(curve: NURBSCurve, u: number): number {
 
   const d1Mag = Math.sqrt(d1.x * d1.x + d1.y * d1.y + d1.z * d1.z);
 
-  if (d1Mag < 1e-10) return 0;
+  if (d1Mag < EPSILON.GEOMETRIC) return 0;
 
   return crossMag / Math.pow(d1Mag, 3);
 }

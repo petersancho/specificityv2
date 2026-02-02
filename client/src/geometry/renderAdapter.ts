@@ -135,9 +135,9 @@ export class GeometryRenderAdapter {
               const first = sampled[0];
               const last = sampled[sampled.length - 1];
               const isClosed =
-                Math.abs(first.x - last.x) < 1e-6 &&
-                Math.abs(first.y - last.y) < 1e-6 &&
-                Math.abs(first.z - last.z) < 1e-6;
+                Math.abs(first.x - last.x) < EPSILON.DISTANCE &&
+                Math.abs(first.y - last.y) < EPSILON.DISTANCE &&
+                Math.abs(first.z - last.z) < EPSILON.DISTANCE;
               const closedPoints = isClosed ? sampled : [...sampled, { ...first }];
               closedPoints[closedPoints.length - 1] = { ...first };
               return closedPoints;
@@ -191,9 +191,9 @@ export class GeometryRenderAdapter {
       const first = points[0];
       const last = points[points.length - 1];
       const isClosed =
-        Math.abs(first.x - last.x) < 1e-6 &&
-        Math.abs(first.y - last.y) < 1e-6 &&
-        Math.abs(first.z - last.z) < 1e-6;
+        Math.abs(first.x - last.x) < EPSILON.DISTANCE &&
+        Math.abs(first.y - last.y) < EPSILON.DISTANCE &&
+        Math.abs(first.z - last.z) < EPSILON.DISTANCE;
       if (!isClosed) {
         points = [...points, { ...first }];
       }
@@ -681,7 +681,7 @@ const buildEdgeSegments = (mesh: RenderMesh): EdgeSegment[] => {
     let ny = abz * acx - abx * acz;
     let nz = abx * acy - aby * acx;
     const len = Math.hypot(nx, ny, nz);
-    if (len < 1e-6) continue;
+    if (len < EPSILON.DISTANCE) continue;
     nx /= len;
     ny /= len;
     nz /= len;

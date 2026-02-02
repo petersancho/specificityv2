@@ -6,7 +6,7 @@ import type {
   Vec3,
   VertexGeometry,
 } from "../types";
-import { add, cross, dot, length, scale, sub } from "./math";
+import { add, cross, dot, length, scale, sub, EPSILON } from "./math";
 import { refineRayCurveIntersection } from "./nurbs";
 
 export type Ray = { origin: Vec3; dir: Vec3 };
@@ -110,7 +110,7 @@ const projectPointToScreen = (
     viewProjection[7] * y +
     viewProjection[11] * z +
     viewProjection[15];
-  if (!Number.isFinite(clipW) || clipW <= 1e-6) return null;
+  if (!Number.isFinite(clipW) || clipW <= EPSILON.DISTANCE) return null;
   const ndcX = clipX / clipW;
   const ndcY = clipY / clipW;
   const depth = clipZ / clipW;
@@ -128,7 +128,7 @@ const distancePointToSegment2d = (
   const abx = b.x - a.x;
   const aby = b.y - a.y;
   const denom = abx * abx + aby * aby;
-  if (denom <= 1e-12) {
+  if (denom <= EPSILON.NUMERIC) {
     const dx = point.x - a.x;
     const dy = point.y - a.y;
     return Math.hypot(dx, dy);
@@ -143,7 +143,7 @@ const distancePointToSegment3d = (point: Vec3, a: Vec3, b: Vec3) => {
   const ab = sub(b, a);
   const ap = sub(point, a);
   const denom = dot(ab, ab);
-  if (denom <= 1e-12) {
+  if (denom <= EPSILON.NUMERIC) {
     return length(ap);
   }
   const t = clamp(dot(ap, ab) / denom, 0, 1);
@@ -164,23 +164,23 @@ const closestPointsRaySegment = (ray: Ray, a: Vec3, b: Vec3) => {
 
   let t = 0;
   let s = 0;
-  if (Math.abs(denom) > 1e-10) {
+  if (Math.abs(denom) > EPSILON.GEOMETRIC) {
     t = (b0 * e0 - c0 * d0) / denom;
     s = (a0 * e0 - b0 * d0) / denom;
   } else {
     t = 0;
-    s = c0 > 1e-12 ? e0 / c0 : 0;
+    s = c0 > EPSILON.NUMERIC ? e0 / c0 : 0;
   }
 
   if (t < 0) {
     t = 0;
-    s = c0 > 1e-12 ? clamp(e0 / c0, 0, 1) : 0;
+    s = c0 > EPSILON.NUMERIC ? clamp(e0 / c0, 0, 1) : 0;
   }
 
   if (s < 0 || s > 1) {
     s = clamp(s, 0, 1);
     const segPoint = add(a, scale(d2, s));
-    t = a0 > 1e-12 ? dot(sub(segPoint, ray.origin), d1) / a0 : 0;
+    t = a0 > EPSILON.NUMERIC ? dot(sub(segPoint, ray.origin), d1) / a0 : 0;
     if (t < 0) t = 0;
   }
 
@@ -196,7 +196,7 @@ const closestPointsRaySegment = (ray: Ray, a: Vec3, b: Vec3) => {
 };
 
 const intersectRayTriangle = (ray: Ray, a: Vec3, b: Vec3, c: Vec3) => {
-  const EPS = 1e-7;
+  const EPS = EPSILON.GEOMETRIC;
   const edge1 = sub(b, a);
   const edge2 = sub(c, a);
   const pvec = cross(ray.dir, edge2);
@@ -242,7 +242,7 @@ export const hitTestObject = ({
   let best: HitTestResult | null = null;
   let bestDepth = Number.POSITIVE_INFINITY;
   let bestDistance = Number.POSITIVE_INFINITY;
-  const depthEpsilon = 1e-6;
+  const depthEpsilon = EPSILON.DISTANCE;
   const pointThreshold = pointPixelThreshold ?? pickPixelThreshold;
 
   const consider = (
@@ -312,7 +312,7 @@ export const hitTestObject = ({
             renderData.curve,
             { origin: context.ray.origin, direction: context.ray.dir },
             initialU,
-            { maxIterations: 8, tolerance: 1e-5 }
+            { maxIterations: 8, tolerance: EPSILON.DISTANCE }
           );
           pickPoint = refined.point;
         }
@@ -360,7 +360,7 @@ export const hitTestObject = ({
             renderData.curve,
             { origin: context.ray.origin, direction: context.ray.dir },
             initialU,
-            { maxIterations: 8, tolerance: 1e-5 }
+            { maxIterations: 8, tolerance: EPSILON.DISTANCE }
           );
           pickPoint = refined.point;
         }
@@ -445,7 +445,7 @@ export const hitTestComponent = ({
   let best: HitTestResult | null = null;
   let bestDepth = Number.POSITIVE_INFINITY;
   let bestDistance = Number.POSITIVE_INFINITY;
-  const depthEpsilon = 1e-6;
+  const depthEpsilon = EPSILON.DISTANCE;
   const pointThreshold = pointPixelThreshold ?? pickPixelThreshold;
 
   const consider = (
@@ -550,7 +550,7 @@ export const hitTestComponent = ({
             renderData.curve,
             { origin: context.ray.origin, direction: context.ray.dir },
             initialU,
-            { maxIterations: 8, tolerance: 1e-5 }
+            { maxIterations: 8, tolerance: EPSILON.DISTANCE }
           );
           pickPoint = refined.point;
         }
@@ -647,7 +647,7 @@ export const hitTestComponent = ({
             renderData.curve,
             { origin: context.ray.origin, direction: context.ray.dir },
             initialU,
-            { maxIterations: 8, tolerance: 1e-5 }
+            { maxIterations: 8, tolerance: EPSILON.DISTANCE }
           );
           pickPoint = refined.point;
         }

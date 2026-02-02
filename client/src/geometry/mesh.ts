@@ -28,6 +28,9 @@ import {
   projectPointToPlane,
   scale,
   unprojectPointFromPlane,
+  EPSILON,
+  length3,
+  cross3,
 } from "./math";
 import { interpolatePolyline, resampleByArcLength } from "./curves";
 
@@ -98,9 +101,7 @@ export const computeVertexNormals = (positions: number[], indices: number[]) => 
     const acx = cx - ax;
     const acy = cy - ay;
     const acz = cz - az;
-    const nx = aby * acz - abz * acy;
-    const ny = abz * acx - abx * acz;
-    const nz = abx * acy - aby * acx;
+    const [nx, ny, nz] = cross3(abx, aby, abz, acx, acy, acz);
     normals[ia] += nx;
     normals[ia + 1] += ny;
     normals[ia + 2] += nz;
@@ -115,10 +116,11 @@ export const computeVertexNormals = (positions: number[], indices: number[]) => 
     const nx = normals[i];
     const ny = normals[i + 1];
     const nz = normals[i + 2];
-    const len = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
-    normals[i] = nx / len;
-    normals[i + 1] = ny / len;
-    normals[i + 2] = nz / len;
+    const len = length3(nx, ny, nz);
+    const inv = len > EPSILON.NUMERIC ? 1 / len : 0;
+    normals[i] = nx * inv;
+    normals[i + 1] = ny * inv;
+    normals[i + 2] = nz * inv;
   }
   return normals;
 };
@@ -144,10 +146,8 @@ export const computeMeshArea = (positions: number[], indices: number[]) => {
     const acx = cx - ax;
     const acy = cy - ay;
     const acz = cz - az;
-    const nx = aby * acz - abz * acy;
-    const ny = abz * acx - abx * acz;
-    const nz = abx * acy - aby * acx;
-    area += 0.5 * Math.sqrt(nx * nx + ny * ny + nz * nz);
+    const [nx, ny, nz] = cross3(abx, aby, abz, acx, acy, acz);
+    area += 0.5 * length3(nx, ny, nz);
   }
   return area;
 };
@@ -416,7 +416,7 @@ const scalePointsToRadius = (points: Vec3[], radius: number) => {
   }));
 };
 
-const dedupePoints = (points: Vec3[], precision = 1e-6) => {
+const dedupePoints = (points: Vec3[], precision = EPSILON.DISTANCE) => {
   const map = new Map<string, Vec3>();
   points.forEach((point) => {
     const key = `${Math.round(point.x / precision)}:${Math.round(point.y / precision)}:${Math.round(point.z / precision)}`;
@@ -434,7 +434,7 @@ const buildEdgePairs = (vertices: Vec3[]) => {
     for (let j = i + 1; j < vertices.length; j += 1) {
       const b = vertices[j];
       const d = distance(a, b);
-      if (d > 1e-6) {
+      if (d > EPSILON.DISTANCE) {
         minDistance = Math.min(minDistance, d);
       }
     }
@@ -1088,7 +1088,7 @@ export const generateExtrudeMesh = (
     if (profile.closed && basePoints.length > 1) {
       const first = basePoints[0];
       const last = basePoints[basePoints.length - 1];
-      if (distance(first, last) < 1e-6) {
+      if (distance(first, last) < EPSILON.DISTANCE) {
         basePoints = basePoints.slice(0, -1);
       }
     }
