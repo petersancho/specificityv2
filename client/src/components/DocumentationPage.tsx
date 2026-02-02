@@ -53,6 +53,7 @@ type CommandGroup = {
 type DocsRoute =
   | { kind: "index" }
   | { kind: "philosophy" }
+  | { kind: "inspirations" }
   | { kind: "roslyn"; id: string }
   | { kind: "numerica"; id: string };
 

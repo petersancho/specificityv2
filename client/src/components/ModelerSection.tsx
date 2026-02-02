@@ -2786,7 +2786,6 @@ const ModelerSection = ({
     const loftId = addGeometryLoft(mesh, sectionIds, {
       degree,
       closed,
-      sectionClosed,
       samples,
       layerId: sections[0]?.item.layerId,
       metadata: { sectionClosed, samples },

@@ -215,16 +215,16 @@ export const Tooltip = ({
       right: "left",
     };
 
-    const candidates: TooltipPosition[] = [
+    const candidates = [
       position,
       opposite[position],
-      "top",
-      "bottom",
-      "left",
-      "right",
+      "top" as TooltipPosition,
+      "bottom" as TooltipPosition,
+      "left" as TooltipPosition,
+      "right" as TooltipPosition,
     ].filter(
       (candidate, index, all) => all.indexOf(candidate) === index
-    );
+    ) as TooltipPosition[];
 
     let best = candidates[0];
     let bestScore = Number.POSITIVE_INFINITY;

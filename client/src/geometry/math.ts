@@ -58,7 +58,7 @@ import {
   inverse as inverseQuat,
   dot as dotQuat,
   length as lengthQuat,
-  normalize as normalizeQuat,
+  normalizeQuat,
 } from "../math/quaternion";
 
 import {
