@@ -2039,57 +2039,6 @@ const applySeedGeometryNodesToGeometry = (
       };
     }
 
-    if (node.type === "voxelSolver") {
-      let geometryId =
-        typeof outputs?.geometry === "string"
-          ? outputs.geometry
-          : typeof node.data?.geometryId === "string"
-            ? node.data.geometryId
-            : null;
-
-      const meshData = outputs?.meshData as RenderMesh | undefined;
-
-      if (
-        !meshData ||
-        !Array.isArray(meshData.positions) ||
-        !Array.isArray(meshData.indices) ||
-        meshData.positions.length === 0 ||
-        meshData.indices.length === 0
-      ) {
-        return node;
-      }
-
-      const existing = geometryId ? geometryById.get(geometryId) : null;
-      if (!geometryId || (existing && existing.type !== "mesh")) {
-        geometryId = createGeometryId("mesh");
-      }
-
-      upsertMeshGeometry(
-        geometryId,
-        meshData,
-        undefined,
-        { geometryById, updates, itemsToAdd },
-        node.id,
-        {
-          subtype: "voxels",
-          renderOptions: { forceSolidPreview: true },
-        }
-      );
-
-      didApply = true;
-      touchedGeometryIds.add(geometryId);
-
-      return {
-        ...node,
-        data: {
-          ...node.data,
-          geometryId,
-          geometryType: "mesh",
-          isLinked: true,
-        },
-      };
-    }
-
     if (node.type === "chemistrySolver") {
       let geometryId =
         typeof outputs?.geometry === "string"
@@ -6250,6 +6199,91 @@ const applyChemistrySolverNodesToGeometry = (
     const update = updates.get(item.id);
     return update ? ({ ...item, ...update } as Geometry) : item;
   });
+
+  return { nodes: nextNodes, geometry: nextGeometry, didApply };
+};
+
+const applyVoxelSolverNodesToGeometry = (
+  nodes: WorkflowNode[],
+  geometry: Geometry[]
+) => {
+  const geometryById = new Map<string, Geometry>(
+    geometry.map((item) => [item.id, item])
+  );
+  const updates = new Map<string, Partial<Geometry>>();
+  const itemsToAdd: Geometry[] = [];
+  let didApply = false;
+
+  const nextNodes = nodes.map((node) => {
+    if (node.type !== "voxelSolver") return node;
+    const outputs = node.data?.outputs;
+    let geometryId =
+      typeof outputs?.geometry === "string"
+        ? outputs.geometry
+        : typeof node.data?.geometryId === "string"
+          ? node.data.geometryId
+          : null;
+
+    const meshData = outputs?.meshData as RenderMesh | undefined;
+
+    if (
+      !meshData ||
+      !Array.isArray(meshData.positions) ||
+      !Array.isArray(meshData.indices) ||
+      meshData.positions.length === 0 ||
+      meshData.indices.length === 0
+    ) {
+      return node;
+    }
+
+    const existing = geometryId ? geometryById.get(geometryId) : null;
+    if (!geometryId || (existing && existing.type !== "mesh")) {
+      geometryId = createGeometryId("mesh");
+    }
+
+    if (existing && existing.type === "mesh") {
+      updates.set(geometryId, {
+        mesh: meshData,
+        subtype: "voxels",
+        renderOptions: { forceSolidPreview: true },
+        area_m2: computeMeshArea(meshData.positions, meshData.indices),
+      });
+    } else {
+      itemsToAdd.push({
+        id: geometryId,
+        type: "mesh",
+        mesh: meshData,
+        layerId: "layer-default",
+        sourceNodeId: node.id,
+        subtype: "voxels",
+        renderOptions: { forceSolidPreview: true },
+        area_m2: computeMeshArea(meshData.positions, meshData.indices),
+      });
+    }
+
+    didApply = true;
+    return {
+      ...node,
+      data: {
+        ...node.data,
+        geometryId,
+        geometryType: "mesh",
+        isLinked: true,
+      },
+    };
+  });
+
+  if (!didApply) {
+    return { nodes: nextNodes, geometry, didApply };
+  }
+
+  const nextGeometry = [
+    ...geometry.map((item) => {
+      const update = updates.get(item.id);
+      return update ? ({ ...item, ...update } as Geometry) : item;
+    }),
+    ...itemsToAdd,
+  ];
 
   return { nodes: nextNodes, geometry: nextGeometry, didApply };
 };
@@ -11800,9 +11834,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         solverApplied.nodes,
         solverApplied.geometry
       );
-      const importApplied = applyImportNodesToGeometry(
+      const voxelApplied = applyVoxelSolverNodesToGeometry(
         chemistryApplied.nodes,
         chemistryApplied.geometry
+      );
+      const importApplied = applyImportNodesToGeometry(
+        voxelApplied.nodes,
+        voxelApplied.geometry
       );
       const customMaterialApplied = applyCustomMaterialNodesToGeometry(
         importApplied.nodes,
