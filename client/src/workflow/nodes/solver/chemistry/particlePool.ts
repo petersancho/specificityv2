@@ -794,3 +794,327 @@ export const generateVoxelFieldFromPool = (
     densities,
   };
 };
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SPH PRESSURE AND VISCOSITY FORCES
+// ═══════════════════════════════════════════════════════════════════════════
+
+import {
+  spikyKernelGradient,
+  viscosityKernelLaplacian,
+  poly6Kernel,
+} from './sphKernels';
+
+/**
+ * Compute pressure for all particles using Tait equation of state
+ * 
+ * P = B * ((ρ/ρ₀)^γ - 1)
+ * 
+ * where:
+ *   B = bulk modulus (stiffness parameter)
+ *   ρ = current density
+ *   ρ₀ = rest density
+ *   γ = 7 (for water-like fluids)
+ */
+export const computePressuresTait = (
+  pool: ParticlePool,
+  restDensity: number,
+  bulkModulus: number,
+  gamma: number = 7
+): void => {
+  for (let i = 0; i < pool.count; i++) {
+    const density = pool.pressure[i]; // Density stored in pressure field temporarily
+    const densityRatio = density / restDensity;
+    const pressure = bulkModulus * (Math.pow(densityRatio, gamma) - 1);
+    pool.pressure[i] = Math.max(0, pressure); // Clamp to non-negative
+  }
+};
+
+/**
+ * Apply pressure forces to all particles
+ * 
+ * F_pressure = -m * Σ_j (P_i/ρ_i² + P_j/ρ_j²) * ∇W_ij
+ * 
+ * Uses Spiky kernel gradient for sharp pressure forces
+ */
+export const applyPressureForces = (
+  pool: ParticlePool,
+  smoothingRadius: number,
+  dt: number
+): void => {
+  const h = smoothingRadius;
+  const maxNeighbors = 64;
+  
+  // Temporary storage for accelerations
+  const accelX = new Float32Array(pool.count);
+  const accelY = new Float32Array(pool.count);
+  const accelZ = new Float32Array(pool.count);
+  
+  // Compute density for each particle (stored temporarily in pressure field)
+  const densities = new Float32Array(pool.count);
+  for (let i = 0; i < pool.count; i++) {
+    const neighborCount = pool.neighborCounts[i];
+    const neighborOffset = i * maxNeighbors;
+    
+    let density = 0;
+    for (let n = 0; n < neighborCount; n++) {
+      const j = pool.neighborCache[neighborOffset + n];
+      
+      const dx = pool.posX[i] - pool.posX[j];
+      const dy = pool.posY[i] - pool.posY[j];
+      const dz = pool.posZ[i] - pool.posZ[j];
+      const r = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      
+      if (r < h) {
+        density += pool.mass[j] * poly6Kernel(r, h);
+      }
+    }
+    densities[i] = Math.max(density, 1e-6); // Avoid division by zero
+  }
+  
+  // Compute pressure forces
+  for (let i = 0; i < pool.count; i++) {
+    const neighborCount = pool.neighborCounts[i];
+    const neighborOffset = i * maxNeighbors;
+    
+    const Pi = pool.pressure[i];
+    const rho_i = densities[i];
+    const rho_i2 = rho_i * rho_i;
+    
+    let fx = 0, fy = 0, fz = 0;
+    
+    for (let n = 0; n < neighborCount; n++) {
+      const j = pool.neighborCache[neighborOffset + n];
+      if (j === i) continue;
+      
+      const dx = pool.posX[i] - pool.posX[j];
+      const dy = pool.posY[i] - pool.posY[j];
+      const dz = pool.posZ[i] - pool.posZ[j];
+      const r = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      
+      if (r < EPSILON || r >= h) continue;
+      
+      const Pj = pool.pressure[j];
+      const rho_j = densities[j];
+      const rho_j2 = rho_j * rho_j;
+      
+      // Symmetric pressure term
+      const pressureTerm = (Pi / rho_i2 + Pj / rho_j2);
+      
+      // Spiky kernel gradient (returns magnitude/r, so multiply by r to get magnitude)
+      const gradMag = spikyKernelGradient(r, h) * r;
+      
+      // Direction vector (normalized)
+      const dirX = dx / r;
+      const dirY = dy / r;
+      const dirZ = dz / r;
+      
+      // Force contribution
+      const forceMag = -pool.mass[j] * pressureTerm * gradMag;
+      fx += forceMag * dirX;
+      fy += forceMag * dirY;
+      fz += forceMag * dirZ;
+    }
+    
+    // Store acceleration (F = ma, so a = F/m)
+    accelX[i] = fx / pool.mass[i];
+    accelY[i] = fy / pool.mass[i];
+    accelZ[i] = fz / pool.mass[i];
+  }
+  
+  // Update velocities
+  for (let i = 0; i < pool.count; i++) {
+    pool.velX[i] += accelX[i] * dt;
+    pool.velY[i] += accelY[i] * dt;
+    pool.velZ[i] += accelZ[i] * dt;
+  }
+};
+
+/**
+ * Apply viscosity forces to all particles
+ * 
+ * F_viscosity = μ * m * Σ_j (v_j - v_i) * ∇²W_ij / ρ_j
+ * 
+ * Uses viscosity kernel Laplacian for smooth velocity diffusion
+ */
+export const applyViscosityForces = (
+  pool: ParticlePool,
+  smoothingRadius: number,
+  viscosity: number,
+  dt: number
+): void => {
+  const h = smoothingRadius;
+  const maxNeighbors = 64;
+  
+  // Temporary storage for accelerations
+  const accelX = new Float32Array(pool.count);
+  const accelY = new Float32Array(pool.count);
+  const accelZ = new Float32Array(pool.count);
+  
+  // Compute density for each particle
+  const densities = new Float32Array(pool.count);
+  for (let i = 0; i < pool.count; i++) {
+    const neighborCount = pool.neighborCounts[i];
+    const neighborOffset = i * maxNeighbors;
+    
+    let density = 0;
+    for (let n = 0; n < neighborCount; n++) {
+      const j = pool.neighborCache[neighborOffset + n];
+      
+      const dx = pool.posX[i] - pool.posX[j];
+      const dy = pool.posY[i] - pool.posY[j];
+      const dz = pool.posZ[i] - pool.posZ[j];
+      const r = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      
+      if (r < h) {
+        density += pool.mass[j] * poly6Kernel(r, h);
+      }
+    }
+    densities[i] = Math.max(density, 1e-6);
+  }
+  
+  // Compute viscosity forces
+  for (let i = 0; i < pool.count; i++) {
+    const neighborCount = pool.neighborCounts[i];
+    const neighborOffset = i * maxNeighbors;
+    
+    let fx = 0, fy = 0, fz = 0;
+    
+    for (let n = 0; n < neighborCount; n++) {
+      const j = pool.neighborCache[neighborOffset + n];
+      if (j === i) continue;
+      
+      const dx = pool.posX[i] - pool.posX[j];
+      const dy = pool.posY[i] - pool.posY[j];
+      const dz = pool.posZ[i] - pool.posZ[j];
+      const r = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      
+      if (r >= h) continue;
+      
+      // Velocity difference
+      const dvx = pool.velX[j] - pool.velX[i];
+      const dvy = pool.velY[j] - pool.velY[i];
+      const dvz = pool.velZ[j] - pool.velZ[i];
+      
+      // Viscosity kernel Laplacian
+      const laplacian = viscosityKernelLaplacian(r, h);
+      
+      // Force contribution
+      const factor = viscosity * pool.mass[j] * laplacian / densities[j];
+      fx += factor * dvx;
+      fy += factor * dvy;
+      fz += factor * dvz;
+    }
+    
+    // Store acceleration
+    accelX[i] = fx / pool.mass[i];
+    accelY[i] = fy / pool.mass[i];
+    accelZ[i] = fz / pool.mass[i];
+  }
+  
+  // Update velocities
+  for (let i = 0; i < pool.count; i++) {
+    pool.velX[i] += accelX[i] * dt;
+    pool.velY[i] += accelY[i] * dt;
+    pool.velZ[i] += accelZ[i] * dt;
+  }
+};
+
+/**
+ * Apply centrifugal force to all particles
+ * 
+ * F_centrifugal = m * ω² * r_perp
+ * 
+ * where:
+ *   ω = angular velocity (rad/s)
+ *   r_perp = perpendicular distance from rotation axis
+ */
+export const applyCentrifugalForce = (
+  pool: ParticlePool,
+  rotationAxis: Vec3,
+  angularVelocity: number,
+  dt: number
+): void => {
+  // Normalize rotation axis
+  const axisLen = Math.sqrt(
+    rotationAxis.x * rotationAxis.x +
+    rotationAxis.y * rotationAxis.y +
+    rotationAxis.z * rotationAxis.z
+  );
+  
+  if (axisLen < EPSILON) return;
+  
+  const axisX = rotationAxis.x / axisLen;
+  const axisY = rotationAxis.y / axisLen;
+  const axisZ = rotationAxis.z / axisLen;
+  
+  const omega2 = angularVelocity * angularVelocity;
+  
+  for (let i = 0; i < pool.count; i++) {
+    const px = pool.posX[i];
+    const py = pool.posY[i];
+    const pz = pool.posZ[i];
+    
+    // Project position onto rotation axis
+    const dot = px * axisX + py * axisY + pz * axisZ;
+    const projX = dot * axisX;
+    const projY = dot * axisY;
+    const projZ = dot * axisZ;
+    
+    // Perpendicular component (radial vector)
+    const radialX = px - projX;
+    const radialY = py - projY;
+    const radialZ = pz - projZ;
+    
+    // Centrifugal acceleration = ω² * r_perp
+    const accelX = omega2 * radialX;
+    const accelY = omega2 * radialY;
+    const accelZ = omega2 * radialZ;
+    
+    // Update velocity
+    pool.velX[i] += accelX * dt;
+    pool.velY[i] += accelY * dt;
+    pool.velZ[i] += accelZ * dt;
+  }
+};
+
+/**
+ * Update particle positions using velocity Verlet integration
+ */
+export const updatePositionsVerlet = (
+  pool: ParticlePool,
+  bounds: { min: Vec3; max: Vec3 },
+  dt: number
+): void => {
+  for (let i = 0; i < pool.count; i++) {
+    // Update position
+    pool.posX[i] += pool.velX[i] * dt;
+    pool.posY[i] += pool.velY[i] * dt;
+    pool.posZ[i] += pool.velZ[i] * dt;
+    
+    // Boundary conditions (simple reflection)
+    if (pool.posX[i] < bounds.min.x) {
+      pool.posX[i] = bounds.min.x;
+      pool.velX[i] *= -0.5; // Damped reflection
+    } else if (pool.posX[i] > bounds.max.x) {
+      pool.posX[i] = bounds.max.x;
+      pool.velX[i] *= -0.5;
+    }
+    
+    if (pool.posY[i] < bounds.min.y) {
+      pool.posY[i] = bounds.min.y;
+      pool.velY[i] *= -0.5;
+    } else if (pool.posY[i] > bounds.max.y) {
+      pool.posY[i] = bounds.max.y;
+      pool.velY[i] *= -0.5;
+    }
+    
+    if (pool.posZ[i] < bounds.min.z) {
+      pool.posZ[i] = bounds.min.z;
+      pool.velZ[i] *= -0.5;
+    } else if (pool.posZ[i] > bounds.max.z) {
+      pool.posZ[i] = bounds.max.z;
+      pool.velZ[i] *= -0.5;
+    }
+  }
+};

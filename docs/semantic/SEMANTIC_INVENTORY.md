@@ -1,13 +1,13 @@
 # Semantic Inventory
 
-Generated: 2026-02-02T21:18:21.907Z
+Generated: 2026-02-02T21:55:40.297Z
 
 ## Summary
 
 - **Total Operations**: 292
 - **Total Nodes**: 173
 - **Total Dashboards**: 3
-- **Orphan Operations**: 48
+- **Orphan Operations**: 47
 - **Dangling References**: 0
 
 ## Operations by Domain
@@ -48,7 +48,7 @@ Generated: 2026-02-02T21:18:21.907Z
 | `command.morph` | Morph | operation | ✅ | (none) |
 | `command.meshConvert` | NURBS to Mesh | conversion | ✅ | meshConvert, nurbsToMesh |
 | `command.brepToMesh` | B-Rep to Mesh | conversion | ✅ | brepToMesh |
-| `command.meshToBrep` | Mesh to B-Rep | conversion | ✅ | (none) |
+| `command.meshToBrep` | Mesh to B-Rep | conversion | ✅ | meshToBrep |
 | `command.nurbsRestore` | Mesh to NURBS | conversion | ✅ | (none) |
 | `command.interpolate` | Interpolate | conversion | ✅ | (none) |
 | `command.move` | Move | transform | ✅ | move |
@@ -106,16 +106,16 @@ Generated: 2026-02-02T21:18:21.907Z
 | `data.partition` | Partition | utility | ✅ | listPartition |
 | `data.slice` | Slice | utility | ✅ | listSlice |
 | `data.reverse` | Reverse | utility | ✅ | listReverse |
-| `data.range` | Range | generation | ✅ | range |
-| `data.linspace` | Linspace | generation | ✅ | linspace |
-| `data.repeat` | Repeat | generation | ✅ | repeat |
+| `data.range` | Range | creation | ✅ | range |
+| `data.linspace` | Linspace | creation | ✅ | linspace |
+| `data.repeat` | Repeat | creation | ✅ | repeat |
 
 ### geometry (100 operations)
 
 | ID | Name | Category | Stable | Used By |
 |----|------|----------|--------|----------|
-| `geometry.mesh` | Mesh | passthrough | ✅ | mesh |
-| `geometry.brep` | B-Rep | passthrough | ✅ | (none) |
+| `geometry.mesh` | Mesh | operation | ✅ | mesh |
+| `geometry.brep` | B-Rep | operation | ✅ | (none) |
 | `geometry.pointCloud` | Point Cloud | creation | ✅ | pointCloud |
 | `geometry.fillet` | Fillet | operation | ✅ | fillet |
 | `geometry.filletEdges` | Fillet Edges | operation | ✅ | filletEdges |
@@ -155,10 +155,10 @@ Generated: 2026-02-02T21:18:21.907Z
 | `geometry.primitive.hyperbolicParaboloid` | Hyperbolic Paraboloid | primitive | ✅ | hyperbolic-paraboloid |
 | `geometry.primitive.geodesicDome` | Geodesic Dome | primitive | ✅ | geodesic-dome |
 | `geometry.primitive.oneSheetHyperboloid` | One-Sheet Hyperboloid | primitive | ✅ | one-sheet-hyperboloid |
-| `geometry.array.linear` | Linear Array | array | ✅ | linearArray |
-| `geometry.array.polar` | Polar Array | array | ✅ | polarArray |
-| `geometry.array.grid` | Grid Array | array | ✅ | gridArray |
-| `geometry.array.geometry` | Geometry Array | array | ✅ | geometryArray |
+| `geometry.array.linear` | Linear Array | utility | ✅ | linearArray |
+| `geometry.array.polar` | Polar Array | utility | ✅ | polarArray |
+| `geometry.array.grid` | Grid Array | utility | ✅ | gridArray |
+| `geometry.array.geometry` | Geometry Array | utility | ✅ | geometryArray |
 | `geometry.analyze.info` | Geometry Info | analysis | ✅ | geometryInfo |
 | `geometry.analyze.dimensions` | Dimensions | analysis | ✅ | dimensions |
 | `geometry.analyze.vertices` | Geometry Vertices | analysis | ✅ | geometryVertices |
@@ -169,11 +169,11 @@ Generated: 2026-02-02T21:18:21.907Z
 | `geometry.analyze.proximity3d` | 3D Proximity | analysis | ✅ | proximity3d |
 | `geometry.analyze.proximity2d` | 2D Proximity | analysis | ✅ | proximity2d |
 | `geometry.analyze.curveProximity` | Curve Proximity | analysis | ✅ | curveProximity |
-| `geometry.field.transform` | Field Transformation | field | ✅ | fieldTransformation |
-| `geometry.field.movePoint` | Move Point | field | ✅ | movePoint |
-| `geometry.field.movePointByVector` | Move Point By Vector | field | ✅ | movePointByVector |
-| `geometry.field.rotateVectorAxis` | Rotate Vector Axis | field | ✅ | rotateVectorAxis |
-| `geometry.field.mirrorVector` | Mirror Vector | field | ✅ | mirrorVector |
+| `geometry.field.transform` | Field Transformation | analysis | ✅ | fieldTransformation |
+| `geometry.field.movePoint` | Move Point | analysis | ✅ | movePoint |
+| `geometry.field.movePointByVector` | Move Point By Vector | analysis | ✅ | movePointByVector |
+| `geometry.field.rotateVectorAxis` | Rotate Vector Axis | analysis | ✅ | rotateVectorAxis |
+| `geometry.field.mirrorVector` | Mirror Vector | analysis | ✅ | mirrorVector |
 | `boolean.offsetPolyline2D` | Offset Polyline 2D | modifier | ✅ | offset |
 | `math.computeBestFitPlane` | Compute Best Fit Plane | analysis | ✅ | voronoiPattern, hexagonalTiling, offset |
 | `math.projectPointToPlane` | Project Point To Plane | transform | ✅ | voronoiPattern, hexagonalTiling, offset |
@@ -266,16 +266,16 @@ Generated: 2026-02-02T21:18:21.907Z
 | `math.greaterThan` | Greater Than | operator | ✅ | conditional |
 | `math.greaterThanOrEqual` | Greater Than or Equal | operator | ✅ | conditional |
 | `math.random` | Random | utility | ✅ | random |
-| `math.sum` | Sum | statistics | ✅ | listSum |
-| `math.average` | Average | statistics | ✅ | listAverage |
-| `math.median` | Median | statistics | ✅ | listMedian |
-| `math.stdDev` | Standard Deviation | statistics | ✅ | listStdDev |
+| `math.sum` | Sum | analysis | ✅ | listSum |
+| `math.average` | Average | analysis | ✅ | listAverage |
+| `math.median` | Median | analysis | ✅ | listMedian |
+| `math.stdDev` | Standard Deviation | analysis | ✅ | listStdDev |
 | `math.expression` | Expression | utility | ✅ | expression |
-| `math.wave.sine` | Sine Wave | wave | ✅ | sineWave |
-| `math.wave.cosine` | Cosine Wave | wave | ✅ | cosineWave |
-| `math.wave.sawtooth` | Sawtooth Wave | wave | ✅ | sawtoothWave |
-| `math.wave.triangle` | Triangle Wave | wave | ✅ | triangleWave |
-| `math.wave.square` | Square Wave | wave | ✅ | squareWave |
+| `math.wave.sine` | Sine Wave | primitive | ✅ | sineWave |
+| `math.wave.cosine` | Cosine Wave | primitive | ✅ | cosineWave |
+| `math.wave.sawtooth` | Sawtooth Wave | primitive | ✅ | sawtoothWave |
+| `math.wave.triangle` | Triangle Wave | primitive | ✅ | triangleWave |
+| `math.wave.square` | Square Wave | primitive | ✅ | squareWave |
 
 ### solver (24 operations)
 
@@ -288,23 +288,23 @@ Generated: 2026-02-02T21:18:21.907Z
 | `solver.topologyOptimization` | Topology Optimization Solver | utility | ⚠️ | topologySolver, topologyOptimizationSolver |
 | `simulator.initialize` | Initialize Simulator | utility | ✅ | evolutionarySolver |
 | `simulator.step` | Step Simulator | utility | ✅ | evolutionarySolver |
-| `simulator.converge` | Check Convergence | query | ✅ | evolutionarySolver |
+| `simulator.converge` | Check Convergence | analysis | ✅ | evolutionarySolver |
 | `simulator.finalize` | Finalize Simulator | utility | ✅ | evolutionarySolver |
 | `simulator.chemistry.initialize` | Initialize Chemistry Simulator | utility | ✅ | chemistrySolver |
 | `simulator.chemistry.step` | Step Chemistry Simulator | utility | ✅ | chemistrySolver |
-| `simulator.chemistry.converge` | Check Chemistry Convergence | query | ✅ | chemistrySolver |
+| `simulator.chemistry.converge` | Check Chemistry Convergence | analysis | ✅ | chemistrySolver |
 | `simulator.chemistry.finalize` | Finalize Chemistry Simulator | utility | ✅ | chemistrySolver |
 | `simulator.chemistry.blendMaterials` | Blend Materials | utility | ✅ | chemistrySolver |
-| `simulator.chemistry.evaluateGoals` | Evaluate Chemistry Goals | query | ✅ | chemistrySolver |
+| `simulator.chemistry.evaluateGoals` | Evaluate Chemistry Goals | analysis | ✅ | chemistrySolver |
 | `simulator.physics.initialize` | Initialize Physics Simulator | utility | ✅ | physicsSolver |
 | `simulator.physics.step` | Step Physics Simulator | utility | ✅ | physicsSolver |
-| `simulator.physics.converge` | Check Physics Convergence | query | ✅ | physicsSolver |
+| `simulator.physics.converge` | Check Physics Convergence | analysis | ✅ | physicsSolver |
 | `simulator.physics.finalize` | Finalize Physics Simulator | utility | ✅ | physicsSolver |
 | `simulator.physics.applyLoads` | Apply Loads | utility | ✅ | physicsSolver |
 | `simulator.physics.computeStress` | Compute Stress Field | utility | ✅ | physicsSolver |
 | `solver.voxel.voxelize` | Voxelize Geometry | conversion | ✅ | voxelizeGeometry |
 | `solver.voxel.extractIsosurface` | Extract Isosurface | conversion | ✅ | extractIsosurface |
-| `solver.topologyOptimization.optimize` | Optimize Topology | optimization | ✅ | topologyOptimize |
+| `solver.topologyOptimization.optimize` | Optimize Topology | analysis | ✅ | topologyOptimize |
 
 ### string (7 operations)
 
@@ -336,12 +336,12 @@ Generated: 2026-02-02T21:18:21.907Z
 | `vector.deconstruct` | Deconstruct Vector | utility | ✅ | vectorDeconstruct |
 | `vector.angle` | Vector Angle | analysis | ✅ | vectorAngle |
 | `vector.project` | Vector Project | utility | ✅ | vectorProject |
-| `vector.attractor` | Point Attractor | field | ✅ | pointAttractor |
-| `vector.constant.origin` | Origin | constant | ✅ | origin |
-| `vector.constant.unitX` | Unit X | constant | ✅ | unitX |
-| `vector.constant.unitY` | Unit Y | constant | ✅ | unitY |
-| `vector.constant.unitZ` | Unit Z | constant | ✅ | unitZ |
-| `vector.constant.unitXYZ` | Unit XYZ | constant | ✅ | unitXYZ |
+| `vector.attractor` | Point Attractor | analysis | ✅ | pointAttractor |
+| `vector.constant.origin` | Origin | primitive | ✅ | origin |
+| `vector.constant.unitX` | Unit X | primitive | ✅ | unitX |
+| `vector.constant.unitY` | Unit Y | primitive | ✅ | unitY |
+| `vector.constant.unitZ` | Unit Z | primitive | ✅ | unitZ |
+| `vector.constant.unitXYZ` | Unit XYZ | primitive | ✅ | unitXYZ |
 | `vector.moveVector` | Move Vector | utility | ✅ | moveVector |
 | `vector.scaleVector` | Scale Vector | utility | ✅ | scaleVector |
 | `vector.fromPoints` | Vector From Points | utility | ✅ | vectorFromPoints |
@@ -365,7 +365,7 @@ Generated: 2026-02-02T21:18:21.907Z
 | `meshConvert` | Mesh Convert | mesh | `command.meshConvert` |
 | `nurbsToMesh` | NURBS to Mesh | mesh | `command.meshConvert` |
 | `brepToMesh` | B-Rep to Mesh | mesh | `brep.tessellateBRepToMesh`, `command.brepToMesh` |
-| `meshToBrep` | Mesh to B-Rep | mesh | `brep.brepFromMesh` |
+| `meshToBrep` | Mesh to B-Rep | mesh | `brep.brepFromMesh`, `command.meshToBrep` |
 | `subdivideMesh` | Subdivide Mesh | tessellation | `meshTess.getTessellationMetadata`, `meshTess.subdivideAdaptive`, `meshTess.subdivideCatmullClark`, `meshTess.subdivideLinear`, `meshTess.subdivideLoop`, `meshTess.tessellationMeshToRenderMesh`, `meshTess.toTessellationMesh`, `meshTess.toTessellationMeshData` |
 | `dualMesh` | Dual Mesh | tessellation | `meshTess.dualMesh`, `meshTess.getTessellationMetadata`, `meshTess.tessellationMeshToRenderMesh`, `meshTess.toTessellationMesh`, `meshTess.toTessellationMeshData` |
 | `insetFaces` | Inset Faces | tessellation | `meshTess.getTessellationMetadata`, `meshTess.insetFaces`, `meshTess.tessellationMeshToRenderMesh`, `meshTess.toTessellationMesh`, `meshTess.toTessellationMeshData` |
@@ -585,7 +585,6 @@ These operations are defined but never used by any node:
 - `command.meshFlip`
 - `command.meshThicken`
 - `command.morph`
-- `command.meshToBrep`
 - `command.nurbsRestore`
 - `command.interpolate`
 - `command.offset`

@@ -618,7 +618,7 @@
     "id": "math.sum",
     "domain": "math",
     "name": "Sum",
-    "category": "statistics",
+    "category": "analysis",
     "tags": [
       "statistics",
       "pure",
@@ -636,7 +636,7 @@
     "id": "math.average",
     "domain": "math",
     "name": "Average",
-    "category": "statistics",
+    "category": "analysis",
     "tags": [
       "statistics",
       "pure",
@@ -654,7 +654,7 @@
     "id": "math.median",
     "domain": "math",
     "name": "Median",
-    "category": "statistics",
+    "category": "analysis",
     "tags": [
       "statistics",
       "pure",
@@ -672,7 +672,7 @@
     "id": "math.stdDev",
     "domain": "math",
     "name": "Standard Deviation",
-    "category": "statistics",
+    "category": "analysis",
     "tags": [
       "statistics",
       "pure",
@@ -967,7 +967,7 @@
     "id": "vector.attractor",
     "domain": "vector",
     "name": "Point Attractor",
-    "category": "field",
+    "category": "analysis",
     "tags": [
       "vector3",
       "field",
@@ -986,7 +986,7 @@
     "id": "vector.constant.origin",
     "domain": "vector",
     "name": "Origin",
-    "category": "constant",
+    "category": "primitive",
     "tags": [
       "vector3",
       "constant",
@@ -1005,7 +1005,7 @@
     "id": "vector.constant.unitX",
     "domain": "vector",
     "name": "Unit X",
-    "category": "constant",
+    "category": "primitive",
     "tags": [
       "vector3",
       "constant",
@@ -1024,7 +1024,7 @@
     "id": "vector.constant.unitY",
     "domain": "vector",
     "name": "Unit Y",
-    "category": "constant",
+    "category": "primitive",
     "tags": [
       "vector3",
       "constant",
@@ -1043,7 +1043,7 @@
     "id": "vector.constant.unitZ",
     "domain": "vector",
     "name": "Unit Z",
-    "category": "constant",
+    "category": "primitive",
     "tags": [
       "vector3",
       "constant",
@@ -1062,7 +1062,7 @@
     "id": "vector.constant.unitXYZ",
     "domain": "vector",
     "name": "Unit XYZ",
-    "category": "constant",
+    "category": "primitive",
     "tags": [
       "vector3",
       "constant",
@@ -1519,7 +1519,7 @@
     "id": "data.range",
     "domain": "data",
     "name": "Range",
-    "category": "generation",
+    "category": "creation",
     "tags": [
       "array",
       "pure",
@@ -1537,7 +1537,7 @@
     "id": "data.linspace",
     "domain": "data",
     "name": "Linspace",
-    "category": "generation",
+    "category": "creation",
     "tags": [
       "array",
       "pure",
@@ -1555,7 +1555,7 @@
     "id": "data.repeat",
     "domain": "data",
     "name": "Repeat",
-    "category": "generation",
+    "category": "creation",
     "tags": [
       "array",
       "pure",
@@ -1864,12 +1864,11 @@
       "simulation",
       "equilibrium"
     ],
-    "complexity": "O(n*iterations)",
+    "complexity": "varies",
     "cost": "high",
     "pure": false,
     "deterministic": true,
     "sideEffects": [
-      "geometry",
       "state"
     ],
     "summary": "Solves structural mechanics simulation with force equilibrium",
@@ -1886,12 +1885,11 @@
       "simulation",
       "distribution"
     ],
-    "complexity": "O(n*iterations)",
+    "complexity": "varies",
     "cost": "high",
     "pure": false,
     "deterministic": false,
     "sideEffects": [
-      "geometry",
       "state",
       "random"
     ],
@@ -1909,12 +1907,11 @@
       "simulation",
       "optimization"
     ],
-    "complexity": "O(population*generations)",
+    "complexity": "varies",
     "cost": "high",
     "pure": false,
     "deterministic": false,
     "sideEffects": [
-      "geometry",
       "state",
       "random"
     ],
@@ -1950,12 +1947,11 @@
       "optimization",
       "structural"
     ],
-    "complexity": "O(n*iterations)",
+    "complexity": "varies",
     "cost": "high",
     "pure": false,
     "deterministic": true,
     "sideEffects": [
-      "geometry",
       "state"
     ],
     "summary": "Optimizes material layout for structural performance",
@@ -2006,7 +2002,7 @@
     "id": "simulator.converge",
     "domain": "solver",
     "name": "Check Convergence",
-    "category": "query",
+    "category": "analysis",
     "tags": [
       "simulation",
       "internal"
@@ -2034,7 +2030,7 @@
     "pure": false,
     "deterministic": true,
     "sideEffects": [
-      "geometry"
+      "state"
     ],
     "summary": "Finalizes simulation and generates output",
     "stable": true,
@@ -2087,7 +2083,7 @@
     "id": "simulator.chemistry.converge",
     "domain": "solver",
     "name": "Check Chemistry Convergence",
-    "category": "query",
+    "category": "analysis",
     "tags": [
       "simulation",
       "chemistry"
@@ -2116,7 +2112,7 @@
     "pure": false,
     "deterministic": true,
     "sideEffects": [
-      "geometry"
+      "state"
     ],
     "summary": "Generates voxel field and mesh from particle distribution",
     "stable": true,
@@ -2146,7 +2142,7 @@
     "id": "simulator.chemistry.evaluateGoals",
     "domain": "solver",
     "name": "Evaluate Chemistry Goals",
-    "category": "query",
+    "category": "analysis",
     "tags": [
       "chemistry",
       "goals"
@@ -2206,7 +2202,7 @@
     "id": "simulator.physics.converge",
     "domain": "solver",
     "name": "Check Physics Convergence",
-    "category": "query",
+    "category": "analysis",
     "tags": [
       "simulation",
       "physics"
@@ -2235,7 +2231,7 @@
     "pure": false,
     "deterministic": true,
     "sideEffects": [
-      "geometry"
+      "state"
     ],
     "summary": "Generates stress field and deformed geometry",
     "stable": true,
@@ -2321,18 +2317,17 @@
     "id": "solver.topologyOptimization.optimize",
     "domain": "solver",
     "name": "Optimize Topology",
-    "category": "optimization",
+    "category": "analysis",
     "tags": [
       "topology",
       "optimization",
       "structural"
     ],
-    "complexity": "O(n*iterations)",
+    "complexity": "varies",
     "cost": "high",
     "pure": false,
     "deterministic": true,
     "sideEffects": [
-      "geometry",
       "state"
     ],
     "summary": "Optimizes material layout for structural performance",
@@ -2916,7 +2911,7 @@
       "array",
       "replicate"
     ],
-    "complexity": "O(n*m)",
+    "complexity": "varies",
     "cost": "medium",
     "pure": true,
     "deterministic": true,
@@ -3536,8 +3531,8 @@
     "pure": false,
     "deterministic": true,
     "sideEffects": [
-      "file",
-      "geometry"
+      "filesystem",
+      "state"
     ],
     "summary": "Imports geometry from an STL file",
     "stable": true,
@@ -3559,7 +3554,7 @@
     "pure": false,
     "deterministic": true,
     "sideEffects": [
-      "file"
+      "filesystem"
     ],
     "summary": "Exports geometry to an STL file",
     "stable": true,
@@ -3569,7 +3564,7 @@
     "id": "geometry.mesh",
     "domain": "geometry",
     "name": "Mesh",
-    "category": "passthrough",
+    "category": "operation",
     "tags": [
       "geometry",
       "mesh",
@@ -3588,7 +3583,7 @@
     "id": "geometry.brep",
     "domain": "geometry",
     "name": "B-Rep",
-    "category": "passthrough",
+    "category": "operation",
     "tags": [
       "geometry",
       "brep",
@@ -4416,7 +4411,7 @@
     "id": "geometry.array.linear",
     "domain": "geometry",
     "name": "Linear Array",
-    "category": "array",
+    "category": "utility",
     "tags": [
       "geometry",
       "array",
@@ -4436,7 +4431,7 @@
     "id": "geometry.array.polar",
     "domain": "geometry",
     "name": "Polar Array",
-    "category": "array",
+    "category": "utility",
     "tags": [
       "geometry",
       "array",
@@ -4457,7 +4452,7 @@
     "id": "geometry.array.grid",
     "domain": "geometry",
     "name": "Grid Array",
-    "category": "array",
+    "category": "utility",
     "tags": [
       "geometry",
       "array",
@@ -4465,7 +4460,7 @@
       "2d",
       "transform"
     ],
-    "complexity": "O(n*m)",
+    "complexity": "varies",
     "cost": "medium",
     "pure": true,
     "deterministic": true,
@@ -4478,7 +4473,7 @@
     "id": "geometry.array.geometry",
     "domain": "geometry",
     "name": "Geometry Array",
-    "category": "array",
+    "category": "utility",
     "tags": [
       "geometry",
       "array",
@@ -4668,7 +4663,7 @@
       "distance",
       "2d"
     ],
-    "complexity": "O(n*m)",
+    "complexity": "varies",
     "cost": "medium",
     "pure": true,
     "deterministic": true,
@@ -4689,7 +4684,7 @@
       "distance",
       "curve"
     ],
-    "complexity": "O(n*m)",
+    "complexity": "varies",
     "cost": "medium",
     "pure": true,
     "deterministic": true,
@@ -4702,7 +4697,7 @@
     "id": "math.wave.sine",
     "domain": "math",
     "name": "Sine Wave",
-    "category": "wave",
+    "category": "primitive",
     "tags": [
       "math",
       "wave",
@@ -4722,7 +4717,7 @@
     "id": "math.wave.cosine",
     "domain": "math",
     "name": "Cosine Wave",
-    "category": "wave",
+    "category": "primitive",
     "tags": [
       "math",
       "wave",
@@ -4742,7 +4737,7 @@
     "id": "math.wave.sawtooth",
     "domain": "math",
     "name": "Sawtooth Wave",
-    "category": "wave",
+    "category": "primitive",
     "tags": [
       "math",
       "wave",
@@ -4762,7 +4757,7 @@
     "id": "math.wave.triangle",
     "domain": "math",
     "name": "Triangle Wave",
-    "category": "wave",
+    "category": "primitive",
     "tags": [
       "math",
       "wave",
@@ -4782,7 +4777,7 @@
     "id": "math.wave.square",
     "domain": "math",
     "name": "Square Wave",
-    "category": "wave",
+    "category": "primitive",
     "tags": [
       "math",
       "wave",
@@ -4802,7 +4797,7 @@
     "id": "geometry.field.transform",
     "domain": "geometry",
     "name": "Field Transformation",
-    "category": "field",
+    "category": "analysis",
     "tags": [
       "geometry",
       "field",
@@ -4821,7 +4816,7 @@
     "id": "geometry.field.movePoint",
     "domain": "geometry",
     "name": "Move Point",
-    "category": "field",
+    "category": "analysis",
     "tags": [
       "geometry",
       "field",
@@ -4841,7 +4836,7 @@
     "id": "geometry.field.movePointByVector",
     "domain": "geometry",
     "name": "Move Point By Vector",
-    "category": "field",
+    "category": "analysis",
     "tags": [
       "geometry",
       "field",
@@ -4862,7 +4857,7 @@
     "id": "geometry.field.rotateVectorAxis",
     "domain": "geometry",
     "name": "Rotate Vector Axis",
-    "category": "field",
+    "category": "analysis",
     "tags": [
       "geometry",
       "field",
@@ -4883,7 +4878,7 @@
     "id": "geometry.field.mirrorVector",
     "domain": "geometry",
     "name": "Mirror Vector",
-    "category": "field",
+    "category": "analysis",
     "tags": [
       "geometry",
       "field",
