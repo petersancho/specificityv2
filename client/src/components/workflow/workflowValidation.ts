@@ -391,27 +391,6 @@ const validators: Record<string, NodeValidator> = {
     if (resolution <= 0) return true;
     return false;
   },
-  biologicalSolver: (data) => {
-    const parameters = data.parameters;
-    if (!parameters) return false;
-    if (
-      isInvalidNumberParameter(parameters, "fitnessBias") ||
-      isInvalidNumberParameter(parameters, "populationSize") ||
-      isInvalidNumberParameter(parameters, "generations") ||
-      isInvalidNumberParameter(parameters, "mutationRate") ||
-      isInvalidNumberParameter(parameters, "seed")
-    ) {
-      return true;
-    }
-    const populationSize = parseFiniteNumber(parameters.populationSize) ?? 32;
-    const generations = parseFiniteNumber(parameters.generations) ?? 24;
-    const mutationRate = parseFiniteNumber(parameters.mutationRate) ?? 0.18;
-    if (populationSize <= 0) return true;
-    if (generations <= 0) return true;
-    if (mutationRate <= 0 || mutationRate > 1) return true;
-    return false;
-  },
-  biologicalEvolutionSolver: () => false,
   listItem: (data) => isInvalidNumberParameter(data.parameters, "index"),
   listPartition: (data) => {
     const parameters = data.parameters;

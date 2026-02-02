@@ -1649,21 +1649,6 @@ const DocumentationPhilosophy = ({ onNavigate }: DocumentationNarrativeProps) =>
         </p>
         <div className={pageStyles.conceptGrid}>
           <div className={pageStyles.conceptCard}>
-            <h3>Biological Solver</h3>
-            <p>
-              Evolutionary search driven by genes, morphogenesis, growth, and homeostasis. Best
-              for exploring emergent form.
-            </p>
-            <div className={pageStyles.cardActions}>
-              <WebGLButton
-                label="Open Biological Solver"
-                variant="ghost"
-                size="sm"
-                onClick={() => onNavigate({ kind: "numerica", id: "biologicalSolver" })}
-              />
-            </div>
-          </div>
-          <div className={pageStyles.conceptCard}>
             <h3>Physics Solver</h3>
             <p>
               Equilibrium, forces, and material response. Use anchor, load, stiffness, and volume
