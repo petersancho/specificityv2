@@ -1,0 +1,284 @@
+{
+  "point": [
+    "command.createPoint"
+  ],
+  "line": [
+    "command.createLine"
+  ],
+  "polyline": [
+    "command.createPolyline"
+  ],
+  "rectangle": [
+    "command.createRectangle"
+  ],
+  "circle": [
+    "command.createCircle"
+  ],
+  "arc": [
+    "command.createArc"
+  ],
+  "curve": [
+    "command.createCurve"
+  ],
+  "box": [
+    "command.createPrimitive"
+  ],
+  "sphere": [
+    "command.createPrimitive"
+  ],
+  "cylinder": [
+    "command.createPrimitive"
+  ],
+  "cone": [
+    "command.createPrimitive"
+  ],
+  "torus": [
+    "command.createPrimitive"
+  ],
+  "plane": [
+    "command.createPrimitive"
+  ],
+  "tube": [
+    "command.createPrimitive"
+  ],
+  "pyramid": [
+    "command.createPrimitive"
+  ],
+  "tetrahedron": [
+    "command.createPrimitive"
+  ],
+  "octahedron": [
+    "command.createPrimitive"
+  ],
+  "dodecahedron": [
+    "command.createPrimitive"
+  ],
+  "icosahedron": [
+    "command.createPrimitive"
+  ],
+  "hemisphere": [
+    "command.createPrimitive"
+  ],
+  "capsule": [
+    "command.createPrimitive"
+  ],
+  "disk": [
+    "command.createPrimitive"
+  ],
+  "ring": [
+    "command.createPrimitive"
+  ],
+  "triangular-prism": [
+    "command.createPrimitive"
+  ],
+  "hexagonal-prism": [
+    "command.createPrimitive"
+  ],
+  "pentagonal-prism": [
+    "command.createPrimitive"
+  ],
+  "torus-knot": [
+    "command.createPrimitive"
+  ],
+  "utah-teapot": [
+    "command.createPrimitive"
+  ],
+  "frustum": [
+    "command.createPrimitive"
+  ],
+  "mobius-strip": [
+    "command.createPrimitive"
+  ],
+  "ellipsoid": [
+    "command.createPrimitive"
+  ],
+  "wedge": [
+    "command.createPrimitive"
+  ],
+  "spherical-cap": [
+    "command.createPrimitive"
+  ],
+  "bipyramid": [
+    "command.createPrimitive"
+  ],
+  "rhombic-dodecahedron": [
+    "command.createPrimitive"
+  ],
+  "truncated-cube": [
+    "command.createPrimitive"
+  ],
+  "truncated-octahedron": [
+    "command.createPrimitive"
+  ],
+  "truncated-icosahedron": [
+    "command.createPrimitive"
+  ],
+  "pipe": [
+    "command.createPrimitive"
+  ],
+  "superellipsoid": [
+    "command.createPrimitive"
+  ],
+  "hyperbolic-paraboloid": [
+    "command.createPrimitive"
+  ],
+  "geodesic-dome": [
+    "command.createPrimitive"
+  ],
+  "one-sheet-hyperboloid": [
+    "command.createPrimitive"
+  ],
+  "nurbsbox": [
+    "command.createNurbsBox"
+  ],
+  "nurbssphere": [
+    "command.createNurbsSphere"
+  ],
+  "nurbscylinder": [
+    "command.createNurbsCylinder"
+  ],
+  "boolean": [
+    "command.boolean"
+  ],
+  "loft": [
+    "command.loft"
+  ],
+  "surface": [
+    "command.surface"
+  ],
+  "extrude": [
+    "command.extrude"
+  ],
+  "meshmerge": [
+    "command.meshMerge"
+  ],
+  "meshflip": [
+    "command.meshFlip"
+  ],
+  "meshthicken": [
+    "command.meshThicken"
+  ],
+  "morph": [
+    "command.morph"
+  ],
+  "meshconvert": [
+    "command.meshConvert"
+  ],
+  "breptomesh": [
+    "command.brepToMesh"
+  ],
+  "meshtobrep": [
+    "command.meshToBrep"
+  ],
+  "nurbsrestore": [
+    "command.nurbsRestore"
+  ],
+  "interpolate": [
+    "command.interpolate"
+  ],
+  "move": [
+    "command.move"
+  ],
+  "rotate": [
+    "command.rotate"
+  ],
+  "scale": [
+    "command.scale"
+  ],
+  "offset": [
+    "command.offset"
+  ],
+  "mirror": [
+    "command.mirror"
+  ],
+  "array": [
+    "command.array"
+  ],
+  "transform": [
+    "command.transform"
+  ],
+  "undo": [
+    "command.undo"
+  ],
+  "redo": [
+    "command.redo"
+  ],
+  "copy": [
+    "command.copy"
+  ],
+  "paste": [
+    "command.paste"
+  ],
+  "duplicate": [
+    "command.duplicate"
+  ],
+  "delete": [
+    "command.delete"
+  ],
+  "cancel": [
+    "command.cancel"
+  ],
+  "confirm": [
+    "command.confirm"
+  ],
+  "gumball": [
+    "command.gumball"
+  ],
+  "focus": [
+    "command.focus"
+  ],
+  "frameall": [
+    "command.frameAll"
+  ],
+  "screenshot": [
+    "command.screenshot"
+  ],
+  "view": [
+    "command.view"
+  ],
+  "camera": [
+    "command.camera"
+  ],
+  "pivot": [
+    "command.pivot"
+  ],
+  "orbit": [
+    "command.orbit"
+  ],
+  "pan": [
+    "command.pan"
+  ],
+  "zoom": [
+    "command.zoom"
+  ],
+  "selectionfilter": [
+    "command.selectionFilter"
+  ],
+  "cycle": [
+    "command.cycle"
+  ],
+  "snapping": [
+    "command.snapping"
+  ],
+  "grid": [
+    "command.grid"
+  ],
+  "cplane": [
+    "command.cplane"
+  ],
+  "display": [
+    "command.display"
+  ],
+  "isolate": [
+    "command.isolate"
+  ],
+  "outliner": [
+    "command.outliner"
+  ],
+  "tolerance": [
+    "command.tolerance"
+  ],
+  "status": [
+    "command.status"
+  ]
+}

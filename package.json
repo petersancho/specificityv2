@@ -13,7 +13,9 @@
     "build": "npm run build -w client && npm run build -w server",
     "lint": "npm run lint -w client && npm run lint -w server",
     "validate:semantic": "tsx scripts/validateSemanticLinkage.ts",
-    "precommit": "npm run validate:semantic"
+    "validate:commands": "tsx scripts/validateCommandSemantics.ts",
+    "validate:all": "npm run validate:semantic && npm run validate:commands",
+    "precommit": "npm run validate:all"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",

@@ -21,7 +21,8 @@ export type SemanticDomain =
   | 'string'        // String operations (concat, split, etc.)
   | 'color'         // Color operations (hex↔rgb, blend, etc.)
   | 'solver'        // Solver operations (physics, chemistry, etc.)
-  | 'workflow';     // Workflow operations (literal, identity, etc.)
+  | 'workflow'      // Workflow operations (literal, identity, etc.)
+  | 'command';      // Roslyn command operations (UI-triggered operations)
 
 /**
  * Category of an operation (within its domain)
@@ -36,7 +37,11 @@ export type OpCategory =
   | 'io'             // Import/export operations
   | 'operator'       // Binary/unary operators (math, logic)
   | 'aggregation'    // Aggregates multiple values (sum, max, etc.)
-  | 'control';       // Control flow (if, switch, etc.)
+  | 'control'        // Control flow (if, switch, etc.)
+  | 'creation'       // Creates new geometry (command domain)
+  | 'operation'      // Performs operations on geometry (command domain)
+  | 'conversion'     // Converts between representations (command domain)
+  | 'ui';            // UI/interaction operations (command domain)
 
 /**
  * Tags for fine-grained semantic classification
@@ -76,6 +81,89 @@ export type OpTag =
   // Color tags
   | 'colorspace'     // Color space conversions
   | 'blending'       // Color blending
+  // Command tags
+  | 'geometry'       // Geometry operations
+  | 'point'          // Point operations
+  | 'vertex'         // Vertex operations
+  | 'line'           // Line operations
+  | 'polyline'       // Polyline operations
+  | 'rectangle'      // Rectangle operations
+  | 'polygon'        // Polygon operations
+  | 'circle'         // Circle operations
+  | 'arc'            // Arc operations
+  | 'freeform'       // Freeform operations
+  | 'primitive'      // Primitive operations
+  | 'box'            // Box operations
+  | 'sphere'         // Sphere operations
+  | 'cylinder'       // Cylinder operations
+  | 'csg'            // CSG operations
+  | 'loft'           // Loft operations
+  | 'fill'           // Fill operations
+  | 'extrude'        // Extrude operations
+  | 'solid'          // Solid operations
+  | 'merge'          // Merge operations
+  | 'flip'           // Flip operations
+  | 'normals'        // Normal operations
+  | 'thicken'        // Thicken operations
+  | 'offset'         // Offset operations
+  | 'interpolate'    // Interpolate operations
+  | 'translate'      // Translate operations
+  | 'rotate'         // Rotate operations
+  | 'scale'          // Scale operations
+  | 'mirror'         // Mirror operations
+  | 'replicate'      // Replicate operations
+  | 'gumball'        // Gumball operations
+  | 'sculpt'         // Sculpt operations
+  | 'deform'         // Deform operations
+  | 'history'        // History operations
+  | 'undo'           // Undo operations
+  | 'redo'           // Redo operations
+  | 'clipboard'      // Clipboard operations
+  | 'copy'           // Copy operations
+  | 'paste'          // Paste operations
+  | 'duplicate'      // Duplicate operations
+  | 'edit'           // Edit operations
+  | 'delete'         // Delete operations
+  | 'control'        // Control operations
+  | 'cancel'         // Cancel operations
+  | 'confirm'        // Confirm operations
+  | 'widget'         // Widget operations
+  | 'view'           // View operations
+  | 'focus'          // Focus operations
+  | 'frame'          // Frame operations
+  | 'all'            // All operations
+  | 'export'         // Export operations
+  | 'screenshot'     // Screenshot operations
+  | 'image'          // Image operations
+  | 'camera'         // Camera operations
+  | 'preset'         // Preset operations
+  | 'settings'       // Settings operations
+  | 'origin'         // Origin operations
+  | 'orbit'          // Orbit operations
+  | 'pan'            // Pan operations
+  | 'zoom'           // Zoom operations
+  | 'selection'      // Selection operations
+  | 'filter'         // Filter operations
+  | 'cycle'          // Cycle operations
+  | 'snap'           // Snap operations
+  | 'grid'           // Grid operations
+  | 'precision'      // Precision operations
+  | 'cplane'         // C-plane operations
+  | 'construction'   // Construction operations
+  | 'plane'          // Plane operations
+  | 'display'        // Display operations
+  | 'shading'        // Shading operations
+  | 'wireframe'      // Wireframe operations
+  | 'visibility'     // Visibility operations
+  | 'isolate'        // Isolate operations
+  | 'hide'           // Hide operations
+  | 'outliner'       // Outliner operations
+  | 'hierarchy'      // Hierarchy operations
+  | 'layers'         // Layers operations
+  | 'tolerance'      // Tolerance operations
+  | 'help'           // Help operations
+  | 'ui'             // UI operations
+  | 'state'          // State operations
   // General tags
   | 'pure'           // Pure function (no side effects)
   | 'deterministic'  // Deterministic (same input → same output)
@@ -111,7 +199,11 @@ export type SideEffect =
   | 'gpu'            // GPU computation
   | 'threading'      // Multi-threading
   | 'random'         // Uses randomness
-  | 'time';          // Uses current time
+  | 'time'           // Uses current time
+  | 'state'          // Modifies application state
+  | 'camera'         // Modifies camera state
+  | 'ui'             // Modifies UI state
+  | 'clipboard';     // Modifies clipboard
 
 /**
  * Metadata for a semantic operation

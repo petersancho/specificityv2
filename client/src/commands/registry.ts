@@ -505,7 +505,7 @@ const BASE_COMMAND_ALIASES: Record<string, string> = {
   unmesh: "nurbsrestore",
 };
 
-const COMMAND_ALIASES: Record<string, string> = {
+export const COMMAND_ALIASES: Record<string, string> = {
   ...BASE_COMMAND_ALIASES,
   ...Object.fromEntries(PRIMITIVE_COMMAND_ALIAS_ENTRIES),
 };

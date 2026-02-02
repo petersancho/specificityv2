@@ -13,7 +13,8 @@ const allOpIds = [];
 
 for (const file of files) {
   const content = fs.readFileSync(path.join(opsDir, file), 'utf8');
-  const idMatches = content.matchAll(/id: '([^']+)'/g);
+  // Match both single and double quotes
+  const idMatches = content.matchAll(/id: ['"]([^'"]+)['"]/g);
   for (const match of idMatches) {
     allOpIds.push(match[1]);
   }
@@ -34,7 +35,8 @@ for (const file of geometryFiles) {
   const filePath = path.join(__dirname, '..', 'client', 'src', 'geometry', file);
   if (fs.existsSync(filePath)) {
     const content = fs.readFileSync(filePath, 'utf8');
-    const idMatches = content.matchAll(/id: '([^']+)'/g);
+    // Match both single and double quotes
+    const idMatches = content.matchAll(/id: ['"]([^'"]+)['"]/g);
     for (const match of idMatches) {
       if (!allOpIds.includes(match[1])) {
         allOpIds.push(match[1]);

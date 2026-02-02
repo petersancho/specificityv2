@@ -1,0 +1,1012 @@
+{
+  "commands": [
+    {
+      "id": "point",
+      "label": "Point",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPoint"
+        ]
+      }
+    },
+    {
+      "id": "box",
+      "label": "Box",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPrimitive"
+        ]
+      }
+    },
+    {
+      "id": "sphere",
+      "label": "Sphere",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPrimitive"
+        ]
+      }
+    },
+    {
+      "id": "cylinder",
+      "label": "Cylinder",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPrimitive"
+        ]
+      }
+    },
+    {
+      "id": "torus",
+      "label": "Torus",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPrimitive"
+        ]
+      }
+    },
+    {
+      "id": "pyramid",
+      "label": "Pyramid",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPrimitive"
+        ]
+      }
+    },
+    {
+      "id": "tetrahedron",
+      "label": "Tetrahedron",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPrimitive"
+        ]
+      }
+    },
+    {
+      "id": "octahedron",
+      "label": "Octahedron",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPrimitive"
+        ]
+      }
+    },
+    {
+      "id": "icosahedron",
+      "label": "Icosahedron",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPrimitive"
+        ]
+      }
+    },
+    {
+      "id": "dodecahedron",
+      "label": "Dodecahedron",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPrimitive"
+        ]
+      }
+    },
+    {
+      "id": "hemisphere",
+      "label": "Hemisphere",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPrimitive"
+        ]
+      }
+    },
+    {
+      "id": "capsule",
+      "label": "Capsule",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPrimitive"
+        ]
+      }
+    },
+    {
+      "id": "disk",
+      "label": "Disk",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPrimitive"
+        ]
+      }
+    },
+    {
+      "id": "ring",
+      "label": "Ring / Annulus",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPrimitive"
+        ]
+      }
+    },
+    {
+      "id": "triangular-prism",
+      "label": "Triangular Prism",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPrimitive"
+        ]
+      }
+    },
+    {
+      "id": "hexagonal-prism",
+      "label": "Hexagonal Prism",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPrimitive"
+        ]
+      }
+    },
+    {
+      "id": "pentagonal-prism",
+      "label": "Pentagonal Prism",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPrimitive"
+        ]
+      }
+    },
+    {
+      "id": "torus-knot",
+      "label": "Torus Knot",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPrimitive"
+        ]
+      }
+    },
+    {
+      "id": "utah-teapot",
+      "label": "Utah Teapot",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPrimitive"
+        ]
+      }
+    },
+    {
+      "id": "frustum",
+      "label": "Frustum",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPrimitive"
+        ]
+      }
+    },
+    {
+      "id": "mobius-strip",
+      "label": "Mobius Strip",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPrimitive"
+        ]
+      }
+    },
+    {
+      "id": "ellipsoid",
+      "label": "Ellipsoid",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPrimitive"
+        ]
+      }
+    },
+    {
+      "id": "wedge",
+      "label": "Wedge",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPrimitive"
+        ]
+      }
+    },
+    {
+      "id": "spherical-cap",
+      "label": "Spherical Cap / Dome",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPrimitive"
+        ]
+      }
+    },
+    {
+      "id": "bipyramid",
+      "label": "Bipyramid",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPrimitive"
+        ]
+      }
+    },
+    {
+      "id": "rhombic-dodecahedron",
+      "label": "Rhombic Dodecahedron",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPrimitive"
+        ]
+      }
+    },
+    {
+      "id": "truncated-cube",
+      "label": "Truncated Cube",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPrimitive"
+        ]
+      }
+    },
+    {
+      "id": "truncated-octahedron",
+      "label": "Truncated Octahedron",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPrimitive"
+        ]
+      }
+    },
+    {
+      "id": "truncated-icosahedron",
+      "label": "Truncated Icosahedron",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPrimitive"
+        ]
+      }
+    },
+    {
+      "id": "pipe",
+      "label": "Pipe / Hollow Cylinder",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPrimitive"
+        ]
+      }
+    },
+    {
+      "id": "superellipsoid",
+      "label": "Superellipsoid",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPrimitive"
+        ]
+      }
+    },
+    {
+      "id": "hyperbolic-paraboloid",
+      "label": "Hyperbolic Paraboloid",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPrimitive"
+        ]
+      }
+    },
+    {
+      "id": "geodesic-dome",
+      "label": "Geodesic Dome",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPrimitive"
+        ]
+      }
+    },
+    {
+      "id": "one-sheet-hyperboloid",
+      "label": "One-Sheet Hyperboloid",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPrimitive"
+        ]
+      }
+    },
+    {
+      "id": "line",
+      "label": "Line",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createLine"
+        ]
+      }
+    },
+    {
+      "id": "polyline",
+      "label": "Polyline",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createPolyline"
+        ]
+      }
+    },
+    {
+      "id": "rectangle",
+      "label": "Rectangle",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createRectangle"
+        ]
+      }
+    },
+    {
+      "id": "circle",
+      "label": "Circle",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createCircle"
+        ]
+      }
+    },
+    {
+      "id": "arc",
+      "label": "Arc",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createArc"
+        ]
+      }
+    },
+    {
+      "id": "curve",
+      "label": "Curve",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createCurve"
+        ]
+      }
+    },
+    {
+      "id": "nurbsbox",
+      "label": "NURBS Box",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createNurbsBox"
+        ]
+      }
+    },
+    {
+      "id": "nurbssphere",
+      "label": "NURBS Sphere",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createNurbsSphere"
+        ]
+      }
+    },
+    {
+      "id": "nurbscylinder",
+      "label": "NURBS Cylinder",
+      "category": "geometry",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.createNurbsCylinder"
+        ]
+      }
+    },
+    {
+      "id": "meshconvert",
+      "label": "NURBS to Mesh",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.meshConvert"
+        ]
+      }
+    },
+    {
+      "id": "breptomesh",
+      "label": "B-Rep to Mesh",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.brepToMesh"
+        ]
+      }
+    },
+    {
+      "id": "meshtobrep",
+      "label": "Mesh to B-Rep",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.meshToBrep"
+        ]
+      }
+    },
+    {
+      "id": "nurbsrestore",
+      "label": "Mesh to NURBS",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.nurbsRestore"
+        ]
+      }
+    },
+    {
+      "id": "interpolate",
+      "label": "Interpolate",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.interpolate"
+        ]
+      }
+    },
+    {
+      "id": "boolean",
+      "label": "Boolean",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.boolean"
+        ]
+      }
+    },
+    {
+      "id": "loft",
+      "label": "Loft",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.loft"
+        ]
+      }
+    },
+    {
+      "id": "surface",
+      "label": "Surface",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.surface"
+        ]
+      }
+    },
+    {
+      "id": "extrude",
+      "label": "Extrude",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.extrude"
+        ]
+      }
+    },
+    {
+      "id": "meshmerge",
+      "label": "Mesh Merge",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.meshMerge"
+        ]
+      }
+    },
+    {
+      "id": "meshflip",
+      "label": "Mesh Flip",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.meshFlip"
+        ]
+      }
+    },
+    {
+      "id": "meshthicken",
+      "label": "Mesh Thicken",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.meshThicken"
+        ]
+      }
+    },
+    {
+      "id": "transform",
+      "label": "Transform",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.transform"
+        ]
+      }
+    },
+    {
+      "id": "move",
+      "label": "Move",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.move"
+        ]
+      }
+    },
+    {
+      "id": "rotate",
+      "label": "Rotate",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.rotate"
+        ]
+      }
+    },
+    {
+      "id": "scale",
+      "label": "Scale",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.scale"
+        ]
+      }
+    },
+    {
+      "id": "offset",
+      "label": "Offset",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.offset"
+        ]
+      }
+    },
+    {
+      "id": "mirror",
+      "label": "Mirror",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.mirror"
+        ]
+      }
+    },
+    {
+      "id": "array",
+      "label": "Array",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.array"
+        ]
+      }
+    },
+    {
+      "id": "gumball",
+      "label": "Gumball",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.gumball"
+        ]
+      }
+    },
+    {
+      "id": "undo",
+      "label": "Undo",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.undo"
+        ]
+      }
+    },
+    {
+      "id": "redo",
+      "label": "Redo",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.redo"
+        ]
+      }
+    },
+    {
+      "id": "copy",
+      "label": "Copy",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.copy"
+        ]
+      }
+    },
+    {
+      "id": "paste",
+      "label": "Paste",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.paste"
+        ]
+      }
+    },
+    {
+      "id": "duplicate",
+      "label": "Duplicate",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.duplicate"
+        ]
+      }
+    },
+    {
+      "id": "delete",
+      "label": "Delete",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.delete"
+        ]
+      }
+    },
+    {
+      "id": "cancel",
+      "label": "Cancel",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.cancel"
+        ]
+      }
+    },
+    {
+      "id": "confirm",
+      "label": "Confirm",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.confirm"
+        ]
+      }
+    },
+    {
+      "id": "focus",
+      "label": "Focus",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.focus"
+        ]
+      }
+    },
+    {
+      "id": "frameall",
+      "label": "Frame All",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.frameAll"
+        ]
+      }
+    },
+    {
+      "id": "screenshot",
+      "label": "Screenshot",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.screenshot"
+        ]
+      }
+    },
+    {
+      "id": "view",
+      "label": "View",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.view"
+        ]
+      }
+    },
+    {
+      "id": "camera",
+      "label": "Camera",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.camera"
+        ]
+      }
+    },
+    {
+      "id": "pivot",
+      "label": "Pivot",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.pivot"
+        ]
+      }
+    },
+    {
+      "id": "orbit",
+      "label": "Orbit",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.orbit"
+        ]
+      }
+    },
+    {
+      "id": "pan",
+      "label": "Pan",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.pan"
+        ]
+      }
+    },
+    {
+      "id": "zoom",
+      "label": "Zoom",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.zoom"
+        ]
+      }
+    },
+    {
+      "id": "selectionfilter",
+      "label": "Selection Filter",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.selectionFilter"
+        ]
+      }
+    },
+    {
+      "id": "cycle",
+      "label": "Cycle Selection",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.cycle"
+        ]
+      }
+    },
+    {
+      "id": "snapping",
+      "label": "Snapping",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.snapping"
+        ]
+      }
+    },
+    {
+      "id": "grid",
+      "label": "Grid",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.grid"
+        ]
+      }
+    },
+    {
+      "id": "cplane",
+      "label": "C-Plane",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.cplane"
+        ]
+      }
+    },
+    {
+      "id": "display",
+      "label": "Display",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.display"
+        ]
+      }
+    },
+    {
+      "id": "isolate",
+      "label": "Isolate",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.isolate"
+        ]
+      }
+    },
+    {
+      "id": "outliner",
+      "label": "Outliner",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.outliner"
+        ]
+      }
+    },
+    {
+      "id": "tolerance",
+      "label": "Tolerance",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.tolerance"
+        ]
+      }
+    },
+    {
+      "id": "status",
+      "label": "Status",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.status"
+        ]
+      }
+    },
+    {
+      "id": "morph",
+      "label": "Morph",
+      "category": "performs",
+      "semantic": {
+        "kind": "operation",
+        "ops": [
+          "command.morph"
+        ]
+      }
+    }
+  ],
+  "statistics": {
+    "totalCommands": 91,
+    "commandsWithSemantics": 91,
+    "commandsWithoutSemantics": 0,
+    "totalAliases": 159,
+    "totalOpReferences": 94
+  }
+}

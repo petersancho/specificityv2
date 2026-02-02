@@ -25,7 +25,7 @@ jobs:
         run: npm ci
       
       - name: Run semantic validation
-        run: npm run validate:semantic
+        run: npm run validate:all
       
       - name: Upload semantic documentation
         if: success()
