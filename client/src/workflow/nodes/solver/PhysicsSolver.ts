@@ -256,11 +256,30 @@ export const PhysicsSolverNode: WorkflowNodeDefinition = {
       throw new Error(`Physics solver failed: ${finalResult.errors.join(", ")}`);
     }
 
-    const geometryId = typeof parameters.geometryId === "string" ? parameters.geometryId : null;
+    // Register the deformed mesh as geometry
+    const outputMesh = finalResult.deformedMesh ?? mesh;
+    const geometryId = `${context.nodeId}:physics-mesh:${Date.now()}`;
+    const meshGeometry: Geometry = {
+      id: geometryId,
+      type: "mesh",
+      mesh: outputMesh,
+      layerId: "default",
+      sourceNodeId: context.nodeId,
+      metadata: {
+        solver: "PhysicsSolver",
+        analysisType: analysisType,
+        iterations: finalResult.iterations,
+        convergence: finalResult.convergenceAchieved,
+        maxStress: finalResult.stressField.length > 0 
+          ? Math.max(...finalResult.stressField) 
+          : 0,
+      },
+    };
+    context.geometryById.set(geometryId, meshGeometry);
 
     return {
       geometry: geometryId,
-      mesh: finalResult.deformedMesh ?? mesh,
+      mesh: outputMesh,
       result: finalResult,
       animation: finalResult.animation ?? null,
       stressField: finalResult.stressField ?? [],
