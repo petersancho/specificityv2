@@ -16,7 +16,9 @@
     "validate:commands": "tsx scripts/validateCommandSemantics.ts",
     "validate:all": "npm run validate:semantic && npm run validate:commands",
     "analyze:semantic": "tsx scripts/comprehensiveSemanticAnalysis.ts",
+    "analyze:coverage": "tsx scripts/analyzeNodeSemanticCoverage.ts",
     "regenerate:node-ops": "node scripts/regenerateNodeSemanticOps.js",
+    "generate:semantic-ids": "node scripts/generateSemanticOpIds.js",
     "precommit": "npm run validate:all"
   },
   "devDependencies": {

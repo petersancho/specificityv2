@@ -1,0 +1,1912 @@
+{
+  "timestamp": "2026-02-02T15:09:55.503Z",
+  "summary": {
+    "totalNodes": 193,
+    "withSemanticOps": 42,
+    "shouldHave": 42,
+    "missing": 0,
+    "coverage": 100
+  },
+  "byCategory": {
+    "unknown": [
+      {
+        "label": "Geometry Reference",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Text",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Group",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Panel",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Text Note",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Slider",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Mesh",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Color Picker",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Custom Material",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Annotations",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Geometry Viewer",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Custom Viewer",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Filter",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Custom Preview",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Metadata Panel",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Mesh Convert",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "NURBS to Mesh",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "B-Rep to Mesh",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "STL Import",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "STL Export",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Origin",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Unit X",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Unit Y",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Unit Z",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Unit XYZ",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Move Vector",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Scale Vector",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "List Create",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "List Length",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "List Item",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "List Index Of",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "List Partition",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "List Flatten",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "List Slice",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "List Reverse",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Range",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Linspace",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Repeat",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Linear Array",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Polar Array",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Grid Array",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Geometry Array",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "List Sum",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "List Average",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "List Min",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "List Max",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "List Median",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "List Std Dev",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Geometry Info",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Dimensions",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Geometry Vertices",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Geometry Edges",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Geometry Faces",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Geometry Normals",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Control Points",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Proximity 3D",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Proximity 2D",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Curve Proximity",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Sine Wave",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Cosine Wave",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Sawtooth Wave",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Triangle Wave",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Square Wave",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Point Cloud",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Arc",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Polyline",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Fillet",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Fillet Edges",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Offset Surface",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Thicken Mesh",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Plasticwrap",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Solid",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Primitive",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Cylinder",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Torus",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Pyramid",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Tetrahedron",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Octahedron",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Icosahedron",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Dodecahedron",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Hemisphere",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Capsule",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Disk",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Ring / Annulus",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Triangular Prism",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Hexagonal Prism",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Pentagonal Prism",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Torus Knot",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Utah Teapot",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Frustum",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Mobius Strip",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Ellipsoid",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Wedge",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Spherical Cap / Dome",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Bipyramid",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Rhombic Dodecahedron",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Truncated Cube",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Truncated Octahedron",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Truncated Icosahedron",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Pipe / Hollow Cylinder",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Superellipsoid",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Hyperbolic Paraboloid",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Geodesic Dome",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "One-Sheet Hyperboloid",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Voxelize Geometry",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Extract Isosurface",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Topology Optimize",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Topology Solver",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Expression",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Scalar Functions",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Toggle Switch",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Conditional Toggle Button",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Conditional",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Vector Compose",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Vector Decompose",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Vector Scale",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Distance",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Vector From Points",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Vector Angle",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Vector Project",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Point Attractor",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Move",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Rotate",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Scale",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Field Transformation",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Move Point",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Move Point By Vector",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Rotate Vector",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Mirror Vector",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Ἐπιλύτης Φυσικῆς",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Ἐπιλύτης Χημείας",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Biological Solver",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Voxelizer",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Σκληρότης",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Ὄγκος",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Βάρος",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Ἄγκυρα",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Material Dashboard",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Τέλος Σκληρότητος",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Τέλος Ἐλαχίστου Ὄγκου",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Τέλος Κράσεως",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Τέλος Διαφανείας",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      },
+      {
+        "label": "Τέλος Ῥοῆς Θερμότητος",
+        "hasSemanticOps": false,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "unknown",
+        "shouldHaveSemanticOps": false,
+        "reason": "Unknown category (needs manual review)"
+      }
+    ],
+    "has-semantic-ops": [
+      {
+        "label": "Mesh to B-Rep",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 1,
+        "semanticOps": [
+          "brep.brepFromMesh"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 1 semantic operations"
+      },
+      {
+        "label": "Subdivide Mesh",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 8,
+        "semanticOps": [
+          "meshTess.getTessellationMetadata",
+          "meshTess.subdivideAdaptive",
+          "meshTess.subdivideCatmullClark",
+          "meshTess.subdivideLinear",
+          "meshTess.subdivideLoop",
+          "meshTess.tessellationMeshToRenderMesh",
+          "meshTess.toTessellationMesh",
+          "meshTess.toTessellationMeshData"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 8 semantic operations"
+      },
+      {
+        "label": "Dual Mesh",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 5,
+        "semanticOps": [
+          "meshTess.dualMesh",
+          "meshTess.getTessellationMetadata",
+          "meshTess.tessellationMeshToRenderMesh",
+          "meshTess.toTessellationMesh",
+          "meshTess.toTessellationMeshData"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 5 semantic operations"
+      },
+      {
+        "label": "Inset Faces",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 5,
+        "semanticOps": [
+          "meshTess.getTessellationMetadata",
+          "meshTess.insetFaces",
+          "meshTess.tessellationMeshToRenderMesh",
+          "meshTess.toTessellationMesh",
+          "meshTess.toTessellationMeshData"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 5 semantic operations"
+      },
+      {
+        "label": "Extrude Faces",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 5,
+        "semanticOps": [
+          "meshTess.extrudeFaces",
+          "meshTess.getTessellationMetadata",
+          "meshTess.tessellationMeshToRenderMesh",
+          "meshTess.toTessellationMesh",
+          "meshTess.toTessellationMeshData"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 5 semantic operations"
+      },
+      {
+        "label": "Mesh Relax",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 5,
+        "semanticOps": [
+          "meshTess.getTessellationMetadata",
+          "meshTess.meshRelax",
+          "meshTess.tessellationMeshToRenderMesh",
+          "meshTess.toTessellationMesh",
+          "meshTess.toTessellationMeshData"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 5 semantic operations"
+      },
+      {
+        "label": "Select Faces",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 3,
+        "semanticOps": [
+          "meshTess.getTessellationMetadata",
+          "meshTess.selectFaces",
+          "meshTess.toTessellationMesh"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 3 semantic operations"
+      },
+      {
+        "label": "Mesh Boolean",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 3,
+        "semanticOps": [
+          "meshTess.meshBoolean",
+          "meshTess.toTessellationMesh",
+          "meshTess.toTessellationMeshData"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 3 semantic operations"
+      },
+      {
+        "label": "Triangulate Mesh",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 5,
+        "semanticOps": [
+          "meshTess.getTessellationMetadata",
+          "meshTess.tessellationMeshToRenderMesh",
+          "meshTess.toTessellationMesh",
+          "meshTess.toTessellationMeshData",
+          "meshTess.triangulateMesh"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 5 semantic operations"
+      },
+      {
+        "label": "Geodesic Sphere",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 3,
+        "semanticOps": [
+          "meshTess.generateGeodesicSphere",
+          "meshTess.tessellationMeshToRenderMesh",
+          "meshTess.toTessellationMeshData"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 3 semantic operations"
+      },
+      {
+        "label": "Voronoi Pattern",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 7,
+        "semanticOps": [
+          "math.computeBestFitPlane",
+          "math.projectPointToPlane",
+          "meshTess.generateVoronoiPattern",
+          "meshTess.getTessellationMetadata",
+          "meshTess.tessellationMeshToRenderMesh",
+          "meshTess.toTessellationMesh",
+          "meshTess.toTessellationMeshData"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 7 semantic operations"
+      },
+      {
+        "label": "Hexagonal Tiling",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 7,
+        "semanticOps": [
+          "math.computeBestFitPlane",
+          "math.projectPointToPlane",
+          "meshTess.generateHexagonalTiling",
+          "meshTess.getTessellationMetadata",
+          "meshTess.tessellationMeshToRenderMesh",
+          "meshTess.toTessellationMesh",
+          "meshTess.toTessellationMeshData"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 7 semantic operations"
+      },
+      {
+        "label": "Offset Pattern",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 5,
+        "semanticOps": [
+          "meshTess.getTessellationMetadata",
+          "meshTess.offsetPattern",
+          "meshTess.tessellationMeshToRenderMesh",
+          "meshTess.toTessellationMesh",
+          "meshTess.toTessellationMeshData"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 5 semantic operations"
+      },
+      {
+        "label": "Mesh Repair",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 5,
+        "semanticOps": [
+          "meshTess.getTessellationMetadata",
+          "meshTess.repairMesh",
+          "meshTess.tessellationMeshToRenderMesh",
+          "meshTess.toTessellationMesh",
+          "meshTess.toTessellationMeshData"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 5 semantic operations"
+      },
+      {
+        "label": "Generate UVs",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 5,
+        "semanticOps": [
+          "meshTess.generateMeshUVs",
+          "meshTess.getTessellationMetadata",
+          "meshTess.tessellationMeshToRenderMesh",
+          "meshTess.toTessellationMesh",
+          "meshTess.toTessellationMeshData"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 5 semantic operations"
+      },
+      {
+        "label": "Mesh Decimate",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 5,
+        "semanticOps": [
+          "meshTess.decimateMesh",
+          "meshTess.getTessellationMetadata",
+          "meshTess.tessellationMeshToRenderMesh",
+          "meshTess.toTessellationMesh",
+          "meshTess.toTessellationMeshData"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 5 semantic operations"
+      },
+      {
+        "label": "Quad Remesh",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 5,
+        "semanticOps": [
+          "meshTess.getTessellationMetadata",
+          "meshTess.quadDominantRemesh",
+          "meshTess.tessellationMeshToRenderMesh",
+          "meshTess.toTessellationMesh",
+          "meshTess.toTessellationMeshData"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 5 semantic operations"
+      },
+      {
+        "label": "Remap",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 1,
+        "semanticOps": [
+          "math.remap"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 1 semantic operations"
+      },
+      {
+        "label": "Random",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 1,
+        "semanticOps": [
+          "math.random"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 1 semantic operations"
+      },
+      {
+        "label": "Measurement",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 1,
+        "semanticOps": [
+          "mesh.computeArea"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 1 semantic operations"
+      },
+      {
+        "label": "Loft",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 1,
+        "semanticOps": [
+          "mesh.generateLoft"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 1 semantic operations"
+      },
+      {
+        "label": "Extrude",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 1,
+        "semanticOps": [
+          "mesh.generateExtrude"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 1 semantic operations"
+      },
+      {
+        "label": "Pipe",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 3,
+        "semanticOps": [
+          "mesh.generateCylinder",
+          "mesh.generatePipe",
+          "mesh.generateSphere"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 3 semantic operations"
+      },
+      {
+        "label": "Pipe Merge",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 1,
+        "semanticOps": [
+          "mesh.generateSphere"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 1 semantic operations"
+      },
+      {
+        "label": "Boolean",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 2,
+        "semanticOps": [
+          "mesh.generateBox",
+          "mesh.computeVertexNormals"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 2 semantic operations"
+      },
+      {
+        "label": "Offset",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 5,
+        "semanticOps": [
+          "boolean.offsetPolyline2D",
+          "curve.resampleByArcLength",
+          "math.computeBestFitPlane",
+          "math.projectPointToPlane",
+          "math.unprojectPointFromPlane"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 5 semantic operations"
+      },
+      {
+        "label": "Ἐπιλύτης Χημείας",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 1,
+        "semanticOps": [
+          "solver.chemistry"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 1 semantic operations"
+      },
+      {
+        "label": "Number",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 1,
+        "semanticOps": [
+          "workflow.literal"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 1 semantic operations"
+      },
+      {
+        "label": "Add",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 1,
+        "semanticOps": [
+          "math.add"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 1 semantic operations"
+      },
+      {
+        "label": "Subtract",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 1,
+        "semanticOps": [
+          "math.subtract"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 1 semantic operations"
+      },
+      {
+        "label": "Multiply",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 1,
+        "semanticOps": [
+          "math.multiply"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 1 semantic operations"
+      },
+      {
+        "label": "Divide",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 1,
+        "semanticOps": [
+          "math.divide"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 1 semantic operations"
+      },
+      {
+        "label": "Clamp",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 1,
+        "semanticOps": [
+          "math.clamp"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 1 semantic operations"
+      },
+      {
+        "label": "Min",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 1,
+        "semanticOps": [
+          "math.min"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 1 semantic operations"
+      },
+      {
+        "label": "Max",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 1,
+        "semanticOps": [
+          "math.max"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 1 semantic operations"
+      },
+      {
+        "label": "Vector Add",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 1,
+        "semanticOps": [
+          "vector.add"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 1 semantic operations"
+      },
+      {
+        "label": "Vector Subtract",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 1,
+        "semanticOps": [
+          "vector.subtract"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 1 semantic operations"
+      },
+      {
+        "label": "Vector Length",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 1,
+        "semanticOps": [
+          "vector.length"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 1 semantic operations"
+      },
+      {
+        "label": "Vector Normalize",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 1,
+        "semanticOps": [
+          "vector.normalize"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 1 semantic operations"
+      },
+      {
+        "label": "Vector Dot",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 1,
+        "semanticOps": [
+          "vector.dot"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 1 semantic operations"
+      },
+      {
+        "label": "Vector Cross",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 1,
+        "semanticOps": [
+          "vector.cross"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 1 semantic operations"
+      },
+      {
+        "label": "Vector Lerp",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 1,
+        "semanticOps": [
+          "vector.lerp"
+        ],
+        "category": "has-semantic-ops",
+        "shouldHaveSemanticOps": true,
+        "reason": "Has 1 semantic operations"
+      }
+    ],
+    "declarative-primitive": [
+      {
+        "label": "Point Generator",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "declarative-primitive",
+        "shouldHaveSemanticOps": false,
+        "reason": "Declarative primitive (no operations)"
+      },
+      {
+        "label": "Line",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "declarative-primitive",
+        "shouldHaveSemanticOps": false,
+        "reason": "Declarative primitive (no operations)"
+      },
+      {
+        "label": "Rectangle",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "declarative-primitive",
+        "shouldHaveSemanticOps": false,
+        "reason": "Declarative primitive (no operations)"
+      },
+      {
+        "label": "Circle",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "declarative-primitive",
+        "shouldHaveSemanticOps": false,
+        "reason": "Declarative primitive (no operations)"
+      },
+      {
+        "label": "Curve",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "declarative-primitive",
+        "shouldHaveSemanticOps": false,
+        "reason": "Declarative primitive (no operations)"
+      },
+      {
+        "label": "Surface",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "declarative-primitive",
+        "shouldHaveSemanticOps": false,
+        "reason": "Declarative primitive (no operations)"
+      },
+      {
+        "label": "Box Builder",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "declarative-primitive",
+        "shouldHaveSemanticOps": false,
+        "reason": "Declarative primitive (no operations)"
+      },
+      {
+        "label": "Sphere",
+        "hasSemanticOps": true,
+        "semanticOpsCount": 0,
+        "semanticOps": [],
+        "category": "declarative-primitive",
+        "shouldHaveSemanticOps": false,
+        "reason": "Declarative primitive (no operations)"
+      }
+    ]
+  },
+  "missingSemanticOps": []
+}

@@ -69,6 +69,15 @@ Note: `CharlieAgent.md` and `CharlieAgentPlans.md` are a one-off CamelCase excep
 - Commands + nodes reference: `commands_nodes_reference.md`
 - Ontology treatise prompt: `lingua_ontology_comprehensive_prompt_v2.md`
 
+## Semantic System
+
+**Primary references for semantic operations:**
+
+- **Semantic System: `SEMANTIC_SYSTEM.md`** — Canonical documentation for semantic operation system
+- **Developer Guidelines: `SEMANTIC_OPERATION_GUIDELINES.md`** — Practical guidelines for adding operations
+- **Material Flow Pipeline: `MATERIAL_FLOW_PIPELINE.md`** — Material flow from nodes to rendering
+- Generated documentation: `semantic/` — Auto-generated operation metadata and linkages
+
 ---
 
 ## Solvers & Optimization

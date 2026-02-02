@@ -1,8 +1,12 @@
 # Semantic Operation System - Developer Guidelines
 
+> **📖 Canonical Documentation:** See [`SEMANTIC_SYSTEM.md`](./SEMANTIC_SYSTEM.md) for complete system documentation.
+
 ## Overview
 
-The Semantic Operation System is Lingua's foundation for machine-checkable correctness, automatic documentation generation, and log-scale capability growth. This document provides guidelines for developers working with semantic operations.
+The Semantic Operation System is Lingua's foundation for machine-checkable correctness, automatic documentation generation, and log-scale capability growth. This document provides practical guidelines for developers working with semantic operations.
+
+For architectural overview, philosophy, and complete reference, see [`SEMANTIC_SYSTEM.md`](./SEMANTIC_SYSTEM.md).
 
 ---
 
