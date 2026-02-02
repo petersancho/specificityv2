@@ -9,6 +9,8 @@ type LinguaLogoProps = {
   style?: CSSProperties;
 };
 
+const LINGUA_ACCENT = "#00d4ff"; // Cyan - matches cube's right face
+
 const LinguaLogo = ({ 
   size = 32, 
   withText = false, 
@@ -47,10 +49,10 @@ const LinguaLogo = ({
         fontFamily: '"Montreal Neue", "Space Grotesk", sans-serif',
         fontSize: `${size * 0.5}px`,
         fontWeight: 700,
-        color: "#000000",
+        color: "#1f1f22",
         letterSpacing: "0.02em"
       }}>
-        LINGUA
+        LING<span style={{ color: LINGUA_ACCENT, fontWeight: 800 }}>UA</span>
       </span>
     </div>
   );

@@ -68,9 +68,9 @@ const PALETTE = {
   dotSoft: rgb(18, 16, 12, 0.02),
   glow: rgb(210, 139, 92, 0.06),
   brandText: rgb(18, 16, 12, 0.95),
-  brandAccent: rgb(11, 138, 151, 0.92),
-  brandAccentDeep: rgb(81, 50, 194, 0.92),
-  brandAccentGlow: rgb(11, 138, 151, 0.18),
+  brandAccent: rgb(0, 212, 255, 0.92),        // Cyan - CMYK branding
+  brandAccentDeep: rgb(255, 0, 153, 0.92),    // Magenta - CMYK branding
+  brandAccentGlow: rgb(0, 212, 255, 0.18),    // Cyan glow
   brandShadow: rgb(0, 0, 0, 0.12),
   brandBadgeFill: rgb(250, 248, 244, 1),
   brandBadgeStroke: rgb(190, 186, 181, 1),
