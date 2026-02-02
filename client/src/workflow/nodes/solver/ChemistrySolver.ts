@@ -504,6 +504,13 @@ export const ChemistrySolverNode: WorkflowNodeDefinition = {
     romanization: "Epilýtēs Chēmeías",
   },
   
+  customUI: {
+    dashboardButton: {
+      label: "Open Simulator",
+      component: "ChemistrySimulatorDashboard",
+    },
+  },
+  
   inputs: [
     {
       key: "domain",

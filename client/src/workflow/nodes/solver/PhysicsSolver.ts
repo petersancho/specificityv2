@@ -21,6 +21,14 @@ export const PhysicsSolverNode: WorkflowNodeDefinition = {
     romanization: "Epilýtēs Physikês",
     description: "Computes physical equilibrium states for structural systems.",
   },
+  
+  customUI: {
+    dashboardButton: {
+      label: "Open Simulator",
+      component: "PhysicsSimulatorDashboard",
+    },
+  },
+  
   inputs: [
     {
       key: "goals",

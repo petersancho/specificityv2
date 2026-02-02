@@ -1,0 +1,766 @@
+/* Physics Simulator Dashboard - Pythagoras (Stress Analysis) */
+/* Color Scheme: Magenta (primary), Cyan (secondary), Yellow (accent) */
+
+.dashboard {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10000;
+  background: linear-gradient(150deg, #fef8fb 0%, #f8f9fe 45%, #fffef8 100%);
+  display: flex;
+  flex-direction: column;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  overflow: hidden;
+}
+
+/* Header */
+.header {
+  flex-shrink: 0;
+  background: white;
+  border-bottom: 1px solid #e0e0e0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.headerBar {
+  height: 4px;
+  background: linear-gradient(90deg, #ff0099 0%, #00d4ff 50%, #ffdd00 100%);
+}
+
+.headerContent {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+}
+
+.title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.titleGreek {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #ff0099;
+  letter-spacing: 0.02em;
+}
+
+.titleEnglish {
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.titleSubtext {
+  font-size: 0.75rem;
+  color: #999;
+  font-style: italic;
+}
+
+.headerControls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.scaleControl {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.scaleControl input[type="range"] {
+  width: 100px;
+}
+
+.scaleControl span {
+  min-width: 3rem;
+  text-align: right;
+  font-weight: 500;
+}
+
+.closeButton {
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  background: #f5f5f5;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1.2rem;
+  color: #666;
+  transition: all 0.2s;
+}
+
+.closeButton:hover {
+  background: #ff0099;
+  color: white;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  background: white;
+  border-bottom: 1px solid #e0e0e0;
+  padding: 0 1.5rem;
+  flex-shrink: 0;
+}
+
+.tab {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #666;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.tab:hover {
+  color: #ff0099;
+}
+
+.tabActive {
+  color: #ff0099;
+  border-bottom-color: #ff0099;
+}
+
+/* Content */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+/* Setup Tab */
+.setupTab {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.section {
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.sectionTitle {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 2px solid #ff0099;
+  padding-bottom: 0.5rem;
+}
+
+.analysisTypeGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.analysisTypeButton {
+  border: 2px solid #e0e0e0;
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.analysisTypeButton:hover {
+  border-color: #ff0099;
+  box-shadow: 0 4px 12px rgba(255, 0, 153, 0.15);
+  transform: translateY(-2px);
+}
+
+.analysisTypeButtonActive {
+  border-color: #ff0099;
+  background: linear-gradient(135deg, rgba(255, 0, 153, 0.05) 0%, rgba(0, 212, 255, 0.05) 100%);
+  box-shadow: 0 4px 12px rgba(255, 0, 153, 0.2);
+}
+
+.analysisTypeIcon {
+  font-size: 2rem;
+  color: #ff0099;
+}
+
+.analysisTypeName {
+  font-weight: 600;
+  color: #333;
+  font-size: 1rem;
+}
+
+.analysisTypeDesc {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.materialPropsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.materialPropsGrid label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.materialPropsGrid input[type="number"] {
+  padding: 0.5rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  transition: border-color 0.2s;
+}
+
+.materialPropsGrid input[type="number"]:focus {
+  outline: none;
+  border-color: #ff0099;
+}
+
+.hint {
+  font-size: 0.8rem;
+  color: #ff0099;
+  font-weight: 600;
+}
+
+.twoColumn {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.addButton {
+  padding: 0.5rem 1rem;
+  border: 2px dashed #ff0099;
+  background: rgba(255, 0, 153, 0.05);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #ff0099;
+  transition: all 0.2s;
+  margin-bottom: 1rem;
+}
+
+.addButton:hover {
+  background: rgba(255, 0, 153, 0.1);
+  border-color: #ff0099;
+  transform: translateY(-1px);
+}
+
+.loadButtons,
+.constraintButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.loadList,
+.constraintList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.loadCard,
+.constraintCard {
+  border: 2px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 1rem;
+  background: #fafafa;
+  border-left: 4px solid #ff0099;
+}
+
+.loadHeader,
+.constraintHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.removeButton {
+  width: 1.5rem;
+  height: 1.5rem;
+  border: none;
+  background: #f5f5f5;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #999;
+  transition: all 0.2s;
+}
+
+.removeButton:hover {
+  background: #ff0099;
+  color: white;
+}
+
+.loadControls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.loadControls label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.loadControls input[type="number"] {
+  padding: 0.4rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.vectorInput {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.vectorInput input {
+  flex: 1;
+  padding: 0.4rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.constraintInfo {
+  font-size: 0.85rem;
+  color: #666;
+  font-style: italic;
+}
+
+.solverParamsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.solverParamsGrid label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.solverParamsGrid input[type="number"] {
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+/* Simulator Tab */
+.simulatorTab {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.controlPanel {
+  display: flex;
+  gap: 0.75rem;
+  background: white;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.controlButton {
+  flex: 1;
+  padding: 0.75rem 1.5rem;
+  border: 2px solid #ff0099;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #ff0099;
+  transition: all 0.2s;
+}
+
+.controlButton:hover:not(:disabled) {
+  background: #ff0099;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 0, 153, 0.3);
+}
+
+.controlButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.statCard {
+  background: white;
+  border-radius: 8px;
+  padding: 1.25rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border-left: 4px solid #ff0099;
+}
+
+.statLabel {
+  font-size: 0.85rem;
+  color: #666;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.statValue {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #ff0099;
+}
+
+.mainVisualization {
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.visualizationCard h4 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 0.5rem;
+}
+
+.stressPlaceholder {
+  aspect-ratio: 16 / 9;
+  background: linear-gradient(135deg, rgba(255, 0, 153, 0.05) 0%, rgba(0, 212, 255, 0.05) 100%);
+  border: 2px dashed #ff0099;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.placeholderText {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #ff0099;
+}
+
+.placeholderSubtext {
+  font-size: 0.85rem;
+  color: #999;
+}
+
+.stressLegend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.legendBar {
+  height: 30px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, 
+    #0066ff 0%, 
+    #00ccff 25%, 
+    #00ff66 50%, 
+    #ffff00 75%, 
+    #ff0000 100%
+  );
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.legendLabels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.secondaryVisualizationGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.visualizationCard {
+  background: white;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.placeholder {
+  aspect-ratio: 16 / 9;
+  background: linear-gradient(135deg, rgba(255, 0, 153, 0.05) 0%, rgba(0, 212, 255, 0.05) 100%);
+  border: 2px dashed #ff0099;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.criticalPoints {
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.criticalPoints h4 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 0.5rem;
+}
+
+.criticalPointsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.criticalPointCard {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(255, 221, 0, 0.1);
+  border: 2px solid #ffdd00;
+  border-radius: 6px;
+}
+
+.criticalPointIcon {
+  font-size: 1.5rem;
+  color: #ffdd00;
+}
+
+.criticalPointInfo {
+  flex: 1;
+}
+
+.criticalPointLabel {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 0.25rem;
+}
+
+.criticalPointValue {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+/* Output Tab */
+.outputTab {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.deformedPreview {
+  aspect-ratio: 16 / 9;
+}
+
+.analysisCard {
+  background: #fafafa;
+  border-radius: 6px;
+  padding: 1rem;
+  border: 1px solid #e0e0e0;
+}
+
+.analysisRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.analysisRow:last-child {
+  border-bottom: none;
+}
+
+.analysisValue {
+  font-weight: 600;
+  color: #ff0099;
+}
+
+.modalGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.modalCard {
+  background: white;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 2px solid #e0e0e0;
+}
+
+.modalCard h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #333;
+  text-align: center;
+}
+
+.modalFrequency {
+  margin-top: 0.75rem;
+  text-align: center;
+  font-weight: 600;
+  color: #ff0099;
+  font-size: 0.9rem;
+}
+
+.safetyCard {
+  background: #fafafa;
+  border-radius: 6px;
+  padding: 1rem;
+  border: 2px solid #ffdd00;
+}
+
+.safetyRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.safetyRow:last-child {
+  border-bottom: none;
+}
+
+.safetyValue {
+  font-weight: 600;
+  color: #333;
+}
+
+.safetyWarning {
+  color: #ffdd00;
+}
+
+.safetyWarningBox {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: rgba(255, 221, 0, 0.1);
+  border: 2px solid #ffdd00;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.exportButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.exportButton {
+  flex: 1;
+  min-width: 200px;
+  padding: 0.75rem 1.5rem;
+  border: 2px solid #00d4ff;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #00d4ff;
+  transition: all 0.2s;
+}
+
+.exportButton:hover {
+  background: #00d4ff;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 212, 255, 0.3);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.setupTab,
+.simulatorTab,
+.outputTab {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Scrollbar */
+.content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.content::-webkit-scrollbar-track {
+  background: #f5f5f5;
+}
+
+.content::-webkit-scrollbar-thumb {
+  background: #ff0099;
+  border-radius: 4px;
+}
+
+.content::-webkit-scrollbar-thumb:hover {
+  background: #e6008a;
+}
