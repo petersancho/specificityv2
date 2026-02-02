@@ -606,8 +606,25 @@ export const ChemistrySolverNode: WorkflowNodeDefinition = {
       throw new Error(`Chemistry solver failed: ${result.errors.join(", ")}`);
     }
     
+    // Register the generated mesh as geometry
+    const geometryId = `${context.nodeId}:chemistry-mesh:${Date.now()}`;
+    const meshGeometry: Geometry = {
+      id: geometryId,
+      type: "mesh",
+      mesh: result.mesh,
+      layerId: "default",
+      sourceNodeId: context.nodeId,
+      metadata: {
+        solver: "ChemistrySolver",
+        iterations: result.iterations,
+        convergence: result.convergenceAchieved,
+        particleCount: result.particles.length,
+      },
+    };
+    context.geometryById.set(geometryId, meshGeometry);
+    
     return {
-      geometry: null,
+      geometry: geometryId,
       mesh: result.mesh,
       particles: result.particles,
       field: result.field,
