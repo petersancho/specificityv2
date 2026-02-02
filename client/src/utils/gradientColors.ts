@@ -7,7 +7,6 @@ import type { RenderMesh } from "../types";
  * - Physics: Stress field visualization (blue → cyan → yellow → orange → red)
  * - Chemistry: Material concentration blending (custom per-material colors)
  * - Voxel: Density field visualization (black → white or custom gradient)
- * - Biological: Fitness visualization (green → yellow → red)
  */
 
 type RGB = [number, number, number];
@@ -47,7 +46,7 @@ export const DENSITY_GRADIENT: GradientStop[] = [
 
 /**
  * Fitness gradient: Green (good) → Yellow (medium) → Red (poor)
- * Used for biological solver fitness visualization
+ * Used for optimization fitness visualization
  */
 export const FITNESS_GRADIENT: GradientStop[] = [
   { t: 0, color: [0.86, 0.12, 0.16] },      // Red (poor fitness)
@@ -332,11 +331,11 @@ export const buildMaterialConcentrationColors = (
 };
 
 // ============================================================================
-// FITNESS VERTEX COLORS (Biological Solver)
+// FITNESS VERTEX COLORS (Optimization)
 // ============================================================================
 
 /**
- * Build fitness vertex colors for biological solver
+ * Build fitness vertex colors for optimization solvers
  * Maps fitness values to green → yellow → red gradient
  */
 export const buildFitnessVertexColors = (

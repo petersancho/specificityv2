@@ -192,17 +192,17 @@ Each node lists its display name, type id, and short description.
 - Voxelize Geometry (`voxelizeGeometry`): Convert geometry into a voxel grid domain.
 
 ## Solver
-- Branching Growth (`biologicalSolver`): Goal-weighted evolutionary search over vector genomes with a fast fitness proxy.
+- Chemistry Solver (`chemistrySolver`): Material transmutation solver for functionally graded blends.
 - Physics Solver (`physicsSolver`): Computes physical equilibrium states for structural systems.
 - Voxel Solver (`voxelSolver`): Voxel solver (topology density) prototype.
 
 ## Goal
 - Anchor (`anchorGoal`): Defines fixed boundary conditions and supports.
-- Growth (`growthGoal`): Promotes biomass accumulation and growth intensity.
-- Homeostasis (`homeostasisGoal`): Maintains stability and penalizes excessive stress.
+- Chemistry Blend (`chemistryBlendGoal`): Controls material blending smoothness.
+- Chemistry Mass (`chemistryMassGoal`): Constrains total material mass.
+- Chemistry Material (`chemistryMaterialGoal`): Assigns materials to seed regions.
+- Chemistry Stiffness (`chemistryStiffnessGoal`): Defines stiffness objectives for chemistry solver.
 - Load (`loadGoal`): Defines external forces applied to the structure.
-- Morphogenesis (`morphogenesisGoal`): Shapes branching density and pattern formation.
-- Nutrient (`nutrientGoal`): Defines nutrient availability and uptake behavior.
 - Stiffness (`stiffnessGoal`): Defines stiffness objectives for structural elements.
 - Volume (`volumeGoal`): Constrains or targets material volume in the solver.
 

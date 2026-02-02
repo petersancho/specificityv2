@@ -136,12 +136,10 @@ The sweep identified Lingua's **tripartite ontological architecture** (LINGUA, R
 1. **Equilibrium Solvers**: Find static/dynamic equilibrium (Physics)
 2. **Distribution Solvers**: Optimize spatial distribution (Chemistry)
 3. **Optimization Solvers**: Minimize objective under constraints (Topology, Voxel)
-4. **Search Solvers**: Explore solution space (Biological)
 
 ### Goal Types (Semantic Categories)
 - **Physics Goals**: stiffness, volume, load, anchor
 - **Chemistry Goals**: chemStiffness, chemMass, chemBlend, chemTransparency, chemThermal
-- **Biological Goals**: growth, nutrient, morphogenesis, homeostasis
 
 ---
 

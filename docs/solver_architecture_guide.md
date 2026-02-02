@@ -11,10 +11,9 @@
 4. **Implementation Specifications**
 5. **The Physics Solver: Ἐπιλύτης Φυσικῆς**
 6. **Goal Nodes: Σκληρότης, Ὄγκος, Βάρος, Ἄγκυρα**
-7. **The Branching Growth: Ἐπιλύτης Βιολογίας**
-8. **C++ Integration and Safety Mechanisms**
-9. **Future Extensibility Guidelines**
-10. **Code Organization and File Structure**
+7. **C++ Integration and Safety Mechanisms**
+8. **Future Extensibility Guidelines**
+9. **Code Organization and File Structure**
 
 ---
 
@@ -114,11 +113,11 @@ Categories:
         │   ├─ Ὄγκος (Volume)
         │   ├─ Βάρος (Load)
         │   └─ Ἄγκυρα (Anchor)
-        ├─ Biological Goals
-        │   ├─ Αὔξησις (Growth)
-        │   ├─ Θρέψις (Nutrient)
-        │   ├─ Μορφογένεσις (Morphogenesis)
-        │   └─ Ὁμοιόστασις (Homeostasis)
+        ├─ Chemistry Goals
+        │   ├─ Ὕλη (Material)
+        │   ├─ Σκληρότης Χημείας (Stiffness)
+        │   ├─ Μᾶζα (Mass)
+        │   └─ Κρᾶσις (Blend)
         └─ Voxel Goals
             └─ (Future voxel-specific goals)
 ```
@@ -138,8 +137,8 @@ When the user selects the "Solver" category, they see:
 │  [Ἐπιλύτης Φυσικῆς]                │
 │  Physics Solver                     │
 │                                     │
-│  [Ἐπιλύτης Βιολογίας]              │
-│  Branching Growth                   │
+│  [Ἐπιλύτης Χημείας]                │
+│  Chemistry Solver                   │
 │                                     │
 │  [Ἐπιλύτης Φογκελ]                 │
 │  Voxel Solver                       │
@@ -167,7 +166,7 @@ When the user clicks the dropdown, it expands to show sub-sub-categories:
 │                                     │
 │ ▸ Physics Goals                     │
 │                                     │
-│ ▸ Biological Goals                  │
+│ ▸ Chemistry Goals                   │
 │                                     │
 │ ▸ Voxel Goals                       │
 │                                     │
@@ -198,7 +197,7 @@ When the user expands "Physics Goals":
 │   [Ἄγκυρα]                          │
 │   Anchor                            │
 │                                     │
-│ ▸ Biological Goals                  │
+│ ▸ Chemistry Goals                   │
 │                                     │
 │ ▸ Voxel Goals                       │
 │                                     │
@@ -367,7 +366,7 @@ The system enforces type safety at multiple levels:
 Goal nodes validate that incoming data matches expected types. A Stiffness goal expecting edge indices rejects surface data.
 
 **Level 2 - Goal Compatibility:**
-Solver nodes validate that connected Goal nodes are compatible with their solver type. The Physics Solver rejects Voxel and Biological goals, while Branching Growth rejects Physics and Voxel goals.
+Solver nodes validate that connected Goal nodes are compatible with their solver type. The Physics Solver rejects Voxel and Chemistry goals, while the Chemistry Solver rejects Physics and Voxel goals.
 
 **Level 3 - Specification Validation:**
 Before passing to C++, the solver validates that the goal specification is complete and mathematically feasible.
@@ -687,16 +686,16 @@ const NodeButton: React.FC<{ node: NodeDefinition }> = ({ node }) => {
 ```typescript
 import { NodeCategory } from '../types'
 import { PhysicsSolverNode } from './PhysicsSolver'
-import { BiologicalSolverNode } from './BiologicalSolver'
+import { ChemistrySolverNode } from './ChemistrySolver'
 import { VoxelSolverNode } from './VoxelSolver'
 import { StiffnessGoalNode } from './goals/physics/StiffnessGoal'
 import { VolumeGoalNode } from './goals/physics/VolumeGoal'
 import { LoadGoalNode } from './goals/physics/LoadGoal'
 import { AnchorGoalNode } from './goals/physics/AnchorGoal'
-import { GrowthGoalNode } from './goals/biological/GrowthGoal'
-import { NutrientGoalNode } from './goals/biological/NutrientGoal'
-import { MorphogenesisGoalNode } from './goals/biological/MorphogenesisGoal'
-import { HomeostasisGoalNode } from './goals/biological/HomeostasisGoal'
+import { ChemistryMaterialGoalNode } from './goals/chemistry/ChemistryMaterialGoal'
+import { ChemistryStiffnessGoalNode } from './goals/chemistry/ChemistryStiffnessGoal'
+import { ChemistryMassGoalNode } from './goals/chemistry/ChemistryMassGoal'
+import { ChemistryBlendGoalNode } from './goals/chemistry/ChemistryBlendGoal'
 
 export const SolverCategory: NodeCategory = {
   name: 'Solver',
@@ -704,7 +703,7 @@ export const SolverCategory: NodeCategory = {
   
   nodes: [
     PhysicsSolverNode,
-    BiologicalSolverNode,
+    ChemistrySolverNode,
     VoxelSolverNode
   ],
   
@@ -727,12 +726,12 @@ export const SolverCategory: NodeCategory = {
           ]
         },
         {
-          name: 'Biological Goals',
+          name: 'Chemistry Goals',
           nodes: [
-            GrowthGoalNode,
-            NutrientGoalNode,
-            MorphogenesisGoalNode,
-            HomeostasisGoalNode
+            ChemistryMaterialGoalNode,
+            ChemistryStiffnessGoalNode,
+            ChemistryMassGoalNode,
+            ChemistryBlendGoalNode
           ]
         },
         {
@@ -1549,177 +1548,7 @@ export const AnchorGoalNode: WorkflowNode = {
 **Usage Example:**
 A user models a simply-supported beam. They create Anchor goals at both ends: left end is "pinned" (translation fixed, rotation free) and right end is "roller" (vertical translation fixed, horizontal free, rotation free). This allows the beam to expand thermally without internal stress.
 
----
-
----
-
-## Part 7: Branching Growth - Ἐπιλύτης Βιολογίας
-
-### Conceptual Overview
-
-Branching Growth is designed for morphogenesis, growth, and adaptive form-finding workflows. Unlike the Physics Solver, which solves a fixed equilibrium problem, Branching Growth evolves geometry over time through growth rules, field diffusion, and evolutionary selection. It sits at the intersection of agent-based modeling, reaction-diffusion systems, and genetic optimization.
-
-The solver operates in two coupled layers:
-
-1. **Field Growth Layer** — Simulates nutrient, signal, and biomass fields on a discrete domain.
-2. **Evolutionary Layer** — Evolves a compact genome that encodes growth parameters to optimize goal satisfaction.
-
-### Core Data Model
-
-The solver maintains per-cell state for each voxel (or mesh-sampled lattice cell):
-
-- **Biomass (B):** Occupancy or density of grown material.
-- **Nutrient (N):** Available growth resource.
-- **Signal (S):** Morphogen concentration guiding pattern formation.
-- **Stress (P):** Optional penalty field representing instability or overload.
-
-The genome encodes growth parameters such as diffusion rates, branching thresholds, and anisotropy weights.
-
-### Core Calculations
-
-**Reaction-Diffusion (discrete timestep):**
-```
-N_{t+1} = N_t + Δt ( D_N ∇²N - uptake * B + sources )
-S_{t+1} = S_t + Δt ( D_S ∇²S + signalGain * B - decay * S )
-```
-
-**Biomass Update:**
-```
-B_{t+1} = B_t + Δt ( growthRate * N * (1 - B / capacity) - deathRate * P )
-```
-
-**Branching / Pattern Rule (per active cell):**
-```
-if |∇S| > branchThreshold and B > minBiomass:
-  spawn new growth along ∇S direction
-```
-
-**Goal-Weighted Fitness:**
-```
-F = w_growth * f_growth +
-    w_nutrient * f_nutrient +
-    w_morph * f_morph +
-    w_homeo * f_homeostasis
-```
-
-Where each goal function evaluates alignment with its target (coverage, efficiency, pattern continuity, stability).
-
-### Solver Profile (Goal Aggregation)
-
-Goal nodes compile into a `BiologicalSolverProfile` used to configure the solver. This profile is derived by:
-
-- Normalizing goal weights to sum to 1.0.
-- Combining target values into solver parameters (growthRate, diffusion rates, branching factor).
-- Defining fitness coefficients for the evolutionary layer.
-
-Example profile structure:
-
-```typescript
-type BiologicalSolverProfile = {
-  growthRate: number
-  carryingCapacity: number
-  nutrient: {
-    diffusion: number
-    uptake: number
-    sourceStrength: number
-  }
-  morphogenesis: {
-    branchingFactor: number
-    patternScale: number
-    anisotropy: number
-  }
-  homeostasis: {
-    stabilityTarget: number
-    damping: number
-    stressLimit: number
-  }
-  fitnessWeights: {
-    growth: number
-    nutrient: number
-    morphogenesis: number
-    homeostasis: number
-  }
-}
-```
-
-### Node Specification
-
-**Node Definition (BiologicalSolver.ts):**
-
-```typescript
-export const BiologicalSolverNode: WorkflowNode = {
-  type: 'biologicalSolver',
-  category: 'solver',
-  
-  display: {
-    nameGreek: 'Ἐπιλύτης Βιολογίας',
-    nameEnglish: 'Branching Growth',
-    romanization: 'Epilýtēs Biologías',
-    description: 'Evolves growth patterns using biological field rules'
-  },
-  
-  inputs: {
-    goals: {
-      type: 'goal[]',
-      acceptedGoalTypes: ['growth', 'nutrient', 'morphogenesis', 'homeostasis']
-    },
-    domain: {
-      type: 'geometry',
-      required: true,
-      description: 'Domain geometry or voxel space'
-    },
-    seeds: {
-      type: 'vector[]',
-      required: false,
-      description: 'Optional seed points for initial growth'
-    }
-  },
-  
-  outputs: {
-    geometry: { type: 'geometry' },
-    biomassField: { type: 'number[]' },
-    nutrientField: { type: 'number[]' },
-    signalField: { type: 'number[]' },
-    genome: { type: 'vector' },
-    diagnostics: { type: 'solverResult' }
-  }
-}
-```
-
-### Biological Goal Nodes
-
-Each goal node outputs a `GoalSpecification` that is translated into the solver profile.
-
-**Αὔξησις (Growth) — Auxēsis**
-- **Purpose:** Control biomass accumulation and growth intensity.
-- **Key Parameters:** `growthRate`, `targetBiomass`, `carryingCapacity`.
-
-**Θρέψις (Nutrient) — Thrépsis**
-- **Purpose:** Define nutrient source strength and uptake behavior.
-- **Key Parameters:** `sourceStrength`, `uptakeRate`, `diffusionRate`.
-
-**Μορφογένεσις (Morphogenesis) — Morphogénesis**
-- **Purpose:** Shape pattern density and branching behavior.
-- **Key Parameters:** `branchingFactor`, `patternScale`, `anisotropy`.
-
-**Ὁμοιόστασις (Homeostasis) — Homoiostasis**
-- **Purpose:** Maintain stability and penalize excessive stress.
-- **Key Parameters:** `stabilityTarget`, `damping`, `stressLimit`.
-
-### Workflow Example
-
-1. **Define a domain** (mesh or voxel grid).
-2. **Seed growth points** (optional).
-3. **Connect Biological Goals** to express growth intent.
-4. **Run the solver** and inspect biomass + signal fields.
-5. **Iterate** by adjusting goals and profile parameters.
-
-**Usage Example:**
-A user wants a branching canopy that grows toward sunlight while minimizing material. They connect a Morphogenesis goal (high branchingFactor, anisotropy toward a sun vector) and a Nutrient goal (strong source near skylights). The solver evolves a branching lattice that grows upward where nutrients are strong but stabilizes with a Homeostasis goal to avoid overgrowth.
-
----
-
-## Part 8: C++ Integration and Safety Mechanisms
+## Part 7: C++ Integration and Safety Mechanisms
 
 ### Backend Architecture
 
@@ -1953,7 +1782,7 @@ export async function solvePhysicsFallback(
 
 ---
 
-## Part 9: Future Extensibility Guidelines
+## Part 8: Future Extensibility Guidelines
 
 ### Adding New Solvers
 
@@ -2103,13 +1932,13 @@ If replacing old nodes entirely:
 
 Document computational complexity for each solver:
 - Physics Solver: O(n³) for dense matrix, O(n^1.5) for sparse
-- Branching Growth: O(n * t + p * g) for field updates (n cells, t timesteps, p population, g generations)
+- Chemistry Solver: O(n * p) for particle updates (n particles, p iterations)
 - Voxel Solver: O(n log n) for most cases
 - Future solvers: Specify clearly
 
 **Recommended Mesh Sizes:**
 - Physics Solver: Up to 10,000 elements for interactive use
-- Branching Growth: Up to 100,000 cells for real-time previews (use downsampled grids for interactive tuning)
+- Chemistry Solver: Up to 50,000 particles for real-time previews
 - Use chunking for larger meshes
 - Consider GPU acceleration for > 50,000 elements
 
@@ -2124,7 +1953,7 @@ const maxFrames = Math.min(
 
 ---
 
-## Part 10: Code Organization and File Structure
+## Part 9: Code Organization and File Structure
 
 ### Complete Directory Structure
 
@@ -2138,7 +1967,7 @@ client/src/
         
         # Solver nodes
         PhysicsSolver.ts              # Ἐπιλύτης Φυσικῆς
-        BiologicalSolver.ts           # Ἐπιλύτης Βιολογίας
+        ChemistrySolver.ts            # Ἐπιλύτης Χημείας
         VoxelSolver.ts                # Existing voxel solver
         
         # Goal nodes
@@ -2152,12 +1981,12 @@ client/src/
             LoadGoal.ts               # Βάρος
             AnchorGoal.ts             # Ἄγκυρα
 
-          biological/
+          chemistry/
             index.ts
-            GrowthGoal.ts             # Αὔξησις
-            NutrientGoal.ts           # Θρέψις
-            MorphogenesisGoal.ts      # Μορφογένεσις
-            HomeostasisGoal.ts        # Ὁμοιόστασις
+            ChemistryMaterialGoal.ts  # Ὕλη
+            ChemistryStiffnessGoal.ts # Σκληρότης Χημείας
+            ChemistryMassGoal.ts      # Μᾶζα
+            ChemistryBlendGoal.ts     # Κρᾶσις
             
           voxel/
             index.ts
@@ -2196,7 +2025,7 @@ client/src/
 ```typescript
 // Solver nodes
 export { PhysicsSolverNode } from './PhysicsSolver'
-export { BiologicalSolverNode } from './BiologicalSolver'
+export { ChemistrySolverNode } from './ChemistrySolver'
 export { VoxelSolverNode } from './VoxelSolver'
 
 // Goal nodes
@@ -2209,7 +2038,7 @@ export { SolverCategory } from './SolverCategory'
 export * from './types'
 
 // Utilities
-export { validatePhysicsGoals, validateBiologicalGoals, validateVoxelGoals } from './validation'
+export { validatePhysicsGoals, validateChemistryGoals, validateVoxelGoals } from './validation'
 export { initializeSolver, solvePhysicsChunked } from './solverInterface'
 ```
 
@@ -2220,10 +2049,10 @@ export { StiffnessGoalNode } from './physics/StiffnessGoal'
 export { VolumeGoalNode } from './physics/VolumeGoal'
 export { LoadGoalNode } from './physics/LoadGoal'
 export { AnchorGoalNode } from './physics/AnchorGoal'
-export { GrowthGoalNode } from './biological/GrowthGoal'
-export { NutrientGoalNode } from './biological/NutrientGoal'
-export { MorphogenesisGoalNode } from './biological/MorphogenesisGoal'
-export { HomeostasisGoalNode } from './biological/HomeostasisGoal'
+export { ChemistryMaterialGoalNode } from './chemistry/ChemistryMaterialGoal'
+export { ChemistryStiffnessGoalNode } from './chemistry/ChemistryStiffnessGoal'
+export { ChemistryMassGoalNode } from './chemistry/ChemistryMassGoal'
+export { ChemistryBlendGoalNode } from './chemistry/ChemistryBlendGoal'
 
 // Re-export types
 export type {
@@ -2232,10 +2061,10 @@ export type {
   VolumeGoal,
   LoadGoal,
   AnchorGoal,
-  GrowthGoal,
-  NutrientGoal,
-  MorphogenesisGoal,
-  HomeostasisGoal
+  ChemistryMaterialGoal,
+  ChemistryStiffnessGoal,
+  ChemistryMassGoal,
+  ChemistryBlendGoal
 } from '../types'
 ```
 
@@ -2342,7 +2171,7 @@ export type {
 
 This architecture introduces a sophisticated yet approachable system for complex optimization problems in Numerica. By separating solvers from their configuration goals, establishing clear Ancient Greek naming conventions that honor mathematical heritage, and implementing robust safety mechanisms for computationally intensive operations, the system is positioned for long-term extensibility.
 
-The Physics Solver and its four foundational goal nodes—Σκληρότης (Stiffness), Ὄγκος (Volume), Βάρος (Load), and Ἄγκυρα (Anchor)—provide a complete structural analysis capability while demonstrating the pattern for future solver development. Branching Growth extends this pattern into growth and morphogenesis workflows through its own goal set: Αὔξησις (Growth), Θρέψις (Nutrient), Μορφογένεσις (Morphogenesis), and Ὁμοιόστασις (Homeostasis).
+The Physics Solver and its four foundational goal nodes—Σκληρότης (Stiffness), Ὄγκος (Volume), Βάρος (Load), and Ἄγκυρα (Anchor)—provide a complete structural analysis capability while demonstrating the pattern for future solver development. The Chemistry Solver extends this pattern into material optimization workflows through its own goal set: Ὕλη (Material), Σκληρότης Χημείας (Stiffness), Μᾶζα (Mass), and Κρᾶσις (Blend).
 
 The sub-category UI innovation creates a scalable organizational structure that can accommodate an unlimited number of specialized solvers and their associated goal nodes without overwhelming the node library interface. As the Solver category grows to include topology optimization, computational fluid dynamics, thermal analysis, and other physics-based tools, the Ἐπιλύτου Εἰσαγωγαί pattern ensures consistent, intuitive organization.
 
