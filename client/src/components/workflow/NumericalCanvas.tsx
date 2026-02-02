@@ -15,7 +15,6 @@ import { renderIconDataUrl, type IconId } from "../../webgl/ui/WebGLIconRenderer
 import { WebGLUIRenderer, type RGBA } from "../../webgl/ui/WebGLUIRenderer";
 import WebGLButton from "../ui/WebGLButton";
 import WorkflowGeometryViewer from "./WorkflowGeometryViewer";
-import BiologicalSolverPopup from "./biological/BiologicalSolverPopup";
 import ChemistryMaterialPopup from "./chemistry/ChemistryMaterialPopup";
 import { isWorkflowNodeInvalid } from "./workflowValidation";
 import {
@@ -1211,7 +1210,6 @@ export const NumericalCanvas = ({
   const [nodeSearchPopup, setNodeSearchPopup] = useState<NodeSearchPopupState | null>(null);
   const [nodeSearchQuery, setNodeSearchQuery] = useState("");
   const [nodeSearchIndex, setNodeSearchIndex] = useState(0);
-  const [biologicalSolverPopupNodeId, setBiologicalSolverPopupNodeId] = useState<string | null>(null);
   const [chemistryMaterialPopupNodeId, setChemistryMaterialPopupNodeId] = useState<string | null>(null);
   const nodeSearchInputRef = useRef<HTMLInputElement | null>(null);
   const [gridSnapEnabled, setGridSnapEnabled] = useState(() => {
@@ -2598,12 +2596,7 @@ export const NumericalCanvas = ({
         }),
       });
 
-      if (node?.type === "biologicalEvolutionSolver" || node?.type === "biologicalSolver") {
-        actions.push({
-          label: "Open Biological Solver",
-          onSelect: closeMenu(() => setBiologicalSolverPopupNodeId(target.nodeId)),
-        });
-      }
+
 
       if (node?.type === "chemistryMaterialGoal") {
         actions.push({
@@ -3908,17 +3901,7 @@ export const NumericalCanvas = ({
     const world = screenToWorld(screenX, screenY);
     const target = hitTest(world.x, world.y);
 
-    // Check for biological solver nodes (special handling)
-    if (target.type === "node") {
-      const node = nodes.find((entry) => entry.id === target.nodeId);
-      if (node?.type === "biologicalEvolutionSolver" || node?.type === "biologicalSolver") {
-        setContextMenu(null);
-        setNodeSearchPopup(null);
-        setBiologicalSolverPopupNodeId(node.id);
-        doubleRightClickRef.current = false;
-        return;
-      }
-    }
+
 
     if (target.type === "edge") {
       setEdgeSelection(target.edgeId, false);
@@ -4630,14 +4613,7 @@ export const NumericalCanvas = ({
           </div>
         );
       })() : null}
-      {interactionsEnabled && biologicalSolverPopupNodeId ? (
-        <div data-capture-hide="true">
-          <BiologicalSolverPopup
-            nodeId={biologicalSolverPopupNodeId}
-            onClose={() => setBiologicalSolverPopupNodeId(null)}
-          />
-        </div>
-      ) : null}
+
       {interactionsEnabled && chemistryMaterialPopupNodeId ? (
         <div data-capture-hide="true">
           <ChemistryMaterialPopup
