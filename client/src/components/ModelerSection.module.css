@@ -1085,13 +1085,13 @@
 .renderMaterialWheel[data-palette="cmyk"],
 .renderMaterialWheelPopover[data-palette="cmyk"] {
   --wheel-gradient: radial-gradient(circle at center, #ffffff 0%, rgba(255, 255, 255, 0) 58%),
-    conic-gradient(#0b8a97, #c2166b 35%, #c07a00 70%, #0b8a97);
+    conic-gradient(#00d4ff, #ff0099 35%, #ffdd00 70%, #00d4ff);
 }
 
 .renderMaterialWheel[data-palette="pms"],
 .renderMaterialWheelPopover[data-palette="pms"] {
   --wheel-gradient: radial-gradient(circle at center, #ffffff 0%, rgba(255, 255, 255, 0) 58%),
-    conic-gradient(#b3531c, #f5f2ee 25%, #c9c5c0 55%, #0b8a97 78%, #b3531c);
+    conic-gradient(#b3531c, #f5f2ee 25%, #c9c5c0 55%, #00d4ff 78%, #b3531c);
 }
 
 .renderMaterialWheel[data-palette="silhouette"],

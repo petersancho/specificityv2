@@ -324,8 +324,8 @@ const COLOR_WHEEL_STOPS: Record<ColorWheelPalette, RGB[]> = {
     "#ff4fa3",
     "#ff4b4b",
   ]),
-  cmyk: buildWheelStops(["#0b8a97", "#c2166b", "#c07a00", "#0b8a97"]),
-  pms: buildWheelStops(["#b3531c", "#f5f2ee", "#c9c5c0", "#0b8a97", "#b3531c"]),
+  cmyk: buildWheelStops(["#00d4ff", "#ff0099", "#ffdd00", "#00d4ff"]),
+  pms: buildWheelStops(["#b3531c", "#f5f2ee", "#c9c5c0", "#00d4ff", "#b3531c"]),
   silhouette: buildWheelStops(["#000000", "#000000"]),
 };
 
@@ -5684,7 +5684,7 @@ const ModelerSection = ({
                           variant="command"
                           size="sm"
                           shape="rounded"
-                          accentColor="#0b8a97"
+                          accentColor="#00d4ff"
                           className={styles.renderMaterialControl}
                           onPointerDown={(event) => event.stopPropagation()}
                           onPointerUp={(event) => event.stopPropagation()}

@@ -40,8 +40,8 @@ const PALETTE = {
 };
 
 const TONE_ACCENTS: Record<LogoTone, RGBA> = {
-  roslyn: rgb(11, 138, 151, 1),
-  numerica: rgb(81, 50, 194, 1),
+  roslyn: rgb(0, 212, 255, 1),
+  numerica: rgb(255, 0, 153, 1),
   neutral: rgb(204, 91, 26, 1),
 };
 

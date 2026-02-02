@@ -8,11 +8,24 @@
   --sp-divider: #c9c5c0;
   --sp-ink: #1f1f22;
   --sp-muted: #6a6661;
-  --sp-cyan: #0b8a97;
+  --sp-cyan: #00d4ff;
   --sp-pink: #c2166b;
   --sp-yellow: #c07a00;
-  --sp-purple: #5132c2;
+  --sp-purple: #ff0099;
   --sp-orange: #cc5b1a;
+
+  /* CMYK tri-color palette */
+  --cmyk-cyan: #00d4ff;
+  --cmyk-magenta: #ff0099;
+  --cmyk-yellow: #ffdd00;
+  --cmyk-black: #000000;
+
+  /* Product accent colors */
+  --roslyn-accent: #00d4ff;
+  --numerica-accent: #ff0099;
+  --lingua-accent-cyan: #00d4ff;
+  --lingua-accent-magenta: #ff0099;
+  --lingua-accent-yellow: #ffdd00;
 
   --roslyn-industrial-warm-grey: #8e8a84;
   --roslyn-instrument-cream: var(--sp-porcelain);

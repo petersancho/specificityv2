@@ -8,15 +8,17 @@ type RoslynLogoProps = {
   style?: CSSProperties;
 };
 
-const RoslynLogo = ({ size = 32, withText = false, className, style }: RoslynLogoProps) => {
-  const colors = {
-    top: "#00d4ff",    // Cyan - 3D modeling, technical
-    left: "#0099cc",   // Cyan Deep
-    right: "#66e5ff",  // Cyan Soft
-  };
+const CMYK_COLORS = {
+  top: "#ffdd00",
+  left: "#ff0099",
+  right: "#00d4ff",
+};
 
+const ROSLYN_ACCENT = "#00d4ff";
+
+const RoslynLogo = ({ size = 32, withText = false, className, style }: RoslynLogoProps) => {
   if (!withText) {
-    return <CubeLogo size={size} colors={colors} className={className} style={style} />;
+    return <CubeLogo size={size} colors={CMYK_COLORS} className={className} style={style} />;
   }
 
   return (
@@ -29,15 +31,15 @@ const RoslynLogo = ({ size = 32, withText = false, className, style }: RoslynLog
         ...style 
       }}
     >
-      <CubeLogo size={size} colors={colors} />
+      <CubeLogo size={size} colors={CMYK_COLORS} />
       <span style={{
         fontFamily: '"Montreal Neue", "Space Grotesk", sans-serif',
         fontSize: `${size * 0.5}px`,
         fontWeight: 700,
-        color: "#000000",
+        color: "#1f1f22",
         letterSpacing: "0.02em"
       }}>
-        ROSLYN
+        ROS<span style={{ color: ROSLYN_ACCENT }}>LYN</span>
       </span>
     </div>
   );

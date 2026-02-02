@@ -1017,7 +1017,7 @@ export const NumericaNodeArt = ({
   stage = "operation",
 }: NumericaNodeArtProps) => {
   const accent = useMemo(
-    () => parseHexColor(category?.accent ?? "#5132c2", 0.9),
+    () => parseHexColor(category?.accent ?? "#ff0099", 0.9),
     [category]
   );
   const band = useMemo(

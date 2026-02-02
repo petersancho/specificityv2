@@ -8,15 +8,17 @@ type NumericaLogoProps = {
   style?: CSSProperties;
 };
 
-const NumericaLogo = ({ size = 32, withText = false, className, style }: NumericaLogoProps) => {
-  const colors = {
-    top: "#8800ff",    // Electric Purple - computational, parametric
-    left: "#6600cc",   // Purple Deep
-    right: "#b366ff",  // Purple Soft
-  };
+const CMYK_COLORS = {
+  top: "#ffdd00",
+  left: "#ff0099",
+  right: "#00d4ff",
+};
 
+const NUMERICA_ACCENT = "#ff0099";
+
+const NumericaLogo = ({ size = 32, withText = false, className, style }: NumericaLogoProps) => {
   if (!withText) {
-    return <CubeLogo size={size} colors={colors} className={className} style={style} />;
+    return <CubeLogo size={size} colors={CMYK_COLORS} className={className} style={style} />;
   }
 
   return (
@@ -29,15 +31,15 @@ const NumericaLogo = ({ size = 32, withText = false, className, style }: Numeric
         ...style 
       }}
     >
-      <CubeLogo size={size} colors={colors} />
+      <CubeLogo size={size} colors={CMYK_COLORS} />
       <span style={{
         fontFamily: '"Montreal Neue", "Space Grotesk", sans-serif',
         fontSize: `${size * 0.5}px`,
         fontWeight: 700,
-        color: "#000000",
+        color: "#1f1f22",
         letterSpacing: "0.02em"
       }}>
-        NUMERICA
+        NUME<span style={{ color: NUMERICA_ACCENT }}>RICA</span>
       </span>
     </div>
   );

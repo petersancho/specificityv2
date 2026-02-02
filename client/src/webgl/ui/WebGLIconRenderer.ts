@@ -2546,47 +2546,56 @@ const drawThemeDarkIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, 
   star(x + size * 0.76, y + size * 0.22, size * 0.05);
 };
 
-const drawBrandRoslynIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
-  drawSoftShadow(ctx, { x, y, size });
-
-  const pad = size * 0.14;
-  const outerSize = size - pad * 2;
-  strokeDualPath(ctx, size * 0.085, size * 0.05, () => {
-    roundedRectPath(ctx, x + pad, y + pad, outerSize, outerSize, size * 0.18);
-  });
-
+const drawCMYKCube = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
   const cx = x + size * 0.5;
   const cy = y + size * 0.52;
-  const ring = size * 0.22;
-  strokeDualPath(ctx, size * 0.07, size * 0.04, () => {
-    ctx.beginPath();
-    ctx.arc(cx, cy, ring, 0, Math.PI * 2);
-  });
+  const s = size * 0.28;
 
-  const diamond = ring * 1.2;
-  strokeDualPath(ctx, size * 0.06, size * 0.035, () => {
+  const top = [
+    { x: cx, y: cy - s },
+    { x: cx + s, y: cy - s * 0.4 },
+    { x: cx, y: cy + s * 0.2 },
+    { x: cx - s, y: cy - s * 0.4 },
+  ];
+
+  const left = [
+    { x: cx - s, y: cy - s * 0.4 },
+    { x: cx, y: cy + s * 0.2 },
+    { x: cx, y: cy + s * 1.1 },
+    { x: cx - s, y: cy + s * 0.5 },
+  ];
+
+  const right = [
+    { x: cx + s, y: cy - s * 0.4 },
+    { x: cx, y: cy + s * 0.2 },
+    { x: cx, y: cy + s * 1.1 },
+    { x: cx + s, y: cy + s * 0.5 },
+  ];
+
+  const drawFace = (points: Array<{ x: number; y: number }>, fill: string) => {
     ctx.beginPath();
-    ctx.moveTo(cx, cy - diamond);
-    ctx.lineTo(cx + diamond, cy);
-    ctx.lineTo(cx, cy + diamond);
-    ctx.lineTo(cx - diamond, cy);
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) {
+      ctx.lineTo(points[i].x, points[i].y);
+    }
     ctx.closePath();
-  }, { outerColor: "rgba(0,0,0,0.4)", innerColor: "rgba(255,255,255,0.7)" });
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.strokeStyle = "#000000";
+    ctx.lineWidth = size * 0.04;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.stroke();
+  };
 
-  setGlyphStroke(ctx, size, 0.05, 0.6);
-  const tick = size * 0.16;
-  ctx.beginPath();
-  ctx.moveTo(cx, cy - ring - tick);
-  ctx.lineTo(cx, cy - ring + size * 0.02);
-  ctx.moveTo(cx + ring - size * 0.02, cy);
-  ctx.lineTo(cx + ring + tick, cy);
-  ctx.moveTo(cx, cy + ring - size * 0.02);
-  ctx.lineTo(cx, cy + ring + tick);
-  ctx.moveTo(cx - ring + size * 0.02, cy);
-  ctx.lineTo(cx - ring - tick, cy);
-  ctx.stroke();
+  drawFace(left, "#ff0099");
+  drawFace(right, "#00d4ff");
+  drawFace(top, "#ffdd00");
+};
 
-  drawGlyphDot(ctx, cx, cy, size * 0.075, 1);
+const drawBrandRoslynIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
+  drawSoftShadow(ctx, { x, y, size });
+  drawCMYKCube(ctx, x, y, size);
 };
 
 const drawBrandNumericaIcon = (
@@ -2596,28 +2605,7 @@ const drawBrandNumericaIcon = (
   size: number
 ) => {
   drawSoftShadow(ctx, { x, y, size });
-
-  const nodes = [
-    { x: x + size * 0.28, y: y + size * 0.3, color: "#0b6e9a" },
-    { x: x + size * 0.72, y: y + size * 0.3, color: "#1f6a33" },
-    { x: x + size * 0.5, y: y + size * 0.7, color: "#f97316" },
-  ] as const;
-
-  ctx.strokeStyle = "#0f172a";
-  ctx.lineWidth = 8;
-  ctx.lineCap = "round";
-  ctx.beginPath();
-  ctx.moveTo(nodes[0].x, nodes[0].y);
-  ctx.lineTo(nodes[2].x, nodes[2].y);
-  ctx.lineTo(nodes[1].x, nodes[1].y);
-  ctx.stroke();
-
-  nodes.forEach((node) => {
-    drawNodeDot(ctx, node.x, node.y, size * 0.12, {
-      inner: "#f8fafc",
-      outer: node.color,
-    });
-  });
+  drawCMYKCube(ctx, x, y, size);
 };
 
 const drawPruneIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {

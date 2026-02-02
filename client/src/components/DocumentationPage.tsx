@@ -57,8 +57,8 @@ type DocsRoute =
   | { kind: "numerica"; id: string };
 
 const BRAND_ACCENTS = {
-  cyan: "#0b8a97",
-  purple: "#5132c2",
+  cyan: "#00d4ff",
+  purple: "#ff0099",
   pink: "#c2166b",
   orange: "#cc5b1a",
   ink: "#3b3b40",
