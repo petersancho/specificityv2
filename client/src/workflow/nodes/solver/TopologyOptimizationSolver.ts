@@ -143,6 +143,12 @@ export const TopologyOptimizationSolverNode: WorkflowNodeDefinition = {
     romanization: "Epilýtēs Topologikís Veltitopoíisis",
     description: "Generates topologically optimized structures using point cloud → curve network → multipipe.",
   },
+  customUI: {
+    dashboardButton: {
+      label: "Open Topology Simulator",
+      component: "TopologyOptimizationSimulatorDashboard",
+    },
+  },
   compute: (args) => {
     const { parameters, inputs, context } = args;
     
