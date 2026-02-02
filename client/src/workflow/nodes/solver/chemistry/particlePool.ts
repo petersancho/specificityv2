@@ -38,6 +38,11 @@ export type ParticlePool = {
   pressure: Float32Array;
   temperature: Float32Array;
   
+  // Material properties (per-particle, derived from concentrations)
+  density: Float32Array;      // kg/m³
+  viscosity: Float32Array;    // Pa·s
+  diffusivity: Float32Array;  // m²/s
+  
   // Material concentrations (materialCount arrays of length capacity)
   materials: Float32Array[];
   
@@ -69,6 +74,11 @@ export const createParticlePool = (config: ParticlePoolConfig): ParticlePool => 
   const pressure = new Float32Array(capacity);
   const temperature = new Float32Array(capacity);
   
+  // Material properties
+  const density = new Float32Array(capacity);
+  const viscosity = new Float32Array(capacity);
+  const diffusivity = new Float32Array(capacity);
+  
   const materials: Float32Array[] = [];
   const tempDeltas: Float32Array[] = [];
   for (let m = 0; m < materialCount; m++) {
@@ -95,6 +105,9 @@ export const createParticlePool = (config: ParticlePoolConfig): ParticlePool => 
     mass,
     pressure,
     temperature,
+    density,
+    viscosity,
+    diffusivity,
     materials,
     tempDeltas,
     neighborCache,
@@ -1075,6 +1088,106 @@ export const applyCentrifugalForce = (
     pool.velX[i] += accelX * dt;
     pool.velY[i] += accelY * dt;
     pool.velZ[i] += accelZ * dt;
+  }
+};
+
+/**
+ * Apply density-driven stratification force (buoyancy-like)
+ * 
+ * F_stratification = (ρ_particle - ρ_avg) * g_effective
+ * 
+ * Heavier materials sink/migrate outward under effective gravity
+ * Lighter materials float/stay inward
+ * 
+ * @param pool Particle pool
+ * @param effectiveGravity Effective gravity vector (can include centrifugal effects)
+ * @param stratificationCoeff Stratification strength coefficient (0-1)
+ * @param dt Time step
+ */
+export const applyStratificationForce = (
+  pool: ParticlePool,
+  effectiveGravity: Vec3,
+  stratificationCoeff: number,
+  dt: number
+): void => {
+  const h = 0.1; // Smoothing radius for local density averaging
+  const maxNeighbors = 64;
+  
+  // Compute local average density for each particle
+  const localAvgDensity = new Float32Array(pool.count);
+  
+  for (let i = 0; i < pool.count; i++) {
+    const neighborCount = pool.neighborCounts[i];
+    const neighborOffset = i * maxNeighbors;
+    
+    let sumDensity = 0;
+    let sumWeight = 0;
+    
+    for (let n = 0; n < neighborCount; n++) {
+      const j = pool.neighborCache[neighborOffset + n];
+      
+      const dx = pool.posX[i] - pool.posX[j];
+      const dy = pool.posY[i] - pool.posY[j];
+      const dz = pool.posZ[i] - pool.posZ[j];
+      const r = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      
+      if (r < h) {
+        const weight = poly6Kernel(r, h);
+        sumDensity += pool.density[j] * weight;
+        sumWeight += weight;
+      }
+    }
+    
+    localAvgDensity[i] = sumWeight > EPSILON ? sumDensity / sumWeight : pool.density[i];
+  }
+  
+  // Apply stratification force
+  for (let i = 0; i < pool.count; i++) {
+    const densityDiff = pool.density[i] - localAvgDensity[i];
+    
+    // F = (ρ_particle - ρ_avg) * g_effective * k
+    const accelX = densityDiff * effectiveGravity.x * stratificationCoeff;
+    const accelY = densityDiff * effectiveGravity.y * stratificationCoeff;
+    const accelZ = densityDiff * effectiveGravity.z * stratificationCoeff;
+    
+    // Update velocity
+    pool.velX[i] += accelX * dt;
+    pool.velY[i] += accelY * dt;
+    pool.velZ[i] += accelZ * dt;
+  }
+};
+
+/**
+ * Update particle material properties from concentrations
+ * 
+ * Blends material properties based on current concentrations
+ * 
+ * @param pool Particle pool
+ * @param materialDensities Array of material densities (kg/m³)
+ * @param materialViscosities Array of material viscosities (Pa·s)
+ * @param materialDiffusivities Array of material diffusivities (m²/s)
+ */
+export const updateMaterialProperties = (
+  pool: ParticlePool,
+  materialDensities: number[],
+  materialViscosities: number[],
+  materialDiffusivities: number[]
+): void => {
+  for (let i = 0; i < pool.count; i++) {
+    let density = 0;
+    let viscosity = 0;
+    let diffusivity = 0;
+    
+    for (let m = 0; m < pool.materialCount; m++) {
+      const concentration = pool.materials[m][i];
+      density += concentration * materialDensities[m];
+      viscosity += concentration * materialViscosities[m];
+      diffusivity += concentration * materialDiffusivities[m];
+    }
+    
+    pool.density[i] = density;
+    pool.viscosity[i] = viscosity;
+    pool.diffusivity[i] = diffusivity;
   }
 };
 
