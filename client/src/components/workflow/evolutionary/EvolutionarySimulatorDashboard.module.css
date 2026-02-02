@@ -21,13 +21,13 @@
   width: min(1600px, 98vw);
   height: min(960px, 94vh);
   --solver-scale: 1;
-  --solver-accent: #ff0099;
-  --solver-accent-secondary: #00d4ff;
-  --solver-accent-tertiary: #ffdd00;
-  background: linear-gradient(150deg, #fef8fb 0%, #f8f9fe 45%, #fffef8 100%);
+  --solver-accent: var(--color-solver-evolutionary);
+  --solver-accent-secondary: var(--bk-cyan);
+  --solver-accent-tertiary: var(--bk-yellow);
+  background: linear-gradient(150deg, var(--bk-magenta-soft) 0%, var(--bk-cyan-soft) 45%, var(--bk-yellow-soft) 100%);
   border-radius: 10px;
-  border: 2px solid #000000;
-  box-shadow: var(--shadow-lg);
+  border: var(--border-crisp);
+  box-shadow: var(--shadow-sticker);
   position: relative;
   overflow: hidden;
 }
@@ -102,7 +102,7 @@
   gap: 8px;
   padding: 5px 10px;
   border-radius: 6px;
-  border: 1px solid #000000;
+  border: 1px solid var(--bk-var(--bk-var(--bk-black)));
   background: var(--card-bg);
   font: 600 9px/1 var(--font-body);
   letter-spacing: 0.12em;
@@ -152,7 +152,7 @@
 }
 
 .tabActive {
-  background: #ffffff;
+  background: var(--surface-card);
   color: var(--ink-1000);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
@@ -185,7 +185,7 @@
 
 .setupSection {
   background: var(--card-bg);
-  border: 1px solid #000000;
+  border: 1px solid var(--bk-var(--bk-var(--bk-black)));
   border-radius: 8px;
   padding: 14px;
   display: flex;
@@ -222,7 +222,7 @@
   justify-content: center;
   font-size: 10px;
   background: var(--solver-accent);
-  color: #ffffff;
+  color: var(--surface-card);
   border-radius: 4px;
   font-weight: 700;
 }
@@ -261,7 +261,7 @@
   width: 100%;
   padding: 8px 10px;
   font: 500 11px/1 var(--font-body);
-  background: #ffffff;
+  background: var(--surface-card);
   border: 1px solid rgba(0, 0, 0, 0.15);
   border-radius: 6px;
   color: var(--ink-900);
@@ -283,7 +283,7 @@
   width: 100%;
   padding: 8px 10px;
   font: 500 11px/1 var(--font-body);
-  background: #ffffff;
+  background: var(--surface-card);
   border: 1px solid rgba(0, 0, 0, 0.15);
   border-radius: 6px;
   color: var(--ink-900);
@@ -308,7 +308,7 @@
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  background: #ffffff;
+  background: var(--surface-card);
   border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 6px;
 }
@@ -320,7 +320,7 @@
   align-items: center;
   justify-content: center;
   background: linear-gradient(135deg, var(--solver-accent) 0%, var(--solver-accent-secondary) 100%);
-  color: #ffffff;
+  color: var(--surface-card);
   border-radius: 4px;
   font: 700 10px/1 var(--font-body);
   flex-shrink: 0;
@@ -353,7 +353,7 @@
 
 .controlPanel {
   background: var(--card-bg);
-  border: 1px solid #000000;
+  border: 1px solid var(--bk-var(--bk-var(--bk-black)));
   border-radius: 8px;
   padding: 14px;
   display: flex;
@@ -370,7 +370,7 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   border-radius: 6px;
-  border: 1px solid #000000;
+  border: 1px solid var(--bk-var(--bk-var(--bk-black)));
   cursor: pointer;
   transition: all 100ms ease;
   display: flex;
@@ -381,7 +381,7 @@
 
 .controlButtonPrimary {
   background: var(--solver-accent);
-  color: #ffffff;
+  color: var(--surface-card);
   box-shadow: var(--shadow-sm);
 }
 
@@ -391,7 +391,7 @@
 }
 
 .controlButtonSecondary {
-  background: #ffffff;
+  background: var(--surface-card);
   color: var(--ink-800);
   box-shadow: var(--shadow-xs);
 }
@@ -423,7 +423,7 @@
 
 .viewerPanel {
   background: var(--card-bg);
-  border: 1px solid #000000;
+  border: 1px solid var(--bk-var(--bk-var(--bk-black)));
   border-radius: 8px;
   padding: 14px;
   display: flex;
@@ -436,14 +436,14 @@
   flex: 1;
   border-radius: 6px;
   overflow: hidden;
-  background: #ffffff;
+  background: var(--surface-card);
   border: 1px solid rgba(0, 0, 0, 0.15);
   min-height: 200px;
 }
 
 .statsPanel {
   background: var(--card-bg);
-  border: 1px solid #000000;
+  border: 1px solid var(--bk-var(--bk-var(--bk-black)));
   border-radius: 8px;
   padding: 14px;
   display: flex;
@@ -456,7 +456,7 @@
 .chartContainer {
   width: 100%;
   height: 200px;
-  background: #ffffff;
+  background: var(--surface-card);
   border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 6px;
   padding: 10px;
@@ -489,7 +489,7 @@
 
 .individualCard {
   aspect-ratio: 1;
-  background: #ffffff;
+  background: var(--surface-card);
   border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 6px;
   display: flex;
@@ -534,7 +534,7 @@
 
 .generationList {
   background: var(--card-bg);
-  border: 1px solid #000000;
+  border: 1px solid var(--bk-var(--bk-var(--bk-black)));
   border-radius: 8px;
   padding: 14px;
   display: flex;
@@ -545,7 +545,7 @@
 
 .generationItem {
   padding: 10px 12px;
-  background: #ffffff;
+  background: var(--surface-card);
   border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 6px;
   cursor: pointer;
@@ -577,7 +577,7 @@
 
 .outputPanel {
   background: var(--card-bg);
-  border: 1px solid #000000;
+  border: 1px solid var(--bk-var(--bk-var(--bk-black)));
   border-radius: 8px;
   padding: 14px;
   display: flex;
@@ -595,7 +595,7 @@
 }
 
 .outputCard {
-  background: #ffffff;
+  background: var(--surface-card);
   border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 6px;
   padding: 10px;

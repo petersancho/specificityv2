@@ -1,5 +1,5 @@
 .dropdown {
-  background: linear-gradient(160deg, #ffffff 0%, #f4f1ff 55%, #e9e2ff 100%);
+  background: linear-gradient(160deg, var(--surface-card) 0%, #f4f1ff 55%, #e9e2ff 100%);
   border: 1px solid color-mix(in srgb, #7a5cff 40%, var(--sp-divider, #c9c5c0) 60%);
   border-radius: var(--radius-lg);
   padding: 12px;
@@ -17,8 +17,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  background: linear-gradient(180deg, #ffffff 0%, #eae3ff 100%);
-  border: 1px solid color-mix(in srgb, #7a5cff 45%, #ffffff 55%);
+  background: linear-gradient(180deg, var(--surface-card) 0%, #eae3ff 100%);
+  border: 1px solid color-mix(in srgb, #7a5cff 45%, var(--surface-card) 55%);
   border-radius: var(--radius);
   padding: 8px 10px;
   cursor: pointer;
@@ -28,7 +28,7 @@
 }
 
 .header:hover {
-  background: linear-gradient(180deg, #ffffff 0%, #ded2ff 100%);
+  background: linear-gradient(180deg, var(--surface-card) 0%, #ded2ff 100%);
   transform: translateY(-1px);
   box-shadow: var(--shadow-md);
 }
@@ -96,8 +96,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid color-mix(in srgb, #7a5cff 40%, #ffffff 60%);
-  background: linear-gradient(180deg, #ffffff 0%, #f2edff 100%);
+  border: 1px solid color-mix(in srgb, #7a5cff 40%, var(--surface-card) 60%);
+  background: linear-gradient(180deg, var(--surface-card) 0%, #f2edff 100%);
   padding: 6px 10px;
   cursor: pointer;
   color: var(--sp-ink, #1f1f22);
@@ -137,26 +137,26 @@
 }
 
 .nodeButton {
-  background: #ffffff;
-  border: 2px solid #000000;
+  background: var(--surface-card);
+  border: 2px solid var(--bk-var(--bk-black));
   border-radius: 4px;
   padding: 8px 8px;
   text-align: left;
-  color: #000000;
+  color: var(--bk-var(--bk-black));
   cursor: pointer;
   min-height: 68px;
   display: flex;
   align-items: center;
   gap: 12px;
   justify-content: flex-start;
-  box-shadow: 0 3px 0 #000000;
+  box-shadow: 0 3px 0 var(--bk-var(--bk-black));
   transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
 }
 
 .nodeButton:hover {
   transform: translateY(-2px);
-  box-shadow: 0 5px 0 #000000;
-  background: #f8f6f2;
+  box-shadow: 0 5px 0 var(--bk-var(--bk-black));
+  background: var(--bk-porcelain);
 }
 
 .nodeButton:active .greek {
@@ -165,7 +165,7 @@
 
 .nodeButton:active {
   transform: translateY(1px);
-  box-shadow: 0 1px 0 #000000;
+  box-shadow: 0 1px 0 var(--bk-var(--bk-black));
 }
 
 .sticker {
@@ -182,12 +182,12 @@
   height: 64px;
   object-fit: contain;
   transition: transform 120ms ease;
-  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.15));
+  filter: var(--drop-shadow-sticker-pressed);
 }
 
 .nodeButton:hover .stickerIcon {
   transform: translateY(-2px) scale(1.02);
-  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.2));
+  filter: var(--drop-shadow-sticker);
 }
 
 .nodeName {

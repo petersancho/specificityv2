@@ -145,7 +145,7 @@
   border-color: transparent;
   background: transparent;
   box-shadow: none;
-  white-space: nowrap;
+  var(--surface-card)-space: nowrap;
 }
 
 .scriptChip:hover {

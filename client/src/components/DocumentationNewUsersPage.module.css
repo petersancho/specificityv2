@@ -316,9 +316,9 @@
   overflow: visible;
   isolation: isolate;
   --philosophy-magenta: var(--bk-magenta);
-  --philosophy-magenta-soft: color-mix(in srgb, var(--bk-magenta) 65%, white);
+  --philosophy-magenta-soft: color-mix(in srgb, var(--bk-magenta) 65%, var(--surface-card));
   --philosophy-cyan: var(--bk-cyan);
-  --philosophy-cyan-soft: color-mix(in srgb, var(--bk-cyan) 65%, white);
+  --philosophy-cyan-soft: color-mix(in srgb, var(--bk-cyan) 65%, var(--surface-card));
   --philosophy-yellow: var(--bk-yellow);
   --philosophy-yellow-deep: var(--bk-yellow-deep);
   --philosophy-ink: color-mix(in srgb, var(--bk-magenta) 35%, #1a1a1a);
@@ -549,7 +549,7 @@
 .philosophyHero {
   position: relative;
   z-index: 2;
-  background: color-mix(in srgb, #ffffff 80%, #ffe7f4 20%);
+  background: color-mix(in srgb, var(--surface-card) 80%, #ffe7f4 20%);
   border: 1px solid rgba(255, 79, 177, 0.2);
 }
 

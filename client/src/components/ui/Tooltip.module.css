@@ -26,14 +26,14 @@
   font-size: var(--text-xs);
   font-weight: var(--font-weight-medium);
   letter-spacing: var(--letter-spacing-wide);
-  white-space: nowrap;
+  var(--surface-card)-space: nowrap;
   box-shadow: var(--shadow-xs);
 }
 
 .text {
   display: block;
   max-width: 240px;
-  white-space: pre-line;
+  var(--surface-card)-space: pre-line;
   line-height: 1.4;
 }
 

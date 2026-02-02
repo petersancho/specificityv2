@@ -49,6 +49,46 @@
   --color-solver-topology: var(--bk-purple);
   
   /* ========================================
+     Semantic Surfaces
+     ======================================== */
+  
+  --surface-page: var(--bk-porcelain);
+  --surface-panel: var(--bk-cream);
+  --surface-card: var(--bk-white);
+  
+  /* ========================================
+     Text Colors
+     ======================================== */
+  
+  --text-primary: var(--bk-black);
+  --text-secondary: #718096;
+  --text-tertiary: #a0aec0;
+  --text-inverse: var(--bk-white);
+  
+  /* ========================================
+     Border Colors
+     ======================================== */
+  
+  --border-crisp: 2px solid var(--bk-black);
+  --border-thin: 1px solid var(--bk-black);
+  --border-separator: 1px solid #e2e8f0;
+  --border-soft: 1px solid #cbd5e0;
+  
+  /* ========================================
+     Neutral Grays (for backgrounds/borders)
+     ======================================== */
+  
+  --gray-50: #f7fafc;
+  --gray-100: #edf2f7;
+  --gray-200: #e2e8f0;
+  --gray-300: #cbd5e0;
+  --gray-400: #a0aec0;
+  --gray-500: #718096;
+  --gray-600: #4a5568;
+  --gray-700: #2d3748;
+  --gray-800: #1a202c;
+  
+  /* ========================================
      Extended CMYK Palette (Tints & Shades)
      ======================================== */
   
@@ -110,6 +150,14 @@
   --shadow-sticker: 0 4px 0 var(--bk-black);
   --shadow-sticker-hover: 0 6px 0 var(--bk-black);
   --shadow-sticker-pressed: 0 2px 0 var(--bk-black);
+  
+  /* Drop shadows for SVG/text */
+  --drop-shadow-sticker: drop-shadow(0 4px 0 var(--bk-black));
+  --drop-shadow-sticker-hover: drop-shadow(0 6px 0 var(--bk-black));
+  --drop-shadow-sticker-pressed: drop-shadow(0 2px 0 var(--bk-black));
+  
+  /* Inset shadows for inputs */
+  --shadow-inset: inset 0 2px 4px var(--bk-black);
   
   /* ========================================
      Typography

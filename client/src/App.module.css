@@ -24,7 +24,7 @@
 .introOverlaySymbol {
   width: clamp(120px, 16vw, 220px);
   height: auto;
-  filter: drop-shadow(0 12px 30px rgba(0, 0, 0, 0.2));
+  filter: var(--drop-shadow-sticker-hover);
   animation: pulseSpin 1.2s ease forwards;
 }
 
@@ -414,8 +414,8 @@
   overflow: hidden;
 }
 
-.captureStageWhite {
-  background: #ffffff !important;
+.captureStagevar(--surface-card) {
+  background: var(--surface-card) !important;
   background-image: none !important;
   border: 1px solid rgba(5, 5, 5, 0.12) !important;
   box-shadow: none !important;

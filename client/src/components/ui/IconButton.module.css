@@ -21,8 +21,8 @@
 }
 
 .button:hover:not(:disabled) {
-  background: #faf8f5;
-  border-color: #00d4ff;
+  background: var(--bk-cream);
+  border-color: var(--bk-cyan);
   transform: translateY(-1px);
   box-shadow: var(--icon-button-shadow-hover);
 }

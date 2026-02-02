@@ -2,13 +2,17 @@
 /* Color Scheme: Cyan (primary), Yellow (secondary), Magenta (accent) */
 
 .dashboard {
+  --solver-accent: var(--color-solver-chemistry);
+  --solver-accent-secondary: var(--bk-yellow);
+  --solver-accent-tertiary: var(--bk-magenta);
+  
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 10000;
-  background: linear-gradient(150deg, #f8feff 0%, #fffef8 45%, #fef8fb 100%);
+  background: linear-gradient(150deg, var(--bk-cyan-soft) 0%, var(--bk-yellow-soft) 45%, var(--bk-magenta-soft) 100%);
   display: flex;
   flex-direction: column;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
@@ -18,14 +22,14 @@
 /* Header */
 .header {
   flex-shrink: 0;
-  background: white;
+  background: var(--surface-card);
   border-bottom: 1px solid #e0e0e0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sticker-pressed);
 }
 
 .headerBar {
   height: 4px;
-  background: linear-gradient(90deg, #00d4ff 0%, #ffdd00 50%, #ff0099 100%);
+  background: linear-gradient(90deg, var(--bk-cyan) 0%, var(--bk-yellow) 50%, var(--bk-magenta) 100%);
 }
 
 .headerContent {
@@ -44,7 +48,7 @@
 .titleGreek {
   font-size: 1.5rem;
   font-weight: 600;
-  color: #00d4ff;
+  color: var(--bk-cyan);
   letter-spacing: 0.02em;
 }
 
@@ -97,14 +101,14 @@
 }
 
 .closeButton:hover {
-  background: #ff0099;
-  color: white;
+  background: var(--bk-magenta);
+  color: var(--surface-card);
 }
 
 /* Tabs */
 .tabs {
   display: flex;
-  background: white;
+  background: var(--surface-card);
   border-bottom: 1px solid #e0e0e0;
   padding: 0 1.5rem;
   flex-shrink: 0;
@@ -124,12 +128,12 @@
 }
 
 .tab:hover {
-  color: #00d4ff;
+  color: var(--bk-cyan);
 }
 
 .tabActive {
-  color: #00d4ff;
-  border-bottom-color: #00d4ff;
+  color: var(--bk-cyan);
+  border-bottom-color: var(--bk-cyan);
 }
 
 /* Content */
@@ -147,10 +151,10 @@
 }
 
 .section {
-  background: white;
+  background: var(--surface-card);
   border-radius: 8px;
   padding: 1.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sticker-pressed);
 }
 
 .sectionTitle {
@@ -158,7 +162,7 @@
   font-size: 1.1rem;
   font-weight: 600;
   color: #333;
-  border-bottom: 2px solid #00d4ff;
+  border-bottom: 2px solid var(--bk-cyan);
   padding-bottom: 0.5rem;
 }
 
@@ -174,17 +178,17 @@
   padding: 1rem;
   cursor: pointer;
   transition: all 0.2s;
-  background: white;
+  background: var(--surface-card);
 }
 
 .materialCard:hover {
-  border-color: #00d4ff;
+  border-color: var(--bk-cyan);
   box-shadow: 0 4px 12px rgba(0, 212, 255, 0.15);
   transform: translateY(-2px);
 }
 
 .materialCardSelected {
-  border-color: #00d4ff;
+  border-color: var(--bk-cyan);
   background: linear-gradient(135deg, rgba(0, 212, 255, 0.05) 0%, rgba(255, 221, 0, 0.05) 100%);
   box-shadow: 0 4px 12px rgba(0, 212, 255, 0.2);
 }
@@ -221,13 +225,13 @@
 .addButton,
 .goalButton {
   padding: 0.5rem 1rem;
-  border: 2px dashed #00d4ff;
+  border: 2px dashed var(--bk-cyan);
   background: rgba(0, 212, 255, 0.05);
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 500;
-  color: #00d4ff;
+  color: var(--bk-cyan);
   transition: all 0.2s;
   margin-bottom: 1rem;
 }
@@ -235,7 +239,7 @@
 .addButton:hover,
 .goalButton:hover {
   background: rgba(0, 212, 255, 0.1);
-  border-color: #00d4ff;
+  border-color: var(--bk-cyan);
   transform: translateY(-1px);
 }
 
@@ -290,8 +294,8 @@
 }
 
 .removeButton:hover {
-  background: #ff0099;
-  color: white;
+  background: var(--bk-magenta);
+  color: var(--surface-card);
 }
 
 .seedControls {
@@ -349,7 +353,7 @@
 
 .paramGrid span {
   font-weight: 600;
-  color: #00d4ff;
+  color: var(--bk-cyan);
 }
 
 /* Simulator Tab */
@@ -362,28 +366,28 @@
 .controlPanel {
   display: flex;
   gap: 0.75rem;
-  background: white;
+  background: var(--surface-card);
   padding: 1rem;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sticker-pressed);
 }
 
 .controlButton {
   flex: 1;
   padding: 0.75rem 1.5rem;
-  border: 2px solid #00d4ff;
-  background: white;
+  border: 2px solid var(--bk-cyan);
+  background: var(--surface-card);
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 600;
-  color: #00d4ff;
+  color: var(--bk-cyan);
   transition: all 0.2s;
 }
 
 .controlButton:hover:not(:disabled) {
-  background: #00d4ff;
-  color: white;
+  background: var(--bk-cyan);
+  color: var(--surface-card);
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 212, 255, 0.3);
 }
@@ -400,11 +404,11 @@
 }
 
 .statCard {
-  background: white;
+  background: var(--surface-card);
   border-radius: 8px;
   padding: 1.25rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  border-left: 4px solid #00d4ff;
+  box-shadow: var(--shadow-sticker-pressed);
+  border-left: 4px solid var(--bk-cyan);
 }
 
 .statLabel {
@@ -418,7 +422,7 @@
 .statValue {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #00d4ff;
+  color: var(--bk-cyan);
 }
 
 .visualizationGrid {
@@ -428,10 +432,10 @@
 }
 
 .visualizationCard {
-  background: white;
+  background: var(--surface-card);
   border-radius: 8px;
   padding: 1rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sticker-pressed);
 }
 
 .visualizationCard h4 {
@@ -446,7 +450,7 @@
 .placeholder {
   aspect-ratio: 16 / 9;
   background: linear-gradient(135deg, rgba(0, 212, 255, 0.05) 0%, rgba(255, 221, 0, 0.05) 100%);
-  border: 2px dashed #00d4ff;
+  border: 2px dashed var(--bk-cyan);
   border-radius: 6px;
   display: flex;
   flex-direction: column;
@@ -458,7 +462,7 @@
 .placeholderText {
   font-size: 1rem;
   font-weight: 600;
-  color: #00d4ff;
+  color: var(--bk-cyan);
 }
 
 .placeholderSubtext {
@@ -467,10 +471,10 @@
 }
 
 .materialLegend {
-  background: white;
+  background: var(--surface-card);
   border-radius: 8px;
   padding: 1rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sticker-pressed);
 }
 
 .materialLegend h4 {
@@ -498,7 +502,7 @@
   width: 24px;
   height: 24px;
   border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sticker-pressed);
 }
 
 /* Output Tab */
@@ -535,7 +539,7 @@
 
 .metricValue {
   font-weight: 600;
-  color: #00d4ff;
+  color: var(--bk-cyan);
 }
 
 .sliceGrid {
@@ -545,10 +549,10 @@
 }
 
 .sliceCard {
-  background: white;
+  background: var(--surface-card);
   border-radius: 8px;
   padding: 1rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sticker-pressed);
 }
 
 .sliceCard h4 {
@@ -569,18 +573,18 @@
   flex: 1;
   min-width: 200px;
   padding: 0.75rem 1.5rem;
-  border: 2px solid #ffdd00;
-  background: white;
+  border: 2px solid var(--bk-yellow);
+  background: var(--surface-card);
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 600;
-  color: #ffdd00;
+  color: var(--bk-yellow);
   transition: all 0.2s;
 }
 
 .exportButton:hover {
-  background: #ffdd00;
+  background: var(--bk-yellow);
   color: #333;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(255, 221, 0, 0.3);
@@ -614,7 +618,7 @@
 }
 
 .content::-webkit-scrollbar-thumb {
-  background: #00d4ff;
+  background: var(--bk-cyan);
   border-radius: 4px;
 }
 
