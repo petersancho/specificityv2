@@ -11,6 +11,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
+// Import all semantic operations (auto-registers on import)
+// This must be imported FIRST to register all operations
+import '../client/src/semantic/registerAllOps';
+
 // Import semantic infrastructure
 import '../client/src/geometry/meshOps';
 import '../client/src/geometry/meshTessellationOps';
@@ -39,7 +43,8 @@ function main() {
   console.log('📚 Validating operation registry...');
   const opValidation = operationRegistry.validate();
   
-  console.log(`  ✓ ${operationRegistry.list().length} operations registered`);
+  const totalOps = operationRegistry.listMeta().length;
+  console.log(`  ✓ ${totalOps} operations registered`);
   
   if (opValidation.warnings.length > 0) {
     console.log(`  ⚠️  ${opValidation.warnings.length} warnings:`);

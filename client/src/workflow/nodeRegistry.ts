@@ -4648,6 +4648,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     ],
     parameters: [],
     primaryOutputKey: "geometry",
+    semanticOps: ["brep.brepFromMesh"] as const,
     compute: ({ inputs, parameters, context }) => {
       const geometryId = typeof parameters.geometryId === "string" ? parameters.geometryId : null;
       const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
@@ -4741,6 +4742,16 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       { key: "curvatureAngle", label: "Curvature Angle (deg)", type: "number", defaultValue: 15, min: 0, max: 90, step: 1 },
     ],
     primaryOutputKey: "geometry",
+    semanticOps: [
+      "meshTess.getTessellationMetadata",
+      "meshTess.subdivideAdaptive",
+      "meshTess.subdivideCatmullClark",
+      "meshTess.subdivideLinear",
+      "meshTess.subdivideLoop",
+      "meshTess.tessellationMeshToRenderMesh",
+      "meshTess.toTessellationMesh",
+      "meshTess.toTessellationMeshData",
+    ] as const,
     compute: ({ inputs, parameters, context }) => {
       const geometryId = typeof inputs.geometry === "string" ? inputs.geometry : null;
       const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
@@ -4831,6 +4842,13 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     ],
     parameters: [],
     primaryOutputKey: "geometry",
+    semanticOps: [
+      "meshTess.dualMesh",
+      "meshTess.getTessellationMetadata",
+      "meshTess.tessellationMeshToRenderMesh",
+      "meshTess.toTessellationMesh",
+      "meshTess.toTessellationMeshData",
+    ] as const,
     compute: ({ inputs, context }) => {
       const geometryId = typeof inputs.geometry === "string" ? inputs.geometry : null;
       const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
@@ -4896,6 +4914,13 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       },
     ],
     primaryOutputKey: "geometry",
+    semanticOps: [
+      "meshTess.getTessellationMetadata",
+      "meshTess.insetFaces",
+      "meshTess.tessellationMeshToRenderMesh",
+      "meshTess.toTessellationMesh",
+      "meshTess.toTessellationMeshData",
+    ] as const,
     compute: ({ inputs, parameters, context }) => {
       const geometryId = typeof inputs.geometry === "string" ? inputs.geometry : null;
       const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
@@ -4984,6 +5009,13 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       ...vectorParameterSpecs("direction", "Direction", UNIT_Y_VEC3),
     ],
     primaryOutputKey: "geometry",
+    semanticOps: [
+      "meshTess.extrudeFaces",
+      "meshTess.getTessellationMetadata",
+      "meshTess.tessellationMeshToRenderMesh",
+      "meshTess.toTessellationMesh",
+      "meshTess.toTessellationMeshData",
+    ] as const,
     compute: ({ inputs, parameters, context }) => {
       const geometryId = typeof inputs.geometry === "string" ? inputs.geometry : null;
       const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
@@ -5064,6 +5096,13 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       { key: "preserveBoundary", label: "Preserve Boundary", type: "boolean", defaultValue: true },
     ],
     primaryOutputKey: "geometry",
+    semanticOps: [
+      "meshTess.getTessellationMetadata",
+      "meshTess.meshRelax",
+      "meshTess.tessellationMeshToRenderMesh",
+      "meshTess.toTessellationMesh",
+      "meshTess.toTessellationMeshData",
+    ] as const,
     compute: ({ inputs, parameters, context }) => {
       const geometryId = typeof inputs.geometry === "string" ? inputs.geometry : null;
       const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
@@ -5147,6 +5186,11 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       { key: "offset", label: "Offset", type: "number", defaultValue: 0, min: 0, step: 1 },
     ],
     primaryOutputKey: "faceIndices",
+    semanticOps: [
+      "meshTess.getTessellationMetadata",
+      "meshTess.selectFaces",
+      "meshTess.toTessellationMesh",
+    ] as const,
     compute: ({ inputs, parameters, context }) => {
       const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
       const criteria = String(inputs.criteria ?? parameters.criteria ?? "area") as
@@ -5219,6 +5263,11 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       },
     ],
     primaryOutputKey: "geometry",
+    semanticOps: [
+      "meshTess.meshBoolean",
+      "meshTess.toTessellationMesh",
+      "meshTess.toTessellationMeshData",
+    ] as const,
     compute: ({ inputs, parameters, context }) => {
       const geometryId = typeof parameters.geometryId === "string" ? parameters.geometryId : null;
       const geometryAId = typeof inputs.geometryA === "string" ? inputs.geometryA : null;
@@ -5260,6 +5309,13 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     ],
     parameters: [],
     primaryOutputKey: "geometry",
+    semanticOps: [
+      "meshTess.getTessellationMetadata",
+      "meshTess.tessellationMeshToRenderMesh",
+      "meshTess.toTessellationMesh",
+      "meshTess.toTessellationMeshData",
+      "meshTess.triangulateMesh",
+    ] as const,
     compute: ({ inputs, context }) => {
       const geometryId = typeof inputs.geometry === "string" ? inputs.geometry : null;
       const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
@@ -5317,6 +5373,11 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       },
     ],
     primaryOutputKey: "geometry",
+    semanticOps: [
+      "meshTess.generateGeodesicSphere",
+      "meshTess.tessellationMeshToRenderMesh",
+      "meshTess.toTessellationMeshData",
+    ] as const,
     compute: ({ inputs, parameters }) => {
       const geometryId = typeof parameters.geometryId === "string" ? parameters.geometryId : null;
       const radius = toNumber(inputs.radius, readNumberParameter(parameters, "radius", 1));
@@ -5355,6 +5416,15 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       { key: "relaxIterations", label: "Relax Iterations", type: "number", defaultValue: 2, min: 0, max: 10, step: 1 },
     ],
     primaryOutputKey: "geometry",
+    semanticOps: [
+      "math.computeBestFitPlane",
+      "math.projectPointToPlane",
+      "meshTess.generateVoronoiPattern",
+      "meshTess.getTessellationMetadata",
+      "meshTess.tessellationMeshToRenderMesh",
+      "meshTess.toTessellationMesh",
+      "meshTess.toTessellationMeshData",
+    ] as const,
     compute: ({ inputs, parameters, context }) => {
       const geometryId = typeof inputs.geometry === "string" ? inputs.geometry : null;
       const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
@@ -5442,6 +5512,15 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       { key: "orientation", label: "Orientation", type: "number", defaultValue: 0, step: 5 },
     ],
     primaryOutputKey: "geometry",
+    semanticOps: [
+      "math.computeBestFitPlane",
+      "math.projectPointToPlane",
+      "meshTess.generateHexagonalTiling",
+      "meshTess.getTessellationMetadata",
+      "meshTess.tessellationMeshToRenderMesh",
+      "meshTess.toTessellationMesh",
+      "meshTess.toTessellationMeshData",
+    ] as const,
     compute: ({ inputs, parameters, context }) => {
       const geometryId = typeof inputs.geometry === "string" ? inputs.geometry : null;
       const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
@@ -5510,6 +5589,13 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       { key: "borderWidth", label: "Border Width", type: "number", defaultValue: 0, min: 0, max: 0.95, step: 0.01 },
     ],
     primaryOutputKey: "geometry",
+    semanticOps: [
+      "meshTess.getTessellationMetadata",
+      "meshTess.offsetPattern",
+      "meshTess.tessellationMeshToRenderMesh",
+      "meshTess.toTessellationMesh",
+      "meshTess.toTessellationMeshData",
+    ] as const,
     compute: ({ inputs, parameters, context }) => {
       const geometryId = typeof inputs.geometry === "string" ? inputs.geometry : null;
       const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
@@ -5563,6 +5649,13 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       { key: "weldTolerance", label: "Weld Tolerance", type: "number", defaultValue: 0.001, min: 0, step: 0.0005 },
     ],
     primaryOutputKey: "geometry",
+    semanticOps: [
+      "meshTess.getTessellationMetadata",
+      "meshTess.repairMesh",
+      "meshTess.tessellationMeshToRenderMesh",
+      "meshTess.toTessellationMesh",
+      "meshTess.toTessellationMeshData",
+    ] as const,
     compute: ({ inputs, parameters, context }) => {
       const geometryId = typeof inputs.geometry === "string" ? inputs.geometry : null;
       const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
@@ -5619,6 +5712,13 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       ...vectorParameterSpecs("axis", "Axis", UNIT_Y_VEC3),
     ],
     primaryOutputKey: "geometry",
+    semanticOps: [
+      "meshTess.generateMeshUVs",
+      "meshTess.getTessellationMetadata",
+      "meshTess.tessellationMeshToRenderMesh",
+      "meshTess.toTessellationMesh",
+      "meshTess.toTessellationMeshData",
+    ] as const,
     compute: ({ inputs, parameters, context }) => {
       const geometryId = typeof inputs.geometry === "string" ? inputs.geometry : null;
       const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
@@ -5671,6 +5771,13 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       { key: "cellSize", label: "Cell Size", type: "number", defaultValue: 0, min: 0, step: 0.05 },
     ],
     primaryOutputKey: "geometry",
+    semanticOps: [
+      "meshTess.decimateMesh",
+      "meshTess.getTessellationMetadata",
+      "meshTess.tessellationMeshToRenderMesh",
+      "meshTess.toTessellationMesh",
+      "meshTess.toTessellationMeshData",
+    ] as const,
     compute: ({ inputs, parameters, context }) => {
       const geometryId = typeof inputs.geometry === "string" ? inputs.geometry : null;
       const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
@@ -5718,6 +5825,13 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       { key: "maxAngle", label: "Max Angle (deg)", type: "number", defaultValue: 15, min: 0, max: 90, step: 1 },
     ],
     primaryOutputKey: "geometry",
+    semanticOps: [
+      "meshTess.getTessellationMetadata",
+      "meshTess.quadDominantRemesh",
+      "meshTess.tessellationMeshToRenderMesh",
+      "meshTess.toTessellationMesh",
+      "meshTess.toTessellationMeshData",
+    ] as const,
     compute: ({ inputs, parameters, context }) => {
       const geometryId = typeof inputs.geometry === "string" ? inputs.geometry : null;
       const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
@@ -6492,6 +6606,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "remap",
     label: "Remap",
+    semanticOps: ['math.remap'],
     shortLabel: "MAP",
     description: "Remap a value from one range to another.",
     category: "ranges",
@@ -6587,6 +6702,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "random",
     label: "Random",
+    semanticOps: ['math.random'],
     shortLabel: "RAND",
     description: "Emit a deterministic random number from a seed.",
     category: "ranges",
@@ -7363,6 +7479,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       },
     ],
     primaryOutputKey: "value",
+    semanticOps: ["mesh.computeArea"] as const,
     compute: ({ inputs, parameters, context }) => {
       const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
       if (!geometry) {
@@ -8044,6 +8161,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "point",
     label: "Point Generator",
+    semanticOps: [],
     shortLabel: "PT",
     description: "Create a point from coordinates.",
     category: "primitives",
@@ -8177,6 +8295,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "line",
     label: "Line",
+    semanticOps: [],
     shortLabel: "LN",
     description: "Create a straight line between two points.",
     category: "curves",
@@ -8226,6 +8345,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "rectangle",
     label: "Rectangle",
+    semanticOps: [],
     shortLabel: "RECT",
     description: "Create a rectangle on the construction plane.",
     category: "curves",
@@ -8271,6 +8391,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "circle",
     label: "Circle",
+    semanticOps: [],
     shortLabel: "CIRC",
     description: "Create a circular curve on the construction plane.",
     category: "nurbs",
@@ -8374,6 +8495,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "curve",
     label: "Curve",
+    semanticOps: [],
     shortLabel: "CRV",
     description: "Create a smooth curve through points.",
     category: "nurbs",
@@ -8509,6 +8631,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "surface",
     label: "Surface",
+    semanticOps: [],
     shortLabel: "SRF",
     description: "Generate a surface from boundary curves.",
     category: "brep",
@@ -8594,6 +8717,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       { key: "samples", label: "Samples", type: "number", defaultValue: 24, min: 8, max: 128, step: 1 },
     ],
     primaryOutputKey: "geometry",
+    semanticOps: ["mesh.generateLoft"] as const,
     compute: ({ inputs, parameters, context }) => {
       const geometryId = typeof parameters.geometryId === "string" ? parameters.geometryId : null;
       const sectionGeometries = resolveGeometryList(inputs, context, "sections");
@@ -8669,6 +8793,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       { key: "capped", label: "Capped", type: "boolean", defaultValue: true },
     ],
     primaryOutputKey: "geometry",
+    semanticOps: ["mesh.generateExtrude"] as const,
     compute: ({ inputs, parameters, context }) => {
       const geometryId = typeof parameters.geometryId === "string" ? parameters.geometryId : null;
       const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
@@ -8775,6 +8900,11 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       { key: "jointRadius", label: "Joint Radius", type: "number", defaultValue: 0, min: 0, step: 0.05 },
     ],
     primaryOutputKey: "geometry",
+    semanticOps: [
+      "mesh.generateCylinder",
+      "mesh.generatePipe",
+      "mesh.generateSphere",
+    ] as const,
     compute: ({ inputs, parameters, context }) => {
       const geometryId = typeof parameters.geometryId === "string" ? parameters.geometryId : null;
       const radius = Math.max(
@@ -8928,6 +9058,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       { key: "radialSegments", label: "Radial Segments", type: "number", defaultValue: 16, min: 6, max: 64, step: 2 },
     ],
     primaryOutputKey: "geometry",
+    semanticOps: ["mesh.generateSphere"] as const,
     compute: ({ inputs, parameters, context }) => {
       const geometryId = typeof parameters.geometryId === "string" ? parameters.geometryId : null;
       const geometryList = resolveGeometryList(inputs, context, "geometry");
@@ -9115,6 +9246,13 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       { key: "samples", label: "Samples", type: "number", defaultValue: 32, min: 8, max: 128, step: 1 },
     ],
     primaryOutputKey: "geometry",
+    semanticOps: [
+      "boolean.offsetPolyline2D",
+      "curve.resampleByArcLength",
+      "math.computeBestFitPlane",
+      "math.projectPointToPlane",
+      "math.unprojectPointFromPlane",
+    ] as const,
     compute: ({ inputs, parameters, context }) => {
       const geometryId = typeof parameters.geometryId === "string" ? parameters.geometryId : null;
       const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
@@ -9486,6 +9624,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "box",
     label: "Box Builder",
+    semanticOps: [],
     shortLabel: "BOX",
     description: "Create a box primitive.",
     category: "primitives",
@@ -9552,6 +9691,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "sphere",
     label: "Sphere",
+    semanticOps: [],
     shortLabel: "SPH",
     description: "Create a sphere primitive.",
     category: "primitives",
@@ -10376,6 +10516,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "chemistrySolver",
     label: "Ἐπιλύτης Χημείας",
+    semanticOps: ['solver.chemistry'],
     shortLabel: "Chem",
     description: "Material transmutation solver for functionally graded blends.",
     category: "solver",
@@ -10867,6 +11008,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "number",
     label: "Number",
+    semanticOps: ['workflow.literal'],
     shortLabel: "NUM",
     description: "Emit a constant numeric value.",
     category: "math",
@@ -10890,6 +11032,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "add",
     label: "Add",
+    semanticOps: ['math.add'],
     shortLabel: "ADD",
     description: "Add two numeric values.",
     category: "math",
@@ -10907,6 +11050,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "subtract",
     label: "Subtract",
+    semanticOps: ['math.subtract'],
     shortLabel: "SUB",
     description: "Computes the difference A - B for numeric values.",
     category: "math",
@@ -10924,6 +11068,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "multiply",
     label: "Multiply",
+    semanticOps: ['math.multiply'],
     shortLabel: "MUL",
     description: "Multiply two numeric values.",
     category: "math",
@@ -10941,6 +11086,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "divide",
     label: "Divide",
+    semanticOps: ['math.divide'],
     shortLabel: "DIV",
     description: "Divide A by B with stability checks.",
     category: "math",
@@ -10961,6 +11107,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "clamp",
     label: "Clamp",
+    semanticOps: ['math.clamp'],
     shortLabel: "CLP",
     description: "Clamp a value between a minimum and maximum.",
     category: "math",
@@ -11003,6 +11150,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "min",
     label: "Min",
+    semanticOps: ['math.min'],
     shortLabel: "MIN",
     description: "Return the smaller of two values.",
     category: "math",
@@ -11020,6 +11168,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "max",
     label: "Max",
+    semanticOps: ['math.max'],
     shortLabel: "MAX",
     description: "Return the larger of two values.",
     category: "math",
@@ -11399,6 +11548,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "vectorAdd",
     label: "Vector Add",
+    semanticOps: ['vector.add'],
     shortLabel: "V+",
     description: "Add two vectors component-wise.",
     category: "euclidean",
@@ -11424,6 +11574,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "vectorSubtract",
     label: "Vector Subtract",
+    semanticOps: ['vector.subtract'],
     shortLabel: "V-",
     description: "Subtract vector B from vector A.",
     category: "euclidean",
@@ -11486,6 +11637,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "vectorLength",
     label: "Vector Length",
+    semanticOps: ['vector.length'],
     shortLabel: "|V|",
     description: "Measure the magnitude of a vector.",
     category: "euclidean",
@@ -11504,6 +11656,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "vectorNormalize",
     label: "Vector Normalize",
+    semanticOps: ['vector.normalize'],
     shortLabel: "V^",
     description: "Convert a vector to unit length.",
     category: "euclidean",
@@ -11522,6 +11675,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "vectorDot",
     label: "Vector Dot",
+    semanticOps: ['vector.dot'],
     shortLabel: "DOT",
     description: "Compute the dot product between two vectors.",
     category: "euclidean",
@@ -11547,6 +11701,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "vectorCross",
     label: "Vector Cross",
+    semanticOps: ['vector.cross'],
     shortLabel: "CRS",
     description: "Compute the cross product between two vectors.",
     category: "euclidean",
@@ -11661,6 +11816,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "vectorLerp",
     label: "Vector Lerp",
+    semanticOps: ['vector.lerp'],
     shortLabel: "LERP",
     description: "Linearly interpolate between two vectors using parameter T.",
     category: "euclidean",

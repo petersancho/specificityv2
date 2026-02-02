@@ -2,6 +2,7 @@
   "primitive": [
     {
       "id": "mesh.generateBox",
+      "domain": "geometry",
       "name": "Generate Box Mesh",
       "category": "primitive",
       "tags": [
@@ -15,6 +16,7 @@
     },
     {
       "id": "mesh.generateSphere",
+      "domain": "geometry",
       "name": "Generate Sphere Mesh",
       "category": "primitive",
       "tags": [
@@ -28,6 +30,7 @@
     },
     {
       "id": "mesh.generateCylinder",
+      "domain": "geometry",
       "name": "Generate Cylinder Mesh",
       "category": "primitive",
       "tags": [
@@ -41,6 +44,7 @@
     },
     {
       "id": "mesh.generatePipe",
+      "domain": "geometry",
       "name": "Generate Pipe Mesh",
       "category": "primitive",
       "tags": [
@@ -54,6 +58,7 @@
     },
     {
       "id": "meshTess.generateGeodesicSphere",
+      "domain": "geometry",
       "name": "Generate Geodesic Sphere",
       "category": "primitive",
       "tags": [
@@ -67,6 +72,7 @@
     },
     {
       "id": "meshTess.generateHexagonalTiling",
+      "domain": "geometry",
       "name": "Generate Hexagonal Tiling",
       "category": "primitive",
       "tags": [
@@ -80,6 +86,7 @@
     },
     {
       "id": "meshTess.generateVoronoiPattern",
+      "domain": "geometry",
       "name": "Generate Voronoi Pattern",
       "category": "primitive",
       "tags": [
@@ -95,6 +102,7 @@
   "modifier": [
     {
       "id": "mesh.generateExtrude",
+      "domain": "geometry",
       "name": "Generate Extrude Mesh",
       "category": "modifier",
       "tags": [
@@ -108,6 +116,7 @@
     },
     {
       "id": "mesh.generateLoft",
+      "domain": "geometry",
       "name": "Generate Loft Mesh",
       "category": "modifier",
       "tags": [
@@ -122,6 +131,7 @@
     },
     {
       "id": "meshTess.subdivideLinear",
+      "domain": "geometry",
       "name": "Subdivide Linear",
       "category": "modifier",
       "tags": [
@@ -135,6 +145,7 @@
     },
     {
       "id": "meshTess.subdivideCatmullClark",
+      "domain": "geometry",
       "name": "Subdivide Catmull-Clark",
       "category": "modifier",
       "tags": [
@@ -148,6 +159,7 @@
     },
     {
       "id": "meshTess.subdivideLoop",
+      "domain": "geometry",
       "name": "Subdivide Loop",
       "category": "modifier",
       "tags": [
@@ -161,6 +173,7 @@
     },
     {
       "id": "meshTess.subdivideAdaptive",
+      "domain": "geometry",
       "name": "Subdivide Adaptive",
       "category": "modifier",
       "tags": [
@@ -174,6 +187,7 @@
     },
     {
       "id": "meshTess.dualMesh",
+      "domain": "geometry",
       "name": "Dual Mesh",
       "category": "modifier",
       "tags": [
@@ -187,6 +201,7 @@
     },
     {
       "id": "meshTess.insetFaces",
+      "domain": "geometry",
       "name": "Inset Faces",
       "category": "modifier",
       "tags": [
@@ -200,6 +215,7 @@
     },
     {
       "id": "meshTess.extrudeFaces",
+      "domain": "geometry",
       "name": "Extrude Faces",
       "category": "modifier",
       "tags": [
@@ -213,6 +229,7 @@
     },
     {
       "id": "meshTess.meshRelax",
+      "domain": "geometry",
       "name": "Mesh Relax",
       "category": "modifier",
       "tags": [
@@ -226,6 +243,7 @@
     },
     {
       "id": "meshTess.triangulateMesh",
+      "domain": "geometry",
       "name": "Triangulate Mesh",
       "category": "modifier",
       "tags": [
@@ -239,6 +257,7 @@
     },
     {
       "id": "meshTess.offsetPattern",
+      "domain": "geometry",
       "name": "Offset Pattern",
       "category": "modifier",
       "tags": [
@@ -252,6 +271,7 @@
     },
     {
       "id": "meshTess.generateMeshUVs",
+      "domain": "geometry",
       "name": "Generate Mesh UVs",
       "category": "modifier",
       "tags": [
@@ -265,6 +285,7 @@
     },
     {
       "id": "meshTess.repairMesh",
+      "domain": "geometry",
       "name": "Repair Mesh",
       "category": "modifier",
       "tags": [
@@ -278,6 +299,7 @@
     },
     {
       "id": "meshTess.decimateMesh",
+      "domain": "geometry",
       "name": "Decimate Mesh",
       "category": "modifier",
       "tags": [
@@ -291,6 +313,7 @@
     },
     {
       "id": "meshTess.quadDominantRemesh",
+      "domain": "geometry",
       "name": "Quad-Dominant Remesh",
       "category": "modifier",
       "tags": [
@@ -304,6 +327,7 @@
     },
     {
       "id": "meshTess.meshBoolean",
+      "domain": "geometry",
       "name": "Mesh Boolean",
       "category": "modifier",
       "tags": [
@@ -320,6 +344,7 @@
     },
     {
       "id": "curve.resampleByArcLength",
+      "domain": "geometry",
       "name": "Resample By Arc Length",
       "category": "modifier",
       "tags": [
@@ -334,6 +359,7 @@
     },
     {
       "id": "boolean.offsetPolyline2D",
+      "domain": "geometry",
       "name": "Offset Polyline 2D",
       "category": "modifier",
       "tags": [
@@ -349,6 +375,7 @@
   "analysis": [
     {
       "id": "mesh.computeVertexNormals",
+      "domain": "geometry",
       "name": "Compute Vertex Normals",
       "category": "analysis",
       "tags": [
@@ -362,6 +389,7 @@
     },
     {
       "id": "mesh.computeArea",
+      "domain": "geometry",
       "name": "Compute Mesh Area",
       "category": "analysis",
       "tags": [
@@ -375,6 +403,7 @@
     },
     {
       "id": "math.computeBestFitPlane",
+      "domain": "geometry",
       "name": "Compute Best Fit Plane",
       "category": "analysis",
       "tags": [
@@ -390,6 +419,7 @@
   "utility": [
     {
       "id": "meshTess.selectFaces",
+      "domain": "geometry",
       "name": "Select Faces",
       "category": "utility",
       "tags": [
@@ -403,6 +433,7 @@
     },
     {
       "id": "meshTess.getTessellationMetadata",
+      "domain": "geometry",
       "name": "Get Tessellation Metadata",
       "category": "utility",
       "tags": [
@@ -417,6 +448,7 @@
   "tessellation": [
     {
       "id": "meshTess.toTessellationMesh",
+      "domain": "geometry",
       "name": "To Tessellation Mesh",
       "category": "tessellation",
       "tags": [
@@ -429,6 +461,7 @@
     },
     {
       "id": "meshTess.toTessellationMeshData",
+      "domain": "geometry",
       "name": "To Tessellation Mesh Data",
       "category": "tessellation",
       "tags": [
@@ -441,6 +474,7 @@
     },
     {
       "id": "meshTess.tessellationMeshToRenderMesh",
+      "domain": "geometry",
       "name": "Tessellation Mesh To Render Mesh",
       "category": "tessellation",
       "tags": [
@@ -453,6 +487,7 @@
     },
     {
       "id": "brep.brepFromMesh",
+      "domain": "geometry",
       "name": "B-Rep From Mesh",
       "category": "tessellation",
       "tags": [
@@ -467,6 +502,7 @@
     },
     {
       "id": "brep.tessellateBRepToMesh",
+      "domain": "geometry",
       "name": "Tessellate B-Rep To Mesh",
       "category": "tessellation",
       "tags": [
@@ -481,6 +517,7 @@
     },
     {
       "id": "tess.tessellateCurveAdaptive",
+      "domain": "geometry",
       "name": "Tessellate Curve Adaptive",
       "category": "tessellation",
       "tags": [
@@ -495,6 +532,7 @@
     },
     {
       "id": "tess.tessellateSurfaceAdaptive",
+      "domain": "geometry",
       "name": "Tessellate Surface Adaptive",
       "category": "tessellation",
       "tags": [
@@ -511,6 +549,7 @@
   "transform": [
     {
       "id": "math.projectPointToPlane",
+      "domain": "geometry",
       "name": "Project Point To Plane",
       "category": "transform",
       "tags": [
@@ -524,6 +563,7 @@
     },
     {
       "id": "math.unprojectPointFromPlane",
+      "domain": "geometry",
       "name": "Unproject Point From Plane",
       "category": "transform",
       "tags": [

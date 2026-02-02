@@ -1,6 +1,1432 @@
 {
+  "math.add": {
+    "id": "math.add",
+    "domain": "math",
+    "name": "Add",
+    "category": "operator",
+    "tags": [
+      "arithmetic",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Adds two numbers",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.subtract": {
+    "id": "math.subtract",
+    "domain": "math",
+    "name": "Subtract",
+    "category": "operator",
+    "tags": [
+      "arithmetic",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Subtracts one number from another",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.multiply": {
+    "id": "math.multiply",
+    "domain": "math",
+    "name": "Multiply",
+    "category": "operator",
+    "tags": [
+      "arithmetic",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Multiplies two numbers",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.divide": {
+    "id": "math.divide",
+    "domain": "math",
+    "name": "Divide",
+    "category": "operator",
+    "tags": [
+      "arithmetic",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Divides one number by another",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.modulo": {
+    "id": "math.modulo",
+    "domain": "math",
+    "name": "Modulo",
+    "category": "operator",
+    "tags": [
+      "arithmetic",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Computes the remainder of division",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.power": {
+    "id": "math.power",
+    "domain": "math",
+    "name": "Power",
+    "category": "operator",
+    "tags": [
+      "arithmetic",
+      "exponential",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Raises a number to a power",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.floor": {
+    "id": "math.floor",
+    "domain": "math",
+    "name": "Floor",
+    "category": "operator",
+    "tags": [
+      "rounding",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Rounds down to the nearest integer",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.ceil": {
+    "id": "math.ceil",
+    "domain": "math",
+    "name": "Ceiling",
+    "category": "operator",
+    "tags": [
+      "rounding",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Rounds up to the nearest integer",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.round": {
+    "id": "math.round",
+    "domain": "math",
+    "name": "Round",
+    "category": "operator",
+    "tags": [
+      "rounding",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Rounds to the nearest integer",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.abs": {
+    "id": "math.abs",
+    "domain": "math",
+    "name": "Absolute Value",
+    "category": "operator",
+    "tags": [
+      "arithmetic",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Computes the absolute value",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.negate": {
+    "id": "math.negate",
+    "domain": "math",
+    "name": "Negate",
+    "category": "operator",
+    "tags": [
+      "arithmetic",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Negates a number",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.sqrt": {
+    "id": "math.sqrt",
+    "domain": "math",
+    "name": "Square Root",
+    "category": "operator",
+    "tags": [
+      "arithmetic",
+      "exponential",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Computes the square root",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.sin": {
+    "id": "math.sin",
+    "domain": "math",
+    "name": "Sine",
+    "category": "operator",
+    "tags": [
+      "trigonometry",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Computes the sine of an angle",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.cos": {
+    "id": "math.cos",
+    "domain": "math",
+    "name": "Cosine",
+    "category": "operator",
+    "tags": [
+      "trigonometry",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Computes the cosine of an angle",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.tan": {
+    "id": "math.tan",
+    "domain": "math",
+    "name": "Tangent",
+    "category": "operator",
+    "tags": [
+      "trigonometry",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Computes the tangent of an angle",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.asin": {
+    "id": "math.asin",
+    "domain": "math",
+    "name": "Arcsine",
+    "category": "operator",
+    "tags": [
+      "trigonometry",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Computes the arcsine",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.acos": {
+    "id": "math.acos",
+    "domain": "math",
+    "name": "Arccosine",
+    "category": "operator",
+    "tags": [
+      "trigonometry",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Computes the arccosine",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.atan": {
+    "id": "math.atan",
+    "domain": "math",
+    "name": "Arctangent",
+    "category": "operator",
+    "tags": [
+      "trigonometry",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Computes the arctangent",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.atan2": {
+    "id": "math.atan2",
+    "domain": "math",
+    "name": "Arctangent2",
+    "category": "operator",
+    "tags": [
+      "trigonometry",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Computes the arctangent of y/x",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.exp": {
+    "id": "math.exp",
+    "domain": "math",
+    "name": "Exponential",
+    "category": "operator",
+    "tags": [
+      "exponential",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Computes e raised to a power",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.log": {
+    "id": "math.log",
+    "domain": "math",
+    "name": "Natural Logarithm",
+    "category": "operator",
+    "tags": [
+      "exponential",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Computes the natural logarithm",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.log10": {
+    "id": "math.log10",
+    "domain": "math",
+    "name": "Base-10 Logarithm",
+    "category": "operator",
+    "tags": [
+      "exponential",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Computes the base-10 logarithm",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.min": {
+    "id": "math.min",
+    "domain": "math",
+    "name": "Minimum",
+    "category": "aggregation",
+    "tags": [
+      "comparison",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Returns the smaller of two numbers",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.max": {
+    "id": "math.max",
+    "domain": "math",
+    "name": "Maximum",
+    "category": "aggregation",
+    "tags": [
+      "comparison",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Returns the larger of two numbers",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.clamp": {
+    "id": "math.clamp",
+    "domain": "math",
+    "name": "Clamp",
+    "category": "utility",
+    "tags": [
+      "comparison",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Clamps a value between min and max",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.lerp": {
+    "id": "math.lerp",
+    "domain": "math",
+    "name": "Linear Interpolation",
+    "category": "utility",
+    "tags": [
+      "arithmetic",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Linearly interpolates between two values",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.remap": {
+    "id": "math.remap",
+    "domain": "math",
+    "name": "Remap",
+    "category": "utility",
+    "tags": [
+      "arithmetic",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Remaps a value from one range to another",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.equal": {
+    "id": "math.equal",
+    "domain": "math",
+    "name": "Equal",
+    "category": "operator",
+    "tags": [
+      "comparison",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Checks if two numbers are equal",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.notEqual": {
+    "id": "math.notEqual",
+    "domain": "math",
+    "name": "Not Equal",
+    "category": "operator",
+    "tags": [
+      "comparison",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Checks if two numbers are not equal",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.lessThan": {
+    "id": "math.lessThan",
+    "domain": "math",
+    "name": "Less Than",
+    "category": "operator",
+    "tags": [
+      "comparison",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Checks if one number is less than another",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.lessThanOrEqual": {
+    "id": "math.lessThanOrEqual",
+    "domain": "math",
+    "name": "Less Than or Equal",
+    "category": "operator",
+    "tags": [
+      "comparison",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Checks if one number is less than or equal to another",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.greaterThan": {
+    "id": "math.greaterThan",
+    "domain": "math",
+    "name": "Greater Than",
+    "category": "operator",
+    "tags": [
+      "comparison",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Checks if one number is greater than another",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.greaterThanOrEqual": {
+    "id": "math.greaterThanOrEqual",
+    "domain": "math",
+    "name": "Greater Than or Equal",
+    "category": "operator",
+    "tags": [
+      "comparison",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Checks if one number is greater than or equal to another",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.random": {
+    "id": "math.random",
+    "domain": "math",
+    "name": "Random",
+    "category": "utility",
+    "tags": [
+      "arithmetic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": false,
+    "deterministic": false,
+    "sideEffects": [
+      "random"
+    ],
+    "summary": "Generates a random number",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "vector.add": {
+    "id": "vector.add",
+    "domain": "vector",
+    "name": "Vector Add",
+    "category": "operator",
+    "tags": [
+      "vector3",
+      "arithmetic",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Adds two vectors",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "vector.subtract": {
+    "id": "vector.subtract",
+    "domain": "vector",
+    "name": "Vector Subtract",
+    "category": "operator",
+    "tags": [
+      "vector3",
+      "arithmetic",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Subtracts one vector from another",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "vector.multiply": {
+    "id": "vector.multiply",
+    "domain": "vector",
+    "name": "Vector Multiply",
+    "category": "operator",
+    "tags": [
+      "vector3",
+      "arithmetic",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Multiplies a vector by a scalar",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "vector.divide": {
+    "id": "vector.divide",
+    "domain": "vector",
+    "name": "Vector Divide",
+    "category": "operator",
+    "tags": [
+      "vector3",
+      "arithmetic",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Divides a vector by a scalar",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "vector.dot": {
+    "id": "vector.dot",
+    "domain": "vector",
+    "name": "Dot Product",
+    "category": "operator",
+    "tags": [
+      "vector3",
+      "arithmetic",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Computes the dot product of two vectors",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "vector.cross": {
+    "id": "vector.cross",
+    "domain": "vector",
+    "name": "Cross Product",
+    "category": "operator",
+    "tags": [
+      "vector3",
+      "arithmetic",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Computes the cross product of two vectors",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "vector.normalize": {
+    "id": "vector.normalize",
+    "domain": "vector",
+    "name": "Normalize",
+    "category": "utility",
+    "tags": [
+      "vector3",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Normalizes a vector to unit length",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "vector.length": {
+    "id": "vector.length",
+    "domain": "vector",
+    "name": "Length",
+    "category": "analysis",
+    "tags": [
+      "vector3",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Computes the length of a vector",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "vector.distance": {
+    "id": "vector.distance",
+    "domain": "vector",
+    "name": "Distance",
+    "category": "analysis",
+    "tags": [
+      "vector3",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Computes the distance between two points",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "vector.lerp": {
+    "id": "vector.lerp",
+    "domain": "vector",
+    "name": "Vector Lerp",
+    "category": "utility",
+    "tags": [
+      "vector3",
+      "arithmetic",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Linearly interpolates between two vectors",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "logic.and": {
+    "id": "logic.and",
+    "domain": "logic",
+    "name": "And",
+    "category": "operator",
+    "tags": [
+      "boolean",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Logical AND operation",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "logic.or": {
+    "id": "logic.or",
+    "domain": "logic",
+    "name": "Or",
+    "category": "operator",
+    "tags": [
+      "boolean",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Logical OR operation",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "logic.not": {
+    "id": "logic.not",
+    "domain": "logic",
+    "name": "Not",
+    "category": "operator",
+    "tags": [
+      "boolean",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Logical NOT operation",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "logic.xor": {
+    "id": "logic.xor",
+    "domain": "logic",
+    "name": "Xor",
+    "category": "operator",
+    "tags": [
+      "boolean",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Logical XOR operation",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "logic.if": {
+    "id": "logic.if",
+    "domain": "logic",
+    "name": "If",
+    "category": "control",
+    "tags": [
+      "conditional",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Conditional branching",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "logic.compare": {
+    "id": "logic.compare",
+    "domain": "logic",
+    "name": "Compare",
+    "category": "operator",
+    "tags": [
+      "comparison",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Compares two values",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "data.collect": {
+    "id": "data.collect",
+    "domain": "data",
+    "name": "Collect",
+    "category": "aggregation",
+    "tags": [
+      "array",
+      "collection",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Collects values into an array",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "data.flatten": {
+    "id": "data.flatten",
+    "domain": "data",
+    "name": "Flatten",
+    "category": "utility",
+    "tags": [
+      "array",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Flattens nested arrays",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "data.filter": {
+    "id": "data.filter",
+    "domain": "data",
+    "name": "Filter",
+    "category": "utility",
+    "tags": [
+      "array",
+      "iteration",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Filters array elements",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "data.map": {
+    "id": "data.map",
+    "domain": "data",
+    "name": "Map",
+    "category": "utility",
+    "tags": [
+      "array",
+      "iteration",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Maps array elements",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "data.reduce": {
+    "id": "data.reduce",
+    "domain": "data",
+    "name": "Reduce",
+    "category": "aggregation",
+    "tags": [
+      "array",
+      "iteration",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Reduces array to single value",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "data.sort": {
+    "id": "data.sort",
+    "domain": "data",
+    "name": "Sort",
+    "category": "utility",
+    "tags": [
+      "array",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Sorts array elements",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "data.unique": {
+    "id": "data.unique",
+    "domain": "data",
+    "name": "Unique",
+    "category": "utility",
+    "tags": [
+      "array",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Removes duplicate elements",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "data.length": {
+    "id": "data.length",
+    "domain": "data",
+    "name": "Length",
+    "category": "analysis",
+    "tags": [
+      "array",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Returns array length",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "data.index": {
+    "id": "data.index",
+    "domain": "data",
+    "name": "Index",
+    "category": "utility",
+    "tags": [
+      "array",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Gets element at index",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "string.concat": {
+    "id": "string.concat",
+    "domain": "string",
+    "name": "Concatenate",
+    "category": "operator",
+    "tags": [
+      "text",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Concatenates strings",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "string.split": {
+    "id": "string.split",
+    "domain": "string",
+    "name": "Split",
+    "category": "utility",
+    "tags": [
+      "text",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Splits string into array",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "string.replace": {
+    "id": "string.replace",
+    "domain": "string",
+    "name": "Replace",
+    "category": "utility",
+    "tags": [
+      "text",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Replaces substring",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "string.substring": {
+    "id": "string.substring",
+    "domain": "string",
+    "name": "Substring",
+    "category": "utility",
+    "tags": [
+      "text",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Extracts substring",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "string.length": {
+    "id": "string.length",
+    "domain": "string",
+    "name": "Length",
+    "category": "analysis",
+    "tags": [
+      "text",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Returns string length",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "string.toNumber": {
+    "id": "string.toNumber",
+    "domain": "string",
+    "name": "To Number",
+    "category": "utility",
+    "tags": [
+      "text",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Converts string to number",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "string.format": {
+    "id": "string.format",
+    "domain": "string",
+    "name": "Format",
+    "category": "utility",
+    "tags": [
+      "text",
+      "formatting",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Formats string with values",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "color.hexToRgb": {
+    "id": "color.hexToRgb",
+    "domain": "color",
+    "name": "Hex to RGB",
+    "category": "utility",
+    "tags": [
+      "colorspace",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Converts hex color to RGB",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "color.rgbToHex": {
+    "id": "color.rgbToHex",
+    "domain": "color",
+    "name": "RGB to Hex",
+    "category": "utility",
+    "tags": [
+      "colorspace",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Converts RGB color to hex",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "color.rgbToHsl": {
+    "id": "color.rgbToHsl",
+    "domain": "color",
+    "name": "RGB to HSL",
+    "category": "utility",
+    "tags": [
+      "colorspace",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Converts RGB to HSL",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "color.hslToRgb": {
+    "id": "color.hslToRgb",
+    "domain": "color",
+    "name": "HSL to RGB",
+    "category": "utility",
+    "tags": [
+      "colorspace",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Converts HSL to RGB",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "color.blend": {
+    "id": "color.blend",
+    "domain": "color",
+    "name": "Blend",
+    "category": "operator",
+    "tags": [
+      "blending",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Blends two colors",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "color.clamp": {
+    "id": "color.clamp",
+    "domain": "color",
+    "name": "Clamp",
+    "category": "utility",
+    "tags": [
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Clamps color values to valid range",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "workflow.literal": {
+    "id": "workflow.literal",
+    "domain": "workflow",
+    "name": "Literal",
+    "category": "primitive",
+    "tags": [
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Returns a literal value",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "workflow.identity": {
+    "id": "workflow.identity",
+    "domain": "workflow",
+    "name": "Identity",
+    "category": "utility",
+    "tags": [
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Passes through input unchanged",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "workflow.constant": {
+    "id": "workflow.constant",
+    "domain": "workflow",
+    "name": "Constant",
+    "category": "primitive",
+    "tags": [
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Returns a constant value",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "solver.physics": {
+    "id": "solver.physics",
+    "domain": "solver",
+    "name": "Physics Solver",
+    "category": "utility",
+    "tags": [
+      "3d"
+    ],
+    "complexity": "O(1)",
+    "cost": "high",
+    "pure": false,
+    "deterministic": true,
+    "summary": "Solves physics simulation",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "solver.chemistry": {
+    "id": "solver.chemistry",
+    "domain": "solver",
+    "name": "Chemistry Solver",
+    "category": "utility",
+    "tags": [
+      "3d"
+    ],
+    "complexity": "O(1)",
+    "cost": "high",
+    "pure": false,
+    "deterministic": false,
+    "summary": "Solves chemistry simulation",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "solver.biological": {
+    "id": "solver.biological",
+    "domain": "solver",
+    "name": "Biological Solver",
+    "category": "utility",
+    "tags": [
+      "3d"
+    ],
+    "complexity": "O(1)",
+    "cost": "high",
+    "pure": false,
+    "deterministic": false,
+    "summary": "Solves biological simulation",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "solver.voxel": {
+    "id": "solver.voxel",
+    "domain": "solver",
+    "name": "Voxel Solver",
+    "category": "utility",
+    "tags": [
+      "3d"
+    ],
+    "complexity": "O(1)",
+    "cost": "high",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Converts geometry to voxels",
+    "stable": true,
+    "since": "1.0.0"
+  },
   "mesh.generateBox": {
     "id": "mesh.generateBox",
+    "domain": "geometry",
     "name": "Generate Box Mesh",
     "category": "primitive",
     "tags": [
@@ -14,6 +1440,7 @@
   },
   "mesh.generateSphere": {
     "id": "mesh.generateSphere",
+    "domain": "geometry",
     "name": "Generate Sphere Mesh",
     "category": "primitive",
     "tags": [
@@ -27,6 +1454,7 @@
   },
   "mesh.generateCylinder": {
     "id": "mesh.generateCylinder",
+    "domain": "geometry",
     "name": "Generate Cylinder Mesh",
     "category": "primitive",
     "tags": [
@@ -40,6 +1468,7 @@
   },
   "mesh.generateExtrude": {
     "id": "mesh.generateExtrude",
+    "domain": "geometry",
     "name": "Generate Extrude Mesh",
     "category": "modifier",
     "tags": [
@@ -53,6 +1482,7 @@
   },
   "mesh.generateLoft": {
     "id": "mesh.generateLoft",
+    "domain": "geometry",
     "name": "Generate Loft Mesh",
     "category": "modifier",
     "tags": [
@@ -67,6 +1497,7 @@
   },
   "mesh.generatePipe": {
     "id": "mesh.generatePipe",
+    "domain": "geometry",
     "name": "Generate Pipe Mesh",
     "category": "primitive",
     "tags": [
@@ -80,6 +1511,7 @@
   },
   "mesh.computeVertexNormals": {
     "id": "mesh.computeVertexNormals",
+    "domain": "geometry",
     "name": "Compute Vertex Normals",
     "category": "analysis",
     "tags": [
@@ -93,6 +1525,7 @@
   },
   "mesh.computeArea": {
     "id": "mesh.computeArea",
+    "domain": "geometry",
     "name": "Compute Mesh Area",
     "category": "analysis",
     "tags": [
@@ -106,6 +1539,7 @@
   },
   "meshTess.subdivideLinear": {
     "id": "meshTess.subdivideLinear",
+    "domain": "geometry",
     "name": "Subdivide Linear",
     "category": "modifier",
     "tags": [
@@ -119,6 +1553,7 @@
   },
   "meshTess.subdivideCatmullClark": {
     "id": "meshTess.subdivideCatmullClark",
+    "domain": "geometry",
     "name": "Subdivide Catmull-Clark",
     "category": "modifier",
     "tags": [
@@ -132,6 +1567,7 @@
   },
   "meshTess.subdivideLoop": {
     "id": "meshTess.subdivideLoop",
+    "domain": "geometry",
     "name": "Subdivide Loop",
     "category": "modifier",
     "tags": [
@@ -145,6 +1581,7 @@
   },
   "meshTess.subdivideAdaptive": {
     "id": "meshTess.subdivideAdaptive",
+    "domain": "geometry",
     "name": "Subdivide Adaptive",
     "category": "modifier",
     "tags": [
@@ -158,6 +1595,7 @@
   },
   "meshTess.dualMesh": {
     "id": "meshTess.dualMesh",
+    "domain": "geometry",
     "name": "Dual Mesh",
     "category": "modifier",
     "tags": [
@@ -171,6 +1609,7 @@
   },
   "meshTess.insetFaces": {
     "id": "meshTess.insetFaces",
+    "domain": "geometry",
     "name": "Inset Faces",
     "category": "modifier",
     "tags": [
@@ -184,6 +1623,7 @@
   },
   "meshTess.extrudeFaces": {
     "id": "meshTess.extrudeFaces",
+    "domain": "geometry",
     "name": "Extrude Faces",
     "category": "modifier",
     "tags": [
@@ -197,6 +1637,7 @@
   },
   "meshTess.meshRelax": {
     "id": "meshTess.meshRelax",
+    "domain": "geometry",
     "name": "Mesh Relax",
     "category": "modifier",
     "tags": [
@@ -210,6 +1651,7 @@
   },
   "meshTess.selectFaces": {
     "id": "meshTess.selectFaces",
+    "domain": "geometry",
     "name": "Select Faces",
     "category": "utility",
     "tags": [
@@ -223,6 +1665,7 @@
   },
   "meshTess.triangulateMesh": {
     "id": "meshTess.triangulateMesh",
+    "domain": "geometry",
     "name": "Triangulate Mesh",
     "category": "modifier",
     "tags": [
@@ -236,6 +1679,7 @@
   },
   "meshTess.generateGeodesicSphere": {
     "id": "meshTess.generateGeodesicSphere",
+    "domain": "geometry",
     "name": "Generate Geodesic Sphere",
     "category": "primitive",
     "tags": [
@@ -249,6 +1693,7 @@
   },
   "meshTess.generateHexagonalTiling": {
     "id": "meshTess.generateHexagonalTiling",
+    "domain": "geometry",
     "name": "Generate Hexagonal Tiling",
     "category": "primitive",
     "tags": [
@@ -262,6 +1707,7 @@
   },
   "meshTess.generateVoronoiPattern": {
     "id": "meshTess.generateVoronoiPattern",
+    "domain": "geometry",
     "name": "Generate Voronoi Pattern",
     "category": "primitive",
     "tags": [
@@ -275,6 +1721,7 @@
   },
   "meshTess.offsetPattern": {
     "id": "meshTess.offsetPattern",
+    "domain": "geometry",
     "name": "Offset Pattern",
     "category": "modifier",
     "tags": [
@@ -288,6 +1735,7 @@
   },
   "meshTess.generateMeshUVs": {
     "id": "meshTess.generateMeshUVs",
+    "domain": "geometry",
     "name": "Generate Mesh UVs",
     "category": "modifier",
     "tags": [
@@ -301,6 +1749,7 @@
   },
   "meshTess.repairMesh": {
     "id": "meshTess.repairMesh",
+    "domain": "geometry",
     "name": "Repair Mesh",
     "category": "modifier",
     "tags": [
@@ -314,6 +1763,7 @@
   },
   "meshTess.decimateMesh": {
     "id": "meshTess.decimateMesh",
+    "domain": "geometry",
     "name": "Decimate Mesh",
     "category": "modifier",
     "tags": [
@@ -327,6 +1777,7 @@
   },
   "meshTess.quadDominantRemesh": {
     "id": "meshTess.quadDominantRemesh",
+    "domain": "geometry",
     "name": "Quad-Dominant Remesh",
     "category": "modifier",
     "tags": [
@@ -340,6 +1791,7 @@
   },
   "meshTess.meshBoolean": {
     "id": "meshTess.meshBoolean",
+    "domain": "geometry",
     "name": "Mesh Boolean",
     "category": "modifier",
     "tags": [
@@ -356,6 +1808,7 @@
   },
   "meshTess.getTessellationMetadata": {
     "id": "meshTess.getTessellationMetadata",
+    "domain": "geometry",
     "name": "Get Tessellation Metadata",
     "category": "utility",
     "tags": [
@@ -368,6 +1821,7 @@
   },
   "meshTess.toTessellationMesh": {
     "id": "meshTess.toTessellationMesh",
+    "domain": "geometry",
     "name": "To Tessellation Mesh",
     "category": "tessellation",
     "tags": [
@@ -380,6 +1834,7 @@
   },
   "meshTess.toTessellationMeshData": {
     "id": "meshTess.toTessellationMeshData",
+    "domain": "geometry",
     "name": "To Tessellation Mesh Data",
     "category": "tessellation",
     "tags": [
@@ -392,6 +1847,7 @@
   },
   "meshTess.tessellationMeshToRenderMesh": {
     "id": "meshTess.tessellationMeshToRenderMesh",
+    "domain": "geometry",
     "name": "Tessellation Mesh To Render Mesh",
     "category": "tessellation",
     "tags": [
@@ -404,6 +1860,7 @@
   },
   "math.computeBestFitPlane": {
     "id": "math.computeBestFitPlane",
+    "domain": "geometry",
     "name": "Compute Best Fit Plane",
     "category": "analysis",
     "tags": [
@@ -417,6 +1874,7 @@
   },
   "math.projectPointToPlane": {
     "id": "math.projectPointToPlane",
+    "domain": "geometry",
     "name": "Project Point To Plane",
     "category": "transform",
     "tags": [
@@ -430,6 +1888,7 @@
   },
   "math.unprojectPointFromPlane": {
     "id": "math.unprojectPointFromPlane",
+    "domain": "geometry",
     "name": "Unproject Point From Plane",
     "category": "transform",
     "tags": [
@@ -443,6 +1902,7 @@
   },
   "curve.resampleByArcLength": {
     "id": "curve.resampleByArcLength",
+    "domain": "geometry",
     "name": "Resample By Arc Length",
     "category": "modifier",
     "tags": [
@@ -457,6 +1917,7 @@
   },
   "boolean.offsetPolyline2D": {
     "id": "boolean.offsetPolyline2D",
+    "domain": "geometry",
     "name": "Offset Polyline 2D",
     "category": "modifier",
     "tags": [
@@ -470,6 +1931,7 @@
   },
   "brep.brepFromMesh": {
     "id": "brep.brepFromMesh",
+    "domain": "geometry",
     "name": "B-Rep From Mesh",
     "category": "tessellation",
     "tags": [
@@ -484,6 +1946,7 @@
   },
   "brep.tessellateBRepToMesh": {
     "id": "brep.tessellateBRepToMesh",
+    "domain": "geometry",
     "name": "Tessellate B-Rep To Mesh",
     "category": "tessellation",
     "tags": [
@@ -498,6 +1961,7 @@
   },
   "tess.tessellateCurveAdaptive": {
     "id": "tess.tessellateCurveAdaptive",
+    "domain": "geometry",
     "name": "Tessellate Curve Adaptive",
     "category": "tessellation",
     "tags": [
@@ -512,6 +1976,7 @@
   },
   "tess.tessellateSurfaceAdaptive": {
     "id": "tess.tessellateSurfaceAdaptive",
+    "domain": "geometry",
     "name": "Tessellate Surface Adaptive",
     "category": "tessellation",
     "tags": [

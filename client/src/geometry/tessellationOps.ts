@@ -11,6 +11,7 @@ import * as tessImpl from './tessellation';
 export const tessellateCurveAdaptive = defineOp(
   {
     id: 'tess.tessellateCurveAdaptive',
+    domain: 'geometry',
     name: 'Tessellate Curve Adaptive',
     category: 'tessellation',
     tags: ['nurbs', 'curve', '3d'],
@@ -26,6 +27,7 @@ operationRegistry.register(tessellateCurveAdaptive);
 export const tessellateSurfaceAdaptive = defineOp(
   {
     id: 'tess.tessellateSurfaceAdaptive',
+    domain: 'geometry',
     name: 'Tessellate Surface Adaptive',
     category: 'tessellation',
     tags: ['nurbs', 'surface', '3d'],

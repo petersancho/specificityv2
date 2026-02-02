@@ -1,32 +1,61 @@
 /**
- * Global registry for geometry operations
+ * Global registry for all semantic operations
  * 
- * This module provides a centralized registry for all geometry operations,
+ * This module provides a centralized registry for all semantic operations,
  * enabling validation, documentation generation, and runtime introspection.
  */
 
-import type { GeometryOpFn, GeometryOpMeta, OpCategory, OpTag } from './geometryOp';
+import type { SemanticOpFn, SemanticOpMeta, OpCategory, OpTag } from './semanticOp';
 
 /**
- * Registry for geometry operations
+ * Registry for semantic operations
  */
 export class OperationRegistry {
-  private ops = new Map<string, GeometryOpFn<any>>();
+  private ops = new Map<string, SemanticOpFn<any>>();
+  private metadata = new Map<string, SemanticOpMeta>();
 
   /**
-   * Registers a geometry operation
+   * Registers a semantic operation (function with metadata)
    * 
    * @param op - The operation to register
    * @throws Error if operation ID is already registered
    */
-  register(op: GeometryOpFn<any>): void {
+  register(op: SemanticOpFn<any>): void {
     const id = op.meta.id;
     
-    if (this.ops.has(id)) {
+    if (this.ops.has(id) || this.metadata.has(id)) {
       throw new Error(`Duplicate operation id: ${id}`);
     }
     
     this.ops.set(id, op);
+    this.metadata.set(id, op.meta);
+  }
+
+  /**
+   * Registers operation metadata only (for operations without wrapped functions)
+   * 
+   * @param meta - The operation metadata
+   * @throws Error if operation ID is already registered
+   */
+  registerMeta(meta: SemanticOpMeta): void {
+    const id = meta.id;
+    
+    if (this.ops.has(id) || this.metadata.has(id)) {
+      throw new Error(`Duplicate operation id: ${id}`);
+    }
+    
+    this.metadata.set(id, meta);
+  }
+
+  /**
+   * Registers multiple operation metadata entries
+   * 
+   * @param metas - Array of operation metadata
+   */
+  registerMetaBatch(metas: readonly SemanticOpMeta[]): void {
+    for (const meta of metas) {
+      this.registerMeta(meta);
+    }
   }
 
   /**
@@ -36,7 +65,7 @@ export class OperationRegistry {
    * @returns The operation function
    * @throws Error if operation is not found
    */
-  get(id: string): GeometryOpFn<any> {
+  get(id: string): SemanticOpFn<any> {
     const op = this.ops.get(id);
     
     if (!op) {
@@ -47,13 +76,30 @@ export class OperationRegistry {
   }
 
   /**
+   * Gets operation metadata by ID
+   * 
+   * @param id - The operation ID
+   * @returns The operation metadata
+   * @throws Error if operation is not found
+   */
+  getMeta(id: string): SemanticOpMeta {
+    const meta = this.metadata.get(id);
+    
+    if (!meta) {
+      throw new Error(`Unknown operation id: ${id}`);
+    }
+    
+    return meta;
+  }
+
+  /**
    * Checks if an operation is registered
    * 
    * @param id - The operation ID
    * @returns True if operation is registered
    */
   has(id: string): boolean {
-    return this.ops.has(id);
+    return this.metadata.has(id);
   }
 
   /**
@@ -61,8 +107,8 @@ export class OperationRegistry {
    * 
    * @returns Array of all operations
    */
-  list(): GeometryOpFn<any>[] {
-    return [...this.ops.values()];
+  list(): SemanticOpFn<any>[] {
+    return Array.from(this.ops.values());
   }
 
   /**
@@ -70,8 +116,8 @@ export class OperationRegistry {
    * 
    * @returns Array of all operation metadata
    */
-  listMeta(): GeometryOpMeta[] {
-    return this.list().map(op => op.meta);
+  listMeta(): SemanticOpMeta[] {
+    return Array.from(this.metadata.values());
   }
 
   /**
@@ -80,7 +126,7 @@ export class OperationRegistry {
    * @param category - The category to filter by
    * @returns Array of operations in the category
    */
-  byCategory(category: OpCategory): GeometryOpFn<any>[] {
+  byCategory(category: OpCategory): SemanticOpFn<any>[] {
     return this.list().filter(op => op.meta.category === category);
   }
 
@@ -90,7 +136,7 @@ export class OperationRegistry {
    * @param tag - The tag to filter by
    * @returns Array of operations with the tag
    */
-  byTag(tag: OpTag): GeometryOpFn<any>[] {
+  byTag(tag: OpTag): SemanticOpFn<any>[] {
     return this.list().filter(op => op.meta.tags.includes(tag));
   }
 
@@ -146,11 +192,11 @@ export class OperationRegistry {
    * 
    * @returns JSON representation of the registry
    */
-  toJSON(): Record<string, GeometryOpMeta> {
-    const result: Record<string, GeometryOpMeta> = {};
+  toJSON(): Record<string, SemanticOpMeta> {
+    const result: Record<string, SemanticOpMeta> = {};
     
-    for (const op of this.list()) {
-      result[op.meta.id] = op.meta;
+    for (const meta of this.listMeta()) {
+      result[meta.id] = meta;
     }
     
     return result;
@@ -162,25 +208,25 @@ export class OperationRegistry {
    * @returns DOT format string for visualization
    */
   toDOT(): string {
-    const lines: string[] = ['digraph GeometryOperations {'];
+    const lines: string[] = ['digraph SemanticOperations {'];
     lines.push('  rankdir=LR;');
     lines.push('  node [shape=box];');
     lines.push('');
 
     // Add nodes
-    for (const op of this.list()) {
-      const label = op.meta.name.replace(/"/g, '\\"');
-      const color = this.getCategoryColor(op.meta.category);
-      lines.push(`  "${op.meta.id}" [label="${label}", fillcolor="${color}", style=filled];`);
+    for (const meta of this.listMeta()) {
+      const label = meta.name.replace(/"/g, '\\"');
+      const color = this.getCategoryColor(meta.category);
+      lines.push(`  "${meta.id}" [label="${label}", fillcolor="${color}", style=filled];`);
     }
 
     lines.push('');
 
     // Add edges
-    for (const op of this.list()) {
-      if (op.meta.deps) {
-        for (const depId of op.meta.deps) {
-          lines.push(`  "${depId}" -> "${op.meta.id}";`);
+    for (const meta of this.listMeta()) {
+      if (meta.deps) {
+        for (const depId of meta.deps) {
+          lines.push(`  "${depId}" -> "${meta.id}";`);
         }
       }
     }
@@ -197,7 +243,10 @@ export class OperationRegistry {
       transform: '#CCFFCC',      // Light green
       analysis: '#FFCCCC',       // Light red
       utility: '#FFFFCC',        // Light yellow
-      io: '#CCFFFF'              // Light cyan
+      io: '#CCFFFF',             // Light cyan
+      operator: '#FFE6E6',       // Light pink
+      aggregation: '#E6FFE6',    // Light mint
+      control: '#FFE6FF'         // Light magenta
     };
     return colors[category] || '#FFFFFF';
   }

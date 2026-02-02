@@ -11,6 +11,7 @@ import * as tessImpl from './meshTessellation';
 export const subdivideLinear = defineOp(
   {
     id: 'meshTess.subdivideLinear',
+    domain: 'geometry',
     name: 'Subdivide Linear',
     category: 'modifier',
     tags: ['mesh', '3d'],
@@ -26,6 +27,7 @@ operationRegistry.register(subdivideLinear);
 export const subdivideCatmullClark = defineOp(
   {
     id: 'meshTess.subdivideCatmullClark',
+    domain: 'geometry',
     name: 'Subdivide Catmull-Clark',
     category: 'modifier',
     tags: ['mesh', '3d'],
@@ -41,6 +43,7 @@ operationRegistry.register(subdivideCatmullClark);
 export const subdivideLoop = defineOp(
   {
     id: 'meshTess.subdivideLoop',
+    domain: 'geometry',
     name: 'Subdivide Loop',
     category: 'modifier',
     tags: ['mesh', '3d'],
@@ -56,6 +59,7 @@ operationRegistry.register(subdivideLoop);
 export const subdivideAdaptive = defineOp(
   {
     id: 'meshTess.subdivideAdaptive',
+    domain: 'geometry',
     name: 'Subdivide Adaptive',
     category: 'modifier',
     tags: ['mesh', '3d'],
@@ -71,6 +75,7 @@ operationRegistry.register(subdivideAdaptive);
 export const dualMesh = defineOp(
   {
     id: 'meshTess.dualMesh',
+    domain: 'geometry',
     name: 'Dual Mesh',
     category: 'modifier',
     tags: ['mesh', '3d'],
@@ -86,6 +91,7 @@ operationRegistry.register(dualMesh);
 export const insetFaces = defineOp(
   {
     id: 'meshTess.insetFaces',
+    domain: 'geometry',
     name: 'Inset Faces',
     category: 'modifier',
     tags: ['mesh', '3d'],
@@ -101,6 +107,7 @@ operationRegistry.register(insetFaces);
 export const extrudeFaces = defineOp(
   {
     id: 'meshTess.extrudeFaces',
+    domain: 'geometry',
     name: 'Extrude Faces',
     category: 'modifier',
     tags: ['mesh', '3d'],
@@ -116,6 +123,7 @@ operationRegistry.register(extrudeFaces);
 export const meshRelax = defineOp(
   {
     id: 'meshTess.meshRelax',
+    domain: 'geometry',
     name: 'Mesh Relax',
     category: 'modifier',
     tags: ['mesh', '3d'],
@@ -131,6 +139,7 @@ operationRegistry.register(meshRelax);
 export const selectFaces = defineOp(
   {
     id: 'meshTess.selectFaces',
+    domain: 'geometry',
     name: 'Select Faces',
     category: 'utility',
     tags: ['mesh', '3d'],
@@ -146,6 +155,7 @@ operationRegistry.register(selectFaces);
 export const triangulateMesh = defineOp(
   {
     id: 'meshTess.triangulateMesh',
+    domain: 'geometry',
     name: 'Triangulate Mesh',
     category: 'modifier',
     tags: ['mesh', '3d'],
@@ -161,6 +171,7 @@ operationRegistry.register(triangulateMesh);
 export const generateGeodesicSphere = defineOp(
   {
     id: 'meshTess.generateGeodesicSphere',
+    domain: 'geometry',
     name: 'Generate Geodesic Sphere',
     category: 'primitive',
     tags: ['mesh', '3d'],
@@ -176,6 +187,7 @@ operationRegistry.register(generateGeodesicSphere);
 export const generateHexagonalTiling = defineOp(
   {
     id: 'meshTess.generateHexagonalTiling',
+    domain: 'geometry',
     name: 'Generate Hexagonal Tiling',
     category: 'primitive',
     tags: ['mesh', '2d'],
@@ -191,6 +203,7 @@ operationRegistry.register(generateHexagonalTiling);
 export const generateVoronoiPattern = defineOp(
   {
     id: 'meshTess.generateVoronoiPattern',
+    domain: 'geometry',
     name: 'Generate Voronoi Pattern',
     category: 'primitive',
     tags: ['mesh', '2d'],
@@ -206,6 +219,7 @@ operationRegistry.register(generateVoronoiPattern);
 export const offsetPattern = defineOp(
   {
     id: 'meshTess.offsetPattern',
+    domain: 'geometry',
     name: 'Offset Pattern',
     category: 'modifier',
     tags: ['mesh', '3d'],
@@ -221,6 +235,7 @@ operationRegistry.register(offsetPattern);
 export const generateMeshUVs = defineOp(
   {
     id: 'meshTess.generateMeshUVs',
+    domain: 'geometry',
     name: 'Generate Mesh UVs',
     category: 'modifier',
     tags: ['mesh', '3d'],
@@ -236,6 +251,7 @@ operationRegistry.register(generateMeshUVs);
 export const repairMesh = defineOp(
   {
     id: 'meshTess.repairMesh',
+    domain: 'geometry',
     name: 'Repair Mesh',
     category: 'modifier',
     tags: ['mesh', '3d'],
@@ -251,6 +267,7 @@ operationRegistry.register(repairMesh);
 export const decimateMesh = defineOp(
   {
     id: 'meshTess.decimateMesh',
+    domain: 'geometry',
     name: 'Decimate Mesh',
     category: 'modifier',
     tags: ['mesh', '3d'],
@@ -266,6 +283,7 @@ operationRegistry.register(decimateMesh);
 export const quadDominantRemesh = defineOp(
   {
     id: 'meshTess.quadDominantRemesh',
+    domain: 'geometry',
     name: 'Quad-Dominant Remesh',
     category: 'modifier',
     tags: ['mesh', '3d'],
@@ -281,6 +299,7 @@ operationRegistry.register(quadDominantRemesh);
 export const meshBoolean = defineOp(
   {
     id: 'meshTess.meshBoolean',
+    domain: 'geometry',
     name: 'Mesh Boolean',
     category: 'modifier',
     tags: ['mesh', '3d'],
@@ -297,6 +316,7 @@ operationRegistry.register(meshBoolean);
 export const getTessellationMetadata = defineOp(
   {
     id: 'meshTess.getTessellationMetadata',
+    domain: 'geometry',
     name: 'Get Tessellation Metadata',
     category: 'utility',
     tags: ['mesh'],
@@ -312,6 +332,7 @@ operationRegistry.register(getTessellationMetadata);
 export const toTessellationMesh = defineOp(
   {
     id: 'meshTess.toTessellationMesh',
+    domain: 'geometry',
     name: 'To Tessellation Mesh',
     category: 'tessellation',
     tags: ['mesh'],
@@ -327,6 +348,7 @@ operationRegistry.register(toTessellationMesh);
 export const toTessellationMeshData = defineOp(
   {
     id: 'meshTess.toTessellationMeshData',
+    domain: 'geometry',
     name: 'To Tessellation Mesh Data',
     category: 'tessellation',
     tags: ['mesh'],
@@ -342,6 +364,7 @@ operationRegistry.register(toTessellationMeshData);
 export const tessellationMeshToRenderMesh = defineOp(
   {
     id: 'meshTess.tessellationMeshToRenderMesh',
+    domain: 'geometry',
     name: 'Tessellation Mesh To Render Mesh',
     category: 'tessellation',
     tags: ['mesh'],

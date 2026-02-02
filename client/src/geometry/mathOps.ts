@@ -11,6 +11,7 @@ import * as mathImpl from './math';
 export const computeBestFitPlane = defineOp(
   {
     id: 'math.computeBestFitPlane',
+    domain: 'geometry',
     name: 'Compute Best Fit Plane',
     category: 'analysis',
     tags: ['math', '3d'],
@@ -26,6 +27,7 @@ operationRegistry.register(computeBestFitPlane);
 export const projectPointToPlane = defineOp(
   {
     id: 'math.projectPointToPlane',
+    domain: 'geometry',
     name: 'Project Point To Plane',
     category: 'transform',
     tags: ['math', '3d'],
@@ -41,6 +43,7 @@ operationRegistry.register(projectPointToPlane);
 export const unprojectPointFromPlane = defineOp(
   {
     id: 'math.unprojectPointFromPlane',
+    domain: 'geometry',
     name: 'Unproject Point From Plane',
     category: 'transform',
     tags: ['math', '3d'],

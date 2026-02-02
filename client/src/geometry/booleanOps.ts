@@ -11,6 +11,7 @@ import * as boolImpl from './booleans';
 export const offsetPolyline2D = defineOp(
   {
     id: 'boolean.offsetPolyline2D',
+    domain: 'geometry',
     name: 'Offset Polyline 2D',
     category: 'modifier',
     tags: ['polyline', '2d'],

@@ -13,6 +13,7 @@ import * as meshImpl from './mesh';
 export const generateBoxMesh = defineOp(
   {
     id: 'mesh.generateBox',
+    domain: 'geometry',
     name: 'Generate Box Mesh',
     category: 'primitive',
     tags: ['mesh', '3d'],
@@ -28,6 +29,7 @@ operationRegistry.register(generateBoxMesh);
 export const generateSphereMesh = defineOp(
   {
     id: 'mesh.generateSphere',
+    domain: 'geometry',
     name: 'Generate Sphere Mesh',
     category: 'primitive',
     tags: ['mesh', '3d'],
@@ -43,6 +45,7 @@ operationRegistry.register(generateSphereMesh);
 export const generateCylinderMesh = defineOp(
   {
     id: 'mesh.generateCylinder',
+    domain: 'geometry',
     name: 'Generate Cylinder Mesh',
     category: 'primitive',
     tags: ['mesh', '3d'],
@@ -58,6 +61,7 @@ operationRegistry.register(generateCylinderMesh);
 export const generateExtrudeMesh = defineOp(
   {
     id: 'mesh.generateExtrude',
+    domain: 'geometry',
     name: 'Generate Extrude Mesh',
     category: 'modifier',
     tags: ['mesh', '3d'],
@@ -73,6 +77,7 @@ operationRegistry.register(generateExtrudeMesh);
 export const generateLoftMesh = defineOp(
   {
     id: 'mesh.generateLoft',
+    domain: 'geometry',
     name: 'Generate Loft Mesh',
     category: 'modifier',
     tags: ['mesh', '3d', 'surface'],
@@ -88,6 +93,7 @@ operationRegistry.register(generateLoftMesh);
 export const generatePipeMesh = defineOp(
   {
     id: 'mesh.generatePipe',
+    domain: 'geometry',
     name: 'Generate Pipe Mesh',
     category: 'primitive',
     tags: ['mesh', '3d'],
@@ -103,6 +109,7 @@ operationRegistry.register(generatePipeMesh);
 export const computeVertexNormals = defineOp(
   {
     id: 'mesh.computeVertexNormals',
+    domain: 'geometry',
     name: 'Compute Vertex Normals',
     category: 'analysis',
     tags: ['mesh', '3d'],
@@ -118,6 +125,7 @@ operationRegistry.register(computeVertexNormals);
 export const computeMeshArea = defineOp(
   {
     id: 'mesh.computeArea',
+    domain: 'geometry',
     name: 'Compute Mesh Area',
     category: 'analysis',
     tags: ['mesh', '3d'],

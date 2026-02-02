@@ -11,6 +11,7 @@ import * as curveImpl from './curves';
 export const resampleByArcLength = defineOp(
   {
     id: 'curve.resampleByArcLength',
+    domain: 'geometry',
     name: 'Resample By Arc Length',
     category: 'modifier',
     tags: ['curve', 'polyline', '3d'],

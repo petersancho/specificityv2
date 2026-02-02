@@ -11,6 +11,7 @@ import * as brepImpl from './brep';
 export const brepFromMesh = defineOp(
   {
     id: 'brep.brepFromMesh',
+    domain: 'geometry',
     name: 'B-Rep From Mesh',
     category: 'tessellation',
     tags: ['brep', 'mesh', '3d'],
@@ -26,6 +27,7 @@ operationRegistry.register(brepFromMesh);
 export const tessellateBRepToMesh = defineOp(
   {
     id: 'brep.tessellateBRepToMesh',
+    domain: 'geometry',
     name: 'Tessellate B-Rep To Mesh',
     category: 'tessellation',
     tags: ['brep', 'mesh', '3d'],
