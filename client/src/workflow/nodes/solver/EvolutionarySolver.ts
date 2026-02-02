@@ -607,6 +607,13 @@ export const EvolutionarySolver: WorkflowNodeDefinition = {
     },
   ],
   
+  customUI: {
+    dashboardButton: {
+      label: "Open Simulator",
+      component: "EvolutionarySimulatorDashboard",
+    },
+  },
+  
   compute: async (inputs, parameters, context: WorkflowComputeContext) => {
     const startTime = performance.now();
     
