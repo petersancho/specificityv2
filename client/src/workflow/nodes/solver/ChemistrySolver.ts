@@ -20,11 +20,13 @@ import { resolveMeshFromGeometry } from "../../../geometry/meshTessellation";
 import { resolveChemistryMaterialSpec, type ChemistryMaterialSpec } from "../../../data/chemistryMaterials";
 import { createSeededRandom, hashStringToSeed } from "../../../utils/random";
 import { 
-  lengthVec3, 
-  subtractVec3, 
-  normalizeVec3, 
-  UNIT_Y_VEC3 
+  length as lengthVec3, 
+  sub as subtractVec3, 
+  normalize as normalizeVec3
 } from "../../../geometry/math";
+
+// Constants
+const UNIT_Y_VEC3: Vec3 = { x: 0, y: 1, z: 0 };
 
 // Chemistry-specific types
 export type ChemistryMaterialAssignment = {
