@@ -26,6 +26,13 @@ import {
   sub as subtractVec3, 
   normalize as normalizeVec3
 } from "../../../geometry/math";
+import {
+  type ParticleSystemConfig,
+  type MaterialSpec,
+  runSimulation,
+  generateVoxelField,
+  generateMeshFromField,
+} from "./chemistry/particleSystem";
 
 // Constants
 const UNIT_Y_VEC3: Vec3 = { x: 0, y: 1, z: 0 };
@@ -354,36 +361,124 @@ const runChemistrySolver = (args: {
     });
   }
   
-  // TODO: Implement particle simulation loop
-  // This would call into particleSystem.ts or chemistryWorker.ts
-  // For now, return a placeholder result
+  // Run particle simulation
+  const smoothingRadius = particleRadius * 2.5;
+  const restDensity = 1000; // kg/m³
+  const viscosity = 0.01;
+  const timeStep = 0.016; // ~60 FPS
   
-  const computeTime = performance.now() - startTime;
-  
-  // Create placeholder mesh
-  const mesh: RenderMesh = {
-    positions: [],
-    normals: [],
-    indices: [],
-    uvs: [],
+  // Build simulation config
+  const simConfig: ParticleSystemConfig = {
+    particleCount: particles.length,
+    materialCount: materialNames.length,
+    bounds: domainBounds,
+    particleRadius,
+    smoothingRadius,
+    restDensity,
+    viscosity,
+    diffusionRate: args.blendStrength,
+    timeStep,
+    gravity: { x: 0, y: 0, z: 0 }, // No gravity for material optimization
   };
   
+  // Convert materials to MaterialSpec format
+  const materialSpecs: MaterialSpec[] = Array.from(materialByName.values()).map((mat) => ({
+    name: mat.name,
+    density: mat.density,
+    stiffness: mat.youngsModulus,
+    thermalConductivity: mat.thermalConductivity,
+    opticalTransmission: mat.opticalTransmission,
+    diffusivity: mat.diffusivity ?? 0.1,
+    color: mat.color,
+  }));
+  
+  // Convert seeds to simulation format
+  const simSeeds = seeds.map((seed) => {
+    const materialIndex = materialNames.indexOf(seed.material);
+    return {
+      position: seed.position,
+      radius: seed.radius,
+      materialIndex: materialIndex >= 0 ? materialIndex : 0,
+      strength: seed.strength,
+    };
+  });
+  
+  // Convert goals to simulation format
+  const simGoals = args.goals.map((goal) => ({
+    type: goal.type as "stiffness" | "mass" | "transparency" | "thermal" | "blend",
+    weight: goal.weight ?? 1.0,
+    parameters: goal.parameters ?? {},
+    region: goal.region,
+  }));
+  
+  // Run simulation
+  const simResult = runSimulation(
+    simConfig,
+    materialSpecs,
+    simSeeds,
+    simGoals,
+    args.iterations,
+    args.convergenceTolerance,
+    hashStringToSeed(args.seedKey)
+  );
+  
+  // Generate voxel field from particles
+  const field = generateVoxelField(
+    simResult.pool,
+    domainBounds,
+    args.fieldResolution,
+    smoothingRadius
+  );
+  
+  // Generate mesh from voxel field
+  const materialColors = materialSpecs.map((mat) => mat.color);
+  const mesh = generateMeshFromField(field, args.isoValue, materialColors);
+  
+  // Build history
+  const history = simResult.energyHistory.map((energy, index) => ({
+    iteration: index,
+    energy,
+  }));
+  
+  // Find best state (lowest energy)
+  let bestState: { particles: ChemistryParticle[]; energy: number; iteration: number } | null = null;
+  if (history.length > 0) {
+    const minEnergyIndex = simResult.energyHistory.reduce(
+      (minIdx, energy, idx, arr) => (energy < arr[minIdx] ? idx : minIdx),
+      0
+    );
+    bestState = {
+      particles: particles, // TODO: Store actual best state particles
+      energy: simResult.energyHistory[minEnergyIndex],
+      iteration: minEnergyIndex,
+    };
+  }
+  
+  const computeTime = performance.now() - startTime;
+  const memoryUsed = 
+    simResult.pool.capacity * (
+      3 * 4 + // positions (3 floats)
+      3 * 4 + // velocities (3 floats)
+      4 * 4 + // radius, mass, pressure, temperature
+      materialNames.length * 4 // material concentrations
+    ) / (1024 * 1024); // Convert to MB
+  
   return {
-    success: true,
-    iterations: 0,
-    convergenceAchieved: false,
-    finalEnergy: 0,
+    success: simResult.iterations > 0,
+    iterations: simResult.iterations,
+    convergenceAchieved: simResult.converged,
+    finalEnergy: simResult.energy,
     particles,
-    field: null,
+    field,
     mesh,
-    history: [],
-    bestState: null,
+    history,
+    bestState,
     materials: Array.from(materialByName.values()),
     warnings,
     errors,
     performanceMetrics: {
       computeTime,
-      memoryUsed: 0,
+      memoryUsed,
     },
   };
 };
@@ -604,12 +699,12 @@ export const ChemistrySolverNode: WorkflowNodeDefinition = {
       result.iterations,
       result.convergenceAchieved,
       {
-        goals: validatedGoals,
+        goals: normalizedGoals,
         parameters: {
-          maxIterations,
-          tolerance,
+          maxIterations: Math.round(toNumber(parameters.iterations, 500)),
+          tolerance: toNumber(parameters.convergenceTolerance, 1e-4),
           particleCount: result.particles.length,
-          materialCount: materials.length,
+          materialCount: result.materials.length,
         },
       }
     );
