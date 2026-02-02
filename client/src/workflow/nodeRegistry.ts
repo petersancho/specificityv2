@@ -51,6 +51,7 @@ import { PhysicsSolverNode } from "./nodes/solver/PhysicsSolver";
 import { ChemistrySolverNode } from "./nodes/solver/ChemistrySolver";
 import { EvolutionarySolver } from "./nodes/solver/EvolutionarySolver";
 import { VoxelSolverNode } from "./nodes/solver/VoxelSolver";
+import { TopologyOptimizationSolverNode } from "./nodes/solver/TopologyOptimizationSolver";
 import { AnchorGoalNode, LoadGoalNode, StiffnessGoalNode, VolumeGoalNode } from "./nodes/solver/goals/physics";
 import {
   ChemistryBlendGoalNode,
@@ -12324,7 +12325,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
 ];
 
-NODE_DEFINITIONS.push(PhysicsSolverNode, ChemistrySolverNode, EvolutionarySolver, VoxelSolverNode);
+NODE_DEFINITIONS.push(PhysicsSolverNode, ChemistrySolverNode, EvolutionarySolver, VoxelSolverNode, TopologyOptimizationSolverNode);
 NODE_DEFINITIONS.push(
   StiffnessGoalNode,
   VolumeGoalNode,

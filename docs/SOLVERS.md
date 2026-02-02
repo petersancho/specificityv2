@@ -25,7 +25,7 @@ These solvers perform direct computation or optimization without temporal simula
 | Solver | Greek Name | Ontological Type | Simulator | Status |
 |--------|------------|------------------|-----------|--------|
 | **Voxel** | Ἐπιλύτης Φογκελ (Archimedes) | Voxelization | ❌ No | ✅ Implemented |
-| **Topology Optimization** | (Future) | Structural Optimization | ❌ No | ⏳ Planned |
+| **Topology Optimization** | Ἐπιλύτης Τοπολογικῆς Βελτιστοποίησης (Euler) | Structural Optimization | ❌ No | ✅ Implemented |
 
 ---
 
@@ -202,29 +202,44 @@ User Interaction (UI)
 
 ---
 
-### 5. Topology Optimization Solver (Future)
+### 5. Topology Optimization Solver
 
+**Greek Name:** Ἐπιλύτης Τοπολογικῆς Βελτιστοποίησης (Epilýtēs Topologikís Veltitopoíisis)  
+**English Name:** Topology Optimization Solver  
+**Named After:** Leonhard Euler (topology pioneer, Euler characteristic)  
 **Ontological Type:** Structural Optimization
 
-**Purpose:** Generates topologically optimized structures from input geometry through a multi-step process.
+**Purpose:** Generates topologically optimized structures from input geometry using point cloud generation, curve network generation based on 3D proximity, and multipipe operation.
 
-**Has Simulator:** ❌ No (direct computation)
+**Has Simulator:** ❌ No (direct conversion solver)
 
 **Semantic Operations:**
 - `solver.topologyOptimization` - Primary solver operation
 
-**Goal Nodes:** (To be defined)
+**Goal Nodes:** None (direct conversion, no goals)
 
 **How It Works:**
-1. Takes input geometry
-2. Generates point cloud from input geometry
-3. Creates curve network based on 3D proximity
-4. Multipipes the curve network
-5. Outputs topologically optimized structure
+1. **Point Cloud Generation** - Sample points from input geometry surface using stratified sampling
+2. **Curve Network Generation** - Connect nearby points (within connection radius) using 3D Euclidean distance
+3. **Multipipe Operation** - Create cylindrical pipes along all curves and merge into single mesh
 
-**Mathematical Foundation:** Point cloud generation, proximity-based curve network construction, multipipe geometry generation
+**Parameters:**
+- Point Density (10-1000, default: 100)
+- Connection Radius (0.01-5.0, default: 0.5)
+- Pipe Radius (0.01-1.0, default: 0.05)
+- Random Seed (0-9999, default: 42)
 
-**Documentation:** (To be created)
+**Outputs:**
+- Optimized Mesh (multipipe result)
+- Point Cloud (for visualization)
+- Curve Network (for visualization)
+- Statistics (point count, curve count, volume, surface area)
+
+**Mathematical Foundation:** Stratified sampling, 3D proximity-based curve network construction, cylindrical pipe mesh generation
+
+**Documentation:** `docs/solvers/TOPOLOGY_OPTIMIZATION_SOLVER.md`
+
+**Status:** ✅ Implemented
 
 ---
 

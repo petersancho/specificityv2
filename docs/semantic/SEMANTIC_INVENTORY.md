@@ -1,13 +1,13 @@
 # Semantic Inventory
 
-Generated: 2026-02-02T16:57:16.621Z
+Generated: 2026-02-02T17:02:11.548Z
 
 ## Summary
 
 - **Total Operations**: 195
-- **Total Nodes**: 46
+- **Total Nodes**: 47
 - **Total Dashboards**: 3
-- **Orphan Operations**: 133
+- **Orphan Operations**: 132
 - **Dangling References**: 0
 
 ## Operations by Domain
@@ -204,7 +204,7 @@ Generated: 2026-02-02T16:57:16.621Z
 | `solver.chemistry` | Chemistry Solver | utility | ✅ | chemistrySolver, chemistrySolver |
 | `solver.evolutionary` | Evolutionary Solver | utility | ✅ | evolutionarySolver |
 | `solver.voxel` | Voxel Solver | conversion | ✅ | voxelSolver |
-| `solver.topologyOptimization` | Topology Optimization Solver | utility | ⚠️ | (none) |
+| `solver.topologyOptimization` | Topology Optimization Solver | utility | ⚠️ | topologyOptimizationSolver |
 | `simulator.initialize` | Initialize Simulator | utility | ✅ | (none) |
 | `simulator.step` | Step Simulator | utility | ✅ | (none) |
 | `simulator.converge` | Check Convergence | query | ✅ | (none) |
@@ -307,6 +307,7 @@ Generated: 2026-02-02T16:57:16.621Z
 | `chemistrySolver` | Ἐπιλύτης Χημείας | solver | `solver.chemistry` |
 | `evolutionarySolver` | Evolutionary Solver | solver | `solver.evolutionary` |
 | `voxelSolver` | Voxelizer | voxel | `solver.voxel` |
+| `topologyOptimizationSolver` | Topology Optimization | solver | `solver.topologyOptimization` |
 
 ## Dashboards
 
@@ -409,7 +410,6 @@ These operations are defined but never used by any node:
 - `color.clamp`
 - `workflow.identity`
 - `workflow.constant`
-- `solver.topologyOptimization`
 - `simulator.chemistry.initialize`
 - `simulator.chemistry.step`
 - `simulator.chemistry.converge`

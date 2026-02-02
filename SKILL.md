@@ -431,7 +431,7 @@ These solvers have simulator dashboards with setup, simulator, and output pages.
 | Solver | Greek Name | Ontological Type | Semantic Op |
 |--------|------------|------------------|-------------|
 | **Voxel** | Ἐπιλύτης Φογκελ (Archimedes) | Voxelization | `solver.voxel` |
-| **Topology Optimization** | (Future) | Structural Optimization | `solver.topologyOptimization` |
+| **Topology Optimization** | Ἐπιλύτης Τοπολογικῆς Βελτιστοποίησης (Euler) | Structural Optimization | `solver.topologyOptimization` |
 
 **Characteristics:**
 - Direct computation
