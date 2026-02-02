@@ -1,28 +1,13 @@
 {
+  "meshToBrep": [
+    "brep.brepFromMesh"
+  ],
   "subdivideMesh": [
     "meshTess.getTessellationMetadata",
     "meshTess.subdivideAdaptive",
     "meshTess.subdivideCatmullClark",
     "meshTess.subdivideLinear",
     "meshTess.subdivideLoop",
-    "meshTess.tessellationMeshToRenderMesh",
-    "meshTess.toTessellationMesh",
-    "meshTess.toTessellationMeshData"
-  ],
-  "voronoiPattern": [
-    "math.computeBestFitPlane",
-    "math.projectPointToPlane",
-    "meshTess.generateVoronoiPattern",
-    "meshTess.getTessellationMetadata",
-    "meshTess.tessellationMeshToRenderMesh",
-    "meshTess.toTessellationMesh",
-    "meshTess.toTessellationMeshData"
-  ],
-  "hexagonalTiling": [
-    "math.computeBestFitPlane",
-    "math.projectPointToPlane",
-    "meshTess.generateHexagonalTiling",
-    "meshTess.getTessellationMetadata",
     "meshTess.tessellationMeshToRenderMesh",
     "meshTess.toTessellationMesh",
     "meshTess.toTessellationMeshData"
@@ -55,12 +40,45 @@
     "meshTess.toTessellationMesh",
     "meshTess.toTessellationMeshData"
   ],
+  "selectFaces": [
+    "meshTess.getTessellationMetadata",
+    "meshTess.selectFaces",
+    "meshTess.toTessellationMesh"
+  ],
+  "meshBoolean": [
+    "meshTess.meshBoolean",
+    "meshTess.toTessellationMesh",
+    "meshTess.toTessellationMeshData"
+  ],
   "triangulateMesh": [
     "meshTess.getTessellationMetadata",
     "meshTess.tessellationMeshToRenderMesh",
     "meshTess.toTessellationMesh",
     "meshTess.toTessellationMeshData",
     "meshTess.triangulateMesh"
+  ],
+  "geodesicSphere": [
+    "meshTess.generateGeodesicSphere",
+    "meshTess.tessellationMeshToRenderMesh",
+    "meshTess.toTessellationMeshData"
+  ],
+  "voronoiPattern": [
+    "math.computeBestFitPlane",
+    "math.projectPointToPlane",
+    "meshTess.generateVoronoiPattern",
+    "meshTess.getTessellationMetadata",
+    "meshTess.tessellationMeshToRenderMesh",
+    "meshTess.toTessellationMesh",
+    "meshTess.toTessellationMeshData"
+  ],
+  "hexagonalTiling": [
+    "math.computeBestFitPlane",
+    "math.projectPointToPlane",
+    "meshTess.generateHexagonalTiling",
+    "meshTess.getTessellationMetadata",
+    "meshTess.tessellationMeshToRenderMesh",
+    "meshTess.toTessellationMesh",
+    "meshTess.toTessellationMeshData"
   ],
   "offsetPattern": [
     "meshTess.getTessellationMetadata",
@@ -97,6 +115,39 @@
     "meshTess.toTessellationMesh",
     "meshTess.toTessellationMeshData"
   ],
+  "remap": [
+    "math.remap"
+  ],
+  "random": [
+    "math.random"
+  ],
+  "measurement": [
+    "mesh.computeArea"
+  ],
+  "point": [],
+  "line": [],
+  "rectangle": [],
+  "circle": [],
+  "curve": [],
+  "surface": [],
+  "loft": [
+    "mesh.generateLoft"
+  ],
+  "extrude": [
+    "mesh.generateExtrude"
+  ],
+  "pipeSweep": [
+    "mesh.generateCylinder",
+    "mesh.generatePipe",
+    "mesh.generateSphere"
+  ],
+  "pipeMerge": [
+    "mesh.generateSphere"
+  ],
+  "boolean": [
+    "mesh.generateBox",
+    "mesh.computeVertexNormals"
+  ],
   "offset": [
     "boolean.offsetPolyline2D",
     "curve.resampleByArcLength",
@@ -104,43 +155,54 @@
     "math.projectPointToPlane",
     "math.unprojectPointFromPlane"
   ],
-  "selectFaces": [
-    "meshTess.getTessellationMetadata",
-    "meshTess.selectFaces",
-    "meshTess.toTessellationMesh"
+  "box": [],
+  "sphere": [],
+  "chemistrySolver": [
+    "solver.chemistry"
   ],
-  "meshBoolean": [
-    "meshTess.meshBoolean",
-    "meshTess.toTessellationMesh",
-    "meshTess.toTessellationMeshData"
+  "number": [
+    "workflow.literal"
   ],
-  "geodesicSphere": [
-    "meshTess.generateGeodesicSphere",
-    "meshTess.tessellationMeshToRenderMesh",
-    "meshTess.toTessellationMeshData"
+  "add": [
+    "math.add"
   ],
-  "pipeSweep": [
-    "mesh.generateCylinder",
-    "mesh.generatePipe",
-    "mesh.generateSphere"
+  "subtract": [
+    "math.subtract"
   ],
-  "boolean": [
-    "mesh.computeVertexNormals",
-    "mesh.generateBox"
+  "multiply": [
+    "math.multiply"
   ],
-  "meshToBrep": [
-    "brep.brepFromMesh"
+  "divide": [
+    "math.divide"
   ],
-  "measurement": [
-    "mesh.computeArea"
+  "clamp": [
+    "math.clamp"
   ],
-  "loft": [
-    "mesh.generateLoft"
+  "min": [
+    "math.min"
   ],
-  "extrude": [
-    "mesh.generateExtrude"
+  "max": [
+    "math.max"
   ],
-  "pipeMerge": [
-    "mesh.generateSphere"
+  "vectorAdd": [
+    "vector.add"
+  ],
+  "vectorSubtract": [
+    "vector.subtract"
+  ],
+  "vectorLength": [
+    "vector.length"
+  ],
+  "vectorNormalize": [
+    "vector.normalize"
+  ],
+  "vectorDot": [
+    "vector.dot"
+  ],
+  "vectorCross": [
+    "vector.cross"
+  ],
+  "vectorLerp": [
+    "vector.lerp"
   ]
 }
