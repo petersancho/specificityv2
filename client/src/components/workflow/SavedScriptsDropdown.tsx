@@ -4,6 +4,7 @@ import styles from "./SavedScriptsDropdown.module.css";
 
 export type SavedScriptsDropdownProps = {
   onAddPhysicsRig: () => void;
+  onAddEvolutionaryRig: () => void;
   onAddChemistryRig: () => void;
   onAddTopologyRig: () => void;
   onAddVoxelRig: () => void;
@@ -11,6 +12,7 @@ export type SavedScriptsDropdownProps = {
 
 export const SavedScriptsDropdown = ({
   onAddPhysicsRig,
+  onAddEvolutionaryRig,
   onAddChemistryRig,
   onAddTopologyRig,
   onAddVoxelRig,
@@ -19,6 +21,7 @@ export const SavedScriptsDropdown = ({
 
   const scripts = [
     { label: "Physics Solver", onClick: onAddPhysicsRig },
+    { label: "Evolutionary Solver", onClick: onAddEvolutionaryRig },
     { label: "Chemistry Solver", onClick: onAddChemistryRig },
     { label: "Topology Optimization", onClick: onAddTopologyRig },
     { label: "Voxel Solver", onClick: onAddVoxelRig },

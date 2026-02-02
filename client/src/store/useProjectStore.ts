@@ -366,6 +366,7 @@ type ProjectStore = {
   addNodeAt: (type: NodeType, position: { x: number; y: number }) => string;
   addGeometryReferenceNode: (geometryId?: string) => string | null;
   addPhysicsSolverRig: (position: { x: number; y: number }) => void;
+  addEvolutionarySolverRig: (position: { x: number; y: number }) => void;
   addTopologySolverRig: (position: { x: number; y: number }) => void;
   addVoxelSolverRig: (position: { x: number; y: number }) => void;
   addChemistrySolverRig: (position: { x: number; y: number }) => void;
@@ -7654,6 +7655,114 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
     set((state) => ({
       workflowHistory: appendWorkflowHistory(state.workflowHistory, state.workflow),
+      workflow: {
+        ...state.workflow,
+        nodes: [...state.workflow.nodes, ...newNodes],
+        edges: [...state.workflow.edges, ...newEdges],
+      },
+    }));
+    get().recalculateWorkflow();
+  },
+  addEvolutionarySolverRig: (position) => {
+    /**
+     * Evolutionary Solver Test Rig: Geometry Optimization
+     * 
+     * Creates a complete evolutionary optimization setup:
+     * - Geometry Reference → connects Roslyn mesh to domain
+     * - Evolutionary Solver → genetic algorithm optimization
+     * - Geometry Viewer → visualize optimized result
+     */
+    const ts = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+    const NODE_WIDTH = 200;
+    const NODE_HEIGHT = 120;
+    const H_GAP = 60;
+    const V_GAP = 40;
+
+    // Column 1: Geometry Reference
+    const geoRefId = `node-geometryReference-evolutionary-${ts}`;
+    const geoRefPos = { x: position.x, y: position.y };
+
+    // Column 2: Evolutionary Solver
+    const solverId = `node-evolutionarySolver-${ts}`;
+    const solverPos = { x: position.x + NODE_WIDTH + H_GAP, y: position.y };
+    const solverGeometryId = createGeometryId("mesh");
+
+    // Column 3: Geometry Viewer
+    const viewerId = `node-geometryViewer-evolutionary-${ts}`;
+    const viewerPos = { x: position.x + (NODE_WIDTH + H_GAP) * 2, y: position.y };
+
+    const baseGeometryId =
+      get().selectedGeometryIds[0] ?? get().geometry[0]?.id ?? null;
+    const baseGeometry = baseGeometryId
+      ? get().geometry.find((item) => item.id === baseGeometryId)
+      : null;
+    const baseLabel =
+      baseGeometry &&
+      get().sceneNodes.find((n) => n.geometryId === baseGeometry.id)?.name;
+
+    const newNodes: WorkflowNode[] = [
+      {
+        id: geoRefId,
+        type: "geometryReference",
+        position: geoRefPos,
+        data: {
+          label: baseLabel ?? "Geometry Reference",
+          parameters: { geometryId: baseGeometryId ?? "" },
+          outputs: { geometry: baseGeometryId ?? "" },
+        },
+      },
+      {
+        id: solverId,
+        type: "evolutionarySolver",
+        position: solverPos,
+        data: {
+          label: "Evolutionary Solver",
+          parameters: {
+            populationSize: 50,
+            generations: 100,
+            mutationRate: 0.1,
+            crossoverRate: 0.8,
+            elitismCount: 2,
+            selectionMethod: "tournament",
+            crossoverMethod: "single-point",
+            mutationMethod: "gaussian",
+            fitnessFunction: "minimize-area",
+            convergenceTolerance: 1e-6,
+            seed: 42,
+          },
+          outputs: { geometry: solverGeometryId },
+        },
+      },
+      {
+        id: viewerId,
+        type: "geometryViewer",
+        position: viewerPos,
+        data: {
+          label: "Optimized Geometry",
+          parameters: {},
+          outputs: {},
+        },
+      },
+    ];
+
+    const newEdges: WorkflowEdge[] = [
+      {
+        id: `edge-geoRef-solver-${ts}`,
+        source: geoRefId,
+        target: solverId,
+        sourceHandle: "geometry",
+        targetHandle: "domain",
+      },
+      {
+        id: `edge-solver-viewer-${ts}`,
+        source: solverId,
+        target: viewerId,
+        sourceHandle: "geometry",
+        targetHandle: "geometry",
+      },
+    ];
+
+    set((state) => ({
       workflow: {
         ...state.workflow,
         nodes: [...state.workflow.nodes, ...newNodes],
