@@ -501,7 +501,7 @@ export const ChemistrySolverNode: WorkflowNodeDefinition = {
     nameGreek: "Ἐπιλύτης Χημείας",
     nameEnglish: "Chemistry Solver",
     romanization: "Epilýtēs Chēmeías",
-    description: "Material transmutation solver for functionally graded blends.",
+    description: "Optimizes material distribution within a domain using particle-based simulation and goal specifications.",
   },
   
   inputs: [
