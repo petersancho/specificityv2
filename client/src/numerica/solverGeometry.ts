@@ -15,7 +15,7 @@ import type { Geometry, RenderMesh } from "../types";
 import type { GoalSpecification } from "../workflow/nodes/solver/types";
 
 export interface SolverMetadata {
-  solverType: "physics" | "chemistry" | "topology" | "voxel";
+  solverType: "physics" | "chemistry" | "topology" | "voxel" | "evolutionary";
   solverName: string;
   iterations: number;
   convergenceAchieved: boolean;
@@ -102,10 +102,10 @@ export const createSolverMetadata = (
 export const attachSolverMetadata = (
   geometry: Geometry,
   metadata: SolverMetadata
-): SolverGeometry => ({
+): Geometry => ({
   ...geometry,
   solverMetadata: metadata,
-});
+} as Geometry);
 
 export const isSolverGeometry = (geometry: Geometry): geometry is SolverGeometry => {
   return "solverMetadata" in geometry && geometry.solverMetadata !== undefined;

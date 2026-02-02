@@ -105,6 +105,6 @@ export const ChemistryStiffnessGoalNode: WorkflowNodeDefinition = {
       },
     };
 
-    return { goal };
+    return { goal: goal as unknown as Record<string, unknown> };
   },
 };

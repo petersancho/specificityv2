@@ -6,6 +6,7 @@ import { solvePhysicsChunkedSync } from "./solverInterface";
 import { solvePhysicsWithWorker } from "./physicsWorkerClient";
 import { clamp, toBoolean, toNumber } from "./utils";
 import { createSolverMetadata, attachSolverMetadata } from "../../../numerica/solverGeometry";
+import type { Geometry } from "../../../types";
 
 export const PhysicsSolverNode: WorkflowNodeDefinition = {
   type: "physicsSolver",
@@ -206,9 +207,9 @@ export const PhysicsSolverNode: WorkflowNodeDefinition = {
         ? [inputs.goals]
         : [];
     const goals = rawGoals.filter(
-      (goal): goal is GoalSpecification =>
-        Boolean(goal) && typeof goal === "object" && "goalType" in (goal as object)
-    );
+      (goal) =>
+        Boolean(goal) && typeof goal === "object" && "goalType" in (goal as Record<string, unknown>)
+    ) as unknown as GoalSpecification[];
 
     const validation = validatePhysicsGoals(goals);
     if (!validation.valid) {
@@ -284,12 +285,12 @@ export const PhysicsSolverNode: WorkflowNodeDefinition = {
       finalResult.iterations,
       finalResult.convergenceAchieved,
       {
-        goals: validatedGoals,
+        goals: normalizedGoals,
         parameters: {
           analysisType,
-          maxIterations,
-          tolerance,
-          maxStress: finalResult.stressField.length > 0 
+          maxIterations: config.maxIterations,
+          tolerance: config.convergenceTolerance,
+          maxStress: finalResult.stressField && finalResult.stressField.length > 0 
             ? Math.max(...finalResult.stressField) 
             : 0,
         },
@@ -310,7 +311,7 @@ export const PhysicsSolverNode: WorkflowNodeDefinition = {
     return {
       geometry: geometryId,
       mesh: outputMesh,
-      result: finalResult,
+      result: finalResult as unknown as Record<string, unknown>,
       animation: finalResult.animation ?? null,
       stressField: finalResult.stressField ?? [],
       displacements: finalResult.displacements ?? [],

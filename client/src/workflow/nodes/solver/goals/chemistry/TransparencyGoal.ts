@@ -90,6 +90,6 @@ export const ChemistryTransparencyGoalNode: WorkflowNodeDefinition = {
       },
     };
 
-    return { goal };
+    return { goal: goal as unknown as Record<string, unknown> };
   },
 };

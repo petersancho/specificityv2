@@ -498,7 +498,7 @@ export const EvolutionarySolver: WorkflowNodeDefinition = {
   
   inputs: [
     {
-      name: "domain",
+      key: "domain",
       type: "geometry",
       label: "Domain",
       description: "Domain geometry for optimization",
@@ -508,7 +508,7 @@ export const EvolutionarySolver: WorkflowNodeDefinition = {
   
   outputs: [
     {
-      name: "geometry",
+      key: "geometry",
       type: "geometry",
       label: "Geometry",
       description: "Optimized geometry configuration",
@@ -517,97 +517,114 @@ export const EvolutionarySolver: WorkflowNodeDefinition = {
   
   parameters: [
     {
-      name: "populationSize",
+      key: "populationSize",
       type: "number",
       label: "Population Size",
       description: "Number of individuals per generation",
-      default: 50,
+      defaultValue: 50,
       min: 10,
       max: 200,
     },
     {
-      name: "generations",
+      key: "generations",
       type: "number",
       label: "Generations",
       description: "Maximum number of generations",
-      default: 100,
+      defaultValue: 100,
       min: 10,
       max: 1000,
     },
     {
-      name: "mutationRate",
+      key: "mutationRate",
       type: "number",
       label: "Mutation Rate",
       description: "Probability of mutation (0-1)",
-      default: 0.1,
+      defaultValue: 0.1,
       min: 0.0,
       max: 1.0,
     },
     {
-      name: "crossoverRate",
+      key: "crossoverRate",
       type: "number",
       label: "Crossover Rate",
       description: "Probability of crossover (0-1)",
-      default: 0.8,
+      defaultValue: 0.8,
       min: 0.0,
       max: 1.0,
     },
     {
-      name: "elitismCount",
+      key: "elitismCount",
       type: "number",
       label: "Elitism Count",
       description: "Number of best individuals to preserve",
-      default: 2,
+      defaultValue: 2,
       min: 0,
       max: 10,
     },
     {
-      name: "selectionMethod",
-      type: "string",
+      key: "selectionMethod",
+      type: "select",
       label: "Selection Method",
       description: "Parent selection method",
-      default: "tournament",
-      options: ["tournament", "roulette", "rank"],
+      defaultValue: "tournament",
+      options: [
+        { value: "tournament", label: "Tournament" },
+        { value: "roulette", label: "Roulette" },
+        { value: "rank", label: "Rank" },
+      ],
     },
     {
-      name: "crossoverMethod",
-      type: "string",
+      key: "crossoverMethod",
+      type: "select",
       label: "Crossover Method",
       description: "Crossover operator",
-      default: "single-point",
-      options: ["single-point", "two-point", "uniform", "arithmetic"],
+      defaultValue: "single-point",
+      options: [
+        { value: "single-point", label: "Single Point" },
+        { value: "two-point", label: "Two Point" },
+        { value: "uniform", label: "Uniform" },
+        { value: "arithmetic", label: "Arithmetic" },
+      ],
     },
     {
-      name: "mutationMethod",
-      type: "string",
+      key: "mutationMethod",
+      type: "select",
       label: "Mutation Method",
       description: "Mutation operator",
-      default: "gaussian",
-      options: ["gaussian", "uniform", "creep"],
+      defaultValue: "gaussian",
+      options: [
+        { value: "gaussian", label: "Gaussian" },
+        { value: "uniform", label: "Uniform" },
+        { value: "creep", label: "Creep" },
+      ],
     },
     {
-      name: "fitnessFunction",
-      type: "string",
+      key: "fitnessFunction",
+      type: "select",
       label: "Fitness Function",
       description: "Optimization objective",
-      default: "minimize-area",
-      options: ["minimize-area", "maximize-volume", "minimize-surface-area"],
+      defaultValue: "minimize-area",
+      options: [
+        { value: "minimize-area", label: "Minimize Area" },
+        { value: "maximize-volume", label: "Maximize Volume" },
+        { value: "minimize-surface-area", label: "Minimize Surface Area" },
+      ],
     },
     {
-      name: "convergenceTolerance",
+      key: "convergenceTolerance",
       type: "number",
       label: "Convergence Tolerance",
       description: "Fitness change threshold for convergence",
-      default: 1e-6,
+      defaultValue: 1e-6,
       min: 1e-10,
       max: 1e-2,
     },
     {
-      name: "seed",
+      key: "seed",
       type: "number",
       label: "Random Seed",
       description: "Seed for deterministic random generation",
-      default: 42,
+      defaultValue: 42,
       min: 0,
       max: 999999,
     },
@@ -620,11 +637,11 @@ export const EvolutionarySolver: WorkflowNodeDefinition = {
     },
   },
   
-  compute: async (inputs, parameters, context: WorkflowComputeContext) => {
+  compute: ({ inputs, parameters, context }: { inputs: Record<string, unknown>; parameters: Record<string, unknown>; context: WorkflowComputeContext }) => {
     const startTime = performance.now();
     
     // Extract parameters
-    const params = parameters as EvolutionaryParams;
+    const params = parameters as unknown as EvolutionaryParams;
     
     // Get domain geometry
     const domainId = inputs.domain as string;
@@ -653,6 +670,8 @@ export const EvolutionarySolver: WorkflowNodeDefinition = {
       id: geometryId,
       type: "mesh",
       mesh: domainGeometry.mesh,
+      layerId: "default",
+      sourceNodeId: context.nodeId,
     };
     
     // Attach solver metadata (ROSLYN-NUMERICA bridge)
@@ -673,15 +692,15 @@ export const EvolutionarySolver: WorkflowNodeDefinition = {
           mutationMethod: params.mutationMethod,
           fitnessFunction: params.fitnessFunction,
           seed: params.seed,
+          bestFitness: result.bestIndividual.fitness,
+          bestParameters: result.bestIndividual.parameters,
+          convergenceGeneration: result.convergenceGeneration,
+          populationHistory: result.populations.map(p => ({
+            generation: p.generation,
+            bestFitness: p.bestFitness,
+            averageFitness: p.averageFitness,
+          })),
         },
-        bestFitness: result.bestIndividual.fitness,
-        bestParameters: result.bestIndividual.parameters,
-        convergenceGeneration: result.convergenceGeneration,
-        populationHistory: result.populations.map(p => ({
-          generation: p.generation,
-          bestFitness: p.bestFitness,
-          averageFitness: p.averageFitness,
-        })),
       }
     );
     

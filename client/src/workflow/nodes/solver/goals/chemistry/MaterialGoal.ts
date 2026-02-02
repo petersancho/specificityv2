@@ -45,9 +45,9 @@ const normalizeAssignmentEntries = (value: unknown): MaterialAssignment[] => {
               : typeof candidate.strength === "number"
                 ? candidate.strength
                 : undefined;
-        return { geometryId, material, weight } satisfies MaterialAssignment;
+        return { geometryId, material, weight } as MaterialAssignment;
       })
-      .filter((entry): entry is MaterialAssignment => Boolean(entry));
+      .filter((entry): entry is MaterialAssignment => entry !== null);
   }
   if (typeof value === "object") {
     const record = value as Record<string, unknown>;

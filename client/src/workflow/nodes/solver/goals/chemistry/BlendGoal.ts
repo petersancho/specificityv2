@@ -96,6 +96,6 @@ export const ChemistryBlendGoalNode: WorkflowNodeDefinition = {
       },
     };
 
-    return { goal };
+    return { goal: goal as unknown as Record<string, unknown> };
   },
 };

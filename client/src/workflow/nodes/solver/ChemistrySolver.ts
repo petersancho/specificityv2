@@ -657,9 +657,9 @@ export const ChemistrySolverNode: WorkflowNodeDefinition = {
     // Process goals
     const rawGoals = Array.isArray(inputs.goals) ? inputs.goals : inputs.goals ? [inputs.goals] : [];
     const goals = rawGoals.filter(
-      (goal): goal is GoalSpecification =>
-        Boolean(goal) && typeof goal === "object" && "goalType" in (goal as object)
-    );
+      (goal) =>
+        Boolean(goal) && typeof goal === "object" && "goalType" in (goal as Record<string, unknown>)
+    ) as unknown as GoalSpecification[];
     
     const validation = validateChemistryGoals(goals);
     if (!validation.valid) {

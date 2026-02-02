@@ -125,7 +125,7 @@ const buildEdgeData = (
   const vertexCount = Math.floor(positions.length / 3);
   const maxSafeIndex = Math.floor(Math.sqrt(Number.MAX_SAFE_INTEGER));
   const useNumericKey = vertexCount > 0 && vertexCount <= maxSafeIndex;
-  const areaByEdge = useNumericKey ? new Map<number, number>() : new Map<string, number>();
+  const areaByEdge: Map<number | string, number> = useNumericKey ? new Map<number, number>() : new Map<string, number>();
   const triangles = Math.floor(indices.length / 3);
   for (let t = 0; t < triangles; t += 1) {
     const idx = t * 3;
@@ -167,10 +167,10 @@ const buildEdgeData = (
   areaByEdge.forEach((area, key) => {
     const a = useNumericKey
       ? Math.floor((key as number) / vertexCount)
-      : Number(String(key).split(":")[0]);
+      : Number((key as string).split(":")[0]);
     const b = useNumericKey
       ? (key as number) % vertexCount
-      : Number(String(key).split(":")[1]);
+      : Number((key as string).split(":")[1]);
     if (a < 0 || b < 0 || a >= vertexCount || b >= vertexCount) return;
     const a3 = a * 3;
     const b3 = b * 3;

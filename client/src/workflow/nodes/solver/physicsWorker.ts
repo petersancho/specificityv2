@@ -23,7 +23,8 @@ type ErrorMessage = {
 
 type WorkerResponse = ResultMessage | ErrorMessage;
 
-const ctx = self as unknown as DedicatedWorkerGlobalScope;
+declare const self: Worker;
+const ctx = self as unknown as Worker;
 
 ctx.onmessage = (event: MessageEvent<WorkerMessage>) => {
   const message = event.data;

@@ -139,6 +139,12 @@ export type WorkflowNodeDefinition = {
     romanization?: string;
     description?: string;
   };
+  customUI?: {
+    dashboardButton?: {
+      label: string;
+      component: string;
+    };
+  };
   inputs: PortsDefinition;
   outputs: PortsDefinition;
   parameters: WorkflowParameterSpec[];
