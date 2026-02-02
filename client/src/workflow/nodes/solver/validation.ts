@@ -84,47 +84,6 @@ export const validatePhysicsGoals = (goals: GoalSpecification[]): ValidationResu
   };
 };
 
-export const validateBiologicalGoals = (goals: GoalSpecification[]): ValidationResult => {
-  const errors: string[] = [];
-  const warnings: string[] = [];
-  const allowedTypes = new Set([
-    "growth",
-    "nutrient",
-    "morphogenesis",
-    "homeostasis",
-  ]);
-
-  if (!Array.isArray(goals) || goals.length === 0) {
-    return {
-      valid: true,
-      errors,
-      warnings: ["Branching Growth has no goals; using parameter defaults."],
-    };
-  }
-
-  goals.forEach((goal) => {
-    if (!allowedTypes.has(goal.goalType)) {
-      errors.push(`Goal type '${goal.goalType}' is not supported by Branching Growth.`);
-      return;
-    }
-    const hasElements =
-      Array.isArray(goal.geometry?.elements) && goal.geometry.elements.length > 0;
-    if (!hasElements) {
-      errors.push(`${goal.goalType} goal has no geometric elements.`);
-    }
-  });
-
-  const weightNormalization = normalizeGoalWeights(goals);
-  warnings.push(...weightNormalization.warnings);
-
-  return {
-    valid: errors.length === 0,
-    errors,
-    warnings,
-    normalizedGoals: weightNormalization.goals,
-  };
-};
-
 export const validateChemistryGoals = (goals: GoalSpecification[]): ValidationResult => {
   const errors: string[] = [];
   const warnings: string[] = [];
