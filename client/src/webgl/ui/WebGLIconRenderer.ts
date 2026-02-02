@@ -113,7 +113,6 @@ const ICON_IDS = [
   "squareWave",
   "topologyOptimize",
   "topologySolver",
-  "biologicalSolver",
   "solver",
   "goal",
   "stiffnessGoal",
@@ -5558,70 +5557,6 @@ const drawAnchorStickerIcon = (
   drawStickerAnchor(ctx, x, y, size, resolveStickerColor("anchor"));
 };
 
-const drawBiologicalSolverIcon = (
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  size: number
-) => {
-  drawSolverBadge(ctx, x, y, size, { top: "#cfe3d6", bottom: "#1f6a33" });
-
-  const midX = x + size * 0.5;
-  const top = y + size * 0.22;
-  const bottom = y + size * 0.82;
-  const amplitude = size * 0.12;
-  const steps = 18;
-  const range = bottom - top;
-
-  const drawHelix = (phase: number) =>
-    strokeDualPath(
-      ctx,
-      size * 0.06,
-      size * 0.038,
-      () => {
-        ctx.beginPath();
-        for (let i = 0; i < steps; i += 1) {
-          const t = i / (steps - 1);
-          const yPos = top + range * t;
-          const xPos = midX + Math.sin(t * Math.PI * 2 + phase) * amplitude;
-          if (i === 0) {
-            ctx.moveTo(xPos, yPos);
-          } else {
-            ctx.lineTo(xPos, yPos);
-          }
-        }
-      },
-      {
-        outerColor: "rgba(20, 83, 45, 0.55)",
-        innerColor: "#ecfdf5",
-      }
-    );
-
-  drawHelix(0);
-  drawHelix(Math.PI);
-
-  for (let i = 0; i <= 5; i += 1) {
-    const t = i / 5;
-    const yPos = top + range * t;
-    const xLeft = midX + Math.sin(t * Math.PI * 2) * amplitude;
-    const xRight = midX + Math.sin(t * Math.PI * 2 + Math.PI) * amplitude;
-    strokeDualPath(
-      ctx,
-      size * 0.04,
-      size * 0.026,
-      () => {
-        ctx.beginPath();
-        ctx.moveTo(xLeft, yPos);
-        ctx.lineTo(xRight, yPos);
-      },
-      {
-        outerColor: "rgba(20, 83, 45, 0.55)",
-        innerColor: "#f0fdf4",
-      }
-    );
-  }
-};
-
 const applyMonochromeTint = (
   ctx: CanvasRenderingContext2D,
   bounds: { x: number; y: number; size: number },
@@ -6096,9 +6031,6 @@ const drawIconToTile = (
       break;
     case "topologySolver":
       drawTopologySolverIcon(ctx, x, y, size);
-      break;
-    case "biologicalSolver":
-      drawBiologicalSolverIcon(ctx, x, y, size);
       break;
     case "solver":
       drawSolverIcon(ctx, x, y, size);
