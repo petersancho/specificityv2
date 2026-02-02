@@ -18,6 +18,7 @@ import { validateChemistryGoals } from "./validation";
 import { toBoolean, toNumber, isFiniteNumber, isVec3, clamp } from "./utils";
 import { resolveMeshFromGeometry } from "../../../geometry/meshTessellation";
 import { resolveChemistryMaterialSpec, type ChemistryMaterialSpec } from "../../../data/chemistryMaterials";
+import { computeBoundsFromPositions } from "../../../geometry/bounds";
 import { createSeededRandom, hashStringToSeed } from "../../../utils/random";
 import { 
   length as lengthVec3, 
@@ -133,27 +134,14 @@ const collectGeometryPositions = (
   return positions;
 };
 
-const computeBoundsFromPositions = (positions: Vec3[]) => {
+const computeBoundsWithFallback = (positions: Vec3[]) => {
   if (positions.length === 0) {
     return {
       min: { x: -1, y: -1, z: -1 },
       max: { x: 1, y: 1, z: 1 },
     };
   }
-  
-  const min = { x: Infinity, y: Infinity, z: Infinity };
-  const max = { x: -Infinity, y: -Infinity, z: -Infinity };
-  
-  positions.forEach((pos) => {
-    min.x = Math.min(min.x, pos.x);
-    min.y = Math.min(min.y, pos.y);
-    min.z = Math.min(min.z, pos.z);
-    max.x = Math.max(max.x, pos.x);
-    max.y = Math.max(max.y, pos.y);
-    max.z = Math.max(max.z, pos.z);
-  });
-  
-  return { min, max };
+  return computeBoundsFromPositions(positions);
 };
 
 const normalizeVoxelBounds = (bounds: { min: Vec3; max: Vec3 }) => {
@@ -235,7 +223,7 @@ const runChemistrySolver = (args: {
     ? collectGeometryPositions(domainGeometry, args.context, 20000)
     : [];
   const domainBounds = normalizeVoxelBounds(
-    computeBoundsFromPositions(domainPositions)
+    computeBoundsWithFallback(domainPositions)
   );
   const domainCenter = {
     x: (domainBounds.min.x + domainBounds.max.x) * 0.5,

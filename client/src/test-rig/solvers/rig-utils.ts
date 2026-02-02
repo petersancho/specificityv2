@@ -1,5 +1,6 @@
 import type { Geometry, MeshGeometry, RenderMesh, Vec3, VertexGeometry } from "../../types";
 import { generateBoxMesh, generateSphereMesh } from "../../geometry/mesh";
+import { computeBoundsFromMesh } from "../../geometry/bounds";
 
 export type TestContext = {
   nodeId: string;
@@ -35,22 +36,7 @@ export const createSphereGeometry = (
   layerId: "layer-test",
 });
 
-export const meshBounds = (mesh: RenderMesh) => {
-  const min: Vec3 = { x: Infinity, y: Infinity, z: Infinity };
-  const max: Vec3 = { x: -Infinity, y: -Infinity, z: -Infinity };
-  for (let i = 0; i < mesh.positions.length; i += 3) {
-    const x = mesh.positions[i];
-    const y = mesh.positions[i + 1];
-    const z = mesh.positions[i + 2];
-    if (x < min.x) min.x = x;
-    if (y < min.y) min.y = y;
-    if (z < min.z) min.z = z;
-    if (x > max.x) max.x = x;
-    if (y > max.y) max.y = y;
-    if (z > max.z) max.z = z;
-  }
-  return { min, max };
-};
+export const meshBounds = computeBoundsFromMesh;
 
 const axisIndex = (axis: "x" | "y" | "z") => (axis === "x" ? 0 : axis === "y" ? 1 : 2);
 
