@@ -4,6 +4,21 @@ Lingua is a custom parametric design environment that pairs direct 3D
 modeling (Roslyn) with a visual programming canvas (Numerica). Both panels share
 one Zustand store so geometry, selection, and workflows stay in sync.
 
+## Philosophy
+
+**Language as Foundation.** Lingua means "language"—the universal substrate through which all knowledge becomes accessible. In an age of AI and machine learning, language is not merely communication; it is the medium through which machines understand reality and humans express intent.
+
+**The Trinity Architecture.** Three equal, sovereign domains work in harmony:
+- **Lingua** (Language): Sovereign in meaning, intention, and qualitative understanding
+- **Roslyn** (Geometry): Sovereign in space, form, and spatial intuition
+- **Numerica** (Numbers): Sovereign in quantity, precision, and calculation
+
+**Ownership Over Convenience.** We build our own geometry kernel, WebGL renderer, and workflow editor. Full ownership means full control—no black boxes, no compromises, no dependencies on external CAD libraries that constrain our vision.
+
+**Specificity in Uncertainty.** Even in a probabilistic AI era, precision and exactness remain essential. Lingua embraces both the "cloudy" ambiguity of human intuition and the sharp specificity of computational geometry.
+
+**Intellectual Continuity.** Our solvers honor ancient traditions—named after Greek mathematicians (Pythagoras, Euclid, Archimedes, Apollonius)—while preparing for convergent futures where disciplines blend and AI enables cross-domain translation.
+
 ## Highlights
 
 - Dual-panel workspace: WebGL modeler + canvas-based workflow editor.
@@ -16,44 +31,57 @@ one Zustand store so geometry, selection, and workflows stay in sync.
 
 ## Solver Infrastructure
 
-Lingua includes four production-ready solvers with automatic mesh generation and beautiful gradient-colored visualization:
+Lingua includes five production-ready solvers with automatic mesh generation and beautiful gradient-colored visualization. Each solver embodies a different mode of optimization, reflecting diverse approaches to form-finding and material organization.
 
-### Physics Solver
+### Physics Solver (Pythagoras)
 - Finite element analysis (FEA) for stress and deformation
 - Automatic stress gradient visualization (blue → red)
 - Hero geometry: cantilever bracket with stress concentration
+- *Honors the tradition of mathematical physics and structural analysis*
 
-### Chemistry Solver
+### Chemistry Solver (Apollonius)
 - Material blending and chemical reactions
 - Multi-material particle simulation
 - Per-material color visualization
 - Hero geometry: multi-material cylindrical vessel
+- *Explores material interaction and transformation*
 
-### Voxel Solver
-- Topology optimization for weight reduction
-- Density-based material removal
+### Topological Optimization Solver (Euclid)
+- Topology optimization for weight reduction and structural efficiency
+- Density-based material removal guided by stress and load paths
 - Density gradient visualization (black → white)
 - Hero geometry: perforated lattice structure
+- *Discovers optimal material distribution through iterative refinement*
 
-### Biological Solver
+### Voxel Solver (Archimedes)
+- Volumetric discretization and voxel-based analysis
+- Density field manipulation and spatial optimization
+- Gradient visualization for density distribution
+- Hero geometry: voxelized structural forms
+- *Operates in the discrete spatial domain of volumetric elements*
+
+### Biological Solver (Galen)
 - Evolution and fitness-based optimization
-- Branching growth simulation
+- Branching growth simulation inspired by natural systems
 - Fitness gradient visualization (red → green)
 - Hero geometry: vascular network structure
+- *Mimics natural growth patterns and evolutionary adaptation*
 
-All solvers automatically produce mesh geometry with gradient-colored vertices for scientific visualization. No manual post-processing required.
+All solvers automatically produce mesh geometry with gradient-colored vertices for scientific visualization. No manual post-processing required. Each solver represents a distinct philosophical approach to computational design—from the deterministic precision of physics to the emergent complexity of biological systems.
 
 ## Repository Structure
 
 - `client/`: Vite + React + TypeScript application (Roslyn + Numerica).
 - `server/`: Express + Socket.IO backend for persistence and project I/O.
-- `docs/`: architecture, conventions, specs, and references.
+- `docs/`: Architecture, conventions, specs, and philosophical foundations.
 
 Key entry points include `client/src/App.tsx`,
 `client/src/components/ModelerSection.tsx`,
 `client/src/components/WebGLViewerCanvas.tsx`,
 `client/src/components/workflow/WorkflowSection.tsx`, and
 `client/src/store/useProjectStore.ts`.
+
+The codebase reflects our philosophy of ownership: every major system—from the geometry kernel to the WebGL renderer to the workflow canvas—is custom-built and fully understood.
 
 ## Getting Started
 
@@ -105,30 +133,42 @@ CLIENT_PORT=5173
 
 ## Testing & Validation
 
-Lingua includes comprehensive test rigs and validation frameworks:
+Lingua includes comprehensive test rigs and validation frameworks, reflecting our commitment to specificity and precision:
 
 - **Standalone Test Rigs**: Each solver has a dedicated test rig in `client/src/test-rig/solvers/`
-- **Validation Framework**: Robust voxel grid validation with floating-point tolerance
+- **Validation Framework**: Robust voxel grid validation with floating-point tolerance and epsilon handling
 - **Console Reports**: Beautiful test reports with geometry verification and performance metrics
-- **Hero Geometry**: Production-quality test cases for each solver
+- **Hero Geometry**: Production-quality test cases for each solver, serving as both validation and demonstration
 
-Run test rigs independently without the UI for rapid development and debugging.
+Run test rigs independently without the UI for rapid development and debugging. Validation prevents silent failures and ensures computational integrity—specificity matters, even in uncertain domains.
 
-## Recent Improvements
+## Core Capabilities
 
-- **31,000+ lines of dead code removed** for a cleaner, more maintainable codebase
-- **WebGL index validation** prevents rendering errors and provides clear diagnostics
-- **Enhanced MaterialGoal diagnostics** with real-time material distribution monitoring
-- **Gradient color system** with multiple scientific visualization palettes (stress, density, fitness)
-- **Comprehensive documentation** including solver test rig setup guides
+Lingua is a complete parametric design environment with powerful computational tools:
+
+- **Dual-Panel Workspace**: Seamless integration between 3D modeling (Roslyn) and visual programming (Numerica)
+- **Custom Geometry Kernel**: Full ownership of geometric operations—no external CAD dependencies
+- **WebGL Rendering**: Raw WebGL with custom GLSL shaders for pixel-perfect control and performance
+- **Five Production Solvers**: Physics, Chemistry, Topological Optimization, Voxel, and Biological solvers with automatic mesh output
+- **Gradient Visualization**: Scientific visualization with stress, density, and fitness gradients
+- **Real-Time Diagnostics**: Material distribution monitoring, solver convergence tracking, and performance metrics
+- **Unified State Management**: Zustand-based store with history/undo across modeling and workflow
+- **Validation Framework**: Robust validation with floating-point tolerance prevents silent failures
+- **Standalone Test Rigs**: Independent solver testing without UI for rapid development
+- **Clean Codebase**: 31,000+ lines of dead code removed for maintainability and clarity
+
+Every capability reflects our philosophy: ownership over convenience, specificity in uncertainty, and tools that amplify human creativity while maintaining full transparency and control.
 
 ## Documentation
 
 Start with `docs/README.md` for the full documentation map. Core references:
 
-- Overview: `docs/lingua_readme.md`
-- Architecture: `docs/lingua_architecture.md`
-- Conventions: `docs/lingua_conventions.md`
-- AI agent notes: `docs/ai_agent_guide.md`
-- Solver test rig setup: `docs/solver_test_rig_setup.md`
-- Ontology treatise prompt: `docs/lingua_ontology_comprehensive_prompt_v2.md`
+- **Philosophy**: `docs/philosophy.md` - The linguistic turn, trinity architecture, and intellectual foundations
+- **Overview**: `docs/lingua_readme.md` - Project vision and inspirations
+- **Architecture**: `docs/lingua_architecture.md` - Technical design and system organization
+- **Conventions**: `docs/lingua_conventions.md` - Code style and organizational principles
+- **AI Agent Guide**: `docs/ai_agent_guide.md` - Collaboration patterns and agent guidelines
+- **Solver Test Rig Setup**: `docs/solver_test_rig_setup.md` - Comprehensive testing guide
+- **Ontology Treatise**: `docs/lingua_ontology_comprehensive_prompt_v2.md` - Deep conceptual framework
+
+The documentation reflects our belief that understanding precedes mastery. We document not just *what* and *how*, but *why*—the philosophical foundations that guide every technical decision.
