@@ -3,7 +3,7 @@ import { add, cross, dot, length, normalize, scale, sub , EPSILON } from "./math
 
 type Vec2 = { x: number; y: number };
 
-const EPSILON = EPSILON.DISTANCE;
+const EPSILON_DISTANCE = EPSILON.DISTANCE;
 const TAU = Math.PI * 2;
 
 const clamp = (value: number, min: number, max: number) =>
@@ -17,14 +17,14 @@ const normalizeAngle = (angle: number) => {
 
 const resolvePlaneBasis = (plane: PlaneDefinition) => {
   const safeNormal =
-    length(plane.normal) > EPSILON ? normalize(plane.normal) : { x: 0, y: 1, z: 0 };
+    length(plane.normal) > EPSILON_DISTANCE ? normalize(plane.normal) : { x: 0, y: 1, z: 0 };
   const worldUp = Math.abs(safeNormal.y) < 0.99 ? { x: 0, y: 1, z: 0 } : { x: 1, y: 0, z: 0 };
   const fallbackXAxis = normalize(cross(worldUp, safeNormal));
   const safeXAxis =
-    length(plane.xAxis) > EPSILON ? normalize(plane.xAxis) : fallbackXAxis;
+    length(plane.xAxis) > EPSILON_DISTANCE ? normalize(plane.xAxis) : fallbackXAxis;
   let safeYAxis =
-    length(plane.yAxis) > EPSILON ? normalize(plane.yAxis) : normalize(cross(safeNormal, safeXAxis));
-  if (length(safeYAxis) <= EPSILON || Math.abs(dot(safeXAxis, safeYAxis)) > 0.999) {
+    length(plane.yAxis) > EPSILON_DISTANCE ? normalize(plane.yAxis) : normalize(cross(safeNormal, safeXAxis));
+  if (length(safeYAxis) <= EPSILON_DISTANCE || Math.abs(dot(safeXAxis, safeYAxis)) > 0.999) {
     safeYAxis = normalize(cross(safeNormal, safeXAxis));
   }
   return {
@@ -125,7 +125,7 @@ const computeCircleCenter2D = (a: Vec2, b: Vec2, c: Vec2) => {
   const denom =
     2 *
     (a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y));
-  if (Math.abs(denom) < EPSILON) return null;
+  if (Math.abs(denom) < EPSILON_DISTANCE) return null;
   const ux =
     (aSq * (b.y - c.y) + bSq * (c.y - a.y) + cSq * (a.y - b.y)) / denom;
   const uy =
@@ -159,7 +159,7 @@ export const computeArcPolyline = (
   if (!center2) return null;
 
   const radius = Math.hypot(a2.x - center2.x, a2.y - center2.y);
-  if (!Number.isFinite(radius) || radius < EPSILON) return null;
+  if (!Number.isFinite(radius) || radius < EPSILON_DISTANCE) return null;
 
   const startAngle = Math.atan2(a2.y - center2.y, a2.x - center2.x);
   const midAngle = Math.atan2(c2.y - center2.y, c2.x - center2.x);
@@ -199,7 +199,7 @@ export const createArcNurbs = (
   if (!center2) return null;
 
   const radius = Math.hypot(a2.x - center2.x, a2.y - center2.y);
-  if (!Number.isFinite(radius) || radius < EPSILON) return null;
+  if (!Number.isFinite(radius) || radius < EPSILON_DISTANCE) return null;
 
   const startAngle = Math.atan2(a2.y - center2.y, a2.x - center2.x);
   const midAngle = Math.atan2(c2.y - center2.y, c2.x - center2.x);

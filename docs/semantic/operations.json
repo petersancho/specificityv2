@@ -1,0 +1,527 @@
+{
+  "mesh.generateBox": {
+    "id": "mesh.generateBox",
+    "name": "Generate Box Mesh",
+    "category": "primitive",
+    "tags": [
+      "mesh",
+      "3d"
+    ],
+    "complexity": "O(n)",
+    "summary": "Creates a box mesh with specified dimensions and optional segmentation",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "mesh.generateSphere": {
+    "id": "mesh.generateSphere",
+    "name": "Generate Sphere Mesh",
+    "category": "primitive",
+    "tags": [
+      "mesh",
+      "3d"
+    ],
+    "complexity": "O(n)",
+    "summary": "Creates a sphere mesh with specified radius and segments",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "mesh.generateCylinder": {
+    "id": "mesh.generateCylinder",
+    "name": "Generate Cylinder Mesh",
+    "category": "primitive",
+    "tags": [
+      "mesh",
+      "3d"
+    ],
+    "complexity": "O(n)",
+    "summary": "Creates a cylinder mesh with specified radius, height, and radial segments",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "mesh.generateExtrude": {
+    "id": "mesh.generateExtrude",
+    "name": "Generate Extrude Mesh",
+    "category": "modifier",
+    "tags": [
+      "mesh",
+      "3d"
+    ],
+    "complexity": "O(n)",
+    "summary": "Extrudes 2D profiles along a direction to create 3D geometry",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "mesh.generateLoft": {
+    "id": "mesh.generateLoft",
+    "name": "Generate Loft Mesh",
+    "category": "modifier",
+    "tags": [
+      "mesh",
+      "3d",
+      "surface"
+    ],
+    "complexity": "O(n^2)",
+    "summary": "Creates a lofted surface between multiple cross-section curves",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "mesh.generatePipe": {
+    "id": "mesh.generatePipe",
+    "name": "Generate Pipe Mesh",
+    "category": "primitive",
+    "tags": [
+      "mesh",
+      "3d"
+    ],
+    "complexity": "O(n)",
+    "summary": "Creates a hollow pipe mesh with specified inner/outer radius and height",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "mesh.computeVertexNormals": {
+    "id": "mesh.computeVertexNormals",
+    "name": "Compute Vertex Normals",
+    "category": "analysis",
+    "tags": [
+      "mesh",
+      "3d"
+    ],
+    "complexity": "O(n)",
+    "summary": "Computes smooth vertex normals from mesh positions and indices",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "mesh.computeArea": {
+    "id": "mesh.computeArea",
+    "name": "Compute Mesh Area",
+    "category": "analysis",
+    "tags": [
+      "mesh",
+      "3d"
+    ],
+    "complexity": "O(n)",
+    "summary": "Calculates the total surface area of a mesh",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "meshTess.subdivideLinear": {
+    "id": "meshTess.subdivideLinear",
+    "name": "Subdivide Linear",
+    "category": "modifier",
+    "tags": [
+      "mesh",
+      "3d"
+    ],
+    "complexity": "O(n)",
+    "summary": "Performs linear subdivision on a mesh",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "meshTess.subdivideCatmullClark": {
+    "id": "meshTess.subdivideCatmullClark",
+    "name": "Subdivide Catmull-Clark",
+    "category": "modifier",
+    "tags": [
+      "mesh",
+      "3d"
+    ],
+    "complexity": "O(n)",
+    "summary": "Performs Catmull-Clark subdivision surface algorithm",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "meshTess.subdivideLoop": {
+    "id": "meshTess.subdivideLoop",
+    "name": "Subdivide Loop",
+    "category": "modifier",
+    "tags": [
+      "mesh",
+      "3d"
+    ],
+    "complexity": "O(n)",
+    "summary": "Performs Loop subdivision for triangular meshes",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "meshTess.subdivideAdaptive": {
+    "id": "meshTess.subdivideAdaptive",
+    "name": "Subdivide Adaptive",
+    "category": "modifier",
+    "tags": [
+      "mesh",
+      "3d"
+    ],
+    "complexity": "varies",
+    "summary": "Performs adaptive subdivision based on curvature",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "meshTess.dualMesh": {
+    "id": "meshTess.dualMesh",
+    "name": "Dual Mesh",
+    "category": "modifier",
+    "tags": [
+      "mesh",
+      "3d"
+    ],
+    "complexity": "O(n)",
+    "summary": "Creates the dual mesh (vertices ↔ faces)",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "meshTess.insetFaces": {
+    "id": "meshTess.insetFaces",
+    "name": "Inset Faces",
+    "category": "modifier",
+    "tags": [
+      "mesh",
+      "3d"
+    ],
+    "complexity": "O(n)",
+    "summary": "Insets selected faces inward by a specified distance",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "meshTess.extrudeFaces": {
+    "id": "meshTess.extrudeFaces",
+    "name": "Extrude Faces",
+    "category": "modifier",
+    "tags": [
+      "mesh",
+      "3d"
+    ],
+    "complexity": "O(n)",
+    "summary": "Extrudes selected faces outward by a specified distance",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "meshTess.meshRelax": {
+    "id": "meshTess.meshRelax",
+    "name": "Mesh Relax",
+    "category": "modifier",
+    "tags": [
+      "mesh",
+      "3d"
+    ],
+    "complexity": "O(n * iterations)",
+    "summary": "Smooths mesh by averaging vertex positions",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "meshTess.selectFaces": {
+    "id": "meshTess.selectFaces",
+    "name": "Select Faces",
+    "category": "utility",
+    "tags": [
+      "mesh",
+      "3d"
+    ],
+    "complexity": "O(n)",
+    "summary": "Selects faces matching a predicate function",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "meshTess.triangulateMesh": {
+    "id": "meshTess.triangulateMesh",
+    "name": "Triangulate Mesh",
+    "category": "modifier",
+    "tags": [
+      "mesh",
+      "3d"
+    ],
+    "complexity": "O(n)",
+    "summary": "Converts all mesh faces to triangles",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "meshTess.generateGeodesicSphere": {
+    "id": "meshTess.generateGeodesicSphere",
+    "name": "Generate Geodesic Sphere",
+    "category": "primitive",
+    "tags": [
+      "mesh",
+      "3d"
+    ],
+    "complexity": "O(n)",
+    "summary": "Creates a geodesic sphere by subdividing an icosahedron",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "meshTess.generateHexagonalTiling": {
+    "id": "meshTess.generateHexagonalTiling",
+    "name": "Generate Hexagonal Tiling",
+    "category": "primitive",
+    "tags": [
+      "mesh",
+      "2d"
+    ],
+    "complexity": "O(n)",
+    "summary": "Creates a hexagonal tiling pattern",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "meshTess.generateVoronoiPattern": {
+    "id": "meshTess.generateVoronoiPattern",
+    "name": "Generate Voronoi Pattern",
+    "category": "primitive",
+    "tags": [
+      "mesh",
+      "2d"
+    ],
+    "complexity": "O(n log n)",
+    "summary": "Creates a Voronoi diagram pattern from random points",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "meshTess.offsetPattern": {
+    "id": "meshTess.offsetPattern",
+    "name": "Offset Pattern",
+    "category": "modifier",
+    "tags": [
+      "mesh",
+      "3d"
+    ],
+    "complexity": "O(n)",
+    "summary": "Offsets mesh surface by a specified distance",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "meshTess.generateMeshUVs": {
+    "id": "meshTess.generateMeshUVs",
+    "name": "Generate Mesh UVs",
+    "category": "modifier",
+    "tags": [
+      "mesh",
+      "3d"
+    ],
+    "complexity": "varies",
+    "summary": "Generates UV texture coordinates for a mesh",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "meshTess.repairMesh": {
+    "id": "meshTess.repairMesh",
+    "name": "Repair Mesh",
+    "category": "modifier",
+    "tags": [
+      "mesh",
+      "3d"
+    ],
+    "complexity": "O(n)",
+    "summary": "Fixes mesh issues like non-manifold edges and holes",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "meshTess.decimateMesh": {
+    "id": "meshTess.decimateMesh",
+    "name": "Decimate Mesh",
+    "category": "modifier",
+    "tags": [
+      "mesh",
+      "3d"
+    ],
+    "complexity": "O(n log n)",
+    "summary": "Reduces polygon count while preserving shape",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "meshTess.quadDominantRemesh": {
+    "id": "meshTess.quadDominantRemesh",
+    "name": "Quad-Dominant Remesh",
+    "category": "modifier",
+    "tags": [
+      "mesh",
+      "3d"
+    ],
+    "complexity": "O(n)",
+    "summary": "Remeshes to quad-dominant topology",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "meshTess.meshBoolean": {
+    "id": "meshTess.meshBoolean",
+    "name": "Mesh Boolean",
+    "category": "modifier",
+    "tags": [
+      "mesh",
+      "3d"
+    ],
+    "complexity": "O(n^2)",
+    "summary": "Performs boolean operations (union, difference, intersection) on meshes",
+    "stable": true,
+    "since": "1.0.0",
+    "deps": [
+      "meshTess.triangulateMesh"
+    ]
+  },
+  "meshTess.getTessellationMetadata": {
+    "id": "meshTess.getTessellationMetadata",
+    "name": "Get Tessellation Metadata",
+    "category": "utility",
+    "tags": [
+      "mesh"
+    ],
+    "complexity": "O(1)",
+    "summary": "Extracts tessellation data from geometry metadata",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "meshTess.toTessellationMesh": {
+    "id": "meshTess.toTessellationMesh",
+    "name": "To Tessellation Mesh",
+    "category": "tessellation",
+    "tags": [
+      "mesh"
+    ],
+    "complexity": "O(n)",
+    "summary": "Converts RenderMesh to TessellationMesh format",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "meshTess.toTessellationMeshData": {
+    "id": "meshTess.toTessellationMeshData",
+    "name": "To Tessellation Mesh Data",
+    "category": "tessellation",
+    "tags": [
+      "mesh"
+    ],
+    "complexity": "O(1)",
+    "summary": "Converts TessellationMesh to data format",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "meshTess.tessellationMeshToRenderMesh": {
+    "id": "meshTess.tessellationMeshToRenderMesh",
+    "name": "Tessellation Mesh To Render Mesh",
+    "category": "tessellation",
+    "tags": [
+      "mesh"
+    ],
+    "complexity": "O(n)",
+    "summary": "Converts TessellationMesh to RenderMesh format",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.computeBestFitPlane": {
+    "id": "math.computeBestFitPlane",
+    "name": "Compute Best Fit Plane",
+    "category": "analysis",
+    "tags": [
+      "math",
+      "3d"
+    ],
+    "complexity": "O(n)",
+    "summary": "Computes the best-fit plane from a set of 3D points using PCA",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.projectPointToPlane": {
+    "id": "math.projectPointToPlane",
+    "name": "Project Point To Plane",
+    "category": "transform",
+    "tags": [
+      "math",
+      "3d"
+    ],
+    "complexity": "O(1)",
+    "summary": "Projects a 3D point onto a plane, returning 2D coordinates",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "math.unprojectPointFromPlane": {
+    "id": "math.unprojectPointFromPlane",
+    "name": "Unproject Point From Plane",
+    "category": "transform",
+    "tags": [
+      "math",
+      "3d"
+    ],
+    "complexity": "O(1)",
+    "summary": "Converts 2D plane coordinates back to 3D world space",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "curve.resampleByArcLength": {
+    "id": "curve.resampleByArcLength",
+    "name": "Resample By Arc Length",
+    "category": "modifier",
+    "tags": [
+      "curve",
+      "polyline",
+      "3d"
+    ],
+    "complexity": "O(n)",
+    "summary": "Resamples a polyline to have evenly-spaced points by arc length",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "boolean.offsetPolyline2D": {
+    "id": "boolean.offsetPolyline2D",
+    "name": "Offset Polyline 2D",
+    "category": "modifier",
+    "tags": [
+      "polyline",
+      "2d"
+    ],
+    "complexity": "O(n)",
+    "summary": "Offsets a 2D polyline by a specified distance",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "brep.brepFromMesh": {
+    "id": "brep.brepFromMesh",
+    "name": "B-Rep From Mesh",
+    "category": "tessellation",
+    "tags": [
+      "brep",
+      "mesh",
+      "3d"
+    ],
+    "complexity": "O(n)",
+    "summary": "Converts a triangle mesh to B-Rep representation",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "brep.tessellateBRepToMesh": {
+    "id": "brep.tessellateBRepToMesh",
+    "name": "Tessellate B-Rep To Mesh",
+    "category": "tessellation",
+    "tags": [
+      "brep",
+      "mesh",
+      "3d"
+    ],
+    "complexity": "O(n)",
+    "summary": "Tessellates a B-Rep to a triangle mesh",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "tess.tessellateCurveAdaptive": {
+    "id": "tess.tessellateCurveAdaptive",
+    "name": "Tessellate Curve Adaptive",
+    "category": "tessellation",
+    "tags": [
+      "nurbs",
+      "curve",
+      "3d"
+    ],
+    "complexity": "varies",
+    "summary": "Adaptively tessellates a NURBS curve based on curvature",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "tess.tessellateSurfaceAdaptive": {
+    "id": "tess.tessellateSurfaceAdaptive",
+    "name": "Tessellate Surface Adaptive",
+    "category": "tessellation",
+    "tags": [
+      "nurbs",
+      "surface",
+      "3d"
+    ],
+    "complexity": "varies",
+    "summary": "Adaptively tessellates a NURBS surface based on curvature",
+    "stable": true,
+    "since": "1.0.0"
+  }
+}

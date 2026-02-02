@@ -37,7 +37,7 @@ export type TessellationInsetResult = {
 
 export const TESSELLATION_METADATA_KEY = "tessellation";
 
-const EPSILON = EPSILON.GEOMETRIC;
+const EPSILON_GEOMETRIC = EPSILON.GEOMETRIC;
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
@@ -279,14 +279,14 @@ const pointInTriangle2D = (point: Vec2, a: Vec2, b: Vec2, c: Vec2) => {
   const area2 = area(point, b, c);
   const area3 = area(point, c, a);
   const hasNeg = area1 < -EPSILON || area2 < -EPSILON || area3 < -EPSILON;
-  const hasPos = area1 > EPSILON || area2 > EPSILON || area3 > EPSILON;
+  const hasPos = area1 > EPSILON_GEOMETRIC || area2 > EPSILON_GEOMETRIC || area3 > EPSILON_GEOMETRIC;
   return !(hasNeg && hasPos);
 };
 
 const isConvex2D = (prev: Vec2, current: Vec2, next: Vec2, isCCW: boolean) => {
   const crossZ = (current.x - prev.x) * (next.y - current.y) -
     (current.y - prev.y) * (next.x - current.x);
-  return isCCW ? crossZ >= -EPSILON : crossZ <= EPSILON;
+  return isCCW ? crossZ >= -EPSILON : crossZ <= EPSILON_GEOMETRIC;
 };
 
 const triangulatePolygon2D = (points: Vec2[], indices: number[]) => {
@@ -993,7 +993,7 @@ export const extrudeFaces = (
     const baseDistance = Array.isArray(distance)
       ? distance[faceIndex] ?? distance[0] ?? 0
       : distance;
-    if (Math.abs(baseDistance) < EPSILON) {
+    if (Math.abs(baseDistance) < EPSILON_GEOMETRIC) {
       newFaces.push(face.slice());
       return;
     }
@@ -1267,7 +1267,7 @@ type VoronoiCell = { seed: Vec2; polygon: Vec2[] };
 const clipPolygon = (polygon: Vec2[], point: Vec2, normal: Vec2) => {
   const output: Vec2[] = [];
   if (polygon.length === 0) return output;
-  const isInside = (p: Vec2) => (p.x - point.x) * normal.x + (p.y - point.y) * normal.y <= EPSILON;
+  const isInside = (p: Vec2) => (p.x - point.x) * normal.x + (p.y - point.y) * normal.y <= EPSILON_GEOMETRIC;
   for (let i = 0; i < polygon.length; i += 1) {
     const current = polygon[i];
     const next = polygon[(i + 1) % polygon.length];
@@ -1290,7 +1290,7 @@ const clipPolygon = (polygon: Vec2[], point: Vec2, normal: Vec2) => {
 const intersectSegmentPlane = (a: Vec2, b: Vec2, point: Vec2, normal: Vec2) => {
   const ab = { x: b.x - a.x, y: b.y - a.y };
   const denom = ab.x * normal.x + ab.y * normal.y;
-  if (Math.abs(denom) < EPSILON) return null;
+  if (Math.abs(denom) < EPSILON_GEOMETRIC) return null;
   const t = ((point.x - a.x) * normal.x + (point.y - a.y) * normal.y) / denom;
   if (t < -EPSILON || t > 1 + EPSILON) return null;
   return { x: a.x + ab.x * t, y: a.y + ab.y * t };

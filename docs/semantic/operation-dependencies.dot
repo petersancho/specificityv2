@@ -1,0 +1,47 @@
+digraph GeometryOperations {
+  rankdir=LR;
+  node [shape=box];
+
+  "mesh.generateBox" [label="Generate Box Mesh", fillcolor="#FFE6CC", style=filled];
+  "mesh.generateSphere" [label="Generate Sphere Mesh", fillcolor="#FFE6CC", style=filled];
+  "mesh.generateCylinder" [label="Generate Cylinder Mesh", fillcolor="#FFE6CC", style=filled];
+  "mesh.generateExtrude" [label="Generate Extrude Mesh", fillcolor="#CCE5FF", style=filled];
+  "mesh.generateLoft" [label="Generate Loft Mesh", fillcolor="#CCE5FF", style=filled];
+  "mesh.generatePipe" [label="Generate Pipe Mesh", fillcolor="#FFE6CC", style=filled];
+  "mesh.computeVertexNormals" [label="Compute Vertex Normals", fillcolor="#FFCCCC", style=filled];
+  "mesh.computeArea" [label="Compute Mesh Area", fillcolor="#FFCCCC", style=filled];
+  "meshTess.subdivideLinear" [label="Subdivide Linear", fillcolor="#CCE5FF", style=filled];
+  "meshTess.subdivideCatmullClark" [label="Subdivide Catmull-Clark", fillcolor="#CCE5FF", style=filled];
+  "meshTess.subdivideLoop" [label="Subdivide Loop", fillcolor="#CCE5FF", style=filled];
+  "meshTess.subdivideAdaptive" [label="Subdivide Adaptive", fillcolor="#CCE5FF", style=filled];
+  "meshTess.dualMesh" [label="Dual Mesh", fillcolor="#CCE5FF", style=filled];
+  "meshTess.insetFaces" [label="Inset Faces", fillcolor="#CCE5FF", style=filled];
+  "meshTess.extrudeFaces" [label="Extrude Faces", fillcolor="#CCE5FF", style=filled];
+  "meshTess.meshRelax" [label="Mesh Relax", fillcolor="#CCE5FF", style=filled];
+  "meshTess.selectFaces" [label="Select Faces", fillcolor="#FFFFCC", style=filled];
+  "meshTess.triangulateMesh" [label="Triangulate Mesh", fillcolor="#CCE5FF", style=filled];
+  "meshTess.generateGeodesicSphere" [label="Generate Geodesic Sphere", fillcolor="#FFE6CC", style=filled];
+  "meshTess.generateHexagonalTiling" [label="Generate Hexagonal Tiling", fillcolor="#FFE6CC", style=filled];
+  "meshTess.generateVoronoiPattern" [label="Generate Voronoi Pattern", fillcolor="#FFE6CC", style=filled];
+  "meshTess.offsetPattern" [label="Offset Pattern", fillcolor="#CCE5FF", style=filled];
+  "meshTess.generateMeshUVs" [label="Generate Mesh UVs", fillcolor="#CCE5FF", style=filled];
+  "meshTess.repairMesh" [label="Repair Mesh", fillcolor="#CCE5FF", style=filled];
+  "meshTess.decimateMesh" [label="Decimate Mesh", fillcolor="#CCE5FF", style=filled];
+  "meshTess.quadDominantRemesh" [label="Quad-Dominant Remesh", fillcolor="#CCE5FF", style=filled];
+  "meshTess.meshBoolean" [label="Mesh Boolean", fillcolor="#CCE5FF", style=filled];
+  "meshTess.getTessellationMetadata" [label="Get Tessellation Metadata", fillcolor="#FFFFCC", style=filled];
+  "meshTess.toTessellationMesh" [label="To Tessellation Mesh", fillcolor="#E6CCFF", style=filled];
+  "meshTess.toTessellationMeshData" [label="To Tessellation Mesh Data", fillcolor="#E6CCFF", style=filled];
+  "meshTess.tessellationMeshToRenderMesh" [label="Tessellation Mesh To Render Mesh", fillcolor="#E6CCFF", style=filled];
+  "math.computeBestFitPlane" [label="Compute Best Fit Plane", fillcolor="#FFCCCC", style=filled];
+  "math.projectPointToPlane" [label="Project Point To Plane", fillcolor="#CCFFCC", style=filled];
+  "math.unprojectPointFromPlane" [label="Unproject Point From Plane", fillcolor="#CCFFCC", style=filled];
+  "curve.resampleByArcLength" [label="Resample By Arc Length", fillcolor="#CCE5FF", style=filled];
+  "boolean.offsetPolyline2D" [label="Offset Polyline 2D", fillcolor="#CCE5FF", style=filled];
+  "brep.brepFromMesh" [label="B-Rep From Mesh", fillcolor="#E6CCFF", style=filled];
+  "brep.tessellateBRepToMesh" [label="Tessellate B-Rep To Mesh", fillcolor="#E6CCFF", style=filled];
+  "tess.tessellateCurveAdaptive" [label="Tessellate Curve Adaptive", fillcolor="#E6CCFF", style=filled];
+  "tess.tessellateSurfaceAdaptive" [label="Tessellate Surface Adaptive", fillcolor="#E6CCFF", style=filled];
+
+  "meshTess.triangulateMesh" -> "meshTess.meshBoolean";
+}

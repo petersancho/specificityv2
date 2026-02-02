@@ -1,7 +1,7 @@
 import type { Vec3 } from "../types";
 import { distance, lerp , EPSILON } from "./math";
 
-const EPSILON = EPSILON.DISTANCE;
+const EPSILON_DISTANCE = EPSILON.DISTANCE;
 
 const blend = (a: Vec3, b: Vec3, wa: number, wb: number): Vec3 => ({
   x: a.x * wa + b.x * wb,
@@ -11,7 +11,7 @@ const blend = (a: Vec3, b: Vec3, wa: number, wb: number): Vec3 => ({
 
 const parameterize = (t: number, p0: Vec3, p1: Vec3, alpha: number) => {
   const d = distance(p0, p1);
-  const step = Math.pow(Math.max(d, EPSILON), alpha);
+  const step = Math.pow(Math.max(d, EPSILON_DISTANCE), alpha);
   return t + step;
 };
 
