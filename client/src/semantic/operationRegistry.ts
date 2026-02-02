@@ -246,7 +246,11 @@ export class OperationRegistry {
       io: '#CCFFFF',             // Light cyan
       operator: '#FFE6E6',       // Light pink
       aggregation: '#E6FFE6',    // Light mint
-      control: '#FFE6FF'         // Light magenta
+      control: '#FFE6FF',        // Light magenta
+      ui: '#E6E6FF',             // Light lavender
+      creation: '#FFD9CC',       // Light peach
+      operation: '#CCE6FF',      // Light sky blue
+      conversion: '#E6FFCC'      // Light lime
     };
     return colors[category] || '#FFFFFF';
   }

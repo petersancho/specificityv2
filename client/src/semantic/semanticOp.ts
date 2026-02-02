@@ -165,6 +165,38 @@ export type OpTag =
   | 'help'           // Help operations
   | 'ui'             // UI operations
   | 'state'          // State operations
+  // Analysis tags
+  | 'analysis'       // Analysis operations
+  | 'info'           // Info operations
+  | 'metadata'       // Metadata operations
+  | 'dimensions'     // Dimensions operations
+  | 'size'           // Size operations
+  | 'vertices'       // Vertices operations
+  | 'points'         // Points operations
+  | 'edges'          // Edges operations
+  | 'curves'         // Curves operations
+  | 'faces'          // Faces operations
+  | 'normals-analysis' // Normals analysis
+  | 'curvature'      // Curvature operations
+  | 'area'           // Area operations
+  | 'volume'         // Volume operations
+  | 'centroid'       // Centroid operations
+  // Wave tags
+  | 'wave'           // Wave operations
+  | 'oscillation'    // Oscillation operations
+  | 'periodic'       // Periodic operations
+  // Field tags
+  | 'field'          // Field operations
+  | 'spatial'        // Spatial operations
+  // Array tags
+  | 'linear'         // Linear operations
+  | 'polar'          // Polar operations
+  | 'pattern'        // Pattern operations
+  // Primitive tags
+  | 'platonic'       // Platonic solids
+  | 'prism'          // Prism operations
+  | 'parametric'     // Parametric operations
+  | 'special'        // Special operations
   // General tags
   | 'pure'           // Pure function (no side effects)
   | 'deterministic'  // Deterministic (same input → same output)

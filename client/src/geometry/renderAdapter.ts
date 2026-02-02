@@ -16,6 +16,7 @@ import { tessellateCurveAdaptive, tessellateSurfaceAdaptive } from "./tessellati
 import { createNurbsCurveFromPoints } from "./nurbs";
 import { tessellateBRepToMesh } from "./brep";
 import { assertPositionsValid, validateColorsLength, clamp01 } from "./validation";
+import { EPSILON } from "../math/constants";
 
 export type RenderableGeometry = {
   id: string;
