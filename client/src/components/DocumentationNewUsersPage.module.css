@@ -315,11 +315,13 @@
   position: relative;
   overflow: visible;
   isolation: isolate;
-  --philosophy-pink: #ff4fb1;
-  --philosophy-pink-soft: color-mix(in srgb, #ff4fb1 65%, white);
-  --philosophy-yellow: #ffe681;
-  --philosophy-yellow-deep: #ffd35b;
-  --philosophy-ink: color-mix(in srgb, #ff4fb1 50%, #3b1b3a);
+  --philosophy-magenta: var(--bk-magenta);
+  --philosophy-magenta-soft: color-mix(in srgb, var(--bk-magenta) 65%, white);
+  --philosophy-cyan: var(--bk-cyan);
+  --philosophy-cyan-soft: color-mix(in srgb, var(--bk-cyan) 65%, white);
+  --philosophy-yellow: var(--bk-yellow);
+  --philosophy-yellow-deep: var(--bk-yellow-deep);
+  --philosophy-ink: color-mix(in srgb, var(--bk-magenta) 35%, #1a1a1a);
 }
 
 .philosophyBackdrop {
@@ -333,9 +335,9 @@
   position: absolute;
   inset: -20% -10%;
   background:
-    radial-gradient(circle at 15% 20%, rgba(255, 230, 129, 0.45), transparent 55%),
-    radial-gradient(circle at 85% 35%, rgba(255, 79, 177, 0.2), transparent 60%),
-    radial-gradient(circle at 60% 80%, rgba(255, 214, 102, 0.35), transparent 65%);
+    radial-gradient(circle at 15% 20%, rgba(255, 221, 0, 0.45), transparent 55%),
+    radial-gradient(circle at 85% 35%, rgba(255, 0, 153, 0.25), transparent 60%),
+    radial-gradient(circle at 60% 80%, rgba(0, 212, 255, 0.35), transparent 65%);
   opacity: 0.9;
 }
 
@@ -343,8 +345,8 @@
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(255, 79, 177, 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 79, 177, 0.07) 1px, transparent 1px);
+    linear-gradient(rgba(255, 0, 153, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 0, 153, 0.07) 1px, transparent 1px);
   background-size: 140px 140px;
   opacity: 0.4;
   mix-blend-mode: multiply;
@@ -355,7 +357,7 @@
   position: absolute;
   opacity: 0.35;
   mix-blend-mode: multiply;
-  filter: drop-shadow(0 12px 20px rgba(255, 79, 177, 0.15));
+  filter: drop-shadow(0 12px 20px rgba(255, 0, 153, 0.15));
 }
 
 .philosophyGeometry {
@@ -381,7 +383,7 @@
 .philosophyGeometrySecondary polyline,
 .philosophyGeometrySecondary circle {
   fill: none;
-  stroke: rgba(255, 79, 177, 0.45);
+  stroke: rgba(255, 0, 153, 0.45);
   stroke-width: 3;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -398,7 +400,7 @@
   bottom: 18%;
   opacity: 0.18;
   transform: rotate(-8deg);
-  filter: drop-shadow(0 18px 30px rgba(255, 79, 177, 0.2));
+  filter: drop-shadow(0 18px 30px rgba(255, 0, 153, 0.2));
 }
 
 .philosophySticker {

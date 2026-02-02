@@ -1,0 +1,122 @@
+/**
+ * Brandkit CSS Variables
+ * 
+ * Single source of truth for Lingua's CMYK brandkit colors.
+ * 
+ * Philosophy: Pixels, Stickers, and Color
+ * - CMYK vibrance: cyan, magenta, yellow, key (black)
+ * - Porcelain base: warm off-white background
+ * - High saturation: bold, unapologetic color choices
+ * 
+ * Last Updated: January 31, 2026
+ */
+
+:root {
+  /* ========================================
+     CMYK Brandkit Colors (Primary Palette)
+     ======================================== */
+  
+  --bk-cyan: #00d4ff;
+  --bk-magenta: #ff0099;
+  --bk-yellow: #ffdd00;
+  --bk-purple: #8800ff;
+  --bk-orange: #ff6600;
+  --bk-lime: #88ff00;
+  
+  /* ========================================
+     Porcelain Base Colors
+     ======================================== */
+  
+  --bk-porcelain: #f8f6f2;
+  --bk-white: #ffffff;
+  --bk-cream: #faf8f5;
+  --bk-black: #000000;
+  
+  /* ========================================
+     Semantic Color Aliases
+     ======================================== */
+  
+  /* Primary accents for UI elements */
+  --color-accent-primary: var(--bk-magenta);
+  --color-accent-secondary: var(--bk-cyan);
+  --color-accent-tertiary: var(--bk-yellow);
+  
+  /* Solver-specific colors */
+  --color-solver-evolutionary: var(--bk-magenta);
+  --color-solver-chemistry: var(--bk-cyan);
+  --color-solver-physics: var(--bk-magenta);
+  --color-solver-voxel: var(--bk-lime);
+  --color-solver-topology: var(--bk-purple);
+  
+  /* ========================================
+     Extended CMYK Palette (Tints & Shades)
+     ======================================== */
+  
+  /* Cyan family */
+  --bk-cyan-deep: #0099cc;
+  --bk-cyan-soft: #ccf5ff;
+  
+  /* Magenta family */
+  --bk-magenta-deep: #cc0077;
+  --bk-magenta-soft: #ffccee;
+  
+  /* Yellow family */
+  --bk-yellow-deep: #cc9900;
+  --bk-yellow-soft: #fff5cc;
+  
+  /* Purple family */
+  --bk-purple-deep: #6600cc;
+  --bk-purple-soft: #e6ccff;
+  
+  /* Orange family */
+  --bk-orange-deep: #cc4400;
+  --bk-orange-soft: #ffeacc;
+  
+  /* Lime family */
+  --bk-lime-deep: #66cc00;
+  --bk-lime-soft: #e6ffcc;
+  
+  /* ========================================
+     Gradients
+     ======================================== */
+  
+  /* CMYK gradient (full spectrum) */
+  --gradient-cmyk: linear-gradient(90deg, 
+    var(--bk-magenta) 0%, 
+    var(--bk-cyan) 50%, 
+    var(--bk-yellow) 100%
+  );
+  
+  /* Solver gradients */
+  --gradient-evolutionary: linear-gradient(135deg, 
+    var(--bk-magenta) 0%, 
+    var(--bk-magenta-deep) 100%
+  );
+  
+  --gradient-chemistry: linear-gradient(135deg, 
+    var(--bk-cyan) 0%, 
+    var(--bk-cyan-deep) 100%
+  );
+  
+  --gradient-physics: linear-gradient(135deg, 
+    var(--bk-magenta) 0%, 
+    var(--bk-purple) 100%
+  );
+  
+  /* ========================================
+     Shadows (Sticker Aesthetic)
+     ======================================== */
+  
+  --shadow-sticker: 0 4px 0 var(--bk-black);
+  --shadow-sticker-hover: 0 6px 0 var(--bk-black);
+  --shadow-sticker-pressed: 0 2px 0 var(--bk-black);
+  
+  /* ========================================
+     Typography
+     ======================================== */
+  
+  --font-sans: "Montreal Neue", "Space Grotesk", system-ui, sans-serif;
+  --font-serif: "Noto Serif", "GFS Didot", Georgia, serif;
+  --font-mono: "JetBrains Mono", "IBM Plex Mono", monospace;
+  --font-handwriting: "Caveat", "Kalam", "Patrick Hand", cursive;
+}
