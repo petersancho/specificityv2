@@ -1,17 +1,9 @@
-import { NODE_DEFINITIONS } from "../../workflow/nodeRegistry";
 import type { RenderMesh } from "../../types";
 import { createTestContext, wrapMeshGeometry } from "./rig-utils";
 import { buildVoxelGoals, buildVoxelConfig, buildVoxelParameters } from "./voxel-solver-fixtures";
 import { buildVoxelSolverRunReport, logVoxelSolverRunReport } from "./voxel-solver-report";
 import { buildVoxelHeroGeometry } from "./solver-hero-geometry";
-
-const getNodeDefinition = (type: string) => {
-  const node = NODE_DEFINITIONS.find((definition) => definition.type === type);
-  if (!node) {
-    throw new Error(`Missing node definition for ${type}`);
-  }
-  return node;
-};
+import { getNodeDefinition } from "../utils/test-utils";
 
 export const runVoxelSolverExample = (nodeType: "voxelSolver" | "topologySolver" = "voxelSolver") => {
   const solverNode = getNodeDefinition(nodeType);

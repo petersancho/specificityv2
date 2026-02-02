@@ -1,4 +1,4 @@
-import { NODE_DEFINITIONS } from "../../workflow/nodeRegistry";
+import { getNodeDefinition } from "../utils/test-utils";
 import type { Geometry, RenderMesh } from "../../types";
 import { buildStressVertexColors } from "../../utils/stressColors";
 import type {
@@ -44,14 +44,6 @@ export const CHEMISTRY_SOLVER_RIG_VARIANTS = [
 export type ChemistrySolverRigVariant = (typeof CHEMISTRY_SOLVER_RIG_VARIANTS)[number];
 
 export const DEFAULT_CHEMISTRY_SOLVER_RIG_VARIANT: ChemistrySolverRigVariant = "regions";
-
-const getNodeDefinition = (type: string) => {
-  const node = NODE_DEFINITIONS.find((definition) => definition.type === type);
-  if (!node) {
-    throw new Error(`Missing node definition for ${type}`);
-  }
-  return node;
-};
 
 export const runPhysicsSolverRig = (analysisType: AnalysisType) => {
   const node = getNodeDefinition("physicsSolver");
@@ -293,4 +285,3 @@ export const runChemistrySolverRig = (
     goalRegions,
   };
 };
-

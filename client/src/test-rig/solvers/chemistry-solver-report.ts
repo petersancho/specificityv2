@@ -2,54 +2,7 @@ import type { RenderMesh, Vec3 } from "../../types";
 import type { GoalSpecification } from "../../workflow/nodes/solver/types";
 import type { ChemistryFixtureConfig } from "./chemistry-solver-fixtures";
 import { meshBounds } from "./rig-utils";
-
-const safeFinite = (value: number) => (Number.isFinite(value) ? value : 0);
-
-const summarizeScalarSeries = (values: ArrayLike<number> | null | undefined) => {
-  if (!values || values.length === 0) {
-    return {
-      count: 0,
-      finiteCount: 0,
-      nonFiniteCount: 0,
-      min: 0,
-      max: 0,
-      mean: 0,
-      rms: 0,
-    };
-  }
-
-  let finiteCount = 0;
-  let nonFiniteCount = 0;
-  let min = Infinity;
-  let max = -Infinity;
-  let sum = 0;
-  let sumSquares = 0;
-  for (let i = 0; i < values.length; i += 1) {
-    const value = Number(values[i] ?? 0);
-    if (!Number.isFinite(value)) {
-      nonFiniteCount += 1;
-      continue;
-    }
-    finiteCount += 1;
-    if (value < min) min = value;
-    if (value > max) max = value;
-    sum += value;
-    sumSquares += value * value;
-  }
-
-  const mean = finiteCount > 0 ? sum / finiteCount : 0;
-  const rms = finiteCount > 0 ? Math.sqrt(sumSquares / finiteCount) : 0;
-
-  return {
-    count: values.length,
-    finiteCount,
-    nonFiniteCount,
-    min: finiteCount > 0 ? min : 0,
-    max: finiteCount > 0 ? max : 0,
-    mean,
-    rms,
-  };
-};
+import { safeFinite, summarizeScalarSeries } from "../utils/report-utils";
 
 const summarizeChemistryGoals = (goals: GoalSpecification[]) =>
   goals.map((goal) => ({

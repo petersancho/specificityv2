@@ -1,4 +1,3 @@
-import { NODE_DEFINITIONS } from "../../workflow/nodeRegistry";
 import type { RenderMesh } from "../../types";
 import { createTestContext, wrapMeshGeometry } from "./rig-utils";
 import {
@@ -14,14 +13,7 @@ import {
 } from "./chemistry-solver-fixtures";
 import { buildChemistrySolverRunReport, logChemistrySolverRunReport } from "./chemistry-solver-report";
 import { buildChemistryHeroGeometry } from "./solver-hero-geometry";
-
-const getNodeDefinition = (type: string) => {
-  const node = NODE_DEFINITIONS.find((definition) => definition.type === type);
-  if (!node) {
-    throw new Error(`Missing node definition for ${type}`);
-  }
-  return node;
-};
+import { getNodeDefinition } from "../utils/test-utils";
 
 export const runChemistrySolverExample = (variant: ChemistryFixtureVariant = "regions") => {
   const solverNode = getNodeDefinition("chemistrySolver");
