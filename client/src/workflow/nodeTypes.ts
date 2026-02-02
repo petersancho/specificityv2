@@ -99,20 +99,11 @@ export type NodeType =
   | "topologySolver"
   | "physicsSolver"
   | "voxelSolver"
-  | "biologicalSolver"
-  | "biologicalEvolutionSolver"
   | "chemistrySolver"
   | "stiffnessGoal"
   | "volumeGoal"
   | "loadGoal"
   | "anchorGoal"
-  | "genomeCollector"
-  | "geometryPhenotype"
-  | "performsFitness"
-  | "growthGoal"
-  | "nutrientGoal"
-  | "morphogenesisGoal"
-  | "homeostasisGoal"
   | "chemistryStiffnessGoal"
   | "chemistryMassGoal"
   | "chemistryBlendGoal"
@@ -301,20 +292,11 @@ export const SUPPORTED_WORKFLOW_NODE_TYPES: NodeType[] = [
   "topologySolver",
   "physicsSolver",
   "voxelSolver",
-  "biologicalSolver",
-  "biologicalEvolutionSolver",
   "chemistrySolver",
   "stiffnessGoal",
   "volumeGoal",
   "loadGoal",
   "anchorGoal",
-  "genomeCollector",
-  "geometryPhenotype",
-  "performsFitness",
-  "growthGoal",
-  "nutrientGoal",
-  "morphogenesisGoal",
-  "homeostasisGoal",
   "chemistryStiffnessGoal",
   "chemistryMassGoal",
   "chemistryBlendGoal",

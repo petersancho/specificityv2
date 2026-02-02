@@ -20,7 +20,7 @@ mesh generation, while all persisted geometry remains plain TypeScript records.
 
 Inspirations that shape the work include the clarity of professional CAD
 toolbars and the biomimetic experimentation of Interactive Evolutionary
-Algorithms, which influence everything from the icon language to the biological
+Algorithms, which influence everything from the icon language to the
 solver workflows.
 
 ## Architecture Overview

@@ -74,8 +74,6 @@ Note: `CharlieAgent.md` and `CharlieAgentPlans.md` are a one-off CamelCase excep
 ## Solvers & Optimization
 
 - Solver architecture guide: `solver_architecture_guide.md`
-- Numerica solver guide: `numerica_solvers_guide.md`
-- Biological solver implementation: `biological_solver_implementation.md`
 - Chemistry solver implementation: `epilytes_chemias_implementation.md`
 - Chemistry solver workflow guide: `chemistry_solver_workflow.md`
 
