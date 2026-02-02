@@ -3,7 +3,7 @@ import pageStyles from "./DocumentationNewUsersPage.module.css";
 import CubeLogo from "./CubeLogo";
 
 type DocumentationNarrativeProps = {
-  onNavigate: (route: { kind: "index" | "philosophy" | "roslyn" | "numerica"; id?: string }) => void;
+  onNavigate: (route: { kind: "index" | "philosophy" | "inspirations" | "roslyn" | "numerica"; id?: string }) => void;
 };
 
 export const DocumentationPhilosophy = ({ onNavigate }: DocumentationNarrativeProps) => {

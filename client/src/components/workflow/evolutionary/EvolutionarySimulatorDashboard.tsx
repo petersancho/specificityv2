@@ -652,7 +652,7 @@ const EvolutionarySimulatorDashboard = ({
               label="Close"
               onClick={onClose}
               iconStyle={POPUP_ICON_STYLE}
-              size="small"
+              size="sm"
             />
           </div>
         </div>

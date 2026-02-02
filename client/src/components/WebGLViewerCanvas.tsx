@@ -1451,8 +1451,9 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
           }
           if (edgeSelection.vertexIndices) {
             if ("mesh" in item && item.mesh) {
+              const mesh = item.mesh;
               edgeSelection.vertexIndices.forEach((index) => {
-                points.push(getMeshPoint(item.mesh, index));
+                points.push(getMeshPoint(mesh, index));
               });
             } else if (item.type === "nurbsCurve") {
               edgeSelection.vertexIndices.forEach((index) => {
@@ -1475,8 +1476,9 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         }
         const faceSelection = asFaceSelection(selection);
         if (faceSelection && "mesh" in item && item.mesh) {
+          const mesh = item.mesh;
           faceSelection.vertexIndices.forEach((index) => {
-            points.push(getMeshPoint(item.mesh, index));
+            points.push(getMeshPoint(mesh, index));
           });
         }
       });
@@ -8071,8 +8073,9 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
             );
             const isActive = gumballDragRef.current?.handle.kind === "extrude";
             const isHover = Boolean(extrudeHoverRef.current);
-            const color = isActive || isHover ? gumballHighlight : ([0.94, 0.94, 0.94] as [number, number, number]);
-            const connectorColor: [number, number, number] = (color ?? [0.94, 0.94, 0.94]) as [number, number, number];
+            const defaultColor: [number, number, number] = [0.94, 0.94, 0.94];
+            const color: [number, number, number] = (isActive || isHover) && gumballHighlight ? gumballHighlight : defaultColor;
+            const connectorColor: [number, number, number] = color;
             const connectorMatrix = buildModelMatrix(
               basis,
               widgetState.center,

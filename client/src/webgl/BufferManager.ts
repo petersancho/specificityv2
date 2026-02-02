@@ -2,6 +2,7 @@ export type BufferData = {
   positions?: Float32Array;
   prevPositions?: Float32Array;
   normals?: Float32Array;
+  uvs?: Float32Array;
   indices?: Uint16Array;
   colors?: Float32Array;
   nextPositions?: Float32Array;
