@@ -11,9 +11,12 @@
     "dev:server": "npm run dev -w server",
     "dev:client": "npm run dev -w client",
     "build": "npm run build -w client && npm run build -w server",
-    "lint": "npm run lint -w client && npm run lint -w server"
+    "lint": "npm run lint -w client && npm run lint -w server",
+    "validate:semantic": "tsx scripts/validateSemanticLinkage.ts",
+    "precommit": "npm run validate:semantic"
   },
   "devDependencies": {
-    "concurrently": "^9.1.0"
+    "concurrently": "^9.1.0",
+    "tsx": "^4.21.0"
   }
 }

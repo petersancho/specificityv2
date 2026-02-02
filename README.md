@@ -139,8 +139,30 @@ Lingua includes comprehensive test rigs and validation frameworks, reflecting ou
 - **Validation Framework**: Robust voxel grid validation with floating-point tolerance and epsilon handling
 - **Console Reports**: Beautiful test reports with geometry verification and performance metrics
 - **Hero Geometry**: Production-quality test cases for each solver, serving as both validation and demonstration
+- **Semantic Validation**: Machine-checkable correctness for all geometry operations and node linkages
 
 Run test rigs independently without the UI for rapid development and debugging. Validation prevents silent failures and ensures computational integrity—specificity matters, even in uncertain domains.
+
+### Semantic Validation
+
+Lingua's semantic operation system ensures machine-checkable correctness through automatic validation:
+
+```bash
+# Run semantic validation
+npm run validate:semantic
+
+# Install pre-commit hook (optional)
+./scripts/setup-git-hooks.sh
+```
+
+The semantic validation system:
+- ✅ Validates all operation IDs are unique and registered
+- ✅ Ensures all node linkages reference valid operations
+- ✅ Generates automatic documentation (JSON, DOT graphs, markdown)
+- ✅ Runs automatically in CI on every push and pull request
+- ✅ Blocks merges with invalid semantic references
+
+See `docs/SEMANTIC_OPERATION_GUIDELINES.md` for complete developer guidelines.
 
 ## Core Capabilities
 
