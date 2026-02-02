@@ -128,13 +128,6 @@ Each representation serves a distinct purpose, and transformations between them 
 - **Output**: Optimized voxel grid + isosurface
 - **Ontological Type**: **Optimization Solver** (discrete variant)
 
-**5. Biological Solver (Ἐπιλύτης Βιολογίας — Galen)**
-- **Domain**: Evolutionary search
-- **Input**: Genome spec + phenotype mapping + fitness function
-- **Process**: Genetic algorithm
-- **Output**: Population + best individuals + evolutionary history
-- **Ontological Type**: **Search Solver** (explores solution space)
-
 ### Solver Protocol (Proposed)
 
 All solvers should implement a common protocol:
@@ -197,12 +190,6 @@ interface GoalSpecification {
 - `chemBlend`: Smoothness
 - `chemTransparency`: Optical properties
 - `chemThermal`: Thermal behavior
-
-**Biological Goals**:
-- `growth`: Biomass accumulation
-- `nutrient`: Resource distribution
-- `morphogenesis`: Pattern formation
-- `homeostasis`: Stability
 
 ### Semantic Goal Regions (Proposed)
 

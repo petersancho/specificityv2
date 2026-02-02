@@ -48,20 +48,8 @@ import { PRIMITIVE_NODE_CATALOG, PRIMITIVE_NODE_TYPE_IDS } from "../data/primiti
 import { hexToRgb, normalizeHexColor, normalizeRgbInput, rgbToHex } from "../utils/color";
 import { PhysicsSolverNode } from "./nodes/solver/PhysicsSolver";
 import { ChemistrySolverNode } from "./nodes/solver/ChemistrySolver";
-import { BiologicalEvolutionSolverNode } from "./nodes/solver/BiologicalEvolutionSolver";
 import { createVoxelSolverNode } from "./nodes/solver/VoxelSolver";
 import { AnchorGoalNode, LoadGoalNode, StiffnessGoalNode, VolumeGoalNode } from "./nodes/solver/goals/physics";
-import {
-  GrowthGoalNode,
-  NutrientGoalNode,
-  MorphogenesisGoalNode,
-  HomeostasisGoalNode,
-} from "./nodes/solver/goals/biological";
-import {
-  GenomeCollectorNode,
-  GeometryPhenotypeNode,
-  PerformsFitnessNode,
-} from "./nodes/solver/goals/biologicalEvolution";
 import {
   ChemistryBlendGoalNode,
   ChemistryMassGoalNode,
@@ -70,7 +58,6 @@ import {
   ChemistryThermalGoalNode,
   ChemistryTransparencyGoalNode,
 } from "./nodes/solver/goals/chemistry";
-import { getBiologicalSolverState } from "./nodes/solver/biological/solverState";
 import { validateChemistryGoals } from "./nodes/solver/validation";
 import type { GoalSpecification } from "./nodes/solver/types";
 
@@ -260,24 +247,6 @@ type ChemistrySolverResult = {
   status: string;
   warnings: string[];
   materials: ChemistryMaterialSpec[];
-};
-
-type BiologicalFitnessProfile = {
-  bias: number;
-  penalty: number;
-  frequency: Vec3Value;
-};
-
-type BiologicalProfileTuning = {
-  fitnessProfile: BiologicalFitnessProfile;
-  mutationRateScale: number;
-  populationScale: number;
-};
-
-const DEFAULT_BIOLOGICAL_FITNESS_PROFILE: BiologicalFitnessProfile = {
-  bias: 0,
-  penalty: 0.04,
-  frequency: { x: 1, y: 1, z: 0.7 },
 };
 
 // Import expanded material database
@@ -2225,126 +2194,6 @@ const buildPlaneBasis = (normal: Vec3Value, reference: Vec3Value) => {
   return { xAxis, yAxis, zAxis: unitNormal };
 };
 
-const evaluateGenomeFitness = (genome: Vec3Value, profile: BiologicalFitnessProfile) => {
-  const bias = profile.bias;
-  const freq = profile.frequency;
-  const periodic =
-    Math.sin(genome.x * freq.x + bias) +
-    Math.cos(genome.y * freq.y - bias * 0.5) +
-    Math.sin(genome.z * freq.z + bias * 0.25);
-  const penalty =
-    profile.penalty * (genome.x * genome.x + genome.y * genome.y + genome.z * genome.z);
-  return periodic - penalty;
-};
-
-const deriveBiologicalProfile = (
-  goals: GoalSpecification[],
-  baseBias: number
-): BiologicalProfileTuning => {
-  if (!Array.isArray(goals) || goals.length === 0) {
-    return {
-      fitnessProfile: {
-        ...DEFAULT_BIOLOGICAL_FITNESS_PROFILE,
-        bias: baseBias,
-        frequency: { ...DEFAULT_BIOLOGICAL_FITNESS_PROFILE.frequency },
-      },
-      mutationRateScale: 1,
-      populationScale: 1,
-    };
-  }
-
-  let bias = baseBias;
-  let penalty = DEFAULT_BIOLOGICAL_FITNESS_PROFILE.penalty;
-  let frequency = { ...DEFAULT_BIOLOGICAL_FITNESS_PROFILE.frequency };
-  let mutationRateScale = 1;
-  let populationScale = 1;
-
-  goals.forEach((goal) => {
-    const weight = clampNumber(toNumber(goal.weight, 0), 0, 1);
-    const params = goal.parameters ?? {};
-    switch (goal.goalType) {
-      case "growth": {
-        const targetBiomass = clampNumber(
-          toNumber(params.targetBiomass, toNumber(goal.target, 0.7)),
-          0,
-          1
-        );
-        const growthRate = clampNumber(toNumber(params.growthRate, 0.6), 0, 3);
-        const carryingCapacity = clampNumber(toNumber(params.carryingCapacity, 1), 0.1, 5);
-        bias += weight * (targetBiomass - 0.5) * 1.2;
-        mutationRateScale *= 1 + weight * (growthRate - 0.5) * 0.4;
-        populationScale *= 1 + weight * (carryingCapacity - 1) * 0.15;
-        break;
-      }
-      case "nutrient": {
-        const sourceStrength = clampNumber(toNumber(params.sourceStrength, 1), 0, 5);
-        const uptakeRate = clampNumber(toNumber(params.uptakeRate, 0.4), 0, 2);
-        const diffusionRate = clampNumber(toNumber(params.diffusionRate, 0.6), 0, 2);
-        bias += weight * sourceStrength * 0.2;
-        penalty += weight * uptakeRate * 0.02;
-        const diffusionScale = 1 + (diffusionRate - 0.6) * 0.3;
-        frequency = {
-          x: frequency.x * diffusionScale,
-          y: frequency.y * diffusionScale,
-          z: frequency.z * diffusionScale,
-        };
-        break;
-      }
-      case "morphogenesis": {
-        const branchingFactor = clampNumber(toNumber(params.branchingFactor, 0.6), 0, 2);
-        const patternScale = clampNumber(toNumber(params.patternScale, 1), 0.2, 3);
-        const anisotropy = clampNumber(toNumber(params.anisotropy, 0), -1, 1);
-        const scale = 1 + (patternScale - 1) * 0.6;
-        frequency = {
-          x: frequency.x * scale * (1 + anisotropy * 0.2),
-          y: frequency.y * scale * (1 - anisotropy * 0.2),
-          z: frequency.z * scale,
-        };
-        mutationRateScale *= 1 + weight * branchingFactor * 0.5;
-        break;
-      }
-      case "homeostasis": {
-        const stabilityTarget = clampNumber(toNumber(params.stabilityTarget, 0.6), 0, 1);
-        const damping = clampNumber(toNumber(params.damping, 0.5), 0, 1);
-        const stressLimit = clampNumber(toNumber(params.stressLimit, 1), 0.1, 10);
-        penalty += weight * (1 - stabilityTarget) * 0.03;
-        mutationRateScale *= 1 - weight * damping * 0.6;
-        populationScale *= 1 + weight * (stressLimit - 1) * 0.05;
-        break;
-      }
-      default:
-        break;
-    }
-  });
-
-  mutationRateScale = clampNumber(mutationRateScale, 0.35, 2);
-  populationScale = clampNumber(populationScale, 0.6, 2);
-  penalty = clampNumber(penalty, 0.005, 0.2);
-
-  return {
-    fitnessProfile: {
-      bias,
-      penalty,
-      frequency,
-    },
-    mutationRateScale,
-    populationScale,
-  };
-};
-
-const mutateGenome = (genome: Vec3Value, mutationRate: number, random: () => number) => {
-  const mutateAxis = (value: number) => {
-    if (random() > mutationRate) return value;
-    const delta = (random() - 0.5) * 1.6;
-    return clampNumber(value + delta, -10, 10);
-  };
-  return {
-    x: mutateAxis(genome.x),
-    y: mutateAxis(genome.y),
-    z: mutateAxis(genome.z),
-  };
-};
-
 const runTopologyDensitySolver = (args: {
   seedKey: string;
   resolution: number;
@@ -2455,70 +2304,6 @@ const runTopologyDensitySolver = (args: {
     constraint,
     densityField: densities,
     bestScore: clampNumber(1 - objective, 0, 1),
-  };
-};
-
-const runBiologicalSolver = (args: {
-  seedKey: string;
-  populationSize: number;
-  generations: number;
-  mutationRate: number;
-  fitnessProfile: BiologicalFitnessProfile;
-}) => {
-  const seed = hashStringToSeed(args.seedKey);
-  const random = createSeededRandom(seed);
-
-  const populationSize = clampInt(args.populationSize, 8, 96, 32);
-  const generations = clampInt(args.generations, 1, 80, 24);
-  const mutationRate = clampNumber(args.mutationRate, 0.01, 0.95);
-  const fitnessProfile = args.fitnessProfile ?? DEFAULT_BIOLOGICAL_FITNESS_PROFILE;
-
-  const createRandomGenome = (): Vec3Value => ({
-    x: (random() - 0.5) * 8,
-    y: (random() - 0.5) * 8,
-    z: (random() - 0.5) * 8,
-  });
-
-  const population = Array.from({ length: populationSize }, () => createRandomGenome());
-
-  let bestGenome = { ...population[0] };
-  let bestScore = evaluateGenomeFitness(bestGenome, fitnessProfile);
-  let evaluations = 0;
-
-  for (let gen = 0; gen < generations; gen += 1) {
-    const scored = population.map((genome) => {
-      const score = evaluateGenomeFitness(genome, fitnessProfile);
-      evaluations += 1;
-      if (score > bestScore) {
-        bestScore = score;
-        bestGenome = { ...genome };
-      }
-      return { genome, score };
-    });
-
-    scored.sort((a, b) => b.score - a.score);
-    const elites = scored.slice(0, Math.max(2, Math.floor(populationSize * 0.18)));
-
-    for (let i = 0; i < populationSize; i += 1) {
-      const parentA = elites[i % elites.length].genome;
-      const parentB = elites[(i + 1) % elites.length].genome;
-      const blend = random();
-      const child = {
-        x: lerpNumber(parentA.x, parentB.x, blend),
-        y: lerpNumber(parentA.y, parentB.y, 1 - blend),
-        z: lerpNumber(parentA.z, parentB.z, random()),
-      };
-      population[i] = mutateGenome(child, mutationRate, random);
-    }
-  }
-
-  return {
-    populationSize,
-    generations,
-    mutationRate,
-    evaluations,
-    bestGenome,
-    bestScore,
   };
 };
 
@@ -10611,205 +10396,6 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     },
   },
   {
-    type: "biologicalSolver",
-    label: "Ἐπιλύτης Βιολογίας",
-    shortLabel: "Bio",
-    description: "Goal-weighted evolutionary search over vector genomes with a fast fitness proxy.",
-    category: "solver",
-    iconId: "biologicalSolver",
-    display: {
-      nameGreek: "Ἐπιλύτης Βιολογίας",
-      nameEnglish: "Branching Growth",
-      romanization: "Epilýtēs Biologías",
-      description: "Goal-weighted evolutionary search over vector genomes with a fast fitness proxy.",
-    },
-    inputs: [
-      {
-        key: "genome",
-        label: "Genome",
-        type: "genomeSpec",
-        description: "Genome specification from Genome Collector.",
-      },
-      {
-        key: "geometry",
-        label: "Geometry",
-        type: "phenotypeSpec",
-        description: "Phenotype specification from Geometry Phenotype.",
-      },
-      {
-        key: "performs",
-        label: "Fitness",
-        type: "fitnessSpec",
-        description: "Fitness specification from Performs Fitness.",
-      },
-      {
-        key: "goals",
-        label: "Goals",
-        type: "goal",
-        allowMultiple: true,
-        description: "Biological goal specifications (growth, nutrient, morphogenesis, homeostasis).",
-      },
-      {
-        key: "domain",
-        label: "Domain",
-        type: "geometry",
-        description: "Optional geometry reference that seeds the search.",
-      },
-    ],
-    outputs: [
-      {
-        key: "bestScore",
-        label: "Best",
-        type: "number",
-        description: "Best fitness score found.",
-      },
-      {
-        key: "bestGenome",
-        label: "Genome",
-        type: "vector",
-        description: "Best genome vector.",
-      },
-      {
-        key: "evaluations",
-        label: "Eval",
-        type: "number",
-        description: "Total fitness evaluations performed.",
-      },
-      {
-        key: "populationSize",
-        label: "Population",
-        type: "number",
-        description: "Population size used.",
-      },
-      {
-        key: "generations",
-        label: "Generations",
-        type: "number",
-        description: "Generations executed.",
-      },
-      {
-        key: "mutationRate",
-        label: "Mutation",
-        type: "number",
-        description: "Mutation rate used.",
-      },
-      {
-        key: "status",
-        label: "Status",
-        type: "string",
-        description: "Solver status string.",
-      },
-      {
-        key: "best",
-        label: "Best Detail",
-        type: "any",
-        description: "Best individual payload from the interactive solver.",
-      },
-      {
-        key: "populationBests",
-        label: "Population Bests",
-        type: "any",
-        description: "Top individuals per generation from the interactive solver.",
-      },
-      {
-        key: "history",
-        label: "History",
-        type: "any",
-        description: "Full evolutionary history and statistics.",
-      },
-      {
-        key: "gallery",
-        label: "Gallery",
-        type: "any",
-        description: "Gallery metadata for all individuals.",
-      },
-      {
-        key: "selectedGeometry",
-        label: "Selected Geometry",
-        type: "geometry",
-        description: "Selected solver outputs as geometry ids.",
-      },
-    ],
-    parameters: [
-      {
-        key: "fitnessBias",
-        label: "Fitness Bias",
-        type: "number",
-        defaultValue: 0,
-        step: 0.1,
-        description: "Bias term added to the fitness function.",
-      },
-      {
-        key: "populationSize",
-        label: "Population",
-        type: "number",
-        defaultValue: 32,
-        min: 8,
-        max: 96,
-        step: 1,
-        description: "Number of genomes per generation.",
-      },
-      {
-        key: "generations",
-        label: "Generations",
-        type: "number",
-        defaultValue: 24,
-        min: 1,
-        max: 80,
-        step: 1,
-        description: "Number of generations to evolve.",
-      },
-      {
-        key: "mutationRate",
-        label: "Mutation Rate",
-        type: "number",
-        defaultValue: 0.18,
-        min: 0.01,
-        max: 0.95,
-        step: 0.01,
-        description: "Mutation probability per gene.",
-      },
-      {
-        key: "seed",
-        label: "Seed",
-        type: "number",
-        defaultValue: 1,
-        step: 1,
-        description: "Deterministic seed for repeatable runs.",
-      },
-    ],
-    primaryOutputKey: "bestScore",
-    compute: ({ context }) => {
-      const state = getBiologicalSolverState(context.nodeId);
-      const best = state.outputs.best;
-      const genome = Array.isArray(best?.genome) ? best?.genome : [];
-      const axis = (index: number) => {
-        const value = genome[index];
-        return Number.isFinite(value) ? value : 0;
-      };
-      const history = state.outputs.history?.generations ?? [];
-      const evaluations = history.reduce(
-        (sum, generation) => sum + (generation.population?.length ?? 0),
-        0
-      );
-
-      return {
-        bestScore: typeof best?.fitness === "number" ? best.fitness : 0,
-        bestGenome: { x: axis(0), y: axis(1), z: axis(2) },
-        evaluations,
-        populationSize: state.config.populationSize,
-        generations: state.config.generations,
-        mutationRate: state.config.mutationRate,
-        status: state.status,
-        best: state.outputs.best,
-        populationBests: state.outputs.populationBests,
-        history: state.outputs.history,
-        gallery: state.outputs.gallery,
-        selectedGeometry: state.outputs.selectedGeometry,
-      };
-    },
-  },
-  {
     type: "chemistrySolver",
     label: "Ἐπιλύτης Χημείας",
     shortLabel: "Chem",
@@ -12587,7 +12173,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
 ];
 
-NODE_DEFINITIONS.push(PhysicsSolverNode, ChemistrySolverNode, BiologicalEvolutionSolverNode);
+NODE_DEFINITIONS.push(PhysicsSolverNode, ChemistrySolverNode);
 const topologySolverDefinition = NODE_DEFINITIONS.find(
   (definition) => definition.type === "topologySolver"
 );
@@ -12601,13 +12187,6 @@ NODE_DEFINITIONS.push(
   VolumeGoalNode,
   LoadGoalNode,
   AnchorGoalNode,
-  GenomeCollectorNode,
-  GeometryPhenotypeNode,
-  PerformsFitnessNode,
-  GrowthGoalNode,
-  NutrientGoalNode,
-  MorphogenesisGoalNode,
-  HomeostasisGoalNode,
   ChemistryMaterialGoalNode,
   ChemistryStiffnessGoalNode,
   ChemistryMassGoalNode,

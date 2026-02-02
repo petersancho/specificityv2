@@ -60,14 +60,7 @@ Lingua includes five production-ready solvers with automatic mesh generation and
 - Hero geometry: voxelized structural forms
 - *Operates in the discrete spatial domain of volumetric elements*
 
-### Biological Solver (Galen)
-- Evolution and fitness-based optimization
-- Branching growth simulation inspired by natural systems
-- Fitness gradient visualization (red → green)
-- Hero geometry: vascular network structure
-- *Mimics natural growth patterns and evolutionary adaptation*
-
-All solvers automatically produce mesh geometry with gradient-colored vertices for scientific visualization. No manual post-processing required. Each solver represents a distinct philosophical approach to computational design—from the deterministic precision of physics to the emergent complexity of biological systems.
+All solvers automatically produce mesh geometry with gradient-colored vertices for scientific visualization. No manual post-processing required. Each solver represents a distinct philosophical approach to computational design—from the deterministic precision of physics to the emergent complexity of topology optimization.
 
 ## Repository Structure
 
@@ -149,8 +142,8 @@ Lingua is a complete parametric design environment with powerful computational t
 - **Dual-Panel Workspace**: Seamless integration between 3D modeling (Roslyn) and visual programming (Numerica)
 - **Custom Geometry Kernel**: Full ownership of geometric operations—no external CAD dependencies
 - **WebGL Rendering**: Raw WebGL with custom GLSL shaders for pixel-perfect control and performance
-- **Five Production Solvers**: Physics, Chemistry, Topological Optimization, Voxel, and Biological solvers with automatic mesh output
-- **Gradient Visualization**: Scientific visualization with stress, density, and fitness gradients
+- **Four Production Solvers**: Physics, Chemistry, Topological Optimization, and Voxel solvers with automatic mesh output
+- **Gradient Visualization**: Scientific visualization with stress, density, and material distribution gradients
 - **Real-Time Diagnostics**: Material distribution monitoring, solver convergence tracking, and performance metrics
 - **Unified State Management**: Zustand-based store with history/undo across modeling and workflow
 - **Validation Framework**: Robust validation with floating-point tolerance prevents silent failures

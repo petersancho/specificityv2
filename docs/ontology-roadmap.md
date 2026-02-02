@@ -26,7 +26,7 @@ Transform Lingua from a **parametric design tool** into a **semantic computation
 - Perform comprehensive ontological analysis
 
 ### Completed
-- ✅ All 5 solvers implemented (Physics, Chemistry, Topology, Voxel, Biological)
+- ✅ All 4 solvers implemented (Physics, Chemistry, Topology, Voxel)
 - ✅ Solvers output unique geometry individually
 - ✅ Philosophy infused in README
 - ✅ Ontological analysis complete
@@ -84,7 +84,6 @@ interface SolverProtocol {
 - ChemistrySolver implements SolverProtocol
 - TopologySolver implements SolverProtocol
 - VoxelSolver implements SolverProtocol
-- BiologicalSolver implements SolverProtocol
 
 **2.3 Add Solver Registry**
 ```typescript
@@ -441,7 +440,7 @@ class ConstraintSolver {
 
 **8.3 Cross-Solver Constraints**
 - Physics solver respects chemistry material distribution
-- Topology solver respects biological growth patterns
+- Topology solver respects voxel density constraints
 - Enable constraint sharing between solvers
 
 **8.4 Constraint Visualization**
