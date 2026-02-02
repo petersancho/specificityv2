@@ -1292,7 +1292,7 @@ const intersectSegmentPlane = (a: Vec2, b: Vec2, point: Vec2, normal: Vec2) => {
   const denom = ab.x * normal.x + ab.y * normal.y;
   if (Math.abs(denom) < EPSILON_GEOMETRIC) return null;
   const t = ((point.x - a.x) * normal.x + (point.y - a.y) * normal.y) / denom;
-  if (t < -EPSILON || t > 1 + EPSILON) return null;
+  if (t < -EPSILON_GEOMETRIC || t > 1 + EPSILON_GEOMETRIC) return null;
   return { x: a.x + ab.x * t, y: a.y + ab.y * t };
 };
 
@@ -1637,9 +1637,9 @@ export const mergeRenderMeshes = (meshA: RenderMesh, meshB: RenderMesh): RenderM
   const indices: number[] = [];
   const includeColors =
     Boolean(meshA.colors) &&
-    meshA.colors.length === meshA.positions.length &&
+    meshA.colors!.length === meshA.positions.length &&
     Boolean(meshB.colors) &&
-    meshB.colors.length === meshB.positions.length;
+    meshB.colors!.length === meshB.positions.length;
   const colors: number[] = [];
   let offset = 0;
   [meshA, meshB].forEach((mesh) => {

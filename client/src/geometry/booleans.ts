@@ -1,4 +1,5 @@
 import type { Vec3 } from "../types";
+import { EPSILON } from "../math/constants";
 
 export type LineSegment = {
   start: Vec3;

@@ -341,7 +341,7 @@ const mergeMeshes = (meshes: RenderMesh[]): RenderMesh => {
   const uvs: number[] = [];
   const indices: number[] = [];
   const includeColors = meshes.every(
-    (mesh) => Boolean(mesh.colors) && mesh.colors.length === mesh.positions.length
+    (mesh) => Boolean(mesh.colors) && mesh.colors!.length === mesh.positions.length
   );
   const colors: number[] = [];
   let offset = 0;

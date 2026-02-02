@@ -1,4 +1,5 @@
 import type { NURBSCurve, NURBSSurface, Vec3 } from "../types";
+import { EPSILON } from "../math/constants";
 
 export type { NURBSCurve, NURBSSurface };
 

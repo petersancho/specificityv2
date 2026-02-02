@@ -2,6 +2,7 @@ import { triangulatePolygon } from "./triangulate";
 import type {
   BRepCurve,
   BRepData,
+  BRepEdge,
   BRepFace,
   BRepLoop,
   BRepSurface,
@@ -180,10 +181,10 @@ export const brepFromMesh = (mesh: RenderMesh): BRepData => {
     if (existing) return existing;
     const edgeId = `e-${edgeMap.size}`;
     edgeMap.set(key, edgeId);
-    const edge = {
+    const edge: BRepEdge = {
       id: edgeId,
       curve: { kind: "line", start: vertices[min].position, end: vertices[max].position },
-      vertices: [`v-${min}`, `v-${max}`],
+      vertices: [`v-${min}`, `v-${max}`] as [string, string],
     };
     edges.push(edge);
     edgeById.set(edgeId, edge);

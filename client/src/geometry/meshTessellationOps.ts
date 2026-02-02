@@ -127,8 +127,8 @@ export const meshRelax = defineOp(
     name: 'Mesh Relax',
     category: 'modifier',
     tags: ['mesh', '3d'],
-    complexity: 'O(n * iterations)',
-    summary: 'Smooths mesh by averaging vertex positions',
+    complexity: 'varies',
+    summary: 'Smooths mesh by averaging vertex positions (O(n * iterations))',
     stable: true,
     since: '1.0.0'
   },

@@ -57,6 +57,7 @@ export type OpTag =
   | '2d'             // 2D operations
   | '3d'             // 3D operations
   // Math tags
+  | 'math'           // General math operations
   | 'arithmetic'     // Basic arithmetic
   | 'trigonometry'   // Trig functions
   | 'exponential'    // Exponential/logarithmic
