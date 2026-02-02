@@ -22,6 +22,8 @@ import '../client/src/geometry/tessellationOps';
 
 import { operationRegistry } from '../client/src/semantic/operationRegistry';
 import { nodeSemanticRegistry } from '../client/src/semantic/nodeSemantics';
+import { SEMANTIC_OP_ID_SET } from '../client/src/semantic/semanticOpIds';
+import { NODE_DEFINITIONS } from '../client/src/workflow/nodeRegistry';
 
 const DOCS_DIR = path.join(__dirname, '../docs/semantic');
 
@@ -63,6 +65,48 @@ function main() {
   if (nodeValidation.errors.length > 0) {
     console.log(`  ❌ ${nodeValidation.errors.length} errors:`);
     nodeValidation.errors.forEach(e => console.log(`     - ${e}`));
+  }
+
+  // Validate nodes from NODE_DEFINITIONS
+  console.log('\n📋 Validating NODE_DEFINITIONS nodes...');
+  const nodeRegistryErrors: string[] = [];
+  const nodeRegistryWarnings: string[] = [];
+  let nodesWithSemanticOps = 0;
+  let nodesWithoutSemanticOps = 0;
+
+  for (const node of NODE_DEFINITIONS) {
+    if (node.semanticOps) {
+      nodesWithSemanticOps++;
+      // Check for duplicates
+      const seen = new Set<string>();
+      for (const opId of node.semanticOps) {
+        if (seen.has(opId)) {
+          nodeRegistryErrors.push(`[${node.type}] Duplicate semantic op: ${opId}`);
+        }
+        seen.add(opId);
+
+        // Check if operation exists
+        if (!SEMANTIC_OP_ID_SET.has(opId)) {
+          nodeRegistryErrors.push(`[${node.type}] References unknown semantic op: ${opId}`);
+        }
+      }
+    } else {
+      nodesWithoutSemanticOps++;
+    }
+  }
+
+  console.log(`  ✓ ${NODE_DEFINITIONS.length} nodes in registry`);
+  console.log(`  ✓ ${nodesWithSemanticOps} nodes with semanticOps`);
+  console.log(`  ℹ️  ${nodesWithoutSemanticOps} nodes without semanticOps`);
+
+  if (nodeRegistryWarnings.length > 0) {
+    console.log(`  ⚠️  ${nodeRegistryWarnings.length} warnings:`);
+    nodeRegistryWarnings.forEach(w => console.log(`     - ${w}`));
+  }
+
+  if (nodeRegistryErrors.length > 0) {
+    console.log(`  ❌ ${nodeRegistryErrors.length} errors:`);
+    nodeRegistryErrors.forEach(e => console.log(`     - ${e}`));
   }
 
   // Generate documentation
@@ -132,12 +176,16 @@ function main() {
   // Summary
   console.log('\n✨ Summary:');
   console.log(`  Operations: ${operationRegistry.list().length}`);
-  console.log(`  Nodes: ${nodeSemanticRegistry.list().length}`);
-  console.log(`  Warnings: ${opValidation.warnings.length + nodeValidation.warnings.length}`);
-  console.log(`  Errors: ${opValidation.errors.length + nodeValidation.errors.length}`);
+  console.log(`  Nodes (semantic registry): ${nodeSemanticRegistry.list().length}`);
+  console.log(`  Nodes (NODE_DEFINITIONS): ${NODE_DEFINITIONS.length}`);
+  console.log(`  Nodes with semanticOps: ${nodesWithSemanticOps}`);
+  console.log(`  Nodes without semanticOps: ${nodesWithoutSemanticOps}`);
+  console.log(`  Warnings: ${opValidation.warnings.length + nodeValidation.warnings.length + nodeRegistryWarnings.length}`);
+  console.log(`  Errors: ${opValidation.errors.length + nodeValidation.errors.length + nodeRegistryErrors.length}`);
 
   // Exit with error if validation failed
-  if (!opValidation.valid || !nodeValidation.valid) {
+  const hasErrors = !opValidation.valid || !nodeValidation.valid || nodeRegistryErrors.length > 0;
+  if (hasErrors) {
     console.log('\n❌ Validation failed!');
     process.exit(1);
   }

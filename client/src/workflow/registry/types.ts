@@ -1,6 +1,7 @@
 import type { IconId } from "../../webgl/ui/WebGLIconRenderer";
 import type { Geometry, VertexGeometry } from "../../types";
 import type { NodeType } from "../nodeTypes";
+import type { SemanticOpId } from "../../semantic";
 
 export type WorkflowPortType =
   | "number"
@@ -131,6 +132,7 @@ export type WorkflowNodeDefinition = {
   description: string;
   category: NodeCategoryId;
   iconId: IconId;
+  semanticOps?: readonly SemanticOpId[];
   display?: {
     nameGreek?: string;
     nameEnglish?: string;

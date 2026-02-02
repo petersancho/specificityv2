@@ -1,11 +1,12 @@
 import type { Geometry, RenderMesh, VertexGeometry, VoxelGrid, WorkflowNode } from "../types";
-import { offsetPolyline2D } from "../geometry/booleans";
+// Import semantic operations (wrapped with metadata)
+import { offsetPolyline2D } from "../geometry/booleanOps";
 import {
   computeBestFitPlane,
   projectPointToPlane,
   unprojectPointFromPlane,
-} from "../geometry/math";
-import { resampleByArcLength } from "../geometry/curves";
+} from "../geometry/mathOps";
+import { resampleByArcLength } from "../geometry/curveOps";
 import {
   computeMeshArea,
   computeVertexNormals,
@@ -15,7 +16,7 @@ import {
   generateLoftMesh,
   generatePipeMesh,
   generateSphereMesh,
-} from "../geometry/mesh";
+} from "../geometry/meshOps";
 import {
   getTessellationMetadata,
   toTessellationMesh,
@@ -40,9 +41,9 @@ import {
   decimateMesh,
   quadDominantRemesh,
   meshBoolean,
-} from "../geometry/meshTessellation";
-import { brepFromMesh, tessellateBRepToMesh } from "../geometry/brep";
-import { tessellateCurveAdaptive, tessellateSurfaceAdaptive } from "../geometry/tessellation";
+} from "../geometry/meshTessellationOps";
+import { brepFromMesh, tessellateBRepToMesh } from "../geometry/brepOps";
+import { tessellateCurveAdaptive, tessellateSurfaceAdaptive } from "../geometry/tessellationOps";
 import type { NodeType } from "./nodeTypes";
 import { PRIMITIVE_NODE_CATALOG, PRIMITIVE_NODE_TYPE_IDS } from "../data/primitiveCatalog";
 import { hexToRgb, normalizeHexColor, normalizeRgbInput, rgbToHex } from "../utils/color";
@@ -8980,6 +8981,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     description: "Combine two solids with union, difference, or intersection.",
     category: "brep",
     iconId: "boolean",
+    semanticOps: ["mesh.generateBox", "mesh.computeVertexNormals"],
     inputs: [
       { key: "geometryA", label: "A", type: "geometry", required: true },
       { key: "geometryB", label: "B", type: "geometry", required: true },

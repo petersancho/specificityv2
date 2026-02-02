@@ -11,3 +11,4 @@
 export * from './geometryOp';
 export * from './operationRegistry';
 export * from './nodeSemantics';
+export * from './semanticOpIds';
