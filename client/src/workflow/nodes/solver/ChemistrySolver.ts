@@ -480,14 +480,35 @@ const runChemistrySolver = (args: {
   }));
   
   // Find best state (lowest energy)
+  // Note: For now, we use the final state as best state since we don't store intermediate states
+  // In a production system, we would snapshot particle states at each iteration
   let bestState: { particles: ChemistryParticle[]; energy: number; iteration: number } | null = null;
   if (history.length > 0) {
     const minEnergyIndex = simResult.energyHistory.reduce(
       (minIdx, energy, idx, arr) => (energy < arr[minIdx] ? idx : minIdx),
       0
     );
+    
+    // Convert final pool state to ChemistryParticle format
+    const bestParticles: ChemistryParticle[] = [];
+    for (let i = 0; i < simResult.pool.count; i++) {
+      const particleMaterials = createMaterialMap(materialNames);
+      for (let m = 0; m < materialNames.length; m++) {
+        particleMaterials[materialNames[m]] = simResult.pool.materials[m][i];
+      }
+      bestParticles.push({
+        position: {
+          x: simResult.pool.posX[i],
+          y: simResult.pool.posY[i],
+          z: simResult.pool.posZ[i],
+        },
+        radius: simResult.pool.radius[i],
+        materials: particleMaterials,
+      });
+    }
+    
     bestState = {
-      particles: particles, // TODO: Store actual best state particles
+      particles: bestParticles,
       energy: simResult.energyHistory[minEnergyIndex],
       iteration: minEnergyIndex,
     };
@@ -807,6 +828,9 @@ export const ChemistrySolverNode: WorkflowNodeDefinition = {
   primaryOutputKey: "geometry",
   
   compute: ({ inputs, parameters, context }) => {
+    // Initialize warnings array
+    const warnings: string[] = [];
+    
     // Validate domain input
     const domainId = typeof inputs.domain === "string" ? inputs.domain : null;
     if (!domainId) {
@@ -835,15 +859,114 @@ export const ChemistrySolverNode: WorkflowNodeDefinition = {
     // Process materials
     const materialNames: string[] = [];
     const materialSpecs: ChemistryMaterialSpec[] = [];
-    // TODO: Extract from inputs.materials
+    const assignments: ChemistryMaterialAssignment[] = [];
+    
+    // Extract materials from inputs
+    const rawMaterials = Array.isArray(inputs.materials) 
+      ? inputs.materials 
+      : inputs.materials 
+        ? [inputs.materials] 
+        : [];
+    
+    // Parse material assignments
+    for (const item of rawMaterials) {
+      if (!item || typeof item !== "object") continue;
+      
+      // Check if it's a ChemistryMaterialAssignment
+      if ("material" in item && typeof item.material === "object") {
+        const assignment = item as ChemistryMaterialAssignment;
+        const material = assignment.material;
+        
+        // Resolve material spec (use provided or lookup by name)
+        const materialSpec = material.name 
+          ? resolveChemistryMaterialSpec(material.name)
+          : material as ChemistryMaterialSpec;
+        
+        // Add to materials list if not already present
+        if (!materialNames.includes(materialSpec.name)) {
+          materialNames.push(materialSpec.name);
+          materialSpecs.push(materialSpec);
+        }
+        
+        // Add assignment
+        assignments.push({
+          geometryId: assignment.geometryId,
+          material: materialSpec,
+          weight: assignment.weight ?? 1,
+        });
+      }
+      // Check if it's a material name string
+      else if (typeof item === "string") {
+        const materialSpec = resolveChemistryMaterialSpec(item);
+        if (!materialNames.includes(materialSpec.name)) {
+          materialNames.push(materialSpec.name);
+          materialSpecs.push(materialSpec);
+        }
+        assignments.push({
+          geometryId: domainId,
+          material: materialSpec,
+          weight: 1,
+        });
+      }
+      // Check if it's a material spec object
+      else if ("name" in item && typeof item.name === "string") {
+        const materialSpec = item as ChemistryMaterialSpec;
+        if (!materialNames.includes(materialSpec.name)) {
+          materialNames.push(materialSpec.name);
+          materialSpecs.push(materialSpec);
+        }
+        assignments.push({
+          geometryId: domainId,
+          material: materialSpec,
+          weight: 1,
+        });
+      }
+    }
+    
+    // Fallback: If no materials provided, use Steel
+    if (materialNames.length === 0) {
+      const steel = resolveChemistryMaterialSpec("Steel");
+      materialNames.push(steel.name);
+      materialSpecs.push(steel);
+      assignments.push({
+        geometryId: domainId,
+        material: steel,
+        weight: 1,
+      });
+    }
     
     // Process seeds
     const seeds: ChemistrySeed[] = [];
-    // TODO: Extract from inputs.seeds
+    const rawSeeds = Array.isArray(inputs.seeds) 
+      ? inputs.seeds 
+      : inputs.seeds 
+        ? [inputs.seeds] 
+        : [];
     
-    // Process assignments
-    const assignments: ChemistryMaterialAssignment[] = [];
-    // TODO: Extract from inputs.materials or materialsText
+    for (const item of rawSeeds) {
+      if (!item || typeof item !== "object") continue;
+      
+      // Check if it's a ChemistrySeed
+      if ("position" in item && "material" in item && "radius" in item && "strength" in item) {
+        const seed = item as ChemistrySeed;
+        
+        // Validate position
+        if (!isVec3(seed.position)) continue;
+        
+        // Validate material exists
+        if (!materialNames.includes(seed.material)) {
+          warnings.push(`Seed references unknown material "${seed.material}", skipping.`);
+          continue;
+        }
+        
+        seeds.push({
+          position: seed.position,
+          radius: isFiniteNumber(seed.radius) ? seed.radius : 0.5,
+          material: seed.material,
+          strength: isFiniteNumber(seed.strength) ? clamp(seed.strength, 0, 1) : 0.9,
+        });
+      }
+    }
     
     // Run solver
     const result = runChemistrySolver({
@@ -913,6 +1036,10 @@ export const ChemistrySolverNode: WorkflowNodeDefinition = {
         memoryUsed: result.performanceMetrics.memoryUsed,
         warnings: result.warnings,
         errors: result.errors,
+        materials: result.materials,
+        validation: result.validation,
+        analysis: result.analysis,
+        semantics: result.semantics,
       },
     };
   },
