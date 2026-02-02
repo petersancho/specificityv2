@@ -7,7 +7,7 @@
  * Ontological Type: Morphogenesis Solver (emergent pattern formation)
  */
 
-import type { WorkflowNodeDefinition, WorkflowComputeContext } from "../types";
+import type { WorkflowNodeDefinition, WorkflowComputeContext } from "../../nodeRegistry";
 import type { Geometry, RenderMesh } from "../../../types";
 import { createSolverMetadata, attachSolverMetadata } from "../../../numerica/solverGeometry";
 import { computeBoundsFromMesh } from "../../../geometry/bounds";
