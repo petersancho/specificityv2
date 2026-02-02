@@ -42,6 +42,12 @@ export const VoxelSolverNode: WorkflowNodeDefinition = {
       description: "Voxelized representation of the input geometry.",
     },
     {
+      key: "meshData",
+      label: "Mesh Data",
+      type: "mesh",
+      description: "Voxel mesh for rendering (blocky cubes).",
+    },
+    {
       key: "cellCount",
       label: "Cell Count",
       type: "number",
@@ -79,7 +85,7 @@ export const VoxelSolverNode: WorkflowNodeDefinition = {
     description: "Converts geometry into a uniform voxel grid.",
   },
   compute: (args) => {
-    const { parameters, inputs, updateGeometry } = args;
+    const { parameters, inputs } = args;
     
     const resolution = Math.max(4, Math.min(128, Math.round(
       inputs.resolution ?? parameters.resolution ?? 16
@@ -87,12 +93,12 @@ export const VoxelSolverNode: WorkflowNodeDefinition = {
     
     const geometry = inputs.geometry as Geometry | undefined;
     
+    const emptyMesh: RenderMesh = { positions: [], normals: [], uvs: [], indices: [] };
+    
     if (!geometry || !geometry.mesh) {
-      if (updateGeometry) {
-        updateGeometry({ positions: [], normals: [], uvs: [], indices: [] });
-      }
       return {
         voxelGrid: null,
+        meshData: emptyMesh,
         cellCount: 0,
         filledCount: 0,
         fillRatio: 0,
@@ -101,11 +107,9 @@ export const VoxelSolverNode: WorkflowNodeDefinition = {
     
     const mesh = geometry.mesh as RenderMesh;
     if (!mesh.positions || mesh.positions.length === 0) {
-      if (updateGeometry) {
-        updateGeometry({ positions: [], normals: [], uvs: [], indices: [] });
-      }
       return {
         voxelGrid: null,
+        meshData: emptyMesh,
         cellCount: 0,
         filledCount: 0,
         fillRatio: 0,
@@ -121,13 +125,11 @@ export const VoxelSolverNode: WorkflowNodeDefinition = {
     }
     const fillRatio = cellCount > 0 ? filledCount / cellCount : 0;
     
-    if (updateGeometry) {
-      const voxelMesh = generateVoxelMesh(voxelGrid);
-      updateGeometry(voxelMesh);
-    }
+    const voxelMesh = generateVoxelMesh(voxelGrid);
     
     return {
       voxelGrid,
+      meshData: voxelMesh,
       cellCount,
       filledCount,
       fillRatio,
