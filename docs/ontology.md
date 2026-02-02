@@ -128,6 +128,13 @@ Each representation serves a distinct purpose, and transformations between them 
 - **Output**: Optimized voxel grid + isosurface
 - **Ontological Type**: **Optimization Solver** (discrete variant)
 
+**5. Biological Solver (Ἐπιλύτης Βιολογικός — Galen)**
+- **Domain**: Pattern formation
+- **Input**: Domain bounds + reaction-diffusion parameters
+- **Process**: Gray-Scott reaction-diffusion system
+- **Output**: Concentration field + isosurface mesh
+- **Ontological Type**: **Morphogenesis Solver** (emergent pattern formation)
+
 ### Solver Protocol (Proposed)
 
 All solvers should implement a common protocol:

@@ -60,7 +60,14 @@ Lingua includes five production-ready solvers with automatic mesh generation and
 - Hero geometry: voxelized structural forms
 - *Operates in the discrete spatial domain of volumetric elements*
 
-All solvers automatically produce mesh geometry with gradient-colored vertices for scientific visualization. No manual post-processing required. Each solver represents a distinct philosophical approach to computational design—from the deterministic precision of physics to the emergent complexity of topology optimization.
+### Biological Solver (Galen)
+- Reaction-diffusion morphogenesis (Gray-Scott model)
+- Generates organic, biological patterns through chemical dynamics
+- Concentration gradient visualization (blue → red)
+- Hero geometry: coral-like structures with emergent patterns
+- *Explores emergent pattern formation through computational chemistry*
+
+All solvers automatically produce mesh geometry with gradient-colored vertices for scientific visualization. No manual post-processing required. Each solver represents a distinct philosophical approach to computational design—from the deterministic precision of physics to the emergent complexity of biological morphogenesis.
 
 ## Repository Structure
 
