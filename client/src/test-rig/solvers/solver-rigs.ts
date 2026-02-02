@@ -33,7 +33,7 @@ import {
   buildPhysicsHeroGeometry,
   buildChemistryHeroGeometry,
   buildVoxelHeroGeometry,
-} from "./physics-solver-fixtures";
+} from "./solver-hero-geometry";
 
 export const CHEMISTRY_SOLVER_RIG_VARIANTS = [
   "basic",
