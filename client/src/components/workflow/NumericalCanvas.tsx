@@ -2606,8 +2606,10 @@ export const NumericalCanvas = ({
       }
 
       if (node?.type === "stlImport") {
+        const stlImportDef = getNodeDefinition("stlImport");
+        const fileParam = stlImportDef?.parameters?.find((p) => p.key === "file");
         actions.push({
-          label: "Select STL File…",
+          label: fileParam?.label ? `Select ${fileParam.label}…` : "Select STL File…",
           onSelect: closeMenu(() => openStlFilePicker(null, target.nodeId)),
         });
         actions.push({
@@ -2823,12 +2825,14 @@ export const NumericalCanvas = ({
         onSelect: closeMenu(() => createGroupFromSelection()),
       });
     }
+    const stlImportDef = getNodeDefinition("stlImport");
+    const textNoteDef = getNodeDefinition("textNote");
     actions.push({
-      label: "Add File (STL)",
+      label: stlImportDef ? `Add ${stlImportDef.label}` : "Add File (STL)",
       onSelect: closeMenu(() => openStlFilePicker(world, null)),
     });
     actions.push({
-      label: "Add Text Note",
+      label: textNoteDef ? `Add ${textNoteDef.label}` : "Add Text Note",
       onSelect: closeMenu(() => addTextNoteAt(world)),
     });
     actions.push({
@@ -2947,8 +2951,9 @@ export const NumericalCanvas = ({
       const shortId = selectedGeometryId.slice(0, 6);
       return `Ref ${shortId}`;
     }
-    if (label.startsWith("Add File")) return "Add File";
-    if (label.startsWith("Select STL")) return "Select STL";
+    if (label.startsWith("Add STL Import")) return "Add STL";
+    if (label.startsWith("Add Text Note")) return "Add Note";
+    if (label.startsWith("Select STL File")) return "Select File";
     if (label.startsWith("Delete")) return "Delete";
     if (label.startsWith("Frame Selection")) return "Frame Sel";
     if (label.startsWith("Frame All")) return "Frame All";
