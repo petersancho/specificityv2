@@ -1763,7 +1763,7 @@ const applySeedGeometryNodesToGeometry = (
   let didApply = false;
   const touchedGeometryIds = new Set<string>();
 
-  const nextNodes = nodes.map((node) => {
+  const nextNodes: WorkflowNode[] = nodes.map((node): WorkflowNode => {
     const outputs = node.data?.outputs;
     if (!outputs || node.data?.evaluationError) {
       return node;
@@ -2024,7 +2024,7 @@ const applySeedGeometryNodesToGeometry = (
           data: {
             ...node.data,
             geometryId,
-            geometryType: null,
+            geometryType: undefined,
             isLinked: false,
           },
         };
@@ -2272,7 +2272,7 @@ const applyDependentGeometryNodesToGeometry = (
   let didApply = false;
   const touchedGeometryIds = new Set<string>();
 
-  const nextNodes = nodes.map((node) => {
+  const nextNodes: WorkflowNode[] = nodes.map((node): WorkflowNode => {
     const outputs = node.data?.outputs;
     if (!outputs || node.data?.evaluationError) {
       return node;
@@ -6220,7 +6220,7 @@ const applyVoxelSolverNodesToGeometry = (
   const itemsToAdd: Geometry[] = [];
   let didApply = false;
 
-  const nextNodes = nodes.map((node) => {
+  const nextNodes: WorkflowNode[] = nodes.map((node): WorkflowNode => {
     if (node.type !== "voxelSolver") return node;
     const outputs = node.data?.outputs;
     let geometryId =
@@ -7579,7 +7579,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     ];
 
     // Wire connections: parameters → solver, goals → solver, geometry → baseMesh, solver → viewer
-    const newEdges = [
+    const newEdges: WorkflowEdge[] = [
       // Max Iterations → Physics Solver
       {
         id: `edge-${maxIterationsId}-${solverId}-maxIterations`,
@@ -7694,7 +7694,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       recordHistory: true,
     });
 
-    set((state) => ({
+    set((state): Partial<ProjectStore> => ({
       workflowHistory: appendWorkflowHistory(state.workflowHistory, state.workflow),
       workflow: {
         ...state.workflow,
@@ -8063,7 +8063,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       },
     ];
 
-    const newEdges = [
+    const newEdges: WorkflowEdge[] = [
       {
         id: `edge-${geoRefId}-${optimizeId}-domain`,
         source: geoRefId,
@@ -8180,7 +8180,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       recordHistory: true,
     });
 
-    set((state) => ({
+    set((state): Partial<ProjectStore> => ({
       workflowHistory: appendWorkflowHistory(state.workflowHistory, state.workflow),
       workflow: {
         ...state.workflow,
@@ -8630,7 +8630,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       groupNodeIds: string[],
       groupBox: GroupBox,
       options?: { color?: string }
-    ) => ({
+    ): WorkflowNode => ({
       id: groupId,
       type: "group" as const,
       position: groupBox.position,
@@ -8715,7 +8715,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const goalsGroupId = `node-group-chemistry-goals-${ts}`;
     const outputGroupId = `node-group-chemistry-output-${ts}`;
 
-    const controlsNodes = [
+    const controlsNodes: WorkflowNode[] = [
       {
         id: toggleSwitchId,
         type: "conditionalToggleButton" as const,
@@ -8818,7 +8818,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       },
     ];
 
-    const inputsNodes = [
+    const inputsNodes: WorkflowNode[] = [
       {
         id: domainId,
         type: "geometryReference" as const,
@@ -8857,7 +8857,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       },
     ];
 
-    const goalsNodes = [
+    const goalsNodes: WorkflowNode[] = [
       {
         id: materialGoalId,
         type: "chemistryMaterialGoal" as const,
@@ -8934,7 +8934,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       },
     ];
 
-    const outputNodes = [
+    const outputNodes: WorkflowNode[] = [
       {
         id: solverId,
         type: "chemistrySolver" as const,
@@ -8988,25 +8988,25 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         groupId: controlsGroupId,
         title: "Solver Controls",
         color: "#e3f2fd",
-        nodes: controlsNodes as WorkflowNode[],
+        nodes: controlsNodes,
       },
       {
         groupId: inputsGroupId,
         title: "Domain + Seeds",
         color: "#e8f5e9",
-        nodes: inputsNodes as WorkflowNode[],
+        nodes: inputsNodes,
       },
       {
         groupId: goalsGroupId,
         title: "Goals",
         color: "#fff3e0",
-        nodes: goalsNodes as WorkflowNode[],
+        nodes: goalsNodes,
       },
       {
         groupId: outputGroupId,
         title: "Solve + Preview",
         color: "#f3e5f5",
-        nodes: outputNodes as WorkflowNode[],
+        nodes: outputNodes,
       },
     ];
 
@@ -9014,7 +9014,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       .map((group) =>
         buildRigGroupNode(group.groupId, group.title, group.nodes, position, { color: group.color })
       )
-      .filter((node): node is NonNullable<typeof node> => node != null) as WorkflowNode[];
+      .filter((node): node is NonNullable<typeof node> => node != null);
 
     class RigConfigError extends Error {
       constructor(message: string) {
@@ -9040,18 +9040,18 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       });
     });
 
-    const childNodes = Array.from(
-      new Map(
+    const childNodes: WorkflowNode[] = Array.from(
+      new Map<string, WorkflowNode>(
         groups
           .flatMap((group) => group.nodes)
-          .map((node) => [node.id, node] as const)
+          .map((node) => [node.id, node])
       ).values()
-    ) as WorkflowNode[];
+    );
 
     const newNodes: WorkflowNode[] = [...groupNodes, ...childNodes];
 
     // Wire connections
-    const newEdges = [
+    const newEdges: WorkflowEdge[] = [
       // Toggle Switch → Chemistry Solver (enabled)
       {
         id: `edge-${toggleSwitchId}-${solverId}-enabled`,
@@ -9254,7 +9254,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       recordHistory: true,
     });
 
-    set((state) => ({
+    set((state): Partial<ProjectStore> => ({
       workflowHistory: appendWorkflowHistory(state.workflowHistory, state.workflow),
       workflow: {
         ...state.workflow,
@@ -11636,7 +11636,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const removedNodes = changes
       .filter((change) => change.type === "remove")
       .map((change) => previousNodes.find((node) => node.id === change.id))
-      .filter(Boolean) as WorkflowNode[];
+      .filter((node): node is WorkflowNode => node != null);
     const removedNodeIds = new Set(removedNodes.map((node) => node.id));
     set((state) => ({
       workflowHistory: shouldTrackNodeChange(changes)
@@ -11877,7 +11877,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       state.cPlane
     );
       const evaluatedAfterSeed = evaluateWorkflow(
-        seedApplied.nodes as WorkflowNode[],
+        seedApplied.nodes,
         evaluated.edges,
         seedApplied.geometry
       );
@@ -11887,7 +11887,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       state.cPlane
     );
     const evaluatedAfterCreate = evaluateWorkflow(
-      dependentApplied.nodes as WorkflowNode[],
+      dependentApplied.nodes,
       evaluatedAfterSeed.edges,
       dependentApplied.geometry
     );
@@ -11996,23 +11996,23 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         solverApplied.geometry
       );
       const voxelApplied = applyVoxelSolverNodesToGeometry(
-        chemistryApplied.nodes as WorkflowNode[],
+        chemistryApplied.nodes,
         chemistryApplied.geometry
       );
       const importApplied = applyImportNodesToGeometry(
-        voxelApplied.nodes as WorkflowNode[],
+        voxelApplied.nodes,
         voxelApplied.geometry
       );
       const customMaterialApplied = applyCustomMaterialNodesToGeometry(
-        importApplied.nodes as WorkflowNode[],
+        importApplied.nodes,
         importApplied.geometry
       );
       const exportHandled = handleExportNodes(
-        customMaterialApplied.nodes as WorkflowNode[],
+        customMaterialApplied.nodes,
         customMaterialApplied.geometry
       );
       const finalEvaluated = evaluateWorkflow(
-        exportHandled.nodes as WorkflowNode[],
+        exportHandled.nodes,
         evaluatedAfterCreate.edges,
         customMaterialApplied.geometry
       );
