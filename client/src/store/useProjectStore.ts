@@ -1753,7 +1753,12 @@ const applySeedGeometryNodesToGeometry = (
   nodes: WorkflowNode[],
   geometry: Geometry[],
   cPlane: CPlane
-) => {
+): {
+  nodes: WorkflowNode[];
+  geometry: Geometry[];
+  didApply: boolean;
+  touchedGeometryIds: Set<string>;
+} => {
   const geometryById = new Map<string, Geometry>(
     geometry.map((item) => [item.id, item])
   );
@@ -2262,7 +2267,12 @@ const applyDependentGeometryNodesToGeometry = (
   nodes: WorkflowNode[],
   geometry: Geometry[],
   cPlane: CPlane
-) => {
+): {
+  nodes: WorkflowNode[];
+  geometry: Geometry[];
+  didApply: boolean;
+  touchedGeometryIds: Set<string>;
+} => {
   const geometryById = new Map<string, Geometry>(
     geometry.map((item) => [item.id, item])
   );
@@ -2560,9 +2570,9 @@ const resolveTransformGeometryId = (node: WorkflowNode): string | null => {
 const resetTransformCachesForGeometry = (
   nodes: WorkflowNode[],
   touchedGeometryIds: Set<string>
-) => {
+): WorkflowNode[] => {
   if (touchedGeometryIds.size === 0) return nodes;
-  return nodes.map((node) => {
+  return nodes.map((node): WorkflowNode => {
     if (node.type !== "move" && node.type !== "rotate" && node.type !== "scale") {
       return node;
     }
@@ -2570,7 +2580,7 @@ const resetTransformCachesForGeometry = (
     if (!geometryId || !touchedGeometryIds.has(geometryId)) {
       return node;
     }
-    const data = { ...(node.data ?? {}) };
+    const data: WorkflowNodeData = { ...node.data };
     if (node.type === "move") {
       data.moveGeometryId = undefined;
       data.moveOffset = undefined;
@@ -6212,7 +6222,11 @@ const applyChemistrySolverNodesToGeometry = (
 const applyVoxelSolverNodesToGeometry = (
   nodes: WorkflowNode[],
   geometry: Geometry[]
-) => {
+): {
+  nodes: WorkflowNode[];
+  geometry: Geometry[];
+  didApply: boolean;
+} => {
   const geometryById = new Map<string, Geometry>(
     geometry.map((item) => [item.id, item])
   );
@@ -6312,7 +6326,11 @@ const getFileExtension = (name: string) => {
 const applyImportNodesToGeometry = (
   nodes: WorkflowNode[],
   geometry: Geometry[]
-) => {
+): {
+  nodes: WorkflowNode[];
+  geometry: Geometry[];
+  didApply: boolean;
+} => {
   const geometryById = new Map<string, Geometry>(
     geometry.map((item) => [item.id, item])
   );
@@ -6320,7 +6338,7 @@ const applyImportNodesToGeometry = (
   let didApply = false;
   let didUpdateNodes = false;
 
-  const nextNodes = nodes.map((node) => {
+  const nextNodes: WorkflowNode[] = nodes.map((node): WorkflowNode => {
     if (node.type !== "stlImport") return node;
     const parameters = node.data?.parameters ?? {};
     const geometryId =
@@ -6397,13 +6415,16 @@ const ensureFileExtension = (name: string, extension: string) => {
   return trimmed.toLowerCase().endsWith(extension) ? trimmed : `${trimmed}${extension}`;
 };
 
-const handleExportNodes = (nodes: WorkflowNode[], geometry: Geometry[]) => {
+const handleExportNodes = (
+  nodes: WorkflowNode[],
+  geometry: Geometry[]
+): { nodes: WorkflowNode[] } => {
   const geometryById = new Map<string, Geometry>(
     geometry.map((item) => [item.id, item])
   );
   let didUpdateNodes = false;
 
-  const nextNodes = nodes.map((node) => {
+  const nextNodes: WorkflowNode[] = nodes.map((node): WorkflowNode => {
     if (node.type !== "stlExport") return node;
     const parameters = node.data?.parameters ?? {};
     const exportNow = parameters.exportNow === true;
@@ -9041,10 +9062,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     });
 
     const childNodes: WorkflowNode[] = Array.from(
-      new Map<string, WorkflowNode>(
+      new Map(
         groups
           .flatMap((group) => group.nodes)
-          .map((node) => [node.id, node])
+          .map((node) => [node.id, node] as const)
       ).values()
     );
 
