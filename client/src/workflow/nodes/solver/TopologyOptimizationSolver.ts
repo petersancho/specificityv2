@@ -224,7 +224,7 @@ export const TopologyOptimizationSolverNode: WorkflowNodeDefinition = {
     {
       key: "optimizedMesh",
       label: "Optimized Mesh",
-      type: "mesh",
+      type: "geometry",
       description: "Topologically optimized structure (multipipe result).",
     },
     {
