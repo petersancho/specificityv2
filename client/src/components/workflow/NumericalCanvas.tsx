@@ -137,6 +137,7 @@ type NumericalCanvasProps = {
   pendingNodeType?: NodeType | null;
   onDropNode?: (type: NodeType, world: Vec2) => void;
   onRequestNodeSettings?: (nodeId: string) => void;
+  onOpenDashboard?: (nodeId: string) => void;
   mode?: "standard" | "minimap";
   enableMinimapPanZoom?: boolean;
   captureMode?: "transparent" | "white" | null;
@@ -1166,11 +1167,20 @@ const resolveEdgeEndpoints = (edge: any, layouts: Map<string, NodeLayout>) => {
   return { sourceLayout, targetLayout, sourcePort, targetPort };
 };
 
+const SOLVER_NODE_TYPES = new Set([
+  "chemistrySolver",
+  "physicsSolver",
+  "evolutionarySolver",
+  "voxelSolver",
+  "topologyOptimizationSolver",
+]);
+
 export const NumericalCanvas = ({
   width,
   height,
   pendingNodeType,
   onDropNode,
+  onOpenDashboard,
   mode = "standard",
   enableMinimapPanZoom = false,
   captureMode = null,
@@ -2597,6 +2607,13 @@ export const NumericalCanvas = ({
       });
 
 
+
+      if (node?.type && SOLVER_NODE_TYPES.has(node.type)) {
+        actions.push({
+          label: "Open Simulator",
+          onSelect: closeMenu(() => onOpenDashboard?.(target.nodeId)),
+        });
+      }
 
       if (node?.type === "chemistryMaterialGoal") {
         actions.push({

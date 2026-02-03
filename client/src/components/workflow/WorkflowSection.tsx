@@ -182,6 +182,7 @@ const WorkflowSection = ({
   const pruneWorkflow = useProjectStore((state) => state.pruneWorkflow);
   const undoWorkflow = useProjectStore((state) => state.undoWorkflow);
   const updateNodeData = useProjectStore((state) => state.updateNodeData);
+  const onNodesChange = useProjectStore((state) => state.onNodesChange);
   const addPhysicsSolverRig = useProjectStore((state) => state.addPhysicsSolverRig);
   const addEvolutionarySolverRig = useProjectStore((state) => state.addEvolutionarySolverRig);
   const addChemistrySolverRig = useProjectStore((state) => state.addChemistrySolverRig);
@@ -465,6 +466,15 @@ const WorkflowSection = ({
     const panel = parameterPanelRef.current;
     if (!panel) return;
     panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  };
+
+  const handleOpenDashboard = (nodeId: string) => {
+    const deselectChanges = nodes
+      .filter((node) => node.selected)
+      .map((node) => ({ id: node.id, type: "select" as const, selected: false }));
+    const selectChange = { id: nodeId, type: "select" as const, selected: true };
+    onNodesChange([...deselectChanges, selectChange]);
+    setDashboardOpen(true);
   };
 
   const panelExportText = useMemo(() => {
@@ -775,6 +785,7 @@ const WorkflowSection = ({
               pendingNodeType={pendingNodeType}
               onDropNode={handleCanvasDrop}
               onRequestNodeSettings={handleRequestNodeSettings}
+              onOpenDashboard={handleOpenDashboard}
               captureMode={captureMode}
               hoverPopupsEnabled={hoverPopupsEnabled}
             />
