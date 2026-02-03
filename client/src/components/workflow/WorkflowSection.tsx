@@ -38,6 +38,7 @@ import {
 import { DashboardModal } from "./DashboardModal";
 import { SemanticInspector } from "./SemanticInspector";
 import { SemanticOpsExplorer } from "./SemanticOpsExplorer";
+import { NodeDetailsPanel } from "./NodeDetailsPanel";
 import { ChemistrySimulatorDashboard } from "./chemistry/ChemistrySimulatorDashboard";
 import { PhysicsSimulatorDashboard } from "./physics/PhysicsSimulatorDashboard";
 import EvolutionarySimulatorDashboard from "./evolutionary/EvolutionarySimulatorDashboard";
@@ -1252,6 +1253,10 @@ const WorkflowSection = ({
                             onClick={() => setDashboardOpen(true)}
                           />
                         </div>
+                      )}
+
+                      {selectedNodeContext.node.type && (
+                        <NodeDetailsPanel nodeType={selectedNodeContext.node.type as NodeType} />
                       )}
 
                       {selectedNodeContext.definition && (

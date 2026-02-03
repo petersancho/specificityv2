@@ -1,0 +1,118 @@
+.container {
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+  color: rgba(0, 0, 0, 0.9);
+}
+
+.badge {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge[data-type="simulator"] {
+  background: rgba(136, 0, 255, 0.1);
+  color: rgb(136, 0, 255);
+}
+
+.section {
+  margin-bottom: 16px;
+}
+
+.section:last-child {
+  margin-bottom: 0;
+}
+
+.sectionTitle {
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: rgba(0, 0, 0, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.description {
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0;
+  color: rgba(0, 0, 0, 0.8);
+}
+
+.notes {
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0;
+  color: rgba(0, 0, 0, 0.75);
+  font-style: italic;
+}
+
+.portList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.portItem {
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.portItem:last-child {
+  margin-bottom: 0;
+}
+
+.portName {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.9);
+  margin-right: 8px;
+}
+
+.portType {
+  font-size: 11px;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+  padding: 2px 6px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+  color: rgba(0, 0, 0, 0.7);
+  margin-right: 8px;
+}
+
+.portRequired {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  background: rgba(255, 0, 0, 0.1);
+  color: rgb(200, 0, 0);
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.portDescription {
+  font-size: 12px;
+  line-height: 1.4;
+  margin: 4px 0 0 0;
+  color: rgba(0, 0, 0, 0.6);
+}

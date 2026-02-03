@@ -10609,6 +10609,12 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     description: "Material transmutation solver for functionally graded blends.",
     category: "solver",
     iconId: "solver",
+    customUI: {
+      dashboardButton: {
+        label: "Open Simulator",
+        component: "ChemistrySimulatorDashboard",
+      },
+    },
     display: {
       nameGreek: "Ἐπιλύτης Χημείας",
       nameEnglish: "Chemistry Solver",
