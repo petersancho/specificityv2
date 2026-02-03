@@ -172,8 +172,8 @@ function categorizeNode(node: any): { category: string; shouldHaveSemanticOps: b
   }
 
   // Advanced geometry nodes (may use semantic ops or be declarative)
-  const advancedGeometryNodes = ['pipe', 'superellipsoid', 'hyperbolicParaboloid', 'geodesicDome', 'oneSheetHyperboloid', 'voxelizeGeometry', 'extractIsosurface', 'topologyOptimize'];
-  if (advancedGeometryNodes.includes(type) || label.includes('Paraboloid') || label.includes('Hyperboloid') || label.includes('Voxelize') || label.includes('Isosurface') || label.includes('Topology')) {
+  const advancedGeometryNodes = ['pipe', 'superellipsoid', 'hyperbolicParaboloid', 'geodesicDome', 'oneSheetHyperboloid', 'voxelizeGeometry', 'extractIsosurface'];
+  if (advancedGeometryNodes.includes(type) || label.includes('Paraboloid') || label.includes('Hyperboloid') || label.includes('Voxelize') || label.includes('Isosurface')) {
     return {
       category: 'advanced-geometry',
       shouldHaveSemanticOps: false,

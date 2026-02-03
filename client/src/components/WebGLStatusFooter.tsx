@@ -266,7 +266,6 @@ const WebGLStatusFooter = ({
     rightChips: [],
     toggles: [],
   });
-  const [, setLayoutVersion] = useState(0);
 
   const resolvedToggles = useMemo(() => {
     if (toggles && toggles.length > 0) return toggles;
@@ -518,8 +517,6 @@ const WebGLStatusFooter = ({
       rightChips: rightChipsLayout,
       toggles: toggleLayouts,
     };
-
-    setLayoutVersion((version) => version + 1);
   };
 
   const drawGradientBackground = (

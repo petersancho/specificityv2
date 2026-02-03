@@ -74,7 +74,7 @@ export const PhysicsSimulatorDashboard: React.FC<PhysicsSimulatorDashboardProps>
   ).length;
 
   const handleParameterChange = (key: string, value: number | string | boolean) => {
-    updateNodeData(nodeId, { parameters: { [key]: value } });
+    updateNodeData(nodeId, { parameters: { [key]: value } }, { recalculate: false });
   };
 
   const handleRun = () => {

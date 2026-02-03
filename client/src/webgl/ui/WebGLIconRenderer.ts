@@ -111,8 +111,6 @@ const ICON_IDS = [
   "sawtoothWave",
   "triangleWave",
   "squareWave",
-  "topologyOptimize",
-  "topologySolver",
   "solver",
   "goal",
   "stiffnessGoal",
@@ -4466,76 +4464,6 @@ const drawVoxelGrid = (
   }
 };
 
-const drawTopologyOptimizeIcon = (
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  size: number
-) => {
-  drawSolverBadge(ctx, x, y, size, { top: "#fef9c3", bottom: "#eab308" });
-  drawVoxelGrid(ctx, x, y, size, {
-    light: "#fef3c7",
-    dark: "#f59e0b",
-  });
-
-  const sliderLeft = x + size * 0.3;
-  const sliderRight = x + size * 0.8;
-  const sliderY1 = y + size * 0.72;
-  const sliderY2 = y + size * 0.8;
-  const knob1 = sliderLeft + (sliderRight - sliderLeft) * 0.35;
-  const knob2 = sliderLeft + (sliderRight - sliderLeft) * 0.68;
-
-  const drawSlider = (yPos: number) =>
-    strokeDualPath(ctx, size * 0.055, size * 0.034, () => {
-      ctx.beginPath();
-      ctx.moveTo(sliderLeft, yPos);
-      ctx.lineTo(sliderRight, yPos);
-    });
-
-  drawSlider(sliderY1);
-  drawSlider(sliderY2);
-
-  drawNodeDot(ctx, knob1, sliderY1, size * 0.05, {
-    inner: "#fefce8",
-    outer: "#ca8a04",
-  });
-  drawNodeDot(ctx, knob2, sliderY2, size * 0.05, {
-    inner: "#fefce8",
-    outer: "#ca8a04",
-  });
-};
-
-const drawTopologySolverIcon = (
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  size: number
-) => {
-  drawSolverBadge(ctx, x, y, size, { top: "#fde68a", bottom: "#d97706" });
-  drawVoxelGrid(ctx, x, y, size, {
-    light: "#fed7aa",
-    dark: "#fb923c",
-  });
-
-  const tri = [
-    { x: x + size * 0.48, y: y + size * 0.32 },
-    { x: x + size * 0.48, y: y + size * 0.74 },
-    { x: x + size * 0.8, y: y + size * 0.53 },
-  ];
-  ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(tri[0].x, tri[0].y);
-  ctx.lineTo(tri[1].x, tri[1].y);
-  ctx.lineTo(tri[2].x, tri[2].y);
-  ctx.closePath();
-  ctx.fillStyle = "#fff7ed";
-  ctx.fill();
-  ctx.lineWidth = size * 0.05;
-  ctx.strokeStyle = "rgba(15, 23, 42, 0.6)";
-  ctx.stroke();
-  ctx.restore();
-};
-
 const drawGreekGlyph = (
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -6013,12 +5941,6 @@ const drawIconToTile = (
       break;
     case "boxBuilder":
       drawBoxBuilderIcon(ctx, x, y, size);
-      break;
-    case "topologyOptimize":
-      drawTopologyOptimizeIcon(ctx, x, y, size);
-      break;
-    case "topologySolver":
-      drawTopologySolverIcon(ctx, x, y, size);
       break;
     case "solver":
       drawSolverIcon(ctx, x, y, size);

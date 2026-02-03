@@ -5,7 +5,7 @@ import { buildVoxelSolverRunReport, logVoxelSolverRunReport } from "./voxel-solv
 import { buildVoxelHeroGeometry } from "./solver-hero-geometry";
 import { getNodeDefinition } from "../utils/test-utils";
 
-export const runVoxelSolverExample = (nodeType: "voxelSolver" | "topologySolver" = "voxelSolver") => {
+export const runVoxelSolverExample = (nodeType: "voxelSolver" = "voxelSolver") => {
   const solverNode = getNodeDefinition(nodeType);
   const isoNode = getNodeDefinition("extractIsosurface");
   
@@ -71,7 +71,6 @@ export const runVoxelSolverExample = (nodeType: "voxelSolver" | "topologySolver"
 
 const main = () => {
   runVoxelSolverExample("voxelSolver");
-  runVoxelSolverExample("topologySolver");
 };
 
 const maybeMain = (import.meta as ImportMeta & { main?: boolean }).main;

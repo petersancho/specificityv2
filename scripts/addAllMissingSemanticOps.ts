@@ -102,11 +102,9 @@ const NODE_SEMANTICS: Record<string, string[]> = {
   stlImport: ['command.import.stl'],
   stlExport: ['command.export.stl'],
   
-  // === SOLVER OPERATIONS (4) ===
+  // === SOLVER OPERATIONS (2) ===
   voxelizeGeometry: ['solver.voxel.voxelize'],
   extractIsosurface: ['solver.voxel.extractIsosurface'],
-  topologyOptimize: ['solver.topologyOptimization.optimize'],
-  topologySolver: ['solver.topologyOptimization'],
   
   // === GEOMETRY OPERATIONS ===
   pointCloud: ['geometry.pointCloud'],

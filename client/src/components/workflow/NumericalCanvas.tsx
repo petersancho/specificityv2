@@ -1174,7 +1174,6 @@ const SOLVER_NODE_TYPES = new Set([
   "evolutionarySolver",
   "voxelSolver",
   "topologyOptimizationSolver",
-  "topologySolver",
 ]);
 
 export const NumericalCanvas = ({
@@ -5673,8 +5672,7 @@ function drawNodes(
       ctx.fillText(labelText, x + 10, y + NODE_BAND_HEIGHT + 6);
     }
 
-    const detailBlockHeight =
-      node.type === "topologyOptimize" ? DETAIL_LINE_HEIGHT * 2 : DETAIL_LINE_HEIGHT;
+    const detailBlockHeight = DETAIL_LINE_HEIGHT;
     const detailY = isSlider
       ? y + 34
       : y + height - DETAIL_BOTTOM_PADDING - detailBlockHeight;
@@ -5846,32 +5844,6 @@ function drawNodes(
         detailMaxWidth
       );
       ctx.fillText(warningText, x + 10, detailY);
-    } else if (node.type === "topologyOptimize") {
-      ctx.fillStyle = nodeMutedTextColor;
-      ctx.font = '500 11px "Montreal Neue", "Space Grotesk", sans-serif';
-      const settings = node.data?.topologySettings ?? {
-        volumeFraction: 0.4,
-        penaltyExponent: 3,
-        filterRadius: 1.5,
-        maxIterations: 80,
-      };
-      const progress = node.data?.topologyProgress ?? { iteration: 0, status: "idle" };
-      const vfLabel = `VF ${Math.round(settings.volumeFraction * 100)}%`;
-      const penaltyLabel = `P${formatNumber(settings.penaltyExponent, 1)}`;
-      const radiusLabel = `R${formatNumber(settings.filterRadius, 1)}`;
-      const settingsText = truncateToWidth(
-        ctx,
-        `${vfLabel} | ${penaltyLabel} | ${radiusLabel}`,
-        detailMaxWidth
-      );
-      ctx.fillText(settingsText, x + 10, detailY);
-      ctx.font = '500 10px "Montreal Neue", "Space Grotesk", sans-serif';
-      const progressText = truncateToWidth(
-        ctx,
-        `Iter ${progress.iteration}/${settings.maxIterations} · ${String(progress.status)}`,
-        detailMaxWidth
-      );
-      ctx.fillText(progressText, x + 10, detailY + DETAIL_LINE_HEIGHT + 2);
     } else {
       const resolveGeom = (id: string) => geometry?.find((item: { id: string }) => item.id === id);
       const geomSummary = primaryOutputValue != null

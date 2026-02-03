@@ -112,7 +112,7 @@ export const runPhysicsSolverRig = (analysisType: AnalysisType) => {
   };
 };
 
-export const runTopologySolverRig = (nodeType: "topologySolver" | "voxelSolver") => {
+export const runTopologySolverRig = (nodeType: "voxelSolver") => {
   const solverNode = getNodeDefinition(nodeType);
   const isoNode = getNodeDefinition("extractIsosurface");
   const heroMesh = buildVoxelHeroGeometry();

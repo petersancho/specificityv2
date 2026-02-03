@@ -564,7 +564,7 @@ const WorkflowSection = ({
   };
 
   const handleAddTopologyRig = () => {
-    runSavedScript(addTopologySolverRig, "topologySolver");
+    runSavedScript(addTopologySolverRig, "topologyOptimizationSolver");
   };
 
   const handleAddVoxelRig = () => {

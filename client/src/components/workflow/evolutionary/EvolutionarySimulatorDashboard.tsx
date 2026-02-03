@@ -59,7 +59,7 @@ const EvolutionarySimulatorDashboard = ({
         ...parameters,
         [key]: value,
       },
-    });
+    }, { recalculate: false });
   };
 
   const handleRun = () => {

@@ -1794,28 +1794,14 @@ export const NODE_DOCUMENTATION: Record<string, NodeDocumentation> = {
       "Converts to voxel grid",
       "Surface or solid mode",
     ],
-    relatedNodes: ["extractIsosurface", "topologySolver"],
+    relatedNodes: ["extractIsosurface"],
   },
   extractIsosurface: {
     tips: [
       "Creates mesh from density field",
       "Marching cubes algorithm",
     ],
-    relatedNodes: ["voxelizeGeometry", "topologySolver"],
-  },
-  topologyOptimize: {
-    tips: [
-      "Settings for topology optimization",
-      "Connect to Topology Solver",
-    ],
-    relatedNodes: ["topologySolver", "voxelizeGeometry"],
-  },
-  topologySolver: {
-    tips: [
-      "Density-based optimization",
-      "Iteratively removes material",
-    ],
-    relatedNodes: ["topologyOptimize", "extractIsosurface"],
+    relatedNodes: ["voxelizeGeometry"],
   },
 
   // === SOLVERS ===
@@ -1871,8 +1857,8 @@ export const NODE_DOCUMENTATION: Record<string, NodeDocumentation> = {
       "Use Voxelize Geometry to verify voxel boundary before optimization",
       "Export optimized density field for downstream smoothing or remeshing",
     ],
-    relatedNodes: ["topologySolver", "voxelizeGeometry", "extractIsosurface"],
-    workflowNotes: "The Voxel Solver discretizes geometry into a 3D grid and iteratively redistributes material density based on structural performance. Connect Voxelize Geometry for the domain, add goals, run optimization, then Extract Isosurface to convert back to mesh.",
+    relatedNodes: ["voxelizeGeometry", "extractIsosurface"],
+    workflowNotes: "The Voxel Solver discretizes geometry into a 3D grid. Connect Voxelize Geometry for the domain to create a voxel representation.",
   },
   chemistrySolver: {
     tips: [
@@ -1919,8 +1905,8 @@ export const NODE_DOCUMENTATION: Record<string, NodeDocumentation> = {
       "Stiffness alone doesn't create structure—combine with Load and Anchor",
       "Extremely high stiffness targets may conflict with Volume constraints",
     ],
-    relatedNodes: ["volumeGoal", "loadGoal", "physicsSolver", "topologySolver"],
-    workflowNotes: "Stiffness Goal (Σκληρότης) defines material performance targets. Connect to Physics Solver or Topology Solver to guide optimization toward stiffer configurations in structurally critical regions.",
+    relatedNodes: ["volumeGoal", "loadGoal", "physicsSolver"],
+    workflowNotes: "Stiffness Goal (Σκληρότης) defines material performance targets. Connect to Physics Solver to guide optimization toward stiffer configurations in structurally critical regions.",
   },
   volumeGoal: {
     tips: [
@@ -1941,7 +1927,7 @@ export const NODE_DOCUMENTATION: Record<string, NodeDocumentation> = {
       "Start with Volume 0.4-0.5 for first optimization pass",
       "Reduce gradually to find minimum viable material distribution",
     ],
-    relatedNodes: ["stiffnessGoal", "loadGoal", "physicsSolver", "topologySolver"],
+    relatedNodes: ["stiffnessGoal", "loadGoal", "physicsSolver"],
     workflowNotes: "Volume Goal (Ὄγκος) constrains the amount of material available for optimization. The solver removes material from regions with low structural contribution while respecting the volume budget.",
   },
   loadGoal: {

@@ -50,7 +50,7 @@ export const VoxelSimulatorDashboard: React.FC<VoxelSimulatorDashboardProps> = (
   );
 
   const handleParameterChange = (key: string, value: unknown) => {
-    updateNodeData(nodeId, { parameters: { [key]: value } });
+    updateNodeData(nodeId, { parameters: { [key]: value } }, { recalculate: false });
   };
 
   const handleRun = () => {

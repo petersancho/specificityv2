@@ -40,33 +40,32 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   const outputs = solverNode?.data?.outputs ?? {};
   const evaluationError = solverNode?.data?.evaluationError;
 
-  const volumeFraction = toNumber(parameters.volumeFraction, 0.4);
-  const penaltyExponent = toNumber(parameters.penaltyExponent, 3);
-  const filterRadius = toNumber(parameters.filterRadius, 2);
-  const iterations = toNumber(parameters.iterations, 100);
-  const resolution = toNumber(parameters.resolution, 32);
+  const pointDensity = toNumber(parameters.pointDensity, 100);
+  const maxLinksPerPoint = toNumber(parameters.maxLinksPerPoint, 4);
+  const maxSpanLength = toNumber(parameters.maxSpanLength, 1.0);
+  const pipeRadius = toNumber(parameters.pipeRadius, 0.05);
+  const seed = toNumber(parameters.seed, 42);
 
-  const hasDomain = edges.some(
-    (edge) => edge.target === nodeId && edge.targetHandle === "domain"
+  const hasGeometry = edges.some(
+    (edge) => edge.target === nodeId && edge.targetHandle === "geometry"
   );
-  const goalsCount = edges.filter(
+  
+  const hasGoals = edges.some(
     (edge) => edge.target === nodeId && edge.targetHandle === "goals"
-  ).length;
+  );
 
   const handleParameterChange = (key: string, value: number) => {
-    updateNodeData(nodeId, { parameters: { [key]: value } });
+    updateNodeData(nodeId, { parameters: { [key]: value } }, { recalculate: false });
   };
 
   const handleRun = () => {
     recalculateWorkflow();
   };
 
-  const bestScore = toNumber(outputs.bestScore, 0);
-  const objective = toNumber(outputs.objective, 0);
-  const constraint = toNumber(outputs.constraint, 0);
-  const actualIterations = toNumber(outputs.iterations, 0);
-  const actualResolution = toNumber(outputs.resolution, 0);
-  const status = typeof outputs.status === "string" ? outputs.status : "idle";
+  const pointCount = toNumber(outputs.pointCount, 0);
+  const curveCount = toNumber(outputs.curveCount, 0);
+  const volume = toNumber(outputs.volume, 0);
+  const surfaceArea = toNumber(outputs.surfaceArea, 0);
 
   return (
     <div className={styles.dashboardOverlay}>
@@ -75,7 +74,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
           <div className={styles.headerLeft}>
             <div className={styles.solverIcon}>🔷</div>
             <div className={styles.headerText}>
-              <h2 className={styles.dashboardTitle}>Topology Optimization Simulator</h2>
+              <h2 className={styles.dashboardTitle}>Topology Optimization</h2>
               <p className={styles.dashboardSubtitle}>
                 Ἐπιλύτης Τοπολογικῆς Βελτιστοποίησης (Euler)
               </p>
@@ -123,56 +122,58 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                 <h3>Optimization Parameters</h3>
                 <div className={styles.parameterGrid}>
                   <label>
-                    Volume Fraction
+                    Point Density
                     <input
                       type="number"
-                      value={volumeFraction}
-                      onChange={(e) => handleParameterChange("volumeFraction", Number(e.target.value))}
-                      min={0.05}
-                      max={0.95}
+                      value={pointDensity}
+                      onChange={(e) => handleParameterChange("pointDensity", Number(e.target.value))}
+                      min={10}
+                      max={1000}
+                      step={10}
+                    />
+                  </label>
+                  <label>
+                    Max Links Per Point
+                    <input
+                      type="number"
+                      value={maxLinksPerPoint}
+                      onChange={(e) => handleParameterChange("maxLinksPerPoint", Number(e.target.value))}
+                      min={2}
+                      max={8}
+                      step={1}
+                    />
+                  </label>
+                  <label>
+                    Max Span Length
+                    <input
+                      type="number"
+                      value={maxSpanLength}
+                      onChange={(e) => handleParameterChange("maxSpanLength", Number(e.target.value))}
+                      min={0.1}
+                      max={10.0}
+                      step={0.1}
+                    />
+                  </label>
+                  <label>
+                    Pipe Radius
+                    <input
+                      type="number"
+                      value={pipeRadius}
+                      onChange={(e) => handleParameterChange("pipeRadius", Number(e.target.value))}
+                      min={0.01}
+                      max={1.0}
                       step={0.01}
                     />
                   </label>
                   <label>
-                    Penalty Exponent
+                    Random Seed
                     <input
                       type="number"
-                      value={penaltyExponent}
-                      onChange={(e) => handleParameterChange("penaltyExponent", Number(e.target.value))}
-                      min={1}
-                      max={6}
-                      step={0.1}
-                    />
-                  </label>
-                  <label>
-                    Filter Radius
-                    <input
-                      type="number"
-                      value={filterRadius}
-                      onChange={(e) => handleParameterChange("filterRadius", Number(e.target.value))}
+                      value={seed}
+                      onChange={(e) => handleParameterChange("seed", Number(e.target.value))}
                       min={0}
-                      max={8}
-                      step={0.1}
-                    />
-                  </label>
-                  <label>
-                    Iterations
-                    <input
-                      type="number"
-                      value={iterations}
-                      onChange={(e) => handleParameterChange("iterations", Number(e.target.value))}
-                      min={10}
-                      max={1000}
-                    />
-                  </label>
-                  <label>
-                    Resolution
-                    <input
-                      type="number"
-                      value={resolution}
-                      onChange={(e) => handleParameterChange("resolution", Number(e.target.value))}
-                      min={8}
-                      max={128}
+                      max={9999}
+                      step={1}
                     />
                   </label>
                 </div>
@@ -182,12 +183,12 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                 <h3>Connected Inputs</h3>
                 <div className={styles.summaryGrid}>
                   <div className={styles.summaryCard}>
-                    <div className={styles.summaryLabel}>Domain</div>
-                    <div className={styles.summaryValue}>{hasDomain ? "Connected" : "Missing"}</div>
+                    <div className={styles.summaryLabel}>Geometry</div>
+                    <div className={styles.summaryValue}>{hasGeometry ? "Connected" : "Missing"}</div>
                   </div>
                   <div className={styles.summaryCard}>
                     <div className={styles.summaryLabel}>Goals</div>
-                    <div className={styles.summaryValue}>{goalsCount}</div>
+                    <div className={styles.summaryValue}>{hasGoals ? "Connected" : "Optional"}</div>
                   </div>
                 </div>
               </div>
@@ -198,7 +199,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
             <div className={styles.simulatorTab}>
               <div className={styles.controlPanel}>
                 <button className={styles.controlButton} onClick={handleRun}>
-                  Run
+                  Run Optimization
                 </button>
               </div>
               {evaluationError && (
@@ -206,16 +207,12 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
               )}
               <div className={styles.statusGrid}>
                 <div className={styles.statusCard}>
-                  <div className={styles.statusLabel}>Status</div>
-                  <div className={styles.statusValue}>{status}</div>
+                  <div className={styles.statusLabel}>Points Generated</div>
+                  <div className={styles.statusValue}>{pointCount > 0 ? pointCount : "—"}</div>
                 </div>
                 <div className={styles.statusCard}>
-                  <div className={styles.statusLabel}>Iterations</div>
-                  <div className={styles.statusValue}>{actualIterations > 0 ? actualIterations : "—"}</div>
-                </div>
-                <div className={styles.statusCard}>
-                  <div className={styles.statusLabel}>Resolution</div>
-                  <div className={styles.statusValue}>{actualResolution > 0 ? actualResolution : "—"}</div>
+                  <div className={styles.statusLabel}>Curves Generated</div>
+                  <div className={styles.statusValue}>{curveCount > 0 ? curveCount : "—"}</div>
                 </div>
               </div>
             </div>
@@ -228,38 +225,28 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
               )}
               <div className={styles.outputGrid}>
                 <div className={styles.outputCard}>
-                  <div className={styles.outputLabel}>Best Score</div>
+                  <div className={styles.outputLabel}>Point Count</div>
                   <div className={styles.outputValue}>
-                    {bestScore > 0 ? bestScore.toFixed(4) : "—"}
+                    {pointCount > 0 ? pointCount : "—"}
                   </div>
                 </div>
                 <div className={styles.outputCard}>
-                  <div className={styles.outputLabel}>Objective</div>
+                  <div className={styles.outputLabel}>Curve Count</div>
                   <div className={styles.outputValue}>
-                    {objective > 0 ? objective.toFixed(4) : "—"}
+                    {curveCount > 0 ? curveCount : "—"}
                   </div>
                 </div>
                 <div className={styles.outputCard}>
-                  <div className={styles.outputLabel}>Constraint</div>
+                  <div className={styles.outputLabel}>Volume</div>
                   <div className={styles.outputValue}>
-                    {constraint !== 0 ? constraint.toFixed(4) : "—"}
+                    {volume > 0 ? volume.toFixed(6) : "—"}
                   </div>
                 </div>
                 <div className={styles.outputCard}>
-                  <div className={styles.outputLabel}>Iterations</div>
+                  <div className={styles.outputLabel}>Surface Area</div>
                   <div className={styles.outputValue}>
-                    {actualIterations > 0 ? actualIterations : "—"}
+                    {surfaceArea > 0 ? surfaceArea.toFixed(6) : "—"}
                   </div>
-                </div>
-                <div className={styles.outputCard}>
-                  <div className={styles.outputLabel}>Resolution</div>
-                  <div className={styles.outputValue}>
-                    {actualResolution > 0 ? actualResolution : "—"}
-                  </div>
-                </div>
-                <div className={styles.outputCard}>
-                  <div className={styles.outputLabel}>Status</div>
-                  <div className={styles.outputValue}>{status}</div>
                 </div>
               </div>
             </div>

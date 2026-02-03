@@ -263,63 +263,6 @@ const validatePhysicsModal = () => {
   );
 };
 
-const validateTopologySolver = () => {
-  const { outputs, isoOutputs, outputGeometry, parameters } = runTopologySolverRig("topologySolver");
-  ensure(outputs.status === "complete", "Expected topology solver complete");
-  ensure(Array.isArray(outputs.densityField), "Expected density field array");
-  ensure(outputs.densityField.length > 0, "Expected density field data");
-  ensure(outputs.voxelGrid !== null, "Expected voxel grid output");
-  ensure(outputs.resolution > 0, "Expected resolution > 0");
-  ensureFinite(outputs.objective, "Expected objective to be finite");
-  ensureFinite(outputs.constraint, "Expected constraint to be finite");
-  ensure(outputs.objective >= 0, "Expected objective >= 0");
-
-  if (outputs.voxelGrid) {
-    const res = validateVoxelGridConsistency(
-      "topology",
-      {
-        voxelGrid: outputs.voxelGrid,
-        densityField: outputs.densityField,
-        resolution: outputs.resolution,
-      },
-      parameters
-    );
-    const densities = outputs.voxelGrid.densities;
-
-    if (res > 4) {
-      const coreThreshold = Math.floor(res * 0.2);
-      let coreSum = 0;
-      let coreCount = 0;
-      let shellSum = 0;
-      let shellCount = 0;
-      for (let z = 0; z < res; z += 1) {
-        for (let y = 0; y < res; y += 1) {
-          for (let x = 0; x < res; x += 1) {
-            const idx = x + y * res + z * res * res;
-            const value = densities[idx] ?? 0;
-            const isCore =
-              Math.abs(y - (res - 1) / 2) <= coreThreshold &&
-              Math.abs(z - (res - 1) / 2) <= coreThreshold;
-            const isShell = y < 1 || y >= res - 1 || z < 1 || z >= res - 1;
-            if (isCore) {
-              coreSum += value;
-              coreCount += 1;
-            } else if (isShell) {
-              shellSum += value;
-              shellCount += 1;
-            }
-          }
-        }
-      }
-      const coreMean = coreCount > 0 ? coreSum / coreCount : 0;
-      const shellMean = shellCount > 0 ? shellSum / shellCount : 0;
-      ensure(coreMean > shellMean, "Expected load path bias to densify the core");
-    }
-  }
-  ensureMesh(isoOutputs.mesh as RenderMesh, "topology iso mesh");
-  ensureMesh(outputGeometry.mesh, "topology output geometry");
-};
-
 const validateVoxelSolver = () => {
   const { outputs, isoOutputs, outputGeometry, parameters } = runTopologySolverRig("voxelSolver");
   ensure(outputs.status === "complete", "Expected voxel solver complete");
@@ -474,7 +417,6 @@ export const runSolversValidation = () => {
   runNodeValidation("physicsSolver/static", validatePhysicsStatic);
   runNodeValidation("physicsSolver/dynamic", validatePhysicsDynamic);
   runNodeValidation("physicsSolver/modal", validatePhysicsModal);
-  runNodeValidation("topologySolver", validateTopologySolver);
   runNodeValidation("voxelSolver", validateVoxelSolver);
   runNodeValidation("chemistrySolver/regions", validateChemistrySolver);
   runNodeValidation("chemistrySolver/textInputs", validateChemistrySolverTextInputs);

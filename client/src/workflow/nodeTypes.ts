@@ -95,8 +95,6 @@ export type NodeType =
   | "fieldTransformation"
   | "voxelizeGeometry"
   | "extractIsosurface"
-  | "topologyOptimize"
-  | "topologySolver"
   | "topologyOptimizationSolver"
   | "physicsSolver"
   | "voxelSolver"
@@ -290,8 +288,6 @@ export const SUPPORTED_WORKFLOW_NODE_TYPES: NodeType[] = [
   "fieldTransformation",
   "voxelizeGeometry",
   "extractIsosurface",
-  "topologyOptimize",
-  "topologySolver",
   "topologyOptimizationSolver",
   "physicsSolver",
   "voxelSolver",

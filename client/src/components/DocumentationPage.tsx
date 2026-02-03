@@ -1680,21 +1680,6 @@ const DocumentationPhilosophy = ({ onNavigate }: DocumentationNarrativeProps) =>
             </div>
           </div>
           <div className={pageStyles.conceptCard}>
-            <h3>Topology Solver</h3>
-            <p>
-              Density-based optimization that carves material away while honoring structural
-              intent. A bridge between form and performance.
-            </p>
-            <div className={pageStyles.cardActions}>
-              <WebGLButton
-                label="Open Topology Solver"
-                variant="ghost"
-                size="sm"
-                onClick={() => onNavigate({ kind: "numerica", id: "topologySolver" })}
-              />
-            </div>
-          </div>
-          <div className={pageStyles.conceptCard}>
             <h3>Voxel Solver</h3>
             <p>
               Discrete volumetric reasoning for patterning, density, and block-based exploration.

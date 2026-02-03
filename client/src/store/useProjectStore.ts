@@ -362,7 +362,7 @@ type ProjectStore = {
     options?: { recordHistory?: boolean }
   ) => void;
   setMaterialAssignment: (assignment: MaterialAssignment) => void;
-  updateNodeData: (nodeId: string, data: Partial<WorkflowNodeData>) => void;
+  updateNodeData: (nodeId: string, data: Partial<WorkflowNodeData>, options?: { recalculate?: boolean }) => void;
   addNode: (type: NodeType) => void;
   addNodeAt: (type: NodeType, position: { x: number; y: number }) => string;
   addGeometryReferenceNode: (geometryId?: string) => string | null;
@@ -730,20 +730,6 @@ const computeWorkflowOutputs = (
       if (node.type === "sphere" && data.sphereRadius != null) {
         outputs.volume_m3 = (4 / 3) * Math.PI * Math.pow(data.sphereRadius, 3);
       }
-    }
-
-    if (node.type === "topologyOptimize") {
-      const settings = data.topologySettings ?? defaultTopologySettings;
-      const progress = data.topologyProgress ?? defaultTopologyProgress;
-      outputs.volumeFraction = settings.volumeFraction;
-      outputs.penaltyExponent = settings.penaltyExponent;
-      outputs.filterRadius = settings.filterRadius;
-      outputs.maxIterations = settings.maxIterations;
-      outputs.convergenceTolerance = settings.convergenceTolerance;
-      outputs.iteration = progress.iteration;
-      outputs.objective = progress.objective;
-      outputs.constraint = progress.constraint;
-      outputs.status = progress.status;
     }
 
     outputMap[node.id] = outputs;
@@ -7833,55 +7819,49 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     get().ensureBaseGeometry();
     
     /**
-     * Topology Solver Test Rig: Cantilever Bracket (density field)
+     * Topology Optimization Solver Test Rig
      *
-     * Creates a minimal-but-complete topology optimization workflow:
-     * - Geometry Reference → Topology Optimize → Topology Solver
-     * - Anchor/Load/Stiffness/Volume goals → Topology Solver
-     * - Topology Solver → Extract Isosurface → Geometry Viewer
+     * Creates a minimal topology optimization workflow using point cloud → curve network → multipipe:
+     * - Geometry Reference → Topology Optimization Solver → Geometry Viewer
+     * - Sliders for pointDensity, maxLinksPerPoint, maxSpanLength, pipeRadius parameters
+     *
+     * Named after Leonhard Euler (topology pioneer, Euler characteristic).
      */
     const ts = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     const NODE_WIDTH = 200;
     const NODE_HEIGHT = 120;
+    const SLIDER_HEIGHT = 76;
     const H_GAP = 60;
-    const V_GAP = 40;
+    const V_GAP = 20;
 
     // Column 1: Geometry Reference
     const geoRefId = `node-geometryReference-topology-${ts}`;
-    const geoRefPos = { x: position.x, y: position.y };
+    const geoRefPos = { x: position.x, y: position.y + SLIDER_HEIGHT * 1.5 };
 
-    // Column 2: Goal nodes
+    // Column 2: Parameter sliders (stacked vertically)
     const col2X = position.x + NODE_WIDTH + H_GAP;
-    const anchorId = `node-anchorGoal-topology-${ts}`;
-    const anchorPos = { x: col2X, y: position.y };
+    const pointDensitySliderId = `node-slider-pointDensity-${ts}`;
+    const pointDensityPos = { x: col2X, y: position.y };
 
-    const loadId = `node-loadGoal-topology-${ts}`;
-    const loadPos = { x: col2X, y: position.y + NODE_HEIGHT + V_GAP };
+    const maxLinksSliderId = `node-slider-maxLinks-${ts}`;
+    const maxLinksPos = { x: col2X, y: position.y + SLIDER_HEIGHT + V_GAP };
 
-    const stiffnessId = `node-stiffnessGoal-topology-${ts}`;
-    const stiffnessPos = { x: col2X, y: position.y + (NODE_HEIGHT + V_GAP) * 2 };
+    const maxSpanSliderId = `node-slider-maxSpan-${ts}`;
+    const maxSpanPos = { x: col2X, y: position.y + (SLIDER_HEIGHT + V_GAP) * 2 };
 
-    const volumeId = `node-volumeGoal-topology-${ts}`;
-    const volumePos = { x: col2X, y: position.y + (NODE_HEIGHT + V_GAP) * 3 };
+    const pipeRadiusSliderId = `node-slider-pipeRadius-${ts}`;
+    const pipeRadiusPos = { x: col2X, y: position.y + (SLIDER_HEIGHT + V_GAP) * 3 };
 
-    // Column 3: Optimization settings + solver
+    // Column 3: Topology Optimization Solver
     const col3X = col2X + NODE_WIDTH + H_GAP;
-    const optimizeId = `node-topologyOptimize-${ts}`;
-    const optimizePos = { x: col3X, y: position.y };
+    const solverId = `node-topologyOptimizationSolver-${ts}`;
+    const solverPos = { x: col3X, y: position.y + SLIDER_HEIGHT };
+    const solverGeometryId = createGeometryId("mesh");
 
-    const solverId = `node-topologySolver-${ts}`;
-    const solverPos = { x: col3X, y: position.y + (NODE_HEIGHT + V_GAP) * 2 };
-
-    // Column 4: Isosurface extraction
+    // Column 4: Geometry Viewer
     const col4X = col3X + NODE_WIDTH + H_GAP;
-    const isoId = `node-extractIsosurface-${ts}`;
-    const isoPos = { x: col4X, y: position.y + NODE_HEIGHT };
-    const isoGeometryId = createGeometryId("mesh");
-
-    // Column 5: Viewer
-    const col5X = col4X + NODE_WIDTH + H_GAP;
     const viewerId = `node-geometryViewer-topology-${ts}`;
-    const viewerPos = { x: col5X, y: position.y + NODE_HEIGHT };
+    const viewerPos = { x: col4X, y: position.y + SLIDER_HEIGHT };
 
     const baseGeometryId = get().selectedGeometryIds[0] ?? get().geometry[0]?.id ?? null;
     const baseGeometry = baseGeometryId
@@ -7892,44 +7872,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       typeof (baseGeometry.metadata as { label?: unknown } | undefined)?.label === "string"
         ? ((baseGeometry.metadata as { label?: unknown }).label as string)
         : null;
-    const baseMesh = baseGeometry ? resolveGeometryMesh(baseGeometry) : null;
-    const axisIndex = (axis: "x" | "y" | "z") => (axis === "x" ? 0 : axis === "y" ? 1 : 2);
-    const findIndicesAtExtent = (
-      mesh: RenderMesh,
-      axis: "x" | "y" | "z",
-      mode: "min" | "max"
-    ) => {
-      const axisOffset = axisIndex(axis);
-      let min = Number.POSITIVE_INFINITY;
-      let max = Number.NEGATIVE_INFINITY;
-      for (let i = 0; i < mesh.positions.length; i += 3) {
-        const value = mesh.positions[i + axisOffset];
-        min = Math.min(min, value);
-        max = Math.max(max, value);
-      }
-      if (!Number.isFinite(min) || !Number.isFinite(max)) return [];
-      const target = mode === "min" ? min : max;
-      const epsilon = Math.max(1e-6, Math.abs(max - min) * 0.01);
-      const indices: number[] = [];
-      const count = Math.floor(mesh.positions.length / 3);
-      for (let i = 0; i < count; i += 1) {
-        const value = mesh.positions[i * 3 + axisOffset];
-        if (Math.abs(value - target) <= epsilon) indices.push(i);
-      }
-      return indices;
-    };
-    const MAX_INDICES = 512;
-    const anchorIndices = baseMesh
-      ? findIndicesAtExtent(baseMesh, "x", "min").slice(0, MAX_INDICES)
-      : [];
-    const loadIndices = baseMesh
-      ? findIndicesAtExtent(baseMesh, "x", "max").slice(0, MAX_INDICES)
-      : [];
-    const listColX = col2X - NODE_WIDTH - H_GAP * 0.5;
-    const anchorListId = `node-listCreate-topology-anchor-${ts}`;
-    const anchorListPos = { x: listColX, y: anchorPos.y };
-    const loadListId = `node-listCreate-topology-load-${ts}`;
-    const loadListPos = { x: listColX, y: loadPos.y };
 
     const newNodes: WorkflowNode[] = [
       {
@@ -7937,136 +7879,83 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         type: "geometryReference" as const,
         position: geoRefPos,
         data: {
-          label: baseLabel ?? "Design Domain",
+          label: baseLabel ?? "Input Geometry",
           geometryId: baseGeometryId ?? undefined,
           geometryType: baseGeometry?.type,
           isLinked: Boolean(baseGeometryId),
         },
       },
       {
-        id: anchorListId,
-        type: "listCreate" as const,
-        position: anchorListPos,
+        id: pointDensitySliderId,
+        type: "slider" as const,
+        position: pointDensityPos,
         data: {
-          label: "Anchor Vertices",
+          label: "Point Density",
           parameters: {
-            itemsText: anchorIndices.join(", "),
+            min: 10,
+            max: 500,
+            value: 100,
+            step: 10,
           },
         },
       },
       {
-        id: anchorId,
-        type: "anchorGoal" as const,
-        position: anchorPos,
+        id: maxLinksSliderId,
+        type: "slider" as const,
+        position: maxLinksPos,
         data: {
-          label: "Fixed Supports",
+          label: "Max Links Per Point",
           parameters: {
-            anchorType: "fixed",
-            fixX: true,
-            fixY: true,
-            fixZ: true,
-            weight: 1.0,
+            min: 2,
+            max: 8,
+            value: 4,
+            step: 1,
           },
         },
       },
       {
-        id: loadListId,
-        type: "listCreate" as const,
-        position: loadListPos,
+        id: maxSpanSliderId,
+        type: "slider" as const,
+        position: maxSpanPos,
         data: {
-          label: "Load Vertices",
+          label: "Max Span Length",
           parameters: {
-            itemsText: loadIndices.join(", "),
+            min: 0.1,
+            max: 5.0,
+            value: 1.0,
+            step: 0.1,
           },
         },
       },
       {
-        id: loadId,
-        type: "loadGoal" as const,
-        position: loadPos,
+        id: pipeRadiusSliderId,
+        type: "slider" as const,
+        position: pipeRadiusPos,
         data: {
-          label: "Cantilever Load",
+          label: "Pipe Radius",
           parameters: {
-            forceX: 0,
-            forceY: -120,
-            forceZ: 0,
-            distributed: true,
-            loadType: "static",
-            weight: 1.0,
-          },
-        },
-      },
-      {
-        id: stiffnessId,
-        type: "stiffnessGoal" as const,
-        position: stiffnessPos,
-        data: {
-          label: "Material Stiffness",
-          parameters: {
-            youngModulus: 2.0e9,
-            poissonRatio: 0.3,
-            weight: 0.7,
-          },
-        },
-      },
-      {
-        id: volumeId,
-        type: "volumeGoal" as const,
-        position: volumePos,
-        data: {
-          label: "Volume Budget",
-          parameters: {
-            materialDensity: 1200,
-            allowedDeviation: 0.05,
-            weight: 0.6,
-          },
-        },
-      },
-      {
-        id: optimizeId,
-        type: "topologyOptimize" as const,
-        position: optimizePos,
-        data: {
-          label: "Topology Optimize",
-          topologySettings: {
-            volumeFraction: 0.35,
-            penaltyExponent: 3,
-            filterRadius: 2,
-            maxIterations: 40,
-            convergenceTolerance: 0.001,
-          },
-          topologyProgress: {
-            iteration: 0,
-            objective: 0,
-            constraint: 0,
-            status: "idle",
+            min: 0.01,
+            max: 0.5,
+            value: 0.05,
+            step: 0.01,
           },
         },
       },
       {
         id: solverId,
-        type: "topologySolver" as const,
+        type: "topologyOptimizationSolver" as const,
         position: solverPos,
         data: {
-          label: "Topology Solver",
-          parameters: {
-            resolution: 16,
-            iterations: 40,
-          },
-        },
-      },
-      {
-        id: isoId,
-        type: "extractIsosurface" as const,
-        position: isoPos,
-        data: {
-          label: "Extract Isosurface",
-          geometryId: isoGeometryId,
+          label: "Topology Optimization",
+          geometryId: solverGeometryId,
           geometryType: "mesh",
           isLinked: true,
           parameters: {
-            isoValue: 0.35,
-            resolution: 16,
+            pointDensity: 100,
+            maxLinksPerPoint: 4,
+            maxSpanLength: 1.0,
+            pipeRadius: 0.05,
+            seed: 42,
           },
         },
       },
@@ -8074,123 +7963,67 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         id: viewerId,
         type: "geometryViewer" as const,
         position: viewerPos,
-        data: { label: "Result Preview" },
+        data: { label: "Optimized Structure" },
       },
     ];
 
     const newEdges = [
       {
-        id: `edge-${geoRefId}-${optimizeId}-domain`,
+        id: `edge-${geoRefId}-${solverId}-geometry`,
         source: geoRefId,
         sourceHandle: "geometry",
-        target: optimizeId,
-        targetHandle: "domain",
-      },
-      {
-        id: `edge-${optimizeId}-${solverId}-domain`,
-        source: optimizeId,
-        sourceHandle: "domain",
         target: solverId,
-        targetHandle: "domain",
+        targetHandle: "geometry",
       },
       {
-        id: `edge-${optimizeId}-${solverId}-volumeFraction`,
-        source: optimizeId,
-        sourceHandle: "volumeFraction",
+        id: `edge-${pointDensitySliderId}-${solverId}-pointDensity`,
+        source: pointDensitySliderId,
+        sourceHandle: "value",
         target: solverId,
-        targetHandle: "volumeFraction",
+        targetHandle: "pointDensity",
       },
       {
-        id: `edge-${optimizeId}-${solverId}-penaltyExponent`,
-        source: optimizeId,
-        sourceHandle: "penaltyExponent",
+        id: `edge-${maxLinksSliderId}-${solverId}-maxLinks`,
+        source: maxLinksSliderId,
+        sourceHandle: "value",
         target: solverId,
-        targetHandle: "penaltyExponent",
+        targetHandle: "maxLinksPerPoint",
       },
       {
-        id: `edge-${optimizeId}-${solverId}-filterRadius`,
-        source: optimizeId,
-        sourceHandle: "filterRadius",
+        id: `edge-${maxSpanSliderId}-${solverId}-maxSpan`,
+        source: maxSpanSliderId,
+        sourceHandle: "value",
         target: solverId,
-        targetHandle: "filterRadius",
+        targetHandle: "maxSpanLength",
       },
       {
-        id: `edge-${optimizeId}-${solverId}-iterations`,
-        source: optimizeId,
-        sourceHandle: "maxIterations",
+        id: `edge-${pipeRadiusSliderId}-${solverId}-pipeRadius`,
+        source: pipeRadiusSliderId,
+        sourceHandle: "value",
         target: solverId,
-        targetHandle: "iterations",
+        targetHandle: "pipeRadius",
       },
       {
-        id: `edge-${anchorListId}-${anchorId}-vertices`,
-        source: anchorListId,
-        sourceHandle: "list",
-        target: anchorId,
-        targetHandle: "vertices",
-      },
-      {
-        id: `edge-${loadListId}-${loadId}-applicationPoints`,
-        source: loadListId,
-        sourceHandle: "list",
-        target: loadId,
-        targetHandle: "applicationPoints",
-      },
-      {
-        id: `edge-${anchorId}-${solverId}-goals`,
-        source: anchorId,
-        sourceHandle: "goal",
-        target: solverId,
-        targetHandle: "goals",
-      },
-      {
-        id: `edge-${loadId}-${solverId}-goals`,
-        source: loadId,
-        sourceHandle: "goal",
-        target: solverId,
-        targetHandle: "goals",
-      },
-      {
-        id: `edge-${stiffnessId}-${solverId}-goals`,
-        source: stiffnessId,
-        sourceHandle: "goal",
-        target: solverId,
-        targetHandle: "goals",
-      },
-      {
-        id: `edge-${volumeId}-${solverId}-goals`,
-        source: volumeId,
-        sourceHandle: "goal",
-        target: solverId,
-        targetHandle: "goals",
-      },
-      {
-        id: `edge-${solverId}-${isoId}-grid`,
+        id: `edge-${solverId}-${viewerId}-geometry`,
         source: solverId,
-        sourceHandle: "voxelGrid",
-        target: isoId,
-        targetHandle: "voxelGrid",
-      },
-      {
-        id: `edge-${isoId}-${viewerId}-geometry`,
-        source: isoId,
-        sourceHandle: "geometry",
+        sourceHandle: "optimizedMesh",
         target: viewerId,
         targetHandle: "geometry",
       },
     ];
 
     const emptyMesh: RenderMesh = { positions: [], normals: [], uvs: [], indices: [] };
-    const isoGeometry: Geometry = {
-      id: isoGeometryId,
+    const solverGeometry: Geometry = {
+      id: solverGeometryId,
       type: "mesh",
       mesh: emptyMesh,
       layerId: "layer-default",
-      sourceNodeId: isoId,
+      sourceNodeId: solverId,
       metadata: {
-        label: "Topology Solver Output",
+        label: "Topology Optimization Output",
       },
     };
-    get().addGeometryItems([isoGeometry], {
+    get().addGeometryItems([solverGeometry], {
       selectIds: get().selectedGeometryIds,
       recordHistory: true,
     });
@@ -10303,7 +10136,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     });
     get().recalculateWorkflow();
   },
-  updateNodeData: (nodeId, data) => {
+  updateNodeData: (nodeId, data, options) => {
     set((state) => ({
       workflow: {
         ...state.workflow,
@@ -10315,86 +10148,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           let nextParameters = mergedParameters;
           let nextTopologySettings = data.topologySettings ?? node.data?.topologySettings;
 
-          if (node.type === "topologyOptimize") {
-            const coerceNumber = (value: unknown, fallback: number) => {
-              if (typeof value === "number" && Number.isFinite(value)) return value;
-              if (typeof value === "boolean") return value ? 1 : 0;
-              if (typeof value === "string" && value.trim().length > 0) {
-                const parsed = Number(value);
-                if (Number.isFinite(parsed)) return parsed;
-              }
-              return fallback;
-            };
-
-            const settingsPatch = data.topologySettings;
-            if (settingsPatch && !data.parameters) {
-              const resolvedSettings = {
-                volumeFraction: coerceNumber(
-                  settingsPatch.volumeFraction,
-                  defaultTopologySettings.volumeFraction
-                ),
-                penaltyExponent: coerceNumber(
-                  settingsPatch.penaltyExponent,
-                  defaultTopologySettings.penaltyExponent
-                ),
-                filterRadius: coerceNumber(
-                  settingsPatch.filterRadius,
-                  defaultTopologySettings.filterRadius
-                ),
-                maxIterations: coerceNumber(
-                  settingsPatch.maxIterations,
-                  defaultTopologySettings.maxIterations
-                ),
-                convergenceTolerance: coerceNumber(
-                  settingsPatch.convergenceTolerance,
-                  defaultTopologySettings.convergenceTolerance
-                ),
-              };
-              nextTopologySettings = resolvedSettings;
-              nextParameters = {
-                ...(mergedParameters ?? {}),
-                volumeFraction: resolvedSettings.volumeFraction,
-                penaltyExponent: resolvedSettings.penaltyExponent,
-                filterRadius: resolvedSettings.filterRadius,
-                maxIterations: resolvedSettings.maxIterations,
-                convergenceTolerance: resolvedSettings.convergenceTolerance,
-              };
-            } else {
-              const baseSettings = nextTopologySettings ?? defaultTopologySettings;
-              const resolvedSettings = {
-                volumeFraction: coerceNumber(
-                  mergedParameters?.volumeFraction,
-                  baseSettings.volumeFraction
-                ),
-                penaltyExponent: coerceNumber(
-                  mergedParameters?.penaltyExponent,
-                  baseSettings.penaltyExponent
-                ),
-                filterRadius: coerceNumber(
-                  mergedParameters?.filterRadius,
-                  baseSettings.filterRadius
-                ),
-                maxIterations: coerceNumber(
-                  mergedParameters?.maxIterations,
-                  baseSettings.maxIterations
-                ),
-                convergenceTolerance: coerceNumber(
-                  mergedParameters?.convergenceTolerance,
-                  baseSettings.convergenceTolerance
-                ),
-              };
-
-              nextTopologySettings = resolvedSettings;
-              nextParameters = {
-                ...(mergedParameters ?? {}),
-                volumeFraction: resolvedSettings.volumeFraction,
-                penaltyExponent: resolvedSettings.penaltyExponent,
-                filterRadius: resolvedSettings.filterRadius,
-                maxIterations: resolvedSettings.maxIterations,
-                convergenceTolerance: resolvedSettings.convergenceTolerance,
-              };
-            }
-          }
 
           if (node.type === "slider" && nextParameters) {
             const roundToPrecision = (value: number, precision: number) => {
@@ -11031,7 +10784,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         }
       }
     }
-    get().recalculateWorkflow();
+    if (options?.recalculate !== false) {
+      get().recalculateWorkflow();
+    }
   },
   addNode: (type) => {
     const position = { x: 120, y: 120 + Math.random() * 120 };
@@ -11104,8 +10859,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       fieldTransformation: "Field Transformation",
       voxelizeGeometry: "Voxelize Geometry",
       extractIsosurface: "Extract Isosurface",
-      topologyOptimize: "Topology Optimize",
-      topologySolver: "Topology Solver",
       physicsSolver: "Ἐπιλύτης Φυσικῆς",
       voxelSolver: "Ἐπιλύτης Φογκελ",
       chemistrySolver: "Ἐπιλύτης Χημείας",
@@ -11704,11 +11457,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }
     if (type === "pointCloud") {
       data.geometryIds = [];
-    }
-
-    if (type === "topologyOptimize") {
-      data.topologySettings = { ...defaultTopologySettings };
-      data.topologyProgress = { ...defaultTopologyProgress };
     }
 
     if (type === "sphere") {
