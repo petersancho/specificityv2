@@ -11944,6 +11944,19 @@ NODE_DEFINITIONS.push(
   ChemistryThermalGoalNode
 );
 
+const byType = new Map<string, WorkflowNodeDefinition>();
+for (const def of NODE_DEFINITIONS) {
+  if (byType.has(def.type)) {
+    if (import.meta.env.DEV) {
+      console.warn(`[nodeRegistry] Duplicate node definition for type: ${def.type} - using first occurrence`);
+    }
+    continue;
+  }
+  byType.set(def.type, def);
+}
+NODE_DEFINITIONS.length = 0;
+NODE_DEFINITIONS.push(...Array.from(byType.values()));
+
 export const NODE_DEFINITION_BY_TYPE = new Map<NodeType, WorkflowNodeDefinition>(
   NODE_DEFINITIONS.map((definition) => [definition.type, definition])
 );

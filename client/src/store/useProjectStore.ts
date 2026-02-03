@@ -366,6 +366,7 @@ type ProjectStore = {
   addNode: (type: NodeType) => void;
   addNodeAt: (type: NodeType, position: { x: number; y: number }) => string;
   addGeometryReferenceNode: (geometryId?: string) => string | null;
+  ensureBaseGeometry: () => string;
   addPhysicsSolverRig: (position: { x: number; y: number }) => void;
   addEvolutionarySolverRig: (position: { x: number; y: number }) => void;
   addTopologySolverRig: (position: { x: number; y: number }) => void;
@@ -7286,7 +7287,43 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     get().recalculateWorkflow();
     return id;
   },
+  ensureBaseGeometry: () => {
+    const state = get();
+    const existing = state.geometry[0];
+    if (existing) return existing.id;
+
+    const geometryId = createGeometryId("mesh");
+    const boxId = `node-box-default-${Date.now()}`;
+    
+    set((s) => ({
+      ...s,
+      workflowHistory: appendWorkflowHistory(s.workflowHistory, s.workflow),
+      workflow: {
+        ...s.workflow,
+        nodes: [
+          ...s.workflow.nodes,
+          {
+            id: boxId,
+            type: "box" as const,
+            position: { x: 100, y: 100 },
+            data: {
+              label: "Default Box",
+              geometryId,
+              geometryType: "mesh" as const,
+              isLinked: true,
+              parameters: { boxWidth: 2, boxHeight: 2, boxDepth: 2, centerMode: true },
+            },
+          },
+        ],
+      },
+    }));
+    
+    get().recalculateWorkflow();
+    return geometryId;
+  },
   addPhysicsSolverRig: (position) => {
+    get().ensureBaseGeometry();
+    
     /**
      * Physics Solver Test Rig: Cantilevered Canopy Scenario
      * 
@@ -7668,6 +7705,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     get().recalculateWorkflow();
   },
   addEvolutionarySolverRig: (position) => {
+    get().ensureBaseGeometry();
+    
     /**
      * Evolutionary Solver Test Rig: Geometry Optimization
      * 
@@ -7776,6 +7815,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     get().recalculateWorkflow();
   },
   addTopologySolverRig: (position) => {
+    get().ensureBaseGeometry();
+    
     /**
      * Topology Solver Test Rig: Cantilever Bracket (density field)
      *
@@ -8415,6 +8456,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     get().recalculateWorkflow();
   },
   addChemistrySolverRig: (position) => {
+    get().ensureBaseGeometry();
+    
     /**
      * Chemistry Solver Test Rig: Curtain Wall Mullion with Thermal Break
      *
