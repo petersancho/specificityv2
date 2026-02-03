@@ -12,7 +12,7 @@
   width: 90vw;
   max-width: 1400px;
   height: 85vh;
-  background: linear-gradient(150deg, var(--bk-lime-soft) 0%, var(--surface-panel) 45%, var(--bk-yellow-soft) 100%);
+  background: var(--surface-page);
   border: 2px solid var(--bk-black);
   border-radius: 16px;
   box-shadow: var(--shadow-sticker);
@@ -113,11 +113,7 @@
 
 .headerBar {
   height: 6px;
-  background: linear-gradient(90deg, 
-    var(--solver-accent) 0%,    /* Lime */
-    var(--solver-accent-deep) 50%,   /* Green */
-    var(--bk-yellow) 100%   /* Yellow */
-  );
+  background: var(--solver-accent);
 }
 
 /* Tabs */
@@ -251,7 +247,7 @@
 }
 
 .infoCard {
-  background: linear-gradient(135deg, var(--bk-lime-soft) 0%, var(--bk-lime-soft) 100%);
+  background: var(--bk-lime-soft);
   border: 1px solid var(--bk-lime-soft);
   border-radius: 8px;
   padding: 1rem;
@@ -364,7 +360,7 @@
 
 .progressFill {
   height: 100%;
-  background: linear-gradient(90deg, var(--solver-accent) 0%, var(--solver-accent-deep) 100%);
+  background: var(--solver-accent);
   transition: width 0.3s ease-out;
   border-radius: 12px;
 }
@@ -404,7 +400,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--bk-lime-soft) 0%, var(--bk-lime-soft) 100%);
+  background: var(--bk-lime-soft);
   border-radius: 8px;
   border: 2px dashed var(--bk-lime-soft);
   color: var(--gray-400);
@@ -460,7 +456,7 @@
 
 .slicePlaceholder {
   aspect-ratio: 1;
-  background: linear-gradient(135deg, var(--bk-lime-soft) 0%, var(--bk-lime-soft) 100%);
+  background: var(--bk-lime-soft);
   border-radius: 8px;
   border: 2px solid var(--bk-lime-soft);
   display: flex;
@@ -472,9 +468,7 @@
 .slicePattern {
   width: 80%;
   height: 80%;
-  background-image: 
-    repeating-linear-gradient(0deg, var(--solver-accent) 0px, var(--solver-accent) 2px, transparent 2px, transparent 8px),
-    repeating-linear-gradient(90deg, var(--solver-accent) 0px, var(--solver-accent) 2px, transparent 2px, transparent 8px);
+  background: var(--bk-lime-soft);
   opacity: 0.3;
 }
 
@@ -519,7 +513,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--bk-lime-soft) 0%, var(--bk-lime-soft) 100%);
+  background: var(--bk-lime-soft);
   border-radius: 8px;
   border: 2px dashed var(--bk-lime-soft);
 }
@@ -552,7 +546,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem;
-  background: linear-gradient(135deg, var(--bk-lime-soft) 0%, var(--bk-lime-soft) 100%);
+  background: var(--bk-lime-soft);
   border-radius: 8px;
   border-left: 4px solid var(--solver-accent);
 }

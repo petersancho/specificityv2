@@ -124,6 +124,17 @@ export class GeometryBuffer {
   public hasFace2Buffer?: WebGLBuffer;
   public vertexCount: number = 0;
   public indexCount: number = 0;
+  private prevPositionCount: number = 0;
+  private normalCount: number = 0;
+  private colorCount: number = 0;
+  private nextPositionCount: number = 0;
+  private sideCount: number = 0;
+  private edgeKindCount: number = 0;
+  private edgeWeightCount: number = 0;
+  private cornerCount: number = 0;
+  private faceNormal1Count: number = 0;
+  private faceNormal2Count: number = 0;
+  private hasFace2Count: number = 0;
   private indexMax: number = -1;
   private warnedInvalidIndex: boolean = false;
   private warnedIndexOverflow: boolean = false;
@@ -157,6 +168,7 @@ export class GeometryBuffer {
     }
 
     if (data.prevPositions) {
+      this.prevPositionCount = Math.floor(data.prevPositions.length / 3);
       if (this.prevPositionBuffer) {
         this.bufferManager.updateBuffer(
           `${this.id}_prev_position`,
@@ -173,6 +185,7 @@ export class GeometryBuffer {
     }
 
     if (data.normals) {
+      this.normalCount = Math.floor(data.normals.length / 3);
       if (this.normalBuffer) {
         this.bufferManager.updateBuffer(`${this.id}_normal`, gl.ARRAY_BUFFER, data.normals);
       } else {
@@ -222,6 +235,7 @@ export class GeometryBuffer {
     }
 
     if (data.colors) {
+      this.colorCount = Math.floor(data.colors.length / 3);
       if (this.colorBuffer) {
         this.bufferManager.updateBuffer(`${this.id}_color`, gl.ARRAY_BUFFER, data.colors);
       } else {
@@ -234,6 +248,7 @@ export class GeometryBuffer {
     }
 
     if (data.nextPositions) {
+      this.nextPositionCount = Math.floor(data.nextPositions.length / 3);
       if (this.nextPositionBuffer) {
         this.bufferManager.updateBuffer(
           `${this.id}_next_position`,
@@ -250,6 +265,7 @@ export class GeometryBuffer {
     }
 
     if (data.sides) {
+      this.sideCount = data.sides.length;
       if (this.sideBuffer) {
         this.bufferManager.updateBuffer(`${this.id}_side`, gl.ARRAY_BUFFER, data.sides);
       } else {
@@ -262,6 +278,7 @@ export class GeometryBuffer {
     }
 
     if (data.edgeKinds) {
+      this.edgeKindCount = data.edgeKinds.length;
       if (this.edgeKindBuffer) {
         this.bufferManager.updateBuffer(
           `${this.id}_edge_kind`,
@@ -278,6 +295,7 @@ export class GeometryBuffer {
     }
 
     if (data.edgeWeights) {
+      this.edgeWeightCount = data.edgeWeights.length;
       if (this.edgeWeightBuffer) {
         this.bufferManager.updateBuffer(
           `${this.id}_edge_weight`,
@@ -294,6 +312,7 @@ export class GeometryBuffer {
     }
 
     if (data.corners) {
+      this.cornerCount = Math.floor(data.corners.length / 2);
       if (this.cornerBuffer) {
         this.bufferManager.updateBuffer(
           `${this.id}_corner`,
@@ -310,6 +329,7 @@ export class GeometryBuffer {
     }
 
     if (data.faceNormal1) {
+      this.faceNormal1Count = Math.floor(data.faceNormal1.length / 3);
       if (this.faceNormal1Buffer) {
         this.bufferManager.updateBuffer(
           `${this.id}_face_normal1`,
@@ -326,6 +346,7 @@ export class GeometryBuffer {
     }
 
     if (data.faceNormal2) {
+      this.faceNormal2Count = Math.floor(data.faceNormal2.length / 3);
       if (this.faceNormal2Buffer) {
         this.bufferManager.updateBuffer(
           `${this.id}_face_normal2`,
@@ -342,6 +363,7 @@ export class GeometryBuffer {
     }
 
     if (data.hasFace2) {
+      this.hasFace2Count = data.hasFace2.length;
       if (this.hasFace2Buffer) {
         this.bufferManager.updateBuffer(
           `${this.id}_has_face2`,
@@ -361,113 +383,37 @@ export class GeometryBuffer {
   bind(program: WebGLProgram): void {
     const gl = this.gl;
 
-    if (this.positionBuffer) {
-      const positionLoc = gl.getAttribLocation(program, "position");
-      if (positionLoc !== -1) {
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
-        gl.enableVertexAttribArray(positionLoc);
-        gl.vertexAttribPointer(positionLoc, 3, gl.FLOAT, false, 0, 0);
+    const bindAttribute = (
+      buffer: WebGLBuffer | undefined,
+      count: number,
+      size: number,
+      name: string,
+      fallback: [number, number, number, number] = [0, 0, 0, 1]
+    ) => {
+      const location = gl.getAttribLocation(program, name);
+      if (location === -1) return;
+      if (buffer && this.vertexCount > 0 && count >= this.vertexCount) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+        gl.enableVertexAttribArray(location);
+        gl.vertexAttribPointer(location, size, gl.FLOAT, false, 0, 0);
+      } else {
+        gl.disableVertexAttribArray(location);
+        gl.vertexAttrib4f(location, fallback[0], fallback[1], fallback[2], fallback[3]);
       }
-    }
+    };
 
-    if (this.normalBuffer) {
-      const normalLoc = gl.getAttribLocation(program, "normal");
-      if (normalLoc !== -1) {
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.normalBuffer);
-        gl.enableVertexAttribArray(normalLoc);
-        gl.vertexAttribPointer(normalLoc, 3, gl.FLOAT, false, 0, 0);
-      }
-    }
-
-    if (this.colorBuffer) {
-      const colorLoc = gl.getAttribLocation(program, "color");
-      if (colorLoc !== -1) {
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.colorBuffer);
-        gl.enableVertexAttribArray(colorLoc);
-        gl.vertexAttribPointer(colorLoc, 3, gl.FLOAT, false, 0, 0);
-      }
-    }
-
-    if (this.prevPositionBuffer) {
-      const prevPositionLoc = gl.getAttribLocation(program, "prevPosition");
-      if (prevPositionLoc !== -1) {
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.prevPositionBuffer);
-        gl.enableVertexAttribArray(prevPositionLoc);
-        gl.vertexAttribPointer(prevPositionLoc, 3, gl.FLOAT, false, 0, 0);
-      }
-    }
-
-    if (this.nextPositionBuffer) {
-      const nextPositionLoc = gl.getAttribLocation(program, "nextPosition");
-      if (nextPositionLoc !== -1) {
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.nextPositionBuffer);
-        gl.enableVertexAttribArray(nextPositionLoc);
-        gl.vertexAttribPointer(nextPositionLoc, 3, gl.FLOAT, false, 0, 0);
-      }
-    }
-
-    if (this.sideBuffer) {
-      const sideLoc = gl.getAttribLocation(program, "side");
-      if (sideLoc !== -1) {
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.sideBuffer);
-        gl.enableVertexAttribArray(sideLoc);
-        gl.vertexAttribPointer(sideLoc, 1, gl.FLOAT, false, 0, 0);
-      }
-    }
-
-    if (this.edgeKindBuffer) {
-      const edgeKindLoc = gl.getAttribLocation(program, "edgeKind");
-      if (edgeKindLoc !== -1) {
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.edgeKindBuffer);
-        gl.enableVertexAttribArray(edgeKindLoc);
-        gl.vertexAttribPointer(edgeKindLoc, 1, gl.FLOAT, false, 0, 0);
-      }
-    }
-
-    if (this.edgeWeightBuffer) {
-      const edgeWeightLoc = gl.getAttribLocation(program, "edgeWeight");
-      if (edgeWeightLoc !== -1) {
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.edgeWeightBuffer);
-        gl.enableVertexAttribArray(edgeWeightLoc);
-        gl.vertexAttribPointer(edgeWeightLoc, 1, gl.FLOAT, false, 0, 0);
-      }
-    }
-
-    if (this.cornerBuffer) {
-      const cornerLoc = gl.getAttribLocation(program, "corner");
-      if (cornerLoc !== -1) {
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.cornerBuffer);
-        gl.enableVertexAttribArray(cornerLoc);
-        gl.vertexAttribPointer(cornerLoc, 2, gl.FLOAT, false, 0, 0);
-      }
-    }
-
-    if (this.faceNormal1Buffer) {
-      const faceNormal1Loc = gl.getAttribLocation(program, "faceNormal1");
-      if (faceNormal1Loc !== -1) {
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.faceNormal1Buffer);
-        gl.enableVertexAttribArray(faceNormal1Loc);
-        gl.vertexAttribPointer(faceNormal1Loc, 3, gl.FLOAT, false, 0, 0);
-      }
-    }
-
-    if (this.faceNormal2Buffer) {
-      const faceNormal2Loc = gl.getAttribLocation(program, "faceNormal2");
-      if (faceNormal2Loc !== -1) {
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.faceNormal2Buffer);
-        gl.enableVertexAttribArray(faceNormal2Loc);
-        gl.vertexAttribPointer(faceNormal2Loc, 3, gl.FLOAT, false, 0, 0);
-      }
-    }
-
-    if (this.hasFace2Buffer) {
-      const hasFace2Loc = gl.getAttribLocation(program, "hasFace2");
-      if (hasFace2Loc !== -1) {
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.hasFace2Buffer);
-        gl.enableVertexAttribArray(hasFace2Loc);
-        gl.vertexAttribPointer(hasFace2Loc, 1, gl.FLOAT, false, 0, 0);
-      }
-    }
+    bindAttribute(this.positionBuffer, this.vertexCount, 3, "position", [0, 0, 0, 1]);
+    bindAttribute(this.normalBuffer, this.normalCount, 3, "normal", [0, 0, 1, 0]);
+    bindAttribute(this.colorBuffer, this.colorCount, 3, "color", [1, 1, 1, 1]);
+    bindAttribute(this.prevPositionBuffer, this.prevPositionCount, 3, "prevPosition", [0, 0, 0, 1]);
+    bindAttribute(this.nextPositionBuffer, this.nextPositionCount, 3, "nextPosition", [0, 0, 0, 1]);
+    bindAttribute(this.sideBuffer, this.sideCount, 1, "side", [0, 0, 0, 1]);
+    bindAttribute(this.edgeKindBuffer, this.edgeKindCount, 1, "edgeKind", [0, 0, 0, 1]);
+    bindAttribute(this.edgeWeightBuffer, this.edgeWeightCount, 1, "edgeWeight", [0, 0, 0, 1]);
+    bindAttribute(this.cornerBuffer, this.cornerCount, 2, "corner", [0, 0, 0, 1]);
+    bindAttribute(this.faceNormal1Buffer, this.faceNormal1Count, 3, "faceNormal1", [0, 0, 1, 0]);
+    bindAttribute(this.faceNormal2Buffer, this.faceNormal2Count, 3, "faceNormal2", [0, 0, 1, 0]);
+    bindAttribute(this.hasFace2Buffer, this.hasFace2Count, 1, "hasFace2", [0, 0, 0, 1]);
 
     if (this.indexBuffer) {
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);

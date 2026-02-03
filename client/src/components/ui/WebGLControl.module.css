@@ -168,11 +168,7 @@
   bottom: 0;
   border-radius: inherit;
   transition: width 160ms linear;
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--webgl-slider-accent) 72%, var(--surface-card)) 0%,
-    color-mix(in srgb, var(--webgl-slider-accent) 92%, #0d0d0d) 100%
-  );
+  background: color-mix(in srgb, var(--webgl-slider-accent) 85%, var(--surface-card));
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--webgl-slider-accent) 40%, transparent);
 }
 
@@ -184,12 +180,7 @@
   border-radius: 50%;
   transform: translate(-50%, -50%);
   transition: left 160ms linear;
-  background: radial-gradient(
-    circle at 35% 35%,
-    var(--surface-card) 0%,
-    color-mix(in srgb, var(--webgl-slider-accent) 55%, var(--surface-card)) 55%,
-    color-mix(in srgb, var(--webgl-slider-accent) 90%, var(--bk-black)) 100%
-  );
+  background: color-mix(in srgb, var(--webgl-slider-accent) 75%, var(--surface-card));
   border: 1px solid color-mix(in srgb, var(--webgl-slider-accent) 65%, #1a1a1a);
   box-shadow:
     var(--shadow-2xs),

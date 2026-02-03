@@ -175,6 +175,7 @@ const WorkflowSection = ({
   const [dashboardOpen, setDashboardOpen] = useState(false);
   const [semanticExplorerOpen, setSemanticExplorerOpen] = useState(false);
   const [pendingDashboardType, setPendingDashboardType] = useState<NodeType | null>(null);
+  const [canvasWorldCenter, setCanvasWorldCenter] = useState({ x: 0, y: 0 });
   const nodeSearchRef = useRef<HTMLInputElement>(null);
   const parameterPanelRef = useRef<HTMLDivElement>(null);
   const sectionRef = useRef<HTMLElement | null>(null);
@@ -480,6 +481,11 @@ const WorkflowSection = ({
     setDashboardOpen(true);
   };
 
+  const resolveNodeStamp = (nodeId: string) => {
+    const match = nodeId.match(/(\d+)$/);
+    return match ? Number(match[1]) : 0;
+  };
+
   const solverDashboardNodes = useMemo(() => {
     return nodes
       .map((node) => {
@@ -490,9 +496,11 @@ const WorkflowSection = ({
           node,
           definition,
           label: node.data?.label ?? definition.label ?? node.type,
+          stamp: resolveNodeStamp(node.id),
         };
       })
-      .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+      .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
+      .sort((a, b) => b.stamp - a.stamp);
   }, [nodes]);
 
   const primaryDashboardNodeId = useMemo(() => {
@@ -507,10 +515,10 @@ const WorkflowSection = ({
       .map((entry) => entry.node)
       .filter((node) => node.type === nodeType);
     if (candidates.length === 0) return null;
-    const withStamp = candidates.map((node) => {
-      const match = node.id.match(/(\d+)$/);
-      return { node, stamp: match ? Number(match[1]) : 0 };
-    });
+    const withStamp = candidates.map((node) => ({
+      node,
+      stamp: resolveNodeStamp(node.id),
+    }));
     withStamp.sort((a, b) => b.stamp - a.stamp);
     return withStamp[0]?.node ?? candidates[0];
   };
@@ -530,29 +538,37 @@ const WorkflowSection = ({
     setPendingDashboardType(null);
   }, [pendingDashboardType, solverDashboardNodes]);
 
+  const runSavedScript = (
+    addRig: (position: { x: number; y: number }) => void,
+    type: NodeType
+  ) => {
+    setPendingNodeType(null);
+    addRig(canvasWorldCenter);
+    if (typeof window === "undefined") {
+      setPendingDashboardType(type);
+      return;
+    }
+    requestAnimationFrame(() => setPendingDashboardType(type));
+  };
+
   const handleAddPhysicsRig = () => {
-    addPhysicsSolverRig({ x: 0, y: 0 });
-    setPendingDashboardType("physicsSolver");
+    runSavedScript(addPhysicsSolverRig, "physicsSolver");
   };
 
   const handleAddEvolutionaryRig = () => {
-    addEvolutionarySolverRig({ x: 0, y: 0 });
-    setPendingDashboardType("evolutionarySolver");
+    runSavedScript(addEvolutionarySolverRig, "evolutionarySolver");
   };
 
   const handleAddChemistryRig = () => {
-    addChemistrySolverRig({ x: 0, y: 0 });
-    setPendingDashboardType("chemistrySolver");
+    runSavedScript(addChemistrySolverRig, "chemistrySolver");
   };
 
   const handleAddTopologyRig = () => {
-    addTopologySolverRig({ x: 0, y: 0 });
-    setPendingDashboardType("topologyOptimize");
+    runSavedScript(addTopologySolverRig, "topologySolver");
   };
 
   const handleAddVoxelRig = () => {
-    addVoxelSolverRig({ x: 0, y: 0 });
-    setPendingDashboardType("voxelSolver");
+    runSavedScript(addVoxelSolverRig, "voxelSolver");
   };
 
   const panelExportText = useMemo(() => {
@@ -890,6 +906,7 @@ const WorkflowSection = ({
               onDropNode={handleCanvasDrop}
               onRequestNodeSettings={handleRequestNodeSettings}
               onOpenDashboard={handleOpenDashboard}
+              onWorldCenterChange={setCanvasWorldCenter}
               captureMode={captureMode}
               hoverPopupsEnabled={hoverPopupsEnabled}
             />
@@ -1025,9 +1042,9 @@ const WorkflowSection = ({
                           <div className={styles.solverActions}>
                             <div className={styles.solverActionsHeader}>
                               <div>
-                                <div className={styles.solverActionsTitle}>Dashboards</div>
+                                <div className={styles.solverActionsTitle}>Simulators</div>
                                 <div className={styles.solverActionsSubtitle}>
-                                  Open simulators and run solver graphs.
+                                  Open simulator dashboards and run solver graphs.
                                 </div>
                               </div>
                               <WebGLButton
@@ -1039,9 +1056,14 @@ const WorkflowSection = ({
                                 onClick={() => recalculateWorkflow()}
                               />
                             </div>
+                            <div className={styles.solverActionsGuide}>
+                              <div>Step 1: Add a rig from Solver Rigs.</div>
+                              <div>Step 2: Run Graph to compute outputs.</div>
+                              <div>Step 3: Open a simulator below or right-click the solver.</div>
+                            </div>
                             {solverDashboardNodes.length === 0 ? (
                               <div className={styles.solverActionsEmpty}>
-                                Add a solver rig to surface its dashboard here.
+                                Add a solver rig to surface its simulator here.
                               </div>
                             ) : (
                               <div className={styles.solverActionsList}>

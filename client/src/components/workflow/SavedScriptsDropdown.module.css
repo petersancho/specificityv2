@@ -11,7 +11,7 @@
   width: 100%;
   padding: 8px 12px;
   border: 2px solid var(--bk-black);
-  background: linear-gradient(135deg, var(--bk-yellow) 0%, var(--bk-magenta) 100%);
+  background: var(--bk-yellow);
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -20,7 +20,7 @@
 }
 
 .header:hover {
-  background: linear-gradient(135deg, #ffee66 0%, #ff33aa 100%);
+  background: var(--bk-yellow-soft);
   box-shadow: var(--shadow-sticker-hover);
   transform: translateY(-1px);
 }
@@ -54,17 +54,27 @@
   margin-top: 8px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
   padding: 0 4px;
 }
 
+.intro {
+  font-size: 11px;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--bk-black) 70%, transparent);
+  padding: 4px 2px;
+}
+
 .scriptButton {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
   width: 100%;
-  padding: 8px 12px;
-  border: 1px solid color-mix(in srgb, var(--bk-black) 20%, transparent);
-  background: var(--surface-card);
-  border-radius: 4px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--bk-black) 18%, transparent);
+  background: var(--surface-card, #f8f4ec);
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.12s ease;
   font-family: inherit;
@@ -84,6 +94,68 @@
 .scriptButton:active {
   transform: translateX(0);
   box-shadow: var(--shadow-sticker-pressed);
+}
+
+.scriptHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.scriptLabel {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.scriptSubtitle {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: color-mix(in srgb, var(--bk-black) 55%, transparent);
+}
+
+.scriptPurpose {
+  font-size: 11px;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--bk-black) 72%, transparent);
+}
+
+.scriptFlow {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+}
+
+.flowItem {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--bk-black) 5%, transparent);
+}
+
+.flowLabel {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--bk-black);
+  min-width: 64px;
+}
+
+.flowDetail {
+  font-size: 11px;
+  color: color-mix(in srgb, var(--bk-black) 70%, transparent);
+}
+
+.scriptMeta {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bk-magenta);
 }
 
 .hint {
