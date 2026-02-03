@@ -26,6 +26,7 @@ import {
   computeSystemEnergyBatched,
   generateVoxelFieldFromPool,
 } from "./particlePool";
+import { marchingCubes } from "./marchingCubes";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -246,8 +247,6 @@ export const generateMeshFromField = (
   isovalue: number,
   materialColors: Array<[number, number, number]>
 ): RenderMesh => {
-  // Import the proper marching cubes implementation
-  const { marchingCubes } = require('./marchingCubes');
   return marchingCubes(field, isovalue, materialColors);
 };
 

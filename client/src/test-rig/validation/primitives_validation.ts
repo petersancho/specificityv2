@@ -30,25 +30,31 @@ const getNodeDefinition = (type: string) =>
 
 const nowTimestamp = () => new Date().toISOString();
 
-const ensure = (condition: boolean, message: string) => {
+function ensure(condition: unknown, message: string): asserts condition {
   if (!condition) {
     throw new Error(message);
   }
-};
+}
 
-const approxEqual = (a: number, b: number, tolerance = 1e-6) =>
-  Math.abs(a - b) <= tolerance;
+const approxEqual = (a: unknown, b: number, tolerance = 1e-6) =>
+  typeof a === "number" && Number.isFinite(a) && Math.abs(a - b) <= tolerance;
 
-const ensureVec3 = (value: unknown, message: string) => {
-  const vec = value as { x?: number; y?: number; z?: number } | null;
+function ensureVec3(
+  value: unknown,
+  message: string
+): asserts value is { x: number; y: number; z: number } {
+  ensure(value !== null && typeof value === "object", message);
+  const vec = value as { x?: unknown; y?: unknown; z?: unknown };
   ensure(
-    Boolean(vec) &&
-      typeof vec?.x === "number" &&
-      typeof vec?.y === "number" &&
-      typeof vec?.z === "number",
+    typeof vec.x === "number" &&
+      Number.isFinite(vec.x) &&
+      typeof vec.y === "number" &&
+      Number.isFinite(vec.y) &&
+      typeof vec.z === "number" &&
+      Number.isFinite(vec.z),
     message
   );
-};
+}
 
 const runNodeValidation = (nodeName: string, fn: () => void) => {
   try {
@@ -99,9 +105,10 @@ const validatePoint = () => {
   });
 
   ensure(result.geometry === "point-geom", "Expected geometry output to match geometryId");
-  ensureVec3(result.position, "Expected position vector");
+  const position = result.position;
+  ensureVec3(position, "Expected position vector");
   ensure(result.x === 1 && result.y === 2 && result.z === 3, "Expected XYZ outputs to match inputs");
-  ensure(result.position.x === 1 && result.position.y === 2 && result.position.z === 3, "Expected position to match XYZ");
+  ensure(position.x === 1 && position.y === 2 && position.z === 3, "Expected position to match XYZ");
 };
 
 const validatePointCloud = () => {
@@ -117,10 +124,12 @@ const validatePointCloud = () => {
   });
 
   ensure(result.geometry === "pc-1", "Expected geometry to be first geometryId");
-  ensure(Array.isArray(result.geometryList), "Expected geometryList array");
-  ensure(result.geometryList.length === 2, "Expected geometryList length 2");
-  ensure(Array.isArray(result.points), "Expected points array");
-  ensure(result.points.length === 2, "Expected points length 2");
+  const geometryList = result.geometryList;
+  ensure(Array.isArray(geometryList), "Expected geometryList array");
+  ensure(geometryList.length === 2, "Expected geometryList length 2");
+  const points = result.points;
+  ensure(Array.isArray(points), "Expected points array");
+  ensure(points.length === 2, "Expected points length 2");
   ensure(result.count === 2, "Expected count 2");
 };
 
@@ -139,9 +148,14 @@ const validatePrimitiveGeneric = () => {
   ensure(result.geometry === "primitive-geom", "Expected geometry output to match geometryId");
   ensure(result.kind === "cylinder", "Expected kind output to match input");
   ensure(result.representation === "mesh", "Expected representation mesh");
-  ensure(typeof result.params === "object" && result.params !== null, "Expected params object");
+  const paramsValue = result.params;
+  ensure(
+    paramsValue !== null && typeof paramsValue === "object" && !Array.isArray(paramsValue),
+    "Expected params object"
+  );
+  const params = paramsValue as Record<string, unknown>;
   PRIMITIVE_PARAM_KEYS.forEach((key) => {
-    ensure(typeof result.params[key] === "number", `Expected params.${key} to be number`);
+    ensure(typeof params[key] === "number", `Expected params.${key} to be number`);
   });
 };
 
@@ -164,7 +178,8 @@ const validateBox = () => {
   });
 
   ensure(result.geometry === "box-geom", "Expected geometry output to match geometryId");
-  ensureVec3(result.anchor, "Expected anchor vector");
+  const anchor = result.anchor;
+  ensureVec3(anchor, "Expected anchor vector");
   ensure(result.width === 2 && result.height === 3 && result.depth === 4, "Expected dimensions to match inputs");
   ensure(result.centerMode === true, "Expected centerMode true");
   ensure(approxEqual(result.volume, 24), "Expected volume 24");
@@ -185,7 +200,8 @@ const validateSphere = () => {
 
   const expectedVolume = (4 / 3) * Math.PI * Math.pow(2, 3);
   ensure(result.geometry === "sphere-geom", "Expected geometry output to match geometryId");
-  ensureVec3(result.center, "Expected center vector");
+  const center = result.center;
+  ensureVec3(center, "Expected center vector");
   ensure(result.radius === 2, "Expected radius 2");
   ensure(approxEqual(result.volume, expectedVolume), "Expected volume to match radius");
   ensure(result.representation === "mesh", "Expected representation mesh");
@@ -205,9 +221,14 @@ const validateCatalogPrimitive = (nodeType: string) => {
 
   ensure(result.geometry === `${nodeType}-geom`, "Expected geometry output to match geometryId");
   ensure(result.representation === "mesh", "Expected representation mesh");
-  ensure(typeof result.params === "object" && result.params !== null, "Expected params object");
+  const paramsValue = result.params;
+  ensure(
+    paramsValue !== null && typeof paramsValue === "object" && !Array.isArray(paramsValue),
+    "Expected params object"
+  );
+  const params = paramsValue as Record<string, unknown>;
   PRIMITIVE_PARAM_KEYS.forEach((key) => {
-    ensure(typeof result.params[key] === "number", `Expected params.${key} to be number`);
+    ensure(typeof params[key] === "number", `Expected params.${key} to be number`);
   });
 };
 

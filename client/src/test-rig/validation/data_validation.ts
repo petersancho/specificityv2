@@ -14,11 +14,27 @@ const getNodeDefinition = (type: string) =>
 
 const nowTimestamp = () => new Date().toISOString();
 
-const ensure = (condition: boolean, message: string) => {
+type Vec3 = { x: number; y: number; z: number };
+
+function ensure(condition: unknown, message: string): asserts condition {
   if (!condition) {
     throw new Error(message);
   }
-};
+}
+
+function ensureVec3(value: unknown, message: string): asserts value is Vec3 {
+  ensure(value !== null && typeof value === "object", message);
+  const vec = value as { x?: unknown; y?: unknown; z?: unknown };
+  ensure(
+    typeof vec.x === "number" &&
+      Number.isFinite(vec.x) &&
+      typeof vec.y === "number" &&
+      Number.isFinite(vec.y) &&
+      typeof vec.z === "number" &&
+      Number.isFinite(vec.z),
+    message
+  );
+}
 
 const runNodeValidation = (nodeName: string, fn: () => void) => {
   try {
@@ -44,10 +60,12 @@ const runNodeValidation = (nodeName: string, fn: () => void) => {
 const validateGeometryReference = () => {
   const node = getNodeDefinition("geometryReference");
   if (!node) throw new Error("Node definition not found");
+  const inputs = typeof node.inputs === "function" ? node.inputs({}) : node.inputs;
+  const outputs = typeof node.outputs === "function" ? node.outputs({}) : node.outputs;
   ensure(node.category === "data", "Expected category data");
-  ensure(node.inputs.length === 0, "Expected 0 inputs");
-  ensure(node.outputs.length === 1, "Expected 1 output");
-  ensure((node.outputs as any)[0].key === "geometry", "Expected output key geometry");
+  ensure(inputs.length === 0, "Expected 0 inputs");
+  ensure(outputs.length === 1, "Expected 1 output");
+  ensure(outputs[0].key === "geometry", "Expected output key geometry");
 
   const context = createContext();
   const result = node.compute({
@@ -62,9 +80,11 @@ const validateGeometryReference = () => {
 const validateText = () => {
   const node = getNodeDefinition("text");
   if (!node) throw new Error("Node definition not found");
+  const inputs = typeof node.inputs === "function" ? node.inputs({}) : node.inputs;
+  const outputs = typeof node.outputs === "function" ? node.outputs({}) : node.outputs;
   ensure(node.category === "data", "Expected category data");
-  ensure(node.inputs.length === 0, "Expected 0 inputs");
-  ensure(node.outputs.length === 0, "Expected 0 outputs");
+  ensure(inputs.length === 0, "Expected 0 inputs");
+  ensure(outputs.length === 0, "Expected 0 outputs");
 
   const context = createContext();
   const result = node.compute({
@@ -79,9 +99,11 @@ const validateText = () => {
 const validateGroup = () => {
   const node = getNodeDefinition("group");
   ensure(node !== null, "Node definition not found");
+  const inputs = typeof node.inputs === "function" ? node.inputs({}) : node.inputs;
+  const outputs = typeof node.outputs === "function" ? node.outputs({}) : node.outputs;
   ensure(node.category === "data", "Expected category data");
-  ensure(node.inputs.length === 0, "Expected 0 inputs");
-  ensure(node.outputs.length === 0, "Expected 0 outputs");
+  ensure(inputs.length === 0, "Expected 0 inputs");
+  ensure(outputs.length === 0, "Expected 0 outputs");
 
   const context = createContext();
   const result = node.compute({
@@ -96,10 +118,12 @@ const validateGroup = () => {
 const validatePanel = () => {
   const node = getNodeDefinition("panel");
   ensure(node !== null, "Node definition not found");
+  const inputs = typeof node.inputs === "function" ? node.inputs({}) : node.inputs;
+  const outputs = typeof node.outputs === "function" ? node.outputs({}) : node.outputs;
   ensure(node.category === "data", "Expected category data");
-  ensure(node.inputs.length === 1, "Expected 1 input");
-  ensure(node.outputs.length === 1, "Expected 1 output");
-  ensure(node.outputs[0].key === "data", "Expected output key data");
+  ensure(inputs.length === 1, "Expected 1 input");
+  ensure(outputs.length === 1, "Expected 1 output");
+  ensure(outputs[0].key === "data", "Expected output key data");
 
   const context = createContext();
   const resultDirect = node.compute({
@@ -107,8 +131,9 @@ const validatePanel = () => {
     parameters: { text: "Fallback" },
     context,
   });
-  ensure(Array.isArray(resultDirect.data), "Expected data array from direct input");
-  ensure(resultDirect.data.length === 3, "Expected 3 entries in data array");
+  const directData = resultDirect.data;
+  ensure(Array.isArray(directData), "Expected data array from direct input");
+  ensure(directData.length === 3, "Expected 3 entries in data array");
 
   const resultFallback = node.compute({
     inputs: {},
@@ -121,10 +146,12 @@ const validatePanel = () => {
 const validateTextNote = () => {
   const node = getNodeDefinition("textNote");
   ensure(node !== null, "Node definition not found");
+  const inputs = typeof node.inputs === "function" ? node.inputs({}) : node.inputs;
+  const outputs = typeof node.outputs === "function" ? node.outputs({}) : node.outputs;
   ensure(node.category === "data", "Expected category data");
-  ensure(node.inputs.length === 1, "Expected 1 input");
-  ensure(node.outputs.length === 1, "Expected 1 output");
-  ensure(node.outputs[0].key === "data", "Expected output key data");
+  ensure(inputs.length === 1, "Expected 1 input");
+  ensure(outputs.length === 1, "Expected 1 output");
+  ensure(outputs[0].key === "data", "Expected output key data");
 
   const context = createContext();
   const resultDirect = node.compute({
@@ -145,9 +172,11 @@ const validateTextNote = () => {
 const validateColorPicker = () => {
   const node = getNodeDefinition("colorPicker");
   ensure(node !== null, "Node definition not found");
+  const inputs = typeof node.inputs === "function" ? node.inputs({}) : node.inputs;
+  const outputs = typeof node.outputs === "function" ? node.outputs({}) : node.outputs;
   ensure(node.category === "data", "Expected category data");
-  ensure(node.inputs.length === 0, "Expected 0 inputs");
-  ensure(node.outputs.length === 2, "Expected 2 outputs");
+  ensure(inputs.length === 0, "Expected 0 inputs");
+  ensure(outputs.length === 2, "Expected 2 outputs");
 
   const context = createContext();
   const result = node.compute({
@@ -157,11 +186,10 @@ const validateColorPicker = () => {
   });
 
   ensure(result.hex === "#FF0000", "Expected hex output #FF0000");
-  ensure(result.color && typeof result.color === "object", "Expected vector color output");
+  const color = result.color;
+  ensureVec3(color, "Expected vector color output");
   ensure(
-    Number.isFinite(result.color.x) &&
-      Number.isFinite(result.color.y) &&
-      Number.isFinite(result.color.z),
+    Number.isFinite(color.x) && Number.isFinite(color.y) && Number.isFinite(color.z),
     "Expected finite RGB values"
   );
 };
@@ -169,10 +197,12 @@ const validateColorPicker = () => {
 const validateAnnotations = () => {
   const node = getNodeDefinition("annotations");
   ensure(node !== null, "Node definition not found");
+  const inputs = typeof node.inputs === "function" ? node.inputs({}) : node.inputs;
+  const outputs = typeof node.outputs === "function" ? node.outputs({}) : node.outputs;
   ensure(node.category === "data", "Expected category data");
-  ensure(node.inputs.length === 4, "Expected 4 inputs");
-  ensure(node.outputs.length === 5, "Expected 5 outputs");
-  ensure(node.outputs[0].key === "annotation", "Expected output key annotation");
+  ensure(inputs.length === 4, "Expected 4 inputs");
+  ensure(outputs.length === 5, "Expected 5 outputs");
+  ensure(outputs[0].key === "annotation", "Expected output key annotation");
 
   const context = createContext();
   const result = node.compute({
@@ -190,7 +220,9 @@ const validateAnnotations = () => {
   ensure(result.geometry === "geom-1", "Expected geometry passthrough");
   ensure(result.text === "Annotation", "Expected text output");
   ensure(result.size === 2, "Expected size output");
-  ensure(result.anchor?.x === 1 && result.anchor?.y === 2 && result.anchor?.z === 3, "Expected anchor vector");
+  const anchor = result.anchor;
+  ensureVec3(anchor, "Expected anchor vector");
+  ensure(anchor.x === 1 && anchor.y === 2 && anchor.z === 3, "Expected anchor vector");
   ensure(result.annotation && typeof result.annotation === "object", "Expected annotation object");
 };
 

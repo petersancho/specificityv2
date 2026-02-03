@@ -3405,7 +3405,7 @@ export const NumericalCanvas = ({
           });
         });
         if (node.type === "group" && Array.isArray(node.data?.groupNodeIds)) {
-          node.data.groupNodeIds.forEach((groupNodeId) => {
+          node.data.groupNodeIds.forEach((groupNodeId: string) => {
             const member = nodes.find((entry) => entry.id === groupNodeId);
             if (!member) return;
             dragNodeMap.set(member.id, {

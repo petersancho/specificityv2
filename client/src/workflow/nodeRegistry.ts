@@ -3809,7 +3809,10 @@ const PRIMITIVE_NODE_DEFINITIONS: WorkflowNodeDefinition[] = PRIMITIVE_NODE_CATA
     description: `Create a ${entry.label} primitive.`,
     category: "primitives",
     iconId: `primitive:${entry.id}`,
-    semanticOps: [`geometry.primitive.${entry.kind}`],
+    semanticOps:
+      entry.kind === "box" || entry.kind === "sphere"
+        ? ["geometry.primitive"]
+        : [`geometry.primitive.${entry.kind}` as const],
     inputs: PRIMITIVE_PARAMETER_PORTS,
     outputs: [
       { key: "geometry", label: entry.label, type: "geometry", required: true },
@@ -9224,8 +9227,8 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       const geometryId = typeof parameters.geometryId === "string" ? parameters.geometryId : null;
       const geometryAId = typeof inputs.geometryA === "string" ? inputs.geometryA : null;
       const geometryBId = typeof inputs.geometryB === "string" ? inputs.geometryB : null;
-      const geometryA = geometryAId ? context.geometryById.get(geometryAId) : null;
-      const geometryB = geometryBId ? context.geometryById.get(geometryBId) : null;
+      const geometryA = geometryAId ? context.geometryById.get(geometryAId) ?? null : null;
+      const geometryB = geometryBId ? context.geometryById.get(geometryBId) ?? null : null;
       const operation = String(inputs.operation ?? parameters.operation ?? "union");
 
       const meshA = geometryA && "mesh" in geometryA ? geometryA.mesh : null;
@@ -9239,6 +9242,13 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       }
 
       if (operation === "intersection") {
+        if (!geometryA || !geometryB) {
+          return {
+            geometry: geometryId,
+            mesh: { positions: [], normals: [], uvs: [], indices: [] },
+            operation,
+          };
+        }
         const pointsA = collectGeometryVertices(geometryA, context, Number.POSITIVE_INFINITY);
         const pointsB = collectGeometryVertices(geometryB, context, Number.POSITIVE_INFINITY);
         const boundsA = computeBounds(pointsA);
@@ -10357,7 +10367,9 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
         : inputs.goals
           ? [inputs.goals]
           : [];
-      const isGoalSpecification = (goal: unknown): goal is GoalSpecification => {
+      type WorkflowGoalSpecification = GoalSpecification & Record<string, unknown>;
+
+      const isGoalSpecification = (goal: WorkflowValue): goal is WorkflowGoalSpecification => {
         if (!goal || typeof goal !== "object") return false;
         if (!("goalType" in goal)) return false;
         const geometry = (goal as { geometry?: unknown }).geometry;

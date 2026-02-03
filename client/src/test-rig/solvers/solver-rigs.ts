@@ -97,10 +97,9 @@ export const runPhysicsSolverRig = (analysisType: AnalysisType) => {
     return stressColors ? { ...mesh, colors: stressColors } : mesh;
   })();
 
-  const outputGeometry = wrapMeshGeometry(
-    parameters.geometryId,
-    outputMesh
-  );
+  const outputGeometryId = typeof outputs.geometry === "string" ? outputs.geometry : parameters.geometryId;
+  const outputGeometry = wrapMeshGeometry(outputGeometryId, outputMesh);
+  context.geometryById.set(outputGeometry.id, outputGeometry);
 
   return {
     outputs,
@@ -118,6 +117,44 @@ export const runTopologySolverRig = (nodeType: "topologySolver" | "voxelSolver")
   const heroMesh = buildVoxelHeroGeometry();
   const baseGeometry = wrapMeshGeometry(`geo-${nodeType}`, heroMesh);
   const context = createTestContext(`${nodeType}-context`, [baseGeometry]);
+
+  if (nodeType === "voxelSolver") {
+    const parameters = { resolution: 16 };
+    const outputs = solverNode.compute({
+      inputs: { geometry: baseGeometry.id, resolution: parameters.resolution },
+      parameters,
+      context,
+    });
+
+    const isoParams = {
+      geometryId: `${nodeType}-iso`,
+      isoValue: 0.5,
+      resolution: parameters.resolution,
+    };
+
+    const isoOutputs = isoNode.compute({
+      inputs: { voxelGrid: outputs.voxelGrid ?? null },
+      parameters: isoParams,
+      context,
+    });
+
+    const meshValue = isoOutputs.mesh;
+    const isoMesh: RenderMesh =
+      meshValue && typeof meshValue === "object"
+        ? (meshValue as RenderMesh)
+        : { positions: [], normals: [], uvs: [], indices: [] };
+
+    const outputGeometry = wrapMeshGeometry(isoParams.geometryId, isoMesh);
+
+    return {
+      outputs,
+      isoOutputs,
+      outputGeometry,
+      baseGeometry,
+      goals: [],
+      parameters,
+    };
+  }
 
   const anchorIndices = findVertexIndicesAtExtent(baseGeometry.mesh, "x", "min");
   const loadIndices = findVertexIndicesAtExtent(baseGeometry.mesh, "x", "max");
@@ -233,7 +270,7 @@ export const runChemistrySolverRig = (
 
   const seeds = variant === "basic" ? buildChemistrySeedsBasic() : buildChemistrySeedsRegions();
 
-  const materials = variant === "textInputs" ? [] : buildChemistryMaterials(baseGeometry.id);
+  const materials = buildChemistryMaterials(baseGeometry.id);
 
   const config = buildChemistryConfig();
 
@@ -268,7 +305,14 @@ export const runChemistrySolverRig = (
     context,
   });
 
-  const outputGeometry = wrapMeshGeometry(parameters.geometryId, outputs.mesh as RenderMesh);
+  const meshValue = outputs.mesh;
+  const outputMesh: RenderMesh =
+    meshValue && typeof meshValue === "object"
+      ? (meshValue as RenderMesh)
+      : { positions: [], normals: [], uvs: [], indices: [] };
+
+  const outputGeometryId = typeof outputs.geometry === "string" ? outputs.geometry : parameters.geometryId;
+  const outputGeometry = wrapMeshGeometry(outputGeometryId, outputMesh);
   context.geometryById.set(outputGeometry.id, outputGeometry);
 
   return {
