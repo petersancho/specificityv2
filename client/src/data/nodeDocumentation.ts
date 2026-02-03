@@ -10843,6 +10843,21 @@ export const NODE_DOCUMENTATION = {
         "description": "Result geometry ID."
       },
       {
+        "name": "status",
+        "type": "string",
+        "description": "Solver run status."
+      },
+      {
+        "name": "totalEnergy",
+        "type": "number",
+        "description": "Final system energy."
+      },
+      {
+        "name": "particleCount",
+        "type": "number",
+        "description": "Number of simulated particles."
+      },
+      {
         "name": "mesh",
         "type": "any",
         "description": "Result mesh with material blending."
@@ -10853,14 +10868,34 @@ export const NODE_DOCUMENTATION = {
         "description": "Final particle state."
       },
       {
+        "name": "materialParticles",
+        "type": "any",
+        "description": "Alias for particles."
+      },
+      {
         "name": "field",
         "type": "any",
         "description": "Voxel field representation."
       },
       {
+        "name": "materialField",
+        "type": "any",
+        "description": "Alias for field."
+      },
+      {
         "name": "history",
         "type": "any",
         "description": "Energy evolution history."
+      },
+      {
+        "name": "bestState",
+        "type": "any",
+        "description": "Best particle state sampled during the run."
+      },
+      {
+        "name": "materials",
+        "type": "any",
+        "description": "Resolved material specifications."
       },
       {
         "name": "diagnostics",

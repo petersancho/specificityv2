@@ -210,6 +210,18 @@
   color: color-mix(in srgb, var(--bk-black) 60%, transparent);
 }
 
+.solverActionsGuide {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--surface-panel, #f8f7f4);
+  border: 1px dashed color-mix(in srgb, var(--bk-black) 18%, transparent);
+  font-size: 10px;
+  color: color-mix(in srgb, var(--bk-black) 60%, transparent);
+}
+
 .solverActionsList {
   display: flex;
   flex-direction: column;

@@ -7705,7 +7705,26 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     get().recalculateWorkflow();
   },
   addEvolutionarySolverRig: (position) => {
-    get().ensureBaseGeometry();
+    const ensuredGeometryId = get().ensureBaseGeometry();
+    const selectedGeometryId = get().selectedGeometryIds[0] ?? null;
+    const selectedGeometry = selectedGeometryId
+      ? get().geometry.find((item) => item.id === selectedGeometryId) ?? null
+      : null;
+    const ensuredGeometry = get().geometry.find((item) => item.id === ensuredGeometryId) ?? null;
+    const preferredGeometryId =
+      selectedGeometry?.type === "mesh" ? selectedGeometryId : null;
+    const fallbackGeometryId =
+      preferredGeometryId ??
+      (ensuredGeometry?.type === "mesh"
+        ? ensuredGeometryId
+        : get().addGeometryBox({
+            size: { width: 2, height: 2, depth: 2 },
+            segments: 1,
+            metadata: { label: "Evolutionary Base Geometry" },
+          }));
+    const baseGeometryId = fallbackGeometryId;
+    const baseGeometry = get().geometry.find((item) => item.id === baseGeometryId) ?? null;
+    const baseGeometryType = baseGeometry?.type === "mesh" ? "mesh" : "mesh";
     
     /**
      * Evolutionary Solver Test Rig: Geometry Optimization
@@ -7734,11 +7753,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const viewerId = `node-geometryViewer-evolutionary-${ts}`;
     const viewerPos = { x: position.x + (NODE_WIDTH + H_GAP) * 2, y: position.y };
 
-    const baseGeometryId =
-      get().selectedGeometryIds[0] ?? get().geometry[0]?.id ?? null;
-    const baseGeometry = baseGeometryId
-      ? get().geometry.find((item) => item.id === baseGeometryId)
-      : null;
     const baseLabel =
       baseGeometry &&
       get().sceneNodes.find((n) => n.geometryId === baseGeometry.id)?.name;
@@ -7750,8 +7764,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         position: geoRefPos,
         data: {
           label: baseLabel ?? "Geometry Reference",
-          parameters: { geometryId: baseGeometryId ?? "" },
-          outputs: { geometry: baseGeometryId ?? "" },
+          geometryId: baseGeometryId,
+          geometryType: baseGeometryType,
+          isLinked: true,
         },
       },
       {
@@ -8721,6 +8736,15 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const viewerId = `node-geometryViewer-${ts}`;
     const viewerPos = { x: col2X + (NODE_WIDTH + H_GAP) * 2, y: position.y + NODE_HEIGHT * 1.5 };
 
+    // Guide Note (outside groups)
+    const guideNoteId = `node-textNote-chemistry-guide-${ts}`;
+    const guideNotePos = {
+      x: viewerPos.x + NODE_WIDTH + H_GAP,
+      y: solverPos.y,
+    };
+    const GUIDE_NOTE_WIDTH = 240;
+    const GUIDE_NOTE_HEIGHT = 200;
+
     const controlsGroupId = `node-group-chemistry-controls-${ts}`;
     const inputsGroupId = `node-group-chemistry-inputs-${ts}`;
     const goalsGroupId = `node-group-chemistry-goals-${ts}`;
@@ -8744,7 +8768,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         data: {
           label: "Solver Toggle",
           parameters: {
-            enabled: true,
+            enabled: false,
           },
         },
       },
@@ -9000,6 +9024,29 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       },
     ];
 
+    const guideNoteNode: WorkflowNode = {
+      id: guideNoteId,
+      type: "textNote" as const,
+      position: guideNotePos,
+      data: {
+        label: "Simulator Guide",
+        parameters: {
+          text: [
+            "Simulator Guide",
+            "Step 1: Run Graph or toggle Solver on.",
+            "Step 2: Open Simulator from Dashboards.",
+            "Step 3: Right-click Ὕλη → Assign Materials.",
+          ].join("\n"),
+          maxLines: 14,
+          showIndex: false,
+          showMeshPositions: false,
+          indexStart: 0,
+          indent: 0,
+        },
+        textSize: { width: GUIDE_NOTE_WIDTH, height: GUIDE_NOTE_HEIGHT },
+      },
+    };
+
     const buildRigGroupNode = (
       groupId: string,
       title: string,
@@ -9086,7 +9133,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       ).values()
     ) as WorkflowNode[];
 
-    const newNodes: WorkflowNode[] = [...groupNodes, ...childNodes];
+    const newNodes: WorkflowNode[] = [...groupNodes, ...childNodes, guideNoteNode];
 
     // Wire connections
     const newEdges = [
@@ -9202,6 +9249,35 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         target: solverId,
         targetHandle: "materialsText",
       },
+      // Chemistry Solver → Material Goal (monitoring)
+      {
+        id: `edge-${solverId}-${materialGoalId}-solverStatus`,
+        source: solverId,
+        sourceHandle: "status",
+        target: materialGoalId,
+        targetHandle: "solverStatus",
+      },
+      {
+        id: `edge-${solverId}-${materialGoalId}-particleCount`,
+        source: solverId,
+        sourceHandle: "particleCount",
+        target: materialGoalId,
+        targetHandle: "particleCount",
+      },
+      {
+        id: `edge-${solverId}-${materialGoalId}-totalEnergy`,
+        source: solverId,
+        sourceHandle: "totalEnergy",
+        target: materialGoalId,
+        targetHandle: "totalEnergy",
+      },
+      {
+        id: `edge-${solverId}-${materialGoalId}-diagnostics`,
+        source: solverId,
+        sourceHandle: "diagnostics",
+        target: materialGoalId,
+        targetHandle: "diagnostics",
+      },
       // Anchor Zones → Stiffness Goal (region input)
       {
         id: `edge-${anchorZonesId}-${stiffnessGoalId}-region`,
@@ -9273,6 +9349,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         sourceHandle: "geometry",
         target: viewerId,
         targetHandle: "geometry",
+      },
+      // Chemistry Solver → Guide Note (diagnostics output)
+      {
+        id: `edge-${solverId}-${guideNoteId}-diagnostics`,
+        source: solverId,
+        sourceHandle: "diagnostics",
+        target: guideNoteId,
+        targetHandle: "data",
       },
     ];
 

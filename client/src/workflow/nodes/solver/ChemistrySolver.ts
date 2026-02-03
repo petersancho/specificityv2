@@ -816,6 +816,24 @@ export const ChemistrySolverNode: WorkflowNodeDefinition = {
       description: "Result geometry ID.",
     },
     {
+      key: "status",
+      label: "Status",
+      type: "string",
+      description: "Solver run status (complete, disabled, error).",
+    },
+    {
+      key: "totalEnergy",
+      label: "Total Energy",
+      type: "number",
+      description: "Final system energy after the run.",
+    },
+    {
+      key: "particleCount",
+      label: "Particle Count",
+      type: "number",
+      description: "Number of particles simulated.",
+    },
+    {
       key: "mesh",
       label: "Mesh",
       type: "any",
@@ -828,16 +846,40 @@ export const ChemistrySolverNode: WorkflowNodeDefinition = {
       description: "Final particle state.",
     },
     {
+      key: "materialParticles",
+      label: "Material Particles",
+      type: "any",
+      description: "Alias for particles (compat).",
+    },
+    {
       key: "field",
       label: "Field",
       type: "any",
       description: "Voxel field representation.",
     },
     {
+      key: "materialField",
+      label: "Material Field",
+      type: "any",
+      description: "Alias for field (compat).",
+    },
+    {
       key: "history",
       label: "History",
       type: "any",
       description: "Energy evolution history.",
+    },
+    {
+      key: "bestState",
+      label: "Best State",
+      type: "any",
+      description: "Best particle state sampled during the run.",
+    },
+    {
+      key: "materials",
+      label: "Materials",
+      type: "any",
+      description: "Resolved material specifications.",
     },
     {
       key: "diagnostics",
@@ -913,10 +955,17 @@ export const ChemistrySolverNode: WorkflowNodeDefinition = {
       // Return empty outputs when disabled
       return {
         geometry: null,
+        status: "disabled",
+        totalEnergy: 0,
+        particleCount: 0,
         mesh: null,
         particles: [],
+        materialParticles: [],
         field: null,
+        materialField: null,
         history: [],
+        bestState: null,
+        materials: [],
         diagnostics: {
           iterations: 0,
           convergence: false,
@@ -1069,12 +1118,20 @@ export const ChemistrySolverNode: WorkflowNodeDefinition = {
     const meshGeometry = attachSolverMetadata(baseGeometry, solverMetadata);
     context.geometryById.set(geometryId, meshGeometry);
     
+    const particleCount = result.particles.length;
     return {
       geometry: geometryId,
+      status: "complete",
+      totalEnergy: result.finalEnergy,
+      particleCount,
       mesh: result.mesh,
       particles: result.particles,
+      materialParticles: result.particles,
       field: result.field,
+      materialField: result.field,
       history: result.history,
+      bestState: result.bestState,
+      materials: result.materials,
       diagnostics: {
         iterations: result.iterations,
         convergence: result.convergenceAchieved,

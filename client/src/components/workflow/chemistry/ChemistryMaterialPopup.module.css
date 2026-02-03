@@ -5,10 +5,7 @@
   align-items: center;
   justify-content: center;
   padding: var(--space-4);
-  background:
-    radial-gradient(circle at 16% 10%, color-mix(in srgb, var(--bk-magenta) 22%, transparent), transparent 55%),
-    radial-gradient(circle at 86% 14%, color-mix(in srgb, var(--bk-cyan) 18%, transparent), transparent 50%),
-    var(--surface-page);
+  background: var(--surface-page);
   z-index: 80;
   overflow: hidden;
   font-family: var(--font-sans);
@@ -37,7 +34,7 @@
   --solver-scale: 1;
   --solver-accent: var(--bk-magenta);
   --solver-accent-secondary: var(--bk-cyan);
-  background: linear-gradient(150deg, var(--bk-magenta-soft) 0%, var(--bk-cyan-soft) 45%, var(--bk-yellow-soft) 100%);
+  background: var(--surface-card);
   border-radius: 10px;
   border: 2px solid var(--bk-black);
   box-shadow: var(--shadow-sticker);
@@ -52,7 +49,7 @@
   left: 0;
   right: 0;
   height: 6px;
-  background: linear-gradient(90deg, var(--solver-accent) 0%, var(--solver-accent-secondary) 100%);
+  background: var(--solver-accent);
   z-index: 0;
 }
 

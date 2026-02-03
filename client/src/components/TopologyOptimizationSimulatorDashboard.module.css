@@ -31,7 +31,7 @@
 }
 
 .dashboardContainer {
-  background: linear-gradient(135deg, var(--bk-purple-deep) 0%, var(--gray-800) 100%);
+  background: var(--surface-card);
   border: var(--border-crisp);
   border-color: var(--solver-accent);
   border-radius: 16px;
@@ -60,7 +60,7 @@
 
 /* Header */
 .dashboardHeader {
-  background: linear-gradient(90deg, var(--bk-purple, var(--bk-purple)) 0%, var(--bk-orange, var(--bk-orange)) 50%, var(--bk-cyan, var(--bk-cyan)) 100%);
+  background: var(--bk-purple);
   padding: 20px 24px;
   border-radius: 14px 14px 0 0;
   display: flex;
@@ -197,7 +197,7 @@
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg, var(--bk-purple, var(--bk-purple)) 0%, var(--bk-orange, var(--bk-orange)) 100%);
+  background: var(--bk-orange);
 }
 
 /* Tab Content */
@@ -271,7 +271,7 @@
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--bk-purple, var(--bk-purple)) 0%, var(--bk-orange, var(--bk-orange)) 100%);
+  background: var(--bk-orange);
   cursor: pointer;
   box-shadow: var(--shadow-sticker-pressed);
   transition: transform 0.2s ease;
@@ -285,7 +285,7 @@
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--bk-purple, var(--bk-purple)) 0%, var(--bk-orange, var(--bk-orange)) 100%);
+  background: var(--bk-orange);
   cursor: pointer;
   border: none;
   box-shadow: var(--shadow-sticker-pressed);
@@ -347,7 +347,7 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--bk-purple, var(--bk-purple)) 0%, var(--bk-orange, var(--bk-orange)) 100%);
+  background: var(--bk-purple);
   color: var(--surface-card);
   display: flex;
   align-items: center;
@@ -446,7 +446,7 @@
 }
 
 .startButton {
-  background: linear-gradient(135deg, var(--bk-purple, var(--bk-purple)) 0%, var(--bk-orange, var(--bk-orange)) 100%);
+  background: var(--bk-purple);
   color: var(--surface-card);
   flex: 1;
 }
@@ -462,7 +462,7 @@
 }
 
 .pauseButton {
-  background: linear-gradient(135deg, var(--bk-orange, var(--bk-orange)) 0%, var(--bk-yellow, var(--bk-yellow)) 100%);
+  background: var(--bk-yellow);
   color: var(--bk-black);
   flex: 1;
 }
@@ -473,7 +473,7 @@
 }
 
 .resumeButton {
-  background: linear-gradient(135deg, var(--bk-cyan, var(--bk-cyan)) 0%, var(--bk-purple, var(--bk-purple)) 100%);
+  background: var(--bk-cyan);
   color: var(--surface-card);
   flex: 1;
 }
@@ -531,7 +531,7 @@
 
 .progressFill {
   height: 100%;
-  background: linear-gradient(90deg, var(--bk-purple, var(--bk-purple)) 0%, var(--bk-orange, var(--bk-orange)) 100%);
+  background: var(--bk-purple);
   transition: width 0.3s ease;
   box-shadow: 0 0 10px rgba(136, 0, 255, 0.5);
 }
@@ -671,7 +671,7 @@
   height: 100%;
   border: 2px solid var(--bk-purple, var(--bk-purple));
   border-radius: 8px;
-  background: linear-gradient(135deg, rgba(136, 0, 255, 0.2) 0%, rgba(255, 102, 0, 0.2) 100%);
+  background: rgba(136, 0, 255, 0.2);
   box-shadow: 0 0 20px rgba(136, 0, 255, 0.5), inset 0 0 20px rgba(255, 102, 0, 0.3);
   animation: meshPulse 2s ease-in-out infinite;
 }
@@ -765,7 +765,7 @@
   height: 200px;
   border: 2px solid var(--bk-purple, var(--bk-purple));
   border-radius: 12px;
-  background: linear-gradient(135deg, rgba(136, 0, 255, 0.2) 0%, rgba(255, 102, 0, 0.2) 100%);
+  background: rgba(136, 0, 255, 0.2);
   box-shadow: 0 0 30px rgba(136, 0, 255, 0.5), inset 0 0 30px rgba(255, 102, 0, 0.3);
   animation: meshRotate 4s linear infinite;
 }
@@ -824,7 +824,7 @@
 
 .exportButton {
   padding: 12px 20px;
-  background: linear-gradient(135deg, var(--bk-purple, var(--bk-purple)) 0%, var(--bk-orange, var(--bk-orange)) 100%);
+  background: var(--bk-purple);
   border: none;
   border-radius: 8px;
   color: var(--surface-card);
@@ -863,10 +863,10 @@
 }
 
 .tabContent::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, var(--bk-purple, var(--bk-purple)) 0%, var(--bk-orange, var(--bk-orange)) 100%);
+  background: var(--bk-purple);
   border-radius: 5px;
 }
 
 .tabContent::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, var(--bk-orange, var(--bk-orange)) 0%, var(--bk-purple, var(--bk-purple)) 100%);
+  background: var(--bk-orange);
 }

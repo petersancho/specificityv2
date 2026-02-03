@@ -157,10 +157,10 @@
   --drop-shadow-sticker-pressed: drop-shadow(0 2px 0 var(--bk-black));
 
   /* Sticker brightness/saturation (used by sticker icons/buttons) */
-  --sticker-brightness-site: 1.18;
-  --sticker-saturate-site: 1.12;
-  --sticker-brightness-library: 1.1;
-  --sticker-saturate-library: 1.08;
+  --sticker-brightness-site: 1.22;
+  --sticker-saturate-site: 1.15;
+  --sticker-brightness-library: 1.14;
+  --sticker-saturate-library: 1.1;
   
   /* Inset shadows for inputs */
   --shadow-inset: inset 0 2px 4px var(--bk-black);

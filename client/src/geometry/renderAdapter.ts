@@ -479,10 +479,22 @@ export function createLineBufferData(
 }
 
 const toTriangleIndices = (mesh: RenderMesh): number[] => {
-  if (mesh.indices.length >= 3) {
-    return mesh.indices;
-  }
   const vertexCount = Math.floor(mesh.positions.length / 3);
+  if (vertexCount === 0) {
+    return [];
+  }
+  if (mesh.indices.length >= 3) {
+    const filtered: number[] = [];
+    for (let i = 0; i + 2 < mesh.indices.length; i += 3) {
+      const a = mesh.indices[i];
+      const b = mesh.indices[i + 1];
+      const c = mesh.indices[i + 2];
+      if (a < vertexCount && b < vertexCount && c < vertexCount) {
+        filtered.push(a, b, c);
+      }
+    }
+    return filtered;
+  }
   const indices: number[] = [];
   for (let i = 0; i + 2 < vertexCount; i += 3) {
     indices.push(i, i + 1, i + 2);

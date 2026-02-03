@@ -138,6 +138,7 @@ type NumericalCanvasProps = {
   onDropNode?: (type: NodeType, world: Vec2) => void;
   onRequestNodeSettings?: (nodeId: string) => void;
   onOpenDashboard?: (nodeId: string) => void;
+  onWorldCenterChange?: (center: Vec2) => void;
   mode?: "standard" | "minimap";
   enableMinimapPanZoom?: boolean;
   captureMode?: "transparent" | "white" | null;
@@ -1182,6 +1183,7 @@ export const NumericalCanvas = ({
   pendingNodeType,
   onDropNode,
   onOpenDashboard,
+  onWorldCenterChange,
   mode = "standard",
   enableMinimapPanZoom = false,
   captureMode = null,
@@ -1812,6 +1814,15 @@ export const NumericalCanvas = ({
       y: (screenY - viewTransform.y) / viewTransform.scale,
     };
   };
+
+  useEffect(() => {
+    if (!onWorldCenterChange) return;
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+      return;
+    }
+    const center = screenToWorld(width * 0.5, height * 0.5);
+    onWorldCenterChange(center);
+  }, [onWorldCenterChange, width, height, viewTransform]);
 
   const resolveSliderValue = (
     rawValue: number,
@@ -3249,7 +3260,10 @@ export const NumericalCanvas = ({
         target.type === "node" || target.type === "port"
           ? nodes.find((entry) => entry.id === target.nodeId)
           : null;
-      if (directContextNode?.type === "chemistryMaterialGoal") {
+      if (
+        directContextNode?.type === "chemistryMaterialGoal" ||
+        (directContextNode?.type && SOLVER_NODE_TYPES.has(directContextNode.type))
+      ) {
         doubleRightClickRef.current = true;
         lastRightClickRef.current = null;
         rightClickHeldRef.current = false;
