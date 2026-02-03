@@ -1,11 +1,11 @@
 # Semantic Inventory
 
-Generated: 2026-02-02T21:55:40.297Z
+Generated: 2026-02-03T13:22:56.477Z
 
 ## Summary
 
-- **Total Operations**: 292
-- **Total Nodes**: 173
+- **Total Operations**: 297
+- **Total Nodes**: 172
 - **Total Dashboards**: 3
 - **Orphan Operations**: 47
 - **Dangling References**: 0
@@ -277,12 +277,12 @@ Generated: 2026-02-02T21:55:40.297Z
 | `math.wave.triangle` | Triangle Wave | primitive | ✅ | triangleWave |
 | `math.wave.square` | Square Wave | primitive | ✅ | squareWave |
 
-### solver (24 operations)
+### solver (29 operations)
 
 | ID | Name | Category | Stable | Used By |
 |----|------|----------|--------|----------|
 | `solver.physics` | Physics Solver | utility | ✅ | physicsSolver |
-| `solver.chemistry` | Chemistry Solver | utility | ✅ | chemistrySolver, chemistrySolver |
+| `solver.chemistry` | Chemistry Solver | utility | ✅ | chemistrySolver |
 | `solver.evolutionary` | Evolutionary Solver | utility | ✅ | evolutionarySolver |
 | `solver.voxel` | Voxel Solver | conversion | ✅ | voxelSolver |
 | `solver.topologyOptimization` | Topology Optimization Solver | utility | ⚠️ | topologySolver, topologyOptimizationSolver |
@@ -296,6 +296,11 @@ Generated: 2026-02-02T21:55:40.297Z
 | `simulator.chemistry.finalize` | Finalize Chemistry Simulator | utility | ✅ | chemistrySolver |
 | `simulator.chemistry.blendMaterials` | Blend Materials | utility | ✅ | chemistrySolver |
 | `simulator.chemistry.evaluateGoals` | Evaluate Chemistry Goals | analysis | ✅ | chemistrySolver |
+| `simulator.chemistry.analyze` | Analyze Chemistry Simulation | analysis | ✅ | chemistrySolver |
+| `simulator.chemistry.validate` | Validate Chemistry Simulation | analysis | ✅ | chemistrySolver |
+| `simulator.chemistry.computeGradients` | Compute Chemistry Gradients | analysis | ✅ | chemistrySolver |
+| `simulator.chemistry.computeStatistics` | Compute Chemistry Statistics | analysis | ✅ | chemistrySolver |
+| `simulator.chemistry.checkConservation` | Check Chemistry Conservation | analysis | ✅ | chemistrySolver |
 | `simulator.physics.initialize` | Initialize Physics Simulator | utility | ✅ | physicsSolver |
 | `simulator.physics.step` | Step Physics Simulator | utility | ✅ | physicsSolver |
 | `simulator.physics.converge` | Check Physics Convergence | analysis | ✅ | physicsSolver |
@@ -489,7 +494,6 @@ Generated: 2026-02-02T21:55:40.297Z
 | `extractIsosurface` | Extract Isosurface | voxel | `solver.voxel.extractIsosurface` |
 | `topologyOptimize` | Topology Optimize | voxel | `solver.topologyOptimization.optimize` |
 | `topologySolver` | Topology Solver | voxel | `solver.topologyOptimization` |
-| `chemistrySolver` | Ἐπιλύτης Χημείας | solver | `solver.chemistry` |
 | `number` | Number | math | `workflow.literal` |
 | `add` | Add | math | `math.add` |
 | `subtract` | Subtract | math | `math.subtract` |
@@ -527,7 +531,7 @@ Generated: 2026-02-02T21:55:40.297Z
 | `rotateVectorAxis` | Rotate Vector | euclidean | `geometry.field.rotateVectorAxis` |
 | `mirrorVector` | Mirror Vector | euclidean | `geometry.field.mirrorVector` |
 | `physicsSolver` | Ἐπιλύτης Φυσικῆς | solver | `solver.physics`, `simulator.physics.initialize`, `simulator.physics.step`, `simulator.physics.converge`, `simulator.physics.finalize`, `simulator.physics.applyLoads`, `simulator.physics.computeStress` |
-| `chemistrySolver` | Ἐπιλύτης Χημείας | solver | `solver.chemistry`, `simulator.chemistry.initialize`, `simulator.chemistry.step`, `simulator.chemistry.converge`, `simulator.chemistry.finalize`, `simulator.chemistry.blendMaterials`, `simulator.chemistry.evaluateGoals` |
+| `chemistrySolver` | Ἐπιλύτης Χημείας | solver | `solver.chemistry`, `simulator.chemistry.initialize`, `simulator.chemistry.step`, `simulator.chemistry.converge`, `simulator.chemistry.finalize`, `simulator.chemistry.blendMaterials`, `simulator.chemistry.evaluateGoals`, `simulator.chemistry.analyze`, `simulator.chemistry.validate`, `simulator.chemistry.computeGradients`, `simulator.chemistry.computeStatistics`, `simulator.chemistry.checkConservation` |
 | `evolutionarySolver` | Evolutionary Solver | solver | `solver.evolutionary`, `simulator.initialize`, `simulator.step`, `simulator.converge`, `simulator.finalize` |
 | `voxelSolver` | Voxelizer | voxel | `solver.voxel` |
 | `topologyOptimizationSolver` | Topology Optimization | solver | `solver.topologyOptimization` |

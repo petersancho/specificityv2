@@ -2156,6 +2156,96 @@
     "stable": true,
     "since": "1.0.0"
   },
+  "simulator.chemistry.analyze": {
+    "id": "simulator.chemistry.analyze",
+    "domain": "solver",
+    "name": "Analyze Chemistry Simulation",
+    "category": "analysis",
+    "tags": [
+      "chemistry",
+      "analysis"
+    ],
+    "complexity": "O(n)",
+    "cost": "medium",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Analyzes chemistry simulation state for diagnostics",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "simulator.chemistry.validate": {
+    "id": "simulator.chemistry.validate",
+    "domain": "solver",
+    "name": "Validate Chemistry Simulation",
+    "category": "analysis",
+    "tags": [
+      "chemistry",
+      "validation"
+    ],
+    "complexity": "O(n)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Validates chemistry simulation state and invariants",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "simulator.chemistry.computeGradients": {
+    "id": "simulator.chemistry.computeGradients",
+    "domain": "solver",
+    "name": "Compute Chemistry Gradients",
+    "category": "analysis",
+    "tags": [
+      "chemistry",
+      "gradients"
+    ],
+    "complexity": "O(n)",
+    "cost": "high",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Computes material gradient fields for goal optimization",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "simulator.chemistry.computeStatistics": {
+    "id": "simulator.chemistry.computeStatistics",
+    "domain": "solver",
+    "name": "Compute Chemistry Statistics",
+    "category": "analysis",
+    "tags": [
+      "chemistry",
+      "statistics"
+    ],
+    "complexity": "O(n)",
+    "cost": "medium",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Computes aggregate statistics for chemistry simulation outputs",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "simulator.chemistry.checkConservation": {
+    "id": "simulator.chemistry.checkConservation",
+    "domain": "solver",
+    "name": "Check Chemistry Conservation",
+    "category": "analysis",
+    "tags": [
+      "chemistry",
+      "conservation"
+    ],
+    "complexity": "O(n)",
+    "cost": "medium",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Checks mass and energy conservation in chemistry simulation",
+    "stable": true,
+    "since": "1.0.0"
+  },
   "simulator.physics.initialize": {
     "id": "simulator.physics.initialize",
     "domain": "solver",
