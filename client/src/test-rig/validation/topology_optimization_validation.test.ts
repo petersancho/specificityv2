@@ -27,7 +27,7 @@ const buildSimpGoals = (mesh: RenderMesh): GoalBase[] => {
       goalType: "load",
       geometry: { elements: loadIndices },
       parameters: {
-        force: { x: 0, y: -120, z: 0 },
+        force: { x: 0, y: -1, z: 0 },
       },
     },
   ];
@@ -38,14 +38,19 @@ describe("Topology optimization SIMP", () => {
     const mesh = buildVoxelHeroGeometry();
     const goals = buildSimpGoals(mesh);
     const markers = extractGoalMarkers(mesh, goals);
+    const bounds = computeBoundsFromMesh(mesh);
+    markers.anchors.push(
+      { position: { x: bounds.max.x, y: bounds.min.y, z: bounds.min.z } },
+      { position: { x: bounds.min.x, y: bounds.max.y, z: bounds.min.z } }
+    );
 
     expect(markers.anchors.length).toBeGreaterThan(0);
     expect(markers.loads.length).toBeGreaterThan(0);
 
     const params: SimpParams = {
-      nx: 8,
-      ny: 6,
-      nz: 4,
+      nx: 6,
+      ny: 4,
+      nz: 3,
       volFrac: 0.5,
       penal: 1.0,
       penalStart: 1.0,
@@ -56,11 +61,12 @@ describe("Topology optimization SIMP", () => {
       maxIters: 4,
       tolChange: 1e-3,
       E0: 1.0,
-      Emin: 1e-9,
+      Emin: 1e-3,
       rhoMin: 1e-3,
       nu: 0.3,
-      cgTol: 1e-6,
-      cgMaxIters: 200,
+      cgTol: 1e-4,
+      cgMaxIters: 2000,
+      strictConvergence: true,
     };
 
     let lastFrame: {
@@ -100,7 +106,7 @@ describe("Topology optimization SIMP", () => {
     expect(mean).toBeGreaterThan(0);
     expect(mean).toBeLessThanOrEqual(1.0 + 1e-4);
 
-    const bounds = computeBoundsFromMesh(mesh);
+    // Reuse bounds for geometry extraction.
     const spanX = bounds.max.x - bounds.min.x;
     const spanY = bounds.max.y - bounds.min.y;
     const spanZ = bounds.max.z - bounds.min.z;

@@ -26,6 +26,7 @@ export type SimpParams = {
   nu: number;              // Poisson's ratio
   cgTol: number;           // CG solver tolerance
   cgMaxIters: number;      // CG solver max iterations
+  strictConvergence?: boolean; // Fail if FE solver does not converge
 };
 
 /**

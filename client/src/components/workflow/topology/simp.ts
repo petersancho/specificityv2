@@ -168,10 +168,13 @@ async function* runSimp2D(
     fixedDofs.add(nodeIdx * 2 + 1);
   }
 
-  if (fixedDofs.size < 2) {
-    console.warn("Insufficient boundary conditions, adding default constraints at bottom-left");
-    fixedDofs.add(0);
-    fixedDofs.add(1);
+  if (fixedDofs.size < 3) {
+    console.warn("Insufficient boundary conditions, adding default constraints for 2D");
+    const nodeA = 0;
+    const nodeB = params.nx; // bottom-right corner
+    fixedDofs.add(nodeA * 2);
+    fixedDofs.add(nodeA * 2 + 1);
+    fixedDofs.add(nodeB * 2 + 1);
   }
 
   for (const load of markers.loads) {
@@ -208,6 +211,9 @@ async function* runSimp2D(
       params.cgMaxIters
     );
     if (!solverConverged) {
+      if (params.strictConvergence) {
+        throw new Error(`Iteration ${iter}: FE solver did not converge`);
+      }
       console.warn(`Iteration ${iter}: FE solver did not converge`);
     }
 
@@ -292,11 +298,17 @@ async function* runSimp3D(
     fixedDofs.add(nodeIdx * 3 + 2);
   }
 
-  if (fixedDofs.size < 3) {
-    console.warn("Insufficient boundary conditions, adding default constraints at origin");
-    fixedDofs.add(0);
-    fixedDofs.add(1);
-    fixedDofs.add(2);
+  if (fixedDofs.size < 6) {
+    console.warn("Insufficient boundary conditions, adding default constraints for 3D");
+    const nodeA = 0;
+    const nodeB = params.nx;
+    const nodeC = (params.ny) * (params.nx + 1);
+    fixedDofs.add(nodeA * 3);
+    fixedDofs.add(nodeA * 3 + 1);
+    fixedDofs.add(nodeA * 3 + 2);
+    fixedDofs.add(nodeB * 3 + 1);
+    fixedDofs.add(nodeB * 3 + 2);
+    fixedDofs.add(nodeC * 3 + 2);
   }
 
   for (const load of markers.loads) {
@@ -337,6 +349,9 @@ async function* runSimp3D(
       params.cgMaxIters
     );
     if (!solverConverged) {
+      if (params.strictConvergence) {
+        throw new Error(`Iteration ${iter}: FE solver did not converge`);
+      }
       console.warn(`Iteration ${iter}: FE solver did not converge`);
     }
 
