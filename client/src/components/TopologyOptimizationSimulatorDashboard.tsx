@@ -81,13 +81,14 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   const animationFrameRef = useRef<number | null>(null);
   const isRunningRef = useRef(false);
 
-  const { nodes, edges, updateNodeData, geometry, addGeometryMesh } = useProjectStore(
+  const { nodes, edges, updateNodeData, geometry, addGeometryMesh, syncWorkflowGeometryToRoslyn } = useProjectStore(
     (state) => ({
       nodes: state.workflow.nodes,
       edges: state.workflow.edges,
       updateNodeData: state.updateNodeData,
       geometry: state.geometry,
       addGeometryMesh: state.addGeometryMesh,
+      syncWorkflowGeometryToRoslyn: state.syncWorkflowGeometryToRoslyn,
     })
   );
 
@@ -375,6 +376,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
         },
         { recalculate: false }
       );
+      syncWorkflowGeometryToRoslyn(nodeId);
       
       if (DEBUG) {
         console.log(`[GEOM] ✅ Generated topology optimization geometry:
