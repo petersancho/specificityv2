@@ -454,7 +454,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       });
     }
 
-    if (baseMesh && !previewBusyRef.current && now - lastPreviewUpdateRef.current > 350) {
+    if (baseMesh && !previewBusyRef.current && now - lastPreviewUpdateRef.current > 650) {
       previewBusyRef.current = true;
       lastPreviewUpdateRef.current = now;
       try {
@@ -464,14 +464,15 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
           nx, ny, nz,
           bounds
         };
+        const previewBudget = frame.converged ? 8000 : 2000;
         const result = generateGeometryFromDensities(
           field,
           densityThreshold,
-          maxLinksPerPoint,
+          Math.max(2, Math.min(6, maxLinksPerPoint)),
           maxSpanLength,
           pipeRadius,
-          pipeSegments,
-          4500
+          Math.min(12, pipeSegments),
+          previewBudget
         );
         setPreviewGeometry(result.multipipe);
       } catch (error) {

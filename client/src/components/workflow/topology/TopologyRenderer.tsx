@@ -81,26 +81,23 @@ export const TopologyRenderer: React.FC<TopologyRendererProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     
-    // Auto-rotate
-    const animate = () => {
-      rotationRef.current += 0.005;
-      render();
-      animationRef.current = requestAnimationFrame(animate);
-    };
-    
     const render = () => {
       // Clear canvas
       ctx.fillStyle = '#0a0a0a';
       ctx.fillRect(0, 0, width, height);
       
+      rotationRef.current += 0.01;
       const rotation = rotationRef.current;
       const { nx, ny, nz, elementSize, bounds } = fe;
       
       // Draw density field (voxels)
       if (frame && frame.densities) {
-        for (let ez = 0; ez < nz; ez++) {
-          for (let ey = 0; ey < ny; ey++) {
-            for (let ex = 0; ex < nx; ex++) {
+        const totalVoxels = nx * ny * nz;
+        const targetVoxels = 15000;
+        const step = Math.max(1, Math.ceil(Math.pow(totalVoxels / targetVoxels, 1 / 3)));
+        for (let ez = 0; ez < nz; ez += step) {
+          for (let ey = 0; ey < ny; ey += step) {
+            for (let ex = 0; ex < nx; ex += step) {
               const e = ez * nx * ny + ey * nx + ex;
               const rho = frame.densities[e];
               
@@ -239,7 +236,7 @@ export const TopologyRenderer: React.FC<TopologyRendererProps> = ({
       }
     };
     
-    animate();
+    animationRef.current = requestAnimationFrame(render);
     
     return () => {
       if (animationRef.current) {

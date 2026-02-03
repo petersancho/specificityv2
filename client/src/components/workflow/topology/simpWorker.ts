@@ -28,8 +28,12 @@ const waitForResume = () =>
     resumeResolver = resolve;
   });
 
-const post = (message: OutgoingMessage) => {
-  self.postMessage(message);
+const post = (message: OutgoingMessage, transfer?: Transferable[]) => {
+  if (transfer && transfer.length > 0) {
+    self.postMessage(message, transfer);
+  } else {
+    self.postMessage(message);
+  }
 };
 
 const run = async (mesh: RenderMesh, markers: GoalMarkers, params: SimpParams) => {
@@ -43,7 +47,7 @@ const run = async (mesh: RenderMesh, markers: GoalMarkers, params: SimpParams) =
         await waitForResume();
       }
       if (stopRequested) break;
-      post({ type: "frame", frame });
+      post({ type: "frame", frame }, [frame.densities.buffer]);
       if (frame.converged) break;
     }
     if (!stopRequested) {
