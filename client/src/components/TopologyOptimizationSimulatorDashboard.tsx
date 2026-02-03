@@ -283,12 +283,6 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   // Generate and register 3D geometry from converged density field
   const generateAndRegisterGeometry = (frame: SolverFrame, mesh: RenderMesh) => {
     try {
-      // Validate 2D only
-      if (nz !== 1) {
-        console.error('Only 2D topology optimization (nz=1) is currently supported');
-        return;
-      }
-      
       // Calculate bounds from mesh
       const bounds = calculateMeshBounds(mesh);
       
