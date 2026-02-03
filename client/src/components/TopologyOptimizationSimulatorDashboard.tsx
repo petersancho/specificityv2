@@ -81,7 +81,15 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   const animationFrameRef = useRef<number | null>(null);
   const isRunningRef = useRef(false);
 
-  const { nodes, edges, updateNodeData, geometry, addGeometryMesh, syncWorkflowGeometryToRoslyn } = useProjectStore(
+  const {
+    nodes,
+    edges,
+    updateNodeData,
+    geometry,
+    addGeometryMesh,
+    syncWorkflowGeometryToRoslyn,
+    toggleGeometryVisibility,
+  } = useProjectStore(
     (state) => ({
       nodes: state.workflow.nodes,
       edges: state.workflow.edges,
@@ -89,6 +97,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       geometry: state.geometry,
       addGeometryMesh: state.addGeometryMesh,
       syncWorkflowGeometryToRoslyn: state.syncWorkflowGeometryToRoslyn,
+      toggleGeometryVisibility: state.toggleGeometryVisibility,
     })
   );
 
@@ -216,6 +225,31 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     }
     return goalList;
   }, [goalEdges, nodes]);
+
+  const baseVolume = useMemo(() => {
+    if (!baseMesh) return 0;
+    const { volume_m3 } = computeMeshVolumeAndCentroid(baseMesh);
+    return Number.isFinite(volume_m3) ? volume_m3 : 0;
+  }, [baseMesh]);
+
+  const goalVolumeFraction = useMemo(() => {
+    if (baseVolume <= 0) return null;
+    const volumeGoal = goals.find((goal) => goal?.goalType === "volume");
+    if (!volumeGoal || typeof volumeGoal !== "object") return null;
+    const goalAny = volumeGoal as { target?: number; parameters?: Record<string, unknown> };
+    const targetParam = goalAny.parameters?.targetVolume;
+    const target =
+      typeof goalAny.target === "number" && Number.isFinite(goalAny.target)
+        ? goalAny.target
+        : typeof targetParam === "number" && Number.isFinite(targetParam)
+          ? targetParam
+          : null;
+    if (!target || target <= 0) return null;
+    const ratio = target / baseVolume;
+    return Math.max(0.05, Math.min(0.95, ratio));
+  }, [baseVolume, goals]);
+
+  const effectiveVolFrac = goalVolumeFraction ?? volFrac;
 
   // Parameter change handler
   const handleParameterChange = (key: string, value: number) => {
@@ -376,6 +410,9 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
         },
         { recalculate: false }
       );
+      toggleGeometryVisibility(pointCloudId, true);
+      toggleGeometryVisibility(curveNetworkId, true);
+      toggleGeometryVisibility(multipipeId, true);
       syncWorkflowGeometryToRoslyn(nodeId);
       
       if (DEBUG) {
@@ -492,7 +529,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
         topologyProgress: {
           iteration: 0,
           objective: 0,
-          constraint: volFrac,
+          constraint: effectiveVolFrac,
           status: "running",
         },
       },
@@ -501,7 +538,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
 
     const simpParams: SimpParams = {
       nx, ny, nz,
-      volFrac,
+      volFrac: effectiveVolFrac,
       penal: penalStart, // Will be updated via continuation
       penalStart,
       penalEnd,
@@ -1017,7 +1054,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
           <div className={styles.simulatorTab}>
             <div className={styles.simulatorLayout}>
               <div className={styles.geometryView}>
-                <h3 className={styles.viewTitle}>Density Field Evolution</h3>
+                <h3 className={styles.viewTitle}>SIMP Density Field (2D)</h3>
                 {markers && baseMesh ? (
                   <TopologyRenderer
                     fe={{ 
@@ -1047,7 +1084,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
               </div>
 
               <div className={styles.geometryPreviewView}>
-                <h3 className={styles.viewTitle}>3D Geometry Preview</h3>
+                <h3 className={styles.viewTitle}>Optimized Multipipe Preview (3D)</h3>
                 <TopologyGeometryPreview
                   geometry={previewGeometry}
                   width={600}

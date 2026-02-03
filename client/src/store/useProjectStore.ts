@@ -7967,6 +7967,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const col5X = col4X + NODE_WIDTH + H_GAP;
     const viewerId = `node-geometryViewer-topology-${ts}`;
     const viewerPos = { x: col5X, y: position.y + SLIDER_HEIGHT };
+    const customViewerId = `node-customViewer-topology-${ts}`;
+    const customViewerPos = { x: col5X, y: viewerPos.y + NODE_HEIGHT + V_GAP };
 
     const newNodes: WorkflowNode[] = [
       {
@@ -7989,7 +7991,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         type: "volume" as const,
         position: volumeNodePos,
         data: {
-          label: "Volume",
+          label: "Input Volume",
         },
       },
       {
@@ -8353,7 +8355,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         type: "topologyOptimizationSolver" as const,
         position: solverPos,
         data: {
-          label: "Topology Optimization",
+          label: "Topology Optimization (SIMP)",
           parameters: {
             nx: 60,
             ny: 40,
@@ -8379,6 +8381,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         type: "geometryViewer" as const,
         position: viewerPos,
         data: { label: "Optimized Structure" },
+      },
+      {
+        id: customViewerId,
+        type: "customViewer" as const,
+        position: customViewerPos,
+        data: { label: "Roslyn Output" },
       },
     ];
 
@@ -8598,6 +8606,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         source: solverId,
         sourceHandle: "optimizedMesh",
         target: viewerId,
+        targetHandle: "geometry",
+      },
+      {
+        id: `edge-${solverId}-${customViewerId}-geometry`,
+        source: solverId,
+        sourceHandle: "optimizedMesh",
+        target: customViewerId,
         targetHandle: "geometry",
       },
     ];
