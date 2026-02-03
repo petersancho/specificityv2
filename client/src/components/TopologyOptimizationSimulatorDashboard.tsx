@@ -6,7 +6,6 @@ import { computeMeshVolumeAndCentroid } from "../geometry/physical";
 import type { RenderMesh, Vec3 } from "../types";
 import type { SimpParams, SolverFrame, SimulationState, SimulationHistory, GoalMarkers } from "./workflow/topology/types";
 import { extractGoalMarkers } from "./workflow/topology/goals";
-import { runSimp } from "./workflow/topology/simp";
 import { TopologyRenderer } from "./workflow/topology/TopologyRenderer";
 import { TopologyConvergence } from "./workflow/topology/TopologyConvergence";
 import { TopologyGeometryPreview } from "./workflow/topology/TopologyGeometryPreview";
@@ -81,6 +80,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   const previewBusyRef = useRef(false);
   
   const solverGeneratorRef = useRef<AsyncGenerator<SolverFrame> | null>(null);
+  const workerRef = useRef<Worker | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const isRunningRef = useRef(false);
 
@@ -432,102 +432,73 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   };
   
 
-  // Iteration loop (extracted to allow resume)
-  const iterate = async () => {
-    if (!isRunningRef.current || !solverGeneratorRef.current) return;
+  const handleFrame = (frame: SolverFrame) => {
+    const now = performance.now();
+    const shouldUpdateUi =
+      now - lastUiUpdateRef.current > 50 ||
+      frame.iter === 1 ||
+      frame.converged;
+    if (shouldUpdateUi) {
+      lastUiUpdateRef.current = now;
+      setCurrentFrame(frame);
+      setHistory((prev) => {
+        const nextCompliance = [...prev.compliance, frame.compliance];
+        const nextChange = [...prev.change, frame.change];
+        const nextVol = [...prev.vol, frame.vol];
+        const limit = 400;
+        return {
+          compliance: nextCompliance.slice(-limit),
+          change: nextChange.slice(-limit),
+          vol: nextVol.slice(-limit),
+        };
+      });
+    }
 
-    try {
-      const result = await solverGeneratorRef.current.next();
-      
-      if (result.done) {
-        isRunningRef.current = false;
-        setSimulationState('converged');
-        return;
+    if (baseMesh && !previewBusyRef.current && now - lastPreviewUpdateRef.current > 350) {
+      previewBusyRef.current = true;
+      lastPreviewUpdateRef.current = now;
+      try {
+        const bounds = calculateMeshBounds(baseMesh);
+        const field = {
+          densities: Float64Array.from(frame.densities),
+          nx, ny, nz,
+          bounds
+        };
+        const result = generateGeometryFromDensities(
+          field,
+          densityThreshold,
+          maxLinksPerPoint,
+          maxSpanLength,
+          pipeRadius,
+          pipeSegments,
+          4500
+        );
+        setPreviewGeometry(result.multipipe);
+      } catch (error) {
+        console.error('[TOPOLOGY] Preview generation error:', error);
+      } finally {
+        previewBusyRef.current = false;
       }
+    }
 
-      const frame = result.value;
-      const now = performance.now();
-      const shouldUpdateUi =
-        now - lastUiUpdateRef.current > 50 ||
-        frame.iter === 1 ||
-        frame.converged;
-      if (shouldUpdateUi) {
-        lastUiUpdateRef.current = now;
-        setCurrentFrame(frame);
-        setHistory((prev) => {
-          const nextCompliance = [...prev.compliance, frame.compliance];
-          const nextChange = [...prev.change, frame.change];
-          const nextVol = [...prev.vol, frame.vol];
-          const limit = 400;
-          return {
-            compliance: nextCompliance.slice(-limit),
-            change: nextChange.slice(-limit),
-            vol: nextVol.slice(-limit),
-          };
-        });
-      }
-
-      // Generate preview geometry on a time budget to avoid UI stalls
-      if (baseMesh && !previewBusyRef.current && now - lastPreviewUpdateRef.current > 350) {
-        previewBusyRef.current = true;
-        lastPreviewUpdateRef.current = now;
-        try {
-          const bounds = calculateMeshBounds(baseMesh);
-          const field = {
-            densities: Float64Array.from(frame.densities),
-            nx, ny, nz,
-            bounds
-          };
-          const result = generateGeometryFromDensities(
-            field,
-            densityThreshold,
-            maxLinksPerPoint,
-            maxSpanLength,
-            pipeRadius,
-            pipeSegments,
-            4500
-          );
-          setPreviewGeometry(result.multipipe);
-        } catch (error) {
-          console.error('[TOPOLOGY] Preview generation error:', error);
-        } finally {
-          previewBusyRef.current = false;
-        }
-      }
-
-      if (frame.converged) {
-        isRunningRef.current = false;
-        setSimulationState('converged');
-        
-        // Generate 3D geometry from converged density field
-        if (DEBUG) {
-          console.log('[TOPOLOGY] Simulation converged! Generating geometry...');
-          console.log('[TOPOLOGY] baseMesh:', baseMesh ? 'exists' : 'NULL');
-          console.log('[TOPOLOGY] frame.densities:', frame.densities ? `${frame.densities.length} elements` : 'NULL');
-        }
-        
-        if (baseMesh) {
-          try {
-            generateAndRegisterGeometry(frame, baseMesh);
-            if (DEBUG) console.log('[TOPOLOGY] ✅ Geometry generation completed successfully');
-          } catch (error) {
-            console.error('[TOPOLOGY] ❌ Geometry generation FAILED:', error);
-          }
-        } else {
-          console.error('[TOPOLOGY] ❌ Cannot generate geometry: baseMesh is null');
-        }
-        
-        return;
-      }
-
-      // Continue iteration
-      if (isRunningRef.current) {
-        animationFrameRef.current = requestAnimationFrame(iterate);
-      }
-    } catch (error) {
-      console.error('Simulation error:', error);
+    if (frame.converged) {
       isRunningRef.current = false;
-      setSimulationState('error');
+      setSimulationState('converged');
+      if (DEBUG) {
+        console.log('[TOPOLOGY] Simulation converged! Generating geometry...');
+        console.log('[TOPOLOGY] baseMesh:', baseMesh ? 'exists' : 'NULL');
+        console.log('[TOPOLOGY] frame.densities:', frame.densities ? `${frame.densities.length} elements` : 'NULL');
+      }
+      if (baseMesh) {
+        try {
+          generateAndRegisterGeometry(frame, baseMesh);
+          if (DEBUG) console.log('[TOPOLOGY] ✅ Geometry generation completed successfully');
+        } catch (error) {
+          console.error('[TOPOLOGY] ❌ Geometry generation FAILED:', error);
+        }
+      } else {
+        console.error('[TOPOLOGY] ❌ Cannot generate geometry: baseMesh is null');
+      }
     }
   };
 
@@ -578,8 +549,40 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     };
 
     if (DEBUG) console.log('[TOPOLOGY] SIMP parameters:', simpParams);
-    solverGeneratorRef.current = runSimp(baseMesh, markers, simpParams);
-    iterate();
+
+    if (workerRef.current) {
+      workerRef.current.terminate();
+      workerRef.current = null;
+    }
+
+    const worker = new Worker(
+      new URL("./workflow/topology/simpWorker.ts", import.meta.url),
+      { type: "module" }
+    );
+    workerRef.current = worker;
+
+    worker.onmessage = (event) => {
+      const message = event.data as { type: string; frame?: SolverFrame; error?: string };
+      if (message.type === "frame" && message.frame) {
+        handleFrame(message.frame);
+      }
+      if (message.type === "done") {
+        isRunningRef.current = false;
+        setSimulationState('converged');
+      }
+      if (message.type === "error") {
+        console.error('Simulation error:', message.error);
+        isRunningRef.current = false;
+        setSimulationState('error');
+      }
+    };
+
+    worker.postMessage({
+      type: "start",
+      mesh: baseMesh,
+      markers,
+      params: simpParams,
+    });
   };
 
   // Pause simulation
@@ -587,19 +590,16 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     if (simulationState === 'running') {
       isRunningRef.current = false;
       setSimulationState('paused');
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
-      }
+      workerRef.current?.postMessage({ type: "pause" });
     }
   };
 
   // Resume simulation
   const handleResume = () => {
-    if (simulationState === 'paused' && solverGeneratorRef.current) {
+    if (simulationState === 'paused') {
       isRunningRef.current = true;
       setSimulationState('running');
-      iterate();
+      workerRef.current?.postMessage({ type: "resume" });
     }
   };
 
@@ -611,6 +611,11 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       animationFrameRef.current = null;
     }
     solverGeneratorRef.current = null;
+    if (workerRef.current) {
+      workerRef.current.postMessage({ type: "stop" });
+      workerRef.current.terminate();
+      workerRef.current = null;
+    }
     setSimulationState('idle');
     setCurrentFrame(undefined);
     setHistory({ compliance: [], change: [], vol: [] });
@@ -635,6 +640,10 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
+      }
+      if (workerRef.current) {
+        workerRef.current.terminate();
+        workerRef.current = null;
       }
     };
   }, []);
