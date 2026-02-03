@@ -361,6 +361,8 @@ export type Geometry =
   | NurbsSurfaceGeometry
   | BRepGeometry;
 
+export type GeometryType = Geometry["type"];
+
 export type SelectionMode = "object" | "vertex" | "edge" | "face";
 
 export type ComponentSelection =
@@ -542,7 +544,7 @@ export type WorkflowNodeData = {
   label: string;
   geometryId?: string;
   geometryIds?: string[];
-  geometryType?: Geometry["type"];
+  geometryType?: GeometryType;
   isLinked?: boolean;
   point?: Vec3;
   pointsText?: string;
