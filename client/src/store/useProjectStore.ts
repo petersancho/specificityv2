@@ -8361,7 +8361,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         type: "voxelSolver" as const,
         position: { x: voxelizerX, y: voxelizerY },
         data: {
-          label: "Voxelize",
+          label: "Voxelizer",
           geometryId: voxelizerGeometryId,
           geometryType: "mesh" as const,
           isLinked: true,
@@ -8385,7 +8385,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         type: "textNote" as const,
         position: { x: textNoteX, y: textNoteY },
         data: {
-          label: "Panel",
+          label: "Stats Panel",
           parameters: {
             text: "",
             maxLines: 20,
