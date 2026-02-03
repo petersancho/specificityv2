@@ -80,6 +80,7 @@ import type {
   DisplayMode,
   Geometry,
   GridSettings,
+  InertiaTensor,
   Layer,
   Material,
   MaterialAssignment,
@@ -2137,21 +2138,30 @@ const applySeedGeometryNodesToGeometry = (
         geometryId = createGeometryId("mesh");
       }
 
-      const stressField = outputs?.stressField as any[] | undefined;
-      const displacements = outputs?.displacements as any[] | undefined;
-      const diagnostics = outputs?.diagnostics as any | undefined;
-      const result = outputs?.result as any | undefined;
+      const outputsRecord =
+        outputs && typeof outputs === "object" ? (outputs as Record<string, unknown>) : undefined;
+      const stressField = outputsRecord?.stressField;
+      const displacements = outputsRecord?.displacements;
+      const diagnosticsRecord =
+        outputsRecord?.diagnostics && typeof outputsRecord.diagnostics === "object"
+          ? (outputsRecord.diagnostics as Record<string, unknown>)
+          : undefined;
+      const resultRecord =
+        outputsRecord?.result && typeof outputsRecord.result === "object"
+          ? (outputsRecord.result as Record<string, unknown>)
+          : undefined;
 
       const metadata: Record<string, unknown> = {
         label: node.data?.label ?? "Physics Solver Result",
         physicsResult: {
-          hasStressField: Boolean(stressField && Array.isArray(stressField) && stressField.length > 0),
-          hasDisplacements: Boolean(displacements && Array.isArray(displacements) && displacements.length > 0),
+          hasStressField: Boolean(Array.isArray(stressField) && stressField.length > 0),
+          hasDisplacements: Boolean(Array.isArray(displacements) && displacements.length > 0),
           hasColors: Boolean(mesh.colors && mesh.colors.length > 0),
-          analysisType: result?.analysisType ?? "static",
-          maxDeformation: result?.maxDeformation ?? 0,
-          maxStress: result?.maxStress ?? 0,
-          iterations: diagnostics?.iterations ?? 0,
+          analysisType:
+            typeof resultRecord?.analysisType === "string" ? resultRecord.analysisType : "static",
+          maxDeformation: asNumber(resultRecord?.maxDeformation, 0),
+          maxStress: asNumber(resultRecord?.maxStress, 0),
+          iterations: asNumber(diagnosticsRecord?.iterations, 0),
         },
       };
 
@@ -5708,7 +5718,7 @@ const applyGeometryArrayNodesToGeometry = (
       };
     }
     if ("mesh" in source && source.mesh) {
-      const geometryId = createGeometryId(source.type === "mesh" ? "mesh" : source.type);
+      const geometryId = createGeometryId(source.type);
       const mesh = transformMesh(source.mesh, matrix);
       const base: SurfaceGeometry | LoftGeometry | ExtrudeGeometry | MeshGeometry = {
         ...source,
@@ -5722,6 +5732,7 @@ const applyGeometryArrayNodesToGeometry = (
           origin: transformPoint(matrix, base.primitive.origin),
         };
       }
+
       const volumeAndCentroid = computeMeshVolumeAndCentroid(mesh);
       const density = resolveDensity(source.metadata);
       base.area_m2 = computeMeshArea(mesh.positions, mesh.indices);
@@ -7081,9 +7092,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const outputs = outputsRaw as Record<string, unknown>;
       const meshCandidate = outputs.mesh;
       if (!meshCandidate || typeof meshCandidate !== "object") return;
+      const meshRecord = meshCandidate as Record<string, unknown>;
+      const positions = meshRecord.positions;
+      if (!Array.isArray(positions) || positions.length < 3) return;
+
       const mesh = meshCandidate as RenderMesh;
-      const positions = (mesh as any).positions as { length?: unknown } | undefined;
-      if (!positions || typeof positions.length !== "number" || positions.length < 3) return;
       
       const materials = Array.isArray(outputs.materials) ? outputs.materials : [];
       const materialParticles = Array.isArray(outputs.materialParticles)
@@ -7219,22 +7232,30 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const outputs = node.data?.outputs ?? {};
       const mesh = outputs.mesh as RenderMesh | undefined;
       if (!mesh || mesh.positions.length < 3) return;
-      
-      const stressField = outputs.stressField as any[] | undefined;
-      const displacements = outputs.displacements as any[] | undefined;
-      const diagnostics = outputs.diagnostics as any | undefined;
-      const result = outputs.result as any | undefined;
-      
+
+      const outputsRecord = outputs as Record<string, unknown>;
+      const stressField = outputsRecord.stressField;
+      const displacements = outputsRecord.displacements;
+      const diagnosticsRecord =
+        outputsRecord.diagnostics && typeof outputsRecord.diagnostics === "object"
+          ? (outputsRecord.diagnostics as Record<string, unknown>)
+          : undefined;
+      const resultRecord =
+        outputsRecord.result && typeof outputsRecord.result === "object"
+          ? (outputsRecord.result as Record<string, unknown>)
+          : undefined;
+
       const metadata: Record<string, unknown> = {
         label: node.data?.label ?? "Physics Solver Result",
         physicsResult: {
-          hasStressField: Boolean(stressField && Array.isArray(stressField) && stressField.length > 0),
-          hasDisplacements: Boolean(displacements && Array.isArray(displacements) && displacements.length > 0),
+          hasStressField: Boolean(Array.isArray(stressField) && stressField.length > 0),
+          hasDisplacements: Boolean(Array.isArray(displacements) && displacements.length > 0),
           hasColors: Boolean(mesh.colors && mesh.colors.length > 0),
-          analysisType: result?.analysisType ?? "static",
-          maxDeformation: result?.maxDeformation ?? 0,
-          maxStress: result?.maxStress ?? 0,
-          iterations: diagnostics?.iterations ?? 0,
+          analysisType:
+            typeof resultRecord?.analysisType === "string" ? resultRecord.analysisType : "static",
+          maxDeformation: asNumber(resultRecord?.maxDeformation, 0),
+          maxStress: asNumber(resultRecord?.maxStress, 0),
+          iterations: asNumber(diagnosticsRecord?.iterations, 0),
         },
       };
       

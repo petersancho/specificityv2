@@ -4459,16 +4459,20 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
           thickness: 0,
         };
       }
-      const geom = geometry as any;
+      const volume_m3 = "volume_m3" in geometry ? geometry.volume_m3 ?? null : null;
+      const centroid = "centroid" in geometry ? geometry.centroid ?? null : null;
+      const mass_kg = "mass_kg" in geometry ? geometry.mass_kg ?? null : null;
+      const inertiaTensor_kg_m2 =
+        "inertiaTensor_kg_m2" in geometry ? geometry.inertiaTensor_kg_m2 ?? null : null;
       const metadata = {
         id: geometry.id,
         type: geometry.type,
         layerId: geometry.layerId,
         area_m2: geometry.area_m2 ?? null,
-        volume_m3: geom.volume_m3 ?? null,
-        centroid: geom.centroid ?? null,
-        mass_kg: geom.mass_kg ?? null,
-        inertiaTensor_kg_m2: geom.inertiaTensor_kg_m2 ?? null,
+        volume_m3,
+        centroid,
+        mass_kg,
+        inertiaTensor_kg_m2,
         thickness_m: geometry.thickness_m ?? null,
         metadata: geometry.metadata ?? null,
       };
@@ -4478,10 +4482,10 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
         type: geometry.type,
         layer: geometry.layerId,
         area: geometry.area_m2 ?? 0,
-        volume: geom.volume_m3 ?? 0,
-        mass: geom.mass_kg ?? 0,
-        centroid: geom.centroid ?? ZERO_VEC3,
-        inertia: geom.inertiaTensor_kg_m2 ?? null,
+        volume: typeof volume_m3 === "number" ? volume_m3 : 0,
+        mass: typeof mass_kg === "number" ? mass_kg : 0,
+        centroid: centroid ?? ZERO_VEC3,
+        inertia: inertiaTensor_kg_m2,
         thickness: geometry.thickness_m ?? 0,
       };
     },
@@ -7562,12 +7566,12 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
           length += distanceVec3(vertices[vertices.length - 1], vertices[0]);
         }
       }
-      const geomAny = geometry as any;
       const hasArea = typeof geometry.area_m2 === "number" && Number.isFinite(geometry.area_m2);
+      const storedVolume = "volume_m3" in geometry ? geometry.volume_m3 : undefined;
       const hasVolume =
-        typeof geomAny.volume_m3 === "number" && Number.isFinite(geomAny.volume_m3);
+        typeof storedVolume === "number" && Number.isFinite(storedVolume);
       let area = hasArea ? (geometry.area_m2 as number) : 0;
-      let volume = hasVolume ? (geomAny.volume_m3 as number) : 0;
+      let volume = hasVolume ? storedVolume : 0;
       if ("mesh" in geometry && geometry.mesh?.positions && geometry.mesh?.indices) {
         if (!hasArea) {
           area = computeMeshArea(geometry.mesh.positions, geometry.mesh.indices);
