@@ -57,7 +57,7 @@ export const runChemistrySolverExample = (variant: ChemistryFixtureVariant = "re
       materials,
       materialsText: variant === "textInputs" ? TEXT_INPUT_MATERIALS : undefined,
       seeds,
-      goals: goals as unknown as WorkflowValue,
+      goals: goals as unknown as WorkflowValue[],
     },
     parameters,
     context,
