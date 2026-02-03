@@ -9228,9 +9228,11 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       const geometryB = geometryBId ? context.geometryById.get(geometryBId) : null;
       const operation = String(inputs.operation ?? parameters.operation ?? "union");
 
-      const meshA = geometryA && "mesh" in geometryA ? geometryA.mesh : null;
-      const meshB = geometryB && "mesh" in geometryB ? geometryB.mesh : null;
-      if (!meshA || !meshB) {
+      const meshGeometryA = geometryA && "mesh" in geometryA ? geometryA : null;
+      const meshGeometryB = geometryB && "mesh" in geometryB ? geometryB : null;
+      const meshA = meshGeometryA ? meshGeometryA.mesh : null;
+      const meshB = meshGeometryB ? meshGeometryB.mesh : null;
+      if (!meshGeometryA || !meshGeometryB || !meshA || !meshB) {
         return {
           geometry: geometryId,
           mesh: { positions: [], normals: [], uvs: [], indices: [] },
@@ -9239,8 +9241,8 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       }
 
       if (operation === "intersection") {
-        const pointsA = collectGeometryVertices(geometryA, context, Number.POSITIVE_INFINITY);
-        const pointsB = collectGeometryVertices(geometryB, context, Number.POSITIVE_INFINITY);
+        const pointsA = collectGeometryVertices(meshGeometryA, context, Number.POSITIVE_INFINITY);
+        const pointsB = collectGeometryVertices(meshGeometryB, context, Number.POSITIVE_INFINITY);
         const boundsA = computeBounds(pointsA);
         const boundsB = computeBounds(pointsB);
         const min = {
@@ -10352,9 +10354,9 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
         readNumberParameter(parameters, "resolution", 12)
       );
 
-      const rawGoals = Array.isArray(inputs.goals)
-        ? inputs.goals
-        : inputs.goals
+      const rawGoals: unknown[] = Array.isArray(inputs.goals)
+        ? (inputs.goals as unknown[])
+        : inputs.goals != null
           ? [inputs.goals]
           : [];
       const isGoalSpecification = (goal: unknown): goal is GoalSpecification => {

@@ -2213,13 +2213,20 @@ const applySeedGeometryNodesToGeometry = (
           { primitive: primitiveInfo }
         );
       } else {
+        const { kind: _kind, ...rawParams } = config;
+        const params: Record<string, number> = {};
+        Object.entries(rawParams).forEach(([key, value]) => {
+          if (typeof value === "number") {
+            params[key] = value;
+          }
+        });
         upsertMeshGeometry(
           geometryId,
           translated,
           {
             kind: primitiveKind,
             origin,
-            params: { ...(config as unknown as Record<string, number>) },
+            params,
           },
           { geometryById, updates, itemsToAdd },
           node.id

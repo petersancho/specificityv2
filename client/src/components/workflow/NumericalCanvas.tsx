@@ -3405,14 +3405,16 @@ export const NumericalCanvas = ({
           });
         });
         if (node.type === "group" && Array.isArray(node.data?.groupNodeIds)) {
-          node.data.groupNodeIds.forEach((groupNodeId) => {
+          node.data.groupNodeIds
+            .filter((groupNodeId): groupNodeId is string => typeof groupNodeId === "string")
+            .forEach((groupNodeId) => {
             const member = nodes.find((entry) => entry.id === groupNodeId);
             if (!member) return;
             dragNodeMap.set(member.id, {
               id: member.id,
               startPos: { x: member.position.x, y: member.position.y },
             });
-          });
+            });
         }
         const dragNodes = Array.from(dragNodeMap.values());
         setDragState({

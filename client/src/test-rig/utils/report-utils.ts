@@ -12,13 +12,23 @@ export interface ScalarSummary {
   mean: number;
   rms: number;
   count: number;
+  finiteCount: number;
+  nonFiniteCount: number;
 }
 
 export function summarizeScalarSeries(
   values: ArrayLike<number> | null | undefined
 ): ScalarSummary {
   if (!values || values.length === 0) {
-    return { min: 0, max: 0, mean: 0, rms: 0, count: 0 };
+    return {
+      min: 0,
+      max: 0,
+      mean: 0,
+      rms: 0,
+      count: 0,
+      finiteCount: 0,
+      nonFiniteCount: 0,
+    };
   }
 
   let min = Infinity;
@@ -26,10 +36,14 @@ export function summarizeScalarSeries(
   let sum = 0;
   let sumSq = 0;
   let count = 0;
+  let nonFiniteCount = 0;
 
   for (let i = 0; i < values.length; i++) {
     const val = values[i];
-    if (!Number.isFinite(val)) continue;
+    if (!Number.isFinite(val)) {
+      nonFiniteCount += 1;
+      continue;
+    }
     
     if (val < min) min = val;
     if (val > max) max = val;
@@ -39,7 +53,15 @@ export function summarizeScalarSeries(
   }
 
   if (count === 0) {
-    return { min: 0, max: 0, mean: 0, rms: 0, count: 0 };
+    return {
+      min: 0,
+      max: 0,
+      mean: 0,
+      rms: 0,
+      count: 0,
+      finiteCount: 0,
+      nonFiniteCount,
+    };
   }
 
   const mean = sum / count;
@@ -51,5 +73,7 @@ export function summarizeScalarSeries(
     mean: safeFinite(mean),
     rms: safeFinite(rms),
     count,
+    finiteCount: count,
+    nonFiniteCount,
   };
 }

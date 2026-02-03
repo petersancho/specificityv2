@@ -14,25 +14,29 @@ const getNodeDefinition = (type: string) =>
 
 const nowTimestamp = () => new Date().toISOString();
 
-const ensure = (condition: boolean, message: string) => {
+function ensure(condition: unknown, message: string): asserts condition {
   if (!condition) {
     throw new Error(message);
   }
-};
+}
 
 const approxEqual = (a: number, b: number, tolerance = 1e-6) =>
   Math.abs(a - b) <= tolerance;
 
-const ensureVec3 = (value: unknown, message: string) => {
-  const vec = value as { x?: number; y?: number; z?: number } | null;
+function ensureVec3(
+  value: unknown,
+  message: string
+): asserts value is { x: number; y: number; z: number } {
+  const vec = value as { x?: unknown; y?: unknown; z?: unknown } | null;
   ensure(
-    Boolean(vec) &&
-      typeof vec?.x === "number" &&
-      typeof vec?.y === "number" &&
-      typeof vec?.z === "number",
+    vec !== null &&
+      typeof vec === "object" &&
+      typeof vec.x === "number" &&
+      typeof vec.y === "number" &&
+      typeof vec.z === "number",
     message
   );
-};
+}
 
 const runNodeValidation = (nodeName: string, fn: () => void) => {
   try {
@@ -130,7 +134,10 @@ const validateVectorLength = () => {
     context,
   });
 
-  ensure(approxEqual(result.length, 13), "Expected vector length 13");
+  ensure(
+    typeof result.length === "number" && approxEqual(result.length, 13),
+    "Expected vector length 13"
+  );
 };
 
 const validateVectorNormalize = () => {
@@ -194,7 +201,10 @@ const validateDistance = () => {
     context,
   });
 
-  ensure(approxEqual(result.distance, 5), "Expected distance 5");
+  ensure(
+    typeof result.distance === "number" && approxEqual(result.distance, 5),
+    "Expected distance 5"
+  );
 };
 
 const validateVectorFromPoints = () => {
@@ -211,7 +221,10 @@ const validateVectorFromPoints = () => {
 
   ensureVec3(result.vector, "Expected vector output");
   ensure(result.vector.x === 3 && result.vector.y === 0 && result.vector.z === 0, "Expected vector (3,0,0)");
-  ensure(approxEqual(result.length, 3), "Expected length 3");
+  ensure(
+    typeof result.length === "number" && approxEqual(result.length, 3),
+    "Expected length 3"
+  );
 };
 
 const validateVectorAngle = () => {
@@ -226,8 +239,14 @@ const validateVectorAngle = () => {
     context,
   });
 
-  ensure(approxEqual(result.angleDeg, 90), "Expected angle 90 deg");
-  ensure(approxEqual(result.angleRad, Math.PI / 2), "Expected angle PI/2 rad");
+  ensure(
+    typeof result.angleDeg === "number" && approxEqual(result.angleDeg, 90),
+    "Expected angle 90 deg"
+  );
+  ensure(
+    typeof result.angleRad === "number" && approxEqual(result.angleRad, Math.PI / 2),
+    "Expected angle PI/2 rad"
+  );
 };
 
 const validateVectorLerp = () => {
@@ -246,7 +265,7 @@ const validateVectorLerp = () => {
   ensure(approxEqual(result.vector.x, 2.5), "Expected lerp x=2.5");
   ensure(approxEqual(result.vector.y, 0), "Expected lerp y=0");
   ensure(approxEqual(result.vector.z, 0), "Expected lerp z=0");
-  ensure(approxEqual(result.t, 0.25), "Expected t=0.25");
+  ensure(typeof result.t === "number" && approxEqual(result.t, 0.25), "Expected t=0.25");
 };
 
 const validateVectorProject = () => {
@@ -263,7 +282,10 @@ const validateVectorProject = () => {
 
   ensureVec3(result.vector, "Expected vector output");
   ensure(result.vector.x === 2 && result.vector.y === 0 && result.vector.z === 0, "Expected projection (2,0,0)");
-  ensure(approxEqual(result.scale, 2), "Expected scale 2");
+  ensure(
+    typeof result.scale === "number" && approxEqual(result.scale, 2),
+    "Expected scale 2"
+  );
 };
 
 const validatePointAttractor = () => {
@@ -284,10 +306,22 @@ const validatePointAttractor = () => {
   });
 
   ensureVec3(result.vector, "Expected vector output");
-  ensure(approxEqual(result.distance, 5), "Expected distance 5");
-  ensure(approxEqual(result.falloff, 0.5), "Expected falloff 0.5");
-  ensure(approxEqual(result.strength, 2), "Expected strength 2");
-  ensure(approxEqual(result.radius, 10), "Expected radius 10");
+  ensure(
+    typeof result.distance === "number" && approxEqual(result.distance, 5),
+    "Expected distance 5"
+  );
+  ensure(
+    typeof result.falloff === "number" && approxEqual(result.falloff, 0.5),
+    "Expected falloff 0.5"
+  );
+  ensure(
+    typeof result.strength === "number" && approxEqual(result.strength, 2),
+    "Expected strength 2"
+  );
+  ensure(
+    typeof result.radius === "number" && approxEqual(result.radius, 10),
+    "Expected radius 10"
+  );
   ensure(approxEqual(result.vector.x, 0) && approxEqual(result.vector.y, 0) && approxEqual(result.vector.z, 1), "Expected vector (0,0,1)");
 };
 
@@ -311,7 +345,10 @@ const validateMovePoint = () => {
   ensureVec3(result.directionUnit, "Expected directionUnit output");
   ensure(approxEqual(result.point.x, 3) && approxEqual(result.point.y, 1) && approxEqual(result.point.z, 1), "Expected moved point (3,1,1)");
   ensure(approxEqual(result.directionUnit.x, 1) && approxEqual(result.directionUnit.y, 0) && approxEqual(result.directionUnit.z, 0), "Expected direction unit (1,0,0)");
-  ensure(approxEqual(result.distance, 2), "Expected distance 2");
+  ensure(
+    typeof result.distance === "number" && approxEqual(result.distance, 2),
+    "Expected distance 2"
+  );
 };
 
 const validateMovePointByVector = () => {
@@ -344,7 +381,10 @@ const validateRotateVectorAxis = () => {
 
   ensureVec3(result.vector, "Expected vector output");
   ensure(approxEqual(result.vector.x, 0) && approxEqual(result.vector.y, 1) && approxEqual(result.vector.z, 0), "Expected rotated vector (0,1,0)");
-  ensure(approxEqual(result.angleDeg, 90), "Expected angle 90");
+  ensure(
+    typeof result.angleDeg === "number" && approxEqual(result.angleDeg, 90),
+    "Expected angle 90"
+  );
 };
 
 const validateMirrorVector = () => {
