@@ -713,14 +713,20 @@ const computeWorkflowOutputs = (
         outputs.geometryId = data.geometryId;
         outputs.geometryType =
           data.geometryType ??
-          (node.type === "line" || node.type === "arc" || node.type === "curve"
-            ? "polyline"
-            : node.type === "primitive" ||
-                (node.type && PRIMITIVE_NODE_TYPE_SET.has(node.type as NodeType)) ||
-                node.type === "box" ||
-                node.type === "sphere"
-              ? "mesh"
-              : node.type);
+          (node.type === "point"
+            ? "vertex"
+            : node.type === "line" || node.type === "arc" || node.type === "polyline"
+              ? "polyline"
+              : node.type === "curve"
+                ? "nurbsCurve"
+                : node.type === "surface"
+                  ? "surface"
+                  : node.type === "primitive" ||
+                      (node.type && PRIMITIVE_NODE_TYPE_SET.has(node.type as NodeType)) ||
+                      node.type === "box" ||
+                      node.type === "sphere"
+                    ? "mesh"
+                    : "mesh");
         outputs.isLinked = true;
       }
       if (node.type === "box" && data.boxDimensions) {
@@ -2024,7 +2030,7 @@ const applySeedGeometryNodesToGeometry = (
           data: {
             ...node.data,
             geometryId,
-            geometryType: null,
+            geometryType: undefined,
             isLinked: false,
           },
         };
@@ -7561,7 +7567,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         data: {
           label: "Ἐπιλύτης Φυσικῆς",
           geometryId: solverGeometryId,
-          geometryType: "mesh",
+          geometryType: "mesh" as const,
           isLinked: true,
           parameters: {
             analysisType: "static",
@@ -8047,7 +8053,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         data: {
           label: "Extract Isosurface",
           geometryId: isoGeometryId,
-          geometryType: "mesh",
+          geometryType: "mesh" as const,
           isLinked: true,
           parameters: {
             isoValue: 0.35,
@@ -8942,7 +8948,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         data: {
           label: "Ἐπιλύτης Χημείας",
           geometryId: solverGeometryId,
-          geometryType: "mesh",
+          geometryType: "mesh" as const,
           isLinked: true,
           parameters: {
             historyLimit: 100,
