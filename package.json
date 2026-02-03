@@ -12,6 +12,7 @@
     "dev:client": "npm run dev -w client",
     "build": "npm run build -w client && npm run build -w server",
     "lint": "npm run lint -w client && npm run lint -w server",
+    "test:chemistry-solver": "tsx scripts/testChemistrySolver.ts",
     "validate:semantic": "tsx scripts/validateSemanticLinkage.ts",
     "validate:commands": "tsx scripts/validateCommandSemantics.ts",
     "validate:integrity": "tsx scripts/validateSemanticIntegrity.ts",

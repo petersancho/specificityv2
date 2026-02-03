@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import styles from './ChemistrySimulatorDashboard.module.css';
+import { SemanticOpsPanel } from '../SemanticOpsPanel';
+import { withSemanticOpSync } from '../../../semantic/semanticTracer';
+import { clearSemanticRun } from '../../../semantic/semanticTraceStore';
 
 type MaterialSpec = {
   name: string;
@@ -103,7 +106,7 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
   nodeId,
   onClose,
 }) => {
-  const [activeTab, setActiveTab] = useState<'setup' | 'simulator' | 'output'>('setup');
+  const [activeTab, setActiveTab] = useState<'setup' | 'simulator' | 'output' | 'semantic'>('setup');
   const [scale, setScale] = useState(100);
   const [selectedMaterials, setSelectedMaterials] = useState<MaterialSpec[]>([
     MATERIAL_LIBRARY[0],
@@ -124,28 +127,100 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
     convergence: 0,
     particles: [],
   });
+  const [semanticRunId, setSemanticRunId] = useState<string | null>(null);
 
   const handleStart = () => {
-    setSimulationState((prev) => ({ ...prev, isRunning: true, isPaused: false }));
+    const runId = `${nodeId}-run-${Date.now()}`;
+    setSemanticRunId(runId);
+    clearSemanticRun(runId);
+
+    withSemanticOpSync(
+      { nodeId, runId, opId: 'simulation.start' },
+      () => {
+        setSimulationState((prev) => ({ ...prev, isRunning: true, isPaused: false }));
+        
+        withSemanticOpSync(
+          { nodeId, runId, opId: 'simulation.initialize' },
+          () => {
+            console.log('[Chemistry Solver] Initializing simulation...');
+            console.log(`  Materials: ${selectedMaterials.map(m => m.name).join(', ')}`);
+            console.log(`  Seeds: ${seeds.length}`);
+            console.log(`  Goals: ${goals.length}`);
+            console.log(`  Particles: ${particleCount}`);
+          }
+        );
+
+        for (let i = 0; i < simulationState.maxIterations; i++) {
+          withSemanticOpSync(
+            { nodeId, runId, opId: 'simulation.step' },
+            () => {
+              const energy = 1000 * Math.exp(-i / 20);
+              const convergence = 1 - Math.exp(-i / 30);
+              setSimulationState((prev) => ({
+                ...prev,
+                currentIteration: i + 1,
+                energy,
+                convergence,
+              }));
+            }
+          );
+        }
+
+        withSemanticOpSync(
+          { nodeId, runId, opId: 'simulation.finalize' },
+          () => {
+            console.log('[Chemistry Solver] Simulation complete');
+            setSimulationState((prev) => ({ ...prev, isRunning: false }));
+          }
+        );
+      }
+    );
   };
 
   const handlePause = () => {
-    setSimulationState((prev) => ({ ...prev, isPaused: true }));
+    if (semanticRunId) {
+      withSemanticOpSync(
+        { nodeId, runId: semanticRunId, opId: 'simulation.pause' },
+        () => {
+          setSimulationState((prev) => ({ ...prev, isPaused: true }));
+        }
+      );
+    }
   };
 
   const handleResume = () => {
-    setSimulationState((prev) => ({ ...prev, isPaused: false }));
+    if (semanticRunId) {
+      withSemanticOpSync(
+        { nodeId, runId: semanticRunId, opId: 'simulation.resume' },
+        () => {
+          setSimulationState((prev) => ({ ...prev, isPaused: false }));
+        }
+      );
+    }
   };
 
   const handleStop = () => {
-    setSimulationState((prev) => ({
-      ...prev,
-      isRunning: false,
-      isPaused: false,
-    }));
+    if (semanticRunId) {
+      withSemanticOpSync(
+        { nodeId, runId: semanticRunId, opId: 'simulation.stop' },
+        () => {
+          setSimulationState((prev) => ({
+            ...prev,
+            isRunning: false,
+            isPaused: false,
+          }));
+        }
+      );
+    }
   };
 
   const handleReset = () => {
+    if (semanticRunId) {
+      clearSemanticRun(semanticRunId);
+    }
+    const newRunId = `${nodeId}-run-${Date.now()}`;
+    setSemanticRunId(newRunId);
+    
     setSimulationState({
       isRunning: false,
       isPaused: false,
@@ -243,6 +318,12 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
           onClick={() => setActiveTab('output')}
         >
           Output
+        </button>
+        <button
+          className={`${styles.tab} ${activeTab === 'semantic' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('semantic')}
+        >
+          Semantic Ops
         </button>
       </div>
 
@@ -652,6 +733,16 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
                 <button className={styles.exportButton}>Export Material Data (JSON)</button>
               </div>
             </div>
+          </div>
+        )}
+
+        {activeTab === 'semantic' && (
+          <div className={styles.semanticTab}>
+            <SemanticOpsPanel 
+              nodeId={nodeId} 
+              nodeType="chemistrySolver" 
+              runId={semanticRunId ?? undefined}
+            />
           </div>
         )}
       </div>

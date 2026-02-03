@@ -269,7 +269,8 @@ const formatPortSummary = (
 
 export const buildNodeTooltipLines = (
   definition?: WorkflowNodeDefinition,
-  ports?: { inputs: WorkflowPortSpec[]; outputs: WorkflowPortSpec[] }
+  ports?: { inputs: WorkflowPortSpec[]; outputs: WorkflowPortSpec[] },
+  semanticOpsCount?: number
 ) => {
   if (!definition) return [];
   const lines: string[] = [];
@@ -291,6 +292,12 @@ export const buildNodeTooltipLines = (
   const outputLine = formatPortSummary(ports?.outputs, "Outputs");
   if (inputLine) lines.push(inputLine);
   if (outputLine) lines.push(outputLine);
+  
+  if (semanticOpsCount !== undefined && semanticOpsCount > 0) {
+    lines.push("");
+    lines.push(`Semantic Operations: ${semanticOpsCount}`);
+  }
+  
   return lines;
 };
 

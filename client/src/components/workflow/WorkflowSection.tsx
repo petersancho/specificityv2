@@ -35,6 +35,14 @@ import {
   buildPanelLines,
   resolvePanelFormatOptions,
 } from "./panelFormat";
+import { DashboardModal } from "./DashboardModal";
+import { SemanticInspector } from "./SemanticInspector";
+import { SemanticOpsExplorer } from "./SemanticOpsExplorer";
+import { ChemistrySimulatorDashboard } from "./chemistry/ChemistrySimulatorDashboard";
+import { PhysicsSimulatorDashboard } from "./physics/PhysicsSimulatorDashboard";
+import EvolutionarySimulatorDashboard from "./evolutionary/EvolutionarySimulatorDashboard";
+import { VoxelSimulatorDashboard } from "./voxel/VoxelSimulatorDashboard";
+import { TopologyOptimizationSimulatorDashboard } from "../TopologyOptimizationSimulatorDashboard";
 import styles from "./WorkflowSection.module.css";
 
 const STICKER_TINTS: Record<string, string> = {
@@ -163,6 +171,8 @@ const WorkflowSection = ({
 }: WorkflowSectionProps) => {
   const [selectedType, setSelectedType] = useState<NodeType>("number");
   const [nodeQuery, setNodeQuery] = useState("");
+  const [dashboardOpen, setDashboardOpen] = useState(false);
+  const [semanticExplorerOpen, setSemanticExplorerOpen] = useState(false);
   const nodeSearchRef = useRef<HTMLInputElement>(null);
   const parameterPanelRef = useRef<HTMLDivElement>(null);
   const sectionRef = useRef<HTMLElement | null>(null);
@@ -727,6 +737,14 @@ const WorkflowSection = ({
           </div>
         </div>
         <div className={styles.headerCluster}>
+          <IconButton
+            size="sm"
+            label="Semantic Operations"
+            iconId="info"
+            tooltip="Explore Semantic Operations"
+            tooltipPosition="bottom"
+            onClick={() => setSemanticExplorerOpen(true)}
+          />
           {onToggleFullscreen && (
             <IconButton
               size="sm"
@@ -1211,6 +1229,23 @@ const WorkflowSection = ({
                           />
                         </div>
                       ) : null}
+
+                      {selectedNodeContext.definition?.customUI?.dashboardButton && (
+                        <div className={styles.parameterActions}>
+                          <WebGLButton
+                            type="button"
+                            label={selectedNodeContext.definition.customUI.dashboardButton.label}
+                            iconId="solver"
+                            size="sm"
+                            variant="primary"
+                            onClick={() => setDashboardOpen(true)}
+                          />
+                        </div>
+                      )}
+
+                      {selectedNodeContext.definition && (
+                        <SemanticInspector definition={selectedNodeContext.definition} />
+                      )}
                     </>
                   ) : (
                     <p className={styles.parameterEmpty}>
@@ -1248,6 +1283,37 @@ const WorkflowSection = ({
           </div>
         </div>
       </div>
+
+      <DashboardModal isOpen={dashboardOpen} onClose={() => setDashboardOpen(false)}>
+        {selectedNodeContext?.definition?.customUI?.dashboardButton && (() => {
+          const componentName = selectedNodeContext.definition.customUI.dashboardButton.component;
+          const nodeId = selectedNodeContext.node.id;
+          const onClose = () => setDashboardOpen(false);
+          const parameters = selectedNodeContext.parameters;
+          const onParameterChange = (key: string, value: unknown) => {
+            updateNodeData(nodeId, { parameters: { [key]: value } });
+          };
+
+          switch (componentName) {
+            case "ChemistrySimulatorDashboard":
+              return <ChemistrySimulatorDashboard nodeId={nodeId} onClose={onClose} />;
+            case "PhysicsSimulatorDashboard":
+              return <PhysicsSimulatorDashboard nodeId={nodeId} onClose={onClose} />;
+            case "EvolutionarySimulatorDashboard":
+              return <EvolutionarySimulatorDashboard nodeId={nodeId} onClose={onClose} />;
+            case "VoxelSimulatorDashboard":
+              return <VoxelSimulatorDashboard nodeId={nodeId} parameters={parameters} onParameterChange={onParameterChange} onClose={onClose} />;
+            case "TopologyOptimizationSimulatorDashboard":
+              return <TopologyOptimizationSimulatorDashboard nodeId={nodeId} onClose={onClose} />;
+            default:
+              return <div>Unknown dashboard: {componentName}</div>;
+          }
+        })()}
+      </DashboardModal>
+
+      {semanticExplorerOpen && (
+        <SemanticOpsExplorer onClose={() => setSemanticExplorerOpen(false)} />
+      )}
     </section>
   );
 };
