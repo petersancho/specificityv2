@@ -88,6 +88,7 @@ export type NodeType =
   | "plasticwrap"
   | "solid"
   | "measurement"
+  | "volume"
   | "dimensions"
   | "geometryArray"
   | "rotate"
@@ -281,6 +282,7 @@ export const SUPPORTED_WORKFLOW_NODE_TYPES: NodeType[] = [
   "plasticwrap",
   "solid",
   "measurement",
+  "volume",
   "dimensions",
   "geometryArray",
   "rotate",

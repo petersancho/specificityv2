@@ -7594,6 +7594,33 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     },
   },
   {
+    type: "volume",
+    label: "Volume",
+    shortLabel: "VOL",
+    description: "Compute volume for geometry.",
+    category: "measurement",
+    iconId: "volumeGoal",
+    inputs: [{ key: "geometry", label: "Geometry", type: "geometry", required: true }],
+    outputs: [{ key: "volume", label: "Volume", type: "number" }],
+    parameters: [],
+    primaryOutputKey: "volume",
+    semanticOps: ["geometry.analyze.volume"] as const,
+    compute: ({ inputs, context }) => {
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      if (!geometry) {
+        return { volume: 0 };
+      }
+      const geomAny = geometry as { volume_m3?: number; mesh?: RenderMesh };
+      if (typeof geomAny.volume_m3 === "number" && Number.isFinite(geomAny.volume_m3)) {
+        return { volume: geomAny.volume_m3 };
+      }
+      if ("mesh" in geometry && geometry.mesh?.positions && geometry.mesh?.indices) {
+        return { volume: computeMeshVolume(geometry.mesh.positions, geometry.mesh.indices) };
+      }
+      return { volume: 0 };
+    },
+  },
+  {
     type: "dimensions",
     label: "Dimensions",
     shortLabel: "DIM",

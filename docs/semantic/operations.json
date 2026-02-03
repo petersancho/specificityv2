@@ -4619,6 +4619,26 @@
     "stable": true,
     "since": "1.0.0"
   },
+  "geometry.analyze.volume": {
+    "id": "geometry.analyze.volume",
+    "domain": "geometry",
+    "name": "Volume",
+    "category": "analysis",
+    "tags": [
+      "geometry",
+      "analysis",
+      "volume",
+      "mesh"
+    ],
+    "complexity": "O(n)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Computes volume for geometry or meshes.",
+    "stable": true,
+    "since": "1.0.0"
+  },
   "geometry.analyze.vertices": {
     "id": "geometry.analyze.vertices",
     "domain": "geometry",

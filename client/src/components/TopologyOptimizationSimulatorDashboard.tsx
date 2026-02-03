@@ -302,7 +302,11 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
         sourceNodeId: nodeId,
         recordHistory: false,
         geometryId: cachedPointCloudId,
-        metadata: { generatedBy: 'topology-optimization', type: 'point-cloud' }
+        metadata: {
+          generatedBy: "topology-optimization",
+          type: "point-cloud",
+          label: "Topology Points",
+        },
       });
       if (DEBUG) console.log('[GEOM] Registered point cloud:', pointCloudId);
       
@@ -310,7 +314,11 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
         sourceNodeId: nodeId,
         recordHistory: false,
         geometryId: cachedCurveNetworkId,
-        metadata: { generatedBy: 'topology-optimization', type: 'curve-network' }
+        metadata: {
+          generatedBy: "topology-optimization",
+          type: "curve-network",
+          label: "Topology Curves",
+        },
       });
       if (DEBUG) console.log('[GEOM] Registered curve network:', curveNetworkId);
       
@@ -318,7 +326,11 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
         sourceNodeId: nodeId,
         recordHistory: false,
         geometryId: cachedOptimizedMeshId,
-        metadata: { generatedBy: 'topology-optimization', type: 'multipipe' }
+        metadata: {
+          generatedBy: "topology-optimization",
+          type: "multipipe",
+          label: "Topology Multipipe",
+        },
       });
       if (DEBUG) console.log('[GEOM] Registered multipipe:', multipipeId);
 
@@ -331,6 +343,10 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       updateNodeData(
         nodeId,
         {
+          geometryId: multipipeId,
+          geometryIds: [pointCloudId, curveNetworkId, multipipeId],
+          geometryType: "mesh",
+          isLinked: true,
           parameters: {
             optimizedMeshId: multipipeId,
             pointCloudId,

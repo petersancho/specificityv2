@@ -7837,6 +7837,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     // Column 1: Box Builder
     const boxBuilderId = `node-box-topology-${ts}`;
     const boxBuilderPos = { x: position.x, y: position.y + SLIDER_HEIGHT * 1.5 };
+    const volumeNodeId = `node-volume-${ts}`;
+    const volumeRatioId = `node-number-topo-volumeRatio-${ts}`;
+    const volumeMultiplyId = `node-multiply-topo-volumeTarget-${ts}`;
+    const volumeNodePos = { x: position.x, y: boxBuilderPos.y + NODE_HEIGHT + V_GAP };
+    const volumeRatioPos = { x: position.x, y: volumeNodePos.y + NODE_HEIGHT + V_GAP };
+    const volumeMultiplyPos = { x: position.x, y: volumeRatioPos.y + NODE_HEIGHT + V_GAP };
 
     // Column 2: SIMP parameter sliders (stacked vertically)
     const col2X = position.x + NODE_WIDTH + H_GAP;
@@ -7976,6 +7982,34 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             centerMode: true,
             representation: "mesh",
           },
+        },
+      },
+      {
+        id: volumeNodeId,
+        type: "volume" as const,
+        position: volumeNodePos,
+        data: {
+          label: "Volume",
+        },
+      },
+      {
+        id: volumeRatioId,
+        type: "number" as const,
+        position: volumeRatioPos,
+        data: {
+          label: "Volume Ratio",
+          parameters: {
+            value: 0.5,
+            step: 0.05,
+          },
+        },
+      },
+      {
+        id: volumeMultiplyId,
+        type: "multiply" as const,
+        position: volumeMultiplyPos,
+        data: {
+          label: "Target Volume",
         },
       },
       {
@@ -8357,6 +8391,27 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         targetHandle: "geometry",
       },
       {
+        id: `edge-${boxBuilderId}-${volumeNodeId}-geometry`,
+        source: boxBuilderId,
+        sourceHandle: "geometry",
+        target: volumeNodeId,
+        targetHandle: "geometry",
+      },
+      {
+        id: `edge-${volumeNodeId}-${volumeMultiplyId}-a`,
+        source: volumeNodeId,
+        sourceHandle: "volume",
+        target: volumeMultiplyId,
+        targetHandle: "a",
+      },
+      {
+        id: `edge-${volumeRatioId}-${volumeMultiplyId}-b`,
+        source: volumeRatioId,
+        sourceHandle: "value",
+        target: volumeMultiplyId,
+        targetHandle: "b",
+      },
+      {
         id: `edge-${nxSliderId}-${solverId}-nx`,
         source: nxSliderId,
         sourceHandle: "value",
@@ -8509,6 +8564,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         sourceHandle: "goal",
         target: solverId,
         targetHandle: "goals",
+      },
+      {
+        id: `edge-${volumeMultiplyId}-${volumeGoalId}-targetVolume`,
+        source: volumeMultiplyId,
+        sourceHandle: "result",
+        target: volumeGoalId,
+        targetHandle: "targetVolume",
       },
       {
         id: `edge-${volumeWeightSliderId}-${volumeGoalId}-weight`,
