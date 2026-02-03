@@ -2041,7 +2041,6 @@ const applySeedGeometryNodesToGeometry = (
           data: {
             ...nextData,
             geometryId,
-            geometryType: undefined,
             isLinked: false,
           },
         };
@@ -8951,7 +8950,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       },
     ];
 
-    const outputNodes: WorkflowNode[] = [
+    const outputNodes = [
       {
         id: solverId,
         type: "chemistrySolver" as const,
