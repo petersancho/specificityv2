@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import styles from "./TopologyOptimizationSimulatorDashboard.module.css";
 import { useProjectStore } from "../store/useProjectStore";
+import { computeMeshArea } from "../geometry/mesh";
+import { computeMeshVolumeAndCentroid } from "../geometry/physical";
 import type { RenderMesh, Vec3 } from "../types";
 import type { SimpParams, SolverFrame, SimulationState, SimulationHistory, GoalMarkers } from "./workflow/topology/types";
 import { extractGoalMarkers } from "./workflow/topology/goals";
@@ -29,6 +31,35 @@ const toNumber = (value: unknown, fallback: number) => {
     if (Number.isFinite(parsed)) return parsed;
   }
   return fallback;
+};
+
+// Helper to calculate mesh bounds
+const calculateMeshBounds = (mesh: RenderMesh): { min: Vec3; max: Vec3 } => {
+  const positions = mesh.positions;
+  if (positions.length === 0) {
+    return { min: { x: 0, y: 0, z: 0 }, max: { x: 1, y: 1, z: 1 } };
+  }
+
+  let minX = Infinity, minY = Infinity, minZ = Infinity;
+  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+
+  for (let i = 0; i < positions.length; i += 3) {
+    const x = positions[i];
+    const y = positions[i + 1];
+    const z = positions[i + 2];
+
+    if (x < minX) minX = x;
+    if (y < minY) minY = y;
+    if (z < minZ) minZ = z;
+    if (x > maxX) maxX = x;
+    if (y > maxY) maxY = y;
+    if (z > maxZ) maxZ = z;
+  }
+
+  return {
+    min: { x: minX, y: minY, z: minZ },
+    max: { x: maxX, y: maxY, z: maxZ },
+  };
 };
 
 export const TopologyOptimizationSimulatorDashboard: React.FC<
@@ -66,31 +97,63 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   );
 
   const parameters = solverNode?.data?.parameters ?? {};
+  const outputs = solverNode?.data?.outputs ?? {};
+
+  const inputOverrides = useMemo(() => {
+    const overrides = new Map<string, unknown>();
+    const outputKeyFallback = (sourceNode?: typeof nodes[number]) => {
+      if (!sourceNode?.data?.outputs) return null;
+      if ("value" in sourceNode.data.outputs) return "value";
+      const keys = Object.keys(sourceNode.data.outputs);
+      return keys.length > 0 ? keys[0] : null;
+    };
+
+    for (const edge of edges) {
+      if (edge.target !== nodeId) continue;
+      const targetHandle = edge.targetHandle;
+      if (!targetHandle) continue;
+      const sourceNode = nodes.find((node) => node.id === edge.source);
+      if (!sourceNode?.data?.outputs) continue;
+      const outputKey = edge.sourceHandle ?? outputKeyFallback(sourceNode);
+      if (!outputKey) continue;
+      overrides.set(targetHandle, sourceNode.data.outputs[outputKey]);
+    }
+    return overrides;
+  }, [edges, nodeId, nodes]);
+
+  const resolveNumber = (key: string, fallback: number) => {
+    if (inputOverrides.has(key)) {
+      return toNumber(inputOverrides.get(key), fallback);
+    }
+    return toNumber((parameters as Record<string, unknown>)[key], fallback);
+  };
 
   // SIMP parameters
-  const nx = toNumber(parameters.nx, 80);
-  const ny = toNumber(parameters.ny, 60);
-  const nz = toNumber(parameters.nz, 1);
-  const volFrac = toNumber(parameters.volFrac, 0.4);
-  const penalStart = toNumber(parameters.penalStart, 1.0);
-  const penalEnd = toNumber(parameters.penalEnd, 3.0);
-  const penalRampIters = toNumber(parameters.penalRampIters, 60);
-  const rmin = toNumber(parameters.rmin, 1.5);
-  const move = toNumber(parameters.move, 0.15);
-  const maxIters = toNumber(parameters.maxIters, 150);
-  const tolChange = toNumber(parameters.tolChange, 0.001);
-  const E0 = toNumber(parameters.E0, 1.0);
-  const Emin = toNumber(parameters.Emin, 1e-9);
-  const rhoMin = toNumber(parameters.rhoMin, 1e-3);
-  const nu = toNumber(parameters.nu, 0.3);
-  const cgTol = toNumber(parameters.cgTol, 1e-6);
-  const cgMaxIters = toNumber(parameters.cgMaxIters, 1000);
+  const nx = resolveNumber("nx", 80);
+  const ny = resolveNumber("ny", 60);
+  const nz = resolveNumber("nz", 1);
+  const volFrac = resolveNumber("volFrac", 0.4);
+  const penalStart = resolveNumber("penalStart", 1.0);
+  const penalEnd = resolveNumber("penalEnd", 3.0);
+  const penalRampIters = resolveNumber("penalRampIters", 60);
+  const rmin = resolveNumber("rmin", 1.5);
+  const move = resolveNumber("move", 0.15);
+  const maxIters = resolveNumber("maxIters", 150);
+  const tolChange = resolveNumber("tolChange", 0.001);
+  const E0 = resolveNumber("E0", 1.0);
+  const Emin = resolveNumber("Emin", 1e-9);
+  const rhoMin = resolveNumber("rhoMin", 1e-3);
+  const nu = resolveNumber("nu", 0.3);
+  const cgTol = resolveNumber("cgTol", 1e-6);
+  const cgMaxIters = resolveNumber("cgMaxIters", 1000);
   
   // Geometry generation parameters
-  const densityThreshold = toNumber(parameters.densityThreshold, 0.3);
-  const maxLinksPerPoint = toNumber(parameters.maxLinksPerPoint, 6);
-  const maxSpanLength = toNumber(parameters.maxSpanLength, 1.5);
-  const pipeRadius = toNumber(parameters.pipeRadius, 0.045);
+  const densityThreshold = resolveNumber("densityThreshold", 0.3);
+  const maxLinksPerPoint = resolveNumber("maxLinksPerPoint", 6);
+  const maxSpanLength = resolveNumber("maxSpanLength", 1.5);
+  const pipeRadius = resolveNumber("pipeRadius", 0.045);
+  const pipeSegmentsRaw = resolveNumber("pipeSegments", 12);
+  const pipeSegments = Math.max(6, Math.min(32, Math.round(pipeSegmentsRaw)));
 
   // Check connections
   const geometryEdge = edges.find(
@@ -135,6 +198,11 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     console.error('[TOPOLOGY] ❌ No valid mesh geometry found');
     return null;
   }, [geometryEdge, nodes, geometry]);
+
+  const baseBounds = useMemo(() => {
+    if (!baseMesh) return null;
+    return calculateMeshBounds(baseMesh);
+  }, [baseMesh]);
 
   const goals = useMemo(() => {
     const goalList: any[] = [];
@@ -190,12 +258,6 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
         ? frame.densities 
         : new Float64Array(frame.densities);
       
-      // Get parameters from node (with fallbacks)
-      const densityThreshold = toNumber(parameters.densityThreshold, 0.3);
-      const maxLinks = toNumber(parameters.maxLinksPerPoint, 4);
-      const maxSpan = toNumber(parameters.maxSpanLength, 2.0);
-      const radius = toNumber(parameters.pipeRadius, 0.05);
-      
       const geometryOutput = generateGeometryFromDensities(
         {
           densities,
@@ -205,9 +267,10 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
           bounds,
         },
         densityThreshold,
-        maxLinks,
-        maxSpan,
-        radius
+        maxLinksPerPoint,
+        maxSpanLength,
+        pipeRadius,
+        pipeSegments
       );
       
       // Register geometries in the store
@@ -216,9 +279,29 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
         console.log('[GEOM] Node ID:', nodeId);
       }
       
+      const cachedPointCloudId =
+        typeof parameters.pointCloudId === "string"
+          ? parameters.pointCloudId
+          : typeof outputs.pointCloud === "string"
+            ? outputs.pointCloud
+            : undefined;
+      const cachedCurveNetworkId =
+        typeof parameters.curveNetworkId === "string"
+          ? parameters.curveNetworkId
+          : typeof outputs.curveNetwork === "string"
+            ? outputs.curveNetwork
+            : undefined;
+      const cachedOptimizedMeshId =
+        typeof parameters.optimizedMeshId === "string"
+          ? parameters.optimizedMeshId
+          : typeof outputs.optimizedMesh === "string"
+            ? outputs.optimizedMesh
+            : undefined;
+
       const pointCloudId = addGeometryMesh(geometryOutput.pointCloud, { 
         sourceNodeId: nodeId,
         recordHistory: false,
+        geometryId: cachedPointCloudId,
         metadata: { generatedBy: 'topology-optimization', type: 'point-cloud' }
       });
       if (DEBUG) console.log('[GEOM] Registered point cloud:', pointCloudId);
@@ -226,6 +309,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       const curveNetworkId = addGeometryMesh(geometryOutput.curveNetwork, { 
         sourceNodeId: nodeId,
         recordHistory: false,
+        geometryId: cachedCurveNetworkId,
         metadata: { generatedBy: 'topology-optimization', type: 'curve-network' }
       });
       if (DEBUG) console.log('[GEOM] Registered curve network:', curveNetworkId);
@@ -233,9 +317,48 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       const multipipeId = addGeometryMesh(geometryOutput.multipipe, { 
         sourceNodeId: nodeId,
         recordHistory: false,
+        geometryId: cachedOptimizedMeshId,
         metadata: { generatedBy: 'topology-optimization', type: 'multipipe' }
       });
       if (DEBUG) console.log('[GEOM] Registered multipipe:', multipipeId);
+
+      const surfaceArea = computeMeshArea(
+        geometryOutput.multipipe.positions,
+        geometryOutput.multipipe.indices
+      );
+      const { volume_m3 } = computeMeshVolumeAndCentroid(geometryOutput.multipipe);
+
+      updateNodeData(
+        nodeId,
+        {
+          parameters: {
+            optimizedMeshId: multipipeId,
+            pointCloudId,
+            curveNetworkId,
+            pointCount: geometryOutput.pointCount,
+            curveCount: geometryOutput.curveCount,
+            volume: volume_m3,
+            surfaceArea,
+            simulationStep: "complete",
+          },
+          topologyProgress: {
+            iteration: frame.iter,
+            objective: frame.compliance,
+            constraint: frame.vol,
+            status: "complete",
+          },
+          outputs: {
+            optimizedMesh: multipipeId,
+            pointCloud: pointCloudId,
+            curveNetwork: curveNetworkId,
+            pointCount: geometryOutput.pointCount,
+            curveCount: geometryOutput.curveCount,
+            volume: volume_m3,
+            surfaceArea,
+          },
+        },
+        { recalculate: false }
+      );
       
       if (DEBUG) {
         console.log(`[GEOM] ✅ Generated topology optimization geometry:
@@ -250,34 +373,6 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     }
   };
   
-  // Helper to calculate mesh bounds
-  const calculateMeshBounds = (mesh: RenderMesh): { min: Vec3; max: Vec3 } => {
-    const positions = mesh.positions;
-    if (positions.length === 0) {
-      return { min: { x: 0, y: 0, z: 0 }, max: { x: 1, y: 1, z: 1 } };
-    }
-    
-    let minX = Infinity, minY = Infinity, minZ = Infinity;
-    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
-    
-    for (let i = 0; i < positions.length; i += 3) {
-      const x = positions[i];
-      const y = positions[i + 1];
-      const z = positions[i + 2];
-      
-      if (x < minX) minX = x;
-      if (y < minY) minY = y;
-      if (z < minZ) minZ = z;
-      if (x > maxX) maxX = x;
-      if (y > maxY) maxY = y;
-      if (z > maxZ) maxZ = z;
-    }
-    
-    return {
-      min: { x: minX, y: minY, z: minZ },
-      max: { x: maxX, y: maxY, z: maxZ },
-    };
-  };
 
   // Iteration loop (extracted to allow resume)
   const iterate = async () => {
@@ -314,7 +409,8 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
             densityThreshold,
             maxLinksPerPoint,
             maxSpanLength,
-            pipeRadius
+            pipeRadius,
+            pipeSegments
           );
           setPreviewGeometry(result.multipipe);
         } catch (error) {
@@ -371,6 +467,19 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     setSimulationState('running');
     setHistory({ compliance: [], change: [], vol: [] });
     setCurrentFrame(undefined);
+    updateNodeData(
+      nodeId,
+      {
+        parameters: { simulationStep: "running" },
+        topologyProgress: {
+          iteration: 0,
+          objective: 0,
+          constraint: volFrac,
+          status: "running",
+        },
+      },
+      { recalculate: false }
+    );
 
     const simpParams: SimpParams = {
       nx, ny, nz,
@@ -429,6 +538,19 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     setCurrentFrame(undefined);
     setHistory({ compliance: [], change: [], vol: [] });
     setPreviewGeometry(null);
+    updateNodeData(
+      nodeId,
+      {
+        parameters: { simulationStep: "idle" },
+        topologyProgress: {
+          iteration: 0,
+          objective: 0,
+          constraint: 0,
+          status: "idle",
+        },
+      },
+      { recalculate: false }
+    );
   };
 
   // Cleanup on unmount
@@ -746,6 +868,130 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                 </div>
               </div>
             </div>
+
+            <div className={styles.section}>
+              <h3 className={styles.sectionTitle}>Geometry Extraction</h3>
+
+              <div className={styles.parameterGroup}>
+                <label className={styles.parameterLabel}>
+                  Density Threshold
+                  <span className={styles.parameterDescription}>
+                    Minimum density to keep (0.1-0.9)
+                  </span>
+                </label>
+                <div className={styles.parameterControl}>
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="0.9"
+                    step="0.05"
+                    value={densityThreshold}
+                    onChange={(e) =>
+                      handleParameterChange("densityThreshold", Number(e.target.value))
+                    }
+                    className={styles.slider}
+                    disabled={simulationState === 'running'}
+                  />
+                  <span className={styles.parameterValue}>{densityThreshold.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <div className={styles.parameterGroup}>
+                <label className={styles.parameterLabel}>
+                  Max Links Per Point
+                  <span className={styles.parameterDescription}>
+                    Connectivity degree (2-8)
+                  </span>
+                </label>
+                <div className={styles.parameterControl}>
+                  <input
+                    type="range"
+                    min="2"
+                    max="8"
+                    step="1"
+                    value={maxLinksPerPoint}
+                    onChange={(e) =>
+                      handleParameterChange("maxLinksPerPoint", Number(e.target.value))
+                    }
+                    className={styles.slider}
+                    disabled={simulationState === 'running'}
+                  />
+                  <span className={styles.parameterValue}>{maxLinksPerPoint}</span>
+                </div>
+              </div>
+
+              <div className={styles.parameterGroup}>
+                <label className={styles.parameterLabel}>
+                  Max Span Length
+                  <span className={styles.parameterDescription}>
+                    Maximum link length (0.5-3.0)
+                  </span>
+                </label>
+                <div className={styles.parameterControl}>
+                  <input
+                    type="range"
+                    min="0.5"
+                    max="3.0"
+                    step="0.1"
+                    value={maxSpanLength}
+                    onChange={(e) =>
+                      handleParameterChange("maxSpanLength", Number(e.target.value))
+                    }
+                    className={styles.slider}
+                    disabled={simulationState === 'running'}
+                  />
+                  <span className={styles.parameterValue}>{maxSpanLength.toFixed(1)}</span>
+                </div>
+              </div>
+
+              <div className={styles.parameterGroup}>
+                <label className={styles.parameterLabel}>
+                  Pipe Radius
+                  <span className={styles.parameterDescription}>
+                    Multipipe thickness (0.01-0.2)
+                  </span>
+                </label>
+                <div className={styles.parameterControl}>
+                  <input
+                    type="range"
+                    min="0.01"
+                    max="0.2"
+                    step="0.005"
+                    value={pipeRadius}
+                    onChange={(e) =>
+                      handleParameterChange("pipeRadius", Number(e.target.value))
+                    }
+                    className={styles.slider}
+                    disabled={simulationState === 'running'}
+                  />
+                  <span className={styles.parameterValue}>{pipeRadius.toFixed(3)}</span>
+                </div>
+              </div>
+
+              <div className={styles.parameterGroup}>
+                <label className={styles.parameterLabel}>
+                  Pipe Segments
+                  <span className={styles.parameterDescription}>
+                    Smoothness vs speed (6-32)
+                  </span>
+                </label>
+                <div className={styles.parameterControl}>
+                  <input
+                    type="range"
+                    min="6"
+                    max="32"
+                    step="1"
+                    value={pipeSegments}
+                    onChange={(e) =>
+                      handleParameterChange("pipeSegments", Number(e.target.value))
+                    }
+                    className={styles.slider}
+                    disabled={simulationState === 'running'}
+                  />
+                  <span className={styles.parameterValue}>{pipeSegments}</span>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -763,8 +1009,12 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                       numElements: nx * ny, 
                       numNodes: (nx + 1) * (ny + 1), 
                       numDofs: (nx + 1) * (ny + 1) * 2, 
-                      elementSize: { x: 1 / nx, y: 1 / ny, z: 0 }, 
-                      bounds: { min: { x: 0, y: 0, z: 0 }, max: { x: 1, y: 1, z: 0 } } 
+                      elementSize: { 
+                        x: Math.max(1e-6, (baseBounds?.max.x ?? 1) - (baseBounds?.min.x ?? 0)) / nx, 
+                        y: Math.max(1e-6, (baseBounds?.max.y ?? 1) - (baseBounds?.min.y ?? 0)) / ny, 
+                        z: 0 
+                      }, 
+                      bounds: baseBounds ?? { min: { x: 0, y: 0, z: 0 }, max: { x: 1, y: 1, z: 0 } } 
                     }}
                     markers={markers}
                     frame={currentFrame}

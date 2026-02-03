@@ -127,6 +127,42 @@ const resolveViewerDpr = () => {
   const maxDpr = VIEW_STYLE.maxRenderDpr ?? scaled;
   return Math.min(scaled, maxDpr);
 };
+
+const collectGeometryIdsFromValue = (
+  value: unknown,
+  availableIds: Set<string>,
+  target: Set<string>
+) => {
+  if (typeof value === "string") {
+    if (availableIds.has(value)) target.add(value);
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((entry) => collectGeometryIdsFromValue(entry, availableIds, target));
+  }
+};
+
+const collectGeometryIdsFromNode = (
+  node: { data?: { geometryId?: string; geometryIds?: string[]; outputs?: Record<string, unknown> } },
+  availableIds: Set<string>,
+  target: Set<string>
+) => {
+  const data = node.data;
+  if (!data) return;
+  if (data.geometryId && availableIds.has(data.geometryId)) {
+    target.add(data.geometryId);
+  }
+  if (Array.isArray(data.geometryIds)) {
+    data.geometryIds.forEach((id) => {
+      if (availableIds.has(id)) target.add(id);
+    });
+  }
+  const outputs = data.outputs;
+  if (!outputs) return;
+  Object.values(outputs).forEach((value) =>
+    collectGeometryIdsFromValue(value, availableIds, target)
+  );
+};
 const HOVER_FACE_ID = "__hover-face";
 const GUMBALL_HOVER_PREVIEW_ID = "__gumball_hover_preview";
 const SELECTED_LINE_ID = "__selected-line";
@@ -1086,6 +1122,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
   const selectionModeRef = useRef(useProjectStore.getState().selectionMode);
   const hiddenRef = useRef(useProjectStore.getState().hiddenGeometryIds);
   const hiddenNodeIdsRef = useRef<Set<string>>(new Set());
+  const hiddenNodeGeometryIdsRef = useRef<Set<string>>(new Set());
   const viewSettingsRef = useRef(useProjectStore.getState().viewSettings);
   const viewSolidityRef = useRef(useProjectStore.getState().viewSolidity);
   const displayModeRef = useRef(useProjectStore.getState().displayMode);
@@ -5620,10 +5657,19 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
 
   useEffect(() => {
     const nodes = workflowNodes ?? [];
-    hiddenNodeIdsRef.current = new Set(
-      nodes.filter((node) => node.hidden).map((node) => node.id)
-    );
-  }, [workflowNodes]);
+    const hiddenNodeIds = new Set<string>();
+    const hiddenGeometryIds = new Set<string>();
+    const availableIds = new Set(geometryRef.current.map((item) => item.id));
+
+    nodes.forEach((node) => {
+      if (!node.hidden) return;
+      hiddenNodeIds.add(node.id);
+      collectGeometryIdsFromNode(node, availableIds, hiddenGeometryIds);
+    });
+
+    hiddenNodeIdsRef.current = hiddenNodeIds;
+    hiddenNodeGeometryIdsRef.current = hiddenGeometryIds;
+  }, [workflowNodes, geometry]);
 
   useEffect(() => {
     viewSettingsRef.current = viewSettings;
@@ -7148,6 +7194,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         .getAllRenderables()
         .filter((renderable) => {
           if (hidden.has(renderable.id)) return false;
+          if (hiddenNodeGeometryIdsRef.current.has(renderable.id)) return false;
           const item = geometryRef.current.find((entry) => entry.id === renderable.id);
           if (item?.sourceNodeId && hiddenNodeIdsRef.current.has(item.sourceNodeId)) return false;
           return true;

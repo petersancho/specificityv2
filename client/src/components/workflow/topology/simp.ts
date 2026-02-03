@@ -9,6 +9,43 @@ import type { RenderMesh } from "../../../types";
 // ============================================================================
 
 /**
+ * Compute mesh bounds for mapping goals into FE grid space
+ */
+function computeMeshBounds(mesh: RenderMesh) {
+  const positions = mesh.positions;
+  if (!positions || positions.length === 0) {
+    return {
+      min: { x: 0, y: 0, z: 0 },
+      max: { x: 1, y: 1, z: 0 },
+    };
+  }
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let minZ = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  let maxZ = -Infinity;
+
+  for (let i = 0; i < positions.length; i += 3) {
+    const x = positions[i];
+    const y = positions[i + 1];
+    const z = positions[i + 2];
+    if (x < minX) minX = x;
+    if (y < minY) minY = y;
+    if (z < minZ) minZ = z;
+    if (x > maxX) maxX = x;
+    if (y > maxY) maxY = y;
+    if (z > maxZ) maxZ = z;
+  }
+
+  return {
+    min: { x: minX, y: minY, z: minZ },
+    max: { x: maxX, y: maxY, z: maxZ },
+  };
+}
+
+/**
  * Schedule penalty exponent (continuation strategy)
  */
 function schedulePenal(iter: number, params: SimpParams): number {
@@ -112,17 +149,16 @@ export async function* runSimp(
   // For 2D FEM, we need to map anchors/loads to 2D DOFs
   // This is a simplified mapping - in production, would need proper 3D→2D projection
   
-  // Create 2D FE model
-  const bounds = {
-    min: { x: 0, y: 0, z: 0 },
-    max: { x: 1, y: 1, z: 0 }
-  };
+  // Create 2D FE model (map to mesh bounds)
+  const bounds = computeMeshBounds(mesh);
+  const spanX = Math.max(1e-6, bounds.max.x - bounds.min.x);
+  const spanY = Math.max(1e-6, bounds.max.y - bounds.min.y);
   
   // Map anchors to fixed DOFs (fix both ux and uy)
   for (const anchor of markers.anchors) {
     // Find nearest node in 2D grid
-    const ix = Math.round((anchor.position.x - bounds.min.x) / (bounds.max.x - bounds.min.x) * params.nx);
-    const iy = Math.round((anchor.position.y - bounds.min.y) / (bounds.max.y - bounds.min.y) * params.ny);
+    const ix = Math.round((anchor.position.x - bounds.min.x) / spanX * params.nx);
+    const iy = Math.round((anchor.position.y - bounds.min.y) / spanY * params.ny);
     const nodeIdx = Math.max(0, Math.min(params.ny, iy)) * (params.nx + 1) + Math.max(0, Math.min(params.nx, ix));
     
     fixedDofs.add(nodeIdx * 2);     // ux
@@ -138,8 +174,8 @@ export async function* runSimp(
   
   // Map loads to force DOFs
   for (const load of markers.loads) {
-    const ix = Math.round((load.position.x - bounds.min.x) / (bounds.max.x - bounds.min.x) * params.nx);
-    const iy = Math.round((load.position.y - bounds.min.y) / (bounds.max.y - bounds.min.y) * params.ny);
+    const ix = Math.round((load.position.x - bounds.min.x) / spanX * params.nx);
+    const iy = Math.round((load.position.y - bounds.min.y) / spanY * params.ny);
     const nodeIdx = Math.max(0, Math.min(params.ny, iy)) * (params.nx + 1) + Math.max(0, Math.min(params.nx, ix));
     
     const dofX = nodeIdx * 2;

@@ -7822,7 +7822,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
      * Creates a topology optimization workflow with goals:
      * - Box Builder → Topology Optimization Solver → Geometry Viewer
      * - Goal nodes (anchor, load, volume, stiffness) → Solver
-     * - Sliders for pointDensity, maxLinksPerPoint, maxSpanLength, pipeRadius parameters
+     * - Sliders for densityThreshold, maxLinksPerPoint, maxSpanLength, pipeRadius parameters
      *
      * Named after Leonhard Euler (topology pioneer, Euler characteristic).
      */
@@ -7838,43 +7838,129 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const boxBuilderId = `node-box-topology-${ts}`;
     const boxBuilderPos = { x: position.x, y: position.y + SLIDER_HEIGHT * 1.5 };
 
-    // Column 2: Parameter sliders (stacked vertically)
+    // Column 2: SIMP parameter sliders (stacked vertically)
     const col2X = position.x + NODE_WIDTH + H_GAP;
-    const pointDensitySliderId = `node-slider-pointDensity-${ts}`;
-    const pointDensityPos = { x: col2X, y: position.y };
+    const nxSliderId = `node-slider-topo-nx-${ts}`;
+    const nxPos = { x: col2X, y: position.y };
+
+    const nySliderId = `node-slider-topo-ny-${ts}`;
+    const nyPos = { x: col2X, y: position.y + (SLIDER_HEIGHT + V_GAP) * 1 };
+
+    const volFracSliderId = `node-slider-topo-volFrac-${ts}`;
+    const volFracPos = { x: col2X, y: position.y + (SLIDER_HEIGHT + V_GAP) * 2 };
+
+    const penalEndSliderId = `node-slider-topo-penalEnd-${ts}`;
+    const penalEndPos = { x: col2X, y: position.y + (SLIDER_HEIGHT + V_GAP) * 3 };
+
+    const penalRampSliderId = `node-slider-topo-penalRamp-${ts}`;
+    const penalRampPos = { x: col2X, y: position.y + (SLIDER_HEIGHT + V_GAP) * 4 };
+
+    const rminSliderId = `node-slider-topo-rmin-${ts}`;
+    const rminPos = { x: col2X, y: position.y + (SLIDER_HEIGHT + V_GAP) * 5 };
+
+    const moveSliderId = `node-slider-topo-move-${ts}`;
+    const movePos = { x: col2X, y: position.y + (SLIDER_HEIGHT + V_GAP) * 6 };
+
+    const maxItersSliderId = `node-slider-topo-maxIters-${ts}`;
+    const maxItersPos = { x: col2X, y: position.y + (SLIDER_HEIGHT + V_GAP) * 7 };
+
+    const tolChangeSliderId = `node-slider-topo-tolChange-${ts}`;
+    const tolChangePos = { x: col2X, y: position.y + (SLIDER_HEIGHT + V_GAP) * 8 };
+
+    // Column 3: Geometry extraction sliders
+    const col3X = col2X + NODE_WIDTH + H_GAP;
+    const densityThresholdSliderId = `node-slider-densityThreshold-${ts}`;
+    const densityThresholdPos = { x: col3X, y: position.y };
 
     const maxLinksSliderId = `node-slider-maxLinks-${ts}`;
-    const maxLinksPos = { x: col2X, y: position.y + SLIDER_HEIGHT + V_GAP };
+    const maxLinksPos = { x: col3X, y: position.y + SLIDER_HEIGHT + V_GAP };
 
     const maxSpanSliderId = `node-slider-maxSpan-${ts}`;
-    const maxSpanPos = { x: col2X, y: position.y + (SLIDER_HEIGHT + V_GAP) * 2 };
+    const maxSpanPos = { x: col3X, y: position.y + (SLIDER_HEIGHT + V_GAP) * 2 };
 
     const pipeRadiusSliderId = `node-slider-pipeRadius-${ts}`;
-    const pipeRadiusPos = { x: col2X, y: position.y + (SLIDER_HEIGHT + V_GAP) * 3 };
+    const pipeRadiusPos = { x: col3X, y: position.y + (SLIDER_HEIGHT + V_GAP) * 3 };
 
-    // Column 2.5: Goal nodes (below sliders)
-    const goalStartY = position.y + (SLIDER_HEIGHT + V_GAP) * 4 + 40;
+    const pipeSegmentsSliderId = `node-slider-pipeSegments-${ts}`;
+    const pipeSegmentsPos = { x: col3X, y: position.y + (SLIDER_HEIGHT + V_GAP) * 4 };
+
+    const simSliderCount = 9;
+    const geomSliderCount = 5;
+    const simBlockHeight = SLIDER_HEIGHT * simSliderCount + V_GAP * (simSliderCount - 1);
+    const geomBlockHeight = SLIDER_HEIGHT * geomSliderCount + V_GAP * (geomSliderCount - 1);
+
+    // Goal nodes (below sliders)
+    const goalStartY = position.y + Math.max(simBlockHeight, geomBlockHeight) + 40;
+    const anchorWeightSliderId = `node-slider-topo-anchorWeight-${ts}`;
+    const anchorWeightPos = { x: col2X, y: goalStartY };
     const anchorGoalId = `node-anchorGoal-${ts}`;
-    const anchorGoalPos = { x: col2X, y: goalStartY };
+    const anchorGoalPos = { x: col2X, y: goalStartY + SLIDER_HEIGHT + V_GAP };
 
+    const loadWeightSliderId = `node-slider-topo-loadWeight-${ts}`;
+    const loadWeightPos = { x: col2X, y: anchorGoalPos.y + GOAL_HEIGHT + V_GAP };
     const loadGoalId = `node-loadGoal-${ts}`;
-    const loadGoalPos = { x: col2X, y: goalStartY + GOAL_HEIGHT + V_GAP };
+    const loadGoalPos = { x: col2X, y: loadWeightPos.y + SLIDER_HEIGHT + V_GAP };
 
+    const volumeWeightSliderId = `node-slider-topo-volumeWeight-${ts}`;
+    const volumeWeightPos = { x: col2X, y: loadGoalPos.y + GOAL_HEIGHT + V_GAP };
     const volumeGoalId = `node-volumeGoal-${ts}`;
-    const volumeGoalPos = { x: col2X, y: goalStartY + (GOAL_HEIGHT + V_GAP) * 2 };
+    const volumeGoalPos = { x: col2X, y: volumeWeightPos.y + SLIDER_HEIGHT + V_GAP };
 
+    const stiffnessWeightSliderId = `node-slider-topo-stiffnessWeight-${ts}`;
+    const stiffnessWeightPos = { x: col2X, y: volumeGoalPos.y + GOAL_HEIGHT + V_GAP };
     const stiffnessGoalId = `node-stiffnessGoal-${ts}`;
-    const stiffnessGoalPos = { x: col2X, y: goalStartY + (GOAL_HEIGHT + V_GAP) * 3 };
+    const stiffnessGoalPos = { x: col2X, y: stiffnessWeightPos.y + SLIDER_HEIGHT + V_GAP };
 
-    // Column 3: Topology Optimization Solver
-    const col3X = col2X + NODE_WIDTH + H_GAP;
-    const solverId = `node-topologyOptimizationSolver-${ts}`;
-    const solverPos = { x: col3X, y: position.y + SLIDER_HEIGHT };
+    // Column 1.5: Vertex lists / goal inputs
+    const listColX = col2X - NODE_WIDTH - H_GAP * 0.5;
+    const anchorListId = `node-listCreate-anchor-${ts}`;
+    const anchorListPos = { x: listColX, y: anchorGoalPos.y };
+    const loadListId = `node-listCreate-load-${ts}`;
+    const loadListPos = { x: listColX, y: loadGoalPos.y };
+    const loadMagnitudeSliderId = `node-slider-topo-loadMagnitude-${ts}`;
+    const loadMagnitudePos = { x: listColX, y: loadWeightPos.y };
 
-    // Column 4: Geometry Viewer
+    const boxWidth = 2;
+    const boxHeight = 1;
+    const boxDepth = 0.5;
+    const baseMesh = generateBoxMesh({ width: boxWidth, height: boxHeight, depth: boxDepth }, 1);
+    const axisIndex = (axis: "x" | "y" | "z") => (axis === "x" ? 0 : axis === "y" ? 1 : 2);
+    const findIndicesAtExtent = (
+      mesh: RenderMesh,
+      axis: "x" | "y" | "z",
+      mode: "min" | "max"
+    ) => {
+      const axisOffset = axisIndex(axis);
+      let min = Number.POSITIVE_INFINITY;
+      let max = Number.NEGATIVE_INFINITY;
+      for (let i = 0; i < mesh.positions.length; i += 3) {
+        const value = mesh.positions[i + axisOffset];
+        min = Math.min(min, value);
+        max = Math.max(max, value);
+      }
+      if (!Number.isFinite(min) || !Number.isFinite(max)) return [];
+      const target = mode === "min" ? min : max;
+      const epsilon = Math.max(1e-6, Math.abs(max - min) * 0.01);
+      const indices: number[] = [];
+      const count = Math.floor(mesh.positions.length / 3);
+      for (let i = 0; i < count; i += 1) {
+        const value = mesh.positions[i * 3 + axisOffset];
+        if (Math.abs(value - target) <= epsilon) indices.push(i);
+      }
+      return indices;
+    };
+    const anchorIndices = findIndicesAtExtent(baseMesh, "y", "min");
+    const loadIndices = findIndicesAtExtent(baseMesh, "y", "max");
+
+    // Column 4: Topology Optimization Solver
     const col4X = col3X + NODE_WIDTH + H_GAP;
+    const solverId = `node-topologyOptimizationSolver-${ts}`;
+    const solverPos = { x: col4X, y: position.y + SLIDER_HEIGHT };
+
+    // Column 5: Geometry Viewer
+    const col5X = col4X + NODE_WIDTH + H_GAP;
     const viewerId = `node-geometryViewer-topology-${ts}`;
-    const viewerPos = { x: col4X, y: position.y + SLIDER_HEIGHT };
+    const viewerPos = { x: col5X, y: position.y + SLIDER_HEIGHT };
 
     const newNodes: WorkflowNode[] = [
       {
@@ -7884,25 +7970,151 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         data: {
           label: "Box Builder",
           parameters: {
-            boxWidth: 2,
-            boxHeight: 1,
-            boxDepth: 0.5,
+            boxWidth,
+            boxHeight,
+            boxDepth,
             centerMode: true,
             representation: "mesh",
           },
         },
       },
       {
-        id: pointDensitySliderId,
+        id: nxSliderId,
         type: "slider" as const,
-        position: pointDensityPos,
+        position: nxPos,
         data: {
-          label: "Point Density",
+          label: "Resolution X",
+          parameters: {
+            min: 20,
+            max: 120,
+            value: 60,
+            step: 2,
+          },
+        },
+      },
+      {
+        id: nySliderId,
+        type: "slider" as const,
+        position: nyPos,
+        data: {
+          label: "Resolution Y",
+          parameters: {
+            min: 20,
+            max: 120,
+            value: 40,
+            step: 2,
+          },
+        },
+      },
+      {
+        id: volFracSliderId,
+        type: "slider" as const,
+        position: volFracPos,
+        data: {
+          label: "Volume Fraction",
+          parameters: {
+            min: 0.1,
+            max: 0.9,
+            value: 0.4,
+            step: 0.05,
+          },
+        },
+      },
+      {
+        id: penalEndSliderId,
+        type: "slider" as const,
+        position: penalEndPos,
+        data: {
+          label: "Penalty End",
+          parameters: {
+            min: 2.0,
+            max: 5.0,
+            value: 3.0,
+            step: 0.1,
+          },
+        },
+      },
+      {
+        id: penalRampSliderId,
+        type: "slider" as const,
+        position: penalRampPos,
+        data: {
+          label: "Penalty Ramp",
           parameters: {
             min: 10,
-            max: 500,
-            value: 100,
+            max: 200,
+            value: 60,
+            step: 5,
+          },
+        },
+      },
+      {
+        id: rminSliderId,
+        type: "slider" as const,
+        position: rminPos,
+        data: {
+          label: "Filter Radius",
+          parameters: {
+            min: 0.5,
+            max: 3.0,
+            value: 1.5,
+            step: 0.1,
+          },
+        },
+      },
+      {
+        id: moveSliderId,
+        type: "slider" as const,
+        position: movePos,
+        data: {
+          label: "Move Limit",
+          parameters: {
+            min: 0.05,
+            max: 0.3,
+            value: 0.15,
+            step: 0.01,
+          },
+        },
+      },
+      {
+        id: maxItersSliderId,
+        type: "slider" as const,
+        position: maxItersPos,
+        data: {
+          label: "Max Iterations",
+          parameters: {
+            min: 20,
+            max: 300,
+            value: 120,
             step: 10,
+          },
+        },
+      },
+      {
+        id: tolChangeSliderId,
+        type: "slider" as const,
+        position: tolChangePos,
+        data: {
+          label: "Tolerance",
+          parameters: {
+            min: 0.0001,
+            max: 0.01,
+            value: 0.001,
+            step: 0.0001,
+          },
+        },
+      },
+      {
+        id: densityThresholdSliderId,
+        type: "slider" as const,
+        position: densityThresholdPos,
+        data: {
+          label: "Density Threshold",
+          parameters: {
+            min: 0.1,
+            max: 0.9,
+            value: 0.3,
+            step: 0.05,
           },
         },
       },
@@ -7949,6 +8161,70 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         },
       },
       {
+        id: pipeSegmentsSliderId,
+        type: "slider" as const,
+        position: pipeSegmentsPos,
+        data: {
+          label: "Pipe Segments",
+          parameters: {
+            min: 6,
+            max: 32,
+            value: 12,
+            step: 1,
+          },
+        },
+      },
+      {
+        id: anchorListId,
+        type: "listCreate" as const,
+        position: anchorListPos,
+        data: {
+          label: "Anchor Vertices",
+          parameters: {
+            itemsText: anchorIndices.join(", "),
+          },
+        },
+      },
+      {
+        id: loadMagnitudeSliderId,
+        type: "slider" as const,
+        position: loadMagnitudePos,
+        data: {
+          label: "Load Magnitude",
+          parameters: {
+            min: 50,
+            max: 500,
+            value: 150,
+            step: 10,
+          },
+        },
+      },
+      {
+        id: loadListId,
+        type: "listCreate" as const,
+        position: loadListPos,
+        data: {
+          label: "Load Vertices",
+          parameters: {
+            itemsText: loadIndices.join(", "),
+          },
+        },
+      },
+      {
+        id: anchorWeightSliderId,
+        type: "slider" as const,
+        position: anchorWeightPos,
+        data: {
+          label: "Anchor Weight",
+          parameters: {
+            min: 0,
+            max: 1,
+            value: 1,
+            step: 0.05,
+          },
+        },
+      },
+      {
         id: anchorGoalId,
         type: "anchorGoal" as const,
         position: anchorGoalPos,
@@ -7960,6 +8236,20 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         },
       },
       {
+        id: loadWeightSliderId,
+        type: "slider" as const,
+        position: loadWeightPos,
+        data: {
+          label: "Load Weight",
+          parameters: {
+            min: 0,
+            max: 1,
+            value: 1,
+            step: 0.05,
+          },
+        },
+      },
+      {
         id: loadGoalId,
         type: "loadGoal" as const,
         position: loadGoalPos,
@@ -7967,9 +8257,23 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           label: "Load",
           parameters: {
             weight: 1.0,
-            forceX: 0,
-            forceY: -100,
-            forceZ: 0,
+            directionX: 0,
+            directionY: -1,
+            directionZ: 0,
+          },
+        },
+      },
+      {
+        id: volumeWeightSliderId,
+        type: "slider" as const,
+        position: volumeWeightPos,
+        data: {
+          label: "Volume Weight",
+          parameters: {
+            min: 0,
+            max: 1,
+            value: 0.8,
+            step: 0.05,
           },
         },
       },
@@ -7981,7 +8285,21 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           label: "Volume",
           parameters: {
             targetVolume: 0.5,
-            weight: 1.0,
+            weight: 0.8,
+          },
+        },
+      },
+      {
+        id: stiffnessWeightSliderId,
+        type: "slider" as const,
+        position: stiffnessWeightPos,
+        data: {
+          label: "Stiffness Weight",
+          parameters: {
+            min: 0,
+            max: 1,
+            value: 1,
+            step: 0.05,
           },
         },
       },
@@ -8003,10 +8321,20 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         data: {
           label: "Topology Optimization",
           parameters: {
-            pointDensity: 100,
+            nx: 60,
+            ny: 40,
+            volFrac: 0.4,
+            penalEnd: 3.0,
+            penalRampIters: 60,
+            rmin: 1.5,
+            move: 0.15,
+            maxIters: 120,
+            tolChange: 0.001,
+            densityThreshold: 0.3,
             maxLinksPerPoint: 4,
             maxSpanLength: 1.0,
             pipeRadius: 0.05,
+            pipeSegments: 12,
             seed: 42,
             simulationStep: 'idle',
           },
@@ -8029,11 +8357,74 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         targetHandle: "geometry",
       },
       {
-        id: `edge-${pointDensitySliderId}-${solverId}-pointDensity`,
-        source: pointDensitySliderId,
+        id: `edge-${nxSliderId}-${solverId}-nx`,
+        source: nxSliderId,
         sourceHandle: "value",
         target: solverId,
-        targetHandle: "pointDensity",
+        targetHandle: "nx",
+      },
+      {
+        id: `edge-${nySliderId}-${solverId}-ny`,
+        source: nySliderId,
+        sourceHandle: "value",
+        target: solverId,
+        targetHandle: "ny",
+      },
+      {
+        id: `edge-${volFracSliderId}-${solverId}-volFrac`,
+        source: volFracSliderId,
+        sourceHandle: "value",
+        target: solverId,
+        targetHandle: "volFrac",
+      },
+      {
+        id: `edge-${penalEndSliderId}-${solverId}-penalEnd`,
+        source: penalEndSliderId,
+        sourceHandle: "value",
+        target: solverId,
+        targetHandle: "penalEnd",
+      },
+      {
+        id: `edge-${penalRampSliderId}-${solverId}-penalRamp`,
+        source: penalRampSliderId,
+        sourceHandle: "value",
+        target: solverId,
+        targetHandle: "penalRampIters",
+      },
+      {
+        id: `edge-${rminSliderId}-${solverId}-rmin`,
+        source: rminSliderId,
+        sourceHandle: "value",
+        target: solverId,
+        targetHandle: "rmin",
+      },
+      {
+        id: `edge-${moveSliderId}-${solverId}-move`,
+        source: moveSliderId,
+        sourceHandle: "value",
+        target: solverId,
+        targetHandle: "move",
+      },
+      {
+        id: `edge-${maxItersSliderId}-${solverId}-maxIters`,
+        source: maxItersSliderId,
+        sourceHandle: "value",
+        target: solverId,
+        targetHandle: "maxIters",
+      },
+      {
+        id: `edge-${tolChangeSliderId}-${solverId}-tolChange`,
+        source: tolChangeSliderId,
+        sourceHandle: "value",
+        target: solverId,
+        targetHandle: "tolChange",
+      },
+      {
+        id: `edge-${densityThresholdSliderId}-${solverId}-densityThreshold`,
+        source: densityThresholdSliderId,
+        sourceHandle: "value",
+        target: solverId,
+        targetHandle: "densityThreshold",
       },
       {
         id: `edge-${maxLinksSliderId}-${solverId}-maxLinks`,
@@ -8057,11 +8448,32 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         targetHandle: "pipeRadius",
       },
       {
+        id: `edge-${pipeSegmentsSliderId}-${solverId}-pipeSegments`,
+        source: pipeSegmentsSliderId,
+        sourceHandle: "value",
+        target: solverId,
+        targetHandle: "pipeSegments",
+      },
+      {
         id: `edge-${anchorGoalId}-${solverId}-goals`,
         source: anchorGoalId,
         sourceHandle: "goal",
         target: solverId,
         targetHandle: "goals",
+      },
+      {
+        id: `edge-${anchorWeightSliderId}-${anchorGoalId}-weight`,
+        source: anchorWeightSliderId,
+        sourceHandle: "value",
+        target: anchorGoalId,
+        targetHandle: "weight",
+      },
+      {
+        id: `edge-${anchorListId}-${anchorGoalId}-vertices`,
+        source: anchorListId,
+        sourceHandle: "list",
+        target: anchorGoalId,
+        targetHandle: "vertices",
       },
       {
         id: `edge-${loadGoalId}-${solverId}-goals`,
@@ -8071,6 +8483,27 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         targetHandle: "goals",
       },
       {
+        id: `edge-${loadWeightSliderId}-${loadGoalId}-weight`,
+        source: loadWeightSliderId,
+        sourceHandle: "value",
+        target: loadGoalId,
+        targetHandle: "weight",
+      },
+      {
+        id: `edge-${loadMagnitudeSliderId}-${loadGoalId}-forceMagnitude`,
+        source: loadMagnitudeSliderId,
+        sourceHandle: "value",
+        target: loadGoalId,
+        targetHandle: "forceMagnitude",
+      },
+      {
+        id: `edge-${loadListId}-${loadGoalId}-applicationPoints`,
+        source: loadListId,
+        sourceHandle: "list",
+        target: loadGoalId,
+        targetHandle: "applicationPoints",
+      },
+      {
         id: `edge-${volumeGoalId}-${solverId}-goals`,
         source: volumeGoalId,
         sourceHandle: "goal",
@@ -8078,11 +8511,25 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         targetHandle: "goals",
       },
       {
+        id: `edge-${volumeWeightSliderId}-${volumeGoalId}-weight`,
+        source: volumeWeightSliderId,
+        sourceHandle: "value",
+        target: volumeGoalId,
+        targetHandle: "weight",
+      },
+      {
         id: `edge-${stiffnessGoalId}-${solverId}-goals`,
         source: stiffnessGoalId,
         sourceHandle: "goal",
         target: solverId,
         targetHandle: "goals",
+      },
+      {
+        id: `edge-${stiffnessWeightSliderId}-${stiffnessGoalId}-weight`,
+        source: stiffnessWeightSliderId,
+        sourceHandle: "value",
+        target: stiffnessGoalId,
+        targetHandle: "weight",
       },
       {
         id: `edge-${solverId}-${viewerId}-geometry`,

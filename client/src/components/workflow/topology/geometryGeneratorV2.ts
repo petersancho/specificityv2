@@ -44,8 +44,12 @@ export function generateGeometryFromDensities(
   densityThreshold: number = 0.3,
   maxLinksPerPoint: number = 6,
   maxSpanLength: number = 1.5,
-  baseRadius: number = 0.045
+  baseRadius: number = 0.045,
+  pipeSegments: number = 12
 ): GeometryOutput {
+  const multipipeSegments = Math.max(6, Math.round(pipeSegments));
+  const curveSegments = Math.max(6, Math.round(multipipeSegments * 0.5));
+
   // Step 1: Extract points with density information
   const points = extractDensePoints(field, densityThreshold);
   
@@ -54,8 +58,8 @@ export function generateGeometryFromDensities(
   
   // Step 3: Create meshes with variable thickness
   const pointCloudMesh = createDensePointCloudMesh(points, baseRadius * 0.5);
-  const curveNetworkMesh = createVariableThicknessCurves(curves, baseRadius * 0.4);
-  const multipipeMesh = createVariableThicknessMultipipe(curves, baseRadius);
+  const curveNetworkMesh = createVariableThicknessCurves(curves, baseRadius * 0.4, curveSegments);
+  const multipipeMesh = createVariableThicknessMultipipe(curves, baseRadius, multipipeSegments);
   
   return {
     pointCloud: pointCloudMesh,
@@ -218,7 +222,7 @@ function createDensePointCloudMesh(points: DensePoint[], baseSize: number): Rend
 /**
  * Create curve network with variable thickness based on density
  */
-function createVariableThicknessCurves(curves: Curve[], baseRadius: number): RenderMesh {
+function createVariableThicknessCurves(curves: Curve[], baseRadius: number, segments: number): RenderMesh {
   if (curves.length === 0) {
     return { positions: [], normals: [], uvs: [], indices: [] };
   }
@@ -227,8 +231,6 @@ function createVariableThicknessCurves(curves: Curve[], baseRadius: number): Ren
   const normals: number[] = [];
   const uvs: number[] = [];
   const indices: number[] = [];
-  
-  const segments = 8;
   
   for (const curve of curves) {
     const baseIdx = positions.length / 3;
@@ -256,7 +258,7 @@ function createVariableThicknessCurves(curves: Curve[], baseRadius: number): Ren
 /**
  * Create multipipe with variable thickness and smooth transitions
  */
-function createVariableThicknessMultipipe(curves: Curve[], baseRadius: number): RenderMesh {
+function createVariableThicknessMultipipe(curves: Curve[], baseRadius: number, segments: number): RenderMesh {
   if (curves.length === 0) {
     return { positions: [], normals: [], uvs: [], indices: [] };
   }
@@ -265,8 +267,6 @@ function createVariableThicknessMultipipe(curves: Curve[], baseRadius: number): 
   const normals: number[] = [];
   const uvs: number[] = [];
   const indices: number[] = [];
-  
-  const segments = 24; // More segments for smoother appearance
   
   for (const curve of curves) {
     const baseIdx = positions.length / 3;
