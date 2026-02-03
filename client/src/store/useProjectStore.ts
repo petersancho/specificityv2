@@ -711,22 +711,32 @@ const computeWorkflowOutputs = (
     ) {
       if (data.geometryId) {
         outputs.geometryId = data.geometryId;
-        outputs.geometryType =
-          data.geometryType ??
-          (node.type === "point"
-            ? "vertex"
-            : node.type === "line" || node.type === "arc" || node.type === "polyline"
-              ? "polyline"
-              : node.type === "curve"
-                ? "nurbsCurve"
-                : node.type === "surface"
-                  ? "surface"
-                  : node.type === "primitive" ||
-                      (node.type && PRIMITIVE_NODE_TYPE_SET.has(node.type as NodeType)) ||
-                      node.type === "box" ||
-                      node.type === "sphere"
-                    ? "mesh"
-                    : "mesh");
+        const inferredGeometryType = (() => {
+          switch (node.type) {
+            case "point":
+              return "vertex";
+            case "line":
+            case "arc":
+            case "polyline":
+              return "polyline";
+            case "curve":
+              return "nurbsCurve";
+            case "surface":
+              return "surface";
+            case "primitive":
+            case "box":
+            case "sphere":
+              return "mesh";
+          }
+          return node.type && PRIMITIVE_NODE_TYPE_SET.has(node.type as NodeType)
+            ? "mesh"
+            : undefined;
+        })();
+
+        const resolvedGeometryType = data.geometryType ?? inferredGeometryType;
+        if (resolvedGeometryType) {
+          outputs.geometryType = resolvedGeometryType;
+        }
         outputs.isLinked = true;
       }
       if (node.type === "box" && data.boxDimensions) {
