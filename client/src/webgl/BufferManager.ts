@@ -105,7 +105,18 @@ function sanitizeTriangleIndices(
     }
   }
 
-  return { sanitized: new Uint16Array(out), droppedTriangles: dropped, maxIndex };
+  const sanitized = new Uint16Array(out);
+  let sanitizedMax = -1;
+  for (let i = 0; i < sanitized.length; i += 1) {
+    const v = sanitized[i];
+    if (v > sanitizedMax) sanitizedMax = v;
+  }
+
+  return {
+    sanitized,
+    droppedTriangles: dropped,
+    maxIndex: sanitizedMax,
+  };
 }
 
 export class GeometryBuffer {
@@ -158,7 +169,7 @@ export class GeometryBuffer {
           data.positions
         );
       }
-      this.vertexCount = data.positions.length / 3;
+      this.vertexCount = Math.floor(data.positions.length / 3);
       if (this.indexBuffer && this.indexMax >= this.vertexCount && !this.warnedIndexOverflow) {
         console.warn(
           `[${this.id}] Index buffer exceeds vertex count (maxIndex=${this.indexMax}, vertexCount=${this.vertexCount}). Skipping indexed draws until geometry is updated.`
@@ -200,38 +211,41 @@ export class GeometryBuffer {
     if (data.indices) {
       if (this.vertexCount <= 0) {
         this.indexCount = 0;
+        this.indexMax = -1;
+        if (this.indexBuffer) {
+          this.bufferManager.updateBuffer(`${this.id}_index`, gl.ELEMENT_ARRAY_BUFFER, new Uint16Array());
+        }
         if (!this.warnedInvalidIndex) {
           console.warn(
             `[${this.id}] Indices provided but vertexCount is 0; skipping indexed draw until positions are set.`
           );
           this.warnedInvalidIndex = true;
         }
-        return;
-      }
-
-      const { sanitized, droppedTriangles, maxIndex } = sanitizeTriangleIndices(
-        data.indices,
-        this.vertexCount
-      );
-      this.indexMax = maxIndex;
-      this.warnedIndexOverflow = false;
-
-      if (maxIndex >= this.vertexCount || droppedTriangles > 0) {
-        console.warn(
-          `[${this.id}] Invalid indices detected (maxIndex=${maxIndex}, vertexCount=${this.vertexCount}). Dropped ${droppedTriangles} triangles.`
-        );
-      }
-
-      if (this.indexBuffer) {
-        this.bufferManager.updateBuffer(`${this.id}_index`, gl.ELEMENT_ARRAY_BUFFER, sanitized);
       } else {
-        this.indexBuffer = this.bufferManager.createBuffer(
-          `${this.id}_index`,
-          gl.ELEMENT_ARRAY_BUFFER,
-          sanitized
+        const { sanitized, droppedTriangles, maxIndex } = sanitizeTriangleIndices(
+          data.indices,
+          this.vertexCount
         );
+        this.indexMax = maxIndex;
+        this.warnedIndexOverflow = false;
+
+        if (maxIndex >= this.vertexCount || droppedTriangles > 0) {
+          console.warn(
+            `[${this.id}] Invalid indices detected (maxIndex=${maxIndex}, vertexCount=${this.vertexCount}). Dropped ${droppedTriangles} triangles.`
+          );
+        }
+
+        if (this.indexBuffer) {
+          this.bufferManager.updateBuffer(`${this.id}_index`, gl.ELEMENT_ARRAY_BUFFER, sanitized);
+        } else {
+          this.indexBuffer = this.bufferManager.createBuffer(
+            `${this.id}_index`,
+            gl.ELEMENT_ARRAY_BUFFER,
+            sanitized
+          );
+        }
+        this.indexCount = sanitized.length;
       }
-      this.indexCount = sanitized.length;
     }
 
     if (data.colors) {
@@ -422,10 +436,12 @@ export class GeometryBuffer {
 
   draw(mode: GLenum = WebGLRenderingContext.TRIANGLES): void {
     const gl = this.gl;
+    if (!this.positionBuffer || this.vertexCount <= 0) {
+      return;
+    }
     if (
       this.indexBuffer &&
       this.indexCount > 0 &&
-      this.vertexCount > 0 &&
       this.indexMax >= 0 &&
       this.indexMax < this.vertexCount
     ) {

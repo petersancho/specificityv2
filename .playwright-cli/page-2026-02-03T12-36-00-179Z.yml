@@ -1,0 +1,819 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - link "Open documentation" [ref=e5] [cursor=pointer]:
+      - /url: "#/docs"
+      - text: Documentation
+  - main [ref=e6]:
+    - generic [ref=e7]:
+      - generic [ref=e9]:
+        - generic [ref=e10]:
+          - generic [ref=e16]:
+            - generic [ref=e17]: Search commands
+            - searchbox "Search commands" [ref=e18]
+            - generic [ref=e19]: Type to search
+          - button "Enter full screen" [ref=e22] [cursor=pointer]:
+            - img
+            - generic [ref=e23]: Enter full screen
+        - generic [ref=e25]:
+          - button "Open Roslyn palette" [ref=e1106] [cursor=pointer]:
+            - img
+            - generic [ref=e1107]: Open Roslyn palette
+          - generic [ref=e290]:
+            - button "E" [ref=e291] [cursor=pointer]
+            - button "CP" [ref=e292] [cursor=pointer]
+            - button "GS" [ref=e293] [cursor=pointer]
+          - generic [ref=e294]:
+            - button "Render/Material" [ref=e295] [cursor=pointer]
+            - generic:
+              - generic:
+                - generic: Render/Material
+                - generic: No selection
+              - generic:
+                - generic: Color
+                - generic:
+                  - generic:
+                    - button "Pick material color" [disabled]
+              - generic: "#2EA3A8"
+              - generic:
+                - generic: Filters
+                - generic:
+                  - generic:
+                    - generic: Filter
+                    - img
+                    - combobox "Filter":
+                      - option "SOLID" [selected]
+                      - option "CMYK"
+                      - option "PMS"
+                      - option "HSL"
+                      - option "Silhouette"
+                    - img
+              - generic:
+                - generic:
+                  - generic: Solidity
+                  - generic:
+                    - generic:
+                      - generic: Solidity
+                      - img
+                      - slider "Solidity" [disabled]: "1"
+                - generic:
+                  - generic: Sheen
+                  - generic:
+                    - generic:
+                      - generic: Sheen
+                      - img
+                      - slider "Sheen" [disabled]: "0.44"
+      - generic [ref=e297]:
+        - generic [ref=e298]:
+          - generic [ref=e302]:
+            - generic [ref=e303]: Search nodes
+            - searchbox "Search nodes" [ref=e304]
+            - generic [ref=e305]: Type to search
+          - generic [ref=e306]:
+            - button "Semantic Operations" [ref=e308] [cursor=pointer]:
+              - img
+              - generic [ref=e309]: Semantic Operations
+            - button "Enter full screen" [ref=e311] [cursor=pointer]:
+              - img
+              - generic [ref=e312]: Enter full screen
+        - generic [ref=e314]:
+          - generic [ref=e316]:
+            - button "Shortcuts" [ref=e319] [cursor=pointer]:
+              - img
+              - generic [ref=e320]: Shortcuts
+            - generic "Numerica canvas" [ref=e321]
+            - generic:
+              - generic [ref=e2740]:
+                - generic: No geometry
+              - generic [ref=e2744]:
+                - generic: No geometry
+          - complementary [ref=e1903]:
+            - generic [ref=e1904]:
+              - generic [ref=e1906]: Node Library
+              - button "Collapse palette" [ref=e1909] [cursor=pointer]:
+                - img
+                - generic [ref=e1910]: Collapse palette
+            - generic [ref=e1911]:
+              - generic [ref=e1912]:
+                - generic [ref=e1913]:
+                  - generic [ref=e1914]: Geometry
+                  - generic [ref=e1915]: Primitives, curves, NURBS, BREP
+                - generic [ref=e1916]:
+                  - generic [ref=e1917]:
+                    - generic [ref=e1920]:
+                      - generic [ref=e1921]: Primitives
+                      - generic [ref=e1922]: Base geometry generators
+                    - generic [ref=e1923]:
+                      - button "Point Generator" [ref=e1925] [cursor=pointer]:
+                        - img
+                        - generic [ref=e1926]: Point Generator
+                      - button "Point Cloud" [ref=e1928] [cursor=pointer]:
+                        - img
+                        - generic [ref=e1929]: Point Cloud
+                      - button "Box Builder" [ref=e1931] [cursor=pointer]:
+                        - img
+                        - generic [ref=e1932]: Box Builder
+                      - button "Sphere" [ref=e1934] [cursor=pointer]:
+                        - img
+                        - generic [ref=e1935]: Sphere
+                      - button "Cylinder" [ref=e1937] [cursor=pointer]:
+                        - img
+                        - generic [ref=e1938]: Cylinder
+                      - button "Torus" [ref=e1940] [cursor=pointer]:
+                        - img
+                        - generic [ref=e1941]: Torus
+                      - button "Pyramid" [ref=e1943] [cursor=pointer]:
+                        - img
+                        - generic [ref=e1944]: Pyramid
+                      - button "Tetrahedron" [ref=e1946] [cursor=pointer]:
+                        - img
+                        - generic [ref=e1947]: Tetrahedron
+                      - button "Octahedron" [ref=e1949] [cursor=pointer]:
+                        - img
+                        - generic [ref=e1950]: Octahedron
+                      - button "Icosahedron" [ref=e1952] [cursor=pointer]:
+                        - img
+                        - generic [ref=e1953]: Icosahedron
+                      - button "Dodecahedron" [ref=e1955] [cursor=pointer]:
+                        - img
+                        - generic [ref=e1956]: Dodecahedron
+                      - button "Hemisphere" [ref=e1958] [cursor=pointer]:
+                        - img
+                        - generic [ref=e1959]: Hemisphere
+                      - button "Capsule" [ref=e1961] [cursor=pointer]:
+                        - img
+                        - generic [ref=e1962]: Capsule
+                      - button "Disk" [ref=e1964] [cursor=pointer]:
+                        - img
+                        - generic [ref=e1965]: Disk
+                      - button "Ring / Annulus" [ref=e1967] [cursor=pointer]:
+                        - img
+                        - generic [ref=e1968]: Ring / Annulus
+                      - button "Triangular Prism" [ref=e1970] [cursor=pointer]:
+                        - img
+                        - generic [ref=e1971]: Triangular Prism
+                      - button "Hexagonal Prism" [ref=e1973] [cursor=pointer]:
+                        - img
+                        - generic [ref=e1974]: Hexagonal Prism
+                      - button "Pentagonal Prism" [ref=e1976] [cursor=pointer]:
+                        - img
+                        - generic [ref=e1977]: Pentagonal Prism
+                      - button "Torus Knot" [ref=e1979] [cursor=pointer]:
+                        - img
+                        - generic [ref=e1980]: Torus Knot
+                      - button "Utah Teapot" [ref=e1982] [cursor=pointer]:
+                        - img
+                        - generic [ref=e1983]: Utah Teapot
+                      - button "Frustum" [ref=e1985] [cursor=pointer]:
+                        - img
+                        - generic [ref=e1986]: Frustum
+                      - button "Mobius Strip" [ref=e1988] [cursor=pointer]:
+                        - img
+                        - generic [ref=e1989]: Mobius Strip
+                      - button "Ellipsoid" [ref=e1991] [cursor=pointer]:
+                        - img
+                        - generic [ref=e1992]: Ellipsoid
+                      - button "Wedge" [ref=e1994] [cursor=pointer]:
+                        - img
+                        - generic [ref=e1995]: Wedge
+                      - button "Spherical Cap / Dome" [ref=e1997] [cursor=pointer]:
+                        - img
+                        - generic [ref=e1998]: Spherical Cap / Dome
+                      - button "Bipyramid" [ref=e2000] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2001]: Bipyramid
+                      - button "Rhombic Dodecahedron" [ref=e2003] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2004]: Rhombic Dodecahedron
+                      - button "Truncated Cube" [ref=e2006] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2007]: Truncated Cube
+                      - button "Truncated Octahedron" [ref=e2009] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2010]: Truncated Octahedron
+                      - button "Truncated Icosahedron" [ref=e2012] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2013]: Truncated Icosahedron
+                      - button "Pipe / Hollow Cylinder" [ref=e2015] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2016]: Pipe / Hollow Cylinder
+                      - button "Superellipsoid" [ref=e2018] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2019]: Superellipsoid
+                      - button "Hyperbolic Paraboloid" [ref=e2021] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2022]: Hyperbolic Paraboloid
+                      - button "Geodesic Dome" [ref=e2024] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2025]: Geodesic Dome
+                      - button "One-Sheet Hyperboloid" [ref=e2027] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2028]: One-Sheet Hyperboloid
+                  - generic [ref=e2029]:
+                    - generic [ref=e2032]:
+                      - generic [ref=e2033]: Curves
+                      - generic [ref=e2034]: Curve builders and edits
+                    - generic [ref=e2035]:
+                      - button "Line" [ref=e2037] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2038]: Line
+                      - button "Rectangle" [ref=e2040] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2041]: Rectangle
+                      - button "Polyline" [ref=e2043] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2044]: Polyline
+                  - generic [ref=e2045]:
+                    - generic [ref=e2048]:
+                      - generic [ref=e2049]: NURBS
+                      - generic [ref=e2050]: Parametric curve operations
+                    - generic [ref=e2051]:
+                      - button "Circle" [ref=e2053] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2054]: Circle
+                      - button "Arc" [ref=e2056] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2057]: Arc
+                      - button "Curve" [ref=e2059] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2060]: Curve
+                  - generic [ref=e2061]:
+                    - generic [ref=e2064]:
+                      - generic [ref=e2065]: BREP
+                      - generic [ref=e2066]: Surface and solid operations
+                    - generic [ref=e2067]:
+                      - button "Surface" [ref=e2069] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2070]: Surface
+                      - button "Loft" [ref=e2072] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2073]: Loft
+                      - button "Extrude" [ref=e2075] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2076]: Extrude
+                      - button "Pipe" [ref=e2078] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2079]: Pipe
+                      - button "Boolean" [ref=e2081] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2082]: Boolean
+                      - button "Offset Surface" [ref=e2084] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2085]: Offset Surface
+                  - generic [ref=e2086]:
+                    - generic [ref=e2089]:
+                      - generic [ref=e2090]: Modifiers
+                      - generic [ref=e2091]: Offsets, shelling, materials
+                    - generic [ref=e2092]:
+                      - button "Custom Material" [ref=e2094] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2095]: Custom Material
+                      - button "Offset" [ref=e2097] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2098]: Offset
+                      - button "Fillet" [ref=e2100] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2101]: Fillet
+                      - button "Plasticwrap" [ref=e2103] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2104]: Plasticwrap
+              - generic [ref=e2105]:
+                - generic [ref=e2106]:
+                  - generic [ref=e2107]: Transform
+                  - generic [ref=e2108]: Move, rotate, spatial frames
+                - generic [ref=e2109]:
+                  - generic [ref=e2110]:
+                    - generic [ref=e2113]:
+                      - generic [ref=e2114]: Transforms
+                      - generic [ref=e2115]: Move, rotate, scale, align
+                    - generic [ref=e2116]:
+                      - button "Vector Scale" [ref=e2118] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2119]: Vector Scale
+                      - button "Move" [ref=e2121] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2122]: Move
+                      - button "Rotate" [ref=e2124] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2125]: Rotate
+                      - button "Scale" [ref=e2127] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2128]: Scale
+                      - button "Field Transformation" [ref=e2130] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2131]: Field Transformation
+                  - generic [ref=e2132]:
+                    - generic [ref=e2135]:
+                      - generic [ref=e2136]: Euclidean
+                      - generic [ref=e2137]: Vectors, points, and spatial transforms
+                    - generic [ref=e2138]:
+                      - button "Vector Compose" [ref=e2140] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2141]: Vector Compose
+                      - button "Vector Decompose" [ref=e2143] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2144]: Vector Decompose
+                      - button "Vector Add" [ref=e2146] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2147]: Vector Add
+                      - button "Vector Subtract" [ref=e2149] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2150]: Vector Subtract
+                      - button "Vector Length" [ref=e2152] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2153]: Vector Length
+                      - button "Vector Normalize" [ref=e2155] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2156]: Vector Normalize
+                      - button "Vector Dot" [ref=e2158] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2159]: Vector Dot
+                      - button "Vector Cross" [ref=e2161] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2162]: Vector Cross
+                      - button "Distance" [ref=e2164] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2165]: Distance
+                      - button "Vector From Points" [ref=e2167] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2168]: Vector From Points
+                      - button "Vector Angle" [ref=e2170] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2171]: Vector Angle
+                      - button "Vector Lerp" [ref=e2173] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2174]: Vector Lerp
+                      - button "Vector Project" [ref=e2176] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2177]: Vector Project
+                      - button "Point Attractor" [ref=e2179] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2180]: Point Attractor
+                      - button "Move Point" [ref=e2182] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2183]: Move Point
+                      - button "Move Point By Vector" [ref=e2185] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2186]: Move Point By Vector
+                      - button "Rotate Vector" [ref=e2188] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2189]: Rotate Vector
+                      - button "Mirror Vector" [ref=e2191] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2192]: Mirror Vector
+              - generic [ref=e2193]:
+                - generic [ref=e2194]:
+                  - generic [ref=e2195]: Arrays
+                  - generic [ref=e2196]: Linear, polar, grid distributions
+                - generic [ref=e2198]:
+                  - generic [ref=e2201]:
+                    - generic [ref=e2202]: Arrays
+                    - generic [ref=e2203]: Linear, polar, and grid distributions
+                  - generic [ref=e2204]:
+                    - button "Linear Array" [ref=e2206] [cursor=pointer]:
+                      - img
+                      - generic [ref=e2207]: Linear Array
+                    - button "Polar Array" [ref=e2209] [cursor=pointer]:
+                      - img
+                      - generic [ref=e2210]: Polar Array
+                    - button "Grid Array" [ref=e2212] [cursor=pointer]:
+                      - img
+                      - generic [ref=e2213]: Grid Array
+                    - button "Geometry Array" [ref=e2215] [cursor=pointer]:
+                      - img
+                      - generic [ref=e2216]: Geometry Array
+              - generic [ref=e2217]:
+                - generic [ref=e2218]:
+                  - generic [ref=e2219]: Interchange
+                  - generic [ref=e2220]: Import, export, mesh conversion
+                - generic [ref=e2222]:
+                  - generic [ref=e2225]:
+                    - generic [ref=e2226]: Interchange
+                    - generic [ref=e2227]: Import and export geometry
+                  - generic [ref=e2228]:
+                    - button "STL Import" [ref=e2230] [cursor=pointer]:
+                      - img
+                      - generic [ref=e2231]: STL Import
+                    - button "STL Export" [ref=e2233] [cursor=pointer]:
+                      - img
+                      - generic [ref=e2234]: STL Export
+              - generic [ref=e2235]:
+                - generic [ref=e2236]:
+                  - generic [ref=e2237]: Data
+                  - generic [ref=e2238]: Lists, ranges, analysis
+                - generic [ref=e2239]:
+                  - generic [ref=e2240]:
+                    - generic [ref=e2243]:
+                      - generic [ref=e2244]: Data
+                      - generic [ref=e2245]: References and parameters
+                    - generic [ref=e2246]:
+                      - button "Geometry Reference" [ref=e2248] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2249]: Geometry Reference
+                      - button "Text" [ref=e2251] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2252]: Text
+                      - button "Group" [ref=e2254] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2255]: Group
+                      - button "Panel" [ref=e2257] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2258]: Panel
+                      - button "Text Note" [ref=e2260] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2261]: Text Note
+                      - button "Color Picker" [ref=e2263] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2264]: Color Picker
+                      - button "Annotations" [ref=e2266] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2267]: Annotations
+                  - generic [ref=e2268]:
+                    - generic [ref=e2271]:
+                      - generic [ref=e2272]: Basics
+                      - generic [ref=e2273]: Core constants and helpers
+                    - generic [ref=e2274]:
+                      - button "Origin" [ref=e2276] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2277]: Origin
+                      - button "Unit X" [ref=e2279] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2280]: Unit X
+                      - button "Unit Y" [ref=e2282] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2283]: Unit Y
+                      - button "Unit Z" [ref=e2285] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2286]: Unit Z
+                      - button "Unit XYZ" [ref=e2288] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2289]: Unit XYZ
+                      - button "Move Vector" [ref=e2291] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2292]: Move Vector
+                      - button "Scale Vector" [ref=e2294] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2295]: Scale Vector
+                  - generic [ref=e2296]:
+                    - generic [ref=e2299]:
+                      - generic [ref=e2300]: Lists
+                      - generic [ref=e2301]: List and data management
+                    - generic [ref=e2302]:
+                      - button "List Create" [ref=e2304] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2305]: List Create
+                      - button "List Length" [ref=e2307] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2308]: List Length
+                      - button "List Item" [ref=e2310] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2311]: List Item
+                      - button "List Index Of" [ref=e2313] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2314]: List Index Of
+                      - button "List Partition" [ref=e2316] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2317]: List Partition
+                      - button "List Flatten" [ref=e2319] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2320]: List Flatten
+                      - button "List Slice" [ref=e2322] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2323]: List Slice
+                      - button "List Reverse" [ref=e2325] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2326]: List Reverse
+                  - generic [ref=e2327]:
+                    - generic [ref=e2330]:
+                      - generic [ref=e2331]: Ranges
+                      - generic [ref=e2332]: Sequences, remaps, and generators
+                    - generic [ref=e2333]:
+                      - button "Range" [ref=e2335] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2336]: Range
+                      - button "Linspace" [ref=e2338] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2339]: Linspace
+                      - button "Remap" [ref=e2341] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2342]: Remap
+                      - button "Random" [ref=e2344] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2345]: Random
+                      - button "Repeat" [ref=e2347] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2348]: Repeat
+                  - generic [ref=e2349]:
+                    - generic [ref=e2352]:
+                      - generic [ref=e2353]: Signals
+                      - generic [ref=e2354]: Waveforms and oscillators
+                    - generic [ref=e2355]:
+                      - button "Sine Wave" [ref=e2357] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2358]: Sine Wave
+                      - button "Cosine Wave" [ref=e2360] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2361]: Cosine Wave
+                      - button "Sawtooth Wave" [ref=e2363] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2364]: Sawtooth Wave
+                      - button "Triangle Wave" [ref=e2366] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2367]: Triangle Wave
+                      - button "Square Wave" [ref=e2369] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2370]: Square Wave
+                  - generic [ref=e2371]:
+                    - generic [ref=e2374]:
+                      - generic [ref=e2375]: Analysis
+                      - generic [ref=e2376]: Measure and inspect
+                    - generic [ref=e2377]:
+                      - button "Geometry Viewer" [ref=e2379] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2380]: Geometry Viewer
+                      - button "Custom Viewer" [ref=e2382] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2383]: Custom Viewer
+                      - button "Filter" [ref=e2385] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2386]: Filter
+                      - button "Custom Preview" [ref=e2388] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2389]: Custom Preview
+                      - button "Metadata Panel" [ref=e2391] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2392]: Metadata Panel
+                      - button "List Sum" [ref=e2394] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2395]: List Sum
+                      - button "List Average" [ref=e2397] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2398]: List Average
+                      - button "List Min" [ref=e2400] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2401]: List Min
+                      - button "List Max" [ref=e2403] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2404]: List Max
+                      - button "List Median" [ref=e2406] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2407]: List Median
+                      - button "List Std Dev" [ref=e2409] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2410]: List Std Dev
+                      - button "Geometry Info" [ref=e2412] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2413]: Geometry Info
+                      - button "Geometry Vertices" [ref=e2415] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2416]: Geometry Vertices
+                      - button "Geometry Edges" [ref=e2418] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2419]: Geometry Edges
+                      - button "Geometry Faces" [ref=e2421] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2422]: Geometry Faces
+                      - button "Geometry Normals" [ref=e2424] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2425]: Geometry Normals
+                      - button "Control Points" [ref=e2427] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2428]: Control Points
+                      - button "Proximity 3D" [ref=e2430] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2431]: Proximity 3D
+                      - button "Proximity 2D" [ref=e2433] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2434]: Proximity 2D
+                      - button "Curve Proximity" [ref=e2436] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2437]: Curve Proximity
+                  - generic [ref=e2438]:
+                    - generic [ref=e2441]:
+                      - generic [ref=e2442]: Measurement
+                      - generic [ref=e2443]: Length, area, volume
+                    - generic [ref=e2444]:
+                      - button "Measurement" [ref=e2446] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2447]: Measurement
+                      - button "Dimensions" [ref=e2449] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2450]: Dimensions
+              - generic [ref=e2451]:
+                - generic [ref=e2452]:
+                  - generic [ref=e2453]: Solver
+                  - generic [ref=e2454]: Optimization and simulation engines
+                - generic [ref=e2456]:
+                  - generic [ref=e2459]:
+                    - generic [ref=e2460]: Solver
+                    - generic [ref=e2461]: Goal-based optimization and simulation
+                  - generic [ref=e2462]:
+                    - button "Ἐπιλύτης Χημείας" [ref=e2464] [cursor=pointer]:
+                      - img
+                      - generic [ref=e2465]: Ἐπιλύτης Χημείας
+                    - button "Ἐπιλύτης Φυσικῆς" [ref=e2467] [cursor=pointer]:
+                      - img
+                      - generic [ref=e2468]: Ἐπιλύτης Φυσικῆς
+                    - button "Ἐπιλύτης Χημείας" [ref=e2470] [cursor=pointer]:
+                      - img
+                      - generic [ref=e2471]: Ἐπιλύτης Χημείας
+                    - button "Evolutionary Solver" [ref=e2473] [cursor=pointer]:
+                      - img
+                      - generic [ref=e2474]: Evolutionary Solver
+                    - button "Topology Optimization" [ref=e2476] [cursor=pointer]:
+                      - img
+                      - generic [ref=e2477]: Topology Optimization
+                - button "Ἐπιλύτου Εἰσαγωγαί (Epilýtou Eisagōgaí) Solver Inputs ▾" [ref=e2480] [cursor=pointer]:
+                  - generic [ref=e2481]:
+                    - generic [ref=e2482]: Ἐπιλύτου Εἰσαγωγαί
+                    - generic [ref=e2483]: (Epilýtou Eisagōgaí)
+                    - generic [ref=e2484]: Solver Inputs
+                  - generic [ref=e2485]: ▾
+                - generic [ref=e2486]:
+                  - button "Saved Scripts ▴" [expanded] [ref=e2729] [cursor=pointer]:
+                    - generic [ref=e2490]: Saved Scripts
+                    - generic [ref=e2491]: ▴
+                  - generic [ref=e2730]:
+                    - button "Physics Solver" [ref=e2731] [cursor=pointer]
+                    - button "Evolutionary Solver" [active] [ref=e2732] [cursor=pointer]
+                    - button "Chemistry Solver" [ref=e2733] [cursor=pointer]
+                    - button "Topology Optimization" [ref=e2734] [cursor=pointer]
+                    - button "Voxel Solver" [ref=e2735] [cursor=pointer]
+              - generic [ref=e2492]:
+                - generic [ref=e2493]:
+                  - generic [ref=e2494]: Voxel
+                  - generic [ref=e2495]: Voxel grids and utilities
+                - generic [ref=e2497]:
+                  - generic [ref=e2500]:
+                    - generic [ref=e2501]: Voxel
+                    - generic [ref=e2502]: Voxel grids and utilities
+                  - generic [ref=e2503]:
+                    - button "Voxelize Geometry" [ref=e2505] [cursor=pointer]:
+                      - img
+                      - generic [ref=e2506]: Voxelize Geometry
+                    - button "Extract Isosurface" [ref=e2508] [cursor=pointer]:
+                      - img
+                      - generic [ref=e2509]: Extract Isosurface
+                    - button "Topology Optimize" [ref=e2511] [cursor=pointer]:
+                      - img
+                      - generic [ref=e2512]: Topology Optimize
+                    - button "Topology Solver" [ref=e2514] [cursor=pointer]:
+                      - img
+                      - generic [ref=e2515]: Topology Solver
+                    - button "Voxelizer" [ref=e2517] [cursor=pointer]:
+                      - img
+                      - generic [ref=e2518]: Voxelizer
+              - generic [ref=e2519]:
+                - generic [ref=e2520]:
+                  - generic [ref=e2521]: Math + Logic
+                  - generic [ref=e2522]: Expressions, conditions
+                - generic [ref=e2523]:
+                  - generic [ref=e2524]:
+                    - generic [ref=e2527]:
+                      - generic [ref=e2528]: Math
+                      - generic [ref=e2529]: Scalar computation and expressions
+                    - generic [ref=e2530]:
+                      - button "Slider" [ref=e2532] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2533]: Slider
+                      - button "Number" [ref=e2535] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2536]: Number
+                      - button "Add" [ref=e2538] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2539]: Add
+                      - button "Subtract" [ref=e2541] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2542]: Subtract
+                      - button "Multiply" [ref=e2544] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2545]: Multiply
+                      - button "Divide" [ref=e2547] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2548]: Divide
+                      - button "Clamp" [ref=e2550] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2551]: Clamp
+                      - button "Min" [ref=e2553] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2554]: Min
+                      - button "Max" [ref=e2556] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2557]: Max
+                      - button "Expression" [ref=e2559] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2560]: Expression
+                      - button "Scalar Functions" [ref=e2562] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2563]: Scalar Functions
+                  - generic [ref=e2564]:
+                    - generic [ref=e2567]:
+                      - generic [ref=e2568]: Logic
+                      - generic [ref=e2569]: Conditions and branching
+                    - generic [ref=e2570]:
+                      - button "Toggle Switch" [ref=e2572] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2573]: Toggle Switch
+                      - button "Conditional Toggle Button" [ref=e2575] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2576]: Conditional Toggle Button
+                      - button "Conditional" [ref=e2578] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2579]: Conditional
+              - generic [ref=e2580]:
+                - generic [ref=e2581]:
+                  - generic [ref=e2582]: Other
+                  - generic [ref=e2583]: Utilities and helpers
+                - generic [ref=e2584]:
+                  - generic [ref=e2585]:
+                    - generic [ref=e2588]:
+                      - generic [ref=e2589]: Mesh
+                      - generic [ref=e2590]: Mesh conversion and editing
+                    - generic [ref=e2591]:
+                      - button "Mesh" [ref=e2593] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2594]: Mesh
+                      - button "Mesh Convert" [ref=e2596] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2597]: Mesh Convert
+                      - button "NURBS to Mesh" [ref=e2599] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2600]: NURBS to Mesh
+                      - button "B-Rep to Mesh" [ref=e2602] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2603]: B-Rep to Mesh
+                      - button "Mesh to B-Rep" [ref=e2605] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2606]: Mesh to B-Rep
+                      - button "Pipe Merge" [ref=e2608] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2609]: Pipe Merge
+                      - button "Fillet Edges" [ref=e2611] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2612]: Fillet Edges
+                      - button "Thicken Mesh" [ref=e2614] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2615]: Thicken Mesh
+                      - button "Solid" [ref=e2617] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2618]: Solid
+                  - generic [ref=e2619]:
+                    - generic [ref=e2622]:
+                      - generic [ref=e2623]: Tessellation
+                      - generic [ref=e2624]: Surface patterning and subdivision
+                    - generic [ref=e2625]:
+                      - button "Subdivide Mesh" [ref=e2627] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2628]: Subdivide Mesh
+                      - button "Dual Mesh" [ref=e2630] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2631]: Dual Mesh
+                      - button "Inset Faces" [ref=e2633] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2634]: Inset Faces
+                      - button "Extrude Faces" [ref=e2636] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2637]: Extrude Faces
+                      - button "Mesh Relax" [ref=e2639] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2640]: Mesh Relax
+                      - button "Select Faces" [ref=e2642] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2643]: Select Faces
+                      - button "Mesh Boolean" [ref=e2645] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2646]: Mesh Boolean
+                      - button "Triangulate Mesh" [ref=e2648] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2649]: Triangulate Mesh
+                      - button "Geodesic Sphere" [ref=e2651] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2652]: Geodesic Sphere
+                      - button "Voronoi Pattern" [ref=e2654] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2655]: Voronoi Pattern
+                      - button "Hexagonal Tiling" [ref=e2657] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2658]: Hexagonal Tiling
+                      - button "Offset Pattern" [ref=e2660] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2661]: Offset Pattern
+                      - button "Mesh Repair" [ref=e2663] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2664]: Mesh Repair
+                      - button "Generate UVs" [ref=e2666] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2667]: Generate UVs
+                      - button "Mesh Decimate" [ref=e2669] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2670]: Mesh Decimate
+                      - button "Quad Remesh" [ref=e2672] [cursor=pointer]:
+                        - img
+                        - generic [ref=e2673]: Quad Remesh
+            - paragraph [ref=e2742]: Select a node to edit its parameters.
+            - generic [ref=e2723]:
+              - generic [ref=e2724]:
+                - checkbox "Hover popups" [checked] [ref=e2725]
+                - text: Hover popups
+              - button "Screenshot" [ref=e2727] [cursor=pointer]:
+                - img
+                - generic [ref=e2728]: Screenshot

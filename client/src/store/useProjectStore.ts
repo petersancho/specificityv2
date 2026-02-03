@@ -8472,15 +8472,22 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
   addChemistrySolverRig: (position) => {
     const ensuredGeometryId = get().ensureBaseGeometry();
+    const selectedGeometryId = get().selectedGeometryIds[0] ?? null;
+    const selectedGeometry = selectedGeometryId
+      ? get().geometry.find((item) => item.id === selectedGeometryId) ?? null
+      : null;
     const ensuredGeometry = get().geometry.find((item) => item.id === ensuredGeometryId) ?? null;
+    const preferredGeometryId =
+      selectedGeometry?.type === "mesh" ? selectedGeometryId : null;
     const fallbackGeometryId =
-      ensuredGeometry?.type === "mesh"
+      preferredGeometryId ??
+      (ensuredGeometry?.type === "mesh"
         ? ensuredGeometryId
         : get().addGeometryBox({
             size: { width: 2, height: 2, depth: 2 },
             segments: 1,
             metadata: { label: "Chemistry Base Geometry" },
-          });
+          }));
     const baseGeometryId = fallbackGeometryId;
     const baseGeometryType = "mesh" as const;
     

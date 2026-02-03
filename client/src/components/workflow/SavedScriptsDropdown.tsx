@@ -16,7 +16,6 @@ type SavedScriptSpec = {
   subtitle: string;
   purpose: string;
   flow: Array<{ label: string; detail: string }>;
-  autoRun: true;
   onClick: () => void;
 };
 
@@ -61,7 +60,6 @@ export const SavedScriptsDropdown = ({
         { label: "Solver", detail: "FEA equilibrium solve" },
         { label: "Outputs", detail: "Deformed mesh + diagnostics" },
       ],
-      autoRun: true,
       onClick: onAddPhysicsRig,
     },
     {
@@ -75,7 +73,6 @@ export const SavedScriptsDropdown = ({
         { label: "Solver", detail: "Genetic search" },
         { label: "Outputs", detail: "Best candidate + metrics" },
       ],
-      autoRun: true,
       onClick: onAddEvolutionaryRig,
     },
     {
@@ -89,7 +86,6 @@ export const SavedScriptsDropdown = ({
         { label: "Solver", detail: "Particle diffusion + mixing" },
         { label: "Outputs", detail: "Graded mesh + diagnostics" },
       ],
-      autoRun: true,
       onClick: onAddChemistryRig,
     },
     {
@@ -103,7 +99,6 @@ export const SavedScriptsDropdown = ({
         { label: "Solver", detail: "Density field optimization" },
         { label: "Outputs", detail: "Isosurface mesh + density field" },
       ],
-      autoRun: true,
       onClick: onAddTopologyRig,
     },
     {
@@ -117,7 +112,6 @@ export const SavedScriptsDropdown = ({
         { label: "Solver", detail: "Voxel grid builder" },
         { label: "Outputs", detail: "Voxel grid + preview mesh" },
       ],
-      autoRun: true,
       onClick: onAddVoxelRig,
     },
   ];
@@ -130,7 +124,7 @@ export const SavedScriptsDropdown = ({
       aria-expanded={isExpanded}
     >
       <div className={styles.headerText}>
-        <span className={styles.title}>Saved Scripts</span>
+        <span className={styles.title}>Solver Rigs</span>
       </div>
       <span className={styles.arrow}>{isExpanded ? "▴" : "▾"}</span>
     </button>
@@ -148,8 +142,8 @@ export const SavedScriptsDropdown = ({
       {isExpanded && (
         <div className={styles.content}>
           <div className={styles.intro}>
-            Saved Scripts are pre-wired solver rigs. Click to insert at your view center,
-            auto-run once, and open the simulator dashboard.
+            Solver rigs drop a full graph at your view center. Run Graph to compute outputs,
+            then open the simulator dashboard to inspect results.
           </div>
           {scripts.map((script) => (
             <button
@@ -177,9 +171,7 @@ export const SavedScriptsDropdown = ({
                   </div>
                 ))}
               </div>
-              {script.autoRun && (
-                <div className={styles.scriptMeta}>Auto-runs once and opens simulator</div>
-              )}
+              <div className={styles.scriptMeta}>Add rig, run graph, open simulator</div>
             </button>
           ))}
           <div className={styles.hint}>
