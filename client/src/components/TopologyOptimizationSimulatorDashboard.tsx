@@ -78,6 +78,8 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   const lastUiUpdateRef = useRef(0);
   const lastPreviewUpdateRef = useRef(0);
   const previewBusyRef = useRef(false);
+  const lastFrameRef = useRef<SolverFrame | null>(null);
+  const geometryGeneratedRef = useRef(false);
   
   const solverGeneratorRef = useRef<AsyncGenerator<SolverFrame> | null>(null);
   const workerRef = useRef<Worker | null>(null);
@@ -433,6 +435,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   
 
   const handleFrame = (frame: SolverFrame) => {
+    lastFrameRef.current = frame;
     const now = performance.now();
     const shouldUpdateUi =
       now - lastUiUpdateRef.current > 50 ||
@@ -485,6 +488,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     if (frame.converged) {
       isRunningRef.current = false;
       setSimulationState('converged');
+      geometryGeneratedRef.current = true;
       if (DEBUG) {
         console.log('[TOPOLOGY] Simulation converged! Generating geometry...');
         console.log('[TOPOLOGY] baseMesh:', baseMesh ? 'exists' : 'NULL');
@@ -516,6 +520,8 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     setSimulationState('running');
     setHistory({ compliance: [], change: [], vol: [] });
     setCurrentFrame(undefined);
+    lastFrameRef.current = null;
+    geometryGeneratedRef.current = false;
     updateNodeData(
       nodeId,
       {
@@ -570,6 +576,14 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       if (message.type === "done") {
         isRunningRef.current = false;
         setSimulationState('converged');
+        if (!geometryGeneratedRef.current && baseMesh && lastFrameRef.current) {
+          try {
+            generateAndRegisterGeometry(lastFrameRef.current, baseMesh);
+            geometryGeneratedRef.current = true;
+          } catch (error) {
+            console.error('[TOPOLOGY] ❌ Geometry generation FAILED:', error);
+          }
+        }
       }
       if (message.type === "error") {
         console.error('Simulation error:', message.error);
