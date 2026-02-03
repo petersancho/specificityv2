@@ -407,7 +407,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
             surfaceArea,
           },
         },
-        { recalculate: false }
+        { recalculate: true }
       );
       toggleGeometryVisibility(pointCloudId, true);
       toggleGeometryVisibility(curveNetworkId, true);
