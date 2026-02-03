@@ -119,6 +119,11 @@ digraph SemanticOperations {
   "simulator.chemistry.finalize" [label="Finalize Chemistry Simulator", fillcolor="#FFFFCC", style=filled];
   "simulator.chemistry.blendMaterials" [label="Blend Materials", fillcolor="#FFFFCC", style=filled];
   "simulator.chemistry.evaluateGoals" [label="Evaluate Chemistry Goals", fillcolor="#FFCCCC", style=filled];
+  "simulator.chemistry.analyze" [label="Analyze Chemistry Simulation", fillcolor="#FFCCCC", style=filled];
+  "simulator.chemistry.validate" [label="Validate Chemistry Simulation", fillcolor="#FFCCCC", style=filled];
+  "simulator.chemistry.computeGradients" [label="Compute Chemistry Gradients", fillcolor="#FFCCCC", style=filled];
+  "simulator.chemistry.computeStatistics" [label="Compute Chemistry Statistics", fillcolor="#FFCCCC", style=filled];
+  "simulator.chemistry.checkConservation" [label="Check Chemistry Conservation", fillcolor="#FFCCCC", style=filled];
   "simulator.physics.initialize" [label="Initialize Physics Simulator", fillcolor="#FFFFCC", style=filled];
   "simulator.physics.step" [label="Step Physics Simulator", fillcolor="#FFFFCC", style=filled];
   "simulator.physics.converge" [label="Check Physics Convergence", fillcolor="#FFCCCC", style=filled];

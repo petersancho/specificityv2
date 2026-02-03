@@ -12,10 +12,11 @@
   right: 0;
   bottom: 0;
   z-index: 10000;
-  background: linear-gradient(150deg, var(--bk-magenta-soft) 0%, var(--bk-cyan-soft) 45%, var(--bk-yellow-soft) 100%);
+  background: var(--surface-page);
   display: flex;
   flex-direction: column;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family: var(--font-sans);
+  color: var(--bk-black);
   overflow: hidden;
 }
 
@@ -23,13 +24,13 @@
 .header {
   flex-shrink: 0;
   background: var(--surface-card);
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid color-mix(in srgb, var(--bk-black) 18%, transparent);
   box-shadow: var(--shadow-sticker-pressed);
 }
 
 .headerBar {
   height: 4px;
-  background: linear-gradient(90deg, var(--bk-magenta) 0%, var(--bk-cyan) 50%, var(--bk-yellow) 100%);
+  background: var(--bk-magenta);
 }
 
 .headerContent {
@@ -54,13 +55,13 @@
 
 .titleEnglish {
   font-size: 0.9rem;
-  color: #666;
+  color: color-mix(in srgb, var(--bk-black) 65%, transparent);
   font-weight: 500;
 }
 
 .titleSubtext {
   font-size: 0.75rem;
-  color: #999;
+  color: color-mix(in srgb, var(--bk-black) 45%, transparent);
   font-style: italic;
 }
 
@@ -75,7 +76,7 @@
   align-items: center;
   gap: 0.5rem;
   font-size: 0.85rem;
-  color: #666;
+  color: color-mix(in srgb, var(--bk-black) 60%, transparent);
 }
 
 .scaleControl input[type="range"] {
@@ -91,13 +92,14 @@
 .closeButton {
   width: 2rem;
   height: 2rem;
-  border: none;
-  background: #f5f5f5;
+  border: 2px solid var(--bk-black);
+  background: var(--bk-yellow);
   border-radius: 4px;
   cursor: pointer;
   font-size: 1.2rem;
-  color: #666;
+  color: var(--bk-black);
   transition: all 0.2s;
+  box-shadow: var(--shadow-sticker-pressed);
 }
 
 .closeButton:hover {
@@ -109,7 +111,7 @@
 .tabs {
   display: flex;
   background: var(--surface-card);
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid color-mix(in srgb, var(--bk-black) 18%, transparent);
   padding: 0 1.5rem;
   flex-shrink: 0;
 }
@@ -121,7 +123,7 @@
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 500;
-  color: #666;
+  color: color-mix(in srgb, var(--bk-black) 60%, transparent);
   border-bottom: 2px solid transparent;
   transition: all 0.2s;
   position: relative;
@@ -161,7 +163,7 @@
   margin: 0 0 1rem 0;
   font-size: 1.1rem;
   font-weight: 600;
-  color: #333;
+  color: var(--bk-black);
   border-bottom: 2px solid var(--bk-magenta);
   padding-bottom: 0.5rem;
 }
@@ -193,7 +195,7 @@
 
 .analysisTypeButtonActive {
   border-color: var(--bk-magenta);
-  background: linear-gradient(135deg, rgba(255, 0, 153, 0.05) 0%, rgba(0, 212, 255, 0.05) 100%);
+  background: var(--bk-magenta-soft);
   box-shadow: 0 4px 12px rgba(255, 0, 153, 0.2);
 }
 
@@ -406,21 +408,22 @@
 .controlButton {
   flex: 1;
   padding: 0.75rem 1.5rem;
-  border: 2px solid var(--bk-magenta);
-  background: var(--surface-card);
+  border: 2px solid var(--bk-black);
+  background: var(--bk-magenta);
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 600;
-  color: var(--bk-magenta);
+  color: var(--surface-card);
   transition: all 0.2s;
+  box-shadow: var(--shadow-sticker-pressed);
 }
 
 .controlButton:hover:not(:disabled) {
-  background: var(--bk-magenta);
+  background: #ff33aa;
   color: var(--surface-card);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(255, 0, 153, 0.3);
+  box-shadow: var(--shadow-sticker-hover);
 }
 
 .controlButton:disabled {
@@ -474,7 +477,7 @@
 
 .stressPlaceholder {
   aspect-ratio: 16 / 9;
-  background: linear-gradient(135deg, rgba(255, 0, 153, 0.05) 0%, rgba(0, 212, 255, 0.05) 100%);
+  background: var(--bk-magenta-soft);
   border: 2px dashed var(--bk-magenta);
   border-radius: 6px;
   display: flex;
@@ -505,13 +508,7 @@
 .legendBar {
   height: 30px;
   border-radius: 4px;
-  background: linear-gradient(90deg, 
-    #0066ff 0%, 
-    #00ccff 25%, 
-    #00ff66 50%, 
-    #ffff00 75%, 
-    #ff0000 100%
-  );
+  background: var(--bk-magenta);
   box-shadow: var(--shadow-sticker-pressed);
 }
 
@@ -538,7 +535,7 @@
 
 .placeholder {
   aspect-ratio: 16 / 9;
-  background: linear-gradient(135deg, rgba(255, 0, 153, 0.05) 0%, rgba(0, 212, 255, 0.05) 100%);
+  background: var(--bk-magenta-soft);
   border: 2px dashed var(--bk-magenta);
   border-radius: 6px;
   display: flex;

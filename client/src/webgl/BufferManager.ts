@@ -124,7 +124,9 @@ export class GeometryBuffer {
   public hasFace2Buffer?: WebGLBuffer;
   public vertexCount: number = 0;
   public indexCount: number = 0;
+  private indexMax: number = -1;
   private warnedInvalidIndex: boolean = false;
+  private warnedIndexOverflow: boolean = false;
 
   constructor(
     private gl: WebGLRenderingContext,
@@ -146,6 +148,12 @@ export class GeometryBuffer {
         );
       }
       this.vertexCount = data.positions.length / 3;
+      if (this.indexBuffer && this.indexMax >= this.vertexCount && !this.warnedIndexOverflow) {
+        console.warn(
+          `[${this.id}] Index buffer exceeds vertex count (maxIndex=${this.indexMax}, vertexCount=${this.vertexCount}). Skipping indexed draws until geometry is updated.`
+        );
+        this.warnedIndexOverflow = true;
+      }
     }
 
     if (data.prevPositions) {
@@ -192,6 +200,8 @@ export class GeometryBuffer {
         data.indices,
         this.vertexCount
       );
+      this.indexMax = maxIndex;
+      this.warnedIndexOverflow = false;
 
       if (maxIndex >= this.vertexCount || droppedTriangles > 0) {
         console.warn(
@@ -466,9 +476,15 @@ export class GeometryBuffer {
 
   draw(mode: GLenum = WebGLRenderingContext.TRIANGLES): void {
     const gl = this.gl;
-    if (this.indexBuffer && this.indexCount > 0 && this.vertexCount > 0) {
+    if (
+      this.indexBuffer &&
+      this.indexCount > 0 &&
+      this.vertexCount > 0 &&
+      this.indexMax >= 0 &&
+      this.indexMax < this.vertexCount
+    ) {
       gl.drawElements(mode, this.indexCount, gl.UNSIGNED_SHORT, 0);
-    } else if (this.vertexCount > 0) {
+    } else if (this.vertexCount > 0 && (!this.indexBuffer || this.indexMax < 0)) {
       gl.drawArrays(mode, 0, this.vertexCount);
     }
   }

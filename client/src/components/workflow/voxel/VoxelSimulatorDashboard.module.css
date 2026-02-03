@@ -13,6 +13,7 @@
   max-width: 1400px;
   height: 85vh;
   background: linear-gradient(150deg, var(--bk-lime-soft) 0%, var(--surface-panel) 45%, var(--bk-yellow-soft) 100%);
+  border: 2px solid var(--bk-black);
   border-radius: 16px;
   box-shadow: var(--shadow-sticker);
   display: flex;
@@ -20,6 +21,8 @@
   overflow: hidden;
   z-index: 10000;
   animation: fadeIn 0.3s ease-out;
+  font-family: var(--font-sans);
+  color: var(--bk-black);
 }
 
 @keyframes fadeIn {
@@ -60,7 +63,7 @@
   margin: 0;
   font-size: 1.75rem;
   font-weight: 700;
-  color: var(--gray-700);
+  color: var(--bk-black);
 }
 
 .headerSubtitle {
@@ -90,19 +93,22 @@
 .closeButton {
   width: 32px;
   height: 32px;
-  border: none;
-  background: var(--gray-50);
+  border: 2px solid var(--bk-black);
+  background: var(--bk-yellow);
   border-radius: 8px;
   font-size: 1.5rem;
   line-height: 1;
   cursor: pointer;
   transition: all 0.2s;
-  color: var(--gray-600);
+  color: var(--bk-black);
+  box-shadow: var(--shadow-sticker-pressed);
 }
 
 .closeButton:hover {
-  background: var(--gray-100);
-  color: var(--gray-700);
+  background: var(--bk-magenta);
+  color: var(--surface-card);
+  box-shadow: var(--shadow-sticker-hover);
+  transform: translateY(-1px);
 }
 
 .headerBar {
@@ -119,7 +125,7 @@
   display: flex;
   gap: 0;
   background: var(--surface-card);
-  border-bottom: 1px solid var(--gray-200);
+  border-bottom: 2px solid var(--bk-black);
   padding: 0 2rem;
   flex-shrink: 0;
 }
@@ -130,7 +136,7 @@
   background: transparent;
   font-size: 0.9375rem;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: color-mix(in srgb, var(--bk-black) 60%, transparent);
   cursor: pointer;
   transition: all 0.2s;
   border-bottom: 3px solid transparent;
@@ -139,7 +145,7 @@
 
 .tab:hover {
   color: var(--solver-accent);
-  background: rgba(136, 255, 0, 0.05);
+  background: color-mix(in srgb, var(--bk-lime-soft) 50%, transparent);
 }
 
 .tabActive {
@@ -172,7 +178,7 @@
   margin: 0 0 1rem 0;
   font-size: 1.125rem;
   font-weight: 600;
-  color: var(--gray-700);
+  color: var(--bk-black);
 }
 
 .parameterGrid {
@@ -193,7 +199,7 @@
   align-items: center;
   font-size: 0.9375rem;
   font-weight: 500;
-  color: var(--gray-600);
+  color: color-mix(in srgb, var(--bk-black) 70%, transparent);
 }
 
 .parameterValue {

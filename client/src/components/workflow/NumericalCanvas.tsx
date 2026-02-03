@@ -2572,6 +2572,13 @@ export const NumericalCanvas = ({
           }),
         });
       }
+      const portNode = nodes.find((entry) => entry.id === target.nodeId);
+      if (portNode?.type === "chemistryMaterialGoal") {
+        actions.push({
+          label: "Assign Materials",
+          onSelect: closeMenu(() => setChemistryMaterialPopupNodeId(target.nodeId)),
+        });
+      }
       return actions;
     }
 
@@ -3237,6 +3244,18 @@ export const NumericalCanvas = ({
 
     if (e.button === 2) {
       e.preventDefault();
+
+      const directContextNode =
+        target.type === "node" || target.type === "port"
+          ? nodes.find((entry) => entry.id === target.nodeId)
+          : null;
+      if (directContextNode?.type === "chemistryMaterialGoal") {
+        doubleRightClickRef.current = true;
+        lastRightClickRef.current = null;
+        rightClickHeldRef.current = false;
+        suppressContextMenuRef.current = false;
+        return;
+      }
       
       // Check for double-right-click
       const now = Date.now();
@@ -3476,6 +3495,17 @@ export const NumericalCanvas = ({
     if (node.type === "textNote") {
       beginInlineEdit("note", node.id);
       return;
+    }
+    if (node.type === "chemistryMaterialGoal") {
+      setChemistryMaterialPopupNodeId(node.id);
+      return;
+    }
+    if (node.type) {
+      const definition = getNodeDefinition(node.type);
+      if (definition?.customUI?.dashboardButton) {
+        onOpenDashboard?.(node.id);
+        return;
+      }
     }
   };
 

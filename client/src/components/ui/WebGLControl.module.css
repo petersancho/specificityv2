@@ -188,7 +188,7 @@
     circle at 35% 35%,
     var(--surface-card) 0%,
     color-mix(in srgb, var(--webgl-slider-accent) 55%, var(--surface-card)) 55%,
-    color-mix(in srgb, var(--webgl-slider-accent) 90%, var(--bk-var(--bk-black))) 100%
+    color-mix(in srgb, var(--webgl-slider-accent) 90%, var(--bk-black)) 100%
   );
   border: 1px solid color-mix(in srgb, var(--webgl-slider-accent) 65%, #1a1a1a);
   box-shadow:

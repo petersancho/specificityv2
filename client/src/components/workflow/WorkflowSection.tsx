@@ -174,6 +174,7 @@ const WorkflowSection = ({
   const [nodeQuery, setNodeQuery] = useState("");
   const [dashboardOpen, setDashboardOpen] = useState(false);
   const [semanticExplorerOpen, setSemanticExplorerOpen] = useState(false);
+  const [pendingDashboardType, setPendingDashboardType] = useState<NodeType | null>(null);
   const nodeSearchRef = useRef<HTMLInputElement>(null);
   const parameterPanelRef = useRef<HTMLDivElement>(null);
   const sectionRef = useRef<HTMLElement | null>(null);
@@ -189,6 +190,7 @@ const WorkflowSection = ({
   const addChemistrySolverRig = useProjectStore((state) => state.addChemistrySolverRig);
   const addTopologySolverRig = useProjectStore((state) => state.addTopologySolverRig);
   const addVoxelSolverRig = useProjectStore((state) => state.addVoxelSolverRig);
+  const recalculateWorkflow = useProjectStore((state) => state.recalculateWorkflow);
   const [paletteCollapsed, setPaletteCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
     return safeLocalStorageGet(PALETTE_COLLAPSED_KEY) === "true";
@@ -478,6 +480,81 @@ const WorkflowSection = ({
     setDashboardOpen(true);
   };
 
+  const solverDashboardNodes = useMemo(() => {
+    return nodes
+      .map((node) => {
+        if (!node.type) return null;
+        const definition = getNodeDefinition(node.type as NodeType);
+        if (!definition?.customUI?.dashboardButton) return null;
+        return {
+          node,
+          definition,
+          label: node.data?.label ?? definition.label ?? node.type,
+        };
+      })
+      .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+  }, [nodes]);
+
+  const primaryDashboardNodeId = useMemo(() => {
+    if (selectedNodeContext?.definition?.customUI?.dashboardButton) {
+      return selectedNodeContext.node.id;
+    }
+    return solverDashboardNodes[0]?.node.id ?? null;
+  }, [selectedNodeContext, solverDashboardNodes]);
+
+  const findLatestSolverNode = (nodeType: NodeType) => {
+    const candidates = solverDashboardNodes
+      .map((entry) => entry.node)
+      .filter((node) => node.type === nodeType);
+    if (candidates.length === 0) return null;
+    const withStamp = candidates.map((node) => {
+      const match = node.id.match(/(\d+)$/);
+      return { node, stamp: match ? Number(match[1]) : 0 };
+    });
+    withStamp.sort((a, b) => b.stamp - a.stamp);
+    return withStamp[0]?.node ?? candidates[0];
+  };
+
+  const resolveSolverStatus = (node: { data?: { outputs?: Record<string, unknown>; evaluationError?: string } }) => {
+    if (node.data?.evaluationError) return { label: "Error", tone: "error" as const };
+    const hasOutputs = Boolean(node.data?.outputs && Object.keys(node.data.outputs).length > 0);
+    if (!hasOutputs) return { label: "Not run", tone: "idle" as const };
+    return { label: "Ready", tone: "ready" as const };
+  };
+
+  useEffect(() => {
+    if (!pendingDashboardType) return;
+    const node = findLatestSolverNode(pendingDashboardType);
+    if (!node) return;
+    handleOpenDashboard(node.id);
+    setPendingDashboardType(null);
+  }, [pendingDashboardType, solverDashboardNodes]);
+
+  const handleAddPhysicsRig = () => {
+    addPhysicsSolverRig({ x: 0, y: 0 });
+    setPendingDashboardType("physicsSolver");
+  };
+
+  const handleAddEvolutionaryRig = () => {
+    addEvolutionarySolverRig({ x: 0, y: 0 });
+    setPendingDashboardType("evolutionarySolver");
+  };
+
+  const handleAddChemistryRig = () => {
+    addChemistrySolverRig({ x: 0, y: 0 });
+    setPendingDashboardType("chemistrySolver");
+  };
+
+  const handleAddTopologyRig = () => {
+    addTopologySolverRig({ x: 0, y: 0 });
+    setPendingDashboardType("topologyOptimize");
+  };
+
+  const handleAddVoxelRig = () => {
+    addVoxelSolverRig({ x: 0, y: 0 });
+    setPendingDashboardType("voxelSolver");
+  };
+
   const panelExportText = useMemo(() => {
     if (!selectedNodeContext || selectedNodeContext.node.type !== "panel") return "";
     const outputs = selectedNodeContext.node.data?.outputs ?? {};
@@ -756,6 +833,32 @@ const WorkflowSection = ({
             tooltipPosition="bottom"
             onClick={() => setSemanticExplorerOpen(true)}
           />
+          {primaryDashboardNodeId && (
+            <IconButton
+              size="sm"
+              label="Open Solver Dashboard"
+              iconId="solver"
+              tooltip="Open the selected solver dashboard"
+              tooltipPosition="bottom"
+              onClick={() => handleOpenDashboard(primaryDashboardNodeId)}
+            />
+          )}
+          <IconButton
+            size="sm"
+            label="Run Workflow"
+            iconId="repeat"
+            tooltip="Recalculate the workflow and run solvers"
+            tooltipPosition="bottom"
+            onClick={() => recalculateWorkflow()}
+          />
+          <IconButton
+            size="sm"
+            label="Prune Orphans"
+            iconId="prune"
+            tooltip="Remove unconnected nodes"
+            tooltipPosition="bottom"
+            onClick={() => pruneWorkflow()}
+          />
           {onToggleFullscreen && (
             <IconButton
               size="sm"
@@ -913,12 +1016,82 @@ const WorkflowSection = ({
                             }}
                           />
                           <SavedScriptsDropdown
-                            onAddPhysicsRig={() => addPhysicsSolverRig({ x: 0, y: 0 })}
-                            onAddEvolutionaryRig={() => addEvolutionarySolverRig({ x: 0, y: 0 })}
-                            onAddChemistryRig={() => addChemistrySolverRig({ x: 0, y: 0 })}
-                            onAddTopologyRig={() => addTopologySolverRig({ x: 0, y: 0 })}
-                            onAddVoxelRig={() => addVoxelSolverRig({ x: 0, y: 0 })}
+                            onAddPhysicsRig={handleAddPhysicsRig}
+                            onAddEvolutionaryRig={handleAddEvolutionaryRig}
+                            onAddChemistryRig={handleAddChemistryRig}
+                            onAddTopologyRig={handleAddTopologyRig}
+                            onAddVoxelRig={handleAddVoxelRig}
                           />
+                          <div className={styles.solverActions}>
+                            <div className={styles.solverActionsHeader}>
+                              <div>
+                                <div className={styles.solverActionsTitle}>Dashboards</div>
+                                <div className={styles.solverActionsSubtitle}>
+                                  Open simulators and run solver graphs.
+                                </div>
+                              </div>
+                              <WebGLButton
+                                type="button"
+                                label="Run Graph"
+                                iconId="repeat"
+                                size="xs"
+                                variant="secondary"
+                                onClick={() => recalculateWorkflow()}
+                              />
+                            </div>
+                            {solverDashboardNodes.length === 0 ? (
+                              <div className={styles.solverActionsEmpty}>
+                                Add a solver rig to surface its dashboard here.
+                              </div>
+                            ) : (
+                              <div className={styles.solverActionsList}>
+                                {solverDashboardNodes.map(({ node, label }) => {
+                                  const status = resolveSolverStatus(node);
+                                  const hasInputs = edges.some(
+                                    (edge) => edge.target === node.id
+                                  );
+                                  const statusLabel = hasInputs
+                                    ? status.label
+                                    : "Needs inputs";
+                                  const tone = hasInputs ? status.tone : "idle";
+                                  return (
+                                    <div key={node.id} className={styles.solverActionsRow}>
+                                      <div className={styles.solverActionsMeta}>
+                                        <span className={styles.solverActionsNode}>{label}</span>
+                                        <span
+                                          className={styles.solverActionsStatus}
+                                          data-tone={tone}
+                                        >
+                                          {statusLabel}
+                                        </span>
+                                      </div>
+                                      <div className={styles.solverActionsButtons}>
+                                        <WebGLButton
+                                          type="button"
+                                          label="Open"
+                                          iconId="solver"
+                                          size="xs"
+                                          variant="primary"
+                                          onClick={() => handleOpenDashboard(node.id)}
+                                        />
+                                        <WebGLButton
+                                          type="button"
+                                          label="Run"
+                                          iconId="repeat"
+                                          size="xs"
+                                          variant="secondary"
+                                          onClick={() => recalculateWorkflow()}
+                                        />
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                            <div className={styles.solverActionsHint}>
+                              Tip: right-click a solver node and choose “Open Simulator.”
+                            </div>
+                          </div>
                         </>
                       )}
                     </div>

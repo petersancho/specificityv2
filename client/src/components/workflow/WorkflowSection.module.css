@@ -27,9 +27,9 @@
   gap: var(--space-3);
   margin-bottom: var(--space-3);
   padding: 8px 10px;
-  border: 2px solid var(--bk-var(--bk-var(--bk-black)));
+  border: 2px solid var(--bk-black);
   background: var(--surface-card);
-  box-shadow: 0 4px 0 var(--bk-var(--bk-var(--bk-black)));
+  box-shadow: 0 4px 0 var(--bk-black);
   border-radius: 4px;
 }
 
@@ -58,14 +58,14 @@
   width: 100%;
   height: 36px;
   border-radius: 4px;
-  border: 2px solid var(--bk-var(--bk-var(--bk-black)));
+  border: 2px solid var(--bk-black);
   background: var(--surface-card);
-  color: var(--bk-var(--bk-var(--bk-black)));
+  color: var(--bk-black);
   padding: 0 10px;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.02em;
-  box-shadow: 0 3px 0 var(--bk-var(--bk-var(--bk-black)));
+  box-shadow: 0 3px 0 var(--bk-black);
   transition: transform 120ms ease, box-shadow 120ms ease;
 }
 
@@ -73,7 +73,7 @@
   outline: 2px solid var(--bk-cyan);
   outline-offset: 2px;
   transform: translateY(-1px);
-  box-shadow: 0 4px 0 var(--bk-var(--bk-var(--bk-black)));
+  box-shadow: 0 4px 0 var(--bk-black);
 }
 
 .headerSearchMeta {
@@ -101,26 +101,26 @@
 }
 
 .capture {
-  border: 2px solid var(--bk-var(--bk-var(--bk-black)));
+  border: 2px solid var(--bk-black);
   border-radius: 4px;
   padding: 8px 16px;
   font-weight: 600;
   background: var(--bk-yellow);
-  color: var(--bk-var(--bk-var(--bk-black)));
-  box-shadow: 0 3px 0 var(--bk-var(--bk-var(--bk-black)));
+  color: var(--bk-black);
+  box-shadow: 0 3px 0 var(--bk-black);
   transition: transform 120ms ease, box-shadow 120ms ease;
   cursor: pointer;
 }
 
 .capture:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 0 var(--bk-var(--bk-var(--bk-black)));
+  box-shadow: 0 4px 0 var(--bk-black);
   background: #ffee66;
 }
 
 .capture:active {
   transform: translateY(1px);
-  box-shadow: 0 1px 0 var(--bk-var(--bk-var(--bk-black)));
+  box-shadow: 0 1px 0 var(--bk-black);
 }
 
 .capture:hover:not(:disabled) {
@@ -176,6 +176,106 @@
 .paletteToggle {
   width: 36px;
   height: 36px;
+}
+
+.solverActions {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 2px solid var(--bk-black);
+  background: var(--surface-card);
+  box-shadow: var(--shadow-sticker-pressed);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.solverActionsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.solverActionsTitle {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--bk-black);
+}
+
+.solverActionsSubtitle {
+  font-size: 10px;
+  color: color-mix(in srgb, var(--bk-black) 60%, transparent);
+}
+
+.solverActionsList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.solverActionsRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--bk-black) 18%, transparent);
+  background: var(--surface-panel, #f8f7f4);
+}
+
+.solverActionsMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.solverActionsNode {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--bk-black);
+}
+
+.solverActionsStatus {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.solverActionsStatus[data-tone="ready"] {
+  color: var(--bk-cyan);
+}
+
+.solverActionsStatus[data-tone="error"] {
+  color: var(--bk-magenta);
+}
+
+.solverActionsStatus[data-tone="idle"] {
+  color: var(--bk-yellow);
+}
+
+.solverActionsButtons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.solverActionsEmpty {
+  padding: 8px 10px;
+  font-size: 11px;
+  color: color-mix(in srgb, var(--bk-black) 55%, transparent);
+  background: var(--surface-panel, #f8f7f4);
+  border-radius: 6px;
+  border: 1px dashed color-mix(in srgb, var(--bk-black) 18%, transparent);
+}
+
+.solverActionsHint {
+  font-size: 10px;
+  color: color-mix(in srgb, var(--bk-black) 50%, transparent);
 }
 
 .paletteHeader {

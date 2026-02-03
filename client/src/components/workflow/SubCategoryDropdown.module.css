@@ -138,24 +138,24 @@
 
 .nodeButton {
   background: var(--surface-card);
-  border: 2px solid var(--bk-var(--bk-black));
+  border: 2px solid var(--bk-black);
   border-radius: 4px;
   padding: 8px 8px;
   text-align: left;
-  color: var(--bk-var(--bk-black));
+  color: var(--bk-black);
   cursor: pointer;
   min-height: 68px;
   display: flex;
   align-items: center;
   gap: 12px;
   justify-content: flex-start;
-  box-shadow: 0 3px 0 var(--bk-var(--bk-black));
+  box-shadow: 0 3px 0 var(--bk-black);
   transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
 }
 
 .nodeButton:hover {
   transform: translateY(-2px);
-  box-shadow: 0 5px 0 var(--bk-var(--bk-black));
+  box-shadow: 0 5px 0 var(--bk-black);
   background: var(--bk-porcelain);
 }
 
@@ -165,7 +165,7 @@
 
 .nodeButton:active {
   transform: translateY(1px);
-  box-shadow: 0 1px 0 var(--bk-var(--bk-black));
+  box-shadow: 0 1px 0 var(--bk-black);
 }
 
 .sticker {

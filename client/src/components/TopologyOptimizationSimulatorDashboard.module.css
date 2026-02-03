@@ -17,6 +17,8 @@
   z-index: 10000;
   backdrop-filter: blur(8px);
   animation: fadeIn 0.3s ease-out;
+  font-family: var(--font-sans);
+  color: var(--surface-card);
 }
 
 @keyframes fadeIn {
@@ -88,7 +90,7 @@
   margin: 0;
   font-size: 24px;
   font-weight: 700;
-  color: var(--bk-porcelain-var(--surface-card), var(--surface-card));
+  color: var(--surface-card);
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
@@ -108,7 +110,7 @@
 .scaleButton {
   background: rgba(255, 255, 255, 0.15);
   border: 1px solid rgba(255, 255, 255, 0.3);
-  color: var(--bk-porcelain-var(--surface-card), var(--surface-card));
+  color: var(--surface-card);
   width: 32px;
   height: 32px;
   border-radius: 6px;
@@ -129,7 +131,7 @@
 .scaleLabel {
   font-size: 14px;
   font-weight: 600;
-  color: var(--bk-porcelain-var(--surface-card), var(--surface-card));
+  color: var(--surface-card);
   min-width: 45px;
   text-align: center;
 }
@@ -137,7 +139,7 @@
 .closeButton {
   background: rgba(255, 255, 255, 0.15);
   border: 1px solid rgba(255, 255, 255, 0.3);
-  color: var(--bk-porcelain-var(--surface-card), var(--surface-card));
+  color: var(--surface-card);
   width: 36px;
   height: 36px;
   border-radius: 6px;
@@ -185,7 +187,7 @@
 
 .tabButtonActive {
   background: rgba(136, 0, 255, 0.25);
-  color: var(--bk-porcelain-var(--surface-card), var(--surface-card));
+  color: var(--surface-card);
 }
 
 .tabButtonActive::after {
@@ -297,7 +299,7 @@
 .parameterValue {
   font-size: 16px;
   font-weight: 700;
-  color: var(--bk-porcelain-var(--surface-card), var(--surface-card));
+  color: var(--surface-card);
 }
 
 .parameterDescription {
@@ -313,7 +315,7 @@
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(136, 0, 255, 0.4);
   border-radius: 6px;
-  color: var(--bk-porcelain-var(--surface-card), var(--surface-card));
+  color: var(--surface-card);
   font-size: 14px;
   font-weight: 600;
 }
@@ -346,7 +348,7 @@
   height: 32px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--bk-purple, var(--bk-purple)) 0%, var(--bk-orange, var(--bk-orange)) 100%);
-  color: var(--bk-porcelain-var(--surface-card), var(--surface-card));
+  color: var(--surface-card);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -364,7 +366,7 @@
   margin: 0 0 6px 0;
   font-size: 15px;
   font-weight: 700;
-  color: var(--bk-porcelain-var(--surface-card), var(--surface-card));
+  color: var(--surface-card);
 }
 
 .stepDescription {
@@ -445,7 +447,7 @@
 
 .startButton {
   background: linear-gradient(135deg, var(--bk-purple, var(--bk-purple)) 0%, var(--bk-orange, var(--bk-orange)) 100%);
-  color: var(--bk-porcelain-var(--surface-card), var(--surface-card));
+  color: var(--surface-card);
   flex: 1;
 }
 
@@ -461,7 +463,7 @@
 
 .pauseButton {
   background: linear-gradient(135deg, var(--bk-orange, var(--bk-orange)) 0%, var(--bk-yellow, var(--bk-yellow)) 100%);
-  color: var(--bk-porcelain-var(--bk-var(--bk-black)), var(--bk-var(--bk-var(--bk-black))));
+  color: var(--bk-black);
   flex: 1;
 }
 
@@ -472,7 +474,7 @@
 
 .resumeButton {
   background: linear-gradient(135deg, var(--bk-cyan, var(--bk-cyan)) 0%, var(--bk-purple, var(--bk-purple)) 100%);
-  color: var(--bk-porcelain-var(--surface-card), var(--surface-card));
+  color: var(--surface-card);
   flex: 1;
 }
 
@@ -484,7 +486,7 @@
 .resetButton {
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.3);
-  color: var(--bk-porcelain-var(--surface-card), var(--surface-card));
+  color: var(--surface-card);
 }
 
 .resetButton:hover {
@@ -825,7 +827,7 @@
   background: linear-gradient(135deg, var(--bk-purple, var(--bk-purple)) 0%, var(--bk-orange, var(--bk-orange)) 100%);
   border: none;
   border-radius: 8px;
-  color: var(--bk-porcelain-var(--surface-card), var(--surface-card));
+  color: var(--surface-card);
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;

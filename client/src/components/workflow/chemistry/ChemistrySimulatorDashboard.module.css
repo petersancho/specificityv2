@@ -12,10 +12,11 @@
   right: 0;
   bottom: 0;
   z-index: 10000;
-  background: linear-gradient(150deg, var(--bk-cyan-soft) 0%, var(--bk-yellow-soft) 45%, var(--bk-magenta-soft) 100%);
+  background: var(--surface-page);
   display: flex;
   flex-direction: column;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family: var(--font-sans);
+  color: var(--bk-black);
   overflow: hidden;
 }
 
@@ -23,13 +24,13 @@
 .header {
   flex-shrink: 0;
   background: var(--surface-card);
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid color-mix(in srgb, var(--bk-black) 18%, transparent);
   box-shadow: var(--shadow-sticker-pressed);
 }
 
 .headerBar {
   height: 4px;
-  background: linear-gradient(90deg, var(--bk-cyan) 0%, var(--bk-yellow) 50%, var(--bk-magenta) 100%);
+  background: var(--bk-cyan);
 }
 
 .headerContent {
@@ -54,13 +55,13 @@
 
 .titleEnglish {
   font-size: 0.9rem;
-  color: #666;
+  color: color-mix(in srgb, var(--bk-black) 65%, transparent);
   font-weight: 500;
 }
 
 .titleSubtext {
   font-size: 0.75rem;
-  color: #999;
+  color: color-mix(in srgb, var(--bk-black) 45%, transparent);
   font-style: italic;
 }
 
@@ -75,7 +76,7 @@
   align-items: center;
   gap: 0.5rem;
   font-size: 0.85rem;
-  color: #666;
+  color: color-mix(in srgb, var(--bk-black) 60%, transparent);
 }
 
 .scaleControl input[type="range"] {
@@ -91,13 +92,14 @@
 .closeButton {
   width: 2rem;
   height: 2rem;
-  border: none;
-  background: #f5f5f5;
+  border: 2px solid var(--bk-black);
+  background: var(--bk-yellow);
   border-radius: 4px;
   cursor: pointer;
   font-size: 1.2rem;
-  color: #666;
+  color: var(--bk-black);
   transition: all 0.2s;
+  box-shadow: var(--shadow-sticker-pressed);
 }
 
 .closeButton:hover {
@@ -109,7 +111,7 @@
 .tabs {
   display: flex;
   background: var(--surface-card);
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid color-mix(in srgb, var(--bk-black) 18%, transparent);
   padding: 0 1.5rem;
   flex-shrink: 0;
 }
@@ -121,7 +123,7 @@
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 500;
-  color: #666;
+  color: color-mix(in srgb, var(--bk-black) 60%, transparent);
   border-bottom: 2px solid transparent;
   transition: all 0.2s;
   position: relative;
@@ -161,7 +163,7 @@
   margin: 0 0 1rem 0;
   font-size: 1.1rem;
   font-weight: 600;
-  color: #333;
+  color: var(--bk-black);
   border-bottom: 2px solid var(--bk-cyan);
   padding-bottom: 0.5rem;
 }
@@ -189,7 +191,7 @@
 
 .materialCardSelected {
   border-color: var(--bk-cyan);
-  background: linear-gradient(135deg, rgba(0, 212, 255, 0.05) 0%, rgba(255, 221, 0, 0.05) 100%);
+  background: var(--bk-cyan-soft);
   box-shadow: 0 4px 12px rgba(0, 212, 255, 0.2);
 }
 
@@ -375,21 +377,22 @@
 .controlButton {
   flex: 1;
   padding: 0.75rem 1.5rem;
-  border: 2px solid var(--bk-cyan);
-  background: var(--surface-card);
+  border: 2px solid var(--bk-black);
+  background: var(--bk-cyan);
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 600;
-  color: var(--bk-cyan);
+  color: var(--bk-black);
   transition: all 0.2s;
+  box-shadow: var(--shadow-sticker-pressed);
 }
 
 .controlButton:hover:not(:disabled) {
-  background: var(--bk-cyan);
-  color: var(--surface-card);
+  background: #1fe8ff;
+  color: var(--bk-black);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 212, 255, 0.3);
+  box-shadow: var(--shadow-sticker-hover);
 }
 
 .controlButton:disabled {
@@ -449,7 +452,7 @@
 
 .placeholder {
   aspect-ratio: 16 / 9;
-  background: linear-gradient(135deg, rgba(0, 212, 255, 0.05) 0%, rgba(255, 221, 0, 0.05) 100%);
+  background: var(--bk-cyan-soft);
   border: 2px dashed var(--bk-cyan);
   border-radius: 6px;
   display: flex;
@@ -722,7 +725,7 @@
   cursor: pointer;
   padding: 0.85rem 1rem;
   font-weight: 600;
-  background: linear-gradient(90deg, var(--bk-cyan-soft), var(--bk-yellow-soft));
+  background: var(--bk-yellow-soft);
   border-bottom: 2px solid #000000;
 }
 
@@ -765,6 +768,27 @@
 .metricMeta {
   font-size: 0.8rem;
   color: #555;
+}
+
+.metricDetail {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: #555;
+}
+
+.metricDetailLabel {
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #666;
+}
+
+.metricDetailValue {
+  font-weight: 600;
+  color: #111;
 }
 
 .metricStatus {

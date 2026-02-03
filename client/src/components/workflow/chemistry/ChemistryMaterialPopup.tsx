@@ -221,6 +221,7 @@ const ChemistryMaterialPopup = ({ nodeId, onClose }: ChemistryMaterialPopupProps
   const sceneNodes = useProjectStore((state) => state.sceneNodes);
   const updateNodeData = useProjectStore((state) => state.updateNodeData);
   const updateGeometryMetadata = useProjectStore((state) => state.updateGeometryMetadata);
+  const recalculateWorkflow = useProjectStore((state) => state.recalculateWorkflow);
 
   const nodesById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
   const geometryById = useMemo(
@@ -437,6 +438,18 @@ const ChemistryMaterialPopup = ({ nodeId, onClose }: ChemistryMaterialPopupProps
               />
               <span className={styles.scaleValue}>{scalePercent}%</span>
             </div>
+            <WebGLButton
+              onClick={() => recalculateWorkflow()}
+              label="Run Solver"
+              iconId="repeat"
+              iconStyle={POPUP_ICON_STYLE}
+              variant="secondary"
+              shape="rounded"
+              hideLabel
+              disabled={!solverNode}
+              tooltip={solverNode ? "Run solver with current assignments" : "Connect a solver node to run"}
+              title={solverNode ? "Run solver" : "Connect a solver node to run"}
+            />
             <WebGLButton
               className={styles.minimizeButton}
               onClick={() => setIsMinimized((prev) => !prev)}

@@ -7,13 +7,18 @@
   align-items: center;
   justify-content: center;
   padding: var(--space-4);
-  background:
-    radial-gradient(circle at 16% 10%, rgba(255, 0, 153, 0.12), transparent 55%),
-    radial-gradient(circle at 86% 14%, rgba(0, 212, 255, 0.1), transparent 50%),
-    var(--color-canvas);
+  background: var(--surface-page);
   z-index: 80;
   overflow: hidden;
-  font-family: var(--font-body);
+  font-family: var(--font-sans);
+  --ink-1000: var(--bk-black);
+  --ink-800: color-mix(in srgb, var(--bk-black) 82%, transparent);
+  --ink-700: color-mix(in srgb, var(--bk-black) 72%, transparent);
+  --ink-600: color-mix(in srgb, var(--bk-black) 62%, transparent);
+  --card-bg: var(--surface-card);
+  --color-canvas: var(--surface-page);
+  --font-body: var(--font-sans);
+  --font-title: var(--font-sans);
   animation: solverFadeIn 160ms ease-out;
 }
 
@@ -24,7 +29,7 @@
   --solver-accent: var(--color-solver-evolutionary);
   --solver-accent-secondary: var(--bk-cyan);
   --solver-accent-tertiary: var(--bk-yellow);
-  background: linear-gradient(150deg, var(--bk-magenta-soft) 0%, var(--bk-cyan-soft) 45%, var(--bk-yellow-soft) 100%);
+  background: var(--surface-card);
   border-radius: 10px;
   border: var(--border-crisp);
   box-shadow: var(--shadow-sticker);
@@ -39,7 +44,7 @@
   left: 0;
   right: 0;
   height: 6px;
-  background: linear-gradient(90deg, var(--solver-accent) 0%, var(--solver-accent-secondary) 50%, var(--solver-accent-tertiary) 100%);
+  background: var(--solver-accent);
   z-index: 0;
 }
 
@@ -102,7 +107,7 @@
   gap: 8px;
   padding: 5px 10px;
   border-radius: 6px;
-  border: 1px solid var(--bk-var(--bk-var(--bk-black)));
+  border: 1px solid var(--bk-black);
   background: var(--card-bg);
   font: 600 9px/1 var(--font-body);
   letter-spacing: 0.12em;
@@ -185,7 +190,7 @@
 
 .setupSection {
   background: var(--card-bg);
-  border: 1px solid var(--bk-var(--bk-var(--bk-black)));
+  border: 1px solid var(--bk-black);
   border-radius: 8px;
   padding: 14px;
   display: flex;
@@ -319,7 +324,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--solver-accent) 0%, var(--solver-accent-secondary) 100%);
+  background: var(--solver-accent);
   color: var(--surface-card);
   border-radius: 4px;
   font: 700 10px/1 var(--font-body);
@@ -353,7 +358,7 @@
 
 .controlPanel {
   background: var(--card-bg);
-  border: 1px solid var(--bk-var(--bk-var(--bk-black)));
+  border: 1px solid var(--bk-black);
   border-radius: 8px;
   padding: 14px;
   display: flex;
@@ -370,7 +375,7 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   border-radius: 6px;
-  border: 1px solid var(--bk-var(--bk-var(--bk-black)));
+  border: 1px solid var(--bk-black);
   cursor: pointer;
   transition: all 100ms ease;
   display: flex;
@@ -423,7 +428,7 @@
 
 .viewerPanel {
   background: var(--card-bg);
-  border: 1px solid var(--bk-var(--bk-var(--bk-black)));
+  border: 1px solid var(--bk-black);
   border-radius: 8px;
   padding: 14px;
   display: flex;
@@ -443,7 +448,7 @@
 
 .statsPanel {
   background: var(--card-bg);
-  border: 1px solid var(--bk-var(--bk-var(--bk-black)));
+  border: 1px solid var(--bk-black);
   border-radius: 8px;
   padding: 14px;
   display: flex;
@@ -534,7 +539,7 @@
 
 .generationList {
   background: var(--card-bg);
-  border: 1px solid var(--bk-var(--bk-var(--bk-black)));
+  border: 1px solid var(--bk-black);
   border-radius: 8px;
   padding: 14px;
   display: flex;
@@ -577,7 +582,7 @@
 
 .outputPanel {
   background: var(--card-bg);
-  border: 1px solid var(--bk-var(--bk-var(--bk-black)));
+  border: 1px solid var(--bk-black);
   border-radius: 8px;
   padding: 14px;
   display: flex;

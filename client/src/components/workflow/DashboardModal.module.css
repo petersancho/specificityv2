@@ -4,23 +4,26 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
+  background:
+    radial-gradient(circle at 20% 10%, color-mix(in srgb, var(--bk-magenta) 18%, transparent), transparent 55%),
+    radial-gradient(circle at 80% 12%, color-mix(in srgb, var(--bk-cyan) 16%, transparent), transparent 50%),
+    color-mix(in srgb, var(--bk-black) 70%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 10000;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(6px);
 }
 
 .modal {
   position: relative;
-  background: #1a1a1a;
-  border: 1px solid #333;
+  background: var(--surface-card);
+  border: 2px solid var(--bk-black);
   border-radius: 8px;
   max-width: 95vw;
   max-height: 95vh;
   overflow: auto;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-sticker);
 }
 
 .closeButton {
@@ -30,20 +33,26 @@
   width: 32px;
   height: 32px;
   border: none;
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  background: var(--bk-yellow);
+  color: var(--bk-black);
   font-size: 24px;
   line-height: 1;
   cursor: pointer;
   border-radius: 4px;
   z-index: 1;
-  transition: background 0.2s;
+  transition: all 0.2s;
+  box-shadow: var(--shadow-sticker-pressed);
 }
 
 .closeButton:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--bk-magenta);
+  color: var(--surface-card);
+  box-shadow: var(--shadow-sticker-hover);
+  transform: translateY(-1px);
 }
 
 .closeButton:active {
-  background: rgba(255, 255, 255, 0.3);
+  background: var(--bk-magenta-deep);
+  color: var(--surface-card);
+  box-shadow: var(--shadow-sticker-pressed);
 }

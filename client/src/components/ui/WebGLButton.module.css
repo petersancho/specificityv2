@@ -9,10 +9,10 @@
   --button-bg: var(--surface-card);
   --button-bg-hover: var(--bk-cream);
   --button-bg-active: #f0f0f0;
-  --button-border: var(--bk-var(--bk-black));
+  --button-border: var(--bk-black);
   --button-border-hover: var(--bk-cyan);
-  --button-text: var(--bk-var(--bk-black));
-  --button-text-hover: var(--bk-var(--bk-black));
+  --button-text: var(--bk-black);
+  --button-text-hover: var(--bk-black);
 
   position: relative;
   display: inline-flex;
@@ -31,7 +31,7 @@
   cursor: pointer;
   user-select: none;
   transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
-  box-shadow: 0 3px 0 var(--bk-var(--bk-black));
+  box-shadow: 0 3px 0 var(--bk-black);
   isolation: isolate;
 }
 
@@ -40,16 +40,16 @@
   border-color: var(--button-border-hover);
   color: var(--button-text-hover);
   transform: translateY(-1px);
-  box-shadow: 0 4px 0 var(--bk-var(--bk-black));
+  box-shadow: 0 4px 0 var(--bk-black);
 }
 
 .button[data-state="pressed"]:not(:disabled) {
   transform: translateY(1px);
-  box-shadow: 0 4px 0 var(--bk-var(--bk-black));
+  box-shadow: 0 4px 0 var(--bk-black);
 }
 
 .button[data-active="true"]:not(:disabled) {
-  box-shadow: 0 4px 0 var(--bk-var(--bk-black));
+  box-shadow: 0 4px 0 var(--bk-black);
 }
 
 .button:disabled {

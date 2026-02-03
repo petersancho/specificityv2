@@ -1020,11 +1020,11 @@
   width: 34px;
   height: 34px;
   border-radius: 999px;
-  border: 2px solid var(--bk-var(--bk-var(--bk-black)));
+  border: 2px solid var(--bk-black);
   padding: 0;
   background: #f5f2ee;
   background-image: var(--wheel-gradient);
-  box-shadow: 0 4px 0 var(--bk-var(--bk-var(--bk-black)));
+  box-shadow: 0 4px 0 var(--bk-black);
   cursor: pointer;
   position: relative;
   display: grid;
@@ -1040,13 +1040,13 @@
   width: 10px;
   height: 10px;
   border-radius: 999px;
-  border: 1px solid var(--bk-var(--bk-var(--bk-black)));
+  border: 1px solid var(--bk-black);
   box-shadow: 0 0 0 2px var(--surface-card);
 }
 
 .renderMaterialWheel[data-palette="silhouette"] .renderMaterialWheelDot {
   box-shadow: none;
-  border-color: var(--bk-var(--bk-var(--bk-black)));
+  border-color: var(--bk-black);
 }
 
 .renderMaterialWheelPopover {
@@ -1056,10 +1056,10 @@
   width: 148px;
   height: 148px;
   border-radius: 999px;
-  border: 2px solid var(--bk-var(--bk-var(--bk-black)));
+  border: 2px solid var(--bk-black);
   background: #f5f2ee;
   background-image: var(--wheel-gradient);
-  box-shadow: 8px 10px 0 var(--bk-var(--bk-var(--bk-black)));
+  box-shadow: 8px 10px 0 var(--bk-black);
   z-index: 3;
   touch-action: none;
   cursor: crosshair;
@@ -1096,7 +1096,7 @@
 
 .renderMaterialWheel[data-palette="silhouette"],
 .renderMaterialWheelPopover[data-palette="silhouette"] {
-  --wheel-gradient: radial-gradient(circle, var(--bk-var(--bk-var(--bk-black))) 0%, var(--bk-var(--bk-var(--bk-black))) 100%);
+  --wheel-gradient: radial-gradient(circle, var(--bk-black) 0%, var(--bk-black) 100%);
 }
 
 .renderMaterialSliderRow {

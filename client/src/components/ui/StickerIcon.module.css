@@ -6,9 +6,15 @@
 }
 
 .icon[data-variant="library"] {
-  filter: var(--drop-shadow-sticker);
+  filter:
+    var(--drop-shadow-sticker)
+    brightness(var(--sticker-brightness-library, 1))
+    saturate(var(--sticker-saturate-library, 1));
 }
 
 .icon[data-variant="site"] {
-  filter: var(--drop-shadow-sticker-pressed);
+  filter:
+    var(--drop-shadow-sticker-pressed)
+    brightness(var(--sticker-brightness-site, 1))
+    saturate(var(--sticker-saturate-site, 1));
 }

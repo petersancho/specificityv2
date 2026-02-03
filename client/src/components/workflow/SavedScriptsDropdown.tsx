@@ -77,6 +77,10 @@ export const SavedScriptsDropdown = ({
               {script.label}
             </button>
           ))}
+          <div className={styles.hint}>
+            After adding a rig, open its dashboard from the Dashboards strip or select the solver
+            node and choose “Open Simulator”.
+          </div>
         </div>
       )}
     </div>

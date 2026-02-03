@@ -52,6 +52,12 @@ const formatVec3 = (value: unknown, digits = 2) => {
   return "—";
 };
 
+const formatWithUnit = (value: unknown, unit: string, digits = 3) => {
+  const formatted = formatNumber(value, digits);
+  if (formatted === "—") return "—";
+  return unit ? `${formatted} ${unit}` : formatted;
+};
+
 type ChemistrySimulatorDashboardProps = {
   nodeId: string;
   onClose: () => void;
@@ -88,6 +94,10 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
   const materials = Array.isArray(diagnostics?.materials)
     ? (diagnostics?.materials as ChemistryMaterialSpec[])
     : [];
+  const materialCount = materials.length;
+  const convergenceAchieved = diagnostics?.convergence === true;
+  const computeTime = diagnostics?.computeTime;
+  const memoryUsed = diagnostics?.memoryUsed;
 
   const particleCount = toNumber(parameters.particleCount, 5000);
   const iterations = toNumber(parameters.iterations, 500);
@@ -101,7 +111,9 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
     (edge) => edge.target === nodeId && edge.targetHandle === "domain"
   );
   const materialsCount = edges.filter(
-    (edge) => edge.target === nodeId && edge.targetHandle === "materials"
+    (edge) =>
+      edge.target === nodeId &&
+      (edge.targetHandle === "materials" || edge.targetHandle === "materialsText")
   ).length;
   const goalsCount = edges.filter(
     (edge) => edge.target === nodeId && edge.targetHandle === "goals"
@@ -124,9 +136,6 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
   const finalEnergy = historyArray.length > 0
     ? toNumber((historyArray[historyArray.length - 1] as any)?.energy, 0)
     : 0;
-  const convergence = diagnostics?.convergence != null
-    ? toNumber(diagnostics.convergence, 0)
-    : 0;
   const actualIterations = diagnostics?.iterations != null
     ? toNumber(diagnostics.iterations, 0)
     : 0;
@@ -141,6 +150,11 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
     ? (analysis?.gradientFields as Array<Record<string, unknown>>)
     : [];
   const particleStatistics = analysis?.particleStatistics as Record<string, unknown> | undefined;
+  const materialPropertyFields = analysis?.materialPropertyFields as Record<string, unknown> | undefined;
+  const propertyStatistics =
+    materialPropertyFields && typeof materialPropertyFields.statistics === "object"
+      ? (materialPropertyFields.statistics as Record<string, unknown>)
+      : undefined;
   const semanticsOutputs =
     semantics && typeof semantics.outputs === "object"
       ? (semantics.outputs as Record<string, Record<string, unknown>>)
@@ -335,16 +349,24 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
               </div>
               <div className={styles.outputCard}>
                 <div className={styles.outputLabel}>Convergence</div>
-                <div className={styles.outputValue}>{convergence > 0 ? convergence.toFixed(6) : "—"}</div>
+                <div className={styles.outputValue}>
+                  {diagnostics?.convergence == null ? "—" : convergenceAchieved ? "Converged" : "Not yet"}
+                </div>
               </div>
               <div className={styles.outputCard}>
                 <div className={styles.outputLabel}>Materials</div>
-                <div className={styles.outputValue}>{diagnostics?.materialCount != null ? String(diagnostics.materialCount) : "—"}</div>
+                <div className={styles.outputValue}>{materialCount > 0 ? String(materialCount) : "—"}</div>
               </div>
               <div className={styles.outputCard}>
                 <div className={styles.outputLabel}>Compute Time</div>
                 <div className={styles.outputValue}>
-                  {diagnostics?.computeTime != null ? `${Number(diagnostics.computeTime).toFixed(1)} ms` : "—"}
+                  {computeTime != null ? `${Number(computeTime).toFixed(1)} ms` : "—"}
+                </div>
+              </div>
+              <div className={styles.outputCard}>
+                <div className={styles.outputLabel}>Memory Used</div>
+                <div className={styles.outputValue}>
+                  {memoryUsed != null ? `${Number(memoryUsed).toFixed(1)} MB` : "—"}
                 </div>
               </div>
               <div className={styles.outputCard}>
@@ -374,12 +396,22 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
                       <div className={styles.diagnosticBody}>
                         <div className={styles.metricGrid}>
                           <div className={styles.metricCard}>
-                            <div className={styles.metricLabel}>Mass</div>
+                            <div className={styles.metricLabel}>Mass (kg)</div>
                             <div className={styles.metricValue}>
-                              {formatNumber((conservation as any)?.mass?.final)}
+                              {formatWithUnit((conservation as any)?.mass?.final, "kg")}
                             </div>
-                            <div className={styles.metricMeta}>
-                              Δ {formatNumber((conservation as any)?.mass?.error)} · {formatPercent((conservation as any)?.mass?.relativeError)}
+                            <div className={styles.metricDetail}>
+                              <span className={styles.metricDetailLabel}>Initial</span>
+                              <span className={styles.metricDetailValue}>
+                                {formatWithUnit((conservation as any)?.mass?.initial, "kg")}
+                              </span>
+                            </div>
+                            <div className={styles.metricDetail}>
+                              <span className={styles.metricDetailLabel}>Δ Mass</span>
+                              <span className={styles.metricDetailValue}>
+                                {formatWithUnit((conservation as any)?.mass?.error, "kg")} ·{" "}
+                                {formatPercent((conservation as any)?.mass?.relativeError)}
+                              </span>
                             </div>
                             <div
                               className={`${styles.metricStatus} ${
@@ -390,12 +422,22 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
                             </div>
                           </div>
                           <div className={styles.metricCard}>
-                            <div className={styles.metricLabel}>Momentum</div>
+                            <div className={styles.metricLabel}>Momentum (kg·m/s)</div>
                             <div className={styles.metricValue}>
                               {formatVec3((conservation as any)?.momentum?.final)}
                             </div>
-                            <div className={styles.metricMeta}>
-                              Δ {formatVec3((conservation as any)?.momentum?.error)} · {formatPercent((conservation as any)?.momentum?.relativeError)}
+                            <div className={styles.metricDetail}>
+                              <span className={styles.metricDetailLabel}>Initial</span>
+                              <span className={styles.metricDetailValue}>
+                                {formatVec3((conservation as any)?.momentum?.initial)}
+                              </span>
+                            </div>
+                            <div className={styles.metricDetail}>
+                              <span className={styles.metricDetailLabel}>Δ Momentum</span>
+                              <span className={styles.metricDetailValue}>
+                                {formatVec3((conservation as any)?.momentum?.error)} ·{" "}
+                                {formatPercent((conservation as any)?.momentum?.relativeError)}
+                              </span>
                             </div>
                             <div
                               className={`${styles.metricStatus} ${
@@ -406,12 +448,22 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
                             </div>
                           </div>
                           <div className={styles.metricCard}>
-                            <div className={styles.metricLabel}>Energy</div>
+                            <div className={styles.metricLabel}>Energy (J)</div>
                             <div className={styles.metricValue}>
-                              {formatNumber((conservation as any)?.energy?.final)}
+                              {formatWithUnit((conservation as any)?.energy?.final, "J")}
                             </div>
-                            <div className={styles.metricMeta}>
-                              Δ {formatNumber((conservation as any)?.energy?.error)} · {formatPercent((conservation as any)?.energy?.relativeError)}
+                            <div className={styles.metricDetail}>
+                              <span className={styles.metricDetailLabel}>Initial</span>
+                              <span className={styles.metricDetailValue}>
+                                {formatWithUnit((conservation as any)?.energy?.initial, "J")}
+                              </span>
+                            </div>
+                            <div className={styles.metricDetail}>
+                              <span className={styles.metricDetailLabel}>Δ Energy</span>
+                              <span className={styles.metricDetailValue}>
+                                {formatWithUnit((conservation as any)?.energy?.error, "J")} ·{" "}
+                                {formatPercent((conservation as any)?.energy?.relativeError)}
+                              </span>
                             </div>
                             <div
                               className={`${styles.metricStatus} ${
@@ -460,20 +512,26 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
                         <div className={styles.subSection}>
                           <div className={styles.subTitle}>Numerical Stability</div>
                           <div className={styles.metricGrid}>
-                            <div className={styles.metricCard}>
-                              <div className={styles.metricLabel}>Max Velocity</div>
-                              <div className={styles.metricValue}>
-                                {formatNumber((stability as any)?.maxVelocity)}
-                              </div>
+                          <div className={styles.metricCard}>
+                            <div className={styles.metricLabel}>Max Velocity (m/s)</div>
+                            <div className={styles.metricValue}>
+                              {formatNumber((stability as any)?.maxVelocity)}
                             </div>
-                            <div className={styles.metricCard}>
-                              <div className={styles.metricLabel}>Max Acceleration</div>
-                              <div className={styles.metricValue}>
-                                {formatNumber((stability as any)?.maxAcceleration)}
-                              </div>
+                          </div>
+                          <div className={styles.metricCard}>
+                            <div className={styles.metricLabel}>Max Acceleration (m/s²)</div>
+                            <div className={styles.metricValue}>
+                              {formatNumber((stability as any)?.maxAcceleration)}
                             </div>
-                            <div className={styles.metricCard}>
-                              <div className={styles.metricLabel}>CFL Number</div>
+                          </div>
+                          <div className={styles.metricCard}>
+                            <div className={styles.metricLabel}>Max Density Δ</div>
+                            <div className={styles.metricValue}>
+                              {formatNumber((stability as any)?.maxDensityChange)}
+                            </div>
+                          </div>
+                          <div className={styles.metricCard}>
+                            <div className={styles.metricLabel}>CFL Number</div>
                               <div className={styles.metricValue}>
                                 {formatNumber((stability as any)?.cflNumber, 4)}
                               </div>
@@ -519,6 +577,22 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
                               {formatNumber((convergenceAnalysis as any)?.iterationsToConvergence, 0)}
                             </div>
                           </div>
+                          <div className={styles.metricCard}>
+                            <div className={styles.metricLabel}>Residual Samples</div>
+                            <div className={styles.metricValue}>
+                              {Array.isArray((convergenceAnalysis as any)?.residualHistory)
+                                ? (convergenceAnalysis as any).residualHistory.length
+                                : "—"}
+                            </div>
+                          </div>
+                          <div className={styles.metricCard}>
+                            <div className={styles.metricLabel}>Energy Samples</div>
+                            <div className={styles.metricValue}>
+                              {Array.isArray((convergenceAnalysis as any)?.energyHistory)
+                                ? (convergenceAnalysis as any).energyHistory.length
+                                : "—"}
+                            </div>
+                          </div>
                         </div>
                         {materialDistributions.length > 0 && (
                           <div className={styles.subSection}>
@@ -530,10 +604,19 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
                                     {String((entry as any)?.materialName ?? "Material")}
                                   </div>
                                   <div className={styles.distributionMeta}>
-                                    Mean: {formatNumber((entry as any)?.statistics?.mean)} · Vol: {formatNumber((entry as any)?.spatialDistribution?.volume)}
+                                    Mean: {formatNumber((entry as any)?.statistics?.mean)} · Std:{" "}
+                                    {formatNumber((entry as any)?.statistics?.stdDev)}
+                                  </div>
+                                  <div className={styles.distributionMeta}>
+                                    Min/Max: {formatNumber((entry as any)?.statistics?.min)} /{" "}
+                                    {formatNumber((entry as any)?.statistics?.max)}
                                   </div>
                                   <div className={styles.distributionMeta}>
                                     Centroid: {formatVec3((entry as any)?.spatialDistribution?.centroid)}
+                                  </div>
+                                  <div className={styles.distributionMeta}>
+                                    Spread: {formatNumber((entry as any)?.spatialDistribution?.spread)} · Vol:{" "}
+                                    {formatNumber((entry as any)?.spatialDistribution?.volume)}
                                   </div>
                                 </div>
                               ))}
@@ -551,7 +634,11 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
                                     Mean: {formatNumber((field as any)?.statistics?.mean)}
                                   </div>
                                   <div className={styles.metricMeta}>
-                                    Max: {formatNumber((field as any)?.statistics?.max)}
+                                    Std: {formatNumber((field as any)?.statistics?.stdDev)} · Max:{" "}
+                                    {formatNumber((field as any)?.statistics?.max)}
+                                  </div>
+                                  <div className={styles.metricMeta}>
+                                    Resolution: {formatNumber((field as any)?.resolution, 0)}
                                   </div>
                                 </div>
                               ))}
@@ -563,21 +650,75 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
                             <div className={styles.subTitle}>Particle Statistics</div>
                             <div className={styles.metricGrid}>
                               <div className={styles.metricCard}>
-                                <div className={styles.metricLabel}>Density Mean</div>
+                                <div className={styles.metricLabel}>Density (kg/m³)</div>
                                 <div className={styles.metricValue}>
-                                  {formatNumber((particleStatistics as any)?.density?.mean)}
+                                  Mean {formatNumber((particleStatistics as any)?.density?.mean)}
+                                </div>
+                                <div className={styles.metricMeta}>
+                                  Std {formatNumber((particleStatistics as any)?.density?.stdDev)} · Min{" "}
+                                  {formatNumber((particleStatistics as any)?.density?.min)} · Max{" "}
+                                  {formatNumber((particleStatistics as any)?.density?.max)}
                                 </div>
                               </div>
                               <div className={styles.metricCard}>
-                                <div className={styles.metricLabel}>Pressure Mean</div>
+                                <div className={styles.metricLabel}>Pressure (Pa)</div>
                                 <div className={styles.metricValue}>
-                                  {formatNumber((particleStatistics as any)?.pressure?.mean)}
+                                  Mean {formatNumber((particleStatistics as any)?.pressure?.mean)}
+                                </div>
+                                <div className={styles.metricMeta}>
+                                  Std {formatNumber((particleStatistics as any)?.pressure?.stdDev)} · Min{" "}
+                                  {formatNumber((particleStatistics as any)?.pressure?.min)} · Max{" "}
+                                  {formatNumber((particleStatistics as any)?.pressure?.max)}
                                 </div>
                               </div>
                               <div className={styles.metricCard}>
-                                <div className={styles.metricLabel}>Velocity Mean</div>
+                                <div className={styles.metricLabel}>Velocity (m/s)</div>
                                 <div className={styles.metricValue}>
-                                  {formatVec3((particleStatistics as any)?.velocity?.mean)}
+                                  Mean {formatVec3((particleStatistics as any)?.velocity?.mean)}
+                                </div>
+                                <div className={styles.metricMeta}>
+                                  Mag {formatNumber((particleStatistics as any)?.velocity?.magnitude?.mean)} · Max{" "}
+                                  {formatNumber((particleStatistics as any)?.velocity?.magnitude?.max)}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        {propertyStatistics && (
+                          <div className={styles.subSection}>
+                            <div className={styles.subTitle}>Material Property Fields</div>
+                            <div className={styles.metricGrid}>
+                              <div className={styles.metricCard}>
+                                <div className={styles.metricLabel}>Density Field (kg/m³)</div>
+                                <div className={styles.metricValue}>
+                                  Mean {formatNumber((propertyStatistics as any)?.density?.mean)}
+                                </div>
+                                <div className={styles.metricMeta}>
+                                  Std {formatNumber((propertyStatistics as any)?.density?.stdDev)} · Min{" "}
+                                  {formatNumber((propertyStatistics as any)?.density?.min)} · Max{" "}
+                                  {formatNumber((propertyStatistics as any)?.density?.max)}
+                                </div>
+                              </div>
+                              <div className={styles.metricCard}>
+                                <div className={styles.metricLabel}>Viscosity Field (Pa·s)</div>
+                                <div className={styles.metricValue}>
+                                  Mean {formatNumber((propertyStatistics as any)?.viscosity?.mean)}
+                                </div>
+                                <div className={styles.metricMeta}>
+                                  Std {formatNumber((propertyStatistics as any)?.viscosity?.stdDev)} · Min{" "}
+                                  {formatNumber((propertyStatistics as any)?.viscosity?.min)} · Max{" "}
+                                  {formatNumber((propertyStatistics as any)?.viscosity?.max)}
+                                </div>
+                              </div>
+                              <div className={styles.metricCard}>
+                                <div className={styles.metricLabel}>Diffusivity Field (m²/s)</div>
+                                <div className={styles.metricValue}>
+                                  Mean {formatNumber((propertyStatistics as any)?.diffusivity?.mean)}
+                                </div>
+                                <div className={styles.metricMeta}>
+                                  Std {formatNumber((propertyStatistics as any)?.diffusivity?.stdDev)} · Min{" "}
+                                  {formatNumber((propertyStatistics as any)?.diffusivity?.min)} · Max{" "}
+                                  {formatNumber((propertyStatistics as any)?.diffusivity?.max)}
                                 </div>
                               </div>
                             </div>
@@ -602,10 +743,12 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
                               <div className={styles.materialDetails}>
                                 <div className={styles.materialName}>{material.name}</div>
                                 <div className={styles.materialMeta}>
-                                  Density {formatNumber(material.density)} · Stiffness {formatNumber(material.stiffness)}
+                                  Density {formatNumber(material.density)} kg/m³ · Stiffness {formatNumber(material.stiffness)} Pa
                                 </div>
                                 <div className={styles.materialMeta}>
-                                  Thermal {formatNumber(material.thermalConductivity)} · Optical {formatPercent(material.opticalTransmission)}
+                                  Thermal {formatNumber(material.thermalConductivity)} W/(m·K) · Optical{" "}
+                                  {formatPercent(material.opticalTransmission)} · Diffusivity{" "}
+                                  {formatNumber(material.diffusivity)} m²/s
                                 </div>
                               </div>
                             </div>
@@ -619,28 +762,45 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
                       <summary className={styles.diagnosticSummary}>Semantic Metadata</summary>
                       <div className={styles.diagnosticBody}>
                         <div className={styles.semanticGrid}>
-                          {Object.entries(semanticsOutputs).slice(0, 8).map(([key, meta]) => (
-                            <div key={key} className={styles.semanticCard}>
-                              <div className={styles.semanticTitle}>{(meta as any)?.name ?? key}</div>
-                              <div className={styles.semanticMeta}>
-                                {(meta as any)?.unit?.symbol ?? "—"} · {(meta as any)?.dataType ?? "scalar"}
-                              </div>
-                              <div className={styles.semanticDescription}>
-                                {(meta as any)?.description ?? ""}
-                              </div>
-                            </div>
-                          ))}
-                          {Object.entries(semanticsFields).slice(0, 6).map(([key, meta]) => (
-                            <div key={key} className={styles.semanticCard}>
-                              <div className={styles.semanticTitle}>{(meta as any)?.field?.name ?? key}</div>
-                              <div className={styles.semanticMeta}>
-                                {(meta as any)?.field?.unit?.symbol ?? "—"} · {(meta as any)?.field?.dataType ?? "field"}
-                              </div>
-                              <div className={styles.semanticDescription}>
-                                {(meta as any)?.field?.description ?? ""}
-                              </div>
-                            </div>
-                          ))}
+                          {Object.entries(semanticsOutputs)
+                            .slice(0, 8)
+                            .map(([key, meta]) => {
+                              const details = meta as Record<string, any>;
+                              const unit = details?.unit?.symbol ?? "—";
+                              const dataType = details?.dataType ?? "scalar";
+                              const spatial = details?.spatialDomain ?? "—";
+                              const temporal = details?.temporalDomain ?? "—";
+                              const meaning = details?.physicalMeaning ?? details?.description ?? "";
+                              return (
+                                <div key={key} className={styles.semanticCard}>
+                                  <div className={styles.semanticTitle}>{details?.name ?? key}</div>
+                                  <div className={styles.semanticMeta}>
+                                    {unit} · {dataType} · {spatial}/{temporal}
+                                  </div>
+                                  <div className={styles.semanticDescription}>{meaning}</div>
+                                </div>
+                              );
+                            })}
+                          {Object.entries(semanticsFields)
+                            .slice(0, 6)
+                            .map(([key, meta]) => {
+                              const fieldMeta = ((meta as Record<string, any>)?.field ??
+                                meta) as Record<string, any>;
+                              const unit = fieldMeta?.unit?.symbol ?? "—";
+                              const dataType = fieldMeta?.dataType ?? "field";
+                              const spatial = fieldMeta?.spatialDomain ?? "—";
+                              const temporal = fieldMeta?.temporalDomain ?? "—";
+                              const meaning = fieldMeta?.physicalMeaning ?? fieldMeta?.description ?? "";
+                              return (
+                                <div key={key} className={styles.semanticCard}>
+                                  <div className={styles.semanticTitle}>{fieldMeta?.name ?? key}</div>
+                                  <div className={styles.semanticMeta}>
+                                    {unit} · {dataType} · {spatial}/{temporal}
+                                  </div>
+                                  <div className={styles.semanticDescription}>{meaning}</div>
+                                </div>
+                              );
+                            })}
                         </div>
                       </div>
                     </details>

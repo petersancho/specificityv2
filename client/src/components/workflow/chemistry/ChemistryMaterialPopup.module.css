@@ -6,12 +6,20 @@
   justify-content: center;
   padding: var(--space-4);
   background:
-    radial-gradient(circle at 16% 10%, rgba(204, 91, 26, 0.12), transparent 55%),
-    radial-gradient(circle at 86% 14%, rgba(194, 22, 107, 0.1), transparent 50%),
-    var(--color-canvas);
+    radial-gradient(circle at 16% 10%, color-mix(in srgb, var(--bk-magenta) 22%, transparent), transparent 55%),
+    radial-gradient(circle at 86% 14%, color-mix(in srgb, var(--bk-cyan) 18%, transparent), transparent 50%),
+    var(--surface-page);
   z-index: 80;
   overflow: hidden;
-  font-family: var(--font-body);
+  font-family: var(--font-sans);
+  --ink-1000: var(--bk-black);
+  --ink-800: color-mix(in srgb, var(--bk-black) 82%, transparent);
+  --ink-700: color-mix(in srgb, var(--bk-black) 72%, transparent);
+  --ink-600: color-mix(in srgb, var(--bk-black) 62%, transparent);
+  --card-bg: var(--surface-card);
+  --color-canvas: var(--surface-page);
+  --font-body: var(--font-sans);
+  --font-title: var(--font-sans);
   animation: solverFadeIn 160ms ease-out;
 }
 
@@ -27,12 +35,12 @@
   width: min(1440px, 98vw);
   height: min(900px, 94vh);
   --solver-scale: 1;
-  --solver-accent: #cc5b1a;
-  --solver-accent-secondary: #c2166b;
-  background: linear-gradient(150deg, #f8f1e8 0%, #f3ede5 45%, #f7f2ec 100%);
+  --solver-accent: var(--bk-magenta);
+  --solver-accent-secondary: var(--bk-cyan);
+  background: linear-gradient(150deg, var(--bk-magenta-soft) 0%, var(--bk-cyan-soft) 45%, var(--bk-yellow-soft) 100%);
   border-radius: 10px;
-  border: 2px solid var(--bk-var(--bk-black));
-  box-shadow: var(--shadow-lg);
+  border: 2px solid var(--bk-black);
+  box-shadow: var(--shadow-sticker);
   position: relative;
   overflow: hidden;
 }
@@ -143,13 +151,13 @@
   gap: 8px;
   padding: 5px 10px;
   border-radius: 6px;
-  border: 1px solid var(--bk-var(--bk-black));
-  background: var(--card-bg);
+  border: 1px solid var(--bk-black);
+  background: var(--surface-card);
   font: 600 9px/1 var(--font-body);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--ink-700);
-  box-shadow: var(--shadow-xs);
+  box-shadow: var(--shadow-sticker-pressed);
 }
 
 .scaleLabel {
@@ -158,7 +166,7 @@
 
 .scaleRange {
   width: 100px;
-  accent-color: var(--roslyn-graphite-ink);
+  accent-color: var(--bk-cyan);
 }
 
 .scaleValue {
@@ -211,7 +219,7 @@
 /* Geometry Panel (Left) */
 .geometryPanel {
   background: var(--card-bg);
-  border: 1px solid var(--bk-var(--bk-black));
+  border: 1px solid var(--bk-black);
   border-radius: 8px;
   padding: 10px;
   display: flex;
@@ -295,7 +303,7 @@
 /* Material Picker Panel (Center) */
 .materialPickerPanel {
   background: var(--card-bg);
-  border: 1px solid var(--bk-var(--bk-black));
+  border: 1px solid var(--bk-black);
   border-radius: 8px;
   padding: 10px;
   display: flex;
@@ -423,7 +431,7 @@
 /* Preview Card */
 .previewCard {
   background: var(--card-bg);
-  border: 1px solid var(--bk-var(--bk-black));
+  border: 1px solid var(--bk-black);
   border-radius: 8px;
   padding: 10px;
   display: flex;
@@ -488,7 +496,7 @@
 /* Properties Panel */
 .propertiesPanel {
   background: var(--card-bg);
-  border: 1px solid var(--bk-var(--bk-black));
+  border: 1px solid var(--bk-black);
   border-radius: 8px;
   padding: 10px;
   box-shadow: var(--shadow-sm);
@@ -496,7 +504,7 @@
 
 .propertiesEmpty {
   background: var(--card-bg);
-  border: 1px solid var(--bk-var(--bk-black));
+  border: 1px solid var(--bk-black);
   border-radius: 8px;
   padding: 20px;
   text-align: center;
@@ -577,7 +585,7 @@
 /* Output Block */
 .outputBlock {
   background: var(--card-bg);
-  border: 1px solid var(--bk-var(--bk-black));
+  border: 1px solid var(--bk-black);
   border-radius: 8px;
   padding: 10px;
   box-shadow: var(--shadow-sm);

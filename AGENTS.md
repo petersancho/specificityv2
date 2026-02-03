@@ -1,0 +1,141 @@
+# AGENTS.md
+
+This file provides guidance to WARP (warp.dev) when working with code in this repository.
+
+## Build & Development Commands
+
+```bash
+# Install dependencies (from repo root)
+npm install
+
+# Start full dev environment (server + client)
+npm run dev
+
+# Start server or client separately
+npm run dev:server
+npm run dev:client
+
+# Build everything
+npm run build
+
+# Run tests (client uses vitest)
+npm run test -w client
+```
+
+Local ports: Client at `localhost:5173`, Server at `localhost:3001`.
+
+## Validation Commands (Required Before Commits)
+
+The semantic operation system is critical to this codebase. Always validate before committing:
+
+```bash
+# Run all validation (semantic + commands + integrity)
+npm run validate:all
+
+# Individual validations
+npm run validate:semantic    # Validates semantic operations and node linkages
+npm run validate:commands    # Validates command semantics
+npm run validate:integrity   # Validates semantic integrity
+
+# Generate semantic operation IDs after adding new operations
+npm run generate:semantic-ids
+
+# Analyze node semantic coverage
+npm run analyze:coverage
+```
+
+CI runs `npm run validate:all` on every push and PR. Builds fail if validation fails.
+
+## Architecture Overview
+
+**Lingua** is a parametric design environment with two integrated panels:
+- **Roslyn**: Direct 3D modeling via custom WebGL renderer (`client/src/webgl/`)
+- **Numerica**: Visual programming canvas using 2D HTML canvas (`client/src/components/workflow/NumericalCanvas.tsx`)
+
+Both panels share a single **Zustand store** (`client/src/store/useProjectStore.ts`).
+
+### Key Principles
+- **Custom geometry kernel** in TypeScript—no external CAD libraries
+- **Raw WebGL rendering** with custom GLSL shaders; Three.js used only for math/primitive generation
+- **Semantic operation system** ensures machine-checkable correctness for all UI→backend linkages
+
+## Semantic Operation System
+
+Every UI element must be semantically linked to backend computation. The chain:
+
+```
+UI → Command → CommandSemantic → Node → SemanticOpId → SemanticOperation → Backend
+```
+
+### Adding New Operations
+1. Add to `client/src/semantic/ops/{domain}Ops.ts` (domains: geometry, math, vector, logic, data, string, color, solver, workflow, command)
+2. Run `npm run generate:semantic-ids`
+3. Run `npm run validate:semantic`
+
+### Adding New Nodes
+1. Create node in `client/src/workflow/nodes/{category}/{NodeName}.ts`
+2. Add `semanticOps` array only if the node performs computational operations
+3. Register in `client/src/workflow/nodeRegistry.ts`
+4. Run `npm run validate:semantic && npm run analyze:coverage`
+
+### Adding New Commands
+1. Add command to `client/src/commands/registry.ts`
+2. Add semantic linkage to `client/src/commands/commandSemantics.ts`
+3. Create command operation in `client/src/semantic/ops/commandOps.ts`
+4. Run `npm run generate:semantic-ids && npm run validate:all`
+
+## Key Entry Points
+
+| Purpose | Location |
+|---------|----------|
+| Main App | `client/src/App.tsx` |
+| Zustand Store | `client/src/store/useProjectStore.ts` |
+| Geometry Types | `client/src/types.ts` |
+| WebGL Viewport | `client/src/components/WebGLViewerCanvas.tsx` |
+| WebGL Renderer | `client/src/webgl/WebGLRenderer.ts` |
+| Render Adapter | `client/src/geometry/renderAdapter.ts` |
+| Workflow Canvas | `client/src/components/workflow/NumericalCanvas.tsx` |
+| Command Registry | `client/src/commands/registry.ts` |
+| Node Registry | `client/src/workflow/nodeRegistry.ts` |
+| Semantic Ops | `client/src/semantic/ops/` |
+
+## State Management Patterns
+
+- All state lives in the Zustand store; mutations occur through store actions only
+- Store actions must be atomic—call `set` once per logical operation
+- Call `recordModelerHistory` before geometry mutations for undo support
+- Use selectors for derived values; keep them pure
+
+## Geometry Kernel Rules
+
+- Geometry functions are **pure**—accept records, return new records, no mutation
+- Store positions/vectors as plain arrays/objects, not Three.js types
+- Convert to/from Three.js only at rendering boundaries
+- Geometry operations that may fail return result objects, not exceptions
+
+## Solver System
+
+Five solvers with automatic mesh generation:
+- **Physics (Pythagoras)**: FEA stress analysis
+- **Chemistry (Apollonius)**: Material blending/reactions
+- **Topological Optimization (Euclid)**: Weight reduction
+- **Voxel (Archimedes)**: Volumetric discretization
+- **Biological (Galen)**: Reaction-diffusion morphogenesis
+
+Solver nodes use `semanticOps: ['solver.{name}']`. Goal nodes are declarative and must NOT have `semanticOps`.
+
+## Documentation
+
+Key docs in `docs/`:
+- `ai_agent_guide.md` – Detailed agent development guide
+- `lingua_architecture.md` – Technical architecture
+- `lingua_conventions.md` – Code style and patterns
+- `SEMANTIC_OPERATION_GUIDELINES.md` – Semantic system guidelines
+- `SKILL.md` (root) – Development patterns and rules
+
+## Change Impact Checklist
+
+- **New geometry type**: Update `types.ts`, kernel ops, render adapter, hit testing, selection UI, persistence
+- **New command**: Update registry, validation, command semantics, command ops, undo/redo hooks
+- **New workflow node**: Update node registry, validation, compute function, add `semanticOps` if computational
+- **New render mode**: Update shaders, renderer, UI labels, docs
