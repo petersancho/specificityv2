@@ -1,7 +1,16 @@
 import type { SimpParams, SetupResult, SolverFrame } from "./types";
-import { createFEModel2D, computeKeQ4, assembleKCSR, solveFE, computeCompliance, computeElementCe, computeSensitivitiesSIMP } from "./fem2d";
+import {
+  createFEModel2D,
+  computeKeQ4,
+  assembleKCSR,
+  solveFE,
+  computeCompliance,
+  computeElementCe,
+  computeSensitivitiesSIMP,
+  type FEModel2D,
+} from "./fem2d";
 import { precomputeDensityFilter, applyDensityFilter, applyFilterChainRule } from "./filter";
-import type { GoalMarkers } from "./types";
+import type { GoalMarkers, AnchorMarker, LoadMarker } from "./types";
 import type { RenderMesh } from "../../../types";
 
 // ============================================================================
@@ -44,6 +53,123 @@ function computeMeshBounds(mesh: RenderMesh) {
     max: { x: maxX, y: maxY, z: maxZ },
   };
 }
+
+const clampIndex = (value: number, max: number) =>
+  Math.max(0, Math.min(max, value));
+
+type SliceBC = {
+  fixedDofs: Set<number>;
+  loads: Map<number, number>;
+};
+
+const assignMarkersToSlices = (
+  markers: GoalMarkers,
+  bounds: { min: { x: number; y: number; z: number }; max: { x: number; y: number; z: number } },
+  nz: number
+) => {
+  const anchorsBySlice: AnchorMarker[][] = Array.from({ length: nz }, () => []);
+  const loadsBySlice: LoadMarker[][] = Array.from({ length: nz }, () => []);
+  const spanZ = Math.max(1e-6, bounds.max.z - bounds.min.z);
+
+  const sliceIndexForZ = (z: number) => {
+    if (nz <= 1) return 0;
+    const t = (z - bounds.min.z) / spanZ;
+    return clampIndex(Math.round(t * (nz - 1)), nz - 1);
+  };
+
+  markers.anchors.forEach((anchor) => {
+    const slice = sliceIndexForZ(anchor.position.z);
+    anchorsBySlice[slice].push(anchor);
+  });
+
+  markers.loads.forEach((load) => {
+    const slice = sliceIndexForZ(load.position.z);
+    loadsBySlice[slice].push(load);
+  });
+
+  return { anchorsBySlice, loadsBySlice };
+};
+
+const ensureSliceAnchors = (
+  anchorsBySlice: AnchorMarker[][],
+  bounds: { min: { x: number; y: number; z: number } },
+  nz: number
+) => {
+  const totalAnchors = anchorsBySlice.reduce((sum, list) => sum + list.length, 0);
+  if (totalAnchors === 0) {
+    const fallback: AnchorMarker = {
+      position: { x: bounds.min.x, y: bounds.min.y, z: bounds.min.z },
+    };
+    for (let z = 0; z < nz; z++) {
+      anchorsBySlice[z] = [fallback];
+    }
+    return;
+  }
+
+  const nearestSliceWithAnchors = (slice: number) => {
+    let radius = 1;
+    while (radius < nz) {
+      const lower = slice - radius;
+      const upper = slice + radius;
+      if (lower >= 0 && anchorsBySlice[lower].length > 0) return lower;
+      if (upper < nz && anchorsBySlice[upper].length > 0) return upper;
+      radius += 1;
+    }
+    return null;
+  };
+
+  for (let z = 0; z < nz; z++) {
+    if (anchorsBySlice[z].length > 0) continue;
+    const nearest = nearestSliceWithAnchors(z);
+    if (nearest != null) {
+      anchorsBySlice[z] = anchorsBySlice[nearest];
+    }
+  }
+};
+
+const buildSliceBCs = (
+  bounds: { min: { x: number; y: number; z: number }; max: { x: number; y: number; z: number } },
+  nx: number,
+  ny: number,
+  anchorsBySlice: AnchorMarker[][],
+  loadsBySlice: LoadMarker[][]
+): SliceBC[] => {
+  const spanX = Math.max(1e-6, bounds.max.x - bounds.min.x);
+  const spanY = Math.max(1e-6, bounds.max.y - bounds.min.y);
+  const bcList: SliceBC[] = [];
+
+  for (let z = 0; z < anchorsBySlice.length; z++) {
+    const fixedDofs = new Set<number>();
+    const loads = new Map<number, number>();
+
+    for (const anchor of anchorsBySlice[z]) {
+      const ix = Math.round((anchor.position.x - bounds.min.x) / spanX * nx);
+      const iy = Math.round((anchor.position.y - bounds.min.y) / spanY * ny);
+      const nodeIdx = clampIndex(iy, ny) * (nx + 1) + clampIndex(ix, nx);
+      fixedDofs.add(nodeIdx * 2);
+      fixedDofs.add(nodeIdx * 2 + 1);
+    }
+
+    for (const load of loadsBySlice[z]) {
+      const ix = Math.round((load.position.x - bounds.min.x) / spanX * nx);
+      const iy = Math.round((load.position.y - bounds.min.y) / spanY * ny);
+      const nodeIdx = clampIndex(iy, ny) * (nx + 1) + clampIndex(ix, nx);
+      const dofX = nodeIdx * 2;
+      const dofY = nodeIdx * 2 + 1;
+      loads.set(dofX, (loads.get(dofX) ?? 0) + load.force.x);
+      loads.set(dofY, (loads.get(dofY) ?? 0) + load.force.y);
+    }
+
+    if (fixedDofs.size < 2) {
+      fixedDofs.add(0);
+      fixedDofs.add(1);
+    }
+
+    bcList.push({ fixedDofs, loads });
+  }
+
+  return bcList;
+};
 
 /**
  * Schedule penalty exponent (continuation strategy)
@@ -141,56 +267,22 @@ export async function* runSimp(
   markers: GoalMarkers,
   params: SimpParams
 ): AsyncGenerator<SolverFrame> {
-  // Precompute FEM structures (once)
-  const fixedDofs = new Set<number>();
-  const loads = new Map<number, number>();
-  
-  // Convert 3D markers to 2D (project to XY plane)
-  // For 2D FEM, we need to map anchors/loads to 2D DOFs
-  // This is a simplified mapping - in production, would need proper 3D→2D projection
-  
-  // Create 2D FE model (map to mesh bounds)
   const bounds = computeMeshBounds(mesh);
-  const spanX = Math.max(1e-6, bounds.max.x - bounds.min.x);
-  const spanY = Math.max(1e-6, bounds.max.y - bounds.min.y);
-  
-  // Map anchors to fixed DOFs (fix both ux and uy)
-  for (const anchor of markers.anchors) {
-    // Find nearest node in 2D grid
-    const ix = Math.round((anchor.position.x - bounds.min.x) / spanX * params.nx);
-    const iy = Math.round((anchor.position.y - bounds.min.y) / spanY * params.ny);
-    const nodeIdx = Math.max(0, Math.min(params.ny, iy)) * (params.nx + 1) + Math.max(0, Math.min(params.nx, ix));
-    
-    fixedDofs.add(nodeIdx * 2);     // ux
-    fixedDofs.add(nodeIdx * 2 + 1); // uy
-  }
-  
-  // Validate boundary conditions (need at least 2 DOFs fixed to prevent rigid body motion)
-  if (fixedDofs.size < 2) {
-    console.warn('Insufficient boundary conditions, adding default constraints at bottom-left corner');
-    fixedDofs.add(0);  // Fix ux at node 0
-    fixedDofs.add(1);  // Fix uy at node 0
-  }
-  
-  // Map loads to force DOFs
-  for (const load of markers.loads) {
-    const ix = Math.round((load.position.x - bounds.min.x) / spanX * params.nx);
-    const iy = Math.round((load.position.y - bounds.min.y) / spanY * params.ny);
-    const nodeIdx = Math.max(0, Math.min(params.ny, iy)) * (params.nx + 1) + Math.max(0, Math.min(params.nx, ix));
-    
-    const dofX = nodeIdx * 2;
-    const dofY = nodeIdx * 2 + 1;
-    
-    loads.set(dofX, (loads.get(dofX) ?? 0) + load.force.x);
-    loads.set(dofY, (loads.get(dofY) ?? 0) + load.force.y);
-  }
-  
-  const model = createFEModel2D(params.nx, params.ny, bounds, fixedDofs, loads);
+  const sliceCount = Math.max(1, Math.round(params.nz));
+  const sliceElemCount = params.nx * params.ny;
+
+  const { anchorsBySlice, loadsBySlice } = assignMarkersToSlices(markers, bounds, sliceCount);
+  ensureSliceAnchors(anchorsBySlice, bounds, sliceCount);
+  const sliceBCs = buildSliceBCs(bounds, params.nx, params.ny, anchorsBySlice, loadsBySlice);
+  const sliceModels = sliceBCs.map((bc) =>
+    createFEModel2D(params.nx, params.ny, bounds, bc.fixedDofs, bc.loads)
+  );
+
   const Ke0 = computeKeQ4(params.nu);
-  const filter = precomputeDensityFilter(params.nx, params.ny, params.nz, params.rmin);
-  
-  // Initialize densities
-  let densities: Float64Array = new Float64Array(model.numElems);
+  const filter = precomputeDensityFilter(params.nx, params.ny, sliceCount, params.rmin);
+
+  // Initialize densities (3D grid)
+  let densities: Float64Array = new Float64Array(sliceElemCount * sliceCount);
   densities.fill(params.volFrac);
   
   let prevCompliance = Infinity;
@@ -203,44 +295,59 @@ export async function* runSimp(
     // Step 2: Apply density filter
     const rhoBar = applyDensityFilter(densities, filter);
     
-    // Step 3: Assemble global stiffness matrix
-    const K = assembleKCSR(model, rhoBar, penal, params.E0, params.Emin, Ke0);
-    
-    // Step 4: Solve FE system
-    const { u, converged: solverConverged } = solveFE(K, model.forces, model.fixedDofs, params.cgTol, params.cgMaxIters);
-    
-    if (!solverConverged) {
-      console.warn(`Iteration ${iter}: FE solver did not converge`);
+    // Step 3: Assemble and solve per-slice FEM
+    const ceAll = new Float64Array(rhoBar.length);
+    let compliance = 0;
+    let solverConverged = true;
+
+    for (let z = 0; z < sliceCount; z++) {
+      const sliceOffset = z * sliceElemCount;
+      const sliceRho = rhoBar.subarray(sliceOffset, sliceOffset + sliceElemCount);
+      const model = sliceModels[z];
+
+      const K = assembleKCSR(model, sliceRho, penal, params.E0, params.Emin, Ke0);
+      const { u, converged } = solveFE(
+        K,
+        model.forces,
+        model.fixedDofs,
+        params.cgTol,
+        params.cgMaxIters
+      );
+      if (!converged) {
+        solverConverged = false;
+      }
+
+      compliance += computeCompliance(model.forces, u);
+      const ceSlice = computeElementCe(model, u, Ke0);
+      ceAll.set(ceSlice, sliceOffset);
     }
-    
-    // Step 5: Compute compliance
-    const compliance = computeCompliance(model.forces, u);
-    
-    // Step 6: Compute element strain energies
-    const ce = computeElementCe(model, u, Ke0);
-    
-    // Step 7: Compute sensitivities (w.r.t. filtered densities)
-    const dCdrhoBar = computeSensitivitiesSIMP(rhoBar, ce, penal, params.E0, params.Emin);
+
+    if (!solverConverged) {
+      console.warn(`Iteration ${iter}: FE solver did not converge in one or more slices`);
+    }
+
+    // Step 4: Compute sensitivities (w.r.t. filtered densities)
+    const dCdrhoBar = computeSensitivitiesSIMP(rhoBar, ceAll, penal, params.E0, params.Emin);
     
     // Step 8: Apply filter chain rule (map back to design variables)
     const dCdrho = applyFilterChainRule(dCdrhoBar, filter);
     
-    // Step 9: Update densities using OC
+    // Step 6: Update densities using OC
     const newDensities = updateDensitiesOC(densities, dCdrho, params.volFrac, params.move, params.rhoMin);
     
-    // Step 10: Compute change
+    // Step 7: Compute change
     let maxChange = 0;
-    for (let e = 0; e < model.numElems; e++) {
+    for (let e = 0; e < densities.length; e++) {
       const change = Math.abs(newDensities[e] - densities[e]);
       if (change > maxChange) maxChange = change;
     }
     
-    // Step 11: Compute volume fraction
+    // Step 8: Compute volume fraction
     let vol = 0;
-    for (let e = 0; e < model.numElems; e++) {
+    for (let e = 0; e < densities.length; e++) {
       vol += newDensities[e];
     }
-    vol /= model.numElems;
+    vol /= densities.length;
     
     // Update densities
     densities = newDensities;

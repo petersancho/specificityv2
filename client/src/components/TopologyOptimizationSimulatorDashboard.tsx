@@ -742,6 +742,28 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                   <span className={styles.parameterValue}>{ny}</span>
                 </div>
               </div>
+
+              <div className={styles.parameterGroup}>
+                <label className={styles.parameterLabel}>
+                  Resolution Z
+                  <span className={styles.parameterDescription}>
+                    Number of elements in Z direction (1-40)
+                  </span>
+                </label>
+                <div className={styles.parameterControl}>
+                  <input
+                    type="range"
+                    min="1"
+                    max="40"
+                    step="1"
+                    value={nz}
+                    onChange={(e) => handleParameterChange("nz", Number(e.target.value))}
+                    className={styles.slider}
+                    disabled={simulationState === 'running'}
+                  />
+                  <span className={styles.parameterValue}>{nz}</span>
+                </div>
+              </div>
             </div>
 
             <div className={styles.section}>
@@ -1054,20 +1076,25 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
           <div className={styles.simulatorTab}>
             <div className={styles.simulatorLayout}>
               <div className={styles.geometryView}>
-                <h3 className={styles.viewTitle}>SIMP Density Field (2D)</h3>
+                <h3 className={styles.viewTitle}>
+                  {nz > 1 ? "SIMP Density Field (3D)" : "SIMP Density Field (2D)"}
+                </h3>
                 {markers && baseMesh ? (
                   <TopologyRenderer
                     fe={{ 
                       nx, 
                       ny, 
-                      nz: 1, 
-                      numElements: nx * ny, 
-                      numNodes: (nx + 1) * (ny + 1), 
-                      numDofs: (nx + 1) * (ny + 1) * 2, 
+                      nz, 
+                      numElements: nx * ny * nz, 
+                      numNodes: (nx + 1) * (ny + 1) * (nz + 1), 
+                      numDofs: (nx + 1) * (ny + 1) * (nz + 1) * 3, 
                       elementSize: { 
                         x: Math.max(1e-6, (baseBounds?.max.x ?? 1) - (baseBounds?.min.x ?? 0)) / nx, 
                         y: Math.max(1e-6, (baseBounds?.max.y ?? 1) - (baseBounds?.min.y ?? 0)) / ny, 
-                        z: 0 
+                        z:
+                          nz > 1
+                            ? Math.max(1e-6, (baseBounds?.max.z ?? 1) - (baseBounds?.min.z ?? 0)) / nz
+                            : 0,
                       }, 
                       bounds: baseBounds ?? { min: { x: 0, y: 0, z: 0 }, max: { x: 1, y: 1, z: 0 } } 
                     }}

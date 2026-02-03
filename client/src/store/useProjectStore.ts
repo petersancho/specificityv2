@@ -7852,26 +7852,29 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const nySliderId = `node-slider-topo-ny-${ts}`;
     const nyPos = { x: col2X, y: position.y + (SLIDER_HEIGHT + V_GAP) * 1 };
 
+    const nzSliderId = `node-slider-topo-nz-${ts}`;
+    const nzPos = { x: col2X, y: position.y + (SLIDER_HEIGHT + V_GAP) * 2 };
+
     const volFracSliderId = `node-slider-topo-volFrac-${ts}`;
-    const volFracPos = { x: col2X, y: position.y + (SLIDER_HEIGHT + V_GAP) * 2 };
+    const volFracPos = { x: col2X, y: position.y + (SLIDER_HEIGHT + V_GAP) * 3 };
 
     const penalEndSliderId = `node-slider-topo-penalEnd-${ts}`;
-    const penalEndPos = { x: col2X, y: position.y + (SLIDER_HEIGHT + V_GAP) * 3 };
+    const penalEndPos = { x: col2X, y: position.y + (SLIDER_HEIGHT + V_GAP) * 4 };
 
     const penalRampSliderId = `node-slider-topo-penalRamp-${ts}`;
-    const penalRampPos = { x: col2X, y: position.y + (SLIDER_HEIGHT + V_GAP) * 4 };
+    const penalRampPos = { x: col2X, y: position.y + (SLIDER_HEIGHT + V_GAP) * 5 };
 
     const rminSliderId = `node-slider-topo-rmin-${ts}`;
-    const rminPos = { x: col2X, y: position.y + (SLIDER_HEIGHT + V_GAP) * 5 };
+    const rminPos = { x: col2X, y: position.y + (SLIDER_HEIGHT + V_GAP) * 6 };
 
     const moveSliderId = `node-slider-topo-move-${ts}`;
-    const movePos = { x: col2X, y: position.y + (SLIDER_HEIGHT + V_GAP) * 6 };
+    const movePos = { x: col2X, y: position.y + (SLIDER_HEIGHT + V_GAP) * 7 };
 
     const maxItersSliderId = `node-slider-topo-maxIters-${ts}`;
-    const maxItersPos = { x: col2X, y: position.y + (SLIDER_HEIGHT + V_GAP) * 7 };
+    const maxItersPos = { x: col2X, y: position.y + (SLIDER_HEIGHT + V_GAP) * 8 };
 
     const tolChangeSliderId = `node-slider-topo-tolChange-${ts}`;
-    const tolChangePos = { x: col2X, y: position.y + (SLIDER_HEIGHT + V_GAP) * 8 };
+    const tolChangePos = { x: col2X, y: position.y + (SLIDER_HEIGHT + V_GAP) * 9 };
 
     // Column 3: Geometry extraction sliders
     const col3X = col2X + NODE_WIDTH + H_GAP;
@@ -7890,7 +7893,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const pipeSegmentsSliderId = `node-slider-pipeSegments-${ts}`;
     const pipeSegmentsPos = { x: col3X, y: position.y + (SLIDER_HEIGHT + V_GAP) * 4 };
 
-    const simSliderCount = 9;
+    const simSliderCount = 10;
     const geomSliderCount = 5;
     const simBlockHeight = SLIDER_HEIGHT * simSliderCount + V_GAP * (simSliderCount - 1);
     const geomBlockHeight = SLIDER_HEIGHT * geomSliderCount + V_GAP * (geomSliderCount - 1);
@@ -8039,6 +8042,20 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             max: 120,
             value: 40,
             step: 2,
+          },
+        },
+      },
+      {
+        id: nzSliderId,
+        type: "slider" as const,
+        position: nzPos,
+        data: {
+          label: "Resolution Z",
+          parameters: {
+            min: 1,
+            max: 40,
+            value: 6,
+            step: 1,
           },
         },
       },
@@ -8359,6 +8376,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           parameters: {
             nx: 60,
             ny: 40,
+            nz: 6,
             volFrac: 0.4,
             penalEnd: 3.0,
             penalRampIters: 60,
@@ -8432,6 +8450,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         sourceHandle: "value",
         target: solverId,
         targetHandle: "ny",
+      },
+      {
+        id: `edge-${nzSliderId}-${solverId}-nz`,
+        source: nzSliderId,
+        sourceHandle: "value",
+        target: solverId,
+        targetHandle: "nz",
       },
       {
         id: `edge-${volFracSliderId}-${solverId}-volFrac`,
