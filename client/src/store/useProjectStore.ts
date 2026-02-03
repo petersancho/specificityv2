@@ -7816,13 +7816,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     get().recalculateWorkflow();
   },
   addTopologySolverRig: (position) => {
-    get().ensureBaseGeometry();
-    
     /**
      * Topology Optimization Solver Test Rig
      *
-     * Creates a minimal topology optimization workflow using point cloud → curve network → multipipe:
-     * - Geometry Reference → Topology Optimization Solver → Geometry Viewer
+     * Creates a topology optimization workflow with goals:
+     * - Box Builder → Topology Optimization Solver → Geometry Viewer
+     * - Goal nodes (anchor, load, volume, stiffness) → Solver
      * - Sliders for pointDensity, maxLinksPerPoint, maxSpanLength, pipeRadius parameters
      *
      * Named after Leonhard Euler (topology pioneer, Euler characteristic).
@@ -7831,12 +7830,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const NODE_WIDTH = 200;
     const NODE_HEIGHT = 120;
     const SLIDER_HEIGHT = 76;
+    const GOAL_HEIGHT = 100;
     const H_GAP = 60;
     const V_GAP = 20;
 
-    // Column 1: Geometry Reference
-    const geoRefId = `node-geometryReference-topology-${ts}`;
-    const geoRefPos = { x: position.x, y: position.y + SLIDER_HEIGHT * 1.5 };
+    // Column 1: Box Builder
+    const boxBuilderId = `node-box-topology-${ts}`;
+    const boxBuilderPos = { x: position.x, y: position.y + SLIDER_HEIGHT * 1.5 };
 
     // Column 2: Parameter sliders (stacked vertically)
     const col2X = position.x + NODE_WIDTH + H_GAP;
@@ -7852,37 +7852,44 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const pipeRadiusSliderId = `node-slider-pipeRadius-${ts}`;
     const pipeRadiusPos = { x: col2X, y: position.y + (SLIDER_HEIGHT + V_GAP) * 3 };
 
+    // Column 2.5: Goal nodes (below sliders)
+    const goalStartY = position.y + (SLIDER_HEIGHT + V_GAP) * 4 + 40;
+    const anchorGoalId = `node-anchorGoal-${ts}`;
+    const anchorGoalPos = { x: col2X, y: goalStartY };
+
+    const loadGoalId = `node-loadGoal-${ts}`;
+    const loadGoalPos = { x: col2X, y: goalStartY + GOAL_HEIGHT + V_GAP };
+
+    const volumeGoalId = `node-volumeGoal-${ts}`;
+    const volumeGoalPos = { x: col2X, y: goalStartY + (GOAL_HEIGHT + V_GAP) * 2 };
+
+    const stiffnessGoalId = `node-stiffnessGoal-${ts}`;
+    const stiffnessGoalPos = { x: col2X, y: goalStartY + (GOAL_HEIGHT + V_GAP) * 3 };
+
     // Column 3: Topology Optimization Solver
     const col3X = col2X + NODE_WIDTH + H_GAP;
     const solverId = `node-topologyOptimizationSolver-${ts}`;
     const solverPos = { x: col3X, y: position.y + SLIDER_HEIGHT };
-    const solverGeometryId = createGeometryId("mesh");
 
     // Column 4: Geometry Viewer
     const col4X = col3X + NODE_WIDTH + H_GAP;
     const viewerId = `node-geometryViewer-topology-${ts}`;
     const viewerPos = { x: col4X, y: position.y + SLIDER_HEIGHT };
 
-    const baseGeometryId = get().selectedGeometryIds[0] ?? get().geometry[0]?.id ?? null;
-    const baseGeometry = baseGeometryId
-      ? get().geometry.find((item) => item.id === baseGeometryId)
-      : null;
-    const baseLabel =
-      baseGeometry &&
-      typeof (baseGeometry.metadata as { label?: unknown } | undefined)?.label === "string"
-        ? ((baseGeometry.metadata as { label?: unknown }).label as string)
-        : null;
-
     const newNodes: WorkflowNode[] = [
       {
-        id: geoRefId,
-        type: "geometryReference" as const,
-        position: geoRefPos,
+        id: boxBuilderId,
+        type: "box" as const,
+        position: boxBuilderPos,
         data: {
-          label: baseLabel ?? "Input Geometry",
-          geometryId: baseGeometryId ?? undefined,
-          geometryType: baseGeometry?.type,
-          isLinked: Boolean(baseGeometryId),
+          label: "Box Builder",
+          parameters: {
+            boxWidth: 2,
+            boxHeight: 1,
+            boxDepth: 0.5,
+            centerMode: true,
+            representation: "mesh",
+          },
         },
       },
       {
@@ -7942,20 +7949,66 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         },
       },
       {
+        id: anchorGoalId,
+        type: "anchorGoal" as const,
+        position: anchorGoalPos,
+        data: {
+          label: "Anchor",
+          parameters: {
+            weight: 1.0,
+          },
+        },
+      },
+      {
+        id: loadGoalId,
+        type: "loadGoal" as const,
+        position: loadGoalPos,
+        data: {
+          label: "Load",
+          parameters: {
+            weight: 1.0,
+            forceX: 0,
+            forceY: -100,
+            forceZ: 0,
+          },
+        },
+      },
+      {
+        id: volumeGoalId,
+        type: "volumeGoal" as const,
+        position: volumeGoalPos,
+        data: {
+          label: "Volume",
+          parameters: {
+            targetVolume: 0.5,
+            weight: 1.0,
+          },
+        },
+      },
+      {
+        id: stiffnessGoalId,
+        type: "stiffnessGoal" as const,
+        position: stiffnessGoalPos,
+        data: {
+          label: "Stiffness",
+          parameters: {
+            weight: 1.0,
+          },
+        },
+      },
+      {
         id: solverId,
         type: "topologyOptimizationSolver" as const,
         position: solverPos,
         data: {
           label: "Topology Optimization",
-          geometryId: solverGeometryId,
-          geometryType: "mesh",
-          isLinked: true,
           parameters: {
             pointDensity: 100,
             maxLinksPerPoint: 4,
             maxSpanLength: 1.0,
             pipeRadius: 0.05,
             seed: 42,
+            simulationStep: 'idle',
           },
         },
       },
@@ -7969,8 +8022,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
     const newEdges = [
       {
-        id: `edge-${geoRefId}-${solverId}-geometry`,
-        source: geoRefId,
+        id: `edge-${boxBuilderId}-${solverId}-geometry`,
+        source: boxBuilderId,
         sourceHandle: "geometry",
         target: solverId,
         targetHandle: "geometry",
@@ -8004,6 +8057,34 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         targetHandle: "pipeRadius",
       },
       {
+        id: `edge-${anchorGoalId}-${solverId}-goals`,
+        source: anchorGoalId,
+        sourceHandle: "goal",
+        target: solverId,
+        targetHandle: "goals",
+      },
+      {
+        id: `edge-${loadGoalId}-${solverId}-goals`,
+        source: loadGoalId,
+        sourceHandle: "goal",
+        target: solverId,
+        targetHandle: "goals",
+      },
+      {
+        id: `edge-${volumeGoalId}-${solverId}-goals`,
+        source: volumeGoalId,
+        sourceHandle: "goal",
+        target: solverId,
+        targetHandle: "goals",
+      },
+      {
+        id: `edge-${stiffnessGoalId}-${solverId}-goals`,
+        source: stiffnessGoalId,
+        sourceHandle: "goal",
+        target: solverId,
+        targetHandle: "goals",
+      },
+      {
         id: `edge-${solverId}-${viewerId}-geometry`,
         source: solverId,
         sourceHandle: "optimizedMesh",
@@ -8011,22 +8092,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         targetHandle: "geometry",
       },
     ];
-
-    const emptyMesh: RenderMesh = { positions: [], normals: [], uvs: [], indices: [] };
-    const solverGeometry: Geometry = {
-      id: solverGeometryId,
-      type: "mesh",
-      mesh: emptyMesh,
-      layerId: "layer-default",
-      sourceNodeId: solverId,
-      metadata: {
-        label: "Topology Optimization Output",
-      },
-    };
-    get().addGeometryItems([solverGeometry], {
-      selectIds: get().selectedGeometryIds,
-      recordHistory: true,
-    });
 
     set((state) => ({
       workflowHistory: appendWorkflowHistory(state.workflowHistory, state.workflow),

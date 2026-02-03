@@ -536,7 +536,10 @@ const WorkflowSection = ({
     if (!node) return;
     handleOpenDashboard(node.id);
     setPendingDashboardType(null);
-  }, [pendingDashboardType, solverDashboardNodes]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Note: findLatestSolverNode and handleOpenDashboard are stable functions
+    // Adding solverDashboardNodes to deps causes infinite loop
+  }, [pendingDashboardType]);
 
   const runSavedScript = (
     addRig: (position: { x: number; y: number }) => void,
