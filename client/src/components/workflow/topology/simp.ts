@@ -7,10 +7,15 @@ import {
   computeCompliance,
   computeElementCe,
   computeSensitivitiesSIMP,
-  type FEModel2D,
 } from "./fem2d";
+import {
+  createFEModel3D,
+  computeKeHex,
+  assembleKCSR3D,
+  computeElementCe3D,
+} from "./fem3d";
 import { precomputeDensityFilter, applyDensityFilter, applyFilterChainRule } from "./filter";
-import type { GoalMarkers, AnchorMarker, LoadMarker } from "./types";
+import type { GoalMarkers } from "./types";
 import type { RenderMesh } from "../../../types";
 
 // ============================================================================
@@ -56,120 +61,6 @@ function computeMeshBounds(mesh: RenderMesh) {
 
 const clampIndex = (value: number, max: number) =>
   Math.max(0, Math.min(max, value));
-
-type SliceBC = {
-  fixedDofs: Set<number>;
-  loads: Map<number, number>;
-};
-
-const assignMarkersToSlices = (
-  markers: GoalMarkers,
-  bounds: { min: { x: number; y: number; z: number }; max: { x: number; y: number; z: number } },
-  nz: number
-) => {
-  const anchorsBySlice: AnchorMarker[][] = Array.from({ length: nz }, () => []);
-  const loadsBySlice: LoadMarker[][] = Array.from({ length: nz }, () => []);
-  const spanZ = Math.max(1e-6, bounds.max.z - bounds.min.z);
-
-  const sliceIndexForZ = (z: number) => {
-    if (nz <= 1) return 0;
-    const t = (z - bounds.min.z) / spanZ;
-    return clampIndex(Math.round(t * (nz - 1)), nz - 1);
-  };
-
-  markers.anchors.forEach((anchor) => {
-    const slice = sliceIndexForZ(anchor.position.z);
-    anchorsBySlice[slice].push(anchor);
-  });
-
-  markers.loads.forEach((load) => {
-    const slice = sliceIndexForZ(load.position.z);
-    loadsBySlice[slice].push(load);
-  });
-
-  return { anchorsBySlice, loadsBySlice };
-};
-
-const ensureSliceAnchors = (
-  anchorsBySlice: AnchorMarker[][],
-  bounds: { min: { x: number; y: number; z: number } },
-  nz: number
-) => {
-  const totalAnchors = anchorsBySlice.reduce((sum, list) => sum + list.length, 0);
-  if (totalAnchors === 0) {
-    const fallback: AnchorMarker = {
-      position: { x: bounds.min.x, y: bounds.min.y, z: bounds.min.z },
-    };
-    for (let z = 0; z < nz; z++) {
-      anchorsBySlice[z] = [fallback];
-    }
-    return;
-  }
-
-  const nearestSliceWithAnchors = (slice: number) => {
-    let radius = 1;
-    while (radius < nz) {
-      const lower = slice - radius;
-      const upper = slice + radius;
-      if (lower >= 0 && anchorsBySlice[lower].length > 0) return lower;
-      if (upper < nz && anchorsBySlice[upper].length > 0) return upper;
-      radius += 1;
-    }
-    return null;
-  };
-
-  for (let z = 0; z < nz; z++) {
-    if (anchorsBySlice[z].length > 0) continue;
-    const nearest = nearestSliceWithAnchors(z);
-    if (nearest != null) {
-      anchorsBySlice[z] = anchorsBySlice[nearest];
-    }
-  }
-};
-
-const buildSliceBCs = (
-  bounds: { min: { x: number; y: number; z: number }; max: { x: number; y: number; z: number } },
-  nx: number,
-  ny: number,
-  anchorsBySlice: AnchorMarker[][],
-  loadsBySlice: LoadMarker[][]
-): SliceBC[] => {
-  const spanX = Math.max(1e-6, bounds.max.x - bounds.min.x);
-  const spanY = Math.max(1e-6, bounds.max.y - bounds.min.y);
-  const bcList: SliceBC[] = [];
-
-  for (let z = 0; z < anchorsBySlice.length; z++) {
-    const fixedDofs = new Set<number>();
-    const loads = new Map<number, number>();
-
-    for (const anchor of anchorsBySlice[z]) {
-      const ix = Math.round((anchor.position.x - bounds.min.x) / spanX * nx);
-      const iy = Math.round((anchor.position.y - bounds.min.y) / spanY * ny);
-      const nodeIdx = clampIndex(iy, ny) * (nx + 1) + clampIndex(ix, nx);
-      fixedDofs.add(nodeIdx * 2);
-      fixedDofs.add(nodeIdx * 2 + 1);
-    }
-
-    for (const load of loadsBySlice[z]) {
-      const ix = Math.round((load.position.x - bounds.min.x) / spanX * nx);
-      const iy = Math.round((load.position.y - bounds.min.y) / spanY * ny);
-      const nodeIdx = clampIndex(iy, ny) * (nx + 1) + clampIndex(ix, nx);
-      const dofX = nodeIdx * 2;
-      const dofY = nodeIdx * 2 + 1;
-      loads.set(dofX, (loads.get(dofX) ?? 0) + load.force.x);
-      loads.set(dofY, (loads.get(dofY) ?? 0) + load.force.y);
-    }
-
-    if (fixedDofs.size < 2) {
-      fixedDofs.add(0);
-      fixedDofs.add(1);
-    }
-
-    bcList.push({ fixedDofs, loads });
-  }
-
-  return bcList;
-};
 
 /**
  * Schedule penalty exponent (continuation strategy)
@@ -255,6 +146,255 @@ function checkConvergence(
   return complianceChange < tolChange && change < tolChange;
 }
 
+async function* runSimp2D(
+  mesh: RenderMesh,
+  markers: GoalMarkers,
+  params: SimpParams
+): AsyncGenerator<SolverFrame> {
+  const fixedDofs = new Set<number>();
+  const loads = new Map<number, number>();
+
+  const bounds = computeMeshBounds(mesh);
+  const spanX = Math.max(1e-6, bounds.max.x - bounds.min.x);
+  const spanY = Math.max(1e-6, bounds.max.y - bounds.min.y);
+
+  for (const anchor of markers.anchors) {
+    const ix = Math.round((anchor.position.x - bounds.min.x) / spanX * params.nx);
+    const iy = Math.round((anchor.position.y - bounds.min.y) / spanY * params.ny);
+    const nodeIdx =
+      Math.max(0, Math.min(params.ny, iy)) * (params.nx + 1) +
+      Math.max(0, Math.min(params.nx, ix));
+    fixedDofs.add(nodeIdx * 2);
+    fixedDofs.add(nodeIdx * 2 + 1);
+  }
+
+  if (fixedDofs.size < 2) {
+    console.warn("Insufficient boundary conditions, adding default constraints at bottom-left");
+    fixedDofs.add(0);
+    fixedDofs.add(1);
+  }
+
+  for (const load of markers.loads) {
+    const ix = Math.round((load.position.x - bounds.min.x) / spanX * params.nx);
+    const iy = Math.round((load.position.y - bounds.min.y) / spanY * params.ny);
+    const nodeIdx =
+      Math.max(0, Math.min(params.ny, iy)) * (params.nx + 1) +
+      Math.max(0, Math.min(params.nx, ix));
+    const dofX = nodeIdx * 2;
+    const dofY = nodeIdx * 2 + 1;
+    loads.set(dofX, (loads.get(dofX) ?? 0) + load.force.x);
+    loads.set(dofY, (loads.get(dofY) ?? 0) + load.force.y);
+  }
+
+  const model = createFEModel2D(params.nx, params.ny, bounds, fixedDofs, loads);
+  const Ke0 = computeKeQ4(params.nu);
+  const filter = precomputeDensityFilter(params.nx, params.ny, 1, params.rmin);
+
+  let densities: Float64Array = new Float64Array(model.numElems);
+  densities.fill(params.volFrac);
+
+  let prevCompliance = Infinity;
+  let consecutiveConverged = 0;
+
+  for (let iter = 1; iter <= params.maxIters; iter++) {
+    const penal = schedulePenal(iter, params);
+    const rhoBar = applyDensityFilter(densities, filter);
+    const K = assembleKCSR(model, rhoBar, penal, params.E0, params.Emin, Ke0);
+    const { u, converged: solverConverged } = solveFE(
+      K,
+      model.forces,
+      model.fixedDofs,
+      params.cgTol,
+      params.cgMaxIters
+    );
+    if (!solverConverged) {
+      console.warn(`Iteration ${iter}: FE solver did not converge`);
+    }
+
+    const compliance = computeCompliance(model.forces, u);
+    const ce = computeElementCe(model, u, Ke0);
+    const dCdrhoBar = computeSensitivitiesSIMP(rhoBar, ce, penal, params.E0, params.Emin);
+    const dCdrho = applyFilterChainRule(dCdrhoBar, filter);
+    const newDensities = updateDensitiesOC(
+      densities,
+      dCdrho,
+      params.volFrac,
+      params.move,
+      params.rhoMin
+    );
+
+    let maxChange = 0;
+    for (let e = 0; e < model.numElems; e++) {
+      const change = Math.abs(newDensities[e] - densities[e]);
+      if (change > maxChange) maxChange = change;
+    }
+
+    let vol = 0;
+    for (let e = 0; e < model.numElems; e++) {
+      vol += newDensities[e];
+    }
+    vol /= model.numElems;
+
+    densities = newDensities;
+    const converged = checkConvergence(compliance, prevCompliance, maxChange, params.tolChange);
+    if (converged) {
+      consecutiveConverged++;
+    } else {
+      consecutiveConverged = 0;
+    }
+
+    const densitiesF32 = new Float32Array(densities.length);
+    for (let i = 0; i < densities.length; i++) {
+      densitiesF32[i] = densities[i];
+    }
+
+    yield {
+      iter,
+      compliance,
+      change: maxChange,
+      vol,
+      densities: densitiesF32,
+      converged: consecutiveConverged >= 3,
+    };
+
+    if (consecutiveConverged >= 3) {
+      break;
+    }
+
+    prevCompliance = compliance;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+}
+
+async function* runSimp3D(
+  mesh: RenderMesh,
+  markers: GoalMarkers,
+  params: SimpParams
+): AsyncGenerator<SolverFrame> {
+  const fixedDofs = new Set<number>();
+  const loads = new Map<number, number>();
+
+  const bounds = computeMeshBounds(mesh);
+  const spanX = Math.max(1e-6, bounds.max.x - bounds.min.x);
+  const spanY = Math.max(1e-6, bounds.max.y - bounds.min.y);
+  const spanZ = Math.max(1e-6, bounds.max.z - bounds.min.z);
+
+  for (const anchor of markers.anchors) {
+    const ix = Math.round((anchor.position.x - bounds.min.x) / spanX * params.nx);
+    const iy = Math.round((anchor.position.y - bounds.min.y) / spanY * params.ny);
+    const iz = Math.round((anchor.position.z - bounds.min.z) / spanZ * params.nz);
+    const nodeIdx =
+      Math.max(0, Math.min(params.nz, iz)) * (params.ny + 1) * (params.nx + 1) +
+      Math.max(0, Math.min(params.ny, iy)) * (params.nx + 1) +
+      Math.max(0, Math.min(params.nx, ix));
+    fixedDofs.add(nodeIdx * 3);
+    fixedDofs.add(nodeIdx * 3 + 1);
+    fixedDofs.add(nodeIdx * 3 + 2);
+  }
+
+  if (fixedDofs.size < 3) {
+    console.warn("Insufficient boundary conditions, adding default constraints at origin");
+    fixedDofs.add(0);
+    fixedDofs.add(1);
+    fixedDofs.add(2);
+  }
+
+  for (const load of markers.loads) {
+    const ix = Math.round((load.position.x - bounds.min.x) / spanX * params.nx);
+    const iy = Math.round((load.position.y - bounds.min.y) / spanY * params.ny);
+    const iz = Math.round((load.position.z - bounds.min.z) / spanZ * params.nz);
+    const nodeIdx =
+      Math.max(0, Math.min(params.nz, iz)) * (params.ny + 1) * (params.nx + 1) +
+      Math.max(0, Math.min(params.ny, iy)) * (params.nx + 1) +
+      Math.max(0, Math.min(params.nx, ix));
+    const dofX = nodeIdx * 3;
+    const dofY = nodeIdx * 3 + 1;
+    const dofZ = nodeIdx * 3 + 2;
+    loads.set(dofX, (loads.get(dofX) ?? 0) + load.force.x);
+    loads.set(dofY, (loads.get(dofY) ?? 0) + load.force.y);
+    loads.set(dofZ, (loads.get(dofZ) ?? 0) + load.force.z);
+  }
+
+  const model = createFEModel3D(params.nx, params.ny, params.nz, bounds, fixedDofs, loads);
+  const Ke0 = computeKeHex(params.nu);
+  const filter = precomputeDensityFilter(params.nx, params.ny, params.nz, params.rmin);
+
+  let densities: Float64Array = new Float64Array(model.numElems);
+  densities.fill(params.volFrac);
+
+  let prevCompliance = Infinity;
+  let consecutiveConverged = 0;
+
+  for (let iter = 1; iter <= params.maxIters; iter++) {
+    const penal = schedulePenal(iter, params);
+    const rhoBar = applyDensityFilter(densities, filter);
+    const K = assembleKCSR3D(model, rhoBar, penal, params.E0, params.Emin, Ke0);
+    const { u, converged: solverConverged } = solveFE(
+      K,
+      model.forces,
+      model.fixedDofs,
+      params.cgTol,
+      params.cgMaxIters
+    );
+    if (!solverConverged) {
+      console.warn(`Iteration ${iter}: FE solver did not converge`);
+    }
+
+    const compliance = computeCompliance(model.forces, u);
+    const ce = computeElementCe3D(model, u, Ke0);
+    const dCdrhoBar = computeSensitivitiesSIMP(rhoBar, ce, penal, params.E0, params.Emin);
+    const dCdrho = applyFilterChainRule(dCdrhoBar, filter);
+    const newDensities = updateDensitiesOC(
+      densities,
+      dCdrho,
+      params.volFrac,
+      params.move,
+      params.rhoMin
+    );
+
+    let maxChange = 0;
+    for (let e = 0; e < model.numElems; e++) {
+      const change = Math.abs(newDensities[e] - densities[e]);
+      if (change > maxChange) maxChange = change;
+    }
+
+    let vol = 0;
+    for (let e = 0; e < model.numElems; e++) {
+      vol += newDensities[e];
+    }
+    vol /= model.numElems;
+
+    densities = newDensities;
+    const converged = checkConvergence(compliance, prevCompliance, maxChange, params.tolChange);
+    if (converged) {
+      consecutiveConverged++;
+    } else {
+      consecutiveConverged = 0;
+    }
+
+    const densitiesF32 = new Float32Array(densities.length);
+    for (let i = 0; i < densities.length; i++) {
+      densitiesF32[i] = densities[i];
+    }
+
+    yield {
+      iter,
+      compliance,
+      change: maxChange,
+      vol,
+      densities: densitiesF32,
+      converged: consecutiveConverged >= 3,
+    };
+
+    if (consecutiveConverged >= 3) {
+      break;
+    }
+
+    prevCompliance = compliance;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+}
+
 /**
  * Run SIMP topology optimization (async generator)
  * 
@@ -267,122 +407,9 @@ export async function* runSimp(
   markers: GoalMarkers,
   params: SimpParams
 ): AsyncGenerator<SolverFrame> {
-  const bounds = computeMeshBounds(mesh);
-  const sliceCount = Math.max(1, Math.round(params.nz));
-  const sliceElemCount = params.nx * params.ny;
-
-  const { anchorsBySlice, loadsBySlice } = assignMarkersToSlices(markers, bounds, sliceCount);
-  ensureSliceAnchors(anchorsBySlice, bounds, sliceCount);
-  const sliceBCs = buildSliceBCs(bounds, params.nx, params.ny, anchorsBySlice, loadsBySlice);
-  const sliceModels = sliceBCs.map((bc) =>
-    createFEModel2D(params.nx, params.ny, bounds, bc.fixedDofs, bc.loads)
-  );
-
-  const Ke0 = computeKeQ4(params.nu);
-  const filter = precomputeDensityFilter(params.nx, params.ny, sliceCount, params.rmin);
-
-  // Initialize densities (3D grid)
-  let densities: Float64Array = new Float64Array(sliceElemCount * sliceCount);
-  densities.fill(params.volFrac);
-  
-  let prevCompliance = Infinity;
-  let consecutiveConverged = 0;
-  
-  for (let iter = 1; iter <= params.maxIters; iter++) {
-    // Step 1: Update penalty (continuation)
-    const penal = schedulePenal(iter, params);
-    
-    // Step 2: Apply density filter
-    const rhoBar = applyDensityFilter(densities, filter);
-    
-    // Step 3: Assemble and solve per-slice FEM
-    const ceAll = new Float64Array(rhoBar.length);
-    let compliance = 0;
-    let solverConverged = true;
-
-    for (let z = 0; z < sliceCount; z++) {
-      const sliceOffset = z * sliceElemCount;
-      const sliceRho = rhoBar.subarray(sliceOffset, sliceOffset + sliceElemCount);
-      const model = sliceModels[z];
-
-      const K = assembleKCSR(model, sliceRho, penal, params.E0, params.Emin, Ke0);
-      const { u, converged } = solveFE(
-        K,
-        model.forces,
-        model.fixedDofs,
-        params.cgTol,
-        params.cgMaxIters
-      );
-      if (!converged) {
-        solverConverged = false;
-      }
-
-      compliance += computeCompliance(model.forces, u);
-      const ceSlice = computeElementCe(model, u, Ke0);
-      ceAll.set(ceSlice, sliceOffset);
-    }
-
-    if (!solverConverged) {
-      console.warn(`Iteration ${iter}: FE solver did not converge in one or more slices`);
-    }
-
-    // Step 4: Compute sensitivities (w.r.t. filtered densities)
-    const dCdrhoBar = computeSensitivitiesSIMP(rhoBar, ceAll, penal, params.E0, params.Emin);
-    
-    // Step 8: Apply filter chain rule (map back to design variables)
-    const dCdrho = applyFilterChainRule(dCdrhoBar, filter);
-    
-    // Step 6: Update densities using OC
-    const newDensities = updateDensitiesOC(densities, dCdrho, params.volFrac, params.move, params.rhoMin);
-    
-    // Step 7: Compute change
-    let maxChange = 0;
-    for (let e = 0; e < densities.length; e++) {
-      const change = Math.abs(newDensities[e] - densities[e]);
-      if (change > maxChange) maxChange = change;
-    }
-    
-    // Step 8: Compute volume fraction
-    let vol = 0;
-    for (let e = 0; e < densities.length; e++) {
-      vol += newDensities[e];
-    }
-    vol /= densities.length;
-    
-    // Update densities
-    densities = newDensities;
-    
-    // Check convergence
-    const converged = checkConvergence(compliance, prevCompliance, maxChange, params.tolChange);
-    if (converged) {
-      consecutiveConverged++;
-    } else {
-      consecutiveConverged = 0;
-    }
-    
-    // Yield frame for visualization (convert to Float32Array for compatibility)
-    const densitiesF32 = new Float32Array(densities.length);
-    for (let i = 0; i < densities.length; i++) {
-      densitiesF32[i] = densities[i];
-    }
-    
-    yield {
-      iter,
-      compliance,
-      change: maxChange,
-      vol,
-      densities: densitiesF32,
-      converged: consecutiveConverged >= 3
-    };
-    
-    // Stop if converged for 3 consecutive iterations
-    if (consecutiveConverged >= 3) {
-      break;
-    }
-    
-    prevCompliance = compliance;
-    
-    // Yield control to UI (allows rendering and user interaction)
-    await new Promise(resolve => setTimeout(resolve, 0));
+  if (params.nz <= 1) {
+    yield* runSimp2D(mesh, markers, params);
+  } else {
+    yield* runSimp3D(mesh, markers, params);
   }
 }
