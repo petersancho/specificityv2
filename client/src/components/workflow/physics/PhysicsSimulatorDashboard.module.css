@@ -751,6 +751,51 @@
   animation: fadeIn 0.3s ease-out;
 }
 
+/* Summary/Status Grids (for Setup and Simulator tabs) */
+.summaryGrid,
+.statusGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.summaryCard,
+.statusCard {
+  background: var(--surface-card);
+  border-radius: 8px;
+  padding: 1.25rem;
+  box-shadow: var(--shadow-sticker-pressed);
+  border-left: 4px solid var(--bk-magenta);
+}
+
+.summaryLabel,
+.statusLabel {
+  font-size: 0.85rem;
+  color: #666;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.summaryValue,
+.statusValue {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--bk-magenta);
+}
+
+/* Warning Banner */
+.warningBanner {
+  background: rgba(255, 221, 0, 0.1);
+  border: 2px solid var(--bk-yellow);
+  border-radius: 6px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: 500;
+}
+
 /* Scrollbar */
 .content::-webkit-scrollbar {
   width: 8px;

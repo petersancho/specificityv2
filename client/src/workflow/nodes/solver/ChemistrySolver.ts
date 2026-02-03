@@ -736,6 +736,69 @@ export const ChemistrySolverNode: WorkflowNodeDefinition = {
       required: false,
       description: "Material seed points.",
     },
+    {
+      key: "enabled",
+      label: "Enabled",
+      type: "boolean",
+      required: false,
+      description: "Enable/disable solver execution.",
+    },
+    {
+      key: "particleCount",
+      label: "Particle Count",
+      type: "number",
+      required: false,
+      description: "Number of particles (overrides parameter).",
+    },
+    {
+      key: "iterations",
+      label: "Iterations",
+      type: "number",
+      required: false,
+      description: "Simulation iterations (overrides parameter).",
+    },
+    {
+      key: "fieldResolution",
+      label: "Field Resolution",
+      type: "number",
+      required: false,
+      description: "Voxel field resolution (overrides parameter).",
+    },
+    {
+      key: "convergenceTolerance",
+      label: "Convergence Tolerance",
+      type: "number",
+      required: false,
+      description: "Convergence tolerance (overrides parameter).",
+    },
+    {
+      key: "blendStrength",
+      label: "Blend Strength",
+      type: "number",
+      required: false,
+      description: "Material blend strength (overrides parameter).",
+    },
+    {
+      key: "isoValue",
+      label: "Iso Value",
+      type: "number",
+      required: false,
+      description: "Isosurface extraction threshold (overrides parameter).",
+    },
+    {
+      key: "particleDensity",
+      label: "Particle Density",
+      type: "number",
+      required: false,
+      description: "Density scaling factor for particle count (legacy).",
+    },
+    {
+      key: "density",
+      label: "Density",
+      type: "number",
+      required: false,
+      description: "Density scaling factor for particle count.",
+    },
   ],
   
   outputs: [
@@ -823,11 +886,42 @@ export const ChemistrySolverNode: WorkflowNodeDefinition = {
       max: 5,
       step: 0.1,
     },
+    {
+      key: "isoValue",
+      label: "Iso Value",
+      type: "number",
+      defaultValue: 0.5,
+      min: 0,
+      max: 1,
+      step: 0.01,
+    },
   ],
   
   primaryOutputKey: "geometry",
   
   compute: ({ inputs, parameters, context }) => {
+    // Check if solver is enabled
+    const enabled = inputs.enabled !== undefined ? toBoolean(inputs.enabled, true) : true;
+    if (!enabled) {
+      // Return empty outputs when disabled
+      return {
+        geometry: null,
+        mesh: null,
+        particles: [],
+        field: null,
+        history: [],
+        diagnostics: {
+          iterations: 0,
+          convergence: false,
+          finalEnergy: 0,
+          computeTime: 0,
+          memoryUsed: 0,
+          warnings: ["Solver is disabled"],
+          errors: [],
+        },
+      };
+    }
+    
     // Initialize warnings array
     const warnings: string[] = [];
     
@@ -968,6 +1062,15 @@ export const ChemistrySolverNode: WorkflowNodeDefinition = {
       }
     }
     
+    // Compute effective particle count with density scaling
+    const baseParticleCount = Math.round(toNumber(inputs.particleCount ?? parameters.particleCount, 5000));
+    const densityScaling = inputs.density !== undefined 
+      ? clamp(toNumber(inputs.density, 1), 0.1, 1)
+      : inputs.particleDensity !== undefined 
+        ? clamp(toNumber(inputs.particleDensity, 1), 0.1, 1)
+        : 1;
+    const effectiveParticleCount = Math.round(baseParticleCount * densityScaling);
+    
     // Run solver
     const result = runChemistrySolver({
       seedKey: `${context.nodeId}:${domainId}`,
@@ -978,12 +1081,12 @@ export const ChemistrySolverNode: WorkflowNodeDefinition = {
       materials: materialSpecs,
       materialNames,
       seeds,
-      particleCount: Math.round(toNumber(parameters.particleCount, 5000)),
-      iterations: Math.round(toNumber(parameters.iterations, 500)),
-      fieldResolution: Math.round(toNumber(parameters.fieldResolution, 32)),
-      isoValue: 0.5,
-      convergenceTolerance: toNumber(parameters.convergenceTolerance, 1e-4),
-      blendStrength: toNumber(parameters.blendStrength, 1),
+      particleCount: effectiveParticleCount,
+      iterations: Math.round(toNumber(inputs.iterations ?? parameters.iterations, 500)),
+      fieldResolution: Math.round(toNumber(inputs.fieldResolution ?? parameters.fieldResolution, 32)),
+      isoValue: toNumber(inputs.isoValue ?? parameters.isoValue, 0.5),
+      convergenceTolerance: toNumber(inputs.convergenceTolerance ?? parameters.convergenceTolerance, 1e-4),
+      blendStrength: toNumber(inputs.blendStrength ?? parameters.blendStrength, 1),
       historyLimit: 1000,
       context,
     });

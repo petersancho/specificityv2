@@ -54,6 +54,34 @@ export const PhysicsSolverNode: WorkflowNodeDefinition = {
       required: true,
       description: "Structural mesh to analyze.",
     },
+    {
+      key: "maxIterations",
+      label: "Max Iterations",
+      type: "number",
+      required: false,
+      description: "Maximum solver iterations (overrides parameter).",
+    },
+    {
+      key: "convergenceTolerance",
+      label: "Convergence Tolerance",
+      type: "number",
+      required: false,
+      description: "Convergence tolerance (overrides parameter).",
+    },
+    {
+      key: "useGPU",
+      label: "Use GPU",
+      type: "boolean",
+      required: false,
+      description: "Enable GPU acceleration (overrides parameter).",
+    },
+    {
+      key: "chunkSize",
+      label: "Chunk Size",
+      type: "number",
+      required: false,
+      description: "Chunk size for computation (overrides parameter).",
+    },
   ],
   outputs: [
     {
@@ -228,13 +256,13 @@ export const PhysicsSolverNode: WorkflowNodeDefinition = {
         : undefined;
 
     const config: SolverConfiguration = {
-      maxIterations: clamp(toNumber(parameters.maxIterations, 1000), 10, 100000),
-      convergenceTolerance: clamp(toNumber(parameters.convergenceTolerance, 1e-6), 1e-12, 1e-2),
+      maxIterations: clamp(toNumber(inputs.maxIterations ?? parameters.maxIterations, 1000), 10, 100000),
+      convergenceTolerance: clamp(toNumber(inputs.convergenceTolerance ?? parameters.convergenceTolerance, 1e-6), 1e-12, 1e-2),
       analysisType,
       timeStep: analysisType === "dynamic" ? toNumber(parameters.timeStep, 0.01) : undefined,
       animationFrames: analysisType === "static" ? undefined : Math.round(toNumber(parameters.animationFrames, 60)),
-      useGPU: toBoolean(parameters.useGPU, true),
-      chunkSize: Math.round(clamp(toNumber(parameters.chunkSize, 1000), 100, 100000)),
+      useGPU: toBoolean(inputs.useGPU ?? parameters.useGPU, true),
+      chunkSize: Math.round(clamp(toNumber(inputs.chunkSize ?? parameters.chunkSize, 1000), 100, 100000)),
       safetyLimits: {
         maxDeformation: toNumber(parameters.maxDeformation, 10),
         maxStress: toNumber(parameters.maxStress, 1e9),

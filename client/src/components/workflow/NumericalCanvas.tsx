@@ -1173,6 +1173,7 @@ const SOLVER_NODE_TYPES = new Set([
   "evolutionarySolver",
   "voxelSolver",
   "topologyOptimizationSolver",
+  "topologySolver",
 ]);
 
 export const NumericalCanvas = ({

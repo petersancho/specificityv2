@@ -1,109 +1,76 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import styles from "./TopologyOptimizationSimulatorDashboard.module.css";
+import { useProjectStore } from "../store/useProjectStore";
 
 interface TopologyOptimizationSimulatorDashboardProps {
   nodeId: string;
   onClose: () => void;
 }
 
-type SimulationState = "idle" | "running" | "paused" | "complete";
-
-interface SimulationData {
-  pointCount: number;
-  curveCount: number;
-  volume: number;
-  surfaceArea: number;
-  progress: number;
-  currentStep: "pointCloud" | "curveNetwork" | "multipipe" | "complete";
-}
+const toNumber = (value: unknown, fallback: number) => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return fallback;
+};
 
 export const TopologyOptimizationSimulatorDashboard: React.FC<
   TopologyOptimizationSimulatorDashboardProps
 > = ({ nodeId, onClose }) => {
   const [activeTab, setActiveTab] = useState<"setup" | "simulator" | "output">("setup");
-  const [simulationState, setSimulationState] = useState<SimulationState>("idle");
   const [scale, setScale] = useState(75);
 
-  // Simulation parameters
-  const [pointDensity, setPointDensity] = useState(100);
-  const [connectionRadius, setConnectionRadius] = useState(0.5);
-  const [pipeRadius, setPipeRadius] = useState(0.05);
-  const [seed, setSeed] = useState(42);
+  const { nodes, edges, updateNodeData, recalculateWorkflow } = useProjectStore(
+    (state) => ({
+      nodes: state.workflow.nodes,
+      edges: state.workflow.edges,
+      updateNodeData: state.updateNodeData,
+      recalculateWorkflow: state.recalculateWorkflow,
+    })
+  );
 
-  // Simulation data
-  const [simulationData, setSimulationData] = useState<SimulationData>({
-    pointCount: 0,
-    curveCount: 0,
-    volume: 0,
-    surfaceArea: 0,
-    progress: 0,
-    currentStep: "pointCloud",
-  });
+  const solverNode = useMemo(
+    () => nodes.find((node) => node.id === nodeId),
+    [nodes, nodeId]
+  );
 
-  const handleStart = () => {
-    setSimulationState("running");
-    setSimulationData({
-      pointCount: 0,
-      curveCount: 0,
-      volume: 0,
-      surfaceArea: 0,
-      progress: 0,
-      currentStep: "pointCloud",
-    });
+  const parameters = solverNode?.data?.parameters ?? {};
+  const outputs = solverNode?.data?.outputs ?? {};
+  const evaluationError = solverNode?.data?.evaluationError;
 
-    // Simulate topology optimization process
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += 2;
-      
-      let currentStep: SimulationData["currentStep"] = "pointCloud";
-      if (progress > 75) currentStep = "multipipe";
-      else if (progress > 50) currentStep = "curveNetwork";
-      else if (progress > 25) currentStep = "pointCloud";
+  const volumeFraction = toNumber(parameters.volumeFraction, 0.4);
+  const penaltyExponent = toNumber(parameters.penaltyExponent, 3);
+  const filterRadius = toNumber(parameters.filterRadius, 2);
+  const iterations = toNumber(parameters.iterations, 100);
+  const resolution = toNumber(parameters.resolution, 32);
 
-      setSimulationData({
-        pointCount: Math.min(pointDensity, Math.floor((progress / 100) * pointDensity)),
-        curveCount: Math.min(
-          Math.floor(pointDensity * 2.5),
-          Math.floor((progress / 100) * pointDensity * 2.5)
-        ),
-        volume: progress > 75 ? Math.random() * 10 + 5 : 0,
-        surfaceArea: progress > 75 ? Math.random() * 50 + 25 : 0,
-        progress,
-        currentStep,
-      });
+  const hasDomain = edges.some(
+    (edge) => edge.target === nodeId && edge.targetHandle === "domain"
+  );
+  const goalsCount = edges.filter(
+    (edge) => edge.target === nodeId && edge.targetHandle === "goals"
+  ).length;
 
-      if (progress >= 100) {
-        clearInterval(interval);
-        setSimulationState("complete");
-      }
-    }, 100);
+  const handleParameterChange = (key: string, value: number) => {
+    updateNodeData(nodeId, { parameters: { [key]: value } });
   };
 
-  const handlePause = () => {
-    setSimulationState("paused");
+  const handleRun = () => {
+    recalculateWorkflow();
   };
 
-  const handleResume = () => {
-    setSimulationState("running");
-  };
-
-  const handleReset = () => {
-    setSimulationState("idle");
-    setSimulationData({
-      pointCount: 0,
-      curveCount: 0,
-      volume: 0,
-      surfaceArea: 0,
-      progress: 0,
-      currentStep: "pointCloud",
-    });
-  };
+  const bestScore = toNumber(outputs.bestScore, 0);
+  const objective = toNumber(outputs.objective, 0);
+  const constraint = toNumber(outputs.constraint, 0);
+  const actualIterations = toNumber(outputs.iterations, 0);
+  const actualResolution = toNumber(outputs.resolution, 0);
+  const status = typeof outputs.status === "string" ? outputs.status : "idle";
 
   return (
     <div className={styles.dashboardOverlay}>
       <div className={styles.dashboardContainer} style={{ transform: `scale(${scale / 100})` }}>
-        {/* Header */}
         <div className={styles.dashboardHeader}>
           <div className={styles.headerLeft}>
             <div className={styles.solverIcon}>🔷</div>
@@ -128,7 +95,6 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
           </div>
         </div>
 
-        {/* Tab Navigation */}
         <div className={styles.tabNav}>
           <button
             className={`${styles.tabButton} ${activeTab === "setup" ? styles.tabButtonActive : ""}`}
@@ -150,352 +116,150 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
           </button>
         </div>
 
-        {/* Tab Content */}
-        <div className={styles.tabContent}>
-          {/* Setup Tab */}
+        <div className={styles.dashboardContent}>
           {activeTab === "setup" && (
             <div className={styles.setupTab}>
-              <div className={styles.setupSection}>
-                <h3 className={styles.sectionTitle}>Algorithm Parameters</h3>
+              <div className={styles.section}>
+                <h3>Optimization Parameters</h3>
                 <div className={styles.parameterGrid}>
-                  <div className={styles.parameterCard}>
-                    <label className={styles.parameterLabel}>Point Density</label>
-                    <input
-                      type="range"
-                      min="10"
-                      max="1000"
-                      step="10"
-                      value={pointDensity}
-                      onChange={(e) => setPointDensity(Number(e.target.value))}
-                      className={styles.slider}
-                    />
-                    <span className={styles.parameterValue}>{pointDensity} points</span>
-                    <p className={styles.parameterDescription}>
-                      Number of points to sample from geometry surface
-                    </p>
-                  </div>
-
-                  <div className={styles.parameterCard}>
-                    <label className={styles.parameterLabel}>Connection Radius</label>
-                    <input
-                      type="range"
-                      min="0.01"
-                      max="5.0"
-                      step="0.01"
-                      value={connectionRadius}
-                      onChange={(e) => setConnectionRadius(Number(e.target.value))}
-                      className={styles.slider}
-                    />
-                    <span className={styles.parameterValue}>{connectionRadius.toFixed(2)}</span>
-                    <p className={styles.parameterDescription}>
-                      3D proximity threshold for connecting points
-                    </p>
-                  </div>
-
-                  <div className={styles.parameterCard}>
-                    <label className={styles.parameterLabel}>Pipe Radius</label>
-                    <input
-                      type="range"
-                      min="0.01"
-                      max="1.0"
-                      step="0.01"
-                      value={pipeRadius}
-                      onChange={(e) => setPipeRadius(Number(e.target.value))}
-                      className={styles.slider}
-                    />
-                    <span className={styles.parameterValue}>{pipeRadius.toFixed(2)}</span>
-                    <p className={styles.parameterDescription}>
-                      Radius for multipipe operation
-                    </p>
-                  </div>
-
-                  <div className={styles.parameterCard}>
-                    <label className={styles.parameterLabel}>Random Seed</label>
+                  <label>
+                    Volume Fraction
                     <input
                       type="number"
-                      min="0"
-                      max="9999"
-                      value={seed}
-                      onChange={(e) => setSeed(Number(e.target.value))}
-                      className={styles.numberInput}
+                      value={volumeFraction}
+                      onChange={(e) => handleParameterChange("volumeFraction", Number(e.target.value))}
+                      min={0.05}
+                      max={0.95}
+                      step={0.01}
                     />
-                    <p className={styles.parameterDescription}>
-                      Random seed for point generation
-                    </p>
-                  </div>
+                  </label>
+                  <label>
+                    Penalty Exponent
+                    <input
+                      type="number"
+                      value={penaltyExponent}
+                      onChange={(e) => handleParameterChange("penaltyExponent", Number(e.target.value))}
+                      min={1}
+                      max={6}
+                      step={0.1}
+                    />
+                  </label>
+                  <label>
+                    Filter Radius
+                    <input
+                      type="number"
+                      value={filterRadius}
+                      onChange={(e) => handleParameterChange("filterRadius", Number(e.target.value))}
+                      min={0}
+                      max={8}
+                      step={0.1}
+                    />
+                  </label>
+                  <label>
+                    Iterations
+                    <input
+                      type="number"
+                      value={iterations}
+                      onChange={(e) => handleParameterChange("iterations", Number(e.target.value))}
+                      min={10}
+                      max={1000}
+                    />
+                  </label>
+                  <label>
+                    Resolution
+                    <input
+                      type="number"
+                      value={resolution}
+                      onChange={(e) => handleParameterChange("resolution", Number(e.target.value))}
+                      min={8}
+                      max={128}
+                    />
+                  </label>
                 </div>
               </div>
 
-              <div className={styles.setupSection}>
-                <h3 className={styles.sectionTitle}>Algorithm Overview</h3>
-                <div className={styles.algorithmSteps}>
-                  <div className={styles.algorithmStep}>
-                    <div className={styles.stepNumber}>1</div>
-                    <div className={styles.stepContent}>
-                      <h4 className={styles.stepTitle}>Point Cloud Generation</h4>
-                      <p className={styles.stepDescription}>
-                        Sample {pointDensity} points from geometry surface using stratified sampling
-                      </p>
-                    </div>
+              <div className={styles.section}>
+                <h3>Connected Inputs</h3>
+                <div className={styles.summaryGrid}>
+                  <div className={styles.summaryCard}>
+                    <div className={styles.summaryLabel}>Domain</div>
+                    <div className={styles.summaryValue}>{hasDomain ? "Connected" : "Missing"}</div>
                   </div>
-                  <div className={styles.algorithmStep}>
-                    <div className={styles.stepNumber}>2</div>
-                    <div className={styles.stepContent}>
-                      <h4 className={styles.stepTitle}>Curve Network Generation</h4>
-                      <p className={styles.stepDescription}>
-                        Connect points within {connectionRadius.toFixed(2)} radius to form curve network
-                      </p>
-                    </div>
-                  </div>
-                  <div className={styles.algorithmStep}>
-                    <div className={styles.stepNumber}>3</div>
-                    <div className={styles.stepContent}>
-                      <h4 className={styles.stepTitle}>Multipipe Operation</h4>
-                      <p className={styles.stepDescription}>
-                        Generate pipes with radius {pipeRadius.toFixed(2)} along curve network
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className={styles.setupSection}>
-                <h3 className={styles.sectionTitle}>Geometry Preview</h3>
-                <div className={styles.geometryPreview}>
-                  <div className={styles.previewPlaceholder}>
-                    <span className={styles.previewIcon}>🔷</span>
-                    <p className={styles.previewText}>Input geometry will be displayed here</p>
+                  <div className={styles.summaryCard}>
+                    <div className={styles.summaryLabel}>Goals</div>
+                    <div className={styles.summaryValue}>{goalsCount}</div>
                   </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Simulator Tab */}
           {activeTab === "simulator" && (
             <div className={styles.simulatorTab}>
               <div className={styles.controlPanel}>
-                <div className={styles.controlButtons}>
-                  {simulationState === "idle" && (
-                    <button className={styles.startButton} onClick={handleStart}>
-                      ▶ Start Optimization
-                    </button>
-                  )}
-                  {simulationState === "running" && (
-                    <button className={styles.pauseButton} onClick={handlePause}>
-                      ⏸ Pause
-                    </button>
-                  )}
-                  {simulationState === "paused" && (
-                    <button className={styles.resumeButton} onClick={handleResume}>
-                      ▶ Resume
-                    </button>
-                  )}
-                  {(simulationState === "running" ||
-                    simulationState === "paused" ||
-                    simulationState === "complete") && (
-                    <button className={styles.resetButton} onClick={handleReset}>
-                      ⟲ Reset
-                    </button>
-                  )}
-                </div>
-
-                <div className={styles.progressSection}>
-                  <div className={styles.progressHeader}>
-                    <span className={styles.progressLabel}>Progress</span>
-                    <span className={styles.progressPercent}>{simulationData.progress.toFixed(0)}%</span>
-                  </div>
-                  <div className={styles.progressBar}>
-                    <div
-                      className={styles.progressFill}
-                      style={{ width: `${simulationData.progress}%` }}
-                    />
-                  </div>
-                  <div className={styles.currentStep}>
-                    Current Step: <strong>{simulationData.currentStep}</strong>
-                  </div>
-                </div>
+                <button className={styles.controlButton} onClick={handleRun}>
+                  Run
+                </button>
               </div>
-
-              <div className={styles.visualizationGrid}>
-                <div className={styles.visualizationCard}>
-                  <h4 className={styles.visualizationTitle}>Point Cloud</h4>
-                  <div className={styles.pointCloudViz}>
-                    {Array.from({ length: Math.min(50, simulationData.pointCount) }).map((_, i) => (
-                      <div
-                        key={i}
-                        className={styles.point}
-                        style={{
-                          left: `${Math.random() * 100}%`,
-                          top: `${Math.random() * 100}%`,
-                          animationDelay: `${i * 0.02}s`,
-                        }}
-                      />
-                    ))}
-                  </div>
-                  <p className={styles.vizStats}>{simulationData.pointCount} points generated</p>
+              {evaluationError && (
+                <div className={styles.warningBanner}>Error: {evaluationError}</div>
+              )}
+              <div className={styles.statusGrid}>
+                <div className={styles.statusCard}>
+                  <div className={styles.statusLabel}>Status</div>
+                  <div className={styles.statusValue}>{status}</div>
                 </div>
-
-                <div className={styles.visualizationCard}>
-                  <h4 className={styles.visualizationTitle}>Curve Network</h4>
-                  <div className={styles.curveNetworkViz}>
-                    <svg className={styles.networkSvg} viewBox="0 0 200 200">
-                      {Array.from({ length: Math.min(30, simulationData.curveCount) }).map((_, i) => {
-                        const x1 = Math.random() * 200;
-                        const y1 = Math.random() * 200;
-                        const x2 = Math.random() * 200;
-                        const y2 = Math.random() * 200;
-                        return (
-                          <line
-                            key={i}
-                            x1={x1}
-                            y1={y1}
-                            x2={x2}
-                            y2={y2}
-                            className={styles.networkLine}
-                            style={{ animationDelay: `${i * 0.03}s` }}
-                          />
-                        );
-                      })}
-                    </svg>
-                  </div>
-                  <p className={styles.vizStats}>{simulationData.curveCount} curves generated</p>
+                <div className={styles.statusCard}>
+                  <div className={styles.statusLabel}>Iterations</div>
+                  <div className={styles.statusValue}>{actualIterations > 0 ? actualIterations : "—"}</div>
                 </div>
-
-                <div className={styles.visualizationCard}>
-                  <h4 className={styles.visualizationTitle}>Optimized Structure</h4>
-                  <div className={styles.structureViz}>
-                    {simulationData.progress > 75 && (
-                      <div className={styles.structureMesh}>
-                        <div className={styles.meshWireframe} />
-                      </div>
-                    )}
-                    {simulationData.progress <= 75 && (
-                      <p className={styles.vizPlaceholder}>Generating structure...</p>
-                    )}
-                  </div>
-                  <p className={styles.vizStats}>
-                    {simulationData.progress > 75 ? "Structure complete" : "In progress..."}
-                  </p>
-                </div>
-              </div>
-
-              <div className={styles.statsGrid}>
-                <div className={styles.statCard}>
-                  <div className={styles.statLabel}>Points</div>
-                  <div className={styles.statValue}>{simulationData.pointCount}</div>
-                </div>
-                <div className={styles.statCard}>
-                  <div className={styles.statLabel}>Curves</div>
-                  <div className={styles.statValue}>{simulationData.curveCount}</div>
-                </div>
-                <div className={styles.statCard}>
-                  <div className={styles.statLabel}>Volume</div>
-                  <div className={styles.statValue}>
-                    {simulationData.volume > 0 ? simulationData.volume.toFixed(2) : "—"}
-                  </div>
-                </div>
-                <div className={styles.statCard}>
-                  <div className={styles.statLabel}>Surface Area</div>
-                  <div className={styles.statValue}>
-                    {simulationData.surfaceArea > 0 ? simulationData.surfaceArea.toFixed(2) : "—"}
-                  </div>
+                <div className={styles.statusCard}>
+                  <div className={styles.statusLabel}>Resolution</div>
+                  <div className={styles.statusValue}>{actualResolution > 0 ? actualResolution : "—"}</div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Output Tab */}
           {activeTab === "output" && (
             <div className={styles.outputTab}>
-              <div className={styles.outputSection}>
-                <h3 className={styles.sectionTitle}>Optimized Structure</h3>
-                <div className={styles.outputPreview}>
-                  {simulationState === "complete" ? (
-                    <div className={styles.previewMesh}>
-                      <div className={styles.meshVisualization} />
-                      <p className={styles.previewCaption}>Topologically optimized structure</p>
-                    </div>
-                  ) : (
-                    <div className={styles.previewPlaceholder}>
-                      <span className={styles.previewIcon}>🔷</span>
-                      <p className={styles.previewText}>
-                        Run simulation to generate optimized structure
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className={styles.outputSection}>
-                <h3 className={styles.sectionTitle}>Statistics</h3>
-                <div className={styles.outputStatsGrid}>
-                  <div className={styles.outputStatCard}>
-                    <div className={styles.outputStatLabel}>Point Count</div>
-                    <div className={styles.outputStatValue}>{simulationData.pointCount}</div>
-                  </div>
-                  <div className={styles.outputStatCard}>
-                    <div className={styles.outputStatLabel}>Curve Count</div>
-                    <div className={styles.outputStatValue}>{simulationData.curveCount}</div>
-                  </div>
-                  <div className={styles.outputStatCard}>
-                    <div className={styles.outputStatLabel}>Volume</div>
-                    <div className={styles.outputStatValue}>
-                      {simulationData.volume > 0 ? simulationData.volume.toFixed(3) : "—"}
-                    </div>
-                  </div>
-                  <div className={styles.outputStatCard}>
-                    <div className={styles.outputStatLabel}>Surface Area</div>
-                    <div className={styles.outputStatValue}>
-                      {simulationData.surfaceArea > 0 ? simulationData.surfaceArea.toFixed(3) : "—"}
-                    </div>
-                  </div>
-                  <div className={styles.outputStatCard}>
-                    <div className={styles.outputStatLabel}>Volume/Surface Ratio</div>
-                    <div className={styles.outputStatValue}>
-                      {simulationData.volume > 0 && simulationData.surfaceArea > 0
-                        ? (simulationData.volume / simulationData.surfaceArea).toFixed(3)
-                        : "—"}
-                    </div>
-                  </div>
-                  <div className={styles.outputStatCard}>
-                    <div className={styles.outputStatLabel}>Connectivity</div>
-                    <div className={styles.outputStatValue}>
-                      {simulationData.pointCount > 0
-                        ? (simulationData.curveCount / simulationData.pointCount).toFixed(2)
-                        : "—"}
-                    </div>
+              {evaluationError && (
+                <div className={styles.warningBanner}>Error: {evaluationError}</div>
+              )}
+              <div className={styles.outputGrid}>
+                <div className={styles.outputCard}>
+                  <div className={styles.outputLabel}>Best Score</div>
+                  <div className={styles.outputValue}>
+                    {bestScore > 0 ? bestScore.toFixed(4) : "—"}
                   </div>
                 </div>
-              </div>
-
-              <div className={styles.outputSection}>
-                <h3 className={styles.sectionTitle}>Export Options</h3>
-                <div className={styles.exportButtons}>
-                  <button
-                    className={styles.exportButton}
-                    disabled={simulationState !== "complete"}
-                  >
-                    Export Mesh (.obj)
-                  </button>
-                  <button
-                    className={styles.exportButton}
-                    disabled={simulationState !== "complete"}
-                  >
-                    Export Point Cloud (.xyz)
-                  </button>
-                  <button
-                    className={styles.exportButton}
-                    disabled={simulationState !== "complete"}
-                  >
-                    Export Curve Network (.json)
-                  </button>
-                  <button
-                    className={styles.exportButton}
-                    disabled={simulationState !== "complete"}
-                  >
-                    Export Statistics (.csv)
-                  </button>
+                <div className={styles.outputCard}>
+                  <div className={styles.outputLabel}>Objective</div>
+                  <div className={styles.outputValue}>
+                    {objective > 0 ? objective.toFixed(4) : "—"}
+                  </div>
+                </div>
+                <div className={styles.outputCard}>
+                  <div className={styles.outputLabel}>Constraint</div>
+                  <div className={styles.outputValue}>
+                    {constraint !== 0 ? constraint.toFixed(4) : "—"}
+                  </div>
+                </div>
+                <div className={styles.outputCard}>
+                  <div className={styles.outputLabel}>Iterations</div>
+                  <div className={styles.outputValue}>
+                    {actualIterations > 0 ? actualIterations : "—"}
+                  </div>
+                </div>
+                <div className={styles.outputCard}>
+                  <div className={styles.outputLabel}>Resolution</div>
+                  <div className={styles.outputValue}>
+                    {actualResolution > 0 ? actualResolution : "—"}
+                  </div>
+                </div>
+                <div className={styles.outputCard}>
+                  <div className={styles.outputLabel}>Status</div>
+                  <div className={styles.outputValue}>{status}</div>
                 </div>
               </div>
             </div>

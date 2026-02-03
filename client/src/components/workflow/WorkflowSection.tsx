@@ -1318,7 +1318,7 @@ const WorkflowSection = ({
             case "EvolutionarySimulatorDashboard":
               return <EvolutionarySimulatorDashboard nodeId={nodeId} onClose={onClose} />;
             case "VoxelSimulatorDashboard":
-              return <VoxelSimulatorDashboard nodeId={nodeId} parameters={parameters} onParameterChange={onParameterChange} onClose={onClose} />;
+              return <VoxelSimulatorDashboard nodeId={nodeId} onClose={onClose} />;
             case "TopologyOptimizationSimulatorDashboard":
               return <TopologyOptimizationSimulatorDashboard nodeId={nodeId} onClose={onClose} />;
             default:

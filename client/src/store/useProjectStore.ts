@@ -9023,7 +9023,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         source: densitySliderId,
         sourceHandle: "value",
         target: solverId,
-        targetHandle: "particleDensity",
+        targetHandle: "density",
       },
       // Particle Count → Chemistry Solver
       {
