@@ -1810,7 +1810,7 @@ const applySeedGeometryNodesToGeometry = (
         data: {
           ...node.data,
           geometryId,
-          geometryType: "vertex",
+          geometryType: "vertex" as const,
           point: position,
           isLinked: true,
         },
@@ -1847,7 +1847,7 @@ const applySeedGeometryNodesToGeometry = (
         data: {
           ...node.data,
           geometryId,
-          geometryType: "polyline",
+          geometryType: "polyline" as const,
           vertexIds,
           closed: true,
           isLinked: true,
@@ -1884,7 +1884,7 @@ const applySeedGeometryNodesToGeometry = (
         data: {
           ...node.data,
           geometryId,
-          geometryType: "nurbsCurve",
+          geometryType: "nurbsCurve" as const,
           closed: true,
           isLinked: true,
         },
@@ -1902,7 +1902,8 @@ const applySeedGeometryNodesToGeometry = (
       const width = asNumber(outputs?.width, Number.NaN);
       const height = asNumber(outputs?.height, Number.NaN);
       const depth = asNumber(outputs?.depth, Number.NaN);
-      const representation = String(outputs?.representation ?? node.data?.parameters?.representation ?? "mesh");
+      const representationRaw = String(outputs?.representation ?? node.data?.parameters?.representation ?? "mesh");
+      const representation: "brep" | "mesh" = representationRaw === "brep" ? "brep" : "mesh";
       if (!Number.isFinite(width) || !Number.isFinite(height) || !Number.isFinite(depth)) {
         return node;
       }
@@ -1950,7 +1951,7 @@ const applySeedGeometryNodesToGeometry = (
         data: {
           ...node.data,
           geometryId,
-          geometryType: representation === "brep" ? "brep" : "mesh",
+          geometryType: representation,
           boxOrigin: anchor,
           boxDimensions: { width, height, depth },
           isLinked: true,
@@ -1967,7 +1968,8 @@ const applySeedGeometryNodesToGeometry = (
             : null;
       const center = asVec3(outputs?.center) ?? { x: 0, y: 0, z: 0 };
       const radius = asNumber(outputs?.radius, Number.NaN);
-      const representation = String(outputs?.representation ?? node.data?.parameters?.representation ?? "mesh");
+      const representationRaw = String(outputs?.representation ?? node.data?.parameters?.representation ?? "mesh");
+      const representation: "brep" | "mesh" = representationRaw === "brep" ? "brep" : "mesh";
       if (!Number.isFinite(radius) || radius <= 0) {
         return node;
       }
@@ -2005,7 +2007,7 @@ const applySeedGeometryNodesToGeometry = (
         data: {
           ...node.data,
           geometryId,
-          geometryType: representation === "brep" ? "brep" : "mesh",
+          geometryType: representation,
           sphereOrigin: center,
           sphereRadius: radius,
           isLinked: true,
@@ -2042,7 +2044,7 @@ const applySeedGeometryNodesToGeometry = (
         data: {
           ...node.data,
           geometryId,
-          geometryType: "mesh",
+          geometryType: "mesh" as const,
           isLinked: true,
         },
       };
@@ -2092,7 +2094,7 @@ const applySeedGeometryNodesToGeometry = (
         data: {
           ...node.data,
           geometryId,
-          geometryType: "mesh",
+          geometryType: "mesh" as const,
           isLinked: true,
         },
       };
@@ -2161,7 +2163,7 @@ const applySeedGeometryNodesToGeometry = (
         data: {
           ...node.data,
           geometryId,
-          geometryType: "mesh",
+          geometryType: "mesh" as const,
           isLinked: true,
         },
       };
@@ -2178,7 +2180,8 @@ const applySeedGeometryNodesToGeometry = (
           : typeof node.data?.geometryId === "string"
             ? node.data.geometryId
             : null;
-      const representation = String(outputs?.representation ?? node.data?.parameters?.representation ?? "mesh");
+      const representationRaw = String(outputs?.representation ?? node.data?.parameters?.representation ?? "mesh");
+      const representation: "brep" | "mesh" = representationRaw === "brep" ? "brep" : "mesh";
       const existing = geometryId ? geometryById.get(geometryId) : null;
       if (!geometryId || (representation === "brep" && existing?.type !== "brep")) {
         geometryId = createGeometryId(representation === "brep" ? "brep" : "mesh");
@@ -2237,7 +2240,7 @@ const applySeedGeometryNodesToGeometry = (
         data: {
           ...node.data,
           geometryId,
-          geometryType: representation === "brep" ? "brep" : "mesh",
+          geometryType: representation,
           isLinked: true,
         },
       };
@@ -2315,7 +2318,7 @@ const applyDependentGeometryNodesToGeometry = (
         data: {
           ...node.data,
           geometryId,
-          geometryType: "polyline",
+          geometryType: "polyline" as const,
           vertexIds,
           closed: false,
           isLinked: true,
@@ -2349,7 +2352,7 @@ const applyDependentGeometryNodesToGeometry = (
         data: {
           ...node.data,
           geometryId,
-          geometryType: "nurbsCurve",
+          geometryType: "nurbsCurve" as const,
           closed: false,
           isLinked: true,
         },
@@ -2383,7 +2386,7 @@ const applyDependentGeometryNodesToGeometry = (
         data: {
           ...node.data,
           geometryId,
-          geometryType: "nurbsCurve",
+          geometryType: "nurbsCurve" as const,
           closed,
           isLinked: true,
         },
@@ -2418,7 +2421,7 @@ const applyDependentGeometryNodesToGeometry = (
         data: {
           ...node.data,
           geometryId,
-          geometryType: "polyline",
+          geometryType: "polyline" as const,
           vertexIds,
           closed,
           isLinked: true,
@@ -2453,7 +2456,7 @@ const applyDependentGeometryNodesToGeometry = (
           data: {
             ...node.data,
             geometryIds: [],
-            geometryType: "vertex",
+            geometryType: "vertex" as const,
             isLinked: true,
           },
         };
@@ -2498,7 +2501,7 @@ const applyDependentGeometryNodesToGeometry = (
         data: {
           ...node.data,
           geometryIds: nextIds,
-          geometryType: "vertex",
+          geometryType: "vertex" as const,
           isLinked: true,
         },
       };
@@ -2530,7 +2533,7 @@ const applyDependentGeometryNodesToGeometry = (
         data: {
           ...node.data,
           geometryId,
-          geometryType: "surface",
+          geometryType: "surface" as const,
           vertexIds,
           isLinked: true,
         },
@@ -6289,7 +6292,7 @@ const applyVoxelSolverNodesToGeometry = (
       data: {
         ...node.data,
         geometryId,
-        geometryType: "mesh",
+        geometryType: "mesh" as const,
         isLinked: true,
       },
     };
@@ -9037,7 +9040,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       .map((group) =>
         buildRigGroupNode(group.groupId, group.title, group.nodes, position, { color: group.color })
       )
-      .filter((node): node is NonNullable<typeof node> => node != null);
+      .filter((node): node is WorkflowNode => node != null);
 
     class RigConfigError extends Error {
       constructor(message: string) {
@@ -9063,11 +9066,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       });
     });
 
-    const childNodes: WorkflowNode[] = Array.from(
-      new Map(
+    const childNodes = Array.from(
+      new Map<string, WorkflowNode>(
         groups
           .flatMap((group) => group.nodes)
-          .map((node) => [node.id, node] as const)
+          .map((node) => [node.id, node])
       ).values()
     );
 
