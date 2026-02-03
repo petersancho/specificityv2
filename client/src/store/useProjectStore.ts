@@ -1271,31 +1271,50 @@ const applyMoveDeltaToGeometry = (
       ...baseMesh,
       positions,
     };
-    const nextUpdate: Partial<Geometry> & {
-      primitive?: MeshPrimitiveGeometry["primitive"];
-      plane?: PlaneDefinition;
-    } = {
+    type PhysicalProps = Pick<
+      MeshGeometry,
+      "volume_m3" | "centroid" | "mass_kg" | "inertiaTensor_kg_m2"
+    >;
+    const physicalUpdate: Partial<PhysicalProps> = {};
+
+    const existingCentroid = existing && "centroid" in existing ? existing.centroid : undefined;
+    const geometryCentroid = "centroid" in geometry ? geometry.centroid : undefined;
+    const baseCentroid = existingCentroid ?? geometryCentroid;
+    if (baseCentroid) {
+      physicalUpdate.centroid = addVec3(baseCentroid, delta);
+    }
+
+    const existingVolume = existing && "volume_m3" in existing ? existing.volume_m3 : undefined;
+    const geometryVolume = "volume_m3" in geometry ? geometry.volume_m3 : undefined;
+    if (existingVolume !== undefined || geometryVolume !== undefined) {
+      physicalUpdate.volume_m3 = existingVolume ?? geometryVolume;
+    }
+
+    const existingMass = existing && "mass_kg" in existing ? existing.mass_kg : undefined;
+    const geometryMass = "mass_kg" in geometry ? geometry.mass_kg : undefined;
+    if (existingMass !== undefined || geometryMass !== undefined) {
+      physicalUpdate.mass_kg = existingMass ?? geometryMass;
+    }
+
+    const existingInertia =
+      existing && "inertiaTensor_kg_m2" in existing
+        ? existing.inertiaTensor_kg_m2
+        : undefined;
+    const geometryInertia =
+      "inertiaTensor_kg_m2" in geometry ? geometry.inertiaTensor_kg_m2 : undefined;
+    if (existingInertia !== undefined || geometryInertia !== undefined) {
+      physicalUpdate.inertiaTensor_kg_m2 = existingInertia ?? geometryInertia;
+    }
+
+    const nextUpdate: Partial<Geometry> &
+      Partial<PhysicalProps> & {
+        primitive?: MeshPrimitiveGeometry["primitive"];
+        plane?: PlaneDefinition;
+      } = {
       ...(existing ?? {}),
+      ...physicalUpdate,
       mesh: nextMesh,
     };
-    const existingGeometry = existing as any;
-    const baseCentroid = existingGeometry?.centroid ?? (geometry as any).centroid;
-    if (baseCentroid) {
-      (nextUpdate as any).centroid = addVec3(baseCentroid, delta);
-    }
-    if (existingGeometry?.volume_m3 !== undefined || (geometry as any).volume_m3 !== undefined) {
-      (nextUpdate as any).volume_m3 = existingGeometry?.volume_m3 ?? (geometry as any).volume_m3;
-    }
-    if (existingGeometry?.mass_kg !== undefined || (geometry as any).mass_kg !== undefined) {
-      (nextUpdate as any).mass_kg = existingGeometry?.mass_kg ?? (geometry as any).mass_kg;
-    }
-    if (
-      existingGeometry?.inertiaTensor_kg_m2 !== undefined ||
-      (geometry as any).inertiaTensor_kg_m2 !== undefined
-    ) {
-      (nextUpdate as any).inertiaTensor_kg_m2 =
-        existingGeometry?.inertiaTensor_kg_m2 ?? (geometry as any).inertiaTensor_kg_m2;
-    }
     if (geometry.type === "mesh" && geometry.primitive) {
       const existingMesh = existing as Partial<MeshPrimitiveGeometry> | undefined;
       const basePrimitive = (existingMesh?.primitive ?? geometry.primitive) as NonNullable<
@@ -3345,7 +3364,7 @@ const applyOffsetSurfaceNodesToGeometry = (
     const { volume_m3, centroid } = computeMeshVolumeAndCentroid(mesh);
     const density = resolveDensity(existing.metadata);
     const mass_kg = density && volume_m3 > 0 ? density * volume_m3 : undefined;
-    const geometryUpdate: Partial<Geometry> = {
+    const geometryUpdate: Partial<Geometry> & { plane?: PlaneDefinition } = {
       mesh,
       area_m2: computeMeshArea(mesh.positions, mesh.indices),
       volume_m3,
@@ -3374,7 +3393,7 @@ const applyOffsetSurfaceNodesToGeometry = (
           : surfaceGeometry.plane?.normal ?? avgNormal;
       const offsetVec = scaleVec3(alignedNormal, delta);
       if (surfaceGeometry.plane) {
-        (geometryUpdate as any).plane = {
+        geometryUpdate.plane = {
           ...surfaceGeometry.plane,
           origin: addVec3(surfaceGeometry.plane.origin, offsetVec),
           normal: alignedNormal,
@@ -3393,7 +3412,7 @@ const applyOffsetSurfaceNodesToGeometry = (
           dotVec3(computedPlane.normal, avgNormal) < 0
             ? scaleVec3(computedPlane.normal, -1)
             : computedPlane.normal;
-        (geometryUpdate as any).plane = {
+        geometryUpdate.plane = {
           ...computedPlane,
           normal: planeNormal,
         };
@@ -5691,7 +5710,12 @@ const applyGeometryArrayNodesToGeometry = (
     if ("mesh" in source && source.mesh) {
       const geometryId = createGeometryId(source.type === "mesh" ? "mesh" : source.type);
       const mesh = transformMesh(source.mesh, matrix);
-      const base = { ...source, id: geometryId, mesh, layerId } as Geometry;
+      const base: SurfaceGeometry | LoftGeometry | ExtrudeGeometry | MeshGeometry = {
+        ...source,
+        id: geometryId,
+        mesh,
+        layerId,
+      };
       if (base.type === "mesh" && base.primitive) {
         base.primitive = {
           ...base.primitive,
@@ -5700,13 +5724,15 @@ const applyGeometryArrayNodesToGeometry = (
       }
       const volumeAndCentroid = computeMeshVolumeAndCentroid(mesh);
       const density = resolveDensity(source.metadata);
-      (base as any).area_m2 = computeMeshArea(mesh.positions, mesh.indices);
-      (base as any).volume_m3 = volumeAndCentroid.volume_m3;
-      (base as any).centroid = volumeAndCentroid.centroid ?? undefined;
-      (base as any).mass_kg =
-        density && volumeAndCentroid.volume_m3 > 0
-          ? density * volumeAndCentroid.volume_m3
-          : undefined;
+      base.area_m2 = computeMeshArea(mesh.positions, mesh.indices);
+      if ("volume_m3" in base) {
+        base.volume_m3 = volumeAndCentroid.volume_m3;
+        base.centroid = volumeAndCentroid.centroid ?? undefined;
+        base.mass_kg =
+          density && volumeAndCentroid.volume_m3 > 0
+            ? density * volumeAndCentroid.volume_m3
+            : undefined;
+      }
       return { geometryId, items: [base] };
     }
     return null;
