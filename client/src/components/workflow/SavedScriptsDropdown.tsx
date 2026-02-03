@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type KeyboardEvent, type PointerEvent } from "react";
 import Tooltip from "../ui/Tooltip";
 import styles from "./SavedScriptsDropdown.module.css";
 
@@ -18,6 +18,15 @@ export const SavedScriptsDropdown = ({
   onAddVoxelRig,
 }: SavedScriptsDropdownProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const handleScriptActivate = (
+    event: PointerEvent<HTMLButtonElement> | KeyboardEvent<HTMLButtonElement>,
+    action: () => void
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    action();
+    setIsExpanded(false);
+  };
 
   const scripts = [
     { label: "Physics Solver", onClick: onAddPhysicsRig },
@@ -57,7 +66,12 @@ export const SavedScriptsDropdown = ({
               key={script.label}
               type="button"
               className={styles.scriptButton}
-              onClick={script.onClick}
+              onPointerDown={(event) => handleScriptActivate(event, script.onClick)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  handleScriptActivate(event, script.onClick);
+                }
+              }}
             >
               {script.label}
             </button>

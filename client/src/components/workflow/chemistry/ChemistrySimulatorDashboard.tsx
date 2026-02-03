@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import styles from "./ChemistrySimulatorDashboard.module.css";
 import { useProjectStore } from "../../../store/useProjectStore";
 import { SemanticOpsPanel } from "../SemanticOpsPanel";
+import type { ChemistryMaterialSpec } from "../../../data/chemistryMaterials";
 
 const toNumber = (value: unknown, fallback: number) => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -22,6 +23,33 @@ const toBoolean = (value: unknown, fallback: boolean) => {
     if (normalized === "false") return false;
   }
   return fallback;
+};
+
+const formatNumber = (value: unknown, digits = 3) => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value.toFixed(digits);
+  }
+  return "—";
+};
+
+const formatPercent = (value: unknown, digits = 2) => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return `${(value * 100).toFixed(digits)}%`;
+  }
+  return "—";
+};
+
+const formatVec3 = (value: unknown, digits = 2) => {
+  if (!value || typeof value !== "object") return "—";
+  const candidate = value as { x?: number; y?: number; z?: number };
+  if (
+    typeof candidate.x === "number" &&
+    typeof candidate.y === "number" &&
+    typeof candidate.z === "number"
+  ) {
+    return `(${candidate.x.toFixed(digits)}, ${candidate.y.toFixed(digits)}, ${candidate.z.toFixed(digits)})`;
+  }
+  return "—";
 };
 
 type ChemistrySimulatorDashboardProps = {
@@ -54,6 +82,12 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
   const outputs = solverNode?.data?.outputs ?? {};
   const evaluationError = solverNode?.data?.evaluationError;
   const diagnostics = outputs.diagnostics as Record<string, unknown> | undefined;
+  const validation = diagnostics?.validation as Record<string, unknown> | undefined;
+  const analysis = diagnostics?.analysis as Record<string, unknown> | undefined;
+  const semantics = diagnostics?.semantics as Record<string, unknown> | undefined;
+  const materials = Array.isArray(diagnostics?.materials)
+    ? (diagnostics?.materials as ChemistryMaterialSpec[])
+    : [];
 
   const particleCount = toNumber(parameters.particleCount, 5000);
   const iterations = toNumber(parameters.iterations, 500);
@@ -96,6 +130,30 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
   const actualIterations = diagnostics?.iterations != null
     ? toNumber(diagnostics.iterations, 0)
     : 0;
+  const conservation = validation?.conservation as Record<string, unknown> | undefined;
+  const constraints = validation?.constraints as Record<string, unknown> | undefined;
+  const stability = validation?.stability as Record<string, unknown> | undefined;
+  const convergenceAnalysis = analysis?.convergence as Record<string, unknown> | undefined;
+  const materialDistributions = Array.isArray(analysis?.materialDistributions)
+    ? (analysis?.materialDistributions as Array<Record<string, unknown>>)
+    : [];
+  const gradientFields = Array.isArray(analysis?.gradientFields)
+    ? (analysis?.gradientFields as Array<Record<string, unknown>>)
+    : [];
+  const particleStatistics = analysis?.particleStatistics as Record<string, unknown> | undefined;
+  const semanticsOutputs =
+    semantics && typeof semantics.outputs === "object"
+      ? (semantics.outputs as Record<string, Record<string, unknown>>)
+      : {};
+  const semanticsFields =
+    semantics && typeof semantics.fields === "object"
+      ? (semantics.fields as Record<string, Record<string, unknown>>)
+      : {};
+  const hasValidation = Boolean(validation);
+  const hasAnalysis = Boolean(analysis);
+  const hasSemantics =
+    Object.keys(semanticsOutputs).length > 0 || Object.keys(semanticsFields).length > 0;
+  const hasMaterials = materials.length > 0;
 
   return (
     <div className={styles.dashboard} style={{ fontSize: `${scale}%` }}>
@@ -306,6 +364,290 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
                 </div>
               </div>
             ) : null}
+            {(hasValidation || hasAnalysis || hasSemantics || hasMaterials) && (
+              <div className={styles.section}>
+                <h3 className={styles.sectionTitle}>PhD Diagnostics</h3>
+                <div className={styles.diagnosticsStack}>
+                  {hasValidation && (
+                    <details className={styles.diagnosticGroup} open>
+                      <summary className={styles.diagnosticSummary}>Validation & Conservation</summary>
+                      <div className={styles.diagnosticBody}>
+                        <div className={styles.metricGrid}>
+                          <div className={styles.metricCard}>
+                            <div className={styles.metricLabel}>Mass</div>
+                            <div className={styles.metricValue}>
+                              {formatNumber((conservation as any)?.mass?.final)}
+                            </div>
+                            <div className={styles.metricMeta}>
+                              Δ {formatNumber((conservation as any)?.mass?.error)} · {formatPercent((conservation as any)?.mass?.relativeError)}
+                            </div>
+                            <div
+                              className={`${styles.metricStatus} ${
+                                (conservation as any)?.mass?.conserved ? styles.metricStatusGood : styles.metricStatusWarn
+                              }`}
+                            >
+                              {(conservation as any)?.mass?.conserved ? "Conserved" : "Drift"}
+                            </div>
+                          </div>
+                          <div className={styles.metricCard}>
+                            <div className={styles.metricLabel}>Momentum</div>
+                            <div className={styles.metricValue}>
+                              {formatVec3((conservation as any)?.momentum?.final)}
+                            </div>
+                            <div className={styles.metricMeta}>
+                              Δ {formatVec3((conservation as any)?.momentum?.error)} · {formatPercent((conservation as any)?.momentum?.relativeError)}
+                            </div>
+                            <div
+                              className={`${styles.metricStatus} ${
+                                (conservation as any)?.momentum?.conserved ? styles.metricStatusGood : styles.metricStatusWarn
+                              }`}
+                            >
+                              {(conservation as any)?.momentum?.conserved ? "Conserved" : "Drift"}
+                            </div>
+                          </div>
+                          <div className={styles.metricCard}>
+                            <div className={styles.metricLabel}>Energy</div>
+                            <div className={styles.metricValue}>
+                              {formatNumber((conservation as any)?.energy?.final)}
+                            </div>
+                            <div className={styles.metricMeta}>
+                              Δ {formatNumber((conservation as any)?.energy?.error)} · {formatPercent((conservation as any)?.energy?.relativeError)}
+                            </div>
+                            <div
+                              className={`${styles.metricStatus} ${
+                                (conservation as any)?.energy?.conserved ? styles.metricStatusGood : styles.metricStatusWarn
+                              }`}
+                            >
+                              {(conservation as any)?.energy?.conserved ? "Conserved" : "Drift"}
+                            </div>
+                          </div>
+                        </div>
+                        <div className={styles.subSection}>
+                          <div className={styles.subTitle}>Physical Constraints</div>
+                          <div className={styles.flagGrid}>
+                            <div className={styles.flagItem}>
+                              <span>Density Positive</span>
+                              <span className={(constraints as any)?.densityPositive ? styles.flagGood : styles.flagBad}>
+                                {(constraints as any)?.densityPositive ? "OK" : "Fail"}
+                              </span>
+                            </div>
+                            <div className={styles.flagItem}>
+                              <span>Concentration Bounded</span>
+                              <span className={(constraints as any)?.concentrationBounded ? styles.flagGood : styles.flagBad}>
+                                {(constraints as any)?.concentrationBounded ? "OK" : "Fail"}
+                              </span>
+                            </div>
+                            <div className={styles.flagItem}>
+                              <span>Concentration Normalized</span>
+                              <span className={(constraints as any)?.concentrationNormalized ? styles.flagGood : styles.flagBad}>
+                                {(constraints as any)?.concentrationNormalized ? "OK" : "Fail"}
+                              </span>
+                            </div>
+                            <div className={styles.flagItem}>
+                              <span>Velocity Finite</span>
+                              <span className={(constraints as any)?.velocityFinite ? styles.flagGood : styles.flagBad}>
+                                {(constraints as any)?.velocityFinite ? "OK" : "Fail"}
+                              </span>
+                            </div>
+                            <div className={styles.flagItem}>
+                              <span>Pressure Finite</span>
+                              <span className={(constraints as any)?.pressureFinite ? styles.flagGood : styles.flagBad}>
+                                {(constraints as any)?.pressureFinite ? "OK" : "Fail"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className={styles.subSection}>
+                          <div className={styles.subTitle}>Numerical Stability</div>
+                          <div className={styles.metricGrid}>
+                            <div className={styles.metricCard}>
+                              <div className={styles.metricLabel}>Max Velocity</div>
+                              <div className={styles.metricValue}>
+                                {formatNumber((stability as any)?.maxVelocity)}
+                              </div>
+                            </div>
+                            <div className={styles.metricCard}>
+                              <div className={styles.metricLabel}>Max Acceleration</div>
+                              <div className={styles.metricValue}>
+                                {formatNumber((stability as any)?.maxAcceleration)}
+                              </div>
+                            </div>
+                            <div className={styles.metricCard}>
+                              <div className={styles.metricLabel}>CFL Number</div>
+                              <div className={styles.metricValue}>
+                                {formatNumber((stability as any)?.cflNumber, 4)}
+                              </div>
+                              <div
+                                className={`${styles.metricStatus} ${
+                                  (stability as any)?.stable ? styles.metricStatusGood : styles.metricStatusWarn
+                                }`}
+                              >
+                                {(stability as any)?.stable ? "Stable" : "Unstable"}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </details>
+                  )}
+                  {hasAnalysis && (
+                    <details className={styles.diagnosticGroup}>
+                      <summary className={styles.diagnosticSummary}>Analysis & Convergence</summary>
+                      <div className={styles.diagnosticBody}>
+                        <div className={styles.metricGrid}>
+                          <div className={styles.metricCard}>
+                            <div className={styles.metricLabel}>Converged</div>
+                            <div className={styles.metricValue}>
+                              {(convergenceAnalysis as any)?.converged ? "Yes" : "No"}
+                            </div>
+                          </div>
+                          <div className={styles.metricCard}>
+                            <div className={styles.metricLabel}>Final Residual</div>
+                            <div className={styles.metricValue}>
+                              {formatNumber((convergenceAnalysis as any)?.finalResidual, 6)}
+                            </div>
+                          </div>
+                          <div className={styles.metricCard}>
+                            <div className={styles.metricLabel}>Convergence Rate</div>
+                            <div className={styles.metricValue}>
+                              {formatNumber((convergenceAnalysis as any)?.convergenceRate, 4)}
+                            </div>
+                          </div>
+                          <div className={styles.metricCard}>
+                            <div className={styles.metricLabel}>Iterations to Converge</div>
+                            <div className={styles.metricValue}>
+                              {formatNumber((convergenceAnalysis as any)?.iterationsToConvergence, 0)}
+                            </div>
+                          </div>
+                        </div>
+                        {materialDistributions.length > 0 && (
+                          <div className={styles.subSection}>
+                            <div className={styles.subTitle}>Material Distributions</div>
+                            <div className={styles.distributionGrid}>
+                              {materialDistributions.slice(0, 6).map((entry, index) => (
+                                <div key={index} className={styles.distributionCard}>
+                                  <div className={styles.distributionTitle}>
+                                    {String((entry as any)?.materialName ?? "Material")}
+                                  </div>
+                                  <div className={styles.distributionMeta}>
+                                    Mean: {formatNumber((entry as any)?.statistics?.mean)} · Vol: {formatNumber((entry as any)?.spatialDistribution?.volume)}
+                                  </div>
+                                  <div className={styles.distributionMeta}>
+                                    Centroid: {formatVec3((entry as any)?.spatialDistribution?.centroid)}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {gradientFields.length > 0 && (
+                          <div className={styles.subSection}>
+                            <div className={styles.subTitle}>Gradient Fields</div>
+                            <div className={styles.metricGrid}>
+                              {gradientFields.slice(0, 3).map((field, index) => (
+                                <div key={index} className={styles.metricCard}>
+                                  <div className={styles.metricLabel}>Field {index + 1}</div>
+                                  <div className={styles.metricValue}>
+                                    Mean: {formatNumber((field as any)?.statistics?.mean)}
+                                  </div>
+                                  <div className={styles.metricMeta}>
+                                    Max: {formatNumber((field as any)?.statistics?.max)}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {particleStatistics && (
+                          <div className={styles.subSection}>
+                            <div className={styles.subTitle}>Particle Statistics</div>
+                            <div className={styles.metricGrid}>
+                              <div className={styles.metricCard}>
+                                <div className={styles.metricLabel}>Density Mean</div>
+                                <div className={styles.metricValue}>
+                                  {formatNumber((particleStatistics as any)?.density?.mean)}
+                                </div>
+                              </div>
+                              <div className={styles.metricCard}>
+                                <div className={styles.metricLabel}>Pressure Mean</div>
+                                <div className={styles.metricValue}>
+                                  {formatNumber((particleStatistics as any)?.pressure?.mean)}
+                                </div>
+                              </div>
+                              <div className={styles.metricCard}>
+                                <div className={styles.metricLabel}>Velocity Mean</div>
+                                <div className={styles.metricValue}>
+                                  {formatVec3((particleStatistics as any)?.velocity?.mean)}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </details>
+                  )}
+                  {hasMaterials && (
+                    <details className={styles.diagnosticGroup}>
+                      <summary className={styles.diagnosticSummary}>Materials</summary>
+                      <div className={styles.diagnosticBody}>
+                        <div className={styles.materialList}>
+                          {materials.map((material) => (
+                            <div key={material.name} className={styles.materialItem}>
+                              <div
+                                className={styles.materialSwatch}
+                                style={{
+                                  background: `rgb(${Math.round(material.color[0] * 255)}, ${Math.round(material.color[1] * 255)}, ${Math.round(material.color[2] * 255)})`,
+                                }}
+                              />
+                              <div className={styles.materialDetails}>
+                                <div className={styles.materialName}>{material.name}</div>
+                                <div className={styles.materialMeta}>
+                                  Density {formatNumber(material.density)} · Stiffness {formatNumber(material.stiffness)}
+                                </div>
+                                <div className={styles.materialMeta}>
+                                  Thermal {formatNumber(material.thermalConductivity)} · Optical {formatPercent(material.opticalTransmission)}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </details>
+                  )}
+                  {hasSemantics && (
+                    <details className={styles.diagnosticGroup}>
+                      <summary className={styles.diagnosticSummary}>Semantic Metadata</summary>
+                      <div className={styles.diagnosticBody}>
+                        <div className={styles.semanticGrid}>
+                          {Object.entries(semanticsOutputs).slice(0, 8).map(([key, meta]) => (
+                            <div key={key} className={styles.semanticCard}>
+                              <div className={styles.semanticTitle}>{(meta as any)?.name ?? key}</div>
+                              <div className={styles.semanticMeta}>
+                                {(meta as any)?.unit?.symbol ?? "—"} · {(meta as any)?.dataType ?? "scalar"}
+                              </div>
+                              <div className={styles.semanticDescription}>
+                                {(meta as any)?.description ?? ""}
+                              </div>
+                            </div>
+                          ))}
+                          {Object.entries(semanticsFields).slice(0, 6).map(([key, meta]) => (
+                            <div key={key} className={styles.semanticCard}>
+                              <div className={styles.semanticTitle}>{(meta as any)?.field?.name ?? key}</div>
+                              <div className={styles.semanticMeta}>
+                                {(meta as any)?.field?.unit?.symbol ?? "—"} · {(meta as any)?.field?.dataType ?? "field"}
+                              </div>
+                              <div className={styles.semanticDescription}>
+                                {(meta as any)?.field?.description ?? ""}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </details>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

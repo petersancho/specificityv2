@@ -8456,7 +8456,18 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     get().recalculateWorkflow();
   },
   addChemistrySolverRig: (position) => {
-    get().ensureBaseGeometry();
+    const ensuredGeometryId = get().ensureBaseGeometry();
+    const ensuredGeometry = get().geometry.find((item) => item.id === ensuredGeometryId) ?? null;
+    const fallbackGeometryId =
+      ensuredGeometry?.type === "mesh"
+        ? ensuredGeometryId
+        : get().addGeometryBox({
+            size: { width: 2, height: 2, depth: 2 },
+            segments: 1,
+            metadata: { label: "Chemistry Base Geometry" },
+          });
+    const baseGeometryId = fallbackGeometryId;
+    const baseGeometryType = "mesh" as const;
     
     /**
      * Chemistry Solver Test Rig: Curtain Wall Mullion with Thermal Break
@@ -8715,6 +8726,16 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const goalsGroupId = `node-group-chemistry-goals-${ts}`;
     const outputGroupId = `node-group-chemistry-output-${ts}`;
 
+    const materialAssignments = JSON.stringify(
+      [
+        { geometryId: baseGeometryId, material: "Steel", weight: 1 },
+        { geometryId: baseGeometryId, material: "Ceramic", weight: 0.9 },
+        { geometryId: baseGeometryId, material: "Glass", weight: 0.7 },
+      ],
+      null,
+      2
+    );
+
     const controlsNodes = [
       {
         id: toggleSwitchId,
@@ -8825,6 +8846,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         position: domainPos,
         data: {
           label: "Mullion Domain",
+          geometryId: baseGeometryId,
+          geometryType: baseGeometryType,
+          isLinked: true,
           parameters: {},
         },
       },
@@ -8834,6 +8858,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         position: anchorZonesPos,
         data: {
           label: "Anchor Zones (Steel)",
+          geometryId: baseGeometryId,
+          geometryType: baseGeometryType,
+          isLinked: true,
           parameters: {},
         },
       },
@@ -8843,6 +8870,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         position: thermalCorePos,
         data: {
           label: "Thermal Core (Ceramic)",
+          geometryId: baseGeometryId,
+          geometryType: baseGeometryType,
+          isLinked: true,
           parameters: {},
         },
       },
@@ -8852,6 +8882,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         position: visionStripPos,
         data: {
           label: "Vision Strip (Glass)",
+          geometryId: baseGeometryId,
+          geometryType: baseGeometryType,
+          isLinked: true,
           parameters: {},
         },
       },
@@ -8864,6 +8897,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         position: materialGoalPos,
         data: {
           label: "Ὕλη",
+          parameters: {
+            assignments: materialAssignments,
+            showDetails: true,
+            autoMonitor: true,
+          },
         },
       },
       {

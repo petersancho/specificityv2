@@ -625,3 +625,296 @@
 .content::-webkit-scrollbar-thumb:hover {
   background: #00b8e6;
 }
+
+.parametersTab {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+}
+
+.summaryCard {
+  background: var(--surface-card);
+  border: 2px solid #000000;
+  border-radius: 6px;
+  padding: 0.75rem;
+  box-shadow: 0 4px 0 #000000;
+}
+
+.summaryLabel {
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #666;
+  margin-bottom: 0.35rem;
+}
+
+.summaryValue {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #111;
+}
+
+.outputGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+
+.outputCard {
+  background: var(--surface-card);
+  border: 2px solid #000000;
+  border-radius: 6px;
+  padding: 0.85rem;
+  box-shadow: 0 4px 0 #000000;
+}
+
+.outputLabel {
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #666;
+  margin-bottom: 0.35rem;
+}
+
+.outputValue {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #111;
+}
+
+.warningsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.warningItem {
+  background: #fff7ed;
+  border: 2px solid #000000;
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+  box-shadow: 0 3px 0 #000000;
+  font-size: 0.85rem;
+}
+
+.diagnosticsStack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.diagnosticGroup {
+  border: 2px solid #000000;
+  border-radius: 8px;
+  background: var(--surface-card);
+  box-shadow: 0 4px 0 #000000;
+  padding: 0;
+  overflow: hidden;
+}
+
+.diagnosticSummary {
+  cursor: pointer;
+  padding: 0.85rem 1rem;
+  font-weight: 600;
+  background: linear-gradient(90deg, var(--bk-cyan-soft), var(--bk-yellow-soft));
+  border-bottom: 2px solid #000000;
+}
+
+.diagnosticBody {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.metricGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+
+.metricCard {
+  border: 2px solid #000000;
+  border-radius: 6px;
+  padding: 0.75rem;
+  background: #ffffff;
+  box-shadow: 0 3px 0 #000000;
+}
+
+.metricLabel {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #666;
+  margin-bottom: 0.4rem;
+}
+
+.metricValue {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111;
+  margin-bottom: 0.35rem;
+}
+
+.metricMeta {
+  font-size: 0.8rem;
+  color: #555;
+}
+
+.metricStatus {
+  margin-top: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.metricStatusGood {
+  background: var(--bk-cyan);
+  color: #000;
+}
+
+.metricStatusWarn {
+  background: var(--bk-magenta);
+  color: #fff;
+}
+
+.subSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.subTitle {
+  font-weight: 600;
+  color: #222;
+}
+
+.flagGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.6rem;
+}
+
+.flagItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  border: 2px solid #000000;
+  border-radius: 6px;
+  background: #ffffff;
+  box-shadow: 0 3px 0 #000000;
+  font-size: 0.85rem;
+}
+
+.flagGood {
+  color: #0f766e;
+  font-weight: 700;
+}
+
+.flagBad {
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+.distributionGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.distributionCard {
+  border: 2px solid #000000;
+  border-radius: 6px;
+  padding: 0.75rem;
+  background: #ffffff;
+  box-shadow: 0 3px 0 #000000;
+}
+
+.distributionTitle {
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+
+.distributionMeta {
+  font-size: 0.8rem;
+  color: #555;
+}
+
+.materialList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.materialItem {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border: 2px solid #000000;
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+  background: #ffffff;
+  box-shadow: 0 3px 0 #000000;
+}
+
+.materialSwatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 2px solid #000000;
+}
+
+.materialDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.materialMeta {
+  font-size: 0.78rem;
+  color: #555;
+}
+
+.semanticGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.semanticCard {
+  border: 2px solid #000000;
+  border-radius: 8px;
+  padding: 0.75rem;
+  background: #ffffff;
+  box-shadow: 0 3px 0 #000000;
+}
+
+.semanticTitle {
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+
+.semanticMeta {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #666;
+  margin-bottom: 0.4rem;
+}
+
+.semanticDescription {
+  font-size: 0.8rem;
+  color: #555;
+}

@@ -18,6 +18,10 @@ import { validateChemistryGoals } from "./validation";
 import { toBoolean, toNumber, isFiniteNumber, isVec3, clamp } from "./utils";
 import { resolveMeshFromGeometry } from "../../../geometry/meshTessellation";
 import { resolveChemistryMaterialSpec, type ChemistryMaterialSpec } from "../../../data/chemistryMaterials";
+import {
+  resolveChemistryMaterialAssignments,
+  type ChemistryMaterialAssignment,
+} from "./chemistry/materialAssignments";
 import { computeBoundsFromPositions } from "../../../geometry/bounds";
 import { createSolverMetadata, attachSolverMetadata } from "../../../numerica/solverGeometry";
 import { createSeededRandom, hashStringToSeed } from "../../../utils/random";
@@ -61,11 +65,7 @@ import {
 const UNIT_Y_VEC3: Vec3 = { x: 0, y: 1, z: 0 };
 
 // Chemistry-specific types
-export type ChemistryMaterialAssignment = {
-  geometryId?: string;
-  material: ChemistryMaterialSpec;
-  weight?: number;
-};
+export type { ChemistryMaterialAssignment } from "./chemistry/materialAssignments";
 
 export type ChemistrySeed = {
   position: Vec3;
@@ -729,6 +729,13 @@ export const ChemistrySolverNode: WorkflowNodeDefinition = {
       description: "Material specifications.",
     },
     {
+      key: "materialsText",
+      label: "Materials Text",
+      type: "string",
+      required: false,
+      description: "Text-based material assignments (Material: geometryId list).",
+    },
+    {
       key: "seeds",
       label: "Seeds",
       type: "any",
@@ -950,84 +957,21 @@ export const ChemistrySolverNode: WorkflowNodeDefinition = {
     
     const normalizedGoals = validation.normalizedGoals ?? goals;
     
-    // Process materials
-    const materialNames: string[] = [];
-    const materialSpecs: ChemistryMaterialSpec[] = [];
-    const assignments: ChemistryMaterialAssignment[] = [];
-    
-    // Extract materials from inputs
-    const rawMaterials = Array.isArray(inputs.materials) 
-      ? inputs.materials 
-      : inputs.materials 
-        ? [inputs.materials] 
-        : [];
-    
-    // Parse material assignments
-    for (const item of rawMaterials) {
-      if (!item || typeof item !== "object") continue;
-      
-      // Check if it's a ChemistryMaterialAssignment
-      if ("material" in item && typeof item.material === "object") {
-        const assignment = item as ChemistryMaterialAssignment;
-        const material = assignment.material;
-        
-        // Resolve material spec (use provided or lookup by name)
-        const materialSpec = material.name 
-          ? resolveChemistryMaterialSpec(material.name)
-          : material as ChemistryMaterialSpec;
-        
-        // Add to materials list if not already present
-        if (!materialNames.includes(materialSpec.name)) {
-          materialNames.push(materialSpec.name);
-          materialSpecs.push(materialSpec);
-        }
-        
-        // Add assignment
-        assignments.push({
-          geometryId: assignment.geometryId,
-          material: materialSpec,
-          weight: assignment.weight ?? 1,
-        });
-      }
-      // Check if it's a material name string
-      else if (typeof item === "string") {
-        const materialSpec = resolveChemistryMaterialSpec(item);
-        if (!materialNames.includes(materialSpec.name)) {
-          materialNames.push(materialSpec.name);
-          materialSpecs.push(materialSpec);
-        }
-        assignments.push({
-          geometryId: domainId,
-          material: materialSpec,
-          weight: 1,
-        });
-      }
-      // Check if it's a material spec object
-      else if ("name" in item && typeof item.name === "string") {
-        const materialSpec = item as ChemistryMaterialSpec;
-        if (!materialNames.includes(materialSpec.name)) {
-          materialNames.push(materialSpec.name);
-          materialSpecs.push(materialSpec);
-        }
-        assignments.push({
-          geometryId: domainId,
-          material: materialSpec,
-          weight: 1,
-        });
-      }
-    }
-    
-    // Fallback: If no materials provided, use Steel
-    if (materialNames.length === 0) {
-      const steel = resolveChemistryMaterialSpec("Steel");
-      materialNames.push(steel.name);
-      materialSpecs.push(steel);
-      assignments.push({
-        geometryId: domainId,
-        material: steel,
-        weight: 1,
-      });
-    }
+    const materialsText =
+      typeof inputs.materialsText === "string"
+        ? inputs.materialsText
+        : typeof parameters.materialsText === "string"
+          ? parameters.materialsText
+          : undefined;
+    const { assignments, materials: materialSpecs, materialNames, warnings: materialWarnings } =
+      resolveChemistryMaterialAssignments(
+        inputs.materials ?? [],
+        materialsText,
+        parameters,
+        context,
+        domainId
+      );
+    warnings.push(...materialWarnings);
     
     // Process seeds
     const seeds: ChemistrySeed[] = [];

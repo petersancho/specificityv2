@@ -13,6 +13,7 @@
  */
 
 import type { Vec3, RenderMesh } from "../../../../types";
+import { marchingCubes } from "./marchingCubes";
 import {
   type ParticlePool,
   createParticlePool,
@@ -246,8 +247,6 @@ export const generateMeshFromField = (
   isovalue: number,
   materialColors: Array<[number, number, number]>
 ): RenderMesh => {
-  // Import the proper marching cubes implementation
-  const { marchingCubes } = require('./marchingCubes');
   return marchingCubes(field, isovalue, materialColors);
 };
 
