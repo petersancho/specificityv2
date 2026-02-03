@@ -280,6 +280,17 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     }
   }, [baseMesh, goals, hasGeometry]);
 
+  const buildFallbackMarkers = (mesh: RenderMesh): GoalMarkers => {
+    const bounds = calculateMeshBounds(mesh);
+    return {
+      anchors: [{ position: { x: bounds.min.x, y: bounds.min.y, z: bounds.min.z } }],
+      loads: [{
+        position: { x: bounds.max.x, y: bounds.max.y, z: bounds.max.z },
+        force: { x: 0, y: -100, z: 0 },
+      }],
+    };
+  };
+
   // Generate and register 3D geometry from converged density field
   const generateAndRegisterGeometry = (frame: SolverFrame, mesh: RenderMesh) => {
     try {
@@ -292,7 +303,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
         ? frame.densities 
         : new Float64Array(frame.densities);
       
-      const geometryOutput = generateGeometryFromDensities(
+      let geometryOutput = generateGeometryFromDensities(
         {
           densities,
           nx,
@@ -306,6 +317,23 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
         pipeRadius,
         pipeSegments
       );
+      if (geometryOutput.multipipe.positions.length === 0 || geometryOutput.pointCount === 0) {
+        const fallbackThreshold = Math.max(0.05, densityThreshold * 0.5);
+        geometryOutput = generateGeometryFromDensities(
+          {
+            densities,
+            nx,
+            ny,
+            nz,
+            bounds,
+          },
+          fallbackThreshold,
+          maxLinksPerPoint,
+          maxSpanLength,
+          pipeRadius,
+          pipeSegments
+        );
+      }
       
       // Register geometries in the store
       if (DEBUG) {
@@ -549,6 +577,11 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       cgMaxIters
     };
 
+    const effectiveMarkers =
+      markers.anchors.length === 0 && markers.loads.length === 0
+        ? buildFallbackMarkers(baseMesh)
+        : markers;
+
     if (DEBUG) console.log('[TOPOLOGY] SIMP parameters:', simpParams);
 
     if (workerRef.current) {
@@ -589,7 +622,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     worker.postMessage({
       type: "start",
       mesh: baseMesh,
-      markers,
+      markers: effectiveMarkers,
       params: simpParams,
     });
   };
