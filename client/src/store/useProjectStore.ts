@@ -80,7 +80,6 @@ import type {
   DisplayMode,
   Geometry,
   GridSettings,
-  InertiaTensor,
   Layer,
   Material,
   MaterialAssignment,
@@ -5718,7 +5717,7 @@ const applyGeometryArrayNodesToGeometry = (
       };
     }
     if ("mesh" in source && source.mesh) {
-      const geometryId = createGeometryId(source.type);
+      const geometryId = createGeometryId(source.type === "mesh" ? "mesh" : source.type);
       const mesh = transformMesh(source.mesh, matrix);
       const base: SurfaceGeometry | LoftGeometry | ExtrudeGeometry | MeshGeometry = {
         ...source,
