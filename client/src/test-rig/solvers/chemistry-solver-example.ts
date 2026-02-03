@@ -1,4 +1,4 @@
-import type { RenderMesh, WorkflowValue } from "../../types";
+import type { RenderMesh } from "../../types";
 import { createTestContext, wrapMeshGeometry } from "./rig-utils";
 import {
   buildChemistryConfig,
@@ -33,6 +33,15 @@ export const runChemistrySolverExample = (variant: ChemistryFixtureVariant = "re
       ? buildChemistryGoalsBasic()
       : buildChemistryGoalsRegions({ anchorTop, anchorBottom, thermalCore, visionStrip });
 
+  const goalsValue: Record<string, unknown>[] = goals.map((goal) => ({
+    goalType: goal.goalType,
+    weight: goal.weight,
+    target: goal.target,
+    constraint: goal.constraint,
+    geometry: goal.geometry,
+    parameters: goal.parameters,
+  }));
+
   const seeds = variant === "basic" ? buildChemistrySeedsBasic() : buildChemistrySeedsRegions();
 
   const materials = variant === "textInputs" ? [] : buildChemistryMaterials(baseGeometry.id);
@@ -57,7 +66,7 @@ export const runChemistrySolverExample = (variant: ChemistryFixtureVariant = "re
       materials,
       materialsText: variant === "textInputs" ? TEXT_INPUT_MATERIALS : undefined,
       seeds,
-      goals: goals as unknown as WorkflowValue[],
+      goals: goalsValue,
     },
     parameters,
     context,
