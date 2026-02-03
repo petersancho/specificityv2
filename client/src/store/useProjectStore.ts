@@ -2580,7 +2580,9 @@ const resetTransformCachesForGeometry = (
     if (!geometryId || !touchedGeometryIds.has(geometryId)) {
       return node;
     }
-    const data: WorkflowNodeData = { ...node.data };
+    const data: WorkflowNodeData = {
+      ...(node.data ?? { label: node.type ?? "Node" }),
+    };
     if (node.type === "move") {
       data.moveGeometryId = undefined;
       data.moveOffset = undefined;
