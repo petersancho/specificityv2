@@ -79,7 +79,6 @@ import type {
   ComponentSelection,
   DisplayMode,
   Geometry,
-  GeometryType,
   GridSettings,
   Layer,
   Material,
@@ -7562,7 +7561,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         data: {
           label: "Ἐπιλύτης Φυσικῆς",
           geometryId: solverGeometryId,
-          geometryType: "mesh" as GeometryType,
+          geometryType: "mesh",
           isLinked: true,
           parameters: {
             analysisType: "static",
@@ -8048,7 +8047,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         data: {
           label: "Extract Isosurface",
           geometryId: isoGeometryId,
-          geometryType: "mesh" as GeometryType,
+          geometryType: "mesh",
           isLinked: true,
           parameters: {
             isoValue: 0.35,
@@ -8935,7 +8934,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       },
     ];
 
-    const outputNodes = [
+    const outputNodes: WorkflowNode[] = [
       {
         id: solverId,
         type: "chemistrySolver" as const,
@@ -8943,7 +8942,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         data: {
           label: "Ἐπιλύτης Χημείας",
           geometryId: solverGeometryId,
-          geometryType: "mesh" as GeometryType,
+          geometryType: "mesh",
           isLinked: true,
           parameters: {
             historyLimit: 100,
@@ -9007,7 +9006,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         groupId: outputGroupId,
         title: "Solve + Preview",
         color: "#f3e5f5",
-        nodes: outputNodes as WorkflowNode[],
+        nodes: outputNodes,
       },
     ];
 
@@ -11387,7 +11386,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const emptyMesh: RenderMesh = { positions: [], normals: [], uvs: [], indices: [] };
       const meshId = createGeometryId("mesh");
       data.geometryId = meshId;
-      data.geometryType = "mesh" as GeometryType;
+      data.geometryType = "mesh";
       data.isLinked = true;
       const meshItem: Geometry = {
         id: meshId,
@@ -11409,7 +11408,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const emptyMesh: RenderMesh = { positions: [], normals: [], uvs: [], indices: [] };
       const meshId = createGeometryId("mesh");
       data.geometryId = meshId;
-      data.geometryType = "mesh" as GeometryType;
+      data.geometryType = "mesh";
       data.isLinked = true;
       const meshItem: Geometry = {
         id: meshId,
@@ -11431,7 +11430,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const emptyMesh: RenderMesh = { positions: [], normals: [], uvs: [], indices: [] };
       const meshId = createGeometryId("mesh");
       data.geometryId = meshId;
-      data.geometryType = "mesh" as GeometryType;
+      data.geometryType = "mesh";
       data.isLinked = true;
       const meshItem: Geometry = {
         id: meshId,
@@ -11453,7 +11452,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const emptyMesh: RenderMesh = { positions: [], normals: [], uvs: [], indices: [] };
       const brepId = createGeometryId("brep");
       data.geometryId = brepId;
-      data.geometryType = "brep" as GeometryType;
+      data.geometryType = "brep";
       data.isLinked = true;
       const brepItem: Geometry = {
         id: brepId,
@@ -11612,7 +11611,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         metadata: { label: labels[type] },
       });
       data.geometryId = geometryId;
-      data.geometryType = "mesh" as GeometryType;
+      data.geometryType = "mesh";
       data.isLinked = true;
     }
 
