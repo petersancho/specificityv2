@@ -45,13 +45,19 @@ export function generateGeometryFromDensities(
   maxLinksPerPoint: number = 6,
   maxSpanLength: number = 1.5,
   baseRadius: number = 0.045,
-  pipeSegments: number = 12
+  pipeSegments: number = 12,
+  pointBudget: number = 6000
 ): GeometryOutput {
   const multipipeSegments = Math.max(6, Math.round(pipeSegments));
   const curveSegments = Math.max(6, Math.round(multipipeSegments * 0.5));
 
   // Step 1: Extract points with density information
-  const points = extractDensePoints(field, densityThreshold);
+  let points = extractDensePoints(field, densityThreshold);
+  if (points.length > pointBudget) {
+    points = points
+      .sort((a, b) => b.density - a.density)
+      .slice(0, pointBudget);
+  }
   
   // Step 2: Generate curve network with density info
   const curves = generateDenseCurveNetwork(points, maxLinksPerPoint, maxSpanLength);
@@ -110,48 +116,74 @@ function generateDenseCurveNetwork(
   maxSpanLength: number
 ): Curve[] {
   if (points.length === 0) return [];
-  
+
   const maxSpanSquared = maxSpanLength * maxSpanLength;
   const curves: Curve[] = [];
   const linkCount = new Map<number, number>();
-  
-  // Initialize link counts
+
   for (const point of points) {
     linkCount.set(point.index, 0);
   }
-  
-  // Build adjacency with distances
+
+  const cellSize = Math.max(1e-6, maxSpanLength);
+  const cellMap = new Map<string, number[]>();
+
+  const cellKey = (x: number, y: number, z: number) => `${x},${y},${z}`;
+
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
+    const cx = Math.floor(p.x / cellSize);
+    const cy = Math.floor(p.y / cellSize);
+    const cz = Math.floor(p.z / cellSize);
+    const key = cellKey(cx, cy, cz);
+    const bucket = cellMap.get(key);
+    if (bucket) {
+      bucket.push(i);
+    } else {
+      cellMap.set(key, [i]);
+    }
+  }
+
   const neighbors: { i: number; j: number; distSq: number; avgDensity: number }[] = [];
-  
+
   for (let i = 0; i < points.length; i++) {
     const p1 = points[i];
-    for (let j = i + 1; j < points.length; j++) {
-      const p2 = points[j];
-      const dx = p2.x - p1.x;
-      const dy = p2.y - p1.y;
-      const dz = p2.z - p1.z;
-      const distSq = dx * dx + dy * dy + dz * dz;
-      
-      if (distSq < maxSpanSquared) {
-        const avgDensity = (p1.density + p2.density) / 2;
-        neighbors.push({ i, j, distSq, avgDensity });
+    const cx = Math.floor(p1.x / cellSize);
+    const cy = Math.floor(p1.y / cellSize);
+    const cz = Math.floor(p1.z / cellSize);
+
+    for (let dz = -1; dz <= 1; dz++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const key = cellKey(cx + dx, cy + dy, cz + dz);
+          const bucket = cellMap.get(key);
+          if (!bucket) continue;
+          for (const j of bucket) {
+            if (j <= i) continue;
+            const p2 = points[j];
+            const dx = p2.x - p1.x;
+            const dy = p2.y - p1.y;
+            const dz = p2.z - p1.z;
+            const distSq = dx * dx + dy * dy + dz * dz;
+            if (distSq < maxSpanSquared) {
+              const avgDensity = (p1.density + p2.density) / 2;
+              neighbors.push({ i, j, distSq, avgDensity });
+            }
+          }
+        }
       }
     }
   }
-  
-  // Sort by average density (descending) then distance (ascending)
-  // This prioritizes high-density connections
+
   neighbors.sort((a, b) => {
     const densityDiff = b.avgDensity - a.avgDensity;
     if (Math.abs(densityDiff) > 0.01) return densityDiff;
     return a.distSq - b.distSq;
   });
-  
-  // Greedily add edges respecting max links per point
+
   for (const { i, j, avgDensity } of neighbors) {
     const count1 = linkCount.get(i) || 0;
     const count2 = linkCount.get(j) || 0;
-    
     if (count1 < maxLinksPerPoint && count2 < maxLinksPerPoint) {
       curves.push({
         start: points[i],
@@ -162,7 +194,7 @@ function generateDenseCurveNetwork(
       linkCount.set(j, count2 + 1);
     }
   }
-  
+
   return curves;
 }
 

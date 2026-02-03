@@ -76,6 +76,9 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   });
   const [markers, setMarkers] = useState<GoalMarkers | null>(null);
   const [previewGeometry, setPreviewGeometry] = useState<RenderMesh | null>(null);
+  const lastUiUpdateRef = useRef(0);
+  const lastPreviewUpdateRef = useRef(0);
+  const previewBusyRef = useRef(false);
   
   const solverGeneratorRef = useRef<AsyncGenerator<SolverFrame> | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -443,15 +446,31 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       }
 
       const frame = result.value;
-      setCurrentFrame(frame);
-      setHistory(prev => ({
-        compliance: [...prev.compliance, frame.compliance],
-        change: [...prev.change, frame.change],
-        vol: [...prev.vol, frame.vol]
-      }));
+      const now = performance.now();
+      const shouldUpdateUi =
+        now - lastUiUpdateRef.current > 50 ||
+        frame.iter === 1 ||
+        frame.converged;
+      if (shouldUpdateUi) {
+        lastUiUpdateRef.current = now;
+        setCurrentFrame(frame);
+        setHistory((prev) => {
+          const nextCompliance = [...prev.compliance, frame.compliance];
+          const nextChange = [...prev.change, frame.change];
+          const nextVol = [...prev.vol, frame.vol];
+          const limit = 400;
+          return {
+            compliance: nextCompliance.slice(-limit),
+            change: nextChange.slice(-limit),
+            vol: nextVol.slice(-limit),
+          };
+        });
+      }
 
-      // Generate preview geometry every 10 iterations
-      if (baseMesh && frame.iter % 10 === 0) {
+      // Generate preview geometry on a time budget to avoid UI stalls
+      if (baseMesh && !previewBusyRef.current && now - lastPreviewUpdateRef.current > 350) {
+        previewBusyRef.current = true;
+        lastPreviewUpdateRef.current = now;
         try {
           const bounds = calculateMeshBounds(baseMesh);
           const field = {
@@ -465,11 +484,14 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
             maxLinksPerPoint,
             maxSpanLength,
             pipeRadius,
-            pipeSegments
+            pipeSegments,
+            4500
           );
           setPreviewGeometry(result.multipipe);
         } catch (error) {
           console.error('[TOPOLOGY] Preview generation error:', error);
+        } finally {
+          previewBusyRef.current = false;
         }
       }
 
