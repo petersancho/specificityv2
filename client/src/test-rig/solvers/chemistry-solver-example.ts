@@ -1,4 +1,4 @@
-import type { RenderMesh } from "../../types";
+import type { RenderMesh, WorkflowValue } from "../../types";
 import { createTestContext, wrapMeshGeometry } from "./rig-utils";
 import {
   buildChemistryConfig,
@@ -57,7 +57,7 @@ export const runChemistrySolverExample = (variant: ChemistryFixtureVariant = "re
       materials,
       materialsText: variant === "textInputs" ? TEXT_INPUT_MATERIALS : undefined,
       seeds,
-      goals: goals as unknown as Record<string, unknown>[],
+      goals: goals as unknown as WorkflowValue,
     },
     parameters,
     context,
