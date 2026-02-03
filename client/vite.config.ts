@@ -43,6 +43,7 @@ export default defineConfig(({ mode }) => {
     },
     test: {
       environment: "node",
+      exclude: ["**/._*", "**/.DS_Store"],
     },
   };
 });

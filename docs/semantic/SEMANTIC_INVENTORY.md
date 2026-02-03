@@ -1,13 +1,13 @@
 # Semantic Inventory
 
-Generated: 2026-02-03T14:40:39.065Z
+Generated: 2026-02-03T22:26:38.273Z
 
 ## Summary
 
-- **Total Operations**: 297
-- **Total Nodes**: 172
+- **Total Operations**: 298
+- **Total Nodes**: 171
 - **Total Dashboards**: 3
-- **Orphan Operations**: 47
+- **Orphan Operations**: 48
 - **Dangling References**: 0
 
 ## Operations by Domain
@@ -110,7 +110,7 @@ Generated: 2026-02-03T14:40:39.065Z
 | `data.linspace` | Linspace | creation | ✅ | linspace |
 | `data.repeat` | Repeat | creation | ✅ | repeat |
 
-### geometry (100 operations)
+### geometry (101 operations)
 
 | ID | Name | Category | Stable | Used By |
 |----|------|----------|--------|----------|
@@ -161,6 +161,7 @@ Generated: 2026-02-03T14:40:39.065Z
 | `geometry.array.geometry` | Geometry Array | utility | ✅ | geometryArray |
 | `geometry.analyze.info` | Geometry Info | analysis | ✅ | geometryInfo |
 | `geometry.analyze.dimensions` | Dimensions | analysis | ✅ | dimensions |
+| `geometry.analyze.volume` | Volume | analysis | ✅ | volume |
 | `geometry.analyze.vertices` | Geometry Vertices | analysis | ✅ | geometryVertices |
 | `geometry.analyze.edges` | Geometry Edges | analysis | ✅ | geometryEdges |
 | `geometry.analyze.faces` | Geometry Faces | analysis | ✅ | geometryFaces |
@@ -285,7 +286,7 @@ Generated: 2026-02-03T14:40:39.065Z
 | `solver.chemistry` | Chemistry Solver | utility | ✅ | chemistrySolver |
 | `solver.evolutionary` | Evolutionary Solver | utility | ✅ | evolutionarySolver |
 | `solver.voxel` | Voxel Solver | conversion | ✅ | voxelSolver |
-| `solver.topologyOptimization` | Topology Optimization Solver | utility | ⚠️ | topologySolver, topologyOptimizationSolver |
+| `solver.topologyOptimization` | Topology Optimization Solver | utility | ⚠️ | topologyOptimizationSolver |
 | `simulator.initialize` | Initialize Simulator | utility | ✅ | evolutionarySolver |
 | `simulator.step` | Step Simulator | utility | ✅ | evolutionarySolver |
 | `simulator.converge` | Check Convergence | analysis | ✅ | evolutionarySolver |
@@ -309,7 +310,7 @@ Generated: 2026-02-03T14:40:39.065Z
 | `simulator.physics.computeStress` | Compute Stress Field | utility | ✅ | physicsSolver |
 | `solver.voxel.voxelize` | Voxelize Geometry | conversion | ✅ | voxelizeGeometry |
 | `solver.voxel.extractIsosurface` | Extract Isosurface | conversion | ✅ | extractIsosurface |
-| `solver.topologyOptimization.optimize` | Optimize Topology | analysis | ✅ | topologyOptimize |
+| `solver.topologyOptimization.optimize` | Optimize Topology | analysis | ✅ | (none) |
 
 ### string (7 operations)
 
@@ -421,6 +422,7 @@ Generated: 2026-02-03T14:40:39.065Z
 | `listStdDev` | List Std Dev | analysis | `math.stdDev` |
 | `geometryInfo` | Geometry Info | analysis | `geometry.analyze.info` |
 | `measurement` | Measurement | measurement | `mesh.computeArea` |
+| `volume` | Volume | measurement | `geometry.analyze.volume` |
 | `dimensions` | Dimensions | measurement | `geometry.analyze.dimensions` |
 | `geometryVertices` | Geometry Vertices | analysis | `geometry.analyze.vertices` |
 | `geometryEdges` | Geometry Edges | analysis | `geometry.analyze.edges` |
@@ -492,8 +494,6 @@ Generated: 2026-02-03T14:40:39.065Z
 | `one-sheet-hyperboloid` | One-Sheet Hyperboloid | primitives | `geometry.primitive.oneSheetHyperboloid` |
 | `voxelizeGeometry` | Voxelize Geometry | voxel | `solver.voxel.voxelize` |
 | `extractIsosurface` | Extract Isosurface | voxel | `solver.voxel.extractIsosurface` |
-| `topologyOptimize` | Topology Optimize | voxel | `solver.topologyOptimization.optimize` |
-| `topologySolver` | Topology Solver | voxel | `solver.topologyOptimization` |
 | `number` | Number | math | `workflow.literal` |
 | `add` | Add | math | `math.add` |
 | `subtract` | Subtract | math | `math.subtract` |
@@ -579,6 +579,7 @@ Generated: 2026-02-03T14:40:39.065Z
 
 These operations are defined but never used by any node:
 
+- `solver.topologyOptimization.optimize`
 - `command.createNurbsBox`
 - `command.createNurbsSphere`
 - `command.createNurbsCylinder`
