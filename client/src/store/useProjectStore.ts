@@ -2035,10 +2035,11 @@ const applySeedGeometryNodesToGeometry = (
 
       const inputGeometry = geometryById.get(geometryId);
       if (!inputGeometry || inputGeometry.type !== "mesh") {
+        const { geometryType: _geometryType, ...nextData } = node.data;
         return {
           ...node,
           data: {
-            ...node.data,
+            ...nextData,
             geometryId,
             geometryType: undefined,
             isLinked: false,
@@ -8976,7 +8977,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         position: viewerPos,
         data: { label: "Graded Material Preview" },
       },
-    ];
+    ] satisfies WorkflowNode[];
 
     const buildRigGroupNode = (
       groupId: string,
