@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { UI_BASE_COLORS, UI_DOMAIN_COLORS } from "../semantic/uiColorTokens";
 
 type WebGLCubeLogoProps = {
   size?: number;
@@ -27,14 +28,14 @@ const hexToRgb = (hex: string): [number, number, number] => {
 export function WebGLCubeLogo({
   size = 32,
   colors = {
-    top: "#ffdd00",
-    left: "#ff0099",
-    right: "#00d4ff",
+    top: UI_DOMAIN_COLORS.numeric,
+    left: UI_DOMAIN_COLORS.logic,
+    right: UI_DOMAIN_COLORS.data,
   },
   className,
   showText = false,
   text = "",
-  textColor = "#1f1f22",
+  textColor = UI_BASE_COLORS.ink,
 }: WebGLCubeLogoProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -136,7 +137,7 @@ function renderWebGLCube(
   const topColor = hexToRgb(colors.top);
   const leftColor = hexToRgb(colors.left);
   const rightColor = hexToRgb(colors.right);
-  const edgeColor: [number, number, number] = [0, 0, 0];
+  const edgeColor: [number, number, number] = hexToRgb(UI_BASE_COLORS.black);
 
   const s = 0.5;
   const h = s * 0.866;

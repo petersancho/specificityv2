@@ -16,7 +16,7 @@
   max-width: 1200px;
   height: 80%;
   max-height: 800px;
-  background: #1a1a1a;
+  background: var(--ui-black);
   border: 1px solid rgba(136, 0, 255, 0.3);
   border-radius: 8px;
   display: flex;
@@ -37,7 +37,7 @@
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: #8800ff;
+  color: var(--semantic-logic);
 }
 
 .closeButton {
@@ -46,7 +46,7 @@
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 4px;
-  color: #fff;
+  color: var(--ui-white);
   font-size: 24px;
   line-height: 1;
   cursor: pointer;
@@ -83,13 +83,13 @@
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 4px;
-  color: #fff;
+  color: var(--ui-white);
   font-size: 13px;
 }
 
 .searchInput:focus {
   outline: none;
-  border-color: #8800ff;
+  border-color: var(--semantic-logic);
 }
 
 .filtersSection {
@@ -121,13 +121,13 @@
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 4px;
-  color: #fff;
+  color: var(--ui-white);
   font-size: 12px;
 }
 
 .filterSelect:focus {
   outline: none;
-  border-color: #8800ff;
+  border-color: var(--semantic-logic);
 }
 
 .stats {
@@ -152,7 +152,7 @@
 .statValue {
   font-size: 13px;
   font-weight: 600;
-  color: #8800ff;
+  color: var(--semantic-logic);
 }
 
 .opsList {
@@ -191,7 +191,7 @@
 .opItemId {
   font-size: 12px;
   font-weight: 500;
-  color: #fff;
+  color: var(--ui-white);
   font-family: 'Courier New', monospace;
 }
 
@@ -205,17 +205,17 @@
 
 .opItemCost[data-cost="low"] {
   background: rgba(0, 255, 0, 0.2);
-  color: #00ff00;
+  color: var(--feedback-success);
 }
 
 .opItemCost[data-cost="medium"] {
   background: rgba(255, 153, 0, 0.2);
-  color: #ff9900;
+  color: var(--feedback-warning);
 }
 
 .opItemCost[data-cost="high"] {
   background: rgba(255, 0, 0, 0.2);
-  color: #ff3333;
+  color: var(--feedback-error);
 }
 
 .opItemSummary {
@@ -249,7 +249,7 @@
   margin: 0 0 12px 0;
   font-size: 20px;
   font-weight: 600;
-  color: #fff;
+  color: var(--ui-white);
   font-family: 'Courier New', monospace;
 }
 
@@ -270,31 +270,31 @@
 
 .detailsTag[data-type="category"] {
   background: rgba(0, 153, 204, 0.2);
-  color: #00ccff;
+  color: var(--semantic-data);
   border: 1px solid rgba(0, 153, 204, 0.3);
 }
 
 .detailsTag[data-type="cost"][data-cost="low"] {
   background: rgba(0, 255, 0, 0.2);
-  color: #00ff00;
+  color: var(--feedback-success);
   border: 1px solid rgba(0, 255, 0, 0.3);
 }
 
 .detailsTag[data-type="cost"][data-cost="medium"] {
   background: rgba(255, 153, 0, 0.2);
-  color: #ff9900;
+  color: var(--feedback-warning);
   border: 1px solid rgba(255, 153, 0, 0.3);
 }
 
 .detailsTag[data-type="cost"][data-cost="high"] {
   background: rgba(255, 0, 0, 0.2);
-  color: #ff3333;
+  color: var(--feedback-error);
   border: 1px solid rgba(255, 0, 0, 0.3);
 }
 
 .detailsTag[data-type="complexity"] {
   background: rgba(153, 51, 255, 0.2);
-  color: #9933ff;
+  color: var(--semantic-logic);
   border: 1px solid rgba(153, 51, 255, 0.3);
 }
 
@@ -377,7 +377,7 @@
 .detailsNodeLabel {
   font-size: 12px;
   font-weight: 500;
-  color: #fff;
+  color: var(--ui-white);
 }
 
 .detailsNodeCategory {

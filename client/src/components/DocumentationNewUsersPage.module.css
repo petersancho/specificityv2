@@ -315,13 +315,13 @@
   position: relative;
   overflow: visible;
   isolation: isolate;
-  --philosophy-magenta: var(--bk-magenta);
-  --philosophy-magenta-soft: color-mix(in srgb, var(--bk-magenta) 65%, var(--surface-card));
-  --philosophy-cyan: var(--bk-cyan);
-  --philosophy-cyan-soft: color-mix(in srgb, var(--bk-cyan) 65%, var(--surface-card));
-  --philosophy-yellow: var(--bk-yellow);
-  --philosophy-yellow-deep: var(--bk-yellow-deep);
-  --philosophy-ink: color-mix(in srgb, var(--bk-magenta) 35%, #1a1a1a);
+  --philosophy-magenta: var(--semantic-logic);
+  --philosophy-magenta-soft: color-mix(in srgb, var(--semantic-logic) 65%, var(--surface-card));
+  --philosophy-cyan: var(--semantic-data);
+  --philosophy-cyan-soft: color-mix(in srgb, var(--semantic-data) 65%, var(--surface-card));
+  --philosophy-yellow: var(--semantic-numeric);
+  --philosophy-yellow-deep: var(--semantic-numeric-deep);
+  --philosophy-ink: color-mix(in srgb, var(--semantic-logic) 35%, var(--ui-ink));
 }
 
 .philosophyBackdrop {
@@ -449,8 +449,8 @@
   line-height: 1.4;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  background: linear-gradient(160deg, #fff2ad, #ffe17b);
-  color: #6a5200;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--semantic-numeric) 30%, var(--ui-white)), color-mix(in srgb, var(--semantic-numeric) 45%, var(--ui-white)));
+  color: var(--ui-ink);
   border-radius: 10px;
   border: 1px solid rgba(130, 90, 0, 0.25);
   box-shadow: 0 16px 24px rgba(90, 60, 0, 0.12);
@@ -549,7 +549,7 @@
 .philosophyHero {
   position: relative;
   z-index: 2;
-  background: color-mix(in srgb, var(--surface-card) 80%, #ffe7f4 20%);
+  background: color-mix(in srgb, var(--surface-card) 80%, var(--semantic-logic-soft) 20%);
   border: 1px solid rgba(255, 79, 177, 0.2);
 }
 

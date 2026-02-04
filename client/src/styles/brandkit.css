@@ -1,161 +1,107 @@
 /**
- * Brandkit CSS Variables
- * 
- * Single source of truth for Lingua's CMYK brandkit colors.
- * 
- * Philosophy: Pixels, Stickers, and Color
- * - CMYK vibrance: cyan, magenta, yellow, key (black)
- * - Porcelain base: warm off-white background
- * - High saturation: bold, unapologetic color choices
- * 
- * Last Updated: January 31, 2026
+ * Semantic UI Variables
+ *
+ * Black & White baseline with semantic color accents only.
+ * All tokens here are semantically linked (domain or feedback).
+ *
+ * Last Updated: February 4, 2026
  */
 
 :root {
-  /* ========================================
-     CMYK Brandkit Colors (Primary Palette)
-     ======================================== */
-  
-  --bk-cyan: #00d4ff;
-  --bk-magenta: #ff0099;
-  --bk-yellow: #ffdd00;
-  --bk-purple: var(--bk-magenta);
-  --bk-orange: var(--bk-yellow);
-  --bk-lime: var(--bk-cyan);
-  
-  /* ========================================
-     Porcelain Base Colors
-     ======================================== */
-  
-  --bk-porcelain: #f8f6f2;
-  --bk-white: #ffffff;
-  --bk-cream: #faf8f5;
-  --bk-black: #000000;
-  
-  /* ========================================
-     Semantic Color Aliases
-     ======================================== */
-  
-  /* Primary accents for UI elements */
-  --color-accent-primary: var(--bk-magenta);
-  --color-accent-secondary: var(--bk-cyan);
-  --color-accent-tertiary: var(--bk-yellow);
-  
-  /* Solver-specific colors */
-  --color-solver-evolutionary: var(--bk-magenta);
-  --color-solver-chemistry: var(--bk-cyan);
-  --color-solver-physics: var(--bk-magenta);
-  --color-solver-voxel: var(--bk-lime);
-  --color-solver-topology: var(--bk-purple);
-  
-  /* ========================================
-     Semantic Surfaces
-     ======================================== */
-  
-  --surface-page: var(--bk-porcelain);
-  --surface-panel: var(--bk-cream);
-  --surface-card: var(--bk-white);
-  
-  /* ========================================
-     Text Colors
-     ======================================== */
-  
-  --text-primary: var(--bk-black);
-  --text-secondary: #718096;
-  --text-tertiary: #a0aec0;
-  --text-inverse: var(--bk-white);
-  
-  /* ========================================
-     Border Colors
-     ======================================== */
-  
-  --border-crisp: 2px solid var(--bk-black);
-  --border-thin: 1px solid var(--bk-black);
-  --border-separator: 1px solid #e2e8f0;
-  --border-soft: 1px solid #cbd5e0;
-  
-  /* ========================================
-     Neutral Grays (for backgrounds/borders)
-     ======================================== */
-  
-  --gray-50: #f7fafc;
-  --gray-100: #edf2f7;
-  --gray-200: #e2e8f0;
-  --gray-300: #cbd5e0;
-  --gray-400: #a0aec0;
-  --gray-500: #718096;
-  --gray-600: #4a5568;
-  --gray-700: #2d3748;
-  --gray-800: #1a202c;
-  
-  /* ========================================
-     Extended CMYK Palette (Tints & Shades)
-     ======================================== */
-  
-  /* Cyan family */
-  --bk-cyan-deep: #0099cc;
-  --bk-cyan-soft: #ccf5ff;
-  
-  /* Magenta family */
-  --bk-magenta-deep: #cc0077;
-  --bk-magenta-soft: #ffccee;
-  
-  /* Yellow family */
-  --bk-yellow-deep: #cc9900;
-  --bk-yellow-soft: #fff5cc;
-  
-  /* Purple family */
-  --bk-purple-deep: var(--bk-magenta-deep);
-  --bk-purple-soft: var(--bk-magenta-soft);
-  
-  /* Orange family */
-  --bk-orange-deep: var(--bk-yellow-deep);
-  --bk-orange-soft: var(--bk-yellow-soft);
-  
-  /* Lime family */
-  --bk-lime-deep: var(--bk-cyan-deep);
-  --bk-lime-soft: var(--bk-cyan-soft);
-  
-  /* ========================================
-     Gradients
-     ======================================== */
-  
-  /* CMYK gradient (full spectrum) */
-  --gradient-cmyk: var(--bk-cyan);
-  
-  /* Solver gradients */
-  --gradient-evolutionary: var(--bk-magenta);
-  
-  --gradient-chemistry: var(--bk-cyan);
-  
-  --gradient-physics: var(--bk-yellow);
-  
-  /* ========================================
-     Shadows (Sticker Aesthetic)
-     ======================================== */
-  
-  --shadow-sticker: 0 4px 0 var(--bk-black);
-  --shadow-sticker-hover: 0 6px 0 var(--bk-black);
-  --shadow-sticker-pressed: 0 2px 0 var(--bk-black);
-  
-  /* Drop shadows for SVG/text */
-  --drop-shadow-sticker: drop-shadow(0 4px 0 var(--bk-black));
-  --drop-shadow-sticker-hover: drop-shadow(0 6px 0 var(--bk-black));
-  --drop-shadow-sticker-pressed: drop-shadow(0 2px 0 var(--bk-black));
+  /* === BASE: BLACK & WHITE ONLY === */
+  --ui-black: #000000;
+  --ui-white: #ffffff;
+  --ui-porcelain: #f5f2ee;
+  --ui-ink: #1f1f22;
 
-  /* Sticker brightness/saturation (used by sticker icons/buttons) */
-  --sticker-brightness-site: 1.22;
-  --sticker-saturate-site: 1.15;
-  --sticker-brightness-library: 1.14;
-  --sticker-saturate-library: 1.1;
-  
-  /* Inset shadows for inputs */
-  --shadow-inset: inset 0 2px 4px var(--bk-black);
-  
-  /* ========================================
-     Typography
-     ======================================== */
-  
+  /* === SEMANTIC COLORS (domain-linked) === */
+  --semantic-numeric: #ffdd00;   /* Yellow - numbers, vectors, parameters */
+  --semantic-logic: #ff0099;     /* Magenta - booleans, goals, constraints */
+  --semantic-data: #00d4ff;      /* Cyan - strings, specs, metadata */
+  --semantic-structure: #000000; /* Black - geometry, meshes, voxels */
+
+  /* Soft/deep semantic shades (derived, still semantic) */
+  --semantic-numeric-soft: color-mix(in srgb, var(--semantic-numeric) 25%, var(--ui-white));
+  --semantic-numeric-deep: color-mix(in srgb, var(--semantic-numeric) 70%, var(--ui-black));
+  --semantic-logic-soft: color-mix(in srgb, var(--semantic-logic) 25%, var(--ui-white));
+  --semantic-logic-deep: color-mix(in srgb, var(--semantic-logic) 70%, var(--ui-black));
+  --semantic-data-soft: color-mix(in srgb, var(--semantic-data) 25%, var(--ui-white));
+  --semantic-data-deep: color-mix(in srgb, var(--semantic-data) 70%, var(--ui-black));
+
+  /* === FEEDBACK COLORS (state-linked) === */
+  --feedback-computing: #ffdd00;
+  --feedback-success: #4ade80;
+  --feedback-warning: #fbbf24;
+  --feedback-error: #ff4444;
+
+  /* === DEFAULT UI SURFACES === */
+  --surface-page: var(--ui-porcelain);
+  --surface-panel: var(--ui-white);
+  --surface-card: var(--ui-white);
+
+  /* === TEXT COLORS === */
+  --text-primary: var(--ui-black);
+  --text-secondary: color-mix(in srgb, var(--ui-black) 60%, transparent);
+  --text-tertiary: color-mix(in srgb, var(--ui-black) 40%, transparent);
+  --text-inverse: var(--ui-white);
+
+  /* === BORDERS === */
+  --border-crisp: 2px solid var(--ui-black);
+  --border-thin: 1px solid var(--ui-black);
+  --border-separator: 1px solid color-mix(in srgb, var(--ui-black) 12%, transparent);
+  --border-soft: 1px solid color-mix(in srgb, var(--ui-black) 20%, transparent);
+
+  /* === SHADOWS (Semantic Depth) === */
+  --shadow-sticker: 0 4px 0 var(--ui-black);
+  --shadow-sticker-hover: 0 6px 0 var(--ui-black);
+  --shadow-sticker-pressed: 0 2px 0 var(--ui-black);
+  --drop-shadow-sticker: drop-shadow(0 4px 0 var(--ui-black));
+  --drop-shadow-sticker-hover: drop-shadow(0 6px 0 var(--ui-black));
+  --drop-shadow-sticker-pressed: drop-shadow(0 2px 0 var(--ui-black));
+  --shadow-inset: inset 0 2px 4px var(--ui-black);
+
+  /* === BUTTON DEFAULTS === */
+  --button-bg: var(--ui-white);
+  --button-border: var(--ui-black);
+  --button-hover-bg: var(--ui-porcelain);
+  --button-hover-border: var(--ui-black);
+
+  /* === LEGACY ALIASES (deprecated) === */
+  --bk-black: var(--ui-black);
+  --bk-white: var(--ui-white);
+  --bk-porcelain: var(--ui-porcelain);
+  --bk-cream: var(--ui-white);
+  --bk-cyan: var(--semantic-data);
+  --bk-magenta: var(--semantic-logic);
+  --bk-yellow: var(--semantic-numeric);
+  --bk-purple: var(--semantic-logic);
+  --bk-orange: var(--semantic-numeric);
+  --bk-lime: var(--semantic-data);
+  --bk-cyan-deep: var(--semantic-data-deep);
+  --bk-cyan-soft: var(--semantic-data-soft);
+  --bk-magenta-deep: var(--semantic-logic-deep);
+  --bk-magenta-soft: var(--semantic-logic-soft);
+  --bk-yellow-deep: var(--semantic-numeric-deep);
+  --bk-yellow-soft: var(--semantic-numeric-soft);
+  --bk-purple-deep: var(--semantic-logic-deep);
+  --bk-purple-soft: var(--semantic-logic-soft);
+  --bk-orange-deep: var(--semantic-numeric-deep);
+  --bk-orange-soft: var(--semantic-numeric-soft);
+  --bk-lime-deep: var(--semantic-data-deep);
+  --bk-lime-soft: var(--semantic-data-soft);
+
+  /* Legacy accent aliases */
+  --color-accent-primary: var(--semantic-logic);
+  --color-accent-secondary: var(--semantic-data);
+  --color-accent-tertiary: var(--semantic-numeric);
+
+  --color-solver-evolutionary: var(--semantic-logic);
+  --color-solver-chemistry: var(--semantic-data);
+  --color-solver-physics: var(--semantic-numeric);
+  --color-solver-voxel: var(--semantic-structure);
+  --color-solver-topology: var(--semantic-numeric);
+
+  /* Typography */
   --font-sans: "Montreal Neue", "Space Grotesk", system-ui, sans-serif;
   --font-serif: "Noto Serif", "GFS Didot", Georgia, serif;
   --font-mono: "JetBrains Mono", "IBM Plex Mono", monospace;

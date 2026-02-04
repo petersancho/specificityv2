@@ -1,11 +1,11 @@
 # Semantic Inventory
 
-Generated: 2026-02-04T08:21:16.316Z
+Generated: 2026-02-04T10:07:15.312Z
 
 ## Summary
 
-- **Total Operations**: 314
-- **Total Nodes**: 171
+- **Total Operations**: 315
+- **Total Nodes**: 172
 - **Total Dashboards**: 3
 - **Orphan Operations**: 50
 - **Dangling References**: 0
@@ -110,7 +110,7 @@ Generated: 2026-02-04T08:21:16.316Z
 | `data.linspace` | Linspace | creation | ✅ | linspace |
 | `data.repeat` | Repeat | creation | ✅ | repeat |
 
-### geometry (103 operations)
+### geometry (104 operations)
 
 | ID | Name | Category | Stable | Used By |
 |----|------|----------|--------|----------|
@@ -165,6 +165,7 @@ Generated: 2026-02-04T08:21:16.316Z
 | `geometry.analyze.dimensions` | Dimensions | analysis | ✅ | dimensions |
 | `geometry.analyze.volume` | Volume | analysis | ✅ | volume |
 | `geometry.analyze.vertices` | Geometry Vertices | analysis | ✅ | geometryVertices |
+| `geometry.analyze.extentVertices` | Geometry Extent Vertices | analysis | ✅ | geometryExtentVertices |
 | `geometry.analyze.edges` | Geometry Edges | analysis | ✅ | geometryEdges |
 | `geometry.analyze.faces` | Geometry Faces | analysis | ✅ | geometryFaces |
 | `geometry.analyze.normals` | Geometry Normals | analysis | ✅ | geometryNormals |
@@ -441,6 +442,7 @@ Generated: 2026-02-04T08:21:16.316Z
 | `volume` | Volume | measurement | `geometry.analyze.volume` |
 | `dimensions` | Dimensions | measurement | `geometry.analyze.dimensions` |
 | `geometryVertices` | Geometry Vertices | analysis | `geometry.analyze.vertices` |
+| `geometryExtentVertices` | Geometry Extent Vertices | analysis | `geometry.analyze.extentVertices` |
 | `geometryEdges` | Geometry Edges | analysis | `geometry.analyze.edges` |
 | `geometryFaces` | Geometry Faces | analysis | `geometry.analyze.faces` |
 | `geometryNormals` | Geometry Normals | analysis | `geometry.analyze.normals` |

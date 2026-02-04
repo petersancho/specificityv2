@@ -7701,6 +7701,165 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     },
   },
   {
+    type: "geometryExtentVertices",
+    label: "Geometry Extent Vertices",
+    shortLabel: "EXT",
+    description: "Extract vertex indices near a geometry extent along an axis.",
+    category: "analysis",
+    semanticOps: ["geometry.analyze.extentVertices"],
+    iconId: "geometryVertices",
+    inputs: [
+      { key: "geometry", label: "Geometry", type: "geometry", required: true },
+      { key: "axis", label: "Axis", type: "string" },
+      { key: "mode", label: "Side", type: "string" },
+      { key: "band", label: "Band", type: "number" },
+      { key: "maxCount", label: "Max Count", type: "number" },
+    ],
+    outputs: [
+      { key: "indices", label: "Indices", type: "any" },
+      { key: "points", label: "Points", type: "any" },
+      { key: "count", label: "Count", type: "number" },
+      { key: "extentValue", label: "Extent Value", type: "number" },
+      { key: "threshold", label: "Threshold", type: "number" },
+    ],
+    parameters: [
+      {
+        key: "axis",
+        label: "Axis",
+        type: "select",
+        defaultValue: "z",
+        options: [
+          { label: "X", value: "x" },
+          { label: "Y", value: "y" },
+          { label: "Z", value: "z" },
+        ],
+      },
+      {
+        key: "mode",
+        label: "Side",
+        type: "select",
+        defaultValue: "max",
+        options: [
+          { label: "Min", value: "min" },
+          { label: "Max", value: "max" },
+        ],
+      },
+      {
+        key: "band",
+        label: "Band",
+        type: "number",
+        defaultValue: 0.02,
+        min: 0,
+        max: 0.5,
+        step: 0.01,
+      },
+      {
+        key: "maxCount",
+        label: "Max Count",
+        type: "number",
+        defaultValue: 256,
+        min: 1,
+        max: 5000,
+        step: 1,
+      },
+    ],
+    primaryOutputKey: "indices",
+    compute: ({ inputs, parameters, context }) => {
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      if (!geometry) {
+        return {
+          indices: [],
+          points: [],
+          count: 0,
+          extentValue: 0,
+          threshold: 0,
+        };
+      }
+
+      const axisRaw = typeof inputs.axis === "string" ? inputs.axis : parameters.axis;
+      const axis = axisRaw === "x" || axisRaw === "y" ? axisRaw : "z";
+      const modeRaw = typeof inputs.mode === "string" ? inputs.mode : parameters.mode;
+      const mode = modeRaw === "min" ? "min" : "max";
+      const bandRaw = typeof inputs.band === "number" ? inputs.band : parameters.band;
+      const band = Number.isFinite(bandRaw) ? Math.max(0, Math.min(0.5, bandRaw as number)) : 0.02;
+      const maxCountRaw = typeof inputs.maxCount === "number" ? inputs.maxCount : parameters.maxCount;
+      const maxCount = Number.isFinite(maxCountRaw)
+        ? Math.max(1, Math.round(maxCountRaw as number))
+        : 256;
+
+      let positions: number[] = [];
+      if ("mesh" in geometry && geometry.mesh?.positions?.length) {
+        positions = geometry.mesh.positions;
+      } else if (geometry.type === "brep" && geometry.mesh?.positions?.length) {
+        positions = geometry.mesh.positions;
+      }
+
+      if (positions.length === 0) {
+        const points = collectGeometryVertices(geometry, context, maxCount);
+        return {
+          indices: points.map((_, index) => index),
+          points,
+          count: points.length,
+          extentValue: 0,
+          threshold: 0,
+        };
+      }
+
+      const axisOffset = axis === "x" ? 0 : axis === "y" ? 1 : 2;
+      let min = Number.POSITIVE_INFINITY;
+      let max = Number.NEGATIVE_INFINITY;
+      for (let i = 0; i < positions.length; i += 3) {
+        const value = positions[i + axisOffset] ?? 0;
+        min = Math.min(min, value);
+        max = Math.max(max, value);
+      }
+      if (!Number.isFinite(min) || !Number.isFinite(max)) {
+        return {
+          indices: [],
+          points: [],
+          count: 0,
+          extentValue: 0,
+          threshold: 0,
+        };
+      }
+
+      const target = mode === "min" ? min : max;
+      const epsilon = Math.max(1e-6, Math.abs(max - min) * band);
+      const count = Math.floor(positions.length / 3);
+      const indices: number[] = [];
+      for (let i = 0; i < count; i += 1) {
+        const value = positions[i * 3 + axisOffset] ?? 0;
+        if (Math.abs(value - target) <= epsilon) {
+          indices.push(i);
+          if (indices.length >= maxCount) break;
+        }
+      }
+
+      if (indices.length === 0 && count > 0) {
+        let bestIndex = 0;
+        let bestValue = positions[axisOffset] ?? 0;
+        for (let i = 1; i < count; i += 1) {
+          const value = positions[i * 3 + axisOffset] ?? 0;
+          if (mode === "min" ? value < bestValue : value > bestValue) {
+            bestValue = value;
+            bestIndex = i;
+          }
+        }
+        indices.push(bestIndex);
+      }
+
+      const points = indices.map((index) => vec3FromPositions(positions, index));
+
+      return {
+        indices,
+        points,
+        count: indices.length,
+        extentValue: target,
+        threshold: epsilon,
+      };
+    },
+  },
+  {
     type: "geometryEdges",
     label: "Geometry Edges",
     shortLabel: "EDGE",

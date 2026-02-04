@@ -172,6 +172,7 @@ export type NodeType =
   | "metadataPanel"
   | "annotations"
   | "geometryVertices"
+  | "geometryExtentVertices"
   | "geometryEdges"
   | "geometryFaces"
   | "geometryNormals"
@@ -366,6 +367,7 @@ export const SUPPORTED_WORKFLOW_NODE_TYPES: NodeType[] = [
   "metadataPanel",
   "annotations",
   "geometryVertices",
+  "geometryExtentVertices",
   "geometryEdges",
   "geometryFaces",
   "geometryNormals",

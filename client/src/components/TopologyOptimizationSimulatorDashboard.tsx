@@ -255,11 +255,13 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   const liveFeConverged = liveFrame?.feConverged;
 
   // Check connections
-  const geometryEdge = edges.find(
-    (edge) => edge.target === nodeId && edge.targetHandle === "geometry"
+  const geometryEdge = useMemo(
+    () => edges.find((edge) => edge.target === nodeId && edge.targetHandle === "geometry"),
+    [edges, nodeId]
   );
-  const goalEdges = edges.filter(
-    (edge) => edge.target === nodeId && edge.targetHandle === "goals"
+  const goalEdges = useMemo(
+    () => edges.filter((edge) => edge.target === nodeId && edge.targetHandle === "goals"),
+    [edges, nodeId]
   );
 
   const hasGeometry = !!geometryEdge;
@@ -543,21 +545,37 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   };
 
   // Extract goal markers
+  const sameMarkers = (a: GoalMarkers | null, b: GoalMarkers | null) => {
+    if (a === b) return true;
+    if (!a || !b) return false;
+    if (a.anchors.length !== b.anchors.length || a.loads.length !== b.loads.length) return false;
+    const equalVec = (v1: Vec3, v2: Vec3) =>
+      v1.x === v2.x && v1.y === v2.y && v1.z === v2.z;
+    for (let i = 0; i < a.anchors.length; i += 1) {
+      if (!equalVec(a.anchors[i].position, b.anchors[i].position)) return false;
+    }
+    for (let i = 0; i < a.loads.length; i += 1) {
+      if (!equalVec(a.loads[i].position, b.loads[i].position)) return false;
+      if (!equalVec(a.loads[i].force, b.loads[i].force)) return false;
+    }
+    return true;
+  };
+
   useEffect(() => {
     if (DEBUG) console.log('[TOPOLOGY] Extracting goal markers...');
     
     if (!baseMesh || !hasGeometry) {
-      setMarkers(null);
+      setMarkers((prev) => (prev ? null : prev));
       return;
     }
 
     try {
       const extracted = extractGoalMarkers(baseMesh, goals);
       if (DEBUG) console.log('[TOPOLOGY] ✅ Extracted goal markers:', extracted);
-      setMarkers(extracted);
+      setMarkers((prev) => (sameMarkers(prev, extracted) ? prev : extracted));
     } catch (error) {
       console.error('[TOPOLOGY] ❌ Failed to extract goal markers:', error);
-      setMarkers(null);
+      setMarkers((prev) => (prev ? null : prev));
     }
   }, [baseMesh, goals, hasGeometry]);
 
@@ -1932,8 +1950,11 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                   {recentSemanticEvents.length === 0 ? (
                     <div className={styles.noEvents}>Waiting for semantic ops…</div>
                   ) : (
-                    recentSemanticEvents.map((event) => (
-                      <div key={`${event.opId}-${event.t}`} className={styles.semanticEvent}>
+                    recentSemanticEvents.map((event, index) => (
+                      <div
+                        key={`${event.opId}-${event.phase}-${event.t}-${index}`}
+                        className={styles.semanticEvent}
+                      >
                         <span className={styles.eventOp}>{formatSemanticOp(event.opId)}</span>
                         <span className={styles.eventPhase}>
                           {event.phase === "start" ? "start" : event.ok === false ? "error" : "end"}

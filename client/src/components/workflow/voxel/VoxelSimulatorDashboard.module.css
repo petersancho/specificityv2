@@ -2,8 +2,8 @@
 
 .dashboard {
   --solver-accent: var(--color-solver-voxel);
-  --solver-accent-deep: var(--bk-lime-deep);
-  --solver-accent-soft: var(--bk-lime-soft);
+  --solver-accent-deep: var(--semantic-data-deep);
+  --solver-accent-soft: var(--semantic-data-soft);
   
   position: fixed;
   top: 50%;
@@ -13,7 +13,7 @@
   max-width: 1400px;
   height: 85vh;
   background: var(--surface-page);
-  border: 2px solid var(--bk-black);
+  border: 2px solid var(--ui-black);
   border-radius: 16px;
   box-shadow: var(--shadow-sticker);
   display: flex;
@@ -22,7 +22,7 @@
   z-index: 10000;
   animation: fadeIn 0.3s ease-out;
   font-family: var(--font-sans);
-  color: var(--bk-black);
+  color: var(--ui-black);
 }
 
 @keyframes fadeIn {
@@ -63,7 +63,7 @@
   margin: 0;
   font-size: 1.75rem;
   font-weight: 700;
-  color: var(--bk-black);
+  color: var(--ui-black);
 }
 
 .headerSubtitle {
@@ -93,19 +93,19 @@
 .closeButton {
   width: 32px;
   height: 32px;
-  border: 2px solid var(--bk-black);
-  background: var(--bk-yellow);
+  border: 2px solid var(--ui-black);
+  background: var(--semantic-numeric);
   border-radius: 8px;
   font-size: 1.5rem;
   line-height: 1;
   cursor: pointer;
   transition: all 0.2s;
-  color: var(--bk-black);
+  color: var(--ui-black);
   box-shadow: var(--shadow-sticker-pressed);
 }
 
 .closeButton:hover {
-  background: var(--bk-magenta);
+  background: var(--semantic-logic);
   color: var(--surface-card);
   box-shadow: var(--shadow-sticker-hover);
   transform: translateY(-1px);
@@ -121,7 +121,7 @@
   display: flex;
   gap: 0;
   background: var(--surface-card);
-  border-bottom: 2px solid var(--bk-black);
+  border-bottom: 2px solid var(--ui-black);
   padding: 0 2rem;
   flex-shrink: 0;
 }
@@ -132,7 +132,7 @@
   background: transparent;
   font-size: 0.9375rem;
   font-weight: 500;
-  color: color-mix(in srgb, var(--bk-black) 60%, transparent);
+  color: color-mix(in srgb, var(--ui-black) 60%, transparent);
   cursor: pointer;
   transition: all 0.2s;
   border-bottom: 3px solid transparent;
@@ -141,7 +141,7 @@
 
 .tab:hover {
   color: var(--solver-accent);
-  background: color-mix(in srgb, var(--bk-lime-soft) 50%, transparent);
+  background: color-mix(in srgb, var(--semantic-data-soft) 50%, transparent);
 }
 
 .tabActive {
@@ -174,7 +174,7 @@
   margin: 0 0 1rem 0;
   font-size: 1.125rem;
   font-weight: 600;
-  color: var(--bk-black);
+  color: var(--ui-black);
 }
 
 .parameterGrid {
@@ -195,7 +195,7 @@
   align-items: center;
   font-size: 0.9375rem;
   font-weight: 500;
-  color: color-mix(in srgb, var(--bk-black) 70%, transparent);
+  color: color-mix(in srgb, var(--ui-black) 70%, transparent);
 }
 
 .parameterValue {
@@ -247,8 +247,8 @@
 }
 
 .infoCard {
-  background: var(--bk-lime-soft);
-  border: 1px solid var(--bk-lime-soft);
+  background: var(--semantic-data-soft);
+  border: 1px solid var(--semantic-data-soft);
   border-radius: 8px;
   padding: 1rem;
   text-align: center;
@@ -400,9 +400,9 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: var(--bk-lime-soft);
+  background: var(--semantic-data-soft);
   border-radius: 8px;
-  border: 2px dashed var(--bk-lime-soft);
+  border: 2px dashed var(--semantic-data-soft);
   color: var(--gray-400);
 }
 
@@ -456,9 +456,9 @@
 
 .slicePlaceholder {
   aspect-ratio: 1;
-  background: var(--bk-lime-soft);
+  background: var(--semantic-data-soft);
   border-radius: 8px;
-  border: 2px solid var(--bk-lime-soft);
+  border: 2px solid var(--semantic-data-soft);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -468,7 +468,7 @@
 .slicePattern {
   width: 80%;
   height: 80%;
-  background: var(--bk-lime-soft);
+  background: var(--semantic-data-soft);
   opacity: 0.3;
 }
 
@@ -513,9 +513,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bk-lime-soft);
+  background: var(--semantic-data-soft);
   border-radius: 8px;
-  border: 2px dashed var(--bk-lime-soft);
+  border: 2px dashed var(--semantic-data-soft);
 }
 
 .meshPlaceholder {
@@ -546,7 +546,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem;
-  background: var(--bk-lime-soft);
+  background: var(--semantic-data-soft);
   border-radius: 8px;
   border-left: 4px solid var(--solver-accent);
 }

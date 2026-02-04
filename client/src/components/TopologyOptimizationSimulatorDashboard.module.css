@@ -2,8 +2,8 @@
 
 .dashboardOverlay {
   --solver-accent: var(--color-solver-topology);
-  --solver-accent-secondary: var(--bk-orange);
-  --solver-accent-tertiary: var(--bk-cyan);
+  --solver-accent-secondary: var(--semantic-numeric);
+  --solver-accent-tertiary: var(--semantic-data);
   
   position: fixed;
   top: 0;
@@ -60,7 +60,7 @@
 
 /* Header */
 .dashboardHeader {
-  background: var(--bk-purple);
+  background: var(--semantic-logic);
   padding: 20px 24px;
   border-radius: 14px 14px 0 0;
   display: flex;
@@ -162,7 +162,7 @@
   gap: 0;
   background: rgba(136, 0, 255, 0.1);
   padding: 0;
-  border-bottom: 2px solid var(--bk-purple, var(--bk-purple));
+  border-bottom: 2px solid var(--semantic-logic, var(--semantic-logic));
 }
 
 .tabButton {
@@ -197,7 +197,7 @@
   left: 0;
   right: 0;
   height: 2px;
-  background: var(--bk-orange);
+  background: var(--semantic-numeric);
 }
 
 /* Tab Content */
@@ -226,7 +226,7 @@
   margin: 0 0 16px 0;
   font-size: 18px;
   font-weight: 700;
-  color: var(--bk-purple, var(--bk-purple));
+  color: var(--semantic-logic, var(--semantic-logic));
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -251,7 +251,7 @@
 .parameterLabel {
   font-size: 14px;
   font-weight: 600;
-  color: var(--bk-orange, var(--bk-orange));
+  color: var(--semantic-numeric, var(--semantic-numeric));
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
@@ -271,7 +271,7 @@
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: var(--bk-orange);
+  background: var(--semantic-numeric);
   cursor: pointer;
   box-shadow: var(--shadow-sticker-pressed);
   transition: transform 0.2s ease;
@@ -285,7 +285,7 @@
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: var(--bk-orange);
+  background: var(--semantic-numeric);
   cursor: pointer;
   border: none;
   box-shadow: var(--shadow-sticker-pressed);
@@ -299,7 +299,7 @@
 .parameterValue {
   font-size: 16px;
   font-weight: 700;
-  color: var(--bk-purple);
+  color: var(--semantic-logic);
 }
 
 .parameterDescription {
@@ -322,7 +322,7 @@
 
 .numberInput:focus {
   outline: none;
-  border-color: var(--bk-purple, var(--bk-purple));
+  border-color: var(--semantic-logic, var(--semantic-logic));
   box-shadow: 0 0 0 2px rgba(136, 0, 255, 0.2);
 }
 
@@ -340,14 +340,14 @@
   background: rgba(0, 0, 0, 0.2);
   padding: 16px;
   border-radius: 8px;
-  border-left: 3px solid var(--bk-orange, var(--bk-orange));
+  border-left: 3px solid var(--semantic-numeric, var(--semantic-numeric));
 }
 
 .stepNumber {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: var(--bk-purple);
+  background: var(--semantic-logic);
   color: var(--surface-card);
   display: flex;
   align-items: center;
@@ -446,7 +446,7 @@
 }
 
 .startButton {
-  background: var(--bk-purple);
+  background: var(--semantic-logic);
   color: var(--surface-card);
   flex: 1;
 }
@@ -462,8 +462,8 @@
 }
 
 .pauseButton {
-  background: var(--bk-yellow);
-  color: var(--bk-black);
+  background: var(--semantic-numeric);
+  color: var(--ui-black);
   flex: 1;
 }
 
@@ -473,7 +473,7 @@
 }
 
 .resumeButton {
-  background: var(--bk-cyan);
+  background: var(--semantic-data);
   color: var(--surface-card);
   flex: 1;
 }
@@ -518,7 +518,7 @@
 .progressPercent {
   font-size: 18px;
   font-weight: 700;
-  color: var(--bk-purple, var(--bk-purple));
+  color: var(--semantic-logic, var(--semantic-logic));
 }
 
 .progressBar {
@@ -531,7 +531,7 @@
 
 .progressFill {
   height: 100%;
-  background: var(--bk-purple);
+  background: var(--semantic-logic);
   transition: width 0.3s ease;
   box-shadow: 0 0 10px rgba(136, 0, 255, 0.5);
 }
@@ -542,7 +542,7 @@
 }
 
 .currentStep strong {
-  color: var(--bk-orange, var(--bk-orange));
+  color: var(--semantic-numeric, var(--semantic-numeric));
   text-transform: capitalize;
 }
 
@@ -565,7 +565,7 @@
   margin: 0 0 12px 0;
   font-size: 14px;
   font-weight: 700;
-  color: var(--bk-purple, var(--bk-purple));
+  color: var(--semantic-logic, var(--semantic-logic));
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
@@ -585,7 +585,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--bk-purple, var(--bk-purple));
+  background: var(--semantic-logic, var(--semantic-logic));
   box-shadow: 0 0 8px rgba(136, 0, 255, 0.8);
   animation: pointAppear 0.5s ease-out forwards;
 }
@@ -617,7 +617,7 @@
 }
 
 .networkLine {
-  stroke: var(--bk-orange, var(--bk-orange));
+  stroke: var(--semantic-numeric, var(--semantic-numeric));
   stroke-width: 2;
   opacity: 0;
   animation: lineAppear 0.5s ease-out forwards;
@@ -669,7 +669,7 @@
 .meshWireframe {
   width: 100%;
   height: 100%;
-  border: 2px solid var(--bk-purple, var(--bk-purple));
+  border: 2px solid var(--semantic-logic, var(--semantic-logic));
   border-radius: 8px;
   background: rgba(136, 0, 255, 0.2);
   box-shadow: 0 0 20px rgba(136, 0, 255, 0.5), inset 0 0 20px rgba(255, 102, 0, 0.3);
@@ -726,7 +726,7 @@
 .statValue {
   font-size: 24px;
   font-weight: 700;
-  color: var(--bk-orange, var(--bk-orange));
+  color: var(--semantic-numeric, var(--semantic-numeric));
 }
 
 /* Output Tab */
@@ -763,7 +763,7 @@
 .meshVisualization {
   width: 200px;
   height: 200px;
-  border: 2px solid var(--bk-purple, var(--bk-purple));
+  border: 2px solid var(--semantic-logic, var(--semantic-logic));
   border-radius: 12px;
   background: rgba(136, 0, 255, 0.2);
   box-shadow: 0 0 30px rgba(136, 0, 255, 0.5), inset 0 0 30px rgba(255, 102, 0, 0.3);
@@ -813,7 +813,7 @@
 .outputStatValue {
   font-size: 20px;
   font-weight: 700;
-  color: var(--bk-orange, var(--bk-orange));
+  color: var(--semantic-numeric, var(--semantic-numeric));
 }
 
 .exportButtons {
@@ -824,7 +824,7 @@
 
 .exportButton {
   padding: 12px 20px;
-  background: var(--bk-purple);
+  background: var(--semantic-logic);
   border: none;
   border-radius: 8px;
   color: var(--surface-card);
@@ -863,12 +863,12 @@
 }
 
 .tabContent::-webkit-scrollbar-thumb {
-  background: var(--bk-purple);
+  background: var(--semantic-logic);
   border-radius: 5px;
 }
 
 .tabContent::-webkit-scrollbar-thumb:hover {
-  background: var(--bk-orange);
+  background: var(--semantic-numeric);
 }
 
 /* ========================================================================== */
@@ -882,9 +882,9 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: var(--bk-porcelain);
+  background: var(--ui-porcelain);
   font-family: var(--font-sans);
-  color: var(--bk-black);
+  color: var(--ui-black);
   z-index: 10000;
 }
 
@@ -892,7 +892,7 @@
   width: min(1440px, 94vw);
   height: min(900px, 90vh);
   background: var(--surface-card);
-  border: 2px solid var(--bk-black);
+  border: 2px solid var(--ui-black);
   border-radius: 18px;
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.2);
   display: flex;
@@ -903,15 +903,15 @@
 .header {
   position: relative;
   padding: 18px 24px 16px;
-  background: var(--bk-cream);
-  border-bottom: 2px solid var(--bk-black);
+  background: var(--ui-white);
+  border-bottom: 2px solid var(--ui-black);
 }
 
 .headerBar {
   position: absolute;
   inset: 0 0 auto 0;
   height: 6px;
-  background: var(--bk-cyan);
+  background: var(--semantic-data);
 }
 
 .headerContent {
@@ -937,7 +937,7 @@
   font-size: 12px;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: var(--bk-magenta);
+  color: var(--semantic-logic);
   font-weight: 700;
 }
 
@@ -945,7 +945,7 @@
   font-size: 22px;
   font-weight: 800;
   letter-spacing: 0.02em;
-  color: var(--bk-black);
+  color: var(--ui-black);
 }
 
 .titleSubtext {
@@ -970,12 +970,12 @@
 }
 
 .scaleControl input[type="range"] {
-  accent-color: var(--bk-cyan);
+  accent-color: var(--semantic-data);
 }
 
 .closeButton {
-  background: var(--bk-yellow);
-  border: 2px solid var(--bk-black);
+  background: var(--semantic-numeric);
+  border: 2px solid var(--ui-black);
   width: 36px;
   height: 36px;
   border-radius: 10px;
@@ -989,15 +989,15 @@
   display: flex;
   gap: 8px;
   padding: 12px 16px;
-  background: var(--bk-porcelain);
-  border-bottom: 2px solid var(--bk-black);
+  background: var(--ui-porcelain);
+  border-bottom: 2px solid var(--ui-black);
 }
 
 .tab {
   flex: 1;
   padding: 10px 16px;
-  border: 2px solid var(--bk-black);
-  background: var(--bk-white);
+  border: 2px solid var(--ui-black);
+  background: var(--ui-white);
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.16em;
@@ -1008,8 +1008,8 @@
 }
 
 .tabActive {
-  background: var(--bk-black);
-  color: var(--bk-white);
+  background: var(--ui-black);
+  color: var(--ui-white);
   transform: translateY(-1px);
 }
 
@@ -1017,7 +1017,7 @@
   flex: 1;
   overflow: auto;
   padding: 20px 22px 26px;
-  background: var(--bk-cream);
+  background: var(--ui-white);
 }
 
 .setupTab {
@@ -1026,8 +1026,8 @@
 }
 
 .section {
-  background: var(--bk-white);
-  border: 2px solid var(--bk-black);
+  background: var(--ui-white);
+  border: 2px solid var(--ui-black);
   border-radius: 14px;
   padding: 18px;
   box-shadow: var(--shadow-sticker);
@@ -1038,7 +1038,7 @@
   text-transform: uppercase;
   letter-spacing: 0.12em;
   margin: 0 0 12px 0;
-  color: var(--bk-purple);
+  color: var(--semantic-logic);
   font-weight: 800;
 }
 
@@ -1061,23 +1061,23 @@
 .connectionValue {
   padding: 2px 8px;
   border-radius: 12px;
-  border: 1px solid var(--bk-black);
-  background: var(--bk-white);
+  border: 1px solid var(--ui-black);
+  background: var(--ui-white);
 }
 
 .connected {
-  color: var(--bk-black);
-  background: var(--bk-lime-soft);
+  color: var(--ui-black);
+  background: var(--semantic-data-soft);
 }
 
 .disconnected {
-  color: var(--bk-magenta);
-  background: var(--bk-magenta-soft);
+  color: var(--semantic-logic);
+  background: var(--semantic-logic-soft);
 }
 
 .optional {
-  color: var(--bk-cyan-deep);
-  background: var(--bk-cyan-soft);
+  color: var(--semantic-data-deep);
+  background: var(--semantic-data-soft);
 }
 
 .parameterGroup {
@@ -1091,7 +1091,7 @@
   flex-direction: column;
   font-size: 13px;
   font-weight: 700;
-  color: var(--bk-black);
+  color: var(--ui-black);
 }
 
 .parameterDescription {
@@ -1110,9 +1110,9 @@
 .strategySelect {
   flex: 1;
   padding: 8px 10px;
-  border: 2px solid var(--bk-black);
+  border: 2px solid var(--ui-black);
   border-radius: 10px;
-  background: var(--bk-cream);
+  background: var(--ui-white);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -1121,7 +1121,7 @@
 
 .slider {
   flex: 1;
-  accent-color: var(--bk-magenta);
+  accent-color: var(--semantic-logic);
 }
 
 .parameterValue {
@@ -1129,7 +1129,7 @@
   text-align: right;
   font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--bk-black);
+  color: var(--ui-black);
 }
 
 .simulatorTab {
@@ -1147,8 +1147,8 @@
 .geometryView,
 .geometryPreviewView,
 .convergenceView {
-  background: #0f1116;
-  border: 2px solid var(--bk-black);
+  background: var(--ui-black);
+  border: 2px solid var(--ui-black);
   border-radius: 14px;
   overflow: hidden;
 }
@@ -1163,7 +1163,7 @@
   text-transform: uppercase;
   padding: 12px 16px;
   margin: 0;
-  color: var(--bk-white);
+  color: var(--ui-white);
   background: rgba(0, 0, 0, 0.6);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
@@ -1201,8 +1201,8 @@
 }
 
 .metricCard {
-  background: var(--bk-white);
-  border: 2px solid var(--bk-black);
+  background: var(--ui-white);
+  border: 2px solid var(--ui-black);
   border-radius: 14px;
   padding: 14px;
   box-shadow: var(--shadow-sticker);
@@ -1225,8 +1225,8 @@
 .metricBadge {
   padding: 2px 10px;
   border-radius: 999px;
-  background: var(--bk-black);
-  color: var(--bk-white);
+  background: var(--ui-black);
+  color: var(--ui-white);
   font-size: 11px;
   letter-spacing: 0.12em;
 }
@@ -1244,7 +1244,7 @@
   padding: 8px;
   border: 1px solid var(--gray-200);
   border-radius: 10px;
-  background: var(--bk-cream);
+  background: var(--ui-white);
 }
 
 .metricLabel {
@@ -1257,7 +1257,7 @@
 .metricValue {
   font-size: 14px;
   font-weight: 700;
-  color: var(--bk-black);
+  color: var(--ui-black);
 }
 
 .semanticEvents {
@@ -1272,7 +1272,7 @@
   gap: 12px;
   padding: 6px 8px;
   border-radius: 8px;
-  background: var(--bk-porcelain);
+  background: var(--ui-porcelain);
   font-size: 12px;
 }
 
@@ -1282,7 +1282,7 @@
 
 .eventPhase {
   font-family: var(--font-mono);
-  color: var(--bk-cyan-deep);
+  color: var(--semantic-data-deep);
 }
 
 .noEvents {
@@ -1297,8 +1297,8 @@
   align-items: center;
   padding: 16px;
   border-radius: 14px;
-  background: var(--bk-white);
-  border: 2px solid var(--bk-black);
+  background: var(--ui-white);
+  border: 2px solid var(--ui-black);
   box-shadow: var(--shadow-sticker);
 }
 
@@ -1314,7 +1314,7 @@
 .resetButton,
 .secondaryButton {
   padding: 10px 16px;
-  border: 2px solid var(--bk-black);
+  border: 2px solid var(--ui-black);
   border-radius: 10px;
   font-weight: 700;
   cursor: pointer;
@@ -1326,23 +1326,23 @@
 }
 
 .startButton {
-  background: var(--bk-lime);
+  background: var(--semantic-data);
 }
 
 .pauseButton {
-  background: var(--bk-yellow);
+  background: var(--semantic-numeric);
 }
 
 .resumeButton {
-  background: var(--bk-cyan);
+  background: var(--semantic-data);
 }
 
 .resetButton {
-  background: var(--bk-magenta-soft);
+  background: var(--semantic-logic-soft);
 }
 
 .secondaryButton {
-  background: var(--bk-cream);
+  background: var(--ui-white);
 }
 
 .controlToggles {
@@ -1358,13 +1358,13 @@
   font-size: 12px;
   font-weight: 600;
   padding: 6px 10px;
-  border: 1px solid var(--bk-black);
+  border: 1px solid var(--ui-black);
   border-radius: 999px;
-  background: var(--bk-cream);
+  background: var(--ui-white);
 }
 
 .toggle input {
-  accent-color: var(--bk-magenta);
+  accent-color: var(--semantic-logic);
 }
 
 .statusDisplay {
@@ -1394,19 +1394,19 @@
 }
 
 .statusRunning {
-  color: var(--bk-lime-deep);
+  color: var(--semantic-data-deep);
 }
 
 .statusPaused {
-  color: var(--bk-yellow-deep);
+  color: var(--semantic-numeric-deep);
 }
 
 .statusConverged {
-  color: var(--bk-cyan-deep);
+  color: var(--semantic-data-deep);
 }
 
 .statusError {
-  color: var(--bk-magenta-deep);
+  color: var(--semantic-logic-deep);
 }
 
 .outputTab {
@@ -1424,7 +1424,7 @@
   border: 1px solid var(--gray-200);
   border-radius: 10px;
   padding: 10px;
-  background: var(--bk-cream);
+  background: var(--ui-white);
 }
 
 .outputLabel {
@@ -1437,7 +1437,7 @@
 .outputValue {
   font-size: 14px;
   font-weight: 700;
-  color: var(--bk-black);
+  color: var(--ui-black);
 }
 
 /* Simulator Tab Layout */
@@ -1459,9 +1459,9 @@
 .convergenceView {
   display: flex;
   flex-direction: column;
-  background: #0a0a0a;
+  background: var(--ui-black);
   border-radius: 8px;
-  border: 1px solid #333;
+  border: 1px solid color-mix(in srgb, var(--ui-white) 20%, var(--ui-black));
   overflow: hidden;
 }
 
@@ -1475,7 +1475,7 @@
   left: 50%;
   transform: translateX(-50%);
   font-size: 11px;
-  color: #666;
+  color: var(--text-secondary);
   background: rgba(0, 0, 0, 0.7);
   padding: 4px 12px;
   border-radius: 12px;
@@ -1485,10 +1485,10 @@
 .viewTitle {
   font-size: 14px;
   font-weight: 600;
-  color: #fff;
+  color: var(--ui-white);
   padding: 12px 16px;
-  background: #111;
-  border-bottom: 1px solid #333;
+  background: var(--ui-black);
+  border-bottom: 1px solid color-mix(in srgb, var(--ui-white) 20%, var(--ui-black));
   margin: 0;
 }
 
@@ -1498,7 +1498,7 @@
   align-items: center;
   justify-content: center;
   flex: 1;
-  color: #666;
+  color: var(--text-secondary);
   font-size: 14px;
 }
 
@@ -1507,9 +1507,9 @@
   display: flex;
   gap: 16px;
   padding: 16px;
-  background: #111;
+  background: var(--ui-black);
   border-radius: 8px;
-  border: 1px solid #333;
+  border: 1px solid color-mix(in srgb, var(--ui-white) 20%, var(--ui-black));
 }
 
 .controlButtons {
@@ -1531,39 +1531,39 @@
 }
 
 .startButton {
-  background: #00aa00;
+  background: var(--feedback-success);
   color: white;
 }
 
 .startButton:hover:not(:disabled) {
-  background: #00cc00;
+  background: var(--feedback-success);
 }
 
 .pauseButton {
-  background: #ff8800;
+  background: var(--feedback-warning);
   color: white;
 }
 
 .pauseButton:hover {
-  background: #ffaa00;
+  background: var(--feedback-warning);
 }
 
 .resumeButton {
-  background: #0088ff;
+  background: var(--semantic-data);
   color: white;
 }
 
 .resumeButton:hover {
-  background: #00aaff;
+  background: var(--semantic-data);
 }
 
 .resetButton {
-  background: #cc0000;
+  background: var(--feedback-error);
   color: white;
 }
 
 .resetButton:hover {
-  background: #ff0000;
+  background: var(--feedback-error);
 }
 
 .startButton:disabled,
@@ -1590,7 +1590,7 @@
 
 .statusLabel {
   font-size: 11px;
-  color: #888;
+  color: var(--text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -1598,26 +1598,26 @@
 .statusValue {
   font-size: 16px;
   font-weight: 600;
-  color: #00aaff;
+  color: var(--semantic-data);
   font-family: 'Courier New', monospace;
 }
 
 .statusIdle {
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .statusRunning {
-  color: #00aa00;
+  color: var(--feedback-success);
 }
 
 .statusPaused {
-  color: #ff8800;
+  color: var(--feedback-warning);
 }
 
 .statusConverged {
-  color: #00ff00;
+  color: var(--feedback-success);
 }
 
 .statusError {
-  color: #ff0000;
+  color: var(--feedback-error);
 }

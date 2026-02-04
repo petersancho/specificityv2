@@ -181,7 +181,7 @@
   transform: translate(-50%, -50%);
   transition: left 160ms linear;
   background: color-mix(in srgb, var(--webgl-slider-accent) 75%, var(--surface-card));
-  border: 1px solid color-mix(in srgb, var(--webgl-slider-accent) 65%, #1a1a1a);
+  border: 1px solid color-mix(in srgb, var(--webgl-slider-accent) 65%, var(--ui-ink));
   box-shadow:
     var(--shadow-2xs),
     0 0 0 2px color-mix(in srgb, var(--surface-card) 65%, transparent);

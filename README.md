@@ -161,8 +161,16 @@ The semantic validation system:
 - ✅ Generates automatic documentation (JSON, DOT graphs, markdown)
 - ✅ Runs automatically in CI on every push and pull request
 - ✅ Blocks merges with invalid semantic references
+- ✅ Ensures the philosophy essay and README remain semantically linked to code
 
 See `docs/SEMANTIC_OPERATION_GUIDELINES.md` for complete developer guidelines.
+
+Additional docs validation:
+
+```bash
+# Validate README + philosophy essay semantic links
+npm run validate:docs-semantics
+```
 
 ## Core Capabilities
 
@@ -194,3 +202,18 @@ Start with `docs/README.md` for the full documentation map. Core references:
 - **Ontology Treatise**: `docs/lingua_ontology_comprehensive_prompt_v2.md` - Deep conceptual framework
 
 The documentation reflects our belief that understanding precedes mastery. We document not just *what* and *how*, but *why*—the philosophical foundations that guide every technical decision.
+
+## Semantic Code Links (Validated)
+
+- UI semantic registry → [client/src/semantic/uiSemanticRegistry.ts](client/src/semantic/uiSemanticRegistry.ts) · Ops: `command.display`, `command.view`
+  <!-- semantic-link file="client/src/semantic/uiSemanticRegistry.ts" ops="command.display,command.view" -->
+- Theme inversion tokens → [client/src/semantic/uiThemeTokens.ts](client/src/semantic/uiThemeTokens.ts) · Ops: `command.display`
+  <!-- semantic-link file="client/src/semantic/uiThemeTokens.ts" ops="command.display" -->
+- Semantic color math → [client/src/semantic/uiColorTokens.ts](client/src/semantic/uiColorTokens.ts) · Ops: `color.blend`, `color.clamp`
+  <!-- semantic-link file="client/src/semantic/uiColorTokens.ts" ops="color.blend,color.clamp" -->
+- App top bar (semantic UI) → [client/src/components/WebGLAppTopBar.tsx](client/src/components/WebGLAppTopBar.tsx) · Ops: `command.display`
+  <!-- semantic-link file="client/src/components/WebGLAppTopBar.tsx" ops="command.display" -->
+- Panel top bar (semantic UI) → [client/src/components/WebGLPanelTopBar.tsx](client/src/components/WebGLPanelTopBar.tsx) · Ops: `command.view`
+  <!-- semantic-link file="client/src/components/WebGLPanelTopBar.tsx" ops="command.view" -->
+- Topology SIMP solver → [client/src/components/workflow/topology/simp.ts](client/src/components/workflow/topology/simp.ts) · Ops: `solver.topologyOptimization.optimize`
+  <!-- semantic-link file="client/src/components/workflow/topology/simp.ts" ops="solver.topologyOptimization.optimize" -->

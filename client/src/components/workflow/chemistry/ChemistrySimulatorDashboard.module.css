@@ -3,8 +3,8 @@
 
 .dashboard {
   --solver-accent: var(--color-solver-chemistry);
-  --solver-accent-secondary: var(--bk-yellow);
-  --solver-accent-tertiary: var(--bk-magenta);
+  --solver-accent-secondary: var(--semantic-numeric);
+  --solver-accent-tertiary: var(--semantic-logic);
   
   position: fixed;
   top: 0;
@@ -16,7 +16,7 @@
   display: flex;
   flex-direction: column;
   font-family: var(--font-sans);
-  color: var(--bk-black);
+  color: var(--ui-black);
   overflow: hidden;
 }
 
@@ -24,13 +24,13 @@
 .header {
   flex-shrink: 0;
   background: var(--surface-card);
-  border-bottom: 1px solid color-mix(in srgb, var(--bk-black) 18%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--ui-black) 18%, transparent);
   box-shadow: var(--shadow-sticker-pressed);
 }
 
 .headerBar {
   height: 4px;
-  background: var(--bk-cyan);
+  background: var(--semantic-data);
 }
 
 .headerContent {
@@ -49,19 +49,19 @@
 .titleGreek {
   font-size: 1.5rem;
   font-weight: 600;
-  color: var(--bk-cyan);
+  color: var(--semantic-data);
   letter-spacing: 0.02em;
 }
 
 .titleEnglish {
   font-size: 0.9rem;
-  color: color-mix(in srgb, var(--bk-black) 65%, transparent);
+  color: color-mix(in srgb, var(--ui-black) 65%, transparent);
   font-weight: 500;
 }
 
 .titleSubtext {
   font-size: 0.75rem;
-  color: color-mix(in srgb, var(--bk-black) 45%, transparent);
+  color: color-mix(in srgb, var(--ui-black) 45%, transparent);
   font-style: italic;
 }
 
@@ -76,7 +76,7 @@
   align-items: center;
   gap: 0.5rem;
   font-size: 0.85rem;
-  color: color-mix(in srgb, var(--bk-black) 60%, transparent);
+  color: color-mix(in srgb, var(--ui-black) 60%, transparent);
 }
 
 .scaleControl input[type="range"] {
@@ -92,18 +92,18 @@
 .closeButton {
   width: 2rem;
   height: 2rem;
-  border: 2px solid var(--bk-black);
-  background: var(--bk-yellow);
+  border: 2px solid var(--ui-black);
+  background: var(--semantic-numeric);
   border-radius: 4px;
   cursor: pointer;
   font-size: 1.2rem;
-  color: var(--bk-black);
+  color: var(--ui-black);
   transition: all 0.2s;
   box-shadow: var(--shadow-sticker-pressed);
 }
 
 .closeButton:hover {
-  background: var(--bk-magenta);
+  background: var(--semantic-logic);
   color: var(--surface-card);
 }
 
@@ -111,7 +111,7 @@
 .tabs {
   display: flex;
   background: var(--surface-card);
-  border-bottom: 1px solid color-mix(in srgb, var(--bk-black) 18%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--ui-black) 18%, transparent);
   padding: 0 1.5rem;
   flex-shrink: 0;
 }
@@ -123,19 +123,19 @@
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 500;
-  color: color-mix(in srgb, var(--bk-black) 60%, transparent);
+  color: color-mix(in srgb, var(--ui-black) 60%, transparent);
   border-bottom: 2px solid transparent;
   transition: all 0.2s;
   position: relative;
 }
 
 .tab:hover {
-  color: var(--bk-cyan);
+  color: var(--semantic-data);
 }
 
 .tabActive {
-  color: var(--bk-cyan);
-  border-bottom-color: var(--bk-cyan);
+  color: var(--semantic-data);
+  border-bottom-color: var(--semantic-data);
 }
 
 /* Content */
@@ -163,8 +163,8 @@
   margin: 0 0 1rem 0;
   font-size: 1.1rem;
   font-weight: 600;
-  color: var(--bk-black);
-  border-bottom: 2px solid var(--bk-cyan);
+  color: var(--ui-black);
+  border-bottom: 2px solid var(--semantic-data);
   padding-bottom: 0.5rem;
 }
 
@@ -175,7 +175,7 @@
 }
 
 .materialCard {
-  border: 2px solid #e0e0e0;
+  border: 2px solid color-mix(in srgb, var(--ui-black) 12%, var(--ui-white));
   border-radius: 8px;
   padding: 1rem;
   cursor: pointer;
@@ -184,14 +184,14 @@
 }
 
 .materialCard:hover {
-  border-color: var(--bk-cyan);
+  border-color: var(--semantic-data);
   box-shadow: 0 4px 12px rgba(0, 212, 255, 0.15);
   transform: translateY(-2px);
 }
 
 .materialCardSelected {
-  border-color: var(--bk-cyan);
-  background: var(--bk-cyan-soft);
+  border-color: var(--semantic-data);
+  background: var(--semantic-data-soft);
   box-shadow: 0 4px 12px rgba(0, 212, 255, 0.2);
 }
 
@@ -205,7 +205,7 @@
 
 .materialName {
   font-weight: 600;
-  color: #333;
+  color: var(--ui-ink);
   margin-bottom: 0.5rem;
   font-size: 1rem;
 }
@@ -215,7 +215,7 @@
   flex-direction: column;
   gap: 0.25rem;
   font-size: 0.75rem;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .twoColumn {
@@ -227,13 +227,13 @@
 .addButton,
 .goalButton {
   padding: 0.5rem 1rem;
-  border: 2px dashed var(--bk-cyan);
+  border: 2px dashed var(--semantic-data);
   background: rgba(0, 212, 255, 0.05);
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 500;
-  color: var(--bk-cyan);
+  color: var(--semantic-data);
   transition: all 0.2s;
   margin-bottom: 1rem;
 }
@@ -241,7 +241,7 @@
 .addButton:hover,
 .goalButton:hover {
   background: rgba(0, 212, 255, 0.1);
-  border-color: var(--bk-cyan);
+  border-color: var(--semantic-data);
   transform: translateY(-1px);
 }
 
@@ -267,10 +267,10 @@
 
 .seedCard,
 .goalCard {
-  border: 1px solid #e0e0e0;
+  border: 1px solid color-mix(in srgb, var(--ui-black) 12%, var(--ui-white));
   border-radius: 6px;
   padding: 1rem;
-  background: #fafafa;
+  background: var(--surface-card);
 }
 
 .seedHeader,
@@ -280,23 +280,23 @@
   align-items: center;
   margin-bottom: 0.75rem;
   font-weight: 600;
-  color: #333;
+  color: var(--ui-ink);
 }
 
 .removeButton {
   width: 1.5rem;
   height: 1.5rem;
   border: none;
-  background: #f5f5f5;
+  background: var(--surface-panel);
   border-radius: 3px;
   cursor: pointer;
   font-size: 0.9rem;
-  color: #999;
+  color: var(--text-tertiary);
   transition: all 0.2s;
 }
 
 .removeButton:hover {
-  background: var(--bk-magenta);
+  background: var(--semantic-logic);
   color: var(--surface-card);
 }
 
@@ -312,13 +312,13 @@
   flex-direction: column;
   gap: 0.25rem;
   font-size: 0.85rem;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .seedControls select,
 .seedControls input[type="number"] {
   padding: 0.4rem;
-  border: 1px solid #ddd;
+  border: 1px solid color-mix(in srgb, var(--ui-black) 14%, var(--ui-white));
   border-radius: 4px;
   font-size: 0.9rem;
 }
@@ -339,12 +339,12 @@
   flex-direction: column;
   gap: 0.5rem;
   font-size: 0.9rem;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .paramGrid input[type="number"] {
   padding: 0.5rem;
-  border: 1px solid #ddd;
+  border: 1px solid color-mix(in srgb, var(--ui-black) 14%, var(--ui-white));
   border-radius: 4px;
   font-size: 0.9rem;
 }
@@ -355,7 +355,7 @@
 
 .paramGrid span {
   font-weight: 600;
-  color: var(--bk-cyan);
+  color: var(--semantic-data);
 }
 
 /* Simulator Tab */
@@ -377,20 +377,20 @@
 .controlButton {
   flex: 1;
   padding: 0.75rem 1.5rem;
-  border: 2px solid var(--bk-black);
-  background: var(--bk-cyan);
+  border: 2px solid var(--ui-black);
+  background: var(--semantic-data);
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 600;
-  color: var(--bk-black);
+  color: var(--ui-black);
   transition: all 0.2s;
   box-shadow: var(--shadow-sticker-pressed);
 }
 
 .controlButton:hover:not(:disabled) {
-  background: #1fe8ff;
-  color: var(--bk-black);
+  background: var(--semantic-data);
+  color: var(--ui-black);
   transform: translateY(-2px);
   box-shadow: var(--shadow-sticker-hover);
 }
@@ -411,12 +411,12 @@
   border-radius: 8px;
   padding: 1.25rem;
   box-shadow: var(--shadow-sticker-pressed);
-  border-left: 4px solid var(--bk-cyan);
+  border-left: 4px solid var(--semantic-data);
 }
 
 .statLabel {
   font-size: 0.85rem;
-  color: #666;
+  color: var(--text-secondary);
   margin-bottom: 0.5rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -425,7 +425,7 @@
 .statValue {
   font-size: 1.5rem;
   font-weight: 700;
-  color: var(--bk-cyan);
+  color: var(--semantic-data);
 }
 
 .visualizationGrid {
@@ -445,15 +445,15 @@
   margin: 0 0 1rem 0;
   font-size: 0.95rem;
   font-weight: 600;
-  color: #333;
-  border-bottom: 1px solid #e0e0e0;
+  color: var(--ui-ink);
+  border-bottom: 1px solid color-mix(in srgb, var(--ui-black) 12%, var(--ui-white));
   padding-bottom: 0.5rem;
 }
 
 .placeholder {
   aspect-ratio: 16 / 9;
-  background: var(--bk-cyan-soft);
-  border: 2px dashed var(--bk-cyan);
+  background: var(--semantic-data-soft);
+  border: 2px dashed var(--semantic-data);
   border-radius: 6px;
   display: flex;
   flex-direction: column;
@@ -465,12 +465,12 @@
 .placeholderText {
   font-size: 1rem;
   font-weight: 600;
-  color: var(--bk-cyan);
+  color: var(--semantic-data);
 }
 
 .placeholderSubtext {
   font-size: 0.85rem;
-  color: #999;
+  color: var(--text-tertiary);
 }
 
 .materialLegend {
@@ -484,7 +484,7 @@
   margin: 0 0 1rem 0;
   font-size: 0.95rem;
   font-weight: 600;
-  color: #333;
+  color: var(--ui-ink);
 }
 
 .legendGrid {
@@ -498,7 +498,7 @@
   align-items: center;
   gap: 0.5rem;
   font-size: 0.9rem;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .legendColor {
@@ -521,19 +521,19 @@
 
 .analysisCard,
 .metricsCard {
-  background: #fafafa;
+  background: var(--surface-card);
   border-radius: 6px;
   padding: 1rem;
-  border: 1px solid #e0e0e0;
+  border: 1px solid color-mix(in srgb, var(--ui-black) 12%, var(--ui-white));
 }
 
 .metricRow {
   display: flex;
   justify-content: space-between;
   padding: 0.75rem 0;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid color-mix(in srgb, var(--ui-black) 12%, var(--ui-white));
   font-size: 0.9rem;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .metricRow:last-child {
@@ -542,7 +542,7 @@
 
 .metricValue {
   font-weight: 600;
-  color: var(--bk-cyan);
+  color: var(--semantic-data);
 }
 
 .sliceGrid {
@@ -562,7 +562,7 @@
   margin: 0 0 0.75rem 0;
   font-size: 0.9rem;
   font-weight: 600;
-  color: #333;
+  color: var(--ui-ink);
   text-align: center;
 }
 
@@ -576,19 +576,19 @@
   flex: 1;
   min-width: 200px;
   padding: 0.75rem 1.5rem;
-  border: 2px solid var(--bk-yellow);
+  border: 2px solid var(--semantic-numeric);
   background: var(--surface-card);
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 600;
-  color: var(--bk-yellow);
+  color: var(--semantic-numeric);
   transition: all 0.2s;
 }
 
 .exportButton:hover {
-  background: var(--bk-yellow);
-  color: #333;
+  background: var(--semantic-numeric);
+  color: var(--ui-ink);
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(255, 221, 0, 0.3);
 }
@@ -617,16 +617,16 @@
 }
 
 .content::-webkit-scrollbar-track {
-  background: #f5f5f5;
+  background: var(--surface-panel);
 }
 
 .content::-webkit-scrollbar-thumb {
-  background: var(--bk-cyan);
+  background: var(--semantic-data);
   border-radius: 4px;
 }
 
 .content::-webkit-scrollbar-thumb:hover {
-  background: #00b8e6;
+  background: var(--semantic-data);
 }
 
 .parametersTab {
@@ -643,24 +643,24 @@
 
 .summaryCard {
   background: var(--surface-card);
-  border: 2px solid #000000;
+  border: 2px solid var(--ui-black);
   border-radius: 6px;
   padding: 0.75rem;
-  box-shadow: 0 4px 0 #000000;
+  box-shadow: 0 4px 0 var(--ui-black);
 }
 
 .summaryLabel {
   font-size: 0.75rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #666;
+  color: var(--text-secondary);
   margin-bottom: 0.35rem;
 }
 
 .summaryValue {
   font-size: 1.1rem;
   font-weight: 600;
-  color: #111;
+  color: var(--ui-black);
 }
 
 .outputGrid {
@@ -671,24 +671,24 @@
 
 .outputCard {
   background: var(--surface-card);
-  border: 2px solid #000000;
+  border: 2px solid var(--ui-black);
   border-radius: 6px;
   padding: 0.85rem;
-  box-shadow: 0 4px 0 #000000;
+  box-shadow: 0 4px 0 var(--ui-black);
 }
 
 .outputLabel {
   font-size: 0.75rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #666;
+  color: var(--text-secondary);
   margin-bottom: 0.35rem;
 }
 
 .outputValue {
   font-size: 1.05rem;
   font-weight: 600;
-  color: #111;
+  color: var(--ui-black);
 }
 
 .warningsList {
@@ -698,11 +698,11 @@
 }
 
 .warningItem {
-  background: #fff7ed;
-  border: 2px solid #000000;
+  background: var(--ui-porcelain);
+  border: 2px solid var(--ui-black);
   border-radius: 6px;
   padding: 0.6rem 0.75rem;
-  box-shadow: 0 3px 0 #000000;
+  box-shadow: 0 3px 0 var(--ui-black);
   font-size: 0.85rem;
 }
 
@@ -713,10 +713,10 @@
 }
 
 .diagnosticGroup {
-  border: 2px solid #000000;
+  border: 2px solid var(--ui-black);
   border-radius: 8px;
   background: var(--surface-card);
-  box-shadow: 0 4px 0 #000000;
+  box-shadow: 0 4px 0 var(--ui-black);
   padding: 0;
   overflow: hidden;
 }
@@ -725,8 +725,8 @@
   cursor: pointer;
   padding: 0.85rem 1rem;
   font-weight: 600;
-  background: var(--bk-yellow-soft);
-  border-bottom: 2px solid #000000;
+  background: var(--semantic-numeric-soft);
+  border-bottom: 2px solid var(--ui-black);
 }
 
 .diagnosticBody {
@@ -743,31 +743,31 @@
 }
 
 .metricCard {
-  border: 2px solid #000000;
+  border: 2px solid var(--ui-black);
   border-radius: 6px;
   padding: 0.75rem;
-  background: #ffffff;
-  box-shadow: 0 3px 0 #000000;
+  background: var(--ui-white);
+  box-shadow: 0 3px 0 var(--ui-black);
 }
 
 .metricLabel {
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: #666;
+  color: var(--text-secondary);
   margin-bottom: 0.4rem;
 }
 
 .metricValue {
   font-size: 1rem;
   font-weight: 600;
-  color: #111;
+  color: var(--ui-black);
   margin-bottom: 0.35rem;
 }
 
 .metricMeta {
   font-size: 0.8rem;
-  color: #555;
+  color: color-mix(in srgb, var(--ui-black) 50%, transparent);
 }
 
 .metricDetail {
@@ -776,19 +776,19 @@
   align-items: baseline;
   gap: 0.5rem;
   font-size: 0.75rem;
-  color: #555;
+  color: color-mix(in srgb, var(--ui-black) 50%, transparent);
 }
 
 .metricDetailLabel {
   font-size: 0.65rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .metricDetailValue {
   font-weight: 600;
-  color: #111;
+  color: var(--ui-black);
 }
 
 .metricStatus {
@@ -804,13 +804,13 @@
 }
 
 .metricStatusGood {
-  background: var(--bk-cyan);
-  color: #000;
+  background: var(--semantic-data);
+  color: var(--ui-black);
 }
 
 .metricStatusWarn {
-  background: var(--bk-magenta);
-  color: #fff;
+  background: var(--semantic-logic);
+  color: var(--ui-white);
 }
 
 .subSection {
@@ -821,7 +821,7 @@
 
 .subTitle {
   font-weight: 600;
-  color: #222;
+  color: var(--ui-black);
 }
 
 .flagGrid {
@@ -835,20 +835,20 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.5rem 0.75rem;
-  border: 2px solid #000000;
+  border: 2px solid var(--ui-black);
   border-radius: 6px;
-  background: #ffffff;
-  box-shadow: 0 3px 0 #000000;
+  background: var(--ui-white);
+  box-shadow: 0 3px 0 var(--ui-black);
   font-size: 0.85rem;
 }
 
 .flagGood {
-  color: #0f766e;
+  color: var(--feedback-success);
   font-weight: 700;
 }
 
 .flagBad {
-  color: #b91c1c;
+  color: var(--feedback-error);
   font-weight: 700;
 }
 
@@ -859,11 +859,11 @@
 }
 
 .distributionCard {
-  border: 2px solid #000000;
+  border: 2px solid var(--ui-black);
   border-radius: 6px;
   padding: 0.75rem;
-  background: #ffffff;
-  box-shadow: 0 3px 0 #000000;
+  background: var(--ui-white);
+  box-shadow: 0 3px 0 var(--ui-black);
 }
 
 .distributionTitle {
@@ -873,7 +873,7 @@
 
 .distributionMeta {
   font-size: 0.8rem;
-  color: #555;
+  color: color-mix(in srgb, var(--ui-black) 50%, transparent);
 }
 
 .materialList {
@@ -886,18 +886,18 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  border: 2px solid #000000;
+  border: 2px solid var(--ui-black);
   border-radius: 8px;
   padding: 0.6rem 0.75rem;
-  background: #ffffff;
-  box-shadow: 0 3px 0 #000000;
+  background: var(--ui-white);
+  box-shadow: 0 3px 0 var(--ui-black);
 }
 
 .materialSwatch {
   width: 28px;
   height: 28px;
   border-radius: 6px;
-  border: 2px solid #000000;
+  border: 2px solid var(--ui-black);
 }
 
 .materialDetails {
@@ -908,7 +908,7 @@
 
 .materialMeta {
   font-size: 0.78rem;
-  color: #555;
+  color: color-mix(in srgb, var(--ui-black) 50%, transparent);
 }
 
 .semanticGrid {
@@ -918,11 +918,11 @@
 }
 
 .semanticCard {
-  border: 2px solid #000000;
+  border: 2px solid var(--ui-black);
   border-radius: 8px;
   padding: 0.75rem;
-  background: #ffffff;
-  box-shadow: 0 3px 0 #000000;
+  background: var(--ui-white);
+  box-shadow: 0 3px 0 var(--ui-black);
 }
 
 .semanticTitle {
@@ -934,11 +934,11 @@
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #666;
+  color: var(--text-secondary);
   margin-bottom: 0.4rem;
 }
 
 .semanticDescription {
   font-size: 0.8rem;
-  color: #555;
+  color: color-mix(in srgb, var(--ui-black) 50%, transparent);
 }

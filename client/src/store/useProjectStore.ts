@@ -7955,48 +7955,18 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const stiffnessGoalId = `node-stiffnessGoal-${ts}`;
     const stiffnessGoalPos = { x: col2X, y: stiffnessTargetPos.y + SLIDER_HEIGHT + V_GAP };
 
-    // Column 1.5: Vertex lists / goal inputs
+    // Column 1.5: Geometry extent selectors / goal inputs
     const listColX = col2X - NODE_WIDTH - H_GAP * 0.5;
-    const anchorListId = `node-listCreate-anchor-${ts}`;
-    const anchorListPos = { x: listColX, y: anchorGoalPos.y };
-    const loadListId = `node-listCreate-load-${ts}`;
-    const loadListPos = { x: listColX, y: loadGoalPos.y };
+    const anchorExtentId = `node-extent-anchor-${ts}`;
+    const anchorExtentPos = { x: listColX, y: anchorGoalPos.y };
+    const loadExtentId = `node-extent-load-${ts}`;
+    const loadExtentPos = { x: listColX, y: loadGoalPos.y };
     const loadMagnitudeSliderId = `node-slider-topo-loadMagnitude-${ts}`;
     const loadMagnitudePos = { x: listColX, y: loadWeightPos.y };
-    const stiffnessElementsListId = `node-listCreate-stiffness-${ts}`;
-    const stiffnessElementsListPos = { x: listColX, y: stiffnessGoalPos.y };
 
     const boxWidth = 2;
     const boxHeight = 1;
     const boxDepth = 0.5;
-    const baseMesh = generateBoxMesh({ width: boxWidth, height: boxHeight, depth: boxDepth }, 1);
-    const axisIndex = (axis: "x" | "y" | "z") => (axis === "x" ? 0 : axis === "y" ? 1 : 2);
-    const findIndicesAtExtent = (
-      mesh: RenderMesh,
-      axis: "x" | "y" | "z",
-      mode: "min" | "max"
-    ) => {
-      const axisOffset = axisIndex(axis);
-      let min = Number.POSITIVE_INFINITY;
-      let max = Number.NEGATIVE_INFINITY;
-      for (let i = 0; i < mesh.positions.length; i += 3) {
-        const value = mesh.positions[i + axisOffset];
-        min = Math.min(min, value);
-        max = Math.max(max, value);
-      }
-      if (!Number.isFinite(min) || !Number.isFinite(max)) return [];
-      const target = mode === "min" ? min : max;
-      const epsilon = Math.max(1e-6, Math.abs(max - min) * 0.01);
-      const indices: number[] = [];
-      const count = Math.floor(mesh.positions.length / 3);
-      for (let i = 0; i < count; i += 1) {
-        const value = mesh.positions[i * 3 + axisOffset];
-        if (Math.abs(value - target) <= epsilon) indices.push(i);
-      }
-      return indices;
-    };
-    const anchorIndices = findIndicesAtExtent(baseMesh, "y", "min");
-    const loadIndices = findIndicesAtExtent(baseMesh, "y", "max");
 
     // Column 4: Topology Optimization Solver
     const col4X = col3X + NODE_WIDTH + H_GAP;
@@ -8267,17 +8237,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         },
       },
       {
-        id: anchorListId,
-        type: "listCreate" as const,
-        position: anchorListPos,
-        data: {
-          label: "Anchor Vertices",
-          parameters: {
-            itemsText: anchorIndices.join(", "),
-          },
-        },
-      },
-      {
         id: loadMagnitudeSliderId,
         type: "slider" as const,
         position: loadMagnitudePos,
@@ -8292,24 +8251,30 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         },
       },
       {
-        id: loadListId,
-        type: "listCreate" as const,
-        position: loadListPos,
+        id: anchorExtentId,
+        type: "geometryExtentVertices" as const,
+        position: anchorExtentPos,
         data: {
-          label: "Load Vertices",
+          label: "Anchor Vertices (Z Min)",
           parameters: {
-            itemsText: loadIndices.join(", "),
+            axis: "z",
+            mode: "min",
+            band: 0.05,
+            maxCount: 256,
           },
         },
       },
       {
-        id: stiffnessElementsListId,
-        type: "listCreate" as const,
-        position: stiffnessElementsListPos,
+        id: loadExtentId,
+        type: "geometryExtentVertices" as const,
+        position: loadExtentPos,
         data: {
-          label: "Stiffness Elements",
+          label: "Load Vertices (Z Max)",
           parameters: {
-            itemsText: loadIndices.join(", "),
+            axis: "z",
+            mode: "max",
+            band: 0.05,
+            maxCount: 256,
           },
         },
       },
@@ -8565,6 +8530,20 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         targetHandle: "geometry",
       },
       {
+        id: `edge-${boxBuilderId}-${anchorExtentId}-geometry`,
+        source: boxBuilderId,
+        sourceHandle: "geometry",
+        target: anchorExtentId,
+        targetHandle: "geometry",
+      },
+      {
+        id: `edge-${boxBuilderId}-${loadExtentId}-geometry`,
+        source: boxBuilderId,
+        sourceHandle: "geometry",
+        target: loadExtentId,
+        targetHandle: "geometry",
+      },
+      {
         id: `edge-${boxBuilderId}-${volumeNodeId}-geometry`,
         source: boxBuilderId,
         sourceHandle: "geometry",
@@ -8705,9 +8684,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         targetHandle: "weight",
       },
       {
-        id: `edge-${anchorListId}-${anchorGoalId}-vertices`,
-        source: anchorListId,
-        sourceHandle: "list",
+        id: `edge-${anchorExtentId}-${anchorGoalId}-vertices`,
+        source: anchorExtentId,
+        sourceHandle: "indices",
         target: anchorGoalId,
         targetHandle: "vertices",
       },
@@ -8733,9 +8712,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         targetHandle: "forceMagnitude",
       },
       {
-        id: `edge-${loadListId}-${loadGoalId}-applicationPoints`,
-        source: loadListId,
-        sourceHandle: "list",
+        id: `edge-${loadExtentId}-${loadGoalId}-applicationPoints`,
+        source: loadExtentId,
+        sourceHandle: "indices",
         target: loadGoalId,
         targetHandle: "applicationPoints",
       },
@@ -8810,9 +8789,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         targetHandle: "targetStiffness",
       },
       {
-        id: `edge-${stiffnessElementsListId}-${stiffnessGoalId}-elements`,
-        source: stiffnessElementsListId,
-        sourceHandle: "list",
+        id: `edge-${loadExtentId}-${stiffnessGoalId}-elements`,
+        source: loadExtentId,
+        sourceHandle: "indices",
         target: stiffnessGoalId,
         targetHandle: "elements",
       },

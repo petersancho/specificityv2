@@ -280,3 +280,42 @@ Lingua is offered in this spirit—not as a complete solution, not as a predicti
 The software leverages the three great accelerants—computer, pixel, machine learning—to amplify human capability. But it keeps the human at the center, attending to problems, making judgments, directing the exploration. This is not because humans are inherently superior to machines, but because the problems we care about are human problems, defined by human values, meaningful in human contexts. The machines can help us solve these problems, but they cannot define them for us. That remains our responsibility, our privilege, our burden.
 
 As we pass into a new epoch of existence and science, as language becomes the universal medium through which all knowledge is accessible, as AI becomes an ever-present collaborator in intellectual work, Lingua stands ready—not to replace human creativity but to amplify it, not to eliminate uncertainty but to help us navigate it, not to predict the future but to help us build it, one design at a time, one workflow at a time, one act of attention at a time.
+
+## Part VIII: Validation as Semantic Practice
+
+### Why Validation Is Philosophy
+
+Lingua does not treat validation as a mechanical afterthought. Validation is the discipline that keeps language and computation aligned. When a semantic operation is registered, when a node references that operation, when a UI control points to a command, we are not only checking correctness—we are checking meaning. Each validation pass is a philosophical act: it affirms that the words we use and the structures we build still cohere, that our ontology is intact, that the language we speak remains precise.
+
+Lingua semantics are not merely labels. They are executable commitments. To say `command.display` is to promise that a specific action in the UI maps to a concrete operation in the backend. Validation is the ritual by which we keep those promises.
+
+### How We Validate with Lingua Semantics
+
+We validate three layers at once:
+
+- **Operations**: Every semantic operation ID exists exactly once and is registered.
+- **Linkages**: Nodes and commands point only to valid operations.
+- **Documentation**: The philosophy essay and README must directly link to real code and real operations.
+
+The last point is essential. Our philosophy is not abstract prose; it is grounded in code. That grounding is enforced by a script that verifies the essay and README contain explicit semantic links to actual files and semantic operation IDs. The essay becomes a living artifact, not a disconnected manifesto.
+
+### Semantic Code Links (Machine-Checked)
+
+The following anchors are validated by `npm run validate:docs-semantics` and must resolve to real files and real semantic operations. These anchors make the essay executable: every claim here is tethered to the code it describes.
+
+- UI semantic registry → [../client/src/semantic/uiSemanticRegistry.ts](../client/src/semantic/uiSemanticRegistry.ts) · Ops: `command.display`, `command.view`
+  <!-- semantic-link file="client/src/semantic/uiSemanticRegistry.ts" ops="command.display,command.view" -->
+- Theme inversion tokens → [../client/src/semantic/uiThemeTokens.ts](../client/src/semantic/uiThemeTokens.ts) · Ops: `command.display`
+  <!-- semantic-link file="client/src/semantic/uiThemeTokens.ts" ops="command.display" -->
+- Semantic color math → [../client/src/semantic/uiColorTokens.ts](../client/src/semantic/uiColorTokens.ts) · Ops: `color.blend`, `color.clamp`
+  <!-- semantic-link file="client/src/semantic/uiColorTokens.ts" ops="color.blend,color.clamp" -->
+- App top bar (semantic UI) → [../client/src/components/WebGLAppTopBar.tsx](../client/src/components/WebGLAppTopBar.tsx) · Ops: `command.display`
+  <!-- semantic-link file="client/src/components/WebGLAppTopBar.tsx" ops="command.display" -->
+- Panel top bar (semantic UI) → [../client/src/components/WebGLPanelTopBar.tsx](../client/src/components/WebGLPanelTopBar.tsx) · Ops: `command.view`
+  <!-- semantic-link file="client/src/components/WebGLPanelTopBar.tsx" ops="command.view" -->
+- Button semantics (UI → ops) → [../client/src/components/ui/WebGLButton.tsx](../client/src/components/ui/WebGLButton.tsx) · Ops: `command.display`
+  <!-- semantic-link file="client/src/components/ui/WebGLButton.tsx" ops="command.display" -->
+- Topology SIMP solver → [../client/src/components/workflow/topology/simp.ts](../client/src/components/workflow/topology/simp.ts) · Ops: `solver.topologyOptimization.optimize`
+  <!-- semantic-link file="client/src/components/workflow/topology/simp.ts" ops="solver.topologyOptimization.optimize" -->
+- FEM assembly core → [../client/src/components/workflow/topology/fem2d.ts](../client/src/components/workflow/topology/fem2d.ts) · Ops: `solver.topologyOptimization`
+  <!-- semantic-link file="client/src/components/workflow/topology/fem2d.ts" ops="solver.topologyOptimization" -->

@@ -1,9 +1,13 @@
 import { useMemo, type CSSProperties } from "react";
 import { renderIconDataUrl, type IconId } from "../../webgl/ui/WebGLIconRenderer";
 import { resolveIconImageUrl } from "./webglButtonRenderer";
-import { CMYK_SWATCHES } from "../../utils/renderPalette";
 import { hexToRgb } from "../../utils/color";
 import type { RGBA } from "../../webgl/ui/WebGLUIRenderer";
+import type { SemanticOpId } from "../../semantic/semanticOpIds";
+import type { UISemanticDomain } from "../../semantic/uiSemantics";
+import { UI_DOMAIN_COLORS } from "../../semantic/uiColorTokens";
+import { resolveStickerMeta } from "../../semantic/uiStickerRegistry";
+import { UISemanticRegistry } from "../../semantic/uiSemanticRegistry";
 import styles from "./StickerIcon.module.css";
 
 export type StickerIconVariant = "library" | "site";
@@ -13,6 +17,8 @@ export type StickerIconProps = {
   variant?: StickerIconVariant;
   size?: number;
   tint?: RGBA | string;
+  semanticDomain?: UISemanticDomain;
+  semanticOps?: SemanticOpId[];
   signature?: string;
   className?: string;
   style?: CSSProperties;
@@ -22,24 +28,12 @@ export type StickerIconProps = {
 };
 
 const FALLBACK_LIBRARY_TINT: RGBA = [0.07, 0.07, 0.09, 1];
-const CMYK_TINTS: RGBA[] = CMYK_SWATCHES.map((swatch) => {
-  const rgb = hexToRgb(swatch.hex);
-  return rgb ? [rgb[0], rgb[1], rgb[2], 1] : null;
-}).filter((value): value is RGBA => Boolean(value));
-
-const hashString = (value: string) => {
-  let hash = 0;
-  for (let i = 0; i < value.length; i += 1) {
-    hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
-  }
-  return hash;
-};
-
-const resolveCmykTint = (seed: string): RGBA => {
-  if (CMYK_TINTS.length === 0) return FALLBACK_LIBRARY_TINT;
-  const index = Math.abs(hashString(seed)) % CMYK_TINTS.length;
-  return CMYK_TINTS[index];
-};
+const FALLBACK_SITE_TINT: RGBA = [
+  0,
+  0,
+  0,
+  1,
+];
 
 const resolveTint = (value: StickerIconProps["tint"], fallback: RGBA): RGBA => {
   if (!value) return fallback;
@@ -76,6 +70,8 @@ export const StickerIcon = ({
   variant = "site",
   size = 96,
   tint,
+  semanticDomain,
+  semanticOps,
   signature,
   className,
   style,
@@ -84,11 +80,22 @@ export const StickerIcon = ({
   draggable = false,
 }: StickerIconProps) => {
   const fallbackTint = useMemo(() => {
-    if (variant === "site") {
-      return resolveCmykTint(`${iconId}|${signature ?? ""}`);
-    }
-    return FALLBACK_LIBRARY_TINT;
-  }, [iconId, signature, variant]);
+    if (variant === "library") return FALLBACK_LIBRARY_TINT;
+
+    const registry = UISemanticRegistry.getInstance();
+    const meta = resolveStickerMeta(String(iconId));
+    const opColor =
+      semanticOps && semanticOps.length > 0
+        ? registry.getColorForOp(semanticOps[0])
+        : undefined;
+    const domain = semanticDomain ?? meta.domain;
+    const accent = semanticDomain
+      ? UI_DOMAIN_COLORS[semanticDomain]
+      : opColor ?? meta.accentColor ?? UI_DOMAIN_COLORS[domain];
+    const rgb = hexToRgb(accent);
+    if (rgb) return [rgb[0], rgb[1], rgb[2], 1];
+    return FALLBACK_SITE_TINT;
+  }, [iconId, semanticDomain, semanticOps, signature, variant]);
 
   const resolvedTint = useMemo(
     () => resolveTint(tint, fallbackTint),

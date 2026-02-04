@@ -4997,6 +4997,27 @@
     "stable": true,
     "since": "1.0.0"
   },
+  "geometry.analyze.extentVertices": {
+    "id": "geometry.analyze.extentVertices",
+    "domain": "geometry",
+    "name": "Geometry Extent Vertices",
+    "category": "analysis",
+    "tags": [
+      "geometry",
+      "analysis",
+      "vertices",
+      "extent",
+      "axis"
+    ],
+    "complexity": "O(n)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Extracts vertex indices near a geometry extent along an axis",
+    "stable": true,
+    "since": "1.0.0"
+  },
   "geometry.analyze.edges": {
     "id": "geometry.analyze.edges",
     "domain": "geometry",

@@ -2,32 +2,32 @@
 
 :root {
   color-scheme: light;
-  /* Roslyn palette */
-  --sp-porcelain: #f5f2ee;
-  --sp-uiGrey: #e9e6e2;
-  --sp-divider: #c9c5c0;
-  --sp-ink: #1f1f22;
-  --sp-muted: #6a6661;
-  --sp-cyan: #00d4ff;
-  --sp-pink: #c2166b;
-  --sp-yellow: #c07a00;
-  --sp-purple: #ff0099;
-  --sp-orange: #cc5b1a;
+  /* Roslyn palette (semantic) */
+  --sp-porcelain: var(--ui-porcelain);
+  --sp-uiGrey: color-mix(in srgb, var(--ui-black) 8%, var(--ui-white));
+  --sp-divider: color-mix(in srgb, var(--ui-black) 18%, var(--ui-white));
+  --sp-ink: var(--ui-ink);
+  --sp-muted: color-mix(in srgb, var(--ui-black) 55%, transparent);
+  --sp-cyan: var(--semantic-data);
+  --sp-pink: var(--semantic-logic);
+  --sp-yellow: var(--semantic-numeric);
+  --sp-purple: var(--semantic-logic);
+  --sp-orange: var(--feedback-warning);
 
-  /* CMYK tri-color palette */
-  --cmyk-cyan: #00d4ff;
-  --cmyk-magenta: #ff0099;
-  --cmyk-yellow: #ffdd00;
-  --cmyk-black: #000000;
+  /* CMYK tri-color palette (semantic) */
+  --cmyk-cyan: var(--semantic-data);
+  --cmyk-magenta: var(--semantic-logic);
+  --cmyk-yellow: var(--semantic-numeric);
+  --cmyk-black: var(--ui-black);
 
-  /* Product accent colors */
-  --roslyn-accent: #00d4ff;
-  --numerica-accent: #ff0099;
-  --lingua-accent-cyan: #00d4ff;
-  --lingua-accent-magenta: #ff0099;
-  --lingua-accent-yellow: #ffdd00;
+  /* Product accent colors (semantic) */
+  --roslyn-accent: var(--semantic-data);
+  --numerica-accent: var(--semantic-logic);
+  --lingua-accent-cyan: var(--semantic-data);
+  --lingua-accent-magenta: var(--semantic-logic);
+  --lingua-accent-yellow: var(--semantic-numeric);
 
-  --roslyn-industrial-warm-grey: #8e8a84;
+  --roslyn-industrial-warm-grey: color-mix(in srgb, var(--ui-black) 35%, var(--ui-white));
   --roslyn-instrument-cream: var(--sp-porcelain);
   --roslyn-soft-porcelain: var(--sp-porcelain);
   --roslyn-calibration-grey: var(--sp-uiGrey);
@@ -38,9 +38,9 @@
 
   /* Ink scale */
   --ink-1000: var(--sp-ink);
-  --ink-900: #2a2a2e;
-  --ink-700: #3b3b40;
-  --ink-500: #57575e;
+  --ink-900: color-mix(in srgb, var(--ui-black) 90%, var(--ui-white));
+  --ink-700: color-mix(in srgb, var(--ui-black) 70%, var(--ui-white));
+  --ink-500: color-mix(in srgb, var(--ui-black) 55%, var(--ui-white));
 
   /* Fog scale */
   --fog-100: var(--roslyn-soft-porcelain);
@@ -54,14 +54,14 @@
     var(--roslyn-graphite-ink)
   );
 
-  /* Functional colors */
-  --state-error: #dc3545;
-  --state-warning: #b56f1f;
-  --state-success: #2f7a3c;
-  --state-info: #2b5fb3;
+  /* Functional colors (feedback) */
+  --state-error: var(--feedback-error);
+  --state-warning: var(--feedback-warning);
+  --state-success: var(--feedback-success);
+  --state-info: var(--semantic-data);
 
-  --accent-primary: var(--ink-1000);
-  --accent-signal: var(--roslyn-signal-orange);
+  --accent-primary: var(--ui-black);
+  --accent-signal: var(--feedback-warning);
 
   /* Semantic tokens */
   --bg: var(--roslyn-soft-porcelain);
@@ -75,19 +75,15 @@
   --surface: var(--roslyn-instrument-cream);
   --surface-strong: var(--roslyn-calibration-grey);
   --surface-soft: var(--roslyn-soft-porcelain);
-  --accent: var(--roslyn-graphite-ink);
-  --accent-highlight: var(--roslyn-signal-orange);
-  --accent-orange-soft: color-mix(
-    in srgb,
-    var(--roslyn-signal-orange) 25%,
-    transparent
-  );
-  --accent-ring: color-mix(in srgb, var(--roslyn-graphite-ink) 25%, transparent);
-  --accent-muted: var(--roslyn-machined-grey);
+  --accent: var(--ui-black);
+  --accent-highlight: var(--ui-black);
+  --accent-orange-soft: color-mix(in srgb, var(--ui-black) 15%, transparent);
+  --accent-ring: color-mix(in srgb, var(--ui-black) 25%, transparent);
+  --accent-muted: color-mix(in srgb, var(--ui-black) 35%, transparent);
   --color-canvas: var(--roslyn-soft-porcelain);
   --color-grid-line: var(--roslyn-calibration-grey);
-  --color-grid-dot: rgba(46, 46, 44, 0.12);
-  --color-grid-dot-soft: rgba(46, 46, 44, 0.06);
+  --color-grid-dot: color-mix(in srgb, var(--ui-black) 12%, transparent);
+  --color-grid-dot-soft: color-mix(in srgb, var(--ui-black) 6%, transparent);
   --canvas-grid-size: 84px;
   --canvas-grid-dot: var(--color-grid-dot);
   --canvas-grid-dot-soft: var(--color-grid-dot-soft);
@@ -138,34 +134,34 @@
   --border-focus: 2px solid var(--ink-1000);
 
   /* Shadows - Black Opaque Drop Shadows (No Blur) */
-  --shadow-2xs: 0 2px 0 #000000;
-  --shadow-xs: 0 3px 0 #000000;
-  --shadow-sm: 0 4px 0 #000000;
-  --shadow-md: 0 6px 0 #000000;
-  --shadow-md-up: 0 -6px 0 #000000;
-  --shadow-node: 0 4px 0 #000000;
-  --shadow-lg: 0 8px 0 #000000;
-  --shadow-xl: 0 12px 0 #000000;
-  --shadow-sm-hover: 0 6px 0 #000000;
-  --shadow-md-hover: 0 8px 0 #000000;
-  --shadow-node-hover: 0 6px 0 #000000;
-  --shadow-sm-pressed: 0 1px 0 #000000;
-  --shadow-md-pressed: 0 2px 0 #000000;
-  --shadow-node-pressed: 0 2px 0 #000000;
+  --shadow-2xs: 0 2px 0 var(--ui-black);
+  --shadow-xs: 0 3px 0 var(--ui-black);
+  --shadow-sm: 0 4px 0 var(--ui-black);
+  --shadow-md: 0 6px 0 var(--ui-black);
+  --shadow-md-up: 0 -6px 0 var(--ui-black);
+  --shadow-node: 0 4px 0 var(--ui-black);
+  --shadow-lg: 0 8px 0 var(--ui-black);
+  --shadow-xl: 0 12px 0 var(--ui-black);
+  --shadow-sm-hover: 0 6px 0 var(--ui-black);
+  --shadow-md-hover: 0 8px 0 var(--ui-black);
+  --shadow-node-hover: 0 6px 0 var(--ui-black);
+  --shadow-sm-pressed: 0 1px 0 var(--ui-black);
+  --shadow-md-pressed: 0 2px 0 var(--ui-black);
+  --shadow-node-pressed: 0 2px 0 var(--ui-black);
 
   /* Node validation */
-  --node-error-bg: rgba(220, 53, 69, 0.15);
+  --node-error-bg: color-mix(in srgb, var(--feedback-error) 15%, transparent);
   --node-error-border: var(--state-error);
-  --node-error-overlay: rgba(128, 128, 128, 0.3);
+  --node-error-overlay: color-mix(in srgb, var(--ui-black) 30%, transparent);
 
   /* Eto icon colors */
-  --eto-icon-primary: var(--roslyn-graphite-ink);
-  --eto-icon-secondary: var(--roslyn-industrial-warm-grey);
-  --eto-icon-accent: var(--roslyn-signal-orange);
-  --eto-icon-success: #2f7a3c;
-  --eto-icon-warning: #b56f1f;
+  --eto-icon-primary: var(--ui-ink);
+  --eto-icon-secondary: color-mix(in srgb, var(--ui-black) 45%, var(--ui-white));
+  --eto-icon-accent: var(--semantic-numeric);
+  --eto-icon-success: var(--feedback-success);
+  --eto-icon-warning: var(--feedback-warning);
   --eto-icon-error: var(--state-error);
-  --eto-icon-info: #2b5fb3;
+  --eto-icon-info: var(--semantic-data);
 
   --font-sans: var(--font-body);
   --font-serif: var(--font-title);
@@ -249,8 +245,8 @@
   --radius-card: var(--radius);
   --radius-input: var(--radius-sm);
   --shadow-panel: var(--shadow-xl);
-  --shadow-panel-active: 0 20px 0 #000000;
-  --shadow-panel-outline: 0 0 0 2px rgba(0, 0, 0, 0.15);
+  --shadow-panel-active: 0 20px 0 var(--ui-black);
+  --shadow-panel-outline: 0 0 0 2px color-mix(in srgb, var(--ui-black) 15%, transparent);
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -265,39 +261,6 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: var(--ink-1000);
-  --fg: var(--fog-100);
-  --muted: var(--fog-400);
-  --muted-strong: var(--fog-300);
-  --border: var(--ink-700);
-  --border-subtle: var(--ink-900);
-  --card-bg: var(--ink-900);
-  --card-hover-bg: var(--ink-700);
-  --surface: var(--ink-900);
-  --surface-strong: var(--ink-700);
-  --surface-soft: var(--ink-700);
-  --color-topbar-bg: var(--ink-900);
-  --color-topbar-border: var(--ink-700);
-  --color-grid-dot: rgba(253, 253, 252, 0.2);
-  --color-grid-dot-soft: rgba(253, 253, 252, 0.08);
-  --color-footer-bg: color-mix(in srgb, var(--ink-900) 92%, transparent);
-  --color-footer-border: rgba(253, 253, 252, 0.12);
-  --color-footer-grid-strong: rgba(253, 253, 252, 0.15);
-  --color-footer-grid-soft: rgba(253, 253, 252, 0.05);
-  --color-footer-highlight: rgba(253, 253, 252, 0.65);
-  --color-accent-ring: rgba(253, 253, 252, 0.3);
-  --color-accent-ring-strong: rgba(253, 253, 252, 0.4);
-  --color-accent-spot: rgba(253, 253, 252, 0.5);
-  --color-edge: rgba(253, 253, 252, 0.7);
-  --color-handle-dot-strong: rgba(253, 253, 252, 0.9);
-  --color-handle-dot-soft: rgba(253, 253, 252, 0.7);
-  --color-handle-stroke: rgba(253, 253, 252, 0.6);
-  --shadow-xs: 0 1px 0 rgba(0, 0, 0, 0.6);
-  --shadow-sm: 0 6px 0 rgba(0, 0, 0, 0.8);
-  --shadow-md-up: 0 -6px 0 rgba(0, 0, 0, 0.8);
-  --shadow-panel: 0 16px 0 rgba(0, 0, 0, 0.85);
-  --shadow-panel-active: 0 20px 0 rgba(0, 0, 0, 0.92);
-  --shadow-panel-outline: 0 0 0 2px rgba(253, 253, 252, 0.15);
 }
 
 * {
@@ -407,7 +370,7 @@ textarea:disabled {
 
 .component-hub {
   --ui-texture-bg: var(--fog-150);
-  --ui-texture-dot: rgba(5, 5, 5, 0.08);
+  --ui-texture-dot: color-mix(in srgb, var(--ui-black) 8%, transparent);
   --ui-texture-size: 14px;
 }
 
@@ -417,7 +380,7 @@ textarea:disabled {
   --note-panel: var(--fog-100);
   --note-border: var(--ink-900);
   --note-border-inner: var(--fog-300);
-  --note-shadow: #050505;
+  --note-shadow: var(--ui-black);
   --note-text: var(--ink-1000);
   --note-muted: var(--ink-500);
   --note-muted-strong: var(--ink-700);
@@ -432,7 +395,7 @@ textarea:disabled {
   --muted-strong: var(--note-muted-strong);
   --accent: var(--note-accent);
   --accent-orange: var(--note-accent);
-  --accent-orange-soft: rgba(5, 5, 5, 0.2);
+  --accent-orange-soft: color-mix(in srgb, var(--ui-black) 20%, transparent);
   --accent-muted: var(--note-muted);
   --bg: var(--note-body);
 }

@@ -27,9 +27,9 @@
   gap: var(--space-3);
   margin-bottom: var(--space-3);
   padding: 8px 10px;
-  border: 2px solid var(--bk-black);
+  border: 2px solid var(--ui-black);
   background: var(--surface-card);
-  box-shadow: 0 4px 0 var(--bk-black);
+  box-shadow: 0 4px 0 var(--ui-black);
   border-radius: 4px;
 }
 
@@ -58,22 +58,22 @@
   width: 100%;
   height: 36px;
   border-radius: 4px;
-  border: 2px solid var(--bk-black);
+  border: 2px solid var(--ui-black);
   background: var(--surface-card);
-  color: var(--bk-black);
+  color: var(--ui-black);
   padding: 0 10px;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.02em;
-  box-shadow: 0 3px 0 var(--bk-black);
+  box-shadow: 0 3px 0 var(--ui-black);
   transition: transform 120ms ease, box-shadow 120ms ease;
 }
 
 .headerSearchInput:focus-visible {
-  outline: 2px solid var(--bk-cyan);
+  outline: 2px solid var(--semantic-data);
   outline-offset: 2px;
   transform: translateY(-1px);
-  box-shadow: 0 4px 0 var(--bk-black);
+  box-shadow: 0 4px 0 var(--ui-black);
 }
 
 .headerSearchMeta {
@@ -101,26 +101,26 @@
 }
 
 .capture {
-  border: 2px solid var(--bk-black);
+  border: 2px solid var(--ui-black);
   border-radius: 4px;
   padding: 8px 16px;
   font-weight: 600;
-  background: var(--bk-yellow);
-  color: var(--bk-black);
-  box-shadow: 0 3px 0 var(--bk-black);
+  background: var(--semantic-numeric);
+  color: var(--ui-black);
+  box-shadow: 0 3px 0 var(--ui-black);
   transition: transform 120ms ease, box-shadow 120ms ease;
   cursor: pointer;
 }
 
 .capture:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 0 var(--bk-black);
-  background: #ffee66;
+  box-shadow: 0 4px 0 var(--ui-black);
+  background: var(--semantic-numeric-soft);
 }
 
 .capture:active {
   transform: translateY(1px);
-  box-shadow: 0 1px 0 var(--bk-black);
+  box-shadow: 0 1px 0 var(--ui-black);
 }
 
 .capture:hover:not(:disabled) {
@@ -144,8 +144,8 @@
 }
 
 .palette {
-  background: var(--sp-porcelain, #f5f2ee);
-  border: 1px solid var(--sp-divider, #c9c5c0);
+  background: var(--sp-porcelain);
+  border: 1px solid var(--sp-divider);
   border-radius: var(--radius-lg);
   padding: 10px 12px;
   display: flex;
@@ -182,7 +182,7 @@
   margin-top: 12px;
   padding: 12px;
   border-radius: 8px;
-  border: 2px solid var(--bk-black);
+  border: 2px solid var(--ui-black);
   background: var(--surface-card);
   box-shadow: var(--shadow-sticker-pressed);
   display: flex;
@@ -202,12 +202,12 @@
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--bk-black);
+  color: var(--ui-black);
 }
 
 .solverActionsSubtitle {
   font-size: 10px;
-  color: color-mix(in srgb, var(--bk-black) 60%, transparent);
+  color: color-mix(in srgb, var(--ui-black) 60%, transparent);
 }
 
 .solverActionsGuide {
@@ -216,10 +216,10 @@
   gap: 2px;
   padding: 8px 10px;
   border-radius: 6px;
-  background: var(--surface-panel, #f8f7f4);
-  border: 1px dashed color-mix(in srgb, var(--bk-black) 18%, transparent);
+  background: var(--surface-panel);
+  border: 1px dashed color-mix(in srgb, var(--ui-black) 18%, transparent);
   font-size: 10px;
-  color: color-mix(in srgb, var(--bk-black) 60%, transparent);
+  color: color-mix(in srgb, var(--ui-black) 60%, transparent);
 }
 
 .solverActionsList {
@@ -235,8 +235,8 @@
   gap: 10px;
   padding: 8px 10px;
   border-radius: 6px;
-  border: 1px solid color-mix(in srgb, var(--bk-black) 18%, transparent);
-  background: var(--surface-panel, #f8f7f4);
+  border: 1px solid color-mix(in srgb, var(--ui-black) 18%, transparent);
+  background: var(--surface-panel);
 }
 
 .solverActionsMeta {
@@ -248,7 +248,7 @@
 .solverActionsNode {
   font-size: 12px;
   font-weight: 600;
-  color: var(--bk-black);
+  color: var(--ui-black);
 }
 
 .solverActionsStatus {
@@ -259,15 +259,15 @@
 }
 
 .solverActionsStatus[data-tone="ready"] {
-  color: var(--bk-cyan);
+  color: var(--semantic-data);
 }
 
 .solverActionsStatus[data-tone="error"] {
-  color: var(--bk-magenta);
+  color: var(--semantic-logic);
 }
 
 .solverActionsStatus[data-tone="idle"] {
-  color: var(--bk-yellow);
+  color: var(--semantic-numeric);
 }
 
 .solverActionsButtons {
@@ -279,15 +279,15 @@
 .solverActionsEmpty {
   padding: 8px 10px;
   font-size: 11px;
-  color: color-mix(in srgb, var(--bk-black) 55%, transparent);
-  background: var(--surface-panel, #f8f7f4);
+  color: color-mix(in srgb, var(--ui-black) 55%, transparent);
+  background: var(--surface-panel);
   border-radius: 6px;
-  border: 1px dashed color-mix(in srgb, var(--bk-black) 18%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--ui-black) 18%, transparent);
 }
 
 .solverActionsHint {
   font-size: 10px;
-  color: color-mix(in srgb, var(--bk-black) 50%, transparent);
+  color: color-mix(in srgb, var(--ui-black) 50%, transparent);
 }
 
 .paletteHeader {
@@ -306,7 +306,7 @@
 .paletteTitle {
   font-size: 12px;
   font-weight: 700;
-  color: var(--sp-ink, #1f1f22);
+  color: var(--sp-ink);
   letter-spacing: 0.04em;
 }
 
@@ -319,7 +319,7 @@
   font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  color: color-mix(in srgb, var(--sp-ink, #1f1f22) 60%, transparent);
+  color: color-mix(in srgb, var(--sp-ink) 60%, transparent);
 }
 
 .paletteControls {
@@ -342,7 +342,7 @@
   gap: 10px;
   flex-wrap: wrap;
   padding-top: 6px;
-  border-top: 1px dashed color-mix(in srgb, var(--sp-divider, #c9c5c0) 65%, transparent);
+  border-top: 1px dashed color-mix(in srgb, var(--sp-divider) 65%, transparent);
 }
 
 .paletteFooterSetting {
@@ -351,7 +351,7 @@
   gap: 6px;
   font-size: 11px;
   font-weight: 600;
-  color: var(--sp-ink, #1f1f22);
+  color: var(--sp-ink);
 }
 
 .paletteSection {
@@ -359,7 +359,7 @@
   flex-direction: column;
   gap: 8px;
   padding-bottom: 8px;
-  border-bottom: 1px dashed color-mix(in srgb, var(--sp-divider, #c9c5c0) 70%, transparent);
+  border-bottom: 1px dashed color-mix(in srgb, var(--sp-divider) 70%, transparent);
 }
 
 .paletteSection:last-child {
@@ -379,13 +379,13 @@
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--sp-ink, #1f1f22);
+  color: var(--sp-ink);
 }
 
 .paletteSectionMeta {
   font-size: 9px;
   letter-spacing: 0.06em;
-  color: color-mix(in srgb, var(--sp-ink, #1f1f22) 58%, transparent);
+  color: color-mix(in srgb, var(--sp-ink) 58%, transparent);
   text-transform: uppercase;
   white-space: nowrap;
 }
@@ -404,7 +404,7 @@
   gap: 10px;
   padding-right: 12px;
   margin-right: 2px;
-  border-right: 1px solid color-mix(in srgb, var(--sp-divider, #c9c5c0) 70%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--sp-divider) 70%, transparent);
   min-width: 0;
 }
 
@@ -431,7 +431,7 @@
   width: 8px;
   height: 8px;
   border-radius: var(--radius-pill);
-  border: 1px solid color-mix(in srgb, var(--sp-divider, #c9c5c0) 80%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sp-divider) 80%, transparent);
   box-shadow: var(--shadow-2xs);
 }
 
@@ -439,14 +439,14 @@
   font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: var(--sp-ink, #1f1f22);
+  color: var(--sp-ink);
   font-weight: 700;
 }
 
 .paletteGroupMeta {
   font-size: 9px;
   letter-spacing: 0.02em;
-  color: color-mix(in srgb, var(--sp-ink, #1f1f22) 62%, transparent);
+  color: color-mix(in srgb, var(--sp-ink) 62%, transparent);
   max-width: 120px;
 }
 
@@ -538,7 +538,7 @@
 
 .parameterPanel {
   flex: 1 0 100%;
-  border-top: 1px solid color-mix(in srgb, var(--sp-divider, #c9c5c0) 70%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--sp-divider) 70%, transparent);
   margin-top: 8px;
   padding-top: 8px;
   display: flex;
@@ -556,7 +556,7 @@
 .parameterTitle {
   font-size: 12px;
   font-weight: 700;
-  color: var(--sp-ink, #1f1f22);
+  color: var(--sp-ink);
 }
 
 .parameterSubtitle {
@@ -576,8 +576,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: var(--sp-uiGrey, #e9e6e2);
-  border: 1px solid color-mix(in srgb, var(--sp-divider, #c9c5c0) 75%, transparent);
+  background: var(--sp-uiGrey);
+  border: 1px solid color-mix(in srgb, var(--sp-divider) 75%, transparent);
   border-radius: var(--radius);
   padding: 6px 8px;
   box-shadow: var(--shadow-2xs);
@@ -611,14 +611,14 @@
   align-items: center;
   gap: 8px;
   padding: 4px 2px;
-  color: var(--sp-ink, #1f1f22);
+  color: var(--sp-ink);
   font-weight: 600;
 }
 
 .parameterLabel {
   font-size: 11px;
   font-weight: 700;
-  color: var(--sp-ink, #1f1f22);
+  color: var(--sp-ink);
   min-width: 0;
 }
 
@@ -627,9 +627,9 @@
   min-width: 0;
   height: 32px;
   border-radius: var(--radius-sm);
-  border: 1px solid color-mix(in srgb, var(--sp-divider, #c9c5c0) 80%, transparent);
-  background: var(--sp-porcelain, #f5f2ee);
-  color: var(--sp-ink, #1f1f22);
+  border: 1px solid color-mix(in srgb, var(--sp-divider) 80%, transparent);
+  background: var(--sp-porcelain);
+  color: var(--sp-ink);
   padding: 0 8px;
   font-size: 11px;
   font-weight: 600;
@@ -648,9 +648,9 @@
   width: 44px;
   height: 32px;
   border-radius: var(--radius-sm);
-  border: 1px solid color-mix(in srgb, var(--sp-divider, #c9c5c0) 80%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sp-divider) 80%, transparent);
   padding: 0;
-  background: var(--sp-porcelain, #f5f2ee);
+  background: var(--sp-porcelain);
   cursor: pointer;
 }
 
@@ -683,7 +683,7 @@
 .parameterEmpty {
   margin: 0;
   font-size: 11px;
-  color: color-mix(in srgb, var(--sp-ink, #1f1f22) 55%, transparent);
+  color: color-mix(in srgb, var(--sp-ink) 55%, transparent);
   font-weight: 600;
 }
 

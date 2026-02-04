@@ -1,15 +1,15 @@
 /**
- * CMYK Color Convention System for Lingua Workflow
+ * Semantic Color Convention System for Lingua Workflow
  * 
  * This module establishes a consistent color palette based on CMYK primaries
  * for all workflow UI elements including port types, node categories, and
  * visual feedback states.
  * 
  * SEMANTIC COLOR GROUPS:
- * - Yellow (#ffdd00): Numeric/Scalar/Vector data
- * - Magenta (#ff0099): Logic/Boolean/Goals/Constraints
- * - Cyan (#00d4ff): Text/String/Specs/Metadata
- * - Black (#000000): Geometry/Structure/Mesh/Voxel
+ * - Numeric: Numbers, vectors, parameters
+ * - Logic: Booleans, goals, constraints
+ * - Data: Strings, specs, metadata
+ * - Structure: Geometry, meshes, voxels
  * 
  * VISUAL CONVENTIONS:
  * - Input ports: stroke = color, fill = transparent
@@ -20,15 +20,16 @@
 
 import type { WorkflowPortType } from "./registry/types";
 import type { NodeCategoryId } from "./registry/types";
+import { UI_DOMAIN_COLORS } from "../semantic/uiColorTokens";
 
 /**
- * CMYK color palette - the foundation of all workflow colors
+ * Semantic color palette - the foundation of all workflow colors
  */
 export const CMYK = {
-  cyan: "#00d4ff",
-  magenta: "#ff0099",
-  yellow: "#ffdd00",
-  black: "#000000",
+  cyan: UI_DOMAIN_COLORS.data,
+  magenta: UI_DOMAIN_COLORS.logic,
+  yellow: UI_DOMAIN_COLORS.numeric,
+  black: UI_DOMAIN_COLORS.structure,
 } as const;
 
 /**

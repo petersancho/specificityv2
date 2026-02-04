@@ -580,7 +580,7 @@
 }
 
 .captureModalError {
-  color: #d7263d;
+  color: var(--feedback-error);
   font-size: 12px;
   padding: 8px 24px 0;
 }

@@ -100,6 +100,7 @@ export const SEMANTIC_OP_IDS = [
   'geometry.analyze.curveProximity',
   'geometry.analyze.dimensions',
   'geometry.analyze.edges',
+  'geometry.analyze.extentVertices',
   'geometry.analyze.faces',
   'geometry.analyze.info',
   'geometry.analyze.normals',

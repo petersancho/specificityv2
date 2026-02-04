@@ -96,8 +96,8 @@ const rgb = (r: number, g: number, b: number, a = 1): RGBA => [r / 255, g / 255,
 
 const WHITE = rgb(255, 255, 255, 1);
 const BLACK = rgb(0, 0, 0, 1);
-const NEUTRAL_FILL = rgb(242, 240, 236, 1);
-const NEUTRAL_BORDER = rgb(205, 201, 196, 1);
+const NEUTRAL_FILL = rgb(245, 242, 238, 1);
+const NEUTRAL_BORDER = rgb(0, 0, 0, 1);
 const NEUTRAL_SHADOW = rgb(0, 0, 0, 0.45);
 
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
@@ -166,10 +166,10 @@ const getThemePalette = (): ThemePalette => {
       surface: rgb(255, 255, 255, 1),
       surfaceMuted: rgb(245, 245, 245, 1),
       border: rgb(200, 200, 200, 1),
-      accent: rgb(249, 115, 22, 1),
+      accent: rgb(0, 0, 0, 1),
       onAccent: rgb(255, 255, 255, 1),
-      cream: rgb(247, 243, 234, 1),
-      ink: rgb(12, 12, 12, 1),
+      cream: rgb(245, 242, 238, 1),
+      ink: rgb(31, 31, 34, 1),
     };
   }
 
@@ -184,16 +184,16 @@ const getThemePalette = (): ThemePalette => {
     rgb(245, 243, 239, 1)
   );
   const border = parseCssColor(readCssVar("--color-border", "#c9c4bb"), rgb(201, 196, 187, 1));
-  const accent = parseCssColor(readCssVar("--color-accent", "#f97316"), rgb(249, 115, 22, 1));
+  const accent = parseCssColor(readCssVar("--color-accent", "#000000"), rgb(0, 0, 0, 1));
   const onAccent = parseCssColor(
     readCssVar("--color-on-accent", "#ffffff"),
     rgb(255, 255, 255, 1)
   );
   const cream = parseCssColor(
-    readCssVar("--sp-uiGrey", readCssVar("--roslyn-cream", "#f7f3ea")),
-    rgb(233, 230, 226, 1)
+    readCssVar("--sp-uiGrey", readCssVar("--roslyn-cream", "#f5f2ee")),
+    rgb(245, 242, 238, 1)
   );
-  const ink = parseCssColor(readCssVar("--sp-ink", readCssVar("--ink-1000", "#0d0d0d")), rgb(31, 31, 34, 1));
+  const ink = parseCssColor(readCssVar("--sp-ink", readCssVar("--ink-1000", "#1f1f22")), rgb(31, 31, 34, 1));
 
   cachedTheme = {
     themeKey,

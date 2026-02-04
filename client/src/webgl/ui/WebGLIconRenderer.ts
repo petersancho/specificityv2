@@ -1,5 +1,11 @@
 import type { RGBA } from "./WebGLUIRenderer";
 import { STICKER2_PALETTE } from "../../assets/Stickers2";
+import {
+  UI_BASE_COLORS,
+  UI_DOMAIN_COLORS,
+  UI_FEEDBACK_COLORS,
+  mixHex,
+} from "../../semantic/uiColorTokens";
 
 type Resolution = { width: number; height: number };
 
@@ -34,6 +40,37 @@ type ShaderHandles = {
 
 const VERTEX_STRIDE = 8;
 const ATLAS_ICON_SIZE = 512;
+
+const SEMANTIC_COLORS = {
+  black: UI_BASE_COLORS.black,
+  white: UI_BASE_COLORS.white,
+  porcelain: UI_BASE_COLORS.porcelain,
+  ink: UI_BASE_COLORS.ink,
+  data: UI_DOMAIN_COLORS.data,
+  logic: UI_DOMAIN_COLORS.logic,
+  numeric: UI_DOMAIN_COLORS.numeric,
+  success: UI_FEEDBACK_COLORS.success,
+  warning: UI_FEEDBACK_COLORS.warning,
+  error: UI_FEEDBACK_COLORS.error,
+} as const;
+
+const SEMANTIC_TINTS = {
+  dataSoft: mixHex(SEMANTIC_COLORS.data, SEMANTIC_COLORS.white, 0.6),
+  dataDeep: mixHex(SEMANTIC_COLORS.data, SEMANTIC_COLORS.black, 0.45),
+  logicSoft: mixHex(SEMANTIC_COLORS.logic, SEMANTIC_COLORS.white, 0.6),
+  logicDeep: mixHex(SEMANTIC_COLORS.logic, SEMANTIC_COLORS.black, 0.45),
+  numericSoft: mixHex(SEMANTIC_COLORS.numeric, SEMANTIC_COLORS.white, 0.6),
+  numericDeep: mixHex(SEMANTIC_COLORS.numeric, SEMANTIC_COLORS.black, 0.45),
+  successSoft: mixHex(SEMANTIC_COLORS.success, SEMANTIC_COLORS.white, 0.6),
+  successDeep: mixHex(SEMANTIC_COLORS.success, SEMANTIC_COLORS.black, 0.45),
+  warningSoft: mixHex(SEMANTIC_COLORS.warning, SEMANTIC_COLORS.white, 0.6),
+  warningDeep: mixHex(SEMANTIC_COLORS.warning, SEMANTIC_COLORS.black, 0.45),
+  errorSoft: mixHex(SEMANTIC_COLORS.error, SEMANTIC_COLORS.white, 0.6),
+  errorDeep: mixHex(SEMANTIC_COLORS.error, SEMANTIC_COLORS.black, 0.45),
+  neutralSoft: mixHex(SEMANTIC_COLORS.black, SEMANTIC_COLORS.white, 0.88),
+  neutralMid: mixHex(SEMANTIC_COLORS.black, SEMANTIC_COLORS.white, 0.72),
+  neutralDeep: mixHex(SEMANTIC_COLORS.black, SEMANTIC_COLORS.white, 0.4),
+} as const;
 
 const ICON_IDS = [
   "point",

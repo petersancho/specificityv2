@@ -1,0 +1,43 @@
+/*
+ * Semantic CSS (auto-generated)
+ * Do not edit directly. Run `npm run generate:semantic-css`.
+ */
+
+:root {
+  --ui-black: #000000;
+  --ui-white: #ffffff;
+  --ui-porcelain: #f5f2ee;
+  --ui-ink: #1f1f22;
+  --semantic-numeric: #ffdd00;
+  --semantic-logic: #ff0099;
+  --semantic-data: #00d4ff;
+  --semantic-structure: #000000;
+  --semantic-feedback: #ffdd00;
+  --semantic-neutral: #000000;
+  --feedback-computing: #ffdd00;
+  --feedback-success: #4ade80;
+  --feedback-warning: #fbbf24;
+  --feedback-error: #ff4444;
+  --shadow-none: none;
+  --shadow-grounded: 0 2px 0 var(--ui-black);
+  --shadow-raised: 0 4px 0 var(--ui-black);
+  --shadow-floating: 0 8px 0 var(--ui-black);
+  --shadow-modal: 0 12px 0 var(--ui-black);
+  --shadow-raised-hover: 0 6px 0 var(--ui-black);
+  --shadow-raised-pressed: 0 2px 0 var(--ui-black);
+  --spacing-tight: 4px;
+  --spacing-compact: 8px;
+  --spacing-normal: 12px;
+  --spacing-relaxed: 16px;
+  --spacing-section: 24px;
+  --spacing-domain: 32px;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ui-black: #ffffff;
+  --ui-white: #000000;
+  --ui-porcelain: #1f1f22;
+  --ui-ink: #f5f2ee;
+  --semantic-structure: var(--ui-black);
+  --semantic-neutral: var(--ui-black);
+}

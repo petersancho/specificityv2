@@ -2,6 +2,13 @@ import { useEffect, useRef } from "react";
 import { WebGLUIRenderer, type RGBA } from "../webgl/ui/WebGLUIRenderer";
 import { WebGLTextRenderer } from "../webgl/ui/WebGLTextRenderer";
 import styles from "./WebGLTitleLogo.module.css";
+import {
+  UI_BASE_COLORS,
+  UI_DOMAIN_COLORS,
+  UI_FEEDBACK_COLORS,
+  mixHex,
+  rgbaFromHex,
+} from "../semantic/uiColorTokens";
 
 type LogoTone = "roslyn" | "numerica" | "neutral";
 
@@ -16,12 +23,7 @@ type TitleParts = {
   accent: string;
 };
 
-const rgb = (r: number, g: number, b: number, a = 1): RGBA => [
-  r / 255,
-  g / 255,
-  b / 255,
-  a,
-];
+const rgba = (hex: string, alpha = 1): RGBA => rgbaFromHex(hex, alpha);
 
 const mix = (a: RGBA, b: RGBA, t: number): RGBA => [
   a[0] + (b[0] - a[0]) * t,
@@ -31,18 +33,18 @@ const mix = (a: RGBA, b: RGBA, t: number): RGBA => [
 ];
 
 const PALETTE = {
-  fill: rgb(246, 243, 238, 1),
-  stroke: rgb(198, 193, 187, 1),
-  text: rgb(24, 24, 28, 0.96),
-  textShadow: rgb(0, 0, 0, 0.35),
-  glow: rgb(255, 255, 255, 0.5),
-  shadow: rgb(0, 0, 0, 1),
+  fill: rgba(UI_BASE_COLORS.porcelain, 1),
+  stroke: rgba(mixHex(UI_BASE_COLORS.black, UI_BASE_COLORS.white, 0.75), 1),
+  text: rgba(UI_BASE_COLORS.ink, 0.96),
+  textShadow: rgba(UI_BASE_COLORS.black, 0.35),
+  glow: rgba(UI_BASE_COLORS.white, 0.5),
+  shadow: rgba(UI_BASE_COLORS.black, 1),
 };
 
 const TONE_ACCENTS: Record<LogoTone, RGBA> = {
-  roslyn: rgb(0, 212, 255, 1),
-  numerica: rgb(255, 0, 153, 1),
-  neutral: rgb(204, 91, 26, 1),
+  roslyn: rgba(UI_DOMAIN_COLORS.data, 1),
+  numerica: rgba(UI_DOMAIN_COLORS.logic, 1),
+  neutral: rgba(UI_FEEDBACK_COLORS.warning, 1),
 };
 
 const TITLE_PARTS: Record<string, TitleParts> = {
@@ -91,14 +93,14 @@ const WebGLTitleLogo = ({ title, tone = "neutral", className }: WebGLTitleLogoPr
     const parts = resolveTitleParts(title);
     const accent = TONE_ACCENTS[tone] ?? TONE_ACCENTS.neutral;
 
-    textRenderer.setText(parts.base, {
-      fontSize: FONT_SIZE * dpr,
-      fontWeight: BASE_WEIGHT,
-      fontFamily: FONT_FAMILY,
-      paddingX: 0,
-      paddingY: 0,
-      color: "#ffffff",
-    });
+      textRenderer.setText(parts.base, {
+        fontSize: FONT_SIZE * dpr,
+        fontWeight: BASE_WEIGHT,
+        fontFamily: FONT_FAMILY,
+        paddingX: 0,
+        paddingY: 0,
+        color: UI_BASE_COLORS.white,
+      });
     const baseSize = textRenderer.getSize();
     let accentSize = { width: 0, height: 0 };
     if (parts.accent) {
@@ -108,7 +110,7 @@ const WebGLTitleLogo = ({ title, tone = "neutral", className }: WebGLTitleLogoPr
         fontFamily: FONT_FAMILY,
         paddingX: 0,
         paddingY: 0,
-        color: "#ffffff",
+        color: UI_BASE_COLORS.white,
       });
       accentSize = textRenderer.getSize();
     }
@@ -206,7 +208,7 @@ const WebGLTitleLogo = ({ title, tone = "neutral", className }: WebGLTitleLogoPr
       fontFamily: FONT_FAMILY,
       paddingX: 0,
       paddingY: 0,
-      color: "#ffffff",
+      color: UI_BASE_COLORS.white,
     });
     textRenderer.draw(
       (textX + shadowOffset) * dpr,
@@ -224,7 +226,7 @@ const WebGLTitleLogo = ({ title, tone = "neutral", className }: WebGLTitleLogoPr
         fontFamily: FONT_FAMILY,
         paddingX: 0,
         paddingY: 0,
-        color: "#ffffff",
+        color: UI_BASE_COLORS.white,
       });
       textRenderer.draw(
         (accentX + shadowOffset * 0.6) * dpr,

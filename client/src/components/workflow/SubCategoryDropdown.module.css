@@ -1,6 +1,6 @@
 .dropdown {
   background: var(--surface-card);
-  border: 1px solid color-mix(in srgb, #7a5cff 40%, var(--sp-divider, #c9c5c0) 60%);
+  border: 1px solid color-mix(in srgb, var(--semantic-logic) 40%, var(--sp-divider) 60%);
   border-radius: var(--radius-lg);
   padding: 12px;
   margin-top: 12px;
@@ -18,11 +18,11 @@
   justify-content: space-between;
   gap: 10px;
   background: var(--surface-card);
-  border: 1px solid color-mix(in srgb, #7a5cff 45%, var(--surface-card) 55%);
+  border: 1px solid color-mix(in srgb, var(--semantic-logic) 45%, var(--surface-card) 55%);
   border-radius: var(--radius);
   padding: 8px 10px;
   cursor: pointer;
-  color: var(--sp-ink, #1f1f22);
+  color: var(--sp-ink);
   box-shadow: var(--shadow-sm);
   transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
 }
@@ -82,7 +82,7 @@
 }
 
 .subSubCategory {
-  border-top: 1px solid color-mix(in srgb, #7a5cff 22%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--semantic-logic) 22%, transparent);
   padding-top: 8px;
 }
 
@@ -96,11 +96,11 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid color-mix(in srgb, #7a5cff 40%, var(--surface-card) 60%);
+  border: 1px solid color-mix(in srgb, var(--semantic-logic) 40%, var(--surface-card) 60%);
   background: var(--surface-card);
   padding: 6px 10px;
   cursor: pointer;
-  color: var(--sp-ink, #1f1f22);
+  color: var(--sp-ink);
   font-size: 9.5px;
   text-transform: uppercase;
   letter-spacing: 0.14em;
@@ -138,25 +138,25 @@
 
 .nodeButton {
   background: var(--surface-card);
-  border: 2px solid var(--bk-black);
+  border: 2px solid var(--ui-black);
   border-radius: 4px;
   padding: 8px 8px;
   text-align: left;
-  color: var(--bk-black);
+  color: var(--ui-black);
   cursor: pointer;
   min-height: 68px;
   display: flex;
   align-items: center;
   gap: 12px;
   justify-content: flex-start;
-  box-shadow: 0 3px 0 var(--bk-black);
+  box-shadow: 0 3px 0 var(--ui-black);
   transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
 }
 
 .nodeButton:hover {
   transform: translateY(-2px);
-  box-shadow: 0 5px 0 var(--bk-black);
-  background: var(--bk-porcelain);
+  box-shadow: 0 5px 0 var(--ui-black);
+  background: var(--ui-porcelain);
 }
 
 .nodeButton:active .greek {
@@ -165,7 +165,7 @@
 
 .nodeButton:active {
   transform: translateY(1px);
-  box-shadow: 0 1px 0 var(--bk-black);
+  box-shadow: 0 1px 0 var(--ui-black);
 }
 
 .sticker {
@@ -205,7 +205,7 @@
 
 .empty {
   font-size: 10px;
-  color: color-mix(in srgb, var(--sp-ink, #1f1f22) 55%, transparent);
+  color: color-mix(in srgb, var(--sp-ink) 55%, transparent);
   padding: 4px 2px;
 }
 

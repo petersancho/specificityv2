@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { CSSProperties } from "react";
+import { UI_BASE_COLORS, UI_DOMAIN_COLORS, rgbaCss } from "../semantic/uiColorTokens";
 
 type CubeLogoProps = {
   size?: number;
@@ -15,9 +16,9 @@ type CubeLogoProps = {
 const CubeLogo = ({ 
   size = 32, 
   colors = {
-    top: "#ffdd00",
-    left: "#ff0099", 
-    right: "#00d4ff"
+    top: UI_DOMAIN_COLORS.numeric,
+    left: UI_DOMAIN_COLORS.logic,
+    right: UI_DOMAIN_COLORS.data,
   },
   className,
   style
@@ -77,7 +78,7 @@ const CubeLogo = ({
       ctx.closePath();
       ctx.fillStyle = fill;
       ctx.fill();
-      ctx.strokeStyle = "#000000";
+      ctx.strokeStyle = UI_BASE_COLORS.black;
       ctx.lineWidth = strokeWidth;
       ctx.lineJoin = "round";
       ctx.lineCap = "round";
@@ -85,11 +86,11 @@ const CubeLogo = ({
     };
 
     ctx.save();
-    ctx.fillStyle = "rgba(0, 0, 0, 0.12)";
+    ctx.fillStyle = rgbaCss(UI_BASE_COLORS.black, 0.12);
     ctx.translate(0, 3);
-    drawFace(left, "rgba(0, 0, 0, 0.12)", 0);
-    drawFace(right, "rgba(0, 0, 0, 0.12)", 0);
-    drawFace(top, "rgba(0, 0, 0, 0.12)", 0);
+    drawFace(left, rgbaCss(UI_BASE_COLORS.black, 0.12), 0);
+    drawFace(right, rgbaCss(UI_BASE_COLORS.black, 0.12), 0);
+    drawFace(top, rgbaCss(UI_BASE_COLORS.black, 0.12), 0);
     ctx.restore();
 
     drawFace(left, colors.left);

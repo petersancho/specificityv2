@@ -1,5 +1,6 @@
 import CubeLogo from "./CubeLogo";
 import type { CSSProperties } from "react";
+import { UI_BASE_COLORS, UI_DOMAIN_COLORS } from "../semantic/uiColorTokens";
 
 type LinguaLogoProps = {
   size?: number;
@@ -9,7 +10,7 @@ type LinguaLogoProps = {
   style?: CSSProperties;
 };
 
-const LINGUA_ACCENT = "#00d4ff"; // Cyan - matches cube's right face
+const LINGUA_ACCENT = UI_DOMAIN_COLORS.data;
 
 const LinguaLogo = ({ 
   size = 32, 
@@ -20,14 +21,14 @@ const LinguaLogo = ({
 }: LinguaLogoProps) => {
   const colors = variant === "cmyk" 
     ? {
-        top: "#ffdd00",    // Yellow - creative, warm
-        left: "#ff0099",   // Magenta - bold, vibrant
-        right: "#00d4ff",  // Cyan - technical, cool
+        top: UI_DOMAIN_COLORS.numeric,
+        left: UI_DOMAIN_COLORS.logic,
+        right: UI_DOMAIN_COLORS.data,
       }
     : {
-        top: "#88ff00",    // Lime - fresh
-        left: "#8800ff",   // Purple - computational
-        right: "#ff6600",  // Orange - energetic
+        top: UI_DOMAIN_COLORS.numeric,
+        left: UI_DOMAIN_COLORS.logic,
+        right: UI_DOMAIN_COLORS.data,
       };
 
   if (!withText) {
@@ -49,7 +50,7 @@ const LinguaLogo = ({
         fontFamily: '"Montreal Neue", "Space Grotesk", sans-serif',
         fontSize: `${size * 0.5}px`,
         fontWeight: 700,
-        color: "#1f1f22",
+        color: UI_BASE_COLORS.ink,
         letterSpacing: "0.02em"
       }}>
         LING<span style={{ color: LINGUA_ACCENT, fontWeight: 800 }}>UA</span>

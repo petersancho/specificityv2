@@ -259,6 +259,7 @@ digraph SemanticOperations {
   "geometry.analyze.dimensions" [label="Dimensions", fillcolor="#FFCCCC", style=filled];
   "geometry.analyze.volume" [label="Volume", fillcolor="#FFCCCC", style=filled];
   "geometry.analyze.vertices" [label="Geometry Vertices", fillcolor="#FFCCCC", style=filled];
+  "geometry.analyze.extentVertices" [label="Geometry Extent Vertices", fillcolor="#FFCCCC", style=filled];
   "geometry.analyze.edges" [label="Geometry Edges", fillcolor="#FFCCCC", style=filled];
   "geometry.analyze.faces" [label="Geometry Faces", fillcolor="#FFCCCC", style=filled];
   "geometry.analyze.normals" [label="Geometry Normals", fillcolor="#FFCCCC", style=filled];

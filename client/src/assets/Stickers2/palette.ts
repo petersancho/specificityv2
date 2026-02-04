@@ -1,8 +1,10 @@
+import { UI_BASE_COLORS, UI_DOMAIN_COLORS, UI_FEEDBACK_COLORS } from "../../semantic/uiColorTokens";
+
 export const STICKER2_PALETTE = {
-  cyan: "#00B7EB",
-  magenta: "#FF4FA3",
-  yellow: "#F6D21A",
-  black: "#000000",
-  orange: "#FF9E1B",
-  purple: "#5F259F",
+  cyan: UI_DOMAIN_COLORS.data,
+  magenta: UI_DOMAIN_COLORS.logic,
+  yellow: UI_DOMAIN_COLORS.numeric,
+  black: UI_BASE_COLORS.black,
+  orange: UI_FEEDBACK_COLORS.warning,
+  purple: UI_DOMAIN_COLORS.logic,
 } as const;

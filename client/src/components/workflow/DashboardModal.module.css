@@ -15,7 +15,7 @@
 .modal {
   position: relative;
   background: var(--surface-card);
-  border: 2px solid var(--bk-black);
+  border: 2px solid var(--ui-black);
   border-radius: 8px;
   max-width: 95vw;
   max-height: 95vh;
@@ -30,8 +30,8 @@
   width: 32px;
   height: 32px;
   border: none;
-  background: var(--bk-yellow);
-  color: var(--bk-black);
+  background: var(--semantic-numeric);
+  color: var(--ui-black);
   font-size: 24px;
   line-height: 1;
   cursor: pointer;
@@ -42,14 +42,14 @@
 }
 
 .closeButton:hover {
-  background: var(--bk-magenta);
+  background: var(--semantic-logic);
   color: var(--surface-card);
   box-shadow: var(--shadow-sticker-hover);
   transform: translateY(-1px);
 }
 
 .closeButton:active {
-  background: var(--bk-magenta-deep);
+  background: var(--semantic-logic-deep);
   color: var(--surface-card);
   box-shadow: var(--shadow-sticker-pressed);
 }

@@ -3,8 +3,8 @@
 
 .dashboard {
   --solver-accent: var(--color-solver-physics);
-  --solver-accent-secondary: var(--bk-cyan);
-  --solver-accent-tertiary: var(--bk-yellow);
+  --solver-accent-secondary: var(--semantic-data);
+  --solver-accent-tertiary: var(--semantic-numeric);
   
   position: fixed;
   top: 0;
@@ -16,7 +16,7 @@
   display: flex;
   flex-direction: column;
   font-family: var(--font-sans);
-  color: var(--bk-black);
+  color: var(--ui-black);
   overflow: hidden;
 }
 
@@ -24,13 +24,13 @@
 .header {
   flex-shrink: 0;
   background: var(--surface-card);
-  border-bottom: 1px solid color-mix(in srgb, var(--bk-black) 18%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--ui-black) 18%, transparent);
   box-shadow: var(--shadow-sticker-pressed);
 }
 
 .headerBar {
   height: 4px;
-  background: var(--bk-magenta);
+  background: var(--semantic-logic);
 }
 
 .headerContent {
@@ -49,19 +49,19 @@
 .titleGreek {
   font-size: 1.5rem;
   font-weight: 600;
-  color: var(--bk-magenta);
+  color: var(--semantic-logic);
   letter-spacing: 0.02em;
 }
 
 .titleEnglish {
   font-size: 0.9rem;
-  color: color-mix(in srgb, var(--bk-black) 65%, transparent);
+  color: color-mix(in srgb, var(--ui-black) 65%, transparent);
   font-weight: 500;
 }
 
 .titleSubtext {
   font-size: 0.75rem;
-  color: color-mix(in srgb, var(--bk-black) 45%, transparent);
+  color: color-mix(in srgb, var(--ui-black) 45%, transparent);
   font-style: italic;
 }
 
@@ -76,7 +76,7 @@
   align-items: center;
   gap: 0.5rem;
   font-size: 0.85rem;
-  color: color-mix(in srgb, var(--bk-black) 60%, transparent);
+  color: color-mix(in srgb, var(--ui-black) 60%, transparent);
 }
 
 .scaleControl input[type="range"] {
@@ -92,18 +92,18 @@
 .closeButton {
   width: 2rem;
   height: 2rem;
-  border: 2px solid var(--bk-black);
-  background: var(--bk-yellow);
+  border: 2px solid var(--ui-black);
+  background: var(--semantic-numeric);
   border-radius: 4px;
   cursor: pointer;
   font-size: 1.2rem;
-  color: var(--bk-black);
+  color: var(--ui-black);
   transition: all 0.2s;
   box-shadow: var(--shadow-sticker-pressed);
 }
 
 .closeButton:hover {
-  background: var(--bk-magenta);
+  background: var(--semantic-logic);
   color: var(--surface-card);
 }
 
@@ -111,7 +111,7 @@
 .tabs {
   display: flex;
   background: var(--surface-card);
-  border-bottom: 1px solid color-mix(in srgb, var(--bk-black) 18%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--ui-black) 18%, transparent);
   padding: 0 1.5rem;
   flex-shrink: 0;
 }
@@ -123,19 +123,19 @@
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 500;
-  color: color-mix(in srgb, var(--bk-black) 60%, transparent);
+  color: color-mix(in srgb, var(--ui-black) 60%, transparent);
   border-bottom: 2px solid transparent;
   transition: all 0.2s;
   position: relative;
 }
 
 .tab:hover {
-  color: var(--bk-magenta);
+  color: var(--semantic-logic);
 }
 
 .tabActive {
-  color: var(--bk-magenta);
-  border-bottom-color: var(--bk-magenta);
+  color: var(--semantic-logic);
+  border-bottom-color: var(--semantic-logic);
 }
 
 /* Content */
@@ -163,8 +163,8 @@
   margin: 0 0 1rem 0;
   font-size: 1.1rem;
   font-weight: 600;
-  color: var(--bk-black);
-  border-bottom: 2px solid var(--bk-magenta);
+  color: var(--ui-black);
+  border-bottom: 2px solid var(--semantic-logic);
   padding-bottom: 0.5rem;
 }
 
@@ -175,7 +175,7 @@
 }
 
 .analysisTypeButton {
-  border: 2px solid #e0e0e0;
+  border: 2px solid color-mix(in srgb, var(--ui-black) 12%, var(--ui-white));
   background: var(--surface-card);
   border-radius: 8px;
   padding: 1.5rem;
@@ -188,31 +188,31 @@
 }
 
 .analysisTypeButton:hover {
-  border-color: var(--bk-magenta);
+  border-color: var(--semantic-logic);
   box-shadow: 0 4px 12px rgba(255, 0, 153, 0.15);
   transform: translateY(-2px);
 }
 
 .analysisTypeButtonActive {
-  border-color: var(--bk-magenta);
-  background: var(--bk-magenta-soft);
+  border-color: var(--semantic-logic);
+  background: var(--semantic-logic-soft);
   box-shadow: 0 4px 12px rgba(255, 0, 153, 0.2);
 }
 
 .analysisTypeIcon {
   font-size: 2rem;
-  color: var(--bk-magenta);
+  color: var(--semantic-logic);
 }
 
 .analysisTypeName {
   font-weight: 600;
-  color: #333;
+  color: var(--ui-ink);
   font-size: 1rem;
 }
 
 .analysisTypeDesc {
   font-size: 0.85rem;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .materialPropsGrid {
@@ -226,13 +226,13 @@
   flex-direction: column;
   gap: 0.5rem;
   font-size: 0.9rem;
-  color: #666;
+  color: var(--text-secondary);
   font-weight: 500;
 }
 
 .materialPropsGrid input[type="number"] {
   padding: 0.5rem;
-  border: 2px solid #e0e0e0;
+  border: 2px solid color-mix(in srgb, var(--ui-black) 12%, var(--ui-white));
   border-radius: 4px;
   font-size: 0.9rem;
   transition: border-color 0.2s;
@@ -240,12 +240,12 @@
 
 .materialPropsGrid input[type="number"]:focus {
   outline: none;
-  border-color: var(--bk-magenta);
+  border-color: var(--semantic-logic);
 }
 
 .hint {
   font-size: 0.8rem;
-  color: var(--bk-magenta);
+  color: var(--semantic-logic);
   font-weight: 600;
 }
 
@@ -257,20 +257,20 @@
 
 .addButton {
   padding: 0.5rem 1rem;
-  border: 2px dashed var(--bk-magenta);
+  border: 2px dashed var(--semantic-logic);
   background: rgba(255, 0, 153, 0.05);
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 500;
-  color: var(--bk-magenta);
+  color: var(--semantic-logic);
   transition: all 0.2s;
   margin-bottom: 1rem;
 }
 
 .addButton:hover {
   background: rgba(255, 0, 153, 0.1);
-  border-color: var(--bk-magenta);
+  border-color: var(--semantic-logic);
   transform: translateY(-1px);
 }
 
@@ -291,11 +291,11 @@
 
 .loadCard,
 .constraintCard {
-  border: 2px solid #e0e0e0;
+  border: 2px solid color-mix(in srgb, var(--ui-black) 12%, var(--ui-white));
   border-radius: 6px;
   padding: 1rem;
-  background: #fafafa;
-  border-left: 4px solid var(--bk-magenta);
+  background: var(--surface-card);
+  border-left: 4px solid var(--semantic-logic);
 }
 
 .loadHeader,
@@ -305,23 +305,23 @@
   align-items: center;
   margin-bottom: 0.75rem;
   font-weight: 600;
-  color: #333;
+  color: var(--ui-ink);
 }
 
 .removeButton {
   width: 1.5rem;
   height: 1.5rem;
   border: none;
-  background: #f5f5f5;
+  background: var(--surface-panel);
   border-radius: 3px;
   cursor: pointer;
   font-size: 0.9rem;
-  color: #999;
+  color: var(--text-tertiary);
   transition: all 0.2s;
 }
 
 .removeButton:hover {
-  background: var(--bk-magenta);
+  background: var(--semantic-logic);
   color: var(--surface-card);
 }
 
@@ -336,12 +336,12 @@
   flex-direction: column;
   gap: 0.25rem;
   font-size: 0.85rem;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .loadControls input[type="number"] {
   padding: 0.4rem;
-  border: 1px solid #ddd;
+  border: 1px solid color-mix(in srgb, var(--ui-black) 14%, var(--ui-white));
   border-radius: 4px;
   font-size: 0.9rem;
 }
@@ -351,20 +351,20 @@
   align-items: center;
   gap: 0.5rem;
   font-size: 0.85rem;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .vectorInput input {
   flex: 1;
   padding: 0.4rem;
-  border: 1px solid #ddd;
+  border: 1px solid color-mix(in srgb, var(--ui-black) 14%, var(--ui-white));
   border-radius: 4px;
   font-size: 0.85rem;
 }
 
 .constraintInfo {
   font-size: 0.85rem;
-  color: #666;
+  color: var(--text-secondary);
   font-style: italic;
 }
 
@@ -379,12 +379,12 @@
   flex-direction: column;
   gap: 0.5rem;
   font-size: 0.9rem;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .solverParamsGrid input[type="number"] {
   padding: 0.5rem;
-  border: 1px solid #ddd;
+  border: 1px solid color-mix(in srgb, var(--ui-black) 14%, var(--ui-white));
   border-radius: 4px;
   font-size: 0.9rem;
 }
@@ -408,8 +408,8 @@
 .controlButton {
   flex: 1;
   padding: 0.75rem 1.5rem;
-  border: 2px solid var(--bk-black);
-  background: var(--bk-magenta);
+  border: 2px solid var(--ui-black);
+  background: var(--semantic-logic);
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.9rem;
@@ -420,7 +420,7 @@
 }
 
 .controlButton:hover:not(:disabled) {
-  background: #ff33aa;
+  background: var(--semantic-logic);
   color: var(--surface-card);
   transform: translateY(-2px);
   box-shadow: var(--shadow-sticker-hover);
@@ -442,12 +442,12 @@
   border-radius: 8px;
   padding: 1.25rem;
   box-shadow: var(--shadow-sticker-pressed);
-  border-left: 4px solid var(--bk-magenta);
+  border-left: 4px solid var(--semantic-logic);
 }
 
 .statLabel {
   font-size: 0.85rem;
-  color: #666;
+  color: var(--text-secondary);
   margin-bottom: 0.5rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -456,7 +456,7 @@
 .statValue {
   font-size: 1.5rem;
   font-weight: 700;
-  color: var(--bk-magenta);
+  color: var(--semantic-logic);
 }
 
 .mainVisualization {
@@ -470,15 +470,15 @@
   margin: 0 0 1rem 0;
   font-size: 1rem;
   font-weight: 600;
-  color: #333;
-  border-bottom: 1px solid #e0e0e0;
+  color: var(--ui-ink);
+  border-bottom: 1px solid color-mix(in srgb, var(--ui-black) 12%, var(--ui-white));
   padding-bottom: 0.5rem;
 }
 
 .stressPlaceholder {
   aspect-ratio: 16 / 9;
-  background: var(--bk-magenta-soft);
-  border: 2px dashed var(--bk-magenta);
+  background: var(--semantic-logic-soft);
+  border: 2px dashed var(--semantic-logic);
   border-radius: 6px;
   display: flex;
   flex-direction: column;
@@ -491,12 +491,12 @@
 .placeholderText {
   font-size: 1rem;
   font-weight: 600;
-  color: var(--bk-magenta);
+  color: var(--semantic-logic);
 }
 
 .placeholderSubtext {
   font-size: 0.85rem;
-  color: #999;
+  color: var(--text-tertiary);
 }
 
 .stressLegend {
@@ -508,7 +508,7 @@
 .legendBar {
   height: 30px;
   border-radius: 4px;
-  background: var(--bk-magenta);
+  background: var(--semantic-logic);
   box-shadow: var(--shadow-sticker-pressed);
 }
 
@@ -516,7 +516,7 @@
   display: flex;
   justify-content: space-between;
   font-size: 0.85rem;
-  color: #666;
+  color: var(--text-secondary);
   font-weight: 500;
 }
 
@@ -535,8 +535,8 @@
 
 .placeholder {
   aspect-ratio: 16 / 9;
-  background: var(--bk-magenta-soft);
-  border: 2px dashed var(--bk-magenta);
+  background: var(--semantic-logic-soft);
+  border: 2px dashed var(--semantic-logic);
   border-radius: 6px;
   display: flex;
   flex-direction: column;
@@ -556,8 +556,8 @@
   margin: 0 0 1rem 0;
   font-size: 1rem;
   font-weight: 600;
-  color: #333;
-  border-bottom: 1px solid #e0e0e0;
+  color: var(--ui-ink);
+  border-bottom: 1px solid color-mix(in srgb, var(--ui-black) 12%, var(--ui-white));
   padding-bottom: 0.5rem;
 }
 
@@ -573,13 +573,13 @@
   gap: 1rem;
   padding: 1rem;
   background: rgba(255, 221, 0, 0.1);
-  border: 2px solid var(--bk-yellow);
+  border: 2px solid var(--semantic-numeric);
   border-radius: 6px;
 }
 
 .criticalPointIcon {
   font-size: 1.5rem;
-  color: var(--bk-yellow);
+  color: var(--semantic-numeric);
 }
 
 .criticalPointInfo {
@@ -588,13 +588,13 @@
 
 .criticalPointLabel {
   font-weight: 600;
-  color: #333;
+  color: var(--ui-ink);
   margin-bottom: 0.25rem;
 }
 
 .criticalPointValue {
   font-size: 0.85rem;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 /* Output Tab */
@@ -609,19 +609,19 @@
 }
 
 .analysisCard {
-  background: #fafafa;
+  background: var(--surface-card);
   border-radius: 6px;
   padding: 1rem;
-  border: 1px solid #e0e0e0;
+  border: 1px solid color-mix(in srgb, var(--ui-black) 12%, var(--ui-white));
 }
 
 .analysisRow {
   display: flex;
   justify-content: space-between;
   padding: 0.75rem 0;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid color-mix(in srgb, var(--ui-black) 12%, var(--ui-white));
   font-size: 0.9rem;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .analysisRow:last-child {
@@ -630,7 +630,7 @@
 
 .analysisValue {
   font-weight: 600;
-  color: var(--bk-magenta);
+  color: var(--semantic-logic);
 }
 
 .modalGrid {
@@ -644,14 +644,14 @@
   border-radius: 8px;
   padding: 1rem;
   box-shadow: var(--shadow-sticker-pressed);
-  border: 2px solid #e0e0e0;
+  border: 2px solid color-mix(in srgb, var(--ui-black) 12%, var(--ui-white));
 }
 
 .modalCard h4 {
   margin: 0 0 0.75rem 0;
   font-size: 0.9rem;
   font-weight: 600;
-  color: #333;
+  color: var(--ui-ink);
   text-align: center;
 }
 
@@ -659,24 +659,24 @@
   margin-top: 0.75rem;
   text-align: center;
   font-weight: 600;
-  color: var(--bk-magenta);
+  color: var(--semantic-logic);
   font-size: 0.9rem;
 }
 
 .safetyCard {
-  background: #fafafa;
+  background: var(--surface-card);
   border-radius: 6px;
   padding: 1rem;
-  border: 2px solid var(--bk-yellow);
+  border: 2px solid var(--semantic-numeric);
 }
 
 .safetyRow {
   display: flex;
   justify-content: space-between;
   padding: 0.75rem 0;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid color-mix(in srgb, var(--ui-black) 12%, var(--ui-white));
   font-size: 0.9rem;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .safetyRow:last-child {
@@ -685,21 +685,21 @@
 
 .safetyValue {
   font-weight: 600;
-  color: #333;
+  color: var(--ui-ink);
 }
 
 .safetyWarning {
-  color: var(--bk-yellow);
+  color: var(--semantic-numeric);
 }
 
 .safetyWarningBox {
   margin-top: 1rem;
   padding: 0.75rem;
   background: rgba(255, 221, 0, 0.1);
-  border: 2px solid var(--bk-yellow);
+  border: 2px solid var(--semantic-numeric);
   border-radius: 4px;
   font-size: 0.85rem;
-  color: #666;
+  color: var(--text-secondary);
   font-weight: 500;
 }
 
@@ -713,18 +713,18 @@
   flex: 1;
   min-width: 200px;
   padding: 0.75rem 1.5rem;
-  border: 2px solid var(--bk-cyan);
+  border: 2px solid var(--semantic-data);
   background: var(--surface-card);
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 600;
-  color: var(--bk-cyan);
+  color: var(--semantic-data);
   transition: all 0.2s;
 }
 
 .exportButton:hover {
-  background: var(--bk-cyan);
+  background: var(--semantic-data);
   color: var(--surface-card);
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 212, 255, 0.3);
@@ -762,13 +762,13 @@
   border-radius: 8px;
   padding: 1.25rem;
   box-shadow: var(--shadow-sticker-pressed);
-  border-left: 4px solid var(--bk-magenta);
+  border-left: 4px solid var(--semantic-logic);
 }
 
 .summaryLabel,
 .statusLabel {
   font-size: 0.85rem;
-  color: #666;
+  color: var(--text-secondary);
   margin-bottom: 0.5rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -778,18 +778,18 @@
 .statusValue {
   font-size: 1.5rem;
   font-weight: 700;
-  color: var(--bk-magenta);
+  color: var(--semantic-logic);
 }
 
 /* Warning Banner */
 .warningBanner {
   background: rgba(255, 221, 0, 0.1);
-  border: 2px solid var(--bk-yellow);
+  border: 2px solid var(--semantic-numeric);
   border-radius: 6px;
   padding: 1rem;
   margin-bottom: 1rem;
   font-size: 0.9rem;
-  color: #666;
+  color: var(--text-secondary);
   font-weight: 500;
 }
 
@@ -799,14 +799,14 @@
 }
 
 .content::-webkit-scrollbar-track {
-  background: #f5f5f5;
+  background: var(--surface-panel);
 }
 
 .content::-webkit-scrollbar-thumb {
-  background: var(--bk-magenta);
+  background: var(--semantic-logic);
   border-radius: 4px;
 }
 
 .content::-webkit-scrollbar-thumb:hover {
-  background: #e6008a;
+  background: var(--semantic-logic-deep);
 }

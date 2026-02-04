@@ -1,8 +1,8 @@
 .button {
   --icon-button-size: 44px;
   --icon-button-radius: var(--radius);
-  --icon-button-bg: var(--roslyn-cream, #f7f3ea);
-  --icon-button-fg: var(--ink-1000, #0d0d0d);
+  --icon-button-bg: var(--surface-card);
+  --icon-button-fg: var(--ui-black);
   --icon-button-border: color-mix(in srgb, var(--icon-button-fg) 92%, transparent);
   --icon-button-shadow: var(--shadow-xs);
   --icon-button-shadow-hover: var(--shadow-sm);
@@ -21,14 +21,14 @@
 }
 
 .button:hover:not(:disabled) {
-  background: var(--bk-cream);
-  border-color: var(--bk-cyan);
+  background: var(--button-hover-bg);
+  border-color: var(--ui-black);
   transform: translateY(-1px);
   box-shadow: var(--icon-button-shadow-hover);
 }
 
 .button:active:not(:disabled) {
-  background: #f0f0f0;
+  background: var(--ui-porcelain);
   transform: translateY(1px);
   box-shadow: var(--icon-button-shadow-pressed);
 }
@@ -45,8 +45,8 @@
 }
 
 .active {
-  --icon-button-bg: var(--ink-1000, #0d0d0d);
-  --icon-button-fg: var(--roslyn-cream, #f7f3ea);
+  --icon-button-bg: var(--ui-black);
+  --icon-button-fg: var(--ui-white);
   --icon-button-border: color-mix(
     in srgb,
     var(--icon-button-fg) 65%,

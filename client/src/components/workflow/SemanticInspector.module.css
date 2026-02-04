@@ -16,7 +16,7 @@
 .title {
   font-size: 13px;
   font-weight: 600;
-  color: #8800ff;
+  color: var(--semantic-logic);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -41,19 +41,19 @@
 
 .badge[data-type="info"] {
   background: rgba(136, 0, 255, 0.2);
-  color: #8800ff;
+  color: var(--semantic-logic);
   border: 1px solid rgba(136, 0, 255, 0.3);
 }
 
 .badge[data-type="warning"] {
   background: rgba(255, 153, 0, 0.2);
-  color: #ff9900;
+  color: var(--feedback-warning);
   border: 1px solid rgba(255, 153, 0, 0.3);
 }
 
 .badge[data-type="error"] {
   background: rgba(255, 0, 0, 0.2);
-  color: #ff3333;
+  color: var(--feedback-error);
   border: 1px solid rgba(255, 0, 0, 0.3);
 }
 
@@ -80,7 +80,7 @@
 .operationName {
   font-size: 13px;
   font-weight: 600;
-  color: #fff;
+  color: var(--ui-white);
 }
 
 .operationTags {
@@ -101,7 +101,7 @@
 
 .tag[data-type="domain"] {
   background: rgba(0, 153, 204, 0.2);
-  color: #00ccff;
+  color: var(--semantic-data);
   border: 1px solid rgba(0, 153, 204, 0.3);
 }
 
@@ -111,22 +111,22 @@
 
 .tag[data-type="cost"][data-cost="low"] {
   background: rgba(0, 255, 0, 0.1);
-  color: #00ff00;
+  color: var(--feedback-success);
 }
 
 .tag[data-type="cost"][data-cost="medium"] {
   background: rgba(255, 153, 0, 0.1);
-  color: #ff9900;
+  color: var(--feedback-warning);
 }
 
 .tag[data-type="cost"][data-cost="high"] {
   background: rgba(255, 0, 0, 0.1);
-  color: #ff3333;
+  color: var(--feedback-error);
 }
 
 .tag[data-type="complexity"] {
   background: rgba(153, 51, 255, 0.1);
-  color: #9933ff;
+  color: var(--semantic-logic);
   border: 1px solid rgba(153, 51, 255, 0.3);
 }
 
@@ -150,7 +150,7 @@
 }
 
 .metaItem[data-warning="true"] {
-  color: #ff9900;
+  color: var(--feedback-warning);
 }
 
 .category {
@@ -174,7 +174,7 @@
 .categoryName {
   font-size: 11px;
   font-weight: 600;
-  color: #8800ff;
+  color: var(--semantic-logic);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -188,7 +188,7 @@
 .operationId {
   font-size: 11px;
   font-weight: 500;
-  color: #fff;
+  color: var(--ui-white);
   font-family: 'Courier New', monospace;
 }
 
@@ -204,7 +204,7 @@
   display: block;
   font-size: 11px;
   font-weight: 600;
-  color: #ff3333;
+  color: var(--feedback-error);
   margin-bottom: 4px;
 }
 

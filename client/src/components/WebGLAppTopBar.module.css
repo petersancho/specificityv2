@@ -34,11 +34,24 @@
   pointer-events: none;
 }
 
-.docsLink {
+.actions {
   position: absolute;
   top: 50%;
   right: 16px;
   transform: translateY(-50%);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.themeToggle {
+  pointer-events: auto;
+}
+
+.docsLink {
+  position: relative;
   z-index: 2;
   padding: 2px 0;
   border: 0;
@@ -53,7 +66,6 @@
   text-decoration: none;
   box-shadow: none;
   transition: color var(--transition-fast), text-decoration-color var(--transition-fast);
-  pointer-events: auto;
 }
 
 .docsLink:hover {
@@ -68,8 +80,11 @@
 }
 
 @media (max-width: 640px) {
-  .docsLink {
+  .actions {
     right: 12px;
+  }
+
+  .docsLink {
     font-size: 9px;
     letter-spacing: 0.1em;
   }
