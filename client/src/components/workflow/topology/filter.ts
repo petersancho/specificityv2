@@ -97,7 +97,18 @@ export function applyDensityFilter(
 }
 
 /**
- * Apply filter chain rule: dC/drho = H^T * (dC/drhoBar ./ Hs)
+ * Apply filter chain rule for sensitivity transformation.
+ * 
+ * Given: ρ̄ₑ = Σⱼ Hₑⱼ ρⱼ / Hsₑ  (forward filter)
+ * 
+ * Chain rule: dC/dρⱼ = Σₑ (∂ρ̄ₑ/∂ρⱼ) * (dC/dρ̄ₑ)
+ *                    = Σₑ (Hₑⱼ / Hsₑ) * (dC/dρ̄ₑ)
+ * 
+ * Since H is symmetric (Hₑⱼ = Hⱼₑ due to Euclidean distance),
+ * this is equivalent to: dC/dρ = H^T * (dC/dρ̄ ./ Hs)
+ * 
+ * Implementation: iterate over e, and for each neighbor j of e,
+ * accumulate the contribution Hₑⱼ * (dC/dρ̄ₑ / Hsₑ) to dC/dρⱼ.
  */
 export function applyFilterChainRule(
   dCdrhoBar: Float64Array,
@@ -105,11 +116,17 @@ export function applyFilterChainRule(
 ): Float64Array {
   const dCdrho = new Float64Array(filter.numElems);
   
-  // For each element j, accumulate contributions from all elements e that have j as neighbor
+  // For each element e, distribute its sensitivity contribution to its neighbors j
+  // This correctly implements: dC/dρⱼ = Σₑ:j∈N(e) Hₑⱼ * (dC/dρ̄ₑ / Hsₑ)
   for (let e = 0; e < filter.numElems; e++) {
     const neighs = filter.neighbors[e];
     const ws = filter.weights[e];
-    const factor = dCdrhoBar[e] / filter.Hs[e];
+    
+    // Guard against zero Hs (shouldn't happen, but be safe)
+    const Hs_e = filter.Hs[e];
+    if (Hs_e < 1e-14) continue;
+    
+    const factor = dCdrhoBar[e] / Hs_e;
     
     for (let i = 0; i < neighs.length; i++) {
       const j = neighs[i];

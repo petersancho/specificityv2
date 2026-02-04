@@ -90,6 +90,8 @@ export type SolverFrame = {
   vol: number;
   densities: Float32Array;
   converged: boolean;
+  /** Error message if solver failed (e.g., FE solver didn't converge) */
+  error?: string;
 };
 
 /**

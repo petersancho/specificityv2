@@ -99,83 +99,115 @@ export function createFEModel2D(
 
 /**
  * Compute Q4 element stiffness matrix for plane stress
- * Returns 8x8 matrix for E=1 (scale by E later for SIMP)
+ * Returns 8x8 matrix for unit square element with E=1
+ * 
+ * DOF ordering per node: [ux, uy]
+ * Node ordering: counter-clockwise from bottom-left (0,1,2,3)
+ * Total DOFs: [ux0, uy0, ux1, uy1, ux2, uy2, ux3, uy3]
+ * 
+ * Strain vector: [εxx, εyy, γxy]^T
+ * B matrix maps DOFs to strains: ε = B * u
  */
 export function computeKeQ4(nu: number = 0.3): Float64Array {
-  // Plane stress constitutive matrix (for E=1)
-  const D = new Float64Array(9);
+  // Plane stress constitutive matrix D (3x3) for E=1
+  // σ = D * ε where σ = [σxx, σyy, τxy]^T
   const factor = 1.0 / (1.0 - nu * nu);
-  D[0] = factor;           // D11
-  D[1] = factor * nu;      // D12
-  D[2] = 0;                // D13
-  D[3] = factor * nu;      // D21
-  D[4] = factor;           // D22
-  D[5] = 0;                // D23
-  D[6] = 0;                // D31
-  D[7] = 0;                // D32
-  D[8] = factor * (1 - nu) / 2; // D33
+  const D11 = factor;
+  const D12 = factor * nu;
+  const D33 = factor * (1 - nu) / 2;
   
-  // 2x2 Gauss integration points and weights
+  // 2x2 Gauss quadrature points and weights
   const gp = 1.0 / Math.sqrt(3.0);
   const gaussPts = [
     { xi: -gp, eta: -gp, w: 1.0 },
-    { xi: gp, eta: -gp, w: 1.0 },
-    { xi: gp, eta: gp, w: 1.0 },
-    { xi: -gp, eta: gp, w: 1.0 }
+    { xi:  gp, eta: -gp, w: 1.0 },
+    { xi:  gp, eta:  gp, w: 1.0 },
+    { xi: -gp, eta:  gp, w: 1.0 }
   ];
   
-  // Element stiffness matrix (8x8)
+  // Element stiffness matrix (8x8), stored row-major
   const Ke = new Float64Array(64);
   
   // Integrate over Gauss points
   for (const pt of gaussPts) {
     const { xi, eta, w } = pt;
     
-    // Shape function derivatives in natural coordinates
+    // Shape function derivatives in natural coordinates (ξ, η)
+    // N_i = (1/4)(1 + ξ_i*ξ)(1 + η_i*η) for bilinear Q4
+    // Node positions in natural coords: (-1,-1), (1,-1), (1,1), (-1,1)
     const dN_dxi = [
-      -(1 - eta) / 4,
-      (1 - eta) / 4,
-      (1 + eta) / 4,
-      -(1 + eta) / 4
+      -0.25 * (1 - eta),  // Node 0: (-1,-1)
+       0.25 * (1 - eta),  // Node 1: ( 1,-1)
+       0.25 * (1 + eta),  // Node 2: ( 1, 1)
+      -0.25 * (1 + eta)   // Node 3: (-1, 1)
     ];
     const dN_deta = [
-      -(1 - xi) / 4,
-      -(1 + xi) / 4,
-      (1 + xi) / 4,
-      (1 - xi) / 4
+      -0.25 * (1 - xi),   // Node 0
+      -0.25 * (1 + xi),   // Node 1
+       0.25 * (1 + xi),   // Node 2
+       0.25 * (1 - xi)    // Node 3
     ];
     
-    // For unit square element, Jacobian is identity (dx/dxi = 1, dy/deta = 1)
-    // This assumes element size is factored out separately
+    // For unit square element [-1,1] x [-1,1] in natural coords
+    // mapping to [0,1] x [0,1] in physical coords:
+    // Jacobian J = [dx/dξ  dy/dξ ] = [0.5  0 ]
+    //              [dx/dη  dy/dη ]   [0    0.5]
+    // detJ = 0.25, but we compute Ke for unit element and scale later
+    // So use detJ = 1 here (will scale by actual element area in assembly)
+    // 
+    // For unit square in natural coords, J = 0.5*I, so:
+    // dN/dx = (1/0.5) * dN/dξ = 2 * dN/dξ (but we absorb this in scaling)
+    // 
+    // Actually, for [-1,1]^2 -> [-1,1]^2 (unit natural), J = I, detJ = 1
+    // The actual element size scaling happens in assembly via elemArea
     const detJ = 1.0;
     
-    // B matrix (3x8): [dN/dx; dN/dy; dN/dy, dN/dx] for each node
-    const B = new Float64Array(24);
+    // Build B matrix (3 rows x 8 cols)
+    // B relates strain to displacement: ε = B * u
+    // 
+    // εxx = ∂u/∂x = Σ (∂Ni/∂x) * uxi
+    // εyy = ∂v/∂y = Σ (∂Ni/∂y) * uyi  
+    // γxy = ∂u/∂y + ∂v/∂x = Σ (∂Ni/∂y * uxi + ∂Ni/∂x * uyi)
+    //
+    // For DOF order [ux0, uy0, ux1, uy1, ux2, uy2, ux3, uy3]:
+    // B = [dN0/dx,   0,    dN1/dx,   0,    dN2/dx,   0,    dN3/dx,   0   ]  <- εxx
+    //     [  0,    dN0/dy,   0,    dN1/dy,   0,    dN2/dy,   0,    dN3/dy]  <- εyy
+    //     [dN0/dy, dN0/dx, dN1/dy, dN1/dx, dN2/dy, dN2/dx, dN3/dy, dN3/dx]  <- γxy
+    
+    const B = new Float64Array(24); // 3 x 8
     for (let i = 0; i < 4; i++) {
-      B[i * 2] = dN_dxi[i];           // dN/dx for ux
-      B[i * 2 + 1] = 0;               // 0 for uy
-      B[8 + i * 2] = 0;               // 0 for ux
-      B[8 + i * 2 + 1] = dN_deta[i];  // dN/dy for uy
-      B[16 + i * 2] = dN_deta[i];     // dN/dy for ux
-      B[16 + i * 2 + 1] = dN_dxi[i];  // dN/dx for uy
+      const col_ux = i * 2;      // Column for ux_i
+      const col_uy = i * 2 + 1;  // Column for uy_i
+      
+      // Row 0 (εxx): dNi/dx in ux column, 0 in uy column
+      B[0 * 8 + col_ux] = dN_dxi[i];
+      B[0 * 8 + col_uy] = 0;
+      
+      // Row 1 (εyy): 0 in ux column, dNi/dy in uy column
+      B[1 * 8 + col_ux] = 0;
+      B[1 * 8 + col_uy] = dN_deta[i];
+      
+      // Row 2 (γxy): dNi/dy in ux column, dNi/dx in uy column
+      B[2 * 8 + col_ux] = dN_deta[i];
+      B[2 * 8 + col_uy] = dN_dxi[i];
     }
     
-    // Ke += B^T * D * B * detJ * w
-    // Compute D * B (3x8)
+    // Compute Ke += B^T * D * B * detJ * w
+    // First compute D * B (3x8)
     const DB = new Float64Array(24);
-    for (let i = 0; i < 3; i++) {
-      for (let j = 0; j < 8; j++) {
-        let sum = 0;
-        for (let k = 0; k < 3; k++) {
-          sum += D[i * 3 + k] * B[k * 8 + j];
-        }
-        DB[i * 8 + j] = sum;
-      }
+    for (let j = 0; j < 8; j++) {
+      // DB[0,j] = D[0,0]*B[0,j] + D[0,1]*B[1,j] + D[0,2]*B[2,j]
+      DB[0 * 8 + j] = D11 * B[0 * 8 + j] + D12 * B[1 * 8 + j];
+      // DB[1,j] = D[1,0]*B[0,j] + D[1,1]*B[1,j] + D[1,2]*B[2,j]
+      DB[1 * 8 + j] = D12 * B[0 * 8 + j] + D11 * B[1 * 8 + j];
+      // DB[2,j] = D[2,0]*B[0,j] + D[2,1]*B[1,j] + D[2,2]*B[2,j]
+      DB[2 * 8 + j] = D33 * B[2 * 8 + j];
     }
     
-    // Compute B^T * DB (8x8)
+    // Now compute B^T * DB (8x8) and accumulate
     for (let i = 0; i < 8; i++) {
       for (let j = 0; j < 8; j++) {
+        // Ke[i,j] += sum_k B[k,i] * DB[k,j]
         let sum = 0;
         for (let k = 0; k < 3; k++) {
           sum += B[k * 8 + i] * DB[k * 8 + j];

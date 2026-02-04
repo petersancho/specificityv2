@@ -60,6 +60,12 @@ function schedulePenal(iter: number, params: SimpParams): number {
 
 /**
  * Update densities using Optimality Criteria (OC) method
+ * 
+ * The OC update is derived from KKT conditions for the optimization problem:
+ *   min C(ρ) s.t. V(ρ) = V*
+ * 
+ * The update formula is: ρ_new = ρ * sqrt(-dC/dρ / λ)
+ * where λ is the Lagrange multiplier found via bisection to satisfy volume constraint.
  */
 function updateDensitiesOC(
   densities: Float64Array,
@@ -71,11 +77,29 @@ function updateDensitiesOC(
   const n = densities.length;
   const newDensities = new Float64Array(n);
   
-  // Bisection to find Lagrange multiplier
-  let l1 = 0;
-  let l2 = 1e9;
+  // Compute adaptive bisection bounds based on sensitivity magnitude
+  // This ensures convergence for problems with widely varying sensitivities
+  let minSens = Infinity;
+  let maxSens = -Infinity;
+  for (let i = 0; i < n; i++) {
+    const absSens = Math.abs(sensitivities[i]);
+    if (absSens > 1e-14) {
+      minSens = Math.min(minSens, absSens);
+      maxSens = Math.max(maxSens, absSens);
+    }
+  }
   
-  while (l2 - l1 > 1e-4) {
+  // Set bounds based on sensitivity range (with safety margins)
+  // λ should be in range where -dc/λ produces reasonable Be values
+  const l1_init = minSens > 1e-14 ? minSens * 1e-4 : 1e-10;
+  const l2_init = maxSens > 1e-14 ? maxSens * 1e4 : 1e9;
+  
+  let l1 = l1_init;
+  let l2 = l2_init;
+  const bisectionTol = 1e-4;
+  const maxBisectionIters = 100;
+  
+  for (let bisectIter = 0; bisectIter < maxBisectionIters && (l2 - l1) > bisectionTol * l2; bisectIter++) {
     const lmid = 0.5 * (l1 + l2);
     let vol = 0;
     
@@ -83,16 +107,17 @@ function updateDensitiesOC(
       const rho = densities[i];
       const dc = sensitivities[i];
       
-      // Guard against division by zero
-      if (Math.abs(lmid) < 1e-14) {
-        newDensities[i] = rho;
-        vol += rho;
-        continue;
-      }
-      
       // OC update formula: rho * sqrt(-dc / lambda)
+      // Sensitivities should be negative (compliance decreases as material increases)
       const Be = -dc / lmid;
-      let rhoNew = rho * Math.sqrt(Math.max(1e-10, Be));
+      let rhoNew: number;
+      
+      if (Be <= 0) {
+        // If Be <= 0, the sensitivity is wrong sign; keep current density
+        rhoNew = rho;
+      } else {
+        rhoNew = rho * Math.sqrt(Be);
+      }
       
       // Apply move limits
       rhoNew = Math.max(rho - move, Math.min(rho + move, rhoNew));
@@ -207,10 +232,21 @@ export async function* runSimp(
     const K = assembleKCSR(model, rhoBar, penal, params.E0, params.Emin, Ke0);
     
     // Step 4: Solve FE system
-    const { u, converged: solverConverged } = solveFE(K, model.forces, model.fixedDofs, params.cgTol, params.cgMaxIters);
+    const { u, converged: solverConverged, iters: solverIters } = solveFE(K, model.forces, model.fixedDofs, params.cgTol, params.cgMaxIters);
     
     if (!solverConverged) {
-      console.warn(`Iteration ${iter}: FE solver did not converge`);
+      console.error(`Iteration ${iter}: FE solver did not converge after ${solverIters} iterations`);
+      // Yield error frame and terminate
+      yield {
+        iter,
+        compliance: Infinity,
+        change: 1.0,
+        vol: params.volFrac,
+        densities: new Float32Array(densities),
+        converged: false,
+        error: `FE solver failed to converge at iteration ${iter}`
+      };
+      return;
     }
     
     // Step 5: Compute compliance
