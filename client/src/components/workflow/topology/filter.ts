@@ -77,22 +77,24 @@ export function precomputeDensityFilter(
  */
 export function applyDensityFilter(
   rho: Float64Array,
-  filter: DensityFilter
+  filter: DensityFilter,
+  out?: Float64Array
 ): Float64Array {
-  const rhoBar = new Float64Array(filter.numElems);
-  
+  const rhoBar = out ?? new Float64Array(filter.numElems);
+
   for (let e = 0; e < filter.numElems; e++) {
     let sum = 0;
     const neighs = filter.neighbors[e];
     const ws = filter.weights[e];
-    
+
     for (let i = 0; i < neighs.length; i++) {
       sum += ws[i] * rho[neighs[i]];
     }
-    
-    rhoBar[e] = sum / filter.Hs[e];
+
+    const denom = filter.Hs[e];
+    rhoBar[e] = denom > 1e-12 ? sum / denom : 0;
   }
-  
+
   return rhoBar;
 }
 
@@ -101,21 +103,27 @@ export function applyDensityFilter(
  */
 export function applyFilterChainRule(
   dCdrhoBar: Float64Array,
-  filter: DensityFilter
+  filter: DensityFilter,
+  out?: Float64Array
 ): Float64Array {
-  const dCdrho = new Float64Array(filter.numElems);
-  
+  const dCdrho = out ?? new Float64Array(filter.numElems);
+  if (out) {
+    dCdrho.fill(0);
+  }
+
   // For each element j, accumulate contributions from all elements e that have j as neighbor
   for (let e = 0; e < filter.numElems; e++) {
     const neighs = filter.neighbors[e];
     const ws = filter.weights[e];
-    const factor = dCdrhoBar[e] / filter.Hs[e];
-    
+    const denom = filter.Hs[e];
+    if (denom <= 1e-12) continue;
+    const factor = dCdrhoBar[e] / denom;
+
     for (let i = 0; i < neighs.length; i++) {
       const j = neighs[i];
       dCdrho[j] += ws[i] * factor;
     }
   }
-  
+
   return dCdrho;
 }

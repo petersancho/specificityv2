@@ -10,6 +10,8 @@ import { TopologyRenderer } from "./workflow/topology/TopologyRenderer";
 import { TopologyConvergence } from "./workflow/topology/TopologyConvergence";
 import { TopologyGeometryPreview } from "./workflow/topology/TopologyGeometryPreview";
 import { generateGeometryFromDensities } from "./workflow/topology/geometryGeneratorV2";
+import { applyPlasticwrapSmoothing } from "./workflow/topology/plasticwrapSmoothing";
+import { generateIsosurfaceMeshFromDensities } from "./workflow/topology/isosurface";
 import { semanticOpEnd, semanticOpStart } from "../semantic/semanticTracer";
 import { SemanticOpsPanel } from "./workflow/SemanticOpsPanel";
 import { useSemanticMetrics } from "../semantic/useSemanticMetrics";
@@ -107,7 +109,6 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   const semanticRunIdRef = useRef<string | null>(null);
   const baseMeshRef = useRef<RenderMesh | null>(null);
   const previewMeshIdRef = useRef<string | null>(null);
-  const plasticwrapNodeIdRef = useRef<string | null>(null);
   const stallCountRef = useRef(0);
   const stabilityGuardRef = useRef(false);
   
@@ -124,9 +125,6 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     addGeometryMesh,
     syncWorkflowGeometryToRoslyn,
     toggleGeometryVisibility,
-    addNodeAt,
-    onConnect,
-    onNodesChange,
   } = useProjectStore(
     (state) => ({
       nodes: state.workflow.nodes,
@@ -136,9 +134,6 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       addGeometryMesh: state.addGeometryMesh,
       syncWorkflowGeometryToRoslyn: state.syncWorkflowGeometryToRoslyn,
       toggleGeometryVisibility: state.toggleGeometryVisibility,
-      addNodeAt: state.addNodeAt,
-      onConnect: state.onConnect,
-      onNodesChange: state.onNodesChange,
     })
   );
 
@@ -325,119 +320,6 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     }
   }, [baseMesh]);
 
-  const ensurePlasticwrapNode = (optimizedMeshIdOverride?: string | null) => {
-    if (!solverNode) return null;
-    const optimizedOutputId =
-      optimizedMeshIdOverride ??
-      (typeof parameters.optimizedMeshId === "string" ? parameters.optimizedMeshId : null) ??
-      (typeof outputs.optimizedMesh === "string" ? outputs.optimizedMesh : null);
-    if (!optimizedOutputId) return null;
-    const existingEdge = edges.find(
-      (edge) =>
-        edge.source === nodeId &&
-        edge.sourceHandle === "optimizedMesh" &&
-        edge.targetHandle === "geometry"
-    );
-    let wrapNode =
-      (existingEdge &&
-        nodes.find((node) => node.id === existingEdge.target && node.type === "plasticwrap")) ||
-      nodes.find(
-        (node) =>
-          node.type === "plasticwrap" && node.data?.label === "Plasticwrap (Topology)"
-      );
-
-    if (!wrapNode) {
-      const basePosition = solverNode.position ?? { x: 0, y: 0 };
-      const wrapNodeId = addNodeAt("plasticwrap", {
-        x: basePosition.x + 340,
-        y: basePosition.y - 40,
-      });
-      wrapNode = nodes.find((node) => node.id === wrapNodeId) ?? {
-        id: wrapNodeId,
-      } as typeof nodes[number];
-    }
-
-    const wrapNodeId = wrapNode.id;
-    plasticwrapNodeIdRef.current = wrapNodeId;
-
-    const proxyNodes = nodes.filter(
-      (node) =>
-        node.type === "meshRelax" &&
-        typeof node.data?.label === "string" &&
-        node.data.label.startsWith("Plasticwrap Proxy")
-    );
-    const viewerTargets = new Set(
-      edges.filter((edge) => edge.source === nodeId).map((edge) => edge.target)
-    );
-    const viewerNodes = nodes.filter(
-      (node) =>
-        node.type === "geometryViewer" &&
-        (viewerTargets.has(node.id) ||
-          node.data?.label === "Optimized Structure" ||
-          node.data?.label === "Roslyn Output")
-    );
-    const wrapTargets = new Set(
-      edges
-        .filter((edge) => edge.source === nodeId && edge.sourceHandle === "optimizedMesh")
-        .map((edge) => edge.target)
-    );
-    const extraWrapNodes = nodes.filter(
-      (node) =>
-        node.type === "plasticwrap" &&
-        (node.data?.label === "Plasticwrap (Topology)" || wrapTargets.has(node.id)) &&
-        node.id !== wrapNodeId
-    );
-    if (proxyNodes.length > 0 || extraWrapNodes.length > 0 || viewerNodes.length > 0) {
-      onNodesChange(
-        [...proxyNodes, ...viewerNodes, ...extraWrapNodes].map((node) => ({
-          id: node.id,
-          type: "remove",
-        }))
-      );
-    }
-
-    const desiredSmooth = plasticwrapEnabled ? plasticwrapSmooth : 1;
-    const needsUpdate =
-      wrapNode.data?.label !== "Plasticwrap (Topology)" ||
-      wrapNode.data?.parameters?.distance !== plasticwrapDistance ||
-      wrapNode.data?.parameters?.smooth !== desiredSmooth;
-    if (needsUpdate) {
-      updateNodeData(
-        wrapNodeId,
-        {
-          label: "Plasticwrap (Topology)",
-          parameters: {
-            distance: plasticwrapDistance,
-            smooth: desiredSmooth,
-          },
-        },
-        { recalculate: true }
-      );
-    }
-
-    const ensureEdge = (
-      source: string,
-      target: string,
-      sourceHandle?: string,
-      targetHandle?: string
-    ) => {
-      const exists = edges.some(
-        (edge) =>
-          edge.source === source &&
-          edge.target === target &&
-          (edge.sourceHandle ?? undefined) === sourceHandle &&
-          (edge.targetHandle ?? undefined) === targetHandle
-      );
-      if (exists) return;
-      onConnect({ source, target, sourceHandle, targetHandle });
-    };
-
-    ensureEdge(nodeId, wrapNodeId, "optimizedMesh", "geometry");
-    ensureEdge(nodeId, wrapNodeId, "optimizedMesh", "target");
-
-    return wrapNodeId;
-  };
-
   const baseBounds = useMemo(() => {
     if (!baseMesh) return null;
     return calculateMeshBounds(baseMesh);
@@ -497,24 +379,6 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
 
   const effectiveE0 = goalStiffness?.youngModulus ?? E0;
   const effectiveNu = goalStiffness?.poissonRatio ?? nu;
-
-  useEffect(() => {
-    if (!plasticwrapEnabled) return;
-    if (simulationState === "running") return;
-    if (parameters.simulationStep !== "complete") return;
-    const wrapNodeId = ensurePlasticwrapNode();
-    if (wrapNodeId) {
-      markSemanticInstant("simulator.topology.plasticwrap");
-    }
-  }, [
-    plasticwrapEnabled,
-    plasticwrapDistance,
-    plasticwrapSmooth,
-    simulationState,
-    parameters.simulationStep,
-    solverNode,
-    edges,
-  ]);
 
   // Parameter change handler
   const handleParameterChange = (key: string, value: number | string) => {
@@ -610,6 +474,40 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
         pipeRadius,
         pipeSegments
       );
+      const isoMesh = generateIsosurfaceMeshFromDensities(
+        {
+          densities,
+          nx,
+          ny,
+          nz,
+          bounds,
+        },
+        densityThreshold,
+        {
+          filterRadius: rmin,
+          iter: frame.iter,
+          rampIters: penalRampIters,
+          betaStart: 2,
+          betaEnd: 16,
+          eta: 0.5,
+          refineFactor: 2,
+          smoothing: {
+            iterations: 15,
+            lambda: 0.5,
+            mu: -0.53,
+          },
+        }
+      );
+
+      const optimizedMesh = plasticwrapEnabled
+        ? applyPlasticwrapSmoothing(isoMesh, {
+            distance: plasticwrapDistance,
+            smooth: plasticwrapSmooth,
+          })
+        : isoMesh;
+      if (plasticwrapEnabled) {
+        markSemanticInstant("simulator.topology.plasticwrap");
+      }
       
       // Register geometries in the store
       if (DEBUG) {
@@ -662,14 +560,14 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       });
       if (DEBUG) console.log('[GEOM] Registered curve network:', curveNetworkId);
       
-      const multipipeId = addGeometryMesh(geometryOutput.multipipe, { 
+      const multipipeId = addGeometryMesh(optimizedMesh, { 
         sourceNodeId: nodeId,
         recordHistory: false,
         geometryId: cachedOptimizedMeshId,
         metadata: {
           generatedBy: "topology-optimization",
-          type: "multipipe",
-          label: "Topology Multipipe",
+          type: "isosurface",
+          label: "Topology Surface",
           customMaterial: {
             hex: "#00D4FF",
             sheenIntensity: 0.22,
@@ -679,13 +577,13 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
           },
         },
       });
-      if (DEBUG) console.log('[GEOM] Registered multipipe:', multipipeId);
+      if (DEBUG) console.log('[GEOM] Registered surface:', multipipeId);
 
       const surfaceArea = computeMeshArea(
-        geometryOutput.multipipe.positions,
-        geometryOutput.multipipe.indices
+        optimizedMesh.positions,
+        optimizedMesh.indices
       );
-      const { volume_m3 } = computeMeshVolumeAndCentroid(geometryOutput.multipipe);
+      const { volume_m3 } = computeMeshVolumeAndCentroid(optimizedMesh);
 
       updateNodeData(
         nodeId,
@@ -726,12 +624,6 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       toggleGeometryVisibility(curveNetworkId, true);
       toggleGeometryVisibility(multipipeId, true);
       syncWorkflowGeometryToRoslyn(nodeId);
-      if (plasticwrapEnabled) {
-        const wrapNodeId = ensurePlasticwrapNode(multipipeId);
-        if (wrapNodeId) {
-          markSemanticInstant("simulator.topology.plasticwrap");
-        }
-      }
       if (runId) {
         semanticOpEnd({ nodeId, runId, opId: "simulator.topology.finalize", ok: true });
       }
@@ -740,7 +632,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
         console.log(`[GEOM] ✅ Generated topology optimization geometry:
           - Point cloud: ${pointCloudId} (${geometryOutput.pointCount} points)
           - Curve network: ${curveNetworkId} (${geometryOutput.curveCount} curves)
-          - Multipipe: ${multipipeId}`);
+          - Surface: ${multipipeId}`);
       }
       
     } catch (error) {
@@ -777,8 +669,8 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
         geometryId: cachedOptimizedMeshId,
         metadata: {
           generatedBy: "topology-optimization",
-          type: "multipipe-preview",
-          label: "Topology Preview",
+          type: "isosurface-preview",
+          label: "Topology Preview Surface",
           customMaterial: {
             hex: "#00D4FF",
             sheenIntensity: 0.22,
@@ -899,24 +791,34 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
         const bounds = calculateMeshBounds(baseMesh);
         const field = {
           densities: Float64Array.from(frame.densities),
-          nx, ny, nz,
-          bounds
+          nx,
+          ny,
+          nz,
+          bounds,
         };
-        const previewBudget = frame.converged ? 8000 : 2000;
-        const result = generateGeometryFromDensities(
+        const previewMesh = generateIsosurfaceMeshFromDensities(
           field,
           densityThreshold,
-          Math.max(2, Math.min(6, maxLinksPerPoint)),
-          maxSpanLength,
-          pipeRadius,
-          Math.min(12, pipeSegments),
-          previewBudget
+          {
+            filterRadius: rmin,
+            iter: frame.iter,
+            rampIters: penalRampIters,
+            betaStart: 2,
+            betaEnd: 16,
+            eta: 0.5,
+            refineFactor: 1,
+            smoothing: {
+              iterations: 4,
+              lambda: 0.5,
+              mu: -0.53,
+            },
+          }
         );
-        setPreviewGeometry(result.multipipe);
+        setPreviewGeometry(previewMesh);
         markSemanticInstant("simulator.topology.preview");
         if (liveRoslyn && now - lastRoslynSyncRef.current > roslynSyncInterval) {
           lastRoslynSyncRef.current = now;
-          registerPreviewGeometry(result.multipipe, frame);
+          registerPreviewGeometry(previewMesh, frame);
         }
       } catch (error) {
         console.error('[TOPOLOGY] Preview generation error:', error);
@@ -1101,7 +1003,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     }
     try {
       const bounds = calculateMeshBounds(mesh);
-      const result = generateGeometryFromDensities(
+      const previewMesh = generateIsosurfaceMeshFromDensities(
         {
           densities: Float64Array.from(frame.densities),
           nx,
@@ -1110,14 +1012,23 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
           bounds,
         },
         densityThreshold,
-        Math.max(2, Math.min(6, maxLinksPerPoint)),
-        maxSpanLength,
-        pipeRadius,
-        Math.min(12, pipeSegments),
-        3500
+        {
+          filterRadius: rmin,
+          iter: frame.iter,
+          rampIters: penalRampIters,
+          betaStart: 2,
+          betaEnd: 16,
+          eta: 0.5,
+          refineFactor: 1,
+          smoothing: {
+            iterations: 4,
+            lambda: 0.5,
+            mu: -0.53,
+          },
+        }
       );
-      setPreviewGeometry(result.multipipe);
-      registerPreviewGeometry(result.multipipe, frame);
+      setPreviewGeometry(previewMesh);
+      registerPreviewGeometry(previewMesh, frame);
     } catch (error) {
       console.error("[TOPOLOGY] ❌ Failed to sync preview geometry:", error);
     }

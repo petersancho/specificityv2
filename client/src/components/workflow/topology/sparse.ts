@@ -156,9 +156,9 @@ export function buildJacobiPreconditioner(A: CSRMatrix): Float64Array {
     }
     
     // Guard against zero/negative diagonal
-    if (Math.abs(diag[i]) < 1e-14) {
-      diag[i] = 1.0;
-    }
+    const value = diag[i];
+    const safe = Math.abs(value);
+    diag[i] = safe > 1e-14 ? safe : 1.0;
   }
   
   return diag;
@@ -190,6 +190,10 @@ export function solvePCG(
   maxIters: number = 1000
 ): { x: Float64Array; converged: boolean; iters: number; residual: number } {
   const n = A.nrows;
+  const b_norm = Math.sqrt(dot(b, b));
+  if (b_norm === 0) {
+    return { x: new Float64Array(n), converged: true, iters: 0, residual: 0 };
+  }
   const x = x0 ? Float64Array.from(x0) : new Float64Array(n);
   
   // Build Jacobi preconditioner
@@ -206,8 +210,7 @@ export function solvePCG(
   
   // Initial residual norm
   let rz = dot(r, z);
-  const b_norm = Math.sqrt(dot(b, b));
-  const tol_abs = tol * b_norm;
+  const tol_abs = tol * Math.max(1, b_norm);
   
   let converged = false;
   let iters = 0;

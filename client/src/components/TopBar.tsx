@@ -120,7 +120,7 @@ const TopBar = ({
         <span className={styles.status}>{status}</span>
       </div>
       <div className={styles.brand}>
-        <LinguaLogo size={28} variant="cmyk" withText />
+        <LinguaLogo size={28} withText />
       </div>
     </header>
   );

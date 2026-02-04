@@ -64,26 +64,26 @@
   --accent-signal: var(--feedback-warning);
 
   /* Semantic tokens */
-  --bg: var(--roslyn-soft-porcelain);
-  --fg: var(--roslyn-graphite-ink);
-  --muted: var(--roslyn-machined-grey);
-  --muted-strong: var(--roslyn-industrial-warm-grey);
-  --border: var(--sp-divider);
-  --border-subtle: var(--sp-divider);
-  --card-bg: var(--roslyn-instrument-cream);
-  --card-hover-bg: var(--roslyn-soft-porcelain);
-  --surface: var(--roslyn-instrument-cream);
-  --surface-strong: var(--roslyn-calibration-grey);
-  --surface-soft: var(--roslyn-soft-porcelain);
+  --bg: var(--ui-white);
+  --fg: var(--ui-black);
+  --muted: color-mix(in srgb, var(--ui-black) 45%, transparent);
+  --muted-strong: color-mix(in srgb, var(--ui-black) 65%, transparent);
+  --border: var(--ui-black);
+  --border-subtle: color-mix(in srgb, var(--ui-black) 35%, transparent);
+  --card-bg: var(--ui-white);
+  --card-hover-bg: color-mix(in srgb, var(--ui-black) 6%, var(--ui-white));
+  --surface: var(--ui-white);
+  --surface-strong: var(--ui-white);
+  --surface-soft: var(--ui-white);
   --accent: var(--ui-black);
   --accent-highlight: var(--ui-black);
   --accent-orange-soft: color-mix(in srgb, var(--ui-black) 15%, transparent);
   --accent-ring: color-mix(in srgb, var(--ui-black) 25%, transparent);
   --accent-muted: color-mix(in srgb, var(--ui-black) 35%, transparent);
-  --color-canvas: var(--roslyn-soft-porcelain);
-  --color-grid-line: var(--roslyn-calibration-grey);
-  --color-grid-dot: color-mix(in srgb, var(--ui-black) 12%, transparent);
-  --color-grid-dot-soft: color-mix(in srgb, var(--ui-black) 6%, transparent);
+  --color-canvas: var(--ui-white);
+  --color-grid-line: color-mix(in srgb, var(--ui-black) 20%, transparent);
+  --color-grid-dot: color-mix(in srgb, var(--ui-black) 18%, transparent);
+  --color-grid-dot-soft: color-mix(in srgb, var(--ui-black) 10%, transparent);
   --canvas-grid-size: 84px;
   --canvas-grid-dot: var(--color-grid-dot);
   --canvas-grid-dot-soft: var(--color-grid-dot-soft);
@@ -175,7 +175,7 @@
   --color-accent-soft: var(--accent-orange-soft);
   --color-accent-muted: var(--accent-muted);
   --color-on-accent: var(--fog-100);
-  --color-topbar-bg: var(--surface-strong);
+  --color-topbar-bg: var(--ui-white);
   --color-topbar-dot-strong: color-mix(
     in srgb,
     var(--roslyn-graphite-ink) 45%,
@@ -187,28 +187,16 @@
     transparent
   );
   --color-topbar-border: var(--border);
-  --color-glass: color-mix(in srgb, var(--surface) 85%, transparent);
-  --color-glass-strong: color-mix(
-    in srgb,
-    var(--surface-strong) 90%,
-    transparent
-  );
-  --color-overlay: color-mix(in srgb, var(--bg) 92%, transparent);
-  --color-workspace-gradient-start: var(--roslyn-soft-porcelain);
-  --color-workspace-gradient-end: var(--roslyn-calibration-grey);
-  --color-footer-bg: color-mix(in srgb, var(--surface) 92%, transparent);
-  --color-footer-border: color-mix(
-    in srgb,
-    var(--roslyn-graphite-ink) 15%,
-    transparent
-  );
+  --color-glass: color-mix(in srgb, var(--ui-white) 92%, transparent);
+  --color-glass-strong: color-mix(in srgb, var(--ui-white) 96%, transparent);
+  --color-overlay: color-mix(in srgb, var(--ui-white) 92%, transparent);
+  --color-workspace-gradient-start: var(--ui-white);
+  --color-workspace-gradient-end: var(--ui-white);
+  --color-footer-bg: var(--ui-white);
+  --color-footer-border: color-mix(in srgb, var(--ui-black) 20%, transparent);
   --color-footer-grid-strong: var(--color-grid-dot);
   --color-footer-grid-soft: var(--color-grid-dot-soft);
-  --color-footer-highlight: color-mix(
-    in srgb,
-    var(--roslyn-graphite-ink) 60%,
-    transparent
-  );
+  --color-footer-highlight: color-mix(in srgb, var(--ui-black) 60%, transparent);
   --color-accent-ring: color-mix(
     in srgb,
     var(--roslyn-graphite-ink) 35%,

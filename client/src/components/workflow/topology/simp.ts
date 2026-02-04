@@ -3,6 +3,7 @@ import {
   createFEModel2D,
   computeKeQ4,
   assembleKCSR,
+  buildDofMap,
   solveFE,
   computeCompliance,
   computeElementCe,
@@ -62,6 +63,58 @@ function computeMeshBounds(mesh: RenderMesh) {
 const clampIndex = (value: number, max: number) =>
   Math.max(0, Math.min(max, value));
 
+const nodeIndex2D = (
+  pos: { x: number; y: number },
+  bounds: { min: { x: number; y: number }; max: { x: number; y: number } },
+  nx: number,
+  ny: number
+) => {
+  const spanX = Math.max(1e-6, bounds.max.x - bounds.min.x);
+  const spanY = Math.max(1e-6, bounds.max.y - bounds.min.y);
+  const ix = clampIndex(Math.round(((pos.x - bounds.min.x) / spanX) * nx), nx);
+  const iy = clampIndex(Math.round(((pos.y - bounds.min.y) / spanY) * ny), ny);
+  return iy * (nx + 1) + ix;
+};
+
+const nodeIndex3D = (
+  pos: { x: number; y: number; z: number },
+  bounds: { min: { x: number; y: number; z: number }; max: { x: number; y: number; z: number } },
+  nx: number,
+  ny: number,
+  nz: number
+) => {
+  const spanX = Math.max(1e-6, bounds.max.x - bounds.min.x);
+  const spanY = Math.max(1e-6, bounds.max.y - bounds.min.y);
+  const spanZ = Math.max(1e-6, bounds.max.z - bounds.min.z);
+  const ix = clampIndex(Math.round(((pos.x - bounds.min.x) / spanX) * nx), nx);
+  const iy = clampIndex(Math.round(((pos.y - bounds.min.y) / spanY) * ny), ny);
+  const iz = clampIndex(Math.round(((pos.z - bounds.min.z) / spanZ) * nz), nz);
+  return iz * (ny + 1) * (nx + 1) + iy * (nx + 1) + ix;
+};
+
+const addFixedNode2D = (
+  nodeIdx: number,
+  fixedDofs: Set<number>,
+  fixedNodes: Set<number>
+) => {
+  if (fixedNodes.has(nodeIdx)) return;
+  fixedNodes.add(nodeIdx);
+  fixedDofs.add(nodeIdx * 2);
+  fixedDofs.add(nodeIdx * 2 + 1);
+};
+
+const addFixedNode3D = (
+  nodeIdx: number,
+  fixedDofs: Set<number>,
+  fixedNodes: Set<number>
+) => {
+  if (fixedNodes.has(nodeIdx)) return;
+  fixedNodes.add(nodeIdx);
+  fixedDofs.add(nodeIdx * 3);
+  fixedDofs.add(nodeIdx * 3 + 1);
+  fixedDofs.add(nodeIdx * 3 + 2);
+};
+
 /**
  * Schedule penalty exponent (continuation strategy)
  */
@@ -83,10 +136,11 @@ function updateDensitiesOC(
   sensitivities: Float64Array,
   volFrac: number,
   move: number,
-  rhoMin: number
+  rhoMin: number,
+  out?: Float64Array
 ): Float64Array {
   const n = densities.length;
-  const newDensities = new Float64Array(n);
+  const newDensities = out ?? new Float64Array(n);
   
   // Bisection to find Lagrange multiplier
   let l1 = 0;
@@ -116,6 +170,7 @@ function updateDensitiesOC(
       
       // Apply bounds
       rhoNew = Math.max(rhoMin, Math.min(1.0, rhoNew));
+      if (!Number.isFinite(rhoNew)) rhoNew = rho;
       
       newDensities[i] = rhoNew;
       vol += rhoNew;
@@ -152,37 +207,36 @@ async function* runSimp2D(
   params: SimpParams
 ): AsyncGenerator<SolverFrame> {
   const fixedDofs = new Set<number>();
+  const fixedNodes = new Set<number>();
   const loads = new Map<number, number>();
 
   const bounds = computeMeshBounds(mesh);
   const spanX = Math.max(1e-6, bounds.max.x - bounds.min.x);
   const spanY = Math.max(1e-6, bounds.max.y - bounds.min.y);
+  const dx = spanX / params.nx;
+  const dy = spanY / params.ny;
 
   for (const anchor of markers.anchors) {
-    const ix = Math.round((anchor.position.x - bounds.min.x) / spanX * params.nx);
-    const iy = Math.round((anchor.position.y - bounds.min.y) / spanY * params.ny);
-    const nodeIdx =
-      Math.max(0, Math.min(params.ny, iy)) * (params.nx + 1) +
-      Math.max(0, Math.min(params.nx, ix));
-    fixedDofs.add(nodeIdx * 2);
-    fixedDofs.add(nodeIdx * 2 + 1);
+    const nodeIdx = nodeIndex2D(anchor.position, bounds, params.nx, params.ny);
+    addFixedNode2D(nodeIdx, fixedDofs, fixedNodes);
   }
 
   if (fixedDofs.size < 3) {
-    console.warn("Insufficient boundary conditions, adding default constraints for 2D");
-    const nodeA = 0;
-    const nodeB = params.nx; // bottom-right corner
-    fixedDofs.add(nodeA * 2);
-    fixedDofs.add(nodeA * 2 + 1);
-    fixedDofs.add(nodeB * 2 + 1);
+    console.info("Insufficient boundary conditions, adding default constraints for 2D");
+    const candidates = [
+      0,
+      params.nx,
+      params.ny * (params.nx + 1),
+      params.ny * (params.nx + 1) + params.nx,
+    ];
+    for (const nodeIdx of candidates) {
+      if (fixedDofs.size >= 3) break;
+      addFixedNode2D(nodeIdx, fixedDofs, fixedNodes);
+    }
   }
 
   for (const load of markers.loads) {
-    const ix = Math.round((load.position.x - bounds.min.x) / spanX * params.nx);
-    const iy = Math.round((load.position.y - bounds.min.y) / spanY * params.ny);
-    const nodeIdx =
-      Math.max(0, Math.min(params.ny, iy)) * (params.nx + 1) +
-      Math.max(0, Math.min(params.nx, ix));
+    const nodeIdx = nodeIndex2D(load.position, bounds, params.nx, params.ny);
     const dofX = nodeIdx * 2;
     const dofY = nodeIdx * 2 + 1;
     loads.set(dofX, (loads.get(dofX) ?? 0) + load.force.x);
@@ -190,31 +244,38 @@ async function* runSimp2D(
   }
 
   const model = createFEModel2D(params.nx, params.ny, bounds, fixedDofs, loads);
-  const Ke0 = computeKeQ4(params.nu);
+  const effectiveEmin = Math.max(params.Emin, Math.abs(params.E0) * 1e-9);
+  const Ke0 = computeKeQ4(params.nu, dx, dy);
   const filter = precomputeDensityFilter(params.nx, params.ny, 1, params.rmin);
 
-  let densities: Float64Array = new Float64Array(model.numElems);
+  const numElems = model.numElems;
+  const bcMap = buildDofMap(model.numDofs, model.fixedDofs);
+  let densities: Float64Array = new Float64Array(numElems);
+  let nextDensities: Float64Array = new Float64Array(numElems);
+  const rhoBar = new Float64Array(numElems);
+  const ce = new Float64Array(numElems);
+  const dCdrhoBar = new Float64Array(numElems);
+  const dCdrho = new Float64Array(numElems);
+  let prevU: Float64Array | undefined;
   densities.fill(params.volFrac);
 
   let prevCompliance = Infinity;
   let consecutiveConverged = 0;
+  const emitEvery = Math.max(1, Math.round(params.emitEvery ?? 1));
+  const yieldEvery = Math.max(1, Math.round(params.yieldEvery ?? emitEvery));
+  const cgBoostFactor = Math.max(1, params.cgBoostFactor ?? 1);
+  const cgBoostMax = Math.min(20000, Math.round(params.cgMaxIters * cgBoostFactor));
   for (let iter = 1; iter <= params.maxIters; iter++) {
-    const emitEvery = Math.max(1, Math.round(params.emitEvery ?? 1));
-    const yieldEvery = Math.max(1, Math.round(params.yieldEvery ?? emitEvery));
-    const cgBoostFactor = Math.max(1, params.cgBoostFactor ?? 1);
-    const cgBoostMax = Math.min(
-      20000,
-      Math.round(params.cgMaxIters * cgBoostFactor)
-    );
     const penal = schedulePenal(iter, params);
-    const rhoBar = applyDensityFilter(densities, filter);
-    const K = assembleKCSR(model, rhoBar, penal, params.E0, params.Emin, Ke0);
+    applyDensityFilter(densities, filter, rhoBar);
+    const K = assembleKCSR(model, rhoBar, penal, params.E0, effectiveEmin, Ke0);
     let { u, converged: solverConverged, iters: solverIters } = solveFE(
       K,
       model.forces,
       model.fixedDofs,
       params.cgTol,
-      params.cgMaxIters
+      params.cgMaxIters,
+      { x0: prevU, bcMap }
     );
     if (!solverConverged && cgBoostMax > params.cgMaxIters) {
       const boosted = solveFE(
@@ -222,7 +283,8 @@ async function* runSimp2D(
         model.forces,
         model.fixedDofs,
         params.cgTol,
-        cgBoostMax
+        cgBoostMax,
+        { x0: prevU, bcMap }
       );
       if (boosted.converged) {
         u = boosted.u;
@@ -236,32 +298,33 @@ async function* runSimp2D(
       }
       console.warn(`Iteration ${iter}: FE solver did not converge`);
     }
+    prevU = u;
 
     const compliance = computeCompliance(model.forces, u);
-    const ce = computeElementCe(model, u, Ke0);
-    const dCdrhoBar = computeSensitivitiesSIMP(rhoBar, ce, penal, params.E0, params.Emin);
-    const dCdrho = applyFilterChainRule(dCdrhoBar, filter);
-    const newDensities = updateDensitiesOC(
+    computeElementCe(model, u, Ke0, ce);
+    computeSensitivitiesSIMP(rhoBar, ce, penal, params.E0, effectiveEmin, dCdrhoBar);
+    applyFilterChainRule(dCdrhoBar, filter, dCdrho);
+    updateDensitiesOC(
       densities,
       dCdrho,
       params.volFrac,
       params.move,
-      params.rhoMin
+      params.rhoMin,
+      nextDensities
     );
 
     let maxChange = 0;
-    for (let e = 0; e < model.numElems; e++) {
-      const change = Math.abs(newDensities[e] - densities[e]);
-      if (change > maxChange) maxChange = change;
-    }
-
     let vol = 0;
-    for (let e = 0; e < model.numElems; e++) {
-      vol += newDensities[e];
+    for (let e = 0; e < numElems; e++) {
+      const change = Math.abs(nextDensities[e] - densities[e]);
+      if (change > maxChange) maxChange = change;
+      vol += nextDensities[e];
     }
-    vol /= model.numElems;
+    vol /= numElems;
 
-    densities = newDensities;
+    const temp = densities;
+    densities = nextDensities;
+    nextDensities = temp;
     const stepConverged = checkConvergence(compliance, prevCompliance, maxChange, params.tolChange);
     if (stepConverged) {
       consecutiveConverged++;
@@ -306,47 +369,47 @@ async function* runSimp3D(
   params: SimpParams
 ): AsyncGenerator<SolverFrame> {
   const fixedDofs = new Set<number>();
+  const fixedNodes = new Set<number>();
   const loads = new Map<number, number>();
 
   const bounds = computeMeshBounds(mesh);
   const spanX = Math.max(1e-6, bounds.max.x - bounds.min.x);
   const spanY = Math.max(1e-6, bounds.max.y - bounds.min.y);
   const spanZ = Math.max(1e-6, bounds.max.z - bounds.min.z);
+  const dx = spanX / params.nx;
+  const dy = spanY / params.ny;
+  const dz = spanZ / params.nz;
 
   for (const anchor of markers.anchors) {
-    const ix = Math.round((anchor.position.x - bounds.min.x) / spanX * params.nx);
-    const iy = Math.round((anchor.position.y - bounds.min.y) / spanY * params.ny);
-    const iz = Math.round((anchor.position.z - bounds.min.z) / spanZ * params.nz);
-    const nodeIdx =
-      Math.max(0, Math.min(params.nz, iz)) * (params.ny + 1) * (params.nx + 1) +
-      Math.max(0, Math.min(params.ny, iy)) * (params.nx + 1) +
-      Math.max(0, Math.min(params.nx, ix));
-    fixedDofs.add(nodeIdx * 3);
-    fixedDofs.add(nodeIdx * 3 + 1);
-    fixedDofs.add(nodeIdx * 3 + 2);
+    const nodeIdx = nodeIndex3D(anchor.position, bounds, params.nx, params.ny, params.nz);
+    addFixedNode3D(nodeIdx, fixedDofs, fixedNodes);
   }
 
   if (fixedDofs.size < 6) {
-    console.warn("Insufficient boundary conditions, adding default constraints for 3D");
-    const nodeA = 0;
-    const nodeB = params.nx;
-    const nodeC = (params.ny) * (params.nx + 1);
-    fixedDofs.add(nodeA * 3);
-    fixedDofs.add(nodeA * 3 + 1);
-    fixedDofs.add(nodeA * 3 + 2);
-    fixedDofs.add(nodeB * 3 + 1);
-    fixedDofs.add(nodeB * 3 + 2);
-    fixedDofs.add(nodeC * 3 + 2);
+    console.info("Insufficient boundary conditions, adding default constraints for 3D");
+    const sliceStride = (params.ny + 1) * (params.nx + 1);
+    const minZ = 0;
+    const maxZ = params.nz;
+    const minPlane = minZ * sliceStride;
+    const maxPlane = maxZ * sliceStride;
+    const candidates = [
+      minPlane,
+      minPlane + params.nx,
+      minPlane + params.ny * (params.nx + 1),
+      minPlane + params.ny * (params.nx + 1) + params.nx,
+      maxPlane,
+      maxPlane + params.nx,
+      maxPlane + params.ny * (params.nx + 1),
+      maxPlane + params.ny * (params.nx + 1) + params.nx,
+    ];
+    for (const nodeIdx of candidates) {
+      if (fixedDofs.size >= 6) break;
+      addFixedNode3D(nodeIdx, fixedDofs, fixedNodes);
+    }
   }
 
   for (const load of markers.loads) {
-    const ix = Math.round((load.position.x - bounds.min.x) / spanX * params.nx);
-    const iy = Math.round((load.position.y - bounds.min.y) / spanY * params.ny);
-    const iz = Math.round((load.position.z - bounds.min.z) / spanZ * params.nz);
-    const nodeIdx =
-      Math.max(0, Math.min(params.nz, iz)) * (params.ny + 1) * (params.nx + 1) +
-      Math.max(0, Math.min(params.ny, iy)) * (params.nx + 1) +
-      Math.max(0, Math.min(params.nx, ix));
+    const nodeIdx = nodeIndex3D(load.position, bounds, params.nx, params.ny, params.nz);
     const dofX = nodeIdx * 3;
     const dofY = nodeIdx * 3 + 1;
     const dofZ = nodeIdx * 3 + 2;
@@ -356,31 +419,38 @@ async function* runSimp3D(
   }
 
   const model = createFEModel3D(params.nx, params.ny, params.nz, bounds, fixedDofs, loads);
-  const Ke0 = computeKeHex(params.nu);
+  const effectiveEmin = Math.max(params.Emin, Math.abs(params.E0) * 1e-9);
+  const Ke0 = computeKeHex(params.nu, dx, dy, dz);
   const filter = precomputeDensityFilter(params.nx, params.ny, params.nz, params.rmin);
 
-  let densities: Float64Array = new Float64Array(model.numElems);
+  const numElems = model.numElems;
+  const bcMap = buildDofMap(model.numDofs, model.fixedDofs);
+  let densities: Float64Array = new Float64Array(numElems);
+  let nextDensities: Float64Array = new Float64Array(numElems);
+  const rhoBar = new Float64Array(numElems);
+  const ce = new Float64Array(numElems);
+  const dCdrhoBar = new Float64Array(numElems);
+  const dCdrho = new Float64Array(numElems);
+  let prevU: Float64Array | undefined;
   densities.fill(params.volFrac);
 
   let prevCompliance = Infinity;
   let consecutiveConverged = 0;
+  const emitEvery = Math.max(1, Math.round(params.emitEvery ?? 1));
+  const yieldEvery = Math.max(1, Math.round(params.yieldEvery ?? emitEvery));
+  const cgBoostFactor = Math.max(1, params.cgBoostFactor ?? 1);
+  const cgBoostMax = Math.min(20000, Math.round(params.cgMaxIters * cgBoostFactor));
   for (let iter = 1; iter <= params.maxIters; iter++) {
-    const emitEvery = Math.max(1, Math.round(params.emitEvery ?? 1));
-    const yieldEvery = Math.max(1, Math.round(params.yieldEvery ?? emitEvery));
-    const cgBoostFactor = Math.max(1, params.cgBoostFactor ?? 1);
-    const cgBoostMax = Math.min(
-      20000,
-      Math.round(params.cgMaxIters * cgBoostFactor)
-    );
     const penal = schedulePenal(iter, params);
-    const rhoBar = applyDensityFilter(densities, filter);
-    const K = assembleKCSR3D(model, rhoBar, penal, params.E0, params.Emin, Ke0);
+    applyDensityFilter(densities, filter, rhoBar);
+    const K = assembleKCSR3D(model, rhoBar, penal, params.E0, effectiveEmin, Ke0);
     let { u, converged: solverConverged, iters: solverIters } = solveFE(
       K,
       model.forces,
       model.fixedDofs,
       params.cgTol,
-      params.cgMaxIters
+      params.cgMaxIters,
+      { x0: prevU, bcMap }
     );
     if (!solverConverged && cgBoostMax > params.cgMaxIters) {
       const boosted = solveFE(
@@ -388,7 +458,8 @@ async function* runSimp3D(
         model.forces,
         model.fixedDofs,
         params.cgTol,
-        cgBoostMax
+        cgBoostMax,
+        { x0: prevU, bcMap }
       );
       if (boosted.converged) {
         u = boosted.u;
@@ -402,32 +473,33 @@ async function* runSimp3D(
       }
       console.warn(`Iteration ${iter}: FE solver did not converge`);
     }
+    prevU = u;
 
     const compliance = computeCompliance(model.forces, u);
-    const ce = computeElementCe3D(model, u, Ke0);
-    const dCdrhoBar = computeSensitivitiesSIMP(rhoBar, ce, penal, params.E0, params.Emin);
-    const dCdrho = applyFilterChainRule(dCdrhoBar, filter);
-    const newDensities = updateDensitiesOC(
+    computeElementCe3D(model, u, Ke0, ce);
+    computeSensitivitiesSIMP(rhoBar, ce, penal, params.E0, effectiveEmin, dCdrhoBar);
+    applyFilterChainRule(dCdrhoBar, filter, dCdrho);
+    updateDensitiesOC(
       densities,
       dCdrho,
       params.volFrac,
       params.move,
-      params.rhoMin
+      params.rhoMin,
+      nextDensities
     );
 
     let maxChange = 0;
-    for (let e = 0; e < model.numElems; e++) {
-      const change = Math.abs(newDensities[e] - densities[e]);
-      if (change > maxChange) maxChange = change;
-    }
-
     let vol = 0;
-    for (let e = 0; e < model.numElems; e++) {
-      vol += newDensities[e];
+    for (let e = 0; e < numElems; e++) {
+      const change = Math.abs(nextDensities[e] - densities[e]);
+      if (change > maxChange) maxChange = change;
+      vol += nextDensities[e];
     }
-    vol /= model.numElems;
+    vol /= numElems;
 
-    densities = newDensities;
+    const temp = densities;
+    densities = nextDensities;
+    nextDensities = temp;
     const stepConverged = checkConvergence(compliance, prevCompliance, maxChange, params.tolChange);
     if (stepConverged) {
       consecutiveConverged++;

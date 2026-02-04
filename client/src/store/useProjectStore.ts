@@ -7844,10 +7844,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
      * Topology Optimization Solver Test Rig
      *
      * Creates a topology optimization workflow with goals:
-     * - Box Builder → Topology Optimization Solver → Plasticwrap
+     * - Box Builder → Topology Optimization Solver
      * - Goal nodes (anchor, load, volume, stiffness) → Solver
      * - SIMP + extraction sliders for solver inputs
-     * - Plasticwrap sliders (distance, smooth) → Plasticwrap node
+     * - Plasticwrap refinement handled inside the solver post-process
      *
      * Named after Leonhard Euler (topology pioneer, Euler characteristic).
      */
@@ -7972,15 +7972,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const col4X = col3X + NODE_WIDTH + H_GAP;
     const solverId = `node-topologyOptimizationSolver-${ts}`;
     const solverPos = { x: col4X, y: position.y + SLIDER_HEIGHT };
-
-    // Column 5: Plasticwrap refinement (single node after solver)
-    const col5X = col4X + NODE_WIDTH + H_GAP;
-    const plasticwrapId = `node-plasticwrap-topology-${ts}`;
-    const plasticwrapPos = { x: col5X, y: position.y + SLIDER_HEIGHT };
-    const wrapDistanceSliderId = `node-slider-topo-wrapDistance-${ts}`;
-    const wrapDistancePos = { x: col5X, y: plasticwrapPos.y + NODE_HEIGHT + V_GAP };
-    const wrapSmoothSliderId = `node-slider-topo-wrapSmooth-${ts}`;
-    const wrapSmoothPos = { x: col5X, y: wrapDistancePos.y + SLIDER_HEIGHT + V_GAP };
 
     const newNodes: WorkflowNode[] = [
       {
@@ -8479,46 +8470,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           },
         },
       },
-      {
-        id: plasticwrapId,
-        type: "plasticwrap" as const,
-        position: plasticwrapPos,
-        data: {
-          label: "Plasticwrap (Topology)",
-          parameters: {
-            distance: 0.25,
-            smooth: 0.55,
-          },
-        },
-      },
-      {
-        id: wrapDistanceSliderId,
-        type: "slider" as const,
-        position: wrapDistancePos,
-        data: {
-          label: "Wrap Distance",
-          parameters: {
-            min: 0.05,
-            max: 1.0,
-            value: 0.25,
-            step: 0.05,
-          },
-        },
-      },
-      {
-        id: wrapSmoothSliderId,
-        type: "slider" as const,
-        position: wrapSmoothPos,
-        data: {
-          label: "Wrap Smoothness",
-          parameters: {
-            min: 0,
-            max: 1,
-            value: 0.55,
-            step: 0.05,
-          },
-        },
-      },
     ];
 
     const newEdges = [
@@ -8794,34 +8745,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         sourceHandle: "indices",
         target: stiffnessGoalId,
         targetHandle: "elements",
-      },
-      {
-        id: `edge-${solverId}-${plasticwrapId}-geometry`,
-        source: solverId,
-        sourceHandle: "optimizedMesh",
-        target: plasticwrapId,
-        targetHandle: "geometry",
-      },
-      {
-        id: `edge-${solverId}-${plasticwrapId}-target`,
-        source: solverId,
-        sourceHandle: "optimizedMesh",
-        target: plasticwrapId,
-        targetHandle: "target",
-      },
-      {
-        id: `edge-${wrapDistanceSliderId}-${plasticwrapId}-distance`,
-        source: wrapDistanceSliderId,
-        sourceHandle: "value",
-        target: plasticwrapId,
-        targetHandle: "distance",
-      },
-      {
-        id: `edge-${wrapSmoothSliderId}-${plasticwrapId}-smooth`,
-        source: wrapSmoothSliderId,
-        sourceHandle: "value",
-        target: plasticwrapId,
-        targetHandle: "smooth",
       },
     ];
 

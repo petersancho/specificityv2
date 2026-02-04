@@ -110,8 +110,18 @@ export function createFEModel3D(
   };
 }
 
-export function computeKeHex(nu: number = 0.3): Float64Array {
+export function computeKeHex(
+  nu: number = 0.3,
+  dx: number = 1,
+  dy: number = 1,
+  dz: number = 1
+): Float64Array {
   const Ke = new Float64Array(24 * 24);
+
+  const invDx = 2.0 / Math.max(1e-12, dx);
+  const invDy = 2.0 / Math.max(1e-12, dy);
+  const invDz = 2.0 / Math.max(1e-12, dz);
+  const detJ = (dx * dy * dz) / 8.0;
 
   const factor = 1.0 / ((1.0 + nu) * (1.0 - 2.0 * nu));
   const D = new Float64Array(36);
@@ -147,9 +157,9 @@ export function computeKeHex(nu: number = 0.3): Float64Array {
 
         for (let i = 0; i < 8; i++) {
           const s = signs[i];
-          dNdx[i] = 0.125 * s.xi * (1 + s.eta * eta) * (1 + s.zeta * zeta);
-          dNdy[i] = 0.125 * s.eta * (1 + s.xi * xi) * (1 + s.zeta * zeta);
-          dNdz[i] = 0.125 * s.zeta * (1 + s.xi * xi) * (1 + s.eta * eta);
+          dNdx[i] = 0.125 * s.xi * (1 + s.eta * eta) * (1 + s.zeta * zeta) * invDx;
+          dNdy[i] = 0.125 * s.eta * (1 + s.xi * xi) * (1 + s.zeta * zeta) * invDy;
+          dNdz[i] = 0.125 * s.zeta * (1 + s.xi * xi) * (1 + s.eta * eta) * invDz;
         }
 
         const B = new Float64Array(6 * 24);
@@ -186,7 +196,7 @@ export function computeKeHex(nu: number = 0.3): Float64Array {
             for (let k = 0; k < 6; k++) {
               sum += B[k * 24 + i] * DB[k * 24 + j];
             }
-            Ke[i * 24 + j] += sum;
+            Ke[i * 24 + j] += sum * detJ;
           }
         }
       }
@@ -205,15 +215,11 @@ export function assembleKCSR3D(
   Ke0: Float64Array
 ): CSRMatrix {
   const triplets: Triplet[] = [];
-  const dx = (model.bounds.max.x - model.bounds.min.x) / model.nx;
-  const dy = (model.bounds.max.y - model.bounds.min.y) / model.ny;
-  const dz = (model.bounds.max.z - model.bounds.min.z) / model.nz;
-  const elemVolume = dx * dy * dz;
 
   for (let e = 0; e < model.numElems; e++) {
     const rho = rhoBar[e];
     const E = Emin + Math.pow(rho, penal) * (E0 - Emin);
-    const scale = E * elemVolume;
+    const scale = E;
 
     for (let i = 0; i < 24; i++) {
       const dofI = model.edofMat[e * 24 + i];
@@ -233,35 +239,27 @@ export function assembleKCSR3D(
 export function computeElementCe3D(
   model: FEModel3D,
   u: Float64Array,
-  Ke0: Float64Array
+  Ke0: Float64Array,
+  out?: Float64Array
 ): Float64Array {
-  const ce = new Float64Array(model.numElems);
-  const dx = (model.bounds.max.x - model.bounds.min.x) / model.nx;
-  const dy = (model.bounds.max.y - model.bounds.min.y) / model.ny;
-  const dz = (model.bounds.max.z - model.bounds.min.z) / model.nz;
-  const elemVolume = dx * dy * dz;
+  const ce = out ?? new Float64Array(model.numElems);
 
   for (let e = 0; e < model.numElems; e++) {
-    const ue = new Float64Array(24);
-    for (let i = 0; i < 24; i++) {
-      ue[i] = u[model.edofMat[e * 24 + i]];
-    }
-
-    const Kue = new Float64Array(24);
-    for (let i = 0; i < 24; i++) {
-      let sum = 0;
-      for (let j = 0; j < 24; j++) {
-        sum += Ke0[i * 24 + j] * ue[j];
-      }
-      Kue[i] = sum;
-    }
-
     let energy = 0;
+    const base = e * 24;
     for (let i = 0; i < 24; i++) {
-      energy += ue[i] * Kue[i];
+      const dofI = model.edofMat[base + i];
+      const ui = u[dofI];
+      let sum = 0;
+      const row = i * 24;
+      for (let j = 0; j < 24; j++) {
+        const dofJ = model.edofMat[base + j];
+        sum += Ke0[row + j] * u[dofJ];
+      }
+      energy += ui * sum;
     }
 
-    ce[e] = energy * elemVolume;
+    ce[e] = energy;
   }
 
   return ce;

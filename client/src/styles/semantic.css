@@ -6,8 +6,8 @@
 :root {
   --ui-black: #000000;
   --ui-white: #ffffff;
-  --ui-porcelain: #f5f2ee;
-  --ui-ink: #1f1f22;
+  --ui-porcelain: #ffffff;
+  --ui-ink: #000000;
   --semantic-numeric: #ffdd00;
   --semantic-logic: #ff0099;
   --semantic-data: #00d4ff;
@@ -36,8 +36,8 @@
   color-scheme: dark;
   --ui-black: #ffffff;
   --ui-white: #000000;
-  --ui-porcelain: #1f1f22;
-  --ui-ink: #f5f2ee;
+  --ui-porcelain: #000000;
+  --ui-ink: #ffffff;
   --semantic-structure: var(--ui-black);
   --semantic-neutral: var(--ui-black);
 }

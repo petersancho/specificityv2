@@ -19,6 +19,11 @@ export interface FEModel2D {
   bounds: { min: Vec3; max: Vec3 };
 }
 
+export type DofMap = {
+  freeDofs: Uint32Array;
+  dofMap: Int32Array;
+};
+
 /**
  * Create 2D FE model from grid parameters and boundary conditions
  */
@@ -97,11 +102,34 @@ export function createFEModel2D(
   };
 }
 
+export function buildDofMap(
+  numDofs: number,
+  fixedDofs: Uint32Array | Set<number>
+): DofMap {
+  const fixedSet = fixedDofs instanceof Set ? fixedDofs : new Set(fixedDofs);
+  const dofMap = new Int32Array(numDofs);
+  dofMap.fill(-1);
+  const freeDofsList: number[] = [];
+
+  for (let i = 0; i < numDofs; i++) {
+    if (!fixedSet.has(i)) {
+      dofMap[i] = freeDofsList.length;
+      freeDofsList.push(i);
+    }
+  }
+
+  return { freeDofs: new Uint32Array(freeDofsList), dofMap };
+}
+
 /**
  * Compute Q4 element stiffness matrix for plane stress
  * Returns 8x8 matrix for E=1 (scale by E later for SIMP)
  */
-export function computeKeQ4(nu: number = 0.3): Float64Array {
+export function computeKeQ4(
+  nu: number = 0.3,
+  dx: number = 1,
+  dy: number = 1
+): Float64Array {
   // Plane stress constitutive matrix (for E=1)
   const D = new Float64Array(9);
   const factor = 1.0 / (1.0 - nu * nu);
@@ -115,6 +143,10 @@ export function computeKeQ4(nu: number = 0.3): Float64Array {
   D[7] = 0;                // D32
   D[8] = factor * (1 - nu) / 2; // D33
   
+  const invDx = 2.0 / Math.max(1e-12, dx);
+  const invDy = 2.0 / Math.max(1e-12, dy);
+  const detJ = (dx * dy) / 4.0;
+
   // 2x2 Gauss integration points and weights
   const gp = 1.0 / Math.sqrt(3.0);
   const gaussPts = [
@@ -145,19 +177,15 @@ export function computeKeQ4(nu: number = 0.3): Float64Array {
       (1 - xi) / 4
     ];
     
-    // For unit square element, Jacobian is identity (dx/dxi = 1, dy/deta = 1)
-    // This assumes element size is factored out separately
-    const detJ = 1.0;
-    
     // B matrix (3x8): [dN/dx; dN/dy; dN/dy, dN/dx] for each node
     const B = new Float64Array(24);
     for (let i = 0; i < 4; i++) {
-      B[i * 2] = dN_dxi[i];           // dN/dx for ux
+      B[i * 2] = dN_dxi[i] * invDx;           // dN/dx for ux
       B[i * 2 + 1] = 0;               // 0 for uy
       B[8 + i * 2] = 0;               // 0 for ux
-      B[8 + i * 2 + 1] = dN_deta[i];  // dN/dy for uy
-      B[16 + i * 2] = dN_deta[i];     // dN/dy for ux
-      B[16 + i * 2 + 1] = dN_dxi[i];  // dN/dx for uy
+      B[8 + i * 2 + 1] = dN_deta[i] * invDy;  // dN/dy for uy
+      B[16 + i * 2] = dN_deta[i] * invDy;     // dN/dy for ux
+      B[16 + i * 2 + 1] = dN_dxi[i] * invDx;  // dN/dx for uy
     }
     
     // Ke += B^T * D * B * detJ * w
@@ -201,11 +229,6 @@ export function assembleKCSR(
 ): CSRMatrix {
   const triplets: Triplet[] = [];
   
-  // Scale Ke0 by element size (assumes unit square in natural coords)
-  const dx = (model.bounds.max.x - model.bounds.min.x) / model.nx;
-  const dy = (model.bounds.max.y - model.bounds.min.y) / model.ny;
-  const elemArea = dx * dy;
-  
   // Assemble each element
   for (let e = 0; e < model.numElems; e++) {
     // SIMP material interpolation
@@ -213,7 +236,7 @@ export function assembleKCSR(
     const E = Emin + Math.pow(rho, penal) * (E0 - Emin);
     
     // Scaled element stiffness
-    const scale = E * elemArea;
+    const scale = E;
     
     // Add to global matrix
     for (let i = 0; i < 8; i++) {
@@ -241,44 +264,49 @@ export function applyBCElimination(
   f: Float64Array,
   fixedDofs: Uint32Array
 ): { Kff: CSRMatrix; ff: Float64Array; freeDofs: Uint32Array } {
-  // Build free DOF list
-  const fixedSet = new Set(fixedDofs);
-  const freeDofsList: number[] = [];
-  for (let i = 0; i < K.nrows; i++) {
-    if (!fixedSet.has(i)) {
-      freeDofsList.push(i);
-    }
-  }
-  const freeDofs = new Uint32Array(freeDofsList);
+  const bcMap = buildDofMap(K.nrows, fixedDofs);
+  const { Kff, ff } = applyBCEliminationWithMap(K, f, bcMap);
+  return { Kff, ff, freeDofs: bcMap.freeDofs };
+}
+
+export function applyBCEliminationWithMap(
+  K: CSRMatrix,
+  f: Float64Array,
+  bcMap: DofMap
+): { Kff: CSRMatrix; ff: Float64Array } {
+  const { freeDofs, dofMap } = bcMap;
   const nfree = freeDofs.length;
-  
-  // Build DOF mapping
-  const dofMap = new Map<number, number>();
-  for (let i = 0; i < nfree; i++) {
-    dofMap.set(freeDofs[i], i);
-  }
-  
-  // Extract submatrix Kff and subvector ff
   const triplets: Triplet[] = [];
   const ff = new Float64Array(nfree);
-  
+
   for (let i = 0; i < nfree; i++) {
     const dofI = freeDofs[i];
     ff[i] = f[dofI];
-    
+
     for (let j = K.rowPtr[dofI]; j < K.rowPtr[dofI + 1]; j++) {
       const dofJ = K.colIdx[j];
-      if (dofMap.has(dofJ)) {
-        const jFree = dofMap.get(dofJ)!;
+      const jFree = dofMap[dofJ];
+      if (jFree >= 0) {
         triplets.push({ row: i, col: jFree, value: K.values[j] });
       }
     }
   }
-  
+
   const Kff = buildCSRFromTriplets(triplets, nfree, nfree);
-  
-  return { Kff, ff, freeDofs };
+  return { Kff, ff };
 }
+
+const reduceToFreeDofs = (
+  vector: Float64Array,
+  freeDofs: Uint32Array,
+  out?: Float64Array
+): Float64Array => {
+  const reduced = out ?? new Float64Array(freeDofs.length);
+  for (let i = 0; i < freeDofs.length; i++) {
+    reduced[i] = vector[freeDofs[i]];
+  }
+  return reduced;
+};
 
 /**
  * Solve FE system: K * u = f
@@ -289,20 +317,22 @@ export function solveFE(
   f: Float64Array,
   fixedDofs: Uint32Array,
   cgTol: number = 1e-6,
-  cgMaxIters: number = 1000
+  cgMaxIters: number = 1000,
+  options?: { x0?: Float64Array; bcMap?: DofMap }
 ): { u: Float64Array; converged: boolean; iters: number } {
-  // Apply boundary conditions
-  const { Kff, ff, freeDofs } = applyBCElimination(K, f, fixedDofs);
-  
-  // Solve reduced system
-  const result = solvePCG(Kff, ff, undefined, cgTol, cgMaxIters);
-  
-  // Scatter to full displacement vector
+  const bcMap = options?.bcMap ?? buildDofMap(K.nrows, fixedDofs);
+  const { Kff, ff } = applyBCEliminationWithMap(K, f, bcMap);
+  const x0Reduced = options?.x0
+    ? reduceToFreeDofs(options.x0, bcMap.freeDofs)
+    : undefined;
+
+  const result = solvePCG(Kff, ff, x0Reduced, cgTol, cgMaxIters);
+
   const u = new Float64Array(K.nrows);
-  for (let i = 0; i < freeDofs.length; i++) {
-    u[freeDofs[i]] = result.x[i];
+  for (let i = 0; i < bcMap.freeDofs.length; i++) {
+    u[bcMap.freeDofs[i]] = result.x[i];
   }
-  
+
   return { u, converged: result.converged, iters: result.iters };
 }
 
@@ -320,41 +350,30 @@ export function computeCompliance(f: Float64Array, u: Float64Array): number {
 export function computeElementCe(
   model: FEModel2D,
   u: Float64Array,
-  Ke0: Float64Array
+  Ke0: Float64Array,
+  out?: Float64Array
 ): Float64Array {
-  const ce = new Float64Array(model.numElems);
-  
-  // Scale Ke0 by element size
-  const dx = (model.bounds.max.x - model.bounds.min.x) / model.nx;
-  const dy = (model.bounds.max.y - model.bounds.min.y) / model.ny;
-  const elemArea = dx * dy;
-  
+  const ce = out ?? new Float64Array(model.numElems);
+
   for (let e = 0; e < model.numElems; e++) {
-    // Extract element displacements
-    const ue = new Float64Array(8);
-    for (let i = 0; i < 8; i++) {
-      ue[i] = u[model.edofMat[e * 8 + i]];
-    }
-    
-    // Compute Ke0 * ue
-    const Kue = new Float64Array(8);
-    for (let i = 0; i < 8; i++) {
-      let sum = 0;
-      for (let j = 0; j < 8; j++) {
-        sum += Ke0[i * 8 + j] * ue[j];
-      }
-      Kue[i] = sum;
-    }
-    
-    // Compute ue^T * Kue
     let energy = 0;
+    const base = e * 8;
+
     for (let i = 0; i < 8; i++) {
-      energy += ue[i] * Kue[i];
+      const dofI = model.edofMat[base + i];
+      const ui = u[dofI];
+      let sum = 0;
+      const row = i * 8;
+      for (let j = 0; j < 8; j++) {
+        const dofJ = model.edofMat[base + j];
+        sum += Ke0[row + j] * u[dofJ];
+      }
+      energy += ui * sum;
     }
-    
-    ce[e] = energy * elemArea;
+
+    ce[e] = energy;
   }
-  
+
   return ce;
 }
 
@@ -366,14 +385,15 @@ export function computeSensitivitiesSIMP(
   ce: Float64Array,
   penal: number,
   E0: number,
-  Emin: number
+  Emin: number,
+  out?: Float64Array
 ): Float64Array {
-  const dc = new Float64Array(rhoBar.length);
-  
+  const dc = out ?? new Float64Array(rhoBar.length);
+
   for (let e = 0; e < rhoBar.length; e++) {
     const rho = Math.max(1e-6, rhoBar[e]); // Guard against zero
     dc[e] = -penal * Math.pow(rho, penal - 1) * (E0 - Emin) * ce[e];
   }
-  
+
   return dc;
 }

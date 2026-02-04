@@ -1621,3 +1621,131 @@
 .statusError {
   color: var(--feedback-error);
 }
+
+/* === Black & White Semantic Override === */
+.dashboardOverlay {
+  background: color-mix(in srgb, var(--ui-black) 75%, transparent);
+  color: var(--ui-black);
+}
+
+.dashboardContainer,
+.dashboard {
+  background: var(--ui-white);
+  border: var(--border-crisp);
+  border-color: var(--ui-black);
+  box-shadow: var(--shadow-floating);
+}
+
+.dashboardHeader,
+.header {
+  background: var(--ui-white);
+  color: var(--ui-black);
+  border-bottom: var(--border-crisp);
+  box-shadow: var(--shadow-grounded);
+}
+
+.dashboardTitle,
+.title,
+.dashboardSubtitle,
+.titleSubtext {
+  color: var(--ui-black);
+  text-shadow: none;
+}
+
+.tabNav,
+.tabs {
+  background: var(--ui-white);
+  border-bottom: var(--border-crisp);
+}
+
+.tabButton,
+.tab {
+  background: transparent;
+  color: var(--ui-black);
+}
+
+.tabButton:hover,
+.tab:hover {
+  background: color-mix(in srgb, var(--ui-black) 6%, var(--ui-white));
+  color: var(--ui-black);
+}
+
+.tabButtonActive,
+.tabActive {
+  background: var(--ui-white);
+  color: var(--ui-black);
+}
+
+.tabButtonActive::after {
+  background: var(--semantic-numeric);
+}
+
+.controlPanel,
+.setupSection,
+.section,
+.parameterCard,
+.visualizationCard,
+.metricCard,
+.statCard,
+.outputStatCard,
+.outputSection,
+.outputItem {
+  background: var(--ui-white);
+  border: var(--border-thin);
+  border-color: var(--ui-black);
+  box-shadow: var(--shadow-grounded);
+}
+
+.sectionTitle,
+.parameterLabel,
+.parameterValue,
+.metricTitle,
+.statLabel,
+.outputLabel,
+.outputValue,
+.progressLabel,
+.progressPercent {
+  color: var(--ui-black);
+}
+
+.slider,
+.numberInput,
+.strategySelect,
+.toggle input {
+  accent-color: var(--semantic-numeric);
+}
+
+.scaleButton,
+.closeButton,
+.startButton,
+.pauseButton,
+.resumeButton,
+.resetButton,
+.secondaryButton,
+.exportButton {
+  background: var(--ui-white);
+  color: var(--ui-black);
+  border: var(--border-crisp);
+  box-shadow: var(--shadow-sticker);
+}
+
+.scaleButton:hover,
+.closeButton:hover,
+.startButton:hover:not(:disabled),
+.pauseButton:hover:not(:disabled),
+.resumeButton:hover:not(:disabled),
+.resetButton:hover:not(:disabled),
+.secondaryButton:hover:not(:disabled),
+.exportButton:hover:not(:disabled) {
+  background: var(--ui-black);
+  color: var(--ui-white);
+}
+
+.progressBar,
+.progressFill {
+  background: var(--ui-black);
+}
+
+.progressFill {
+  background: var(--semantic-numeric);
+}

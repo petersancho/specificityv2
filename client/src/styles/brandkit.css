@@ -11,8 +11,8 @@
   /* === BASE: BLACK & WHITE ONLY === */
   --ui-black: #000000;
   --ui-white: #ffffff;
-  --ui-porcelain: #f5f2ee;
-  --ui-ink: #1f1f22;
+  --ui-porcelain: #ffffff;
+  --ui-ink: #000000;
 
   /* === SEMANTIC COLORS (domain-linked) === */
   --semantic-numeric: #ffdd00;   /* Yellow - numbers, vectors, parameters */

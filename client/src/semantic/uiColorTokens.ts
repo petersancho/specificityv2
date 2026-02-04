@@ -3,8 +3,8 @@ import type { UISemanticDomain, UISemanticState } from "./uiSemantics";
 export const UI_BASE_COLORS = {
   black: "#000000",
   white: "#ffffff",
-  porcelain: "#f5f2ee",
-  ink: "#1f1f22",
+  porcelain: "#ffffff",
+  ink: "#000000",
 } as const;
 
 export const UI_DOMAIN_COLORS: Record<UISemanticDomain, string> = {

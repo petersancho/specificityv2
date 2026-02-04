@@ -209,12 +209,12 @@ export class GeometryBuffer {
     }
 
     if (data.indices) {
-      if (this.vertexCount <= 0) {
+      if (data.indices.length === 0) {
         this.indexCount = 0;
         this.indexMax = -1;
-        if (this.indexBuffer) {
-          this.bufferManager.updateBuffer(`${this.id}_index`, gl.ELEMENT_ARRAY_BUFFER, new Uint16Array());
-        }
+      } else if (this.vertexCount <= 0) {
+        this.indexCount = 0;
+        this.indexMax = -1;
         if (!this.warnedInvalidIndex) {
           console.warn(
             `[${this.id}] Indices provided but vertexCount is 0; skipping indexed draw until positions are set.`

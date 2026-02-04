@@ -1,46 +1,47 @@
 import CubeLogo from "./CubeLogo";
 import type { CSSProperties } from "react";
-import { UI_BASE_COLORS, UI_DOMAIN_COLORS } from "../semantic/uiColorTokens";
 
 type RoslynLogoProps = {
   size?: number;
   withText?: boolean;
+  variant?: "mono" | "cmyk";
   className?: string;
   style?: CSSProperties;
 };
 
-const CMYK_COLORS = {
-  top: UI_DOMAIN_COLORS.numeric,
-  left: UI_DOMAIN_COLORS.logic,
-  right: UI_DOMAIN_COLORS.data,
-};
-
-const ROSLYN_ACCENT = UI_DOMAIN_COLORS.data;
-
-const RoslynLogo = ({ size = 32, withText = false, className, style }: RoslynLogoProps) => {
+const RoslynLogo = ({
+  size = 32,
+  withText = false,
+  variant = "mono",
+  className,
+  style,
+}: RoslynLogoProps) => {
   if (!withText) {
-    return <CubeLogo size={size} colors={CMYK_COLORS} className={className} style={style} />;
+    return <CubeLogo size={size} variant={variant} className={className} style={style} />;
   }
 
   return (
-    <div 
+    <div
       className={className}
-      style={{ 
-        display: "inline-flex", 
-        alignItems: "center", 
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
         gap: "8px",
-        ...style 
+        ...style,
       }}
     >
-      <CubeLogo size={size} colors={CMYK_COLORS} />
-      <span style={{
-        fontFamily: '"Montreal Neue", "Space Grotesk", sans-serif',
-        fontSize: `${size * 0.5}px`,
-        fontWeight: 700,
-        color: UI_BASE_COLORS.ink,
-        letterSpacing: "0.02em"
-      }}>
-        ROS<span style={{ color: ROSLYN_ACCENT }}>LYN</span>
+      <CubeLogo size={size} variant={variant} />
+      <span
+        style={{
+          fontFamily: '"Montreal Neue", "Space Grotesk", sans-serif',
+          fontSize: `${size * 0.5}px`,
+          fontWeight: 700,
+          color: "var(--color-text)",
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+        }}
+      >
+        Roslyn
       </span>
     </div>
   );

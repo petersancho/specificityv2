@@ -11,6 +11,8 @@ type GoalBase = {
   parameters?: Record<string, unknown>;
 };
 
+const MAX_MARKERS = 12;
+
 /**
  * Extract Vec3 positions from mesh vertex indices
  */
@@ -51,6 +53,55 @@ function centroid(points: Vec3[]): Vec3 {
     y: sy / points.length,
     z: sz / points.length
   };
+}
+
+const pointKey = (p: Vec3) =>
+  `${p.x.toFixed(6)}|${p.y.toFixed(6)}|${p.z.toFixed(6)}`;
+
+function dedupePoints(points: Vec3[]): Vec3[] {
+  const map = new Map<string, Vec3>();
+  for (const p of points) {
+    map.set(pointKey(p), p);
+  }
+  return Array.from(map.values());
+}
+
+function samplePoints(points: Vec3[], maxCount: number): Vec3[] {
+  if (points.length <= maxCount) return points;
+  const step = Math.max(1, Math.ceil(points.length / maxCount));
+  const sampled: Vec3[] = [];
+  for (let i = 0; i < points.length && sampled.length < maxCount; i += step) {
+    sampled.push(points[i]);
+  }
+  return sampled;
+}
+
+function collectExtremes(points: Vec3[]): Vec3[] {
+  if (points.length === 0) return [];
+  let minX = points[0];
+  let maxX = points[0];
+  let minY = points[0];
+  let maxY = points[0];
+  let minZ = points[0];
+  let maxZ = points[0];
+  for (const p of points) {
+    if (p.x < minX.x) minX = p;
+    if (p.x > maxX.x) maxX = p;
+    if (p.y < minY.y) minY = p;
+    if (p.y > maxY.y) maxY = p;
+    if (p.z < minZ.z) minZ = p;
+    if (p.z > maxZ.z) maxZ = p;
+  }
+  return dedupePoints([minX, maxX, minY, maxY, minZ, maxZ]);
+}
+
+function buildMarkerPositions(points: Vec3[]): Vec3[] {
+  const unique = dedupePoints(points);
+  if (unique.length <= 1) return unique;
+  const extremes = collectExtremes(unique);
+  const center = centroid(unique);
+  const combined = dedupePoints([...extremes, center, ...unique]);
+  return samplePoints(combined, MAX_MARKERS);
 }
 
 /**
@@ -143,8 +194,10 @@ export function extractGoalMarkers(
       if (elements.length > 0) {
         // Use specified vertices
         const pts = positionsFromElements(mesh, elements);
-        const pos = centroid(pts);
-        anchors.push({ position: pos });
+        const markerPositions = buildMarkerPositions(pts);
+        if (markerPositions.length > 0) {
+          markerPositions.forEach((position) => anchors.push({ position }));
+        }
       } else if (!hasAnchorWithElements) {
         // Use default position: bottom-left corner
         anchors.push({
@@ -157,8 +210,13 @@ export function extractGoalMarkers(
       if (elements.length > 0) {
         // Use specified vertices
         const pts = positionsFromElements(mesh, elements);
-        const pos = centroid(pts);
-        loads.push({ position: pos, force });
+        const markerPositions = buildMarkerPositions(pts);
+        if (markerPositions.length > 0) {
+          const count = markerPositions.length;
+          const scale = 1 / count;
+          const perForce = { x: force.x * scale, y: force.y * scale, z: force.z * scale };
+          markerPositions.forEach((position) => loads.push({ position, force: perForce }));
+        }
       } else if (!hasLoadWithElements) {
         // Use default position: top-right corner
         loads.push({
