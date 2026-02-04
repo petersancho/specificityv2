@@ -112,7 +112,7 @@
 .controlSelect {
   appearance: none;
   text-overflow: ellipsis;
-  var(--surface-card)-space: nowrap;
+  white-space: nowrap;
   overflow: hidden;
   cursor: pointer;
 }
@@ -195,6 +195,6 @@
   margin: -1px;
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
-  var(--surface-card)-space: nowrap;
+  white-space: nowrap;
   border: 0;
 }

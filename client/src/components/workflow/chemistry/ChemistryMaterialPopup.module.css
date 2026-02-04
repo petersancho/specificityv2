@@ -275,7 +275,7 @@
 .geometryName {
   font: 600 11px/1.2 var(--font-body);
   color: var(--ink-1000);
-  var(--surface-card)-space: nowrap;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -396,7 +396,7 @@
 .materialName {
   font: 600 11px/1.2 var(--font-body);
   color: var(--ink-1000);
-  var(--surface-card)-space: nowrap;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }

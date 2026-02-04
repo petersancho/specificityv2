@@ -1451,7 +1451,9 @@ const ModelerSection = ({
     event: React.WheelEvent<HTMLDivElement>
   ) => {
     if (!(event.ctrlKey || event.metaKey || event.altKey)) return;
-    event.preventDefault();
+    if (event.cancelable) {
+      event.preventDefault();
+    }
     const delta = -event.deltaY * PANEL_SCALE_SPEED;
     setPanelScale((prev) => clampPanelScale(prev * Math.exp(delta)));
   };

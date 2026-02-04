@@ -1465,7 +1465,9 @@ export const NumericalCanvas = ({
     const canvas = canvasRef.current;
     if (!canvas) return;
     const preventWheelScroll = (event: WheelEvent) => {
-      event.preventDefault();
+      if (event.cancelable) {
+        event.preventDefault();
+      }
     };
     canvas.addEventListener("wheel", preventWheelScroll, { passive: false });
     return () => canvas.removeEventListener("wheel", preventWheelScroll);
@@ -3807,7 +3809,9 @@ export const NumericalCanvas = ({
     if (contextMenu) {
       setContextMenu(null);
     }
-    e.preventDefault();
+    if (e.cancelable) {
+      e.preventDefault();
+    }
 
     const rect = canvas.getBoundingClientRect();
     const screenX = e.clientX - rect.left;

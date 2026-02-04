@@ -71,11 +71,7 @@
   flex: 1;
   position: relative;
   overflow: hidden;
-  background: linear-gradient(
-    180deg,
-    var(--color-workspace-gradient-start) 0%,
-    var(--color-workspace-gradient-end) 100%
-  );
+  background: var(--surface-page);
 }
 
 .docsMain {
@@ -394,18 +390,7 @@
   width: calc(var(--canvas-grid-size) * 40);
   height: calc(var(--canvas-grid-size) * 40);
   transform-origin: 0 0;
-  background-color: color-mix(in srgb, var(--color-surface) 80%, transparent);
-  background-image:
-    linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--color-border) 30%, transparent) 1px,
-      transparent 1px
-    ),
-    linear-gradient(
-      color-mix(in srgb, var(--color-border) 30%, transparent) 1px,
-      transparent 1px
-    );
-  background-size: 120px 120px, 120px 120px;
+  background-color: var(--surface-panel);
   border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
   border-radius: var(--radius-panel);
   box-shadow:
@@ -414,7 +399,7 @@
   overflow: hidden;
 }
 
-.captureStagevar(--surface-card) {
+.captureStageSurface {
   background: var(--surface-card) !important;
   background-image: none !important;
   border: 1px solid rgba(5, 5, 5, 0.12) !important;
@@ -638,14 +623,7 @@
   width: 14px;
   height: 14px;
   border-radius: var(--radius-sm);
-  background-image: radial-gradient(
-      circle,
-      var(--color-handle-dot-strong) 1px,
-      transparent 1px
-    ),
-    radial-gradient(circle, var(--color-handle-dot-soft) 1px, transparent 1px);
-  background-size: 4px 4px, 4px 4px;
-  background-position: 0 0, 2px 2px;
+  background-color: var(--color-handle-dot-strong);
 }
 
 .panelHandle:active {

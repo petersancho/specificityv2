@@ -176,6 +176,8 @@ export class WebGLRenderer {
       isSelected: uniforms.isSelected || 0,
       sheenIntensity: uniforms.sheenIntensity ?? 0.08,
       ambientStrength: uniforms.ambientStrength ?? 0.68,
+      clearcoatIntensity: uniforms.clearcoatIntensity ?? 0,
+      clearcoatRoughness: uniforms.clearcoatRoughness ?? 0.4,
       useVertexColor: buffer.colorBuffer ? 1 : 0,
       opacity,
     });
@@ -223,6 +225,8 @@ export class WebGLRenderer {
       isSelected: uniforms.isSelected || 0,
       sheenIntensity: uniforms.sheenIntensity ?? 0.08,
       ambientStrength: uniforms.ambientStrength ?? 0.68,
+      clearcoatIntensity: uniforms.clearcoatIntensity ?? 0,
+      clearcoatRoughness: uniforms.clearcoatRoughness ?? 0.4,
       useVertexColor: buffer.colorBuffer ? 1 : 0,
       opacity: uniforms.opacity ?? 1.0,
     });

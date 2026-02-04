@@ -19,7 +19,20 @@ export const TopologyOptimizationSolverNode: WorkflowNodeDefinition = {
   shortLabel: "TOPO",
   description: "Generates topologically optimized structures using goal-based optimization.",
   category: "solver",
-  semanticOps: ['solver.topologyOptimization'],
+  semanticOps: [
+    'solver.topologyOptimization',
+    'simulator.topology.initialize',
+    'simulator.topology.step',
+    'simulator.topology.converge',
+    'simulator.topology.finalize',
+    'simulator.topology.preview',
+    'simulator.topology.sync',
+    'simulator.topology.pause',
+    'simulator.topology.resume',
+    'simulator.topology.reset',
+    'simulator.topology.plasticwrap',
+    'simulator.topology.stabilityGuard',
+  ],
   iconId: "topologyOptimizationSolver",
   inputs: [
     {

@@ -158,6 +158,126 @@ const normalizeMaterialMap = (materials: Record<string, number>, materialNames: 
   });
 };
 
+const enforceSeededMaterialPresence = (
+  pool: { materials: Float32Array[]; posX: Float32Array; posY: Float32Array; posZ: Float32Array; count: number },
+  materialNames: string[],
+  seeds: ChemistrySeed[],
+  minConcentration = 0.05
+) => {
+  if (pool.count <= 0 || materialNames.length === 0) return;
+  const materialCount = materialNames.length;
+  const maxByMaterial = new Array<number>(materialCount).fill(0);
+  const maxIndexByMaterial = new Array<number>(materialCount).fill(0);
+
+  for (let i = 0; i < pool.count; i += 1) {
+    for (let m = 0; m < materialCount; m += 1) {
+      const value = pool.materials[m]?.[i] ?? 0;
+      if (value > maxByMaterial[m]) {
+        maxByMaterial[m] = value;
+        maxIndexByMaterial[m] = i;
+      }
+    }
+  }
+
+  const seedsByMaterial = new Map<number, ChemistrySeed[]>();
+  seeds.forEach((seed) => {
+    const index = materialNames.indexOf(seed.material);
+    if (index < 0) return;
+    const list = seedsByMaterial.get(index) ?? [];
+    list.push(seed);
+    seedsByMaterial.set(index, list);
+  });
+
+  for (let m = 0; m < materialCount; m += 1) {
+    if (maxByMaterial[m] >= minConcentration) continue;
+
+    let targetIndex = maxIndexByMaterial[m];
+    const seedList = seedsByMaterial.get(m) ?? [];
+    if (seedList.length > 0) {
+      let bestDist = Number.POSITIVE_INFINITY;
+      for (let i = 0; i < pool.count; i += 1) {
+        const px = pool.posX[i];
+        const py = pool.posY[i];
+        const pz = pool.posZ[i];
+        for (const seed of seedList) {
+          const dx = px - seed.position.x;
+          const dy = py - seed.position.y;
+          const dz = pz - seed.position.z;
+          const distSq = dx * dx + dy * dy + dz * dz;
+          if (distSq < bestDist) {
+            bestDist = distSq;
+            targetIndex = i;
+          }
+        }
+      }
+    }
+
+    const targetValue = Math.max(minConcentration, pool.materials[m][targetIndex] ?? 0);
+    pool.materials[m][targetIndex] = targetValue;
+    let otherSum = 0;
+    for (let k = 0; k < materialCount; k += 1) {
+      if (k === m) continue;
+      otherSum += pool.materials[k][targetIndex] ?? 0;
+    }
+    const remaining = Math.max(0, 1 - targetValue);
+    if (otherSum <= 1e-9) {
+      const uniform = remaining / Math.max(1, materialCount - 1);
+      for (let k = 0; k < materialCount; k += 1) {
+        if (k === m) continue;
+        pool.materials[k][targetIndex] = uniform;
+      }
+    } else {
+      const scale = remaining / otherSum;
+      for (let k = 0; k < materialCount; k += 1) {
+        if (k === m) continue;
+        pool.materials[k][targetIndex] *= scale;
+      }
+    }
+  }
+};
+
+const interleaveParticlesByMaterial = (
+  particles: ChemistryParticle[],
+  materialNames: string[]
+) => {
+  if (materialNames.length <= 1 || particles.length <= 1) return particles;
+  const buckets = new Map<string, ChemistryParticle[]>();
+  materialNames.forEach((name) => {
+    buckets.set(name, []);
+  });
+
+  particles.forEach((particle) => {
+    let dominant = materialNames[0];
+    let max = Number.NEGATIVE_INFINITY;
+    materialNames.forEach((name) => {
+      const value = particle.materials[name] ?? 0;
+      if (value > max) {
+        max = value;
+        dominant = name;
+      }
+    });
+    const bucket = buckets.get(dominant);
+    if (bucket) bucket.push(particle);
+  });
+
+  const result: ChemistryParticle[] = [];
+  let index = 0;
+  let added = true;
+  while (added) {
+    added = false;
+    for (const name of materialNames) {
+      const bucket = buckets.get(name);
+      if (bucket && bucket[index]) {
+        result.push(bucket[index]);
+        added = true;
+      }
+    }
+    index += 1;
+  }
+
+  return result.length > 0 ? result : particles;
+};
+
 const collectGeometryPositions = (
   geometry: Geometry,
   context: WorkflowComputeContext,
@@ -343,7 +463,7 @@ const runChemistrySolver = (args: {
     };
   };
   
-  const particles: ChemistryParticle[] = [];
+  let particles: ChemistryParticle[] = [];
   assignments.forEach((assignment, index) => {
     const count = counts[index];
     const geometry = assignment.geometryId
@@ -399,6 +519,8 @@ const runChemistrySolver = (args: {
       });
     });
   }
+
+  particles = interleaveParticlesByMaterial(particles, materialNames);
   
   // Run particle simulation
   const smoothingRadius = particleRadius * 2.5;
@@ -421,15 +543,18 @@ const runChemistrySolver = (args: {
   };
   
   // Convert materials to MaterialSpec format for simulation
-  const simulationMaterials: MaterialSpec[] = Array.from(materialByName.values()).map((mat) => ({
-    name: mat.name,
-    density: mat.density,
-    stiffness: mat.stiffness,
-    thermalConductivity: mat.thermalConductivity,
-    opticalTransmission: mat.opticalTransmission,
-    diffusivity: mat.diffusivity ?? 0.1,
-    color: mat.color,
-  }));
+  const simulationMaterials: MaterialSpec[] = materialNames.map((name) => {
+    const mat = materialByName.get(name) ?? resolveChemistryMaterialSpec(name);
+    return {
+      name: mat.name,
+      density: mat.density,
+      stiffness: mat.stiffness,
+      thermalConductivity: mat.thermalConductivity,
+      opticalTransmission: mat.opticalTransmission,
+      diffusivity: mat.diffusivity ?? 0.1,
+      color: mat.color,
+    };
+  });
   
   // Convert seeds to simulation format
   const simSeeds = seeds.map((seed) => {
@@ -460,6 +585,8 @@ const runChemistrySolver = (args: {
     args.convergenceTolerance,
     hashStringToSeed(args.seedKey)
   );
+
+  enforceSeededMaterialPresence(simResult.pool, materialNames, seeds);
   
   // Generate voxel field from particles
   const field = generateVoxelField(
@@ -952,13 +1079,14 @@ export const ChemistrySolverNode: WorkflowNodeDefinition = {
     // Check if solver is enabled
     const enabled = inputs.enabled !== undefined ? toBoolean(inputs.enabled, true) : true;
     if (!enabled) {
+      const emptyMesh: RenderMesh = { positions: [], normals: [], uvs: [], indices: [] };
       // Return empty outputs when disabled
       return {
         geometry: null,
         status: "disabled",
         totalEnergy: 0,
         particleCount: 0,
-        mesh: null,
+        mesh: emptyMesh,
         particles: [],
         materialParticles: [],
         field: null,
@@ -1088,6 +1216,25 @@ export const ChemistrySolverNode: WorkflowNodeDefinition = {
       throw new Error(`Chemistry solver failed: ${result.errors.join(", ")}`);
     }
     
+    const outputField = (() => {
+      if (!result.field) return null;
+      const res = Math.max(1, Math.round(result.field.resolution));
+      let maxDensity = 0;
+      for (let i = 0; i < result.field.densities.length; i += 1) {
+        const value = result.field.densities[i];
+        if (value > maxDensity) maxDensity = value;
+      }
+      return {
+        resolution: { x: res, y: res, z: res },
+        bounds: result.field.bounds,
+        cellSize: result.field.cellSize,
+        materials: materialNames.slice(),
+        channels: result.field.data,
+        densities: result.field.densities,
+        maxDensity,
+      };
+    })();
+
     // Register the generated mesh as geometry with solver metadata
     const geometryId = `${context.nodeId}:chemistry-mesh:${Date.now()}`;
     
@@ -1127,8 +1274,8 @@ export const ChemistrySolverNode: WorkflowNodeDefinition = {
       mesh: result.mesh,
       particles: result.particles,
       materialParticles: result.particles,
-      field: result.field,
-      materialField: result.field,
+      field: outputField,
+      materialField: outputField,
       history: result.history,
       bestState: result.bestState,
       materials: result.materials,

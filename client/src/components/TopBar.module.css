@@ -17,28 +17,8 @@
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   margin-left: auto;
-}
-
-.brandSymbol {
-  height: 36px;
-  width: auto;
-  display: block;
-}
-
-.brandTagline {
-  font-size: 9px;
-  letter-spacing: 0.3em;
-  text-transform: uppercase;
-  color: var(--color-text);
-}
-
-.brandName {
-  font-size: 48px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: var(--color-accent);
 }
 
 .controls {
@@ -145,7 +125,7 @@
   border-color: transparent;
   background: transparent;
   box-shadow: none;
-  var(--surface-card)-space: nowrap;
+  white-space: nowrap;
 }
 
 .scriptChip:hover {

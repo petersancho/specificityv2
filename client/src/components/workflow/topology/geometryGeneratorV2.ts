@@ -9,6 +9,8 @@ import type { Vec3, RenderMesh } from "../../../types";
 
 const DEBUG = false; // Set to true for verbose logging
 
+const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
+
 export interface DensityField {
   densities: Float64Array;
   nx: number;
@@ -48,11 +50,30 @@ export function generateGeometryFromDensities(
   pipeSegments: number = 12,
   pointBudget: number = 6000
 ): GeometryOutput {
+  const safeDensities = new Float64Array(field.densities.length);
+  for (let i = 0; i < field.densities.length; i++) {
+    const raw = field.densities[i];
+    safeDensities[i] = Number.isFinite(raw) ? clamp01(raw) : 0;
+  }
+  const safeField: DensityField = {
+    ...field,
+    densities: safeDensities,
+  };
   const multipipeSegments = Math.max(6, Math.round(pipeSegments));
   const curveSegments = Math.max(6, Math.round(multipipeSegments * 0.5));
 
+  const spanX = Math.max(1e-6, safeField.bounds.max.x - safeField.bounds.min.x);
+  const spanY = Math.max(1e-6, safeField.bounds.max.y - safeField.bounds.min.y);
+  const spanZ = Math.max(1e-6, safeField.bounds.max.z - safeField.bounds.min.z);
+  const cellSpan = Math.max(
+    spanX / Math.max(1, safeField.nx),
+    spanY / Math.max(1, safeField.ny),
+    safeField.nz > 1 ? spanZ / Math.max(1, safeField.nz) : 0
+  );
+  const effectiveSpanLength = Math.max(maxSpanLength, cellSpan * 1.75);
+
   // Step 1: Extract points with density information
-  let points = extractDensePoints(field, densityThreshold);
+  let points = extractDensePoints(safeField, densityThreshold, pointBudget);
   if (points.length > pointBudget) {
     points = points
       .sort((a, b) => b.density - a.density)
@@ -60,7 +81,17 @@ export function generateGeometryFromDensities(
   }
   
   // Step 2: Generate curve network with density info
-  const curves = generateDenseCurveNetwork(points, maxLinksPerPoint, maxSpanLength);
+  let curves = generateDenseCurveNetwork(points, maxLinksPerPoint, effectiveSpanLength);
+  if (curves.length === 0 && points.length > 1) {
+    const fallbackSpan = Math.max(
+      effectiveSpanLength,
+      Math.max(spanX, spanY, spanZ) * 0.5
+    );
+    curves = generateDenseCurveNetwork(points, Math.max(2, maxLinksPerPoint), fallbackSpan);
+  }
+  if (curves.length === 0 && points.length > 1) {
+    curves = generateFallbackChain(points, Math.max(2, maxLinksPerPoint));
+  }
   
   // Step 3: Create meshes with variable thickness
   const pointCloudMesh = createDensePointCloudMesh(points, baseRadius * 0.5);
@@ -79,31 +110,89 @@ export function generateGeometryFromDensities(
 /**
  * Extract points with density values
  */
-function extractDensePoints(field: DensityField, threshold: number): DensePoint[] {
+function extractDensePoints(
+  field: DensityField,
+  threshold: number,
+  pointBudget: number
+): DensePoint[] {
   const { densities, nx, ny, nz, bounds } = field;
   const points: DensePoint[] = [];
-  
+
   const dx = (bounds.max.x - bounds.min.x) / nx;
   const dy = (bounds.max.y - bounds.min.y) / ny;
   const dz = nz > 1 ? (bounds.max.z - bounds.min.z) / nz : 0;
-  
+
+  let maxDensity = 0;
+
   for (let iz = 0; iz < nz; iz++) {
     for (let iy = 0; iy < ny; iy++) {
       for (let ix = 0; ix < nx; ix++) {
         const idx = iz * nx * ny + iy * nx + ix;
-        const density = densities[idx];
-        
+        const densityRaw = densities[idx];
+        const density = Number.isFinite(densityRaw) ? clamp01(densityRaw) : 0;
+        if (density > maxDensity) maxDensity = density;
         if (density > threshold) {
           const x = bounds.min.x + (ix + 0.5) * dx;
           const y = bounds.min.y + (iy + 0.5) * dy;
           const z = nz > 1 ? bounds.min.z + (iz + 0.5) * dz : bounds.min.z;
-          
           points.push({ x, y, z, density, index: points.length });
         }
       }
     }
   }
-  
+
+  if (points.length > 0 || densities.length === 0) {
+    return points;
+  }
+
+  const fallbackThreshold = maxDensity > 0 ? maxDensity * 0.85 : threshold * 0.5;
+  if (fallbackThreshold !== threshold) {
+    for (let iz = 0; iz < nz; iz++) {
+      for (let iy = 0; iy < ny; iy++) {
+        for (let ix = 0; ix < nx; ix++) {
+          const idx = iz * nx * ny + iy * nx + ix;
+          const densityRaw = densities[idx];
+          const density = Number.isFinite(densityRaw) ? clamp01(densityRaw) : 0;
+          if (density >= fallbackThreshold) {
+            const x = bounds.min.x + (ix + 0.5) * dx;
+            const y = bounds.min.y + (iy + 0.5) * dy;
+            const z = nz > 1 ? bounds.min.z + (iz + 0.5) * dz : bounds.min.z;
+            points.push({ x, y, z, density, index: points.length });
+          }
+        }
+      }
+    }
+  }
+
+  if (points.length > 0) {
+    return points;
+  }
+
+  const fallbackCount = Math.min(
+    Math.max(32, Math.round(densities.length * 0.002)),
+    Math.max(1, pointBudget)
+  );
+  const candidates: { idx: number; density: number }[] = [];
+  for (let idx = 0; idx < densities.length; idx++) {
+    const densityRaw = densities[idx];
+    const density = Number.isFinite(densityRaw) ? clamp01(densityRaw) : 0;
+    candidates.push({ idx, density });
+  }
+  candidates.sort((a, b) => b.density - a.density);
+
+  const maxToTake = Math.min(fallbackCount, candidates.length);
+  for (let i = 0; i < maxToTake; i++) {
+    const idx = candidates[i].idx;
+    const density = candidates[i].density;
+    const ix = idx % nx;
+    const iy = Math.floor(idx / nx) % ny;
+    const iz = Math.floor(idx / (nx * ny));
+    const x = bounds.min.x + (ix + 0.5) * dx;
+    const y = bounds.min.y + (iy + 0.5) * dy;
+    const z = nz > 1 ? bounds.min.z + (iz + 0.5) * dz : bounds.min.z;
+    points.push({ x, y, z, density, index: points.length });
+  }
+
   return points;
 }
 
@@ -195,6 +284,34 @@ function generateDenseCurveNetwork(
     }
   }
 
+  return curves;
+}
+
+/**
+ * Fallback curve generator: connect points in density order to ensure connectivity.
+ */
+function generateFallbackChain(points: DensePoint[], maxLinksPerPoint: number): Curve[] {
+  if (points.length < 2) return [];
+  const sorted = [...points].sort((a, b) => b.density - a.density);
+  const curves: Curve[] = [];
+  const linkCount = new Map<number, number>();
+  for (const point of sorted) {
+    linkCount.set(point.index, 0);
+  }
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const start = sorted[i];
+    const end = sorted[i + 1];
+    const countStart = linkCount.get(start.index) ?? 0;
+    const countEnd = linkCount.get(end.index) ?? 0;
+    if (countStart >= maxLinksPerPoint || countEnd >= maxLinksPerPoint) continue;
+    curves.push({
+      start,
+      end,
+      avgDensity: (start.density + end.density) / 2,
+    });
+    linkCount.set(start.index, countStart + 1);
+    linkCount.set(end.index, countEnd + 1);
+  }
   return curves;
 }
 
@@ -304,8 +421,10 @@ function createVariableThicknessMultipipe(curves: Curve[], baseRadius: number, s
     const baseIdx = positions.length / 3;
     
     // Radius varies significantly with density (0.5x to 2.5x base)
-    const startRadius = baseRadius * (0.5 + curve.start.density * 2.0);
-    const endRadius = baseRadius * (0.5 + curve.end.density * 2.0);
+    const startDensity = Number.isFinite(curve.start.density) ? clamp01(curve.start.density) : 0;
+    const endDensity = Number.isFinite(curve.end.density) ? clamp01(curve.end.density) : 0;
+    const startRadius = baseRadius * (0.5 + startDensity * 2.0);
+    const endRadius = baseRadius * (0.5 + endDensity * 2.0);
     
     createTubeBetweenPoints(
       curve.start,

@@ -9,16 +9,21 @@ const createContext = () => ({
   vertexById: new Map(),
 });
 
-const getNodeDefinition = (type: string) =>
-  NODE_DEFINITIONS.find((node) => node.type === type) ?? null;
+const getNodeDefinition = (type: string): any => {
+  const node = NODE_DEFINITIONS.find((entry) => entry.type === type);
+  if (!node) {
+    throw new Error(`Node definition not found: ${type}`);
+  }
+  return node;
+};
 
 const nowTimestamp = () => new Date().toISOString();
 
-const ensure = (condition: boolean, message: string) => {
+function ensure(condition: boolean, message: string): asserts condition {
   if (!condition) {
     throw new Error(message);
   }
-};
+}
 
 const approxEqual = (a: number, b: number, tolerance = 1e-6) =>
   Math.abs(a - b) <= tolerance;

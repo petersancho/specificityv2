@@ -27,6 +27,9 @@ export type SimpParams = {
   cgTol: number;           // CG solver tolerance
   cgMaxIters: number;      // CG solver max iterations
   strictConvergence?: boolean; // Fail if FE solver does not converge
+  emitEvery?: number;      // Emit frames every N iterations
+  yieldEvery?: number;     // Yield to main thread every N iterations
+  cgBoostFactor?: number;  // Boost factor for CG iterations when solver stalls
 };
 
 /**
@@ -91,6 +94,8 @@ export type SolverFrame = {
   vol: number;
   densities: Float32Array;
   converged: boolean;
+  feConverged?: boolean;
+  feIters?: number;
 };
 
 /**

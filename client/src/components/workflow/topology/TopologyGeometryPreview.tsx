@@ -34,13 +34,13 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
     canvas.height = height;
 
     // Clear canvas
-    ctx.fillStyle = '#1a1a1a';
+    ctx.fillStyle = '#0f1116';
     ctx.fillRect(0, 0, width, height);
 
     if (!geometry || !geometry.positions || geometry.positions.length === 0) {
       // Show placeholder
-      ctx.fillStyle = '#444';
-      ctx.font = '14px monospace';
+      ctx.fillStyle = '#8a90a3';
+      ctx.font = '13px "JetBrains Mono", monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('Waiting for geometry...', width / 2, height / 2);
@@ -73,7 +73,7 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
     const ctx = canvas.getContext('2d');
     if (!ctx || !geometry) return;
 
-    ctx.fillStyle = '#1a1a1a';
+    ctx.fillStyle = '#0f1116';
     ctx.fillRect(0, 0, width, height);
     renderGeometry(ctx, geometry, width, height, rotationRef.current);
   };
@@ -184,13 +184,24 @@ function renderGeometry(
       const p1 = projected[i1];
       const p2 = projected[i2];
 
-      // Calculate lighting (simple)
-      const brightness = Math.max(0.3, Math.min(1.0, 0.5 + tri.avgZ / 10));
-      const color = Math.floor(brightness * 255);
+      const depthRange = Math.max(1e-6, maxZ - minZ);
+      const depthT = Math.min(1, Math.max(0, (tri.avgZ - minZ) / depthRange));
+      const base = { r: 0, g: 212, b: 255 };
+      const brightness = 0.55 + depthT * 0.35;
+      const shaded = {
+        r: Math.round(base.r * brightness),
+        g: Math.round(base.g * brightness),
+        b: Math.round(base.b * brightness),
+      };
+      const stroke = {
+        r: Math.round(base.r * 0.35),
+        g: Math.round(base.g * 0.35),
+        b: Math.round(base.b * 0.35),
+      };
 
-      ctx.fillStyle = `rgb(${color}, ${Math.floor(color * 0.8)}, ${Math.floor(color * 0.6)})`;
-      ctx.strokeStyle = `rgb(${Math.floor(color * 0.5)}, ${Math.floor(color * 0.4)}, ${Math.floor(color * 0.3)})`;
-      ctx.lineWidth = 0.5;
+      ctx.fillStyle = `rgb(${shaded.r}, ${shaded.g}, ${shaded.b})`;
+      ctx.strokeStyle = `rgb(${stroke.r}, ${stroke.g}, ${stroke.b})`;
+      ctx.lineWidth = 0.6;
 
       ctx.beginPath();
       ctx.moveTo(p0.x, p0.y);

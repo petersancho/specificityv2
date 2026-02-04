@@ -635,7 +635,9 @@ const WorkflowGeometryViewer = ({
     };
 
     const handleWheel = (event: WheelEvent) => {
-      event.preventDefault();
+      if (event.cancelable) {
+        event.preventDefault();
+      }
       const delta = event.deltaY;
       const current = cameraRef.current;
       const offset = sub(current.position, current.target);

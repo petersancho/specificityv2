@@ -7,23 +7,60 @@
 
 ## Overview
 
-The Topology Optimization Solver generates topologically optimized structures from input geometry using a three-step process: point cloud generation, curve network generation based on 3D proximity, and multipipe operation.
+The Topology Optimization Solver performs iterative SIMP-based structural optimization, then extracts geometry (point cloud → curve network → multipipe) from the converged density field. It is a fully semantic simulator: every stage of the simulation loop, convergence check, preview sync, and geometry refinement is tracked as a named Lingua semantic operation.
 
 ## Ontological Type
 
-**Structural Optimization** - Direct conversion solver (no iterative simulation)
+**Structural Optimization** - Iterative SIMP simulation with semantic convergence and geometry extraction
 
 ## Has Simulator
 
-**No** - This is a direct conversion solver that transforms geometry in a single pass.
+**Yes** - Iterative SIMP simulation with convergence monitoring, semantic telemetry, and a dedicated simulator dashboard.
 
-## Semantic Operation
+## Semantic Operations
 
-`solver.topologyOptimization`
+**Solver-level:**
+- `solver.topologyOptimization`
+
+**Simulator lifecycle:**
+- `simulator.topology.initialize`
+- `simulator.topology.step`
+- `simulator.topology.converge`
+- `simulator.topology.preview`
+- `simulator.topology.sync`
+- `simulator.topology.finalize`
+- `simulator.topology.pause`
+- `simulator.topology.resume`
+- `simulator.topology.reset`
+- `simulator.topology.plasticwrap`
+- `simulator.topology.stabilityGuard`
 
 ## Algorithm
 
-### Process
+### SIMP Simulation Loop
+
+1. **Initialize Density Field**
+   - Grid resolution (`nx`, `ny`, `nz`)
+   - Volume fraction target (`volFrac`)
+   - Material bounds (`E0`, `Emin`, `rhoMin`)
+
+2. **Finite Element Solve**
+   - Assemble stiffness matrix
+   - Solve for displacements (CG solver)
+   - Compute compliance and sensitivities
+
+3. **Update Densities**
+   - Apply SIMP penalization ramp
+   - Filter sensitivities (`rmin`)
+   - Enforce move limit (`move`)
+   - Check convergence (`tolChange`, `maxIters`)
+
+4. **Semantic Telemetry**
+   - Convergence metrics are recorded and visualized
+   - Preview syncs are semantic operations, not side-effects
+   - Stability guard escalates strategy on repeated FE stalls
+
+### Geometry Extraction (Post-Simulation)
 
 1. **Point Cloud Generation**
    - Sample points from input geometry surface
@@ -42,6 +79,9 @@ The Topology Optimization Solver generates topologically optimized structures fr
    - Use specified pipe radius
    - Generate mesh with proper normals and UVs
    - Merge all pipes into single optimized structure
+4. **Plasticwrap Refinement (Optional)**
+   - Smooth the extracted mesh against a proxy target
+   - Produces a refined, production-ready surface
 
 ### Mathematical Foundation
 
@@ -81,10 +121,18 @@ For each curve:
 
 | Input | Type | Description |
 |-------|------|-------------|
-| `geometry` | geometry | Input geometry to optimize (mesh, solid, or any geometry type) |
-| `pointDensity` | number | Number of points to generate (10-1000, default: 100) |
-| `connectionRadius` | number | 3D proximity threshold for curve network (0.01-5.0, default: 0.5) |
-| `pipeRadius` | number | Radius for multipipe operation (0.01-1.0, default: 0.05) |
+| `geometry` | geometry | Input geometry defining the optimization domain |
+| `goals` | goal | Optimization goals (Anchor, Load, Volume, Stiffness) |
+| `nx, ny, nz` | number | SIMP grid resolution |
+| `volFrac` | number | Target material fraction |
+| `rmin` | number | Sensitivity filter radius |
+| `maxIters` | number | Iteration limit |
+| `tolChange` | number | Convergence tolerance |
+| `cgTol, cgMaxIters` | number | FE solver tolerances |
+| `densityThreshold` | number | Density cutoff for geometry extraction |
+| `maxLinksPerPoint` | number | Connectivity cap for curve network |
+| `maxSpanLength` | number | Maximum link length |
+| `pipeRadius` | number | Multipipe radius |
 
 ### Outputs
 
@@ -98,14 +146,9 @@ For each curve:
 | `volume` | number | Volume of optimized structure |
 | `surfaceArea` | number | Surface area of optimized structure |
 
-### Parameters
+### Parameters (Summary)
 
-| Parameter | Type | Range | Default | Description |
-|-----------|------|-------|---------|-------------|
-| `pointDensity` | number | 10-1000 | 100 | Number of points to generate from geometry surface |
-| `connectionRadius` | number | 0.01-5.0 | 0.5 | 3D proximity threshold for connecting points |
-| `pipeRadius` | number | 0.01-1.0 | 0.05 | Radius for multipipe operation |
-| `seed` | number | 0-9999 | 42 | Random seed for point generation |
+The solver exposes SIMP parameters (grid resolution, penalization, convergence), FE solver parameters (CG tolerance/max iterations), and geometry extraction parameters (density threshold, connectivity, pipe radius). See the node specification in `client/src/workflow/nodes/solver/TopologyOptimizationSolver.ts` for the full list and ranges.
 
 ## Implementation Details
 
@@ -159,13 +202,17 @@ Output
 ## Semantic Chain
 
 ```
-User Input (Geometry + Parameters)
+User Input (Geometry + Goals + Parameters)
     ↓
 TopologyOptimizationSolver Node
     ↓
 solver.topologyOptimization (Semantic Operation)
     ↓
-Point Cloud Generation → Curve Network → Multipipe
+simulator.topology.initialize → simulator.topology.step → simulator.topology.converge
+    ↓
+simulator.topology.preview → simulator.topology.sync
+    ↓
+simulator.topology.finalize → simulator.topology.plasticwrap (optional)
     ↓
 Optimized Mesh (Geometry)
     ↓

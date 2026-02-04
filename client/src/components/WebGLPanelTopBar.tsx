@@ -1606,7 +1606,9 @@ const WebGLPanelTopBar = ({
 
   const handleWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {
     if (allowWheelScale && (event.ctrlKey || event.metaKey || event.altKey)) {
-      event.preventDefault();
+      if (event.cancelable) {
+        event.preventDefault();
+      }
       const delta = -event.deltaY * PANEL_SCALE_SPEED;
       const nextScale = clamp(
         effectiveScale * Math.exp(delta),
@@ -1624,7 +1626,9 @@ const WebGLPanelTopBar = ({
     }
     const maxScroll = Math.max(0, layoutRef.current.totalWidth - layoutRef.current.visibleWidth);
     if (maxScroll <= 0) return;
-    event.preventDefault();
+    if (event.cancelable) {
+      event.preventDefault();
+    }
     const dominantDelta =
       Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
     const nextScroll = clamp(scrollRef.current + dominantDelta, 0, maxScroll);

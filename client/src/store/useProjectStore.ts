@@ -141,6 +141,12 @@ import { withTessellationMetadata } from "../geometry/meshTessellation";
 import { tessellateCurveAdaptive, tessellateSurfaceAdaptive } from "../geometry/tessellation";
 import { tessellateBRepToMesh, brepFromMesh, createBRepBox, createBRepSphere, createBRepCylinder } from "../geometry/brep";
 import {
+  getTessellationMetadata,
+  toTessellationMesh,
+  tessellationMeshToRenderMesh,
+  meshRelax,
+} from "../geometry/meshTessellationOps";
+import {
   computeBestFitPlane,
   buildPlaneFromNormal,
   projectPointToPlane,
@@ -4850,7 +4856,7 @@ const applyPlasticwrapNodesToGeometry = (
     const target = geometryById.get(targetId);
     if (!source || !target) return node;
 
-    const targetSamples = buildTargetSamples(target, geometryById);
+    let targetSamples = buildTargetSamples(target, geometryById);
 
     const distance = Math.max(
       0,
@@ -4861,6 +4867,24 @@ const applyPlasticwrapNodesToGeometry = (
       0,
       1
     );
+    if (targetId === geometryId && source.type === "mesh" && source.mesh) {
+      const relaxIterations = Math.max(1, Math.round(2 + smooth * 6));
+      const relaxStrength = clampValue(0.2 + smooth * 0.6, 0.2, 0.9);
+      try {
+        const tessellation = toTessellationMesh(
+          source.mesh,
+          getTessellationMetadata(source.metadata)
+        );
+        const relaxed = meshRelax(tessellation, relaxIterations, relaxStrength, true);
+        const relaxedMesh = tessellationMeshToRenderMesh(relaxed);
+        targetSamples = buildTargetSamples(
+          { ...target, mesh: relaxedMesh },
+          geometryById
+        );
+      } catch (error) {
+        console.error("[plasticwrap] Failed to build relaxed target:", error);
+      }
+    }
     const strength = 1 - smooth;
     const maxDistance = distance > 0 ? distance : Number.POSITIVE_INFINITY;
 
@@ -7820,9 +7844,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
      * Topology Optimization Solver Test Rig
      *
      * Creates a topology optimization workflow with goals:
-     * - Box Builder → Topology Optimization Solver → Geometry Viewer
+     * - Box Builder → Topology Optimization Solver → Plasticwrap
      * - Goal nodes (anchor, load, volume, stiffness) → Solver
-     * - Sliders for densityThreshold, maxLinksPerPoint, maxSpanLength, pipeRadius parameters
+     * - SIMP + extraction sliders for solver inputs
+     * - Plasticwrap sliders (distance, smooth) → Plasticwrap node
      *
      * Named after Leonhard Euler (topology pioneer, Euler characteristic).
      */
@@ -7912,13 +7937,23 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
     const volumeWeightSliderId = `node-slider-topo-volumeWeight-${ts}`;
     const volumeWeightPos = { x: col2X, y: loadGoalPos.y + GOAL_HEIGHT + V_GAP };
+    const volumeDensitySliderId = `node-slider-topo-volumeDensity-${ts}`;
+    const volumeDensityPos = { x: col2X, y: volumeWeightPos.y + SLIDER_HEIGHT + V_GAP };
+    const volumeDeviationSliderId = `node-slider-topo-volumeDeviation-${ts}`;
+    const volumeDeviationPos = { x: col2X, y: volumeDensityPos.y + SLIDER_HEIGHT + V_GAP };
     const volumeGoalId = `node-volumeGoal-${ts}`;
-    const volumeGoalPos = { x: col2X, y: volumeWeightPos.y + SLIDER_HEIGHT + V_GAP };
+    const volumeGoalPos = { x: col2X, y: volumeDeviationPos.y + SLIDER_HEIGHT + V_GAP };
 
     const stiffnessWeightSliderId = `node-slider-topo-stiffnessWeight-${ts}`;
     const stiffnessWeightPos = { x: col2X, y: volumeGoalPos.y + GOAL_HEIGHT + V_GAP };
+    const stiffnessYoungSliderId = `node-slider-topo-stiffnessYoung-${ts}`;
+    const stiffnessYoungPos = { x: col2X, y: stiffnessWeightPos.y + SLIDER_HEIGHT + V_GAP };
+    const stiffnessPoissonSliderId = `node-slider-topo-stiffnessPoisson-${ts}`;
+    const stiffnessPoissonPos = { x: col2X, y: stiffnessYoungPos.y + SLIDER_HEIGHT + V_GAP };
+    const stiffnessTargetSliderId = `node-slider-topo-stiffnessTarget-${ts}`;
+    const stiffnessTargetPos = { x: col2X, y: stiffnessPoissonPos.y + SLIDER_HEIGHT + V_GAP };
     const stiffnessGoalId = `node-stiffnessGoal-${ts}`;
-    const stiffnessGoalPos = { x: col2X, y: stiffnessWeightPos.y + SLIDER_HEIGHT + V_GAP };
+    const stiffnessGoalPos = { x: col2X, y: stiffnessTargetPos.y + SLIDER_HEIGHT + V_GAP };
 
     // Column 1.5: Vertex lists / goal inputs
     const listColX = col2X - NODE_WIDTH - H_GAP * 0.5;
@@ -7928,6 +7963,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const loadListPos = { x: listColX, y: loadGoalPos.y };
     const loadMagnitudeSliderId = `node-slider-topo-loadMagnitude-${ts}`;
     const loadMagnitudePos = { x: listColX, y: loadWeightPos.y };
+    const stiffnessElementsListId = `node-listCreate-stiffness-${ts}`;
+    const stiffnessElementsListPos = { x: listColX, y: stiffnessGoalPos.y };
 
     const boxWidth = 2;
     const boxHeight = 1;
@@ -7966,12 +8003,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const solverId = `node-topologyOptimizationSolver-${ts}`;
     const solverPos = { x: col4X, y: position.y + SLIDER_HEIGHT };
 
-    // Column 5: Geometry Viewer
+    // Column 5: Plasticwrap refinement (single node after solver)
     const col5X = col4X + NODE_WIDTH + H_GAP;
-    const viewerId = `node-geometryViewer-topology-${ts}`;
-    const viewerPos = { x: col5X, y: position.y + SLIDER_HEIGHT };
-    const customViewerId = `node-customViewer-topology-${ts}`;
-    const customViewerPos = { x: col5X, y: viewerPos.y + NODE_HEIGHT + V_GAP };
+    const plasticwrapId = `node-plasticwrap-topology-${ts}`;
+    const plasticwrapPos = { x: col5X, y: position.y + SLIDER_HEIGHT };
+    const wrapDistanceSliderId = `node-slider-topo-wrapDistance-${ts}`;
+    const wrapDistancePos = { x: col5X, y: plasticwrapPos.y + NODE_HEIGHT + V_GAP };
+    const wrapSmoothSliderId = `node-slider-topo-wrapSmooth-${ts}`;
+    const wrapSmoothPos = { x: col5X, y: wrapDistancePos.y + SLIDER_HEIGHT + V_GAP };
 
     const newNodes: WorkflowNode[] = [
       {
@@ -8264,6 +8303,17 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         },
       },
       {
+        id: stiffnessElementsListId,
+        type: "listCreate" as const,
+        position: stiffnessElementsListPos,
+        data: {
+          label: "Stiffness Elements",
+          parameters: {
+            itemsText: loadIndices.join(", "),
+          },
+        },
+      },
+      {
         id: anchorWeightSliderId,
         type: "slider" as const,
         position: anchorWeightPos,
@@ -8331,6 +8381,34 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         },
       },
       {
+        id: volumeDensitySliderId,
+        type: "slider" as const,
+        position: volumeDensityPos,
+        data: {
+          label: "Material Density",
+          parameters: {
+            min: 500,
+            max: 20000,
+            value: 7850,
+            step: 250,
+          },
+        },
+      },
+      {
+        id: volumeDeviationSliderId,
+        type: "slider" as const,
+        position: volumeDeviationPos,
+        data: {
+          label: "Volume Deviation",
+          parameters: {
+            min: 0,
+            max: 0.5,
+            value: 0.05,
+            step: 0.01,
+          },
+        },
+      },
+      {
         id: volumeGoalId,
         type: "volumeGoal" as const,
         position: volumeGoalPos,
@@ -8353,6 +8431,48 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             max: 1,
             value: 1,
             step: 0.05,
+          },
+        },
+      },
+      {
+        id: stiffnessYoungSliderId,
+        type: "slider" as const,
+        position: stiffnessYoungPos,
+        data: {
+          label: "Young's Modulus",
+          parameters: {
+            min: 1e9,
+            max: 3e11,
+            value: 200e9,
+            step: 1e9,
+          },
+        },
+      },
+      {
+        id: stiffnessPoissonSliderId,
+        type: "slider" as const,
+        position: stiffnessPoissonPos,
+        data: {
+          label: "Poisson Ratio",
+          parameters: {
+            min: 0,
+            max: 0.45,
+            value: 0.3,
+            step: 0.01,
+          },
+        },
+      },
+      {
+        id: stiffnessTargetSliderId,
+        type: "slider" as const,
+        position: stiffnessTargetPos,
+        data: {
+          label: "Target Stiffness",
+          parameters: {
+            min: 0,
+            max: 1e12,
+            value: 0,
+            step: 1e9,
           },
         },
       },
@@ -8395,16 +8515,44 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         },
       },
       {
-        id: viewerId,
-        type: "geometryViewer" as const,
-        position: viewerPos,
-        data: { label: "Optimized Structure" },
+        id: plasticwrapId,
+        type: "plasticwrap" as const,
+        position: plasticwrapPos,
+        data: {
+          label: "Plasticwrap (Topology)",
+          parameters: {
+            distance: 0.25,
+            smooth: 0.55,
+          },
+        },
       },
       {
-        id: customViewerId,
-        type: "customViewer" as const,
-        position: customViewerPos,
-        data: { label: "Roslyn Output" },
+        id: wrapDistanceSliderId,
+        type: "slider" as const,
+        position: wrapDistancePos,
+        data: {
+          label: "Wrap Distance",
+          parameters: {
+            min: 0.05,
+            max: 1.0,
+            value: 0.25,
+            step: 0.05,
+          },
+        },
+      },
+      {
+        id: wrapSmoothSliderId,
+        type: "slider" as const,
+        position: wrapSmoothPos,
+        data: {
+          label: "Wrap Smoothness",
+          parameters: {
+            min: 0,
+            max: 1,
+            value: 0.55,
+            step: 0.05,
+          },
+        },
       },
     ];
 
@@ -8613,6 +8761,20 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         targetHandle: "weight",
       },
       {
+        id: `edge-${volumeDensitySliderId}-${volumeGoalId}-materialDensity`,
+        source: volumeDensitySliderId,
+        sourceHandle: "value",
+        target: volumeGoalId,
+        targetHandle: "materialDensity",
+      },
+      {
+        id: `edge-${volumeDeviationSliderId}-${volumeGoalId}-allowedDeviation`,
+        source: volumeDeviationSliderId,
+        sourceHandle: "value",
+        target: volumeGoalId,
+        targetHandle: "allowedDeviation",
+      },
+      {
         id: `edge-${stiffnessGoalId}-${solverId}-goals`,
         source: stiffnessGoalId,
         sourceHandle: "goal",
@@ -8627,18 +8789,60 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         targetHandle: "weight",
       },
       {
-        id: `edge-${solverId}-${viewerId}-geometry`,
+        id: `edge-${stiffnessYoungSliderId}-${stiffnessGoalId}-youngModulus`,
+        source: stiffnessYoungSliderId,
+        sourceHandle: "value",
+        target: stiffnessGoalId,
+        targetHandle: "youngModulus",
+      },
+      {
+        id: `edge-${stiffnessPoissonSliderId}-${stiffnessGoalId}-poissonRatio`,
+        source: stiffnessPoissonSliderId,
+        sourceHandle: "value",
+        target: stiffnessGoalId,
+        targetHandle: "poissonRatio",
+      },
+      {
+        id: `edge-${stiffnessTargetSliderId}-${stiffnessGoalId}-targetStiffness`,
+        source: stiffnessTargetSliderId,
+        sourceHandle: "value",
+        target: stiffnessGoalId,
+        targetHandle: "targetStiffness",
+      },
+      {
+        id: `edge-${stiffnessElementsListId}-${stiffnessGoalId}-elements`,
+        source: stiffnessElementsListId,
+        sourceHandle: "list",
+        target: stiffnessGoalId,
+        targetHandle: "elements",
+      },
+      {
+        id: `edge-${solverId}-${plasticwrapId}-geometry`,
         source: solverId,
         sourceHandle: "optimizedMesh",
-        target: viewerId,
+        target: plasticwrapId,
         targetHandle: "geometry",
       },
       {
-        id: `edge-${solverId}-${customViewerId}-geometry`,
+        id: `edge-${solverId}-${plasticwrapId}-target`,
         source: solverId,
         sourceHandle: "optimizedMesh",
-        target: customViewerId,
-        targetHandle: "geometry",
+        target: plasticwrapId,
+        targetHandle: "target",
+      },
+      {
+        id: `edge-${wrapDistanceSliderId}-${plasticwrapId}-distance`,
+        source: wrapDistanceSliderId,
+        sourceHandle: "value",
+        target: plasticwrapId,
+        targetHandle: "distance",
+      },
+      {
+        id: `edge-${wrapSmoothSliderId}-${plasticwrapId}-smooth`,
+        source: wrapSmoothSliderId,
+        sourceHandle: "value",
+        target: plasticwrapId,
+        targetHandle: "smooth",
       },
     ];
 

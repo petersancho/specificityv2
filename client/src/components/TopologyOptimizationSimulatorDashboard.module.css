@@ -871,6 +871,575 @@
   background: var(--bk-orange);
 }
 
+/* ========================================================================== */
+/* Lingua Simulator Refresh - overrides + new classes (TSX-based layout) */
+/* ========================================================================== */
+
+.dashboard {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--bk-porcelain);
+  font-family: var(--font-sans);
+  color: var(--bk-black);
+  z-index: 10000;
+}
+
+.dashboardBody {
+  width: min(1440px, 94vw);
+  height: min(900px, 90vh);
+  background: var(--surface-card);
+  border: 2px solid var(--bk-black);
+  border-radius: 18px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.header {
+  position: relative;
+  padding: 18px 24px 16px;
+  background: var(--bk-cream);
+  border-bottom: 2px solid var(--bk-black);
+}
+
+.headerBar {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 6px;
+  background: var(--bk-cyan);
+}
+
+.headerContent {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.title {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.titleGreek {
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--bk-magenta);
+  font-weight: 700;
+}
+
+.titleEnglish {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--bk-black);
+}
+
+.titleSubtext {
+  font-size: 12px;
+  color: var(--gray-600);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.headerControls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.scaleControl {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--gray-600);
+}
+
+.scaleControl input[type="range"] {
+  accent-color: var(--bk-cyan);
+}
+
+.closeButton {
+  background: var(--bk-yellow);
+  border: 2px solid var(--bk-black);
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  font-size: 18px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: var(--shadow-sticker);
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--bk-porcelain);
+  border-bottom: 2px solid var(--bk-black);
+}
+
+.tab {
+  flex: 1;
+  padding: 10px 16px;
+  border: 2px solid var(--bk-black);
+  background: var(--bk-white);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: var(--shadow-sticker);
+}
+
+.tabActive {
+  background: var(--bk-black);
+  color: var(--bk-white);
+  transform: translateY(-1px);
+}
+
+.content {
+  flex: 1;
+  overflow: auto;
+  padding: 20px 22px 26px;
+  background: var(--bk-cream);
+}
+
+.setupTab {
+  display: grid;
+  gap: 18px;
+}
+
+.section {
+  background: var(--bk-white);
+  border: 2px solid var(--bk-black);
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: var(--shadow-sticker);
+}
+
+.sectionTitle {
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin: 0 0 12px 0;
+  color: var(--bk-purple);
+  font-weight: 800;
+}
+
+.connectionStatus {
+  display: grid;
+  gap: 8px;
+}
+
+.connectionItem {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.connectionLabel {
+  color: var(--gray-600);
+}
+
+.connectionValue {
+  padding: 2px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--bk-black);
+  background: var(--bk-white);
+}
+
+.connected {
+  color: var(--bk-black);
+  background: var(--bk-lime-soft);
+}
+
+.disconnected {
+  color: var(--bk-magenta);
+  background: var(--bk-magenta-soft);
+}
+
+.optional {
+  color: var(--bk-cyan-deep);
+  background: var(--bk-cyan-soft);
+}
+
+.parameterGroup {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.parameterLabel {
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--bk-black);
+}
+
+.parameterDescription {
+  font-size: 11px;
+  color: var(--gray-600);
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+.parameterControl {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.strategySelect {
+  flex: 1;
+  padding: 8px 10px;
+  border: 2px solid var(--bk-black);
+  border-radius: 10px;
+  background: var(--bk-cream);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 11px;
+}
+
+.slider {
+  flex: 1;
+  accent-color: var(--bk-magenta);
+}
+
+.parameterValue {
+  min-width: 52px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--bk-black);
+}
+
+.simulatorTab {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.simulatorLayout {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.geometryView,
+.geometryPreviewView,
+.convergenceView {
+  background: #0f1116;
+  border: 2px solid var(--bk-black);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.geometryPreviewView {
+  position: relative;
+}
+
+.viewTitle {
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 12px 16px;
+  margin: 0;
+  color: var(--bk-white);
+  background: rgba(0, 0, 0, 0.6);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.previewHint {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(0, 0, 0, 0.6);
+  padding: 4px 12px;
+  border-radius: 999px;
+}
+
+.noGeometry,
+.noResults {
+  padding: 24px;
+  text-align: center;
+  color: var(--gray-500);
+  font-size: 13px;
+}
+
+.convergenceSection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.simulatorMetrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.metricCard {
+  background: var(--bk-white);
+  border: 2px solid var(--bk-black);
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: var(--shadow-sticker);
+}
+
+.metricHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.metricTitle {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-weight: 700;
+}
+
+.metricBadge {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--bk-black);
+  color: var(--bk-white);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+}
+
+.metricGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.metricItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  border: 1px solid var(--gray-200);
+  border-radius: 10px;
+  background: var(--bk-cream);
+}
+
+.metricLabel {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--gray-600);
+}
+
+.metricValue {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--bk-black);
+}
+
+.semanticEvents {
+  margin-top: 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.semanticEvent {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--bk-porcelain);
+  font-size: 12px;
+}
+
+.eventOp {
+  font-weight: 600;
+}
+
+.eventPhase {
+  font-family: var(--font-mono);
+  color: var(--bk-cyan-deep);
+}
+
+.noEvents {
+  font-size: 12px;
+  color: var(--gray-500);
+}
+
+.simulationControls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--bk-white);
+  border: 2px solid var(--bk-black);
+  box-shadow: var(--shadow-sticker);
+}
+
+.controlButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.startButton,
+.pauseButton,
+.resumeButton,
+.resetButton,
+.secondaryButton {
+  padding: 10px 16px;
+  border: 2px solid var(--bk-black);
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: var(--shadow-sticker);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.startButton {
+  background: var(--bk-lime);
+}
+
+.pauseButton {
+  background: var(--bk-yellow);
+}
+
+.resumeButton {
+  background: var(--bk-cyan);
+}
+
+.resetButton {
+  background: var(--bk-magenta-soft);
+}
+
+.secondaryButton {
+  background: var(--bk-cream);
+}
+
+.controlToggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border: 1px solid var(--bk-black);
+  border-radius: 999px;
+  background: var(--bk-cream);
+}
+
+.toggle input {
+  accent-color: var(--bk-magenta);
+}
+
+.statusDisplay {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.statusItem {
+  display: flex;
+  gap: 6px;
+  font-size: 12px;
+  align-items: center;
+}
+
+.statusLabel {
+  color: var(--gray-600);
+}
+
+.statusValue {
+  font-weight: 700;
+}
+
+.statusIdle {
+  color: var(--gray-500);
+}
+
+.statusRunning {
+  color: var(--bk-lime-deep);
+}
+
+.statusPaused {
+  color: var(--bk-yellow-deep);
+}
+
+.statusConverged {
+  color: var(--bk-cyan-deep);
+}
+
+.statusError {
+  color: var(--bk-magenta-deep);
+}
+
+.outputTab {
+  display: grid;
+  gap: 16px;
+}
+
+.outputGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.outputItem {
+  border: 1px solid var(--gray-200);
+  border-radius: 10px;
+  padding: 10px;
+  background: var(--bk-cream);
+}
+
+.outputLabel {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--gray-600);
+}
+
+.outputValue {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--bk-black);
+}
+
 /* Simulator Tab Layout */
 .simulatorLayout {
   display: grid;

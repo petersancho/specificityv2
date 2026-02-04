@@ -19,9 +19,9 @@
   --bk-cyan: #00d4ff;
   --bk-magenta: #ff0099;
   --bk-yellow: #ffdd00;
-  --bk-purple: #8800ff;
-  --bk-orange: #ff6600;
-  --bk-lime: #88ff00;
+  --bk-purple: var(--bk-magenta);
+  --bk-orange: var(--bk-yellow);
+  --bk-lime: var(--bk-cyan);
   
   /* ========================================
      Porcelain Base Colors
@@ -105,43 +105,30 @@
   --bk-yellow-soft: #fff5cc;
   
   /* Purple family */
-  --bk-purple-deep: #6600cc;
-  --bk-purple-soft: #e6ccff;
+  --bk-purple-deep: var(--bk-magenta-deep);
+  --bk-purple-soft: var(--bk-magenta-soft);
   
   /* Orange family */
-  --bk-orange-deep: #cc4400;
-  --bk-orange-soft: #ffeacc;
+  --bk-orange-deep: var(--bk-yellow-deep);
+  --bk-orange-soft: var(--bk-yellow-soft);
   
   /* Lime family */
-  --bk-lime-deep: #66cc00;
-  --bk-lime-soft: #e6ffcc;
+  --bk-lime-deep: var(--bk-cyan-deep);
+  --bk-lime-soft: var(--bk-cyan-soft);
   
   /* ========================================
      Gradients
      ======================================== */
   
   /* CMYK gradient (full spectrum) */
-  --gradient-cmyk: linear-gradient(90deg, 
-    var(--bk-magenta) 0%, 
-    var(--bk-cyan) 50%, 
-    var(--bk-yellow) 100%
-  );
+  --gradient-cmyk: var(--bk-cyan);
   
   /* Solver gradients */
-  --gradient-evolutionary: linear-gradient(135deg, 
-    var(--bk-magenta) 0%, 
-    var(--bk-magenta-deep) 100%
-  );
+  --gradient-evolutionary: var(--bk-magenta);
   
-  --gradient-chemistry: linear-gradient(135deg, 
-    var(--bk-cyan) 0%, 
-    var(--bk-cyan-deep) 100%
-  );
+  --gradient-chemistry: var(--bk-cyan);
   
-  --gradient-physics: linear-gradient(135deg, 
-    var(--bk-magenta) 0%, 
-    var(--bk-purple) 100%
-  );
+  --gradient-physics: var(--bk-yellow);
   
   /* ========================================
      Shadows (Sticker Aesthetic)

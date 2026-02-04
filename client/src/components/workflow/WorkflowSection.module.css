@@ -91,7 +91,7 @@
   margin: -1px;
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
-  var(--surface-card)-space: nowrap;
+  white-space: nowrap;
   border: 0;
 }
 
@@ -387,7 +387,7 @@
   letter-spacing: 0.06em;
   color: color-mix(in srgb, var(--sp-ink, #1f1f22) 58%, transparent);
   text-transform: uppercase;
-  var(--surface-card)-space: nowrap;
+  white-space: nowrap;
 }
 
 .paletteSectionGroups {
@@ -719,6 +719,6 @@
   margin: -1px;
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
-  var(--surface-card)-space: nowrap;
+  white-space: nowrap;
   border: 0;
 }

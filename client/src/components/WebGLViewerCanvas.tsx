@@ -200,6 +200,8 @@ type CustomMaterialOverrides = {
   color?: [number, number, number];
   ambientStrength?: number;
   sheenIntensity?: number;
+  clearcoatIntensity?: number;
+  clearcoatRoughness?: number;
 };
 
 const resolveCustomMaterialOverrides = (metadata?: Geometry["metadata"]) => {
@@ -212,6 +214,8 @@ const resolveCustomMaterialOverrides = (metadata?: Geometry["metadata"]) => {
     palette?: unknown;
     paletteValues?: unknown;
     paletteSwatch?: unknown;
+    clearcoatIntensity?: unknown;
+    clearcoatRoughness?: unknown;
   };
   const baseColor = normalizeRgbInput(record.color);
   const hexColor = typeof record.hex === "string" ? hexToRgb(record.hex) : null;
@@ -225,6 +229,8 @@ const resolveCustomMaterialOverrides = (metadata?: Geometry["metadata"]) => {
   let color = baseColor ?? hexColor ?? null;
   let ambientStrength: number | undefined;
   let sheenIntensity: number | undefined;
+  let clearcoatIntensity: number | undefined;
+  let clearcoatRoughness: number | undefined;
 
   if (palette && paletteValues) {
     const paletteColor = resolvePaletteColor({
@@ -241,12 +247,27 @@ const resolveCustomMaterialOverrides = (metadata?: Geometry["metadata"]) => {
     sheenIntensity = shading.sheenIntensity;
   }
 
-  if (!color && ambientStrength == null && sheenIntensity == null) return null;
+  clearcoatIntensity =
+    typeof record.clearcoatIntensity === "number" ? record.clearcoatIntensity : undefined;
+  clearcoatRoughness =
+    typeof record.clearcoatRoughness === "number" ? record.clearcoatRoughness : undefined;
+
+  if (
+    !color &&
+    ambientStrength == null &&
+    sheenIntensity == null &&
+    clearcoatIntensity == null &&
+    clearcoatRoughness == null
+  ) {
+    return null;
+  }
 
   return {
     color: color ?? undefined,
     ambientStrength,
     sheenIntensity,
+    clearcoatIntensity,
+    clearcoatRoughness,
   } as CustomMaterialOverrides;
 };
 
@@ -1175,6 +1196,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
   const [pivotInputs, setPivotInputs] = useState({ x: "0", y: "0", z: "0" });
   const pivotInputEditingRef = useRef(false);
   const [showPivotPanel, setShowPivotPanel] = useState(false);
+  const [showTopologyDebug, setShowTopologyDebug] = useState(true);
   const lastCommandRequestIdRef = useRef<number | null>(null);
   const activeCommandIdRef = useRef<string | null>(activeCommandId);
   const onCommandCompleteRef = useRef<ViewerCanvasProps["onCommandComplete"]>(
@@ -1258,6 +1280,61 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
   const geometry = useProjectStore((state) => state.geometry);
   const workflowNodes = useProjectStore((state) => state.workflow.nodes);
   const workflowEdges = useProjectStore((state) => state.workflow.edges);
+  const topologyDebug = useMemo(() => {
+    const candidates = workflowNodes.filter((node) => node.type === "topologyOptimizationSolver");
+    if (candidates.length === 0) return null;
+
+    let selected = candidates[0];
+    for (const node of candidates) {
+      const outputs = node.data?.outputs as Record<string, unknown> | undefined;
+      if (!outputs) continue;
+      const hasOutput =
+        typeof outputs.pointCount === "number" ||
+        typeof outputs.curveCount === "number" ||
+        typeof outputs.optimizedMesh === "string";
+      if (hasOutput) {
+        selected = node;
+      }
+    }
+
+    const outputs = (selected.data?.outputs ?? {}) as Record<string, unknown>;
+    const pointCount = typeof outputs.pointCount === "number" ? outputs.pointCount : null;
+    const curveCount = typeof outputs.curveCount === "number" ? outputs.curveCount : null;
+    const multipipeId =
+      typeof outputs.optimizedMesh === "string" ? outputs.optimizedMesh : null;
+    const multipipeGeometry = multipipeId
+      ? geometry.find((item) => item.id === multipipeId)
+      : null;
+    const multipipeVerts =
+      multipipeGeometry && multipipeGeometry.type === "mesh"
+        ? Math.floor(multipipeGeometry.mesh.positions.length / 3)
+        : null;
+    const multipipeTris =
+      multipipeGeometry && multipipeGeometry.type === "mesh"
+        ? Math.floor(multipipeGeometry.mesh.indices.length / 3)
+        : null;
+    const multipipeVolume =
+      multipipeGeometry && multipipeGeometry.type === "mesh"
+        ? multipipeGeometry.volume_m3 ?? null
+        : null;
+    const multipipeArea =
+      multipipeGeometry && multipipeGeometry.type === "mesh"
+        ? multipipeGeometry.area_m2 ?? null
+        : null;
+
+    return {
+      nodeId: selected.id,
+      label: selected.data?.label,
+      pointCount,
+      curveCount,
+      multipipeId,
+      multipipeVerts,
+      multipipeTris,
+      multipipeVolume,
+      multipipeArea,
+      geometryReady: Boolean(multipipeGeometry && multipipeGeometry.type === "mesh"),
+    };
+  }, [workflowNodes, geometry]);
   const customMaterialMap = useMemo(() => {
     const map = new Map<string, CustomMaterialOverrides>();
     geometry.forEach((item) => {
@@ -6898,7 +6975,9 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     };
 
     const handleWheel = (event: WheelEvent) => {
-      event.preventDefault();
+      if (event.cancelable) {
+        event.preventDefault();
+      }
 
       const delta = event.deltaY;
       const current = cameraRef.current;
@@ -7263,6 +7342,8 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
             selectionHighlight: VIEW_STYLE.selection,
             isSelected: isSelected ? SELECTION_HIGHLIGHT_INTENSITY : 0,
             sheenIntensity: 0,
+            clearcoatIntensity: 0,
+            clearcoatRoughness: 0.4,
             opacity: fillOpacity,
           });
           return;
@@ -7299,6 +7380,8 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
           isSelected: isSelected ? SELECTION_HIGHLIGHT_INTENSITY : 0,
           sheenIntensity:
             customOverrides?.sheenIntensity ?? viewSettingsRef.current.sheen ?? 0.08,
+          clearcoatIntensity: customOverrides?.clearcoatIntensity ?? 0,
+          clearcoatRoughness: customOverrides?.clearcoatRoughness ?? 0.35,
           opacity,
         };
         if (opacity < 0.999 && (showEdges || isSilhouette)) {
@@ -8325,6 +8408,86 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         style={{ width: "100%", height: "100%", display: "block" }}
         onContextMenu={(event) => event.preventDefault()}
       />
+      {topologyDebug && showTopologyDebug && (
+        <div
+          style={{
+            position: "absolute",
+            left: 12,
+            top: 12,
+            padding: "8px 10px",
+            borderRadius: 6,
+            background: "rgba(248, 244, 236, 0.95)",
+            border: "1px solid rgba(0, 0, 0, 0.12)",
+            boxShadow: "0 6px 18px rgba(0, 0, 0, 0.12)",
+            color: "#2b2620",
+            fontSize: 11,
+            lineHeight: 1.35,
+            minWidth: 170,
+            pointerEvents: "auto",
+            zIndex: 5,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+            <div
+              style={{
+                fontSize: 10,
+                fontWeight: 600,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                color: "#6d665e",
+              }}
+            >
+              Topology Debug
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowTopologyDebug(false)}
+              title="Hide topology debug"
+              style={{
+                border: "none",
+                background: "transparent",
+                color: "#6d665e",
+                fontSize: 14,
+                lineHeight: 1,
+                cursor: "pointer",
+                padding: 0,
+              }}
+            >
+              ×
+            </button>
+          </div>
+          <div>Node: {topologyDebug.label ?? topologyDebug.nodeId}</div>
+          <div>Points: {topologyDebug.pointCount ?? "—"}</div>
+          <div>Curves: {topologyDebug.curveCount ?? "—"}</div>
+          <div>
+            Multipipe:{" "}
+            {topologyDebug.multipipeTris != null
+              ? `${topologyDebug.multipipeTris} tris`
+              : "—"}
+          </div>
+          <div>Verts: {topologyDebug.multipipeVerts ?? "—"}</div>
+          <div>
+            Volume:{" "}
+            {topologyDebug.multipipeVolume != null
+              ? topologyDebug.multipipeVolume.toFixed(3)
+              : "—"}
+          </div>
+          <div>
+            Surface:{" "}
+            {topologyDebug.multipipeArea != null
+              ? topologyDebug.multipipeArea.toFixed(3)
+              : "—"}
+          </div>
+          <div>
+            Mesh:{" "}
+            {topologyDebug.multipipeId
+              ? topologyDebug.geometryReady
+                ? "ready"
+                : "missing"
+              : "—"}
+          </div>
+        </div>
+      )}
       {/* Geometry editing control cluster */}
       <div
         style={{
@@ -8408,6 +8571,31 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         >
           GS
         </button>
+        {topologyDebug && (
+          <button
+            type="button"
+            onClick={() => setShowTopologyDebug((prev) => !prev)}
+            title={showTopologyDebug ? "Hide topology debug" : "Show topology debug"}
+            style={{
+              width: 34,
+              height: 28,
+              borderRadius: 4,
+              border: "1px solid rgba(0, 0, 0, 0.15)",
+              background: showTopologyDebug ? "rgba(43, 38, 32, 0.08)" : "transparent",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.04em",
+              color: showTopologyDebug ? "#2b2620" : "#8a847a",
+              pointerEvents: "auto",
+            }}
+          >
+            DBG
+          </button>
+        )}
       </div>
       {snapIndicator && snapScreen && (
         <div

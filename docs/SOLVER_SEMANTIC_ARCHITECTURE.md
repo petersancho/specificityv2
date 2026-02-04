@@ -25,6 +25,7 @@ These solvers run iterative simulations with temporal dynamics, convergence chec
 | **Physics** | ✅ Yes | Equilibrium | Structural mechanics, force balance |
 | **Chemistry** | ✅ Yes | Distribution | Material distribution, particle dynamics |
 | **Evolutionary** | ✅ Yes | Optimization | Genetic algorithms, fitness evolution |
+| **Topology Optimization** | ✅ Yes | Structural Optimization | SIMP density evolution, compliance minimization |
 
 **Characteristics:**
 - Iterative simulation loop
@@ -41,7 +42,6 @@ These solvers perform direct computation or optimization without temporal simula
 | Solver | Simulator | Ontological Type | Domain |
 |--------|-----------|------------------|--------|
 | **Voxel** | ❌ No | Discrete Conversion | Geometry → voxel field conversion |
-| **Topology Optimization** | ❌ No | Structural Optimization | Optimal material layout (future) |
 
 **Characteristics:**
 - Direct computation
@@ -66,7 +66,7 @@ These operations represent the high-level solver computation.
 | `solver.chemistry` | Chemistry | Yes | No (seeded) | No |
 | `solver.evolutionary` | Evolutionary | Yes | No (seeded) | No |
 | `solver.voxel` | Voxel | No | Yes | Yes |
-| `solver.topologyOptimization` | Topology | No | Yes | No |
+| `solver.topologyOptimization` | Topology | Yes | Yes | No |
 
 **Metadata:**
 - `domain`: 'solver'
@@ -153,6 +153,22 @@ These operations represent solver-specific computations.
 |--------------|---------|
 | `solver.voxel.rasterize` | Rasterize geometry to voxels |
 | `solver.voxel.generateField` | Generate voxel field |
+
+#### Topology Optimization Solver
+
+| Operation ID | Purpose |
+|--------------|---------|
+| `solver.topologyOptimization` | Primary topology solver semantic anchor |
+| `solver.topologyOptimization.optimize` | Optimize material layout (SIMP) |
+| `simulator.topology.initialize` | Initialize SIMP density field |
+| `simulator.topology.step` | Execute optimization iteration |
+| `simulator.topology.converge` | Check convergence criteria |
+| `simulator.topology.preview` | Build preview geometry during simulation |
+| `simulator.topology.sync` | Sync preview to Roslyn |
+| `simulator.topology.finalize` | Extract final geometry |
+| `simulator.topology.plasticwrap` | Refine output surface |
+| `simulator.topology.pause` / `simulator.topology.resume` / `simulator.topology.reset` | Control lifecycle |
+| `simulator.topology.stabilityGuard` | Adaptive stability control |
 
 ---
 
@@ -367,13 +383,12 @@ Every user interaction with a solver:
 - Convergence checking (fitness stabilization, diversity loss)
 - Multi-objective optimization (Pareto front)
 
-### Topology Optimization Solver (Phase 8F)
+### Topology Optimization Solver (SIMP) - Implemented
 
-- SIMP (Solid Isotropic Material with Penalization)
-- Sensitivity analysis
-- Density filtering
-- Volume constraint
-- Compliance minimization
+- SIMP density evolution with semantic simulator lifecycle
+- Sensitivity analysis + density filtering
+- Volume constraint + compliance minimization
+- Preview sync and geometry extraction tracked as semantic operations
 
 ### Simulator Dashboard (Phase 8G)
 

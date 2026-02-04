@@ -48,13 +48,10 @@ function project(
  */
 function densityToColor(rho: number): string {
   if (rho < 0.001) return 'rgba(240, 240, 240, 0.1)';
-  
-  // Blue to red gradient
-  const r = Math.floor(rho * 255);
-  const b = Math.floor((1 - rho) * 255);
-  const alpha = 0.3 + rho * 0.7;
-  
-  return `rgba(${r}, 100, ${b}, ${alpha})`;
+
+  // Solid CMYK cyan with density-driven alpha (no rainbow gradients)
+  const alpha = 0.2 + rho * 0.8;
+  return `rgba(0, 212, 255, ${alpha})`;
 }
 
 /**

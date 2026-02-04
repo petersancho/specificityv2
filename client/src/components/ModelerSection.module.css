@@ -69,7 +69,7 @@
   margin: -1px;
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
-  var(--surface-card)-space: nowrap;
+  white-space: nowrap;
   border: 0;
 }
 
@@ -1503,7 +1503,7 @@
 .commandSuggestionsHint {
   font-size: 9px;
   color: var(--color-muted);
-  var(--surface-card)-space: nowrap;
+  white-space: nowrap;
 }
 
 .commandSuggestionList {
@@ -1792,7 +1792,7 @@
   margin: 0;
   font-size: 11px;
   color: var(--color-text);
-  var(--surface-card)-space: nowrap;
+  white-space: nowrap;
 }
 
 .footerHotkeys {
@@ -1906,7 +1906,7 @@
   }
 
   .footerHintDetail {
-    var(--surface-card)-space: normal;
+    white-space: normal;
   }
 }
 

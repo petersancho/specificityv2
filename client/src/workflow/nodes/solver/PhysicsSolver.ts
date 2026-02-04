@@ -305,7 +305,11 @@ export const PhysicsSolverNode: WorkflowNodeDefinition = {
 
     // Register the deformed mesh as geometry with solver metadata
     const outputMesh = finalResult.deformedMesh ?? mesh;
-    const geometryId = `${context.nodeId}:physics-mesh:${Date.now()}`;
+    const providedGeometryId =
+      typeof parameters.geometryId === "string" && parameters.geometryId.trim().length > 0
+        ? parameters.geometryId.trim()
+        : null;
+    const geometryId = providedGeometryId ?? `${context.nodeId}:physics-mesh:${Date.now()}`;
     
     const solverMetadata = createSolverMetadata(
       "physics",

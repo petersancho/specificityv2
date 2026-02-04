@@ -17,6 +17,7 @@ These solvers run iterative simulations with temporal dynamics, convergence chec
 | **Evolutionary** | Ἐπιλύτης Ἐξελικτικός (Darwin) | Evolutionary Optimization | ✅ Setup, Simulator, Output | ✅ Implemented |
 | **Chemistry** | Ἐπιλύτης Χημείας (Apollonius) | Material Distribution | ✅ Setup, Simulator, Output | ✅ Implemented |
 | **Physics** | Ἐπιλύτης Φυσικῆς (Pythagoras) | Stress Analysis | ⏳ Future | ✅ Implemented |
+| **Topology Optimization** | Ἐπιλύτης Τοπολογικῆς Βελτιστοποίησης (Euler) | Structural Optimization (SIMP) | ✅ Setup, Simulator, Output | ✅ Implemented |
 
 ### Solvers without Simulators
 
@@ -25,7 +26,6 @@ These solvers perform direct computation or optimization without temporal simula
 | Solver | Greek Name | Ontological Type | Simulator | Status |
 |--------|------------|------------------|-----------|--------|
 | **Voxel** | Ἐπιλύτης Φογκελ (Archimedes) | Voxelization | ❌ No | ✅ Implemented |
-| **Topology Optimization** | Ἐπιλύτης Τοπολογικῆς Βελτιστοποίησης (Euler) | Structural Optimization | ❌ No | ✅ Implemented |
 
 ---
 
@@ -61,7 +61,7 @@ User Interaction (UI)
 | `solver.chemistry` | Chemistry | Yes | No (seeded) | No |
 | `solver.physics` | Physics | Yes | Yes | No |
 | `solver.voxel` | Voxel | No | Yes | Yes |
-| `solver.topologyOptimization` | Topology Optimization | No | Yes | No |
+| `solver.topologyOptimization` | Topology Optimization | Yes | Yes | No |
 
 #### Layer 2: Simulator Operations
 
@@ -209,25 +209,35 @@ User Interaction (UI)
 **Named After:** Leonhard Euler (topology pioneer, Euler characteristic)  
 **Ontological Type:** Structural Optimization
 
-**Purpose:** Generates topologically optimized structures from input geometry using point cloud generation, curve network generation based on 3D proximity, and multipipe operation.
+**Purpose:** Runs an iterative SIMP simulation to optimize material layout, then extracts point clouds, curve networks, and multipipe geometry from the converged density field. The simulator is semantically instrumented end-to-end so convergence, previews, and finalization are traceable operations.
 
-**Has Simulator:** ❌ No (direct conversion solver)
+**Has Simulator:** ✅ Yes (SIMP simulation with convergence monitoring and dashboard)
 
 **Semantic Operations:**
 - `solver.topologyOptimization` - Primary solver operation
+- `simulator.topology.initialize` - Initialize SIMP field
+- `simulator.topology.step` - Execute optimization iteration
+- `simulator.topology.converge` - Convergence check
+- `simulator.topology.preview` - Build preview geometry
+- `simulator.topology.sync` - Sync preview to Roslyn
+- `simulator.topology.finalize` - Extract final geometry
+- `simulator.topology.plasticwrap` - Optional refinement
+- `simulator.topology.pause` / `simulator.topology.resume` / `simulator.topology.reset`
+- `simulator.topology.stabilityGuard` - Adaptive stability control
 
-**Goal Nodes:** None (direct conversion, no goals)
+**Goal Nodes:** Anchor, Load, Volume, Stiffness (declarative constraints that shape the optimization)
 
 **How It Works:**
-1. **Point Cloud Generation** - Sample points from input geometry surface using stratified sampling
-2. **Curve Network Generation** - Connect nearby points (within connection radius) using 3D Euclidean distance
-3. **Multipipe Operation** - Create cylindrical pipes along all curves and merge into single mesh
+1. **SIMP Simulation** - Iterate density field to satisfy structural goals under constraints
+2. **Convergence Check** - Stop on tolerance or iteration limit
+3. **Geometry Extraction** - Point cloud → curve network → multipipe mesh
+4. **Refinement** - Optional plasticwrap pass for a production-grade surface
 
 **Parameters:**
-- Point Density (10-1000, default: 100)
-- Connection Radius (0.01-5.0, default: 0.5)
-- Pipe Radius (0.01-1.0, default: 0.05)
-- Random Seed (0-9999, default: 42)
+- SIMP grid resolution (`nx`, `ny`, `nz`)
+- Volume fraction, penalization, filter radius, convergence tolerance
+- FE solver tolerances (`cgTol`, `cgMaxIters`)
+- Geometry extraction controls (density threshold, connectivity, pipe radius)
 
 **Outputs:**
 - Optimized Mesh (multipipe result)
@@ -235,7 +245,7 @@ User Interaction (UI)
 - Curve Network (for visualization)
 - Statistics (point count, curve count, volume, surface area)
 
-**Mathematical Foundation:** Stratified sampling, 3D proximity-based curve network construction, cylindrical pipe mesh generation
+**Mathematical Foundation:** SIMP topology optimization, finite element compliance minimization, stratified sampling, proximity-based curve networks, cylindrical pipe mesh generation
 
 **Documentation:** `docs/solvers/TOPOLOGY_OPTIMIZATION_SOLVER.md`
 

@@ -2036,6 +2036,301 @@
     "stable": true,
     "since": "1.0.0"
   },
+  "simulator.voxel.initialize": {
+    "id": "simulator.voxel.initialize",
+    "domain": "solver",
+    "name": "Initialize Voxel Simulator",
+    "category": "utility",
+    "tags": [
+      "simulation",
+      "voxel",
+      "grid"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": false,
+    "deterministic": true,
+    "sideEffects": [
+      "state"
+    ],
+    "summary": "Prepares voxel grid bounds and resolution",
+    "stable": true,
+    "since": "2.0.0"
+  },
+  "simulator.voxel.step": {
+    "id": "simulator.voxel.step",
+    "domain": "solver",
+    "name": "Voxelize Geometry",
+    "category": "conversion",
+    "tags": [
+      "simulation",
+      "voxel",
+      "discretization"
+    ],
+    "complexity": "O(n)",
+    "cost": "medium",
+    "pure": false,
+    "deterministic": true,
+    "sideEffects": [
+      "state"
+    ],
+    "summary": "Samples geometry occupancy into a voxel grid",
+    "stable": true,
+    "since": "2.0.0"
+  },
+  "simulator.voxel.finalize": {
+    "id": "simulator.voxel.finalize",
+    "domain": "solver",
+    "name": "Finalize Voxel Simulator",
+    "category": "utility",
+    "tags": [
+      "simulation",
+      "voxel",
+      "mesh"
+    ],
+    "complexity": "O(n)",
+    "cost": "medium",
+    "pure": false,
+    "deterministic": true,
+    "sideEffects": [
+      "state"
+    ],
+    "summary": "Generates voxel mesh and statistics",
+    "stable": true,
+    "since": "2.0.0"
+  },
+  "simulator.topology.initialize": {
+    "id": "simulator.topology.initialize",
+    "domain": "solver",
+    "name": "Initialize Topology Simulator",
+    "category": "utility",
+    "tags": [
+      "simulation",
+      "topology",
+      "optimization"
+    ],
+    "complexity": "O(n)",
+    "cost": "medium",
+    "pure": false,
+    "deterministic": true,
+    "sideEffects": [
+      "state"
+    ],
+    "summary": "Initializes SIMP density field and topology constraints",
+    "stable": true,
+    "since": "2.0.0"
+  },
+  "simulator.topology.step": {
+    "id": "simulator.topology.step",
+    "domain": "solver",
+    "name": "Step Topology Simulator",
+    "category": "utility",
+    "tags": [
+      "simulation",
+      "topology",
+      "optimization"
+    ],
+    "complexity": "O(n)",
+    "cost": "high",
+    "pure": false,
+    "deterministic": true,
+    "sideEffects": [
+      "state"
+    ],
+    "summary": "Executes one SIMP optimization iteration",
+    "stable": true,
+    "since": "2.0.0"
+  },
+  "simulator.topology.converge": {
+    "id": "simulator.topology.converge",
+    "domain": "solver",
+    "name": "Check Topology Convergence",
+    "category": "analysis",
+    "tags": [
+      "simulation",
+      "topology",
+      "optimization"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Checks topology optimization convergence criteria",
+    "stable": true,
+    "since": "2.0.0"
+  },
+  "simulator.topology.finalize": {
+    "id": "simulator.topology.finalize",
+    "domain": "solver",
+    "name": "Finalize Topology Simulator",
+    "category": "utility",
+    "tags": [
+      "simulation",
+      "topology",
+      "geometry"
+    ],
+    "complexity": "O(n)",
+    "cost": "high",
+    "pure": false,
+    "deterministic": true,
+    "sideEffects": [
+      "state"
+    ],
+    "summary": "Extracts and registers topology geometry from the density field",
+    "stable": true,
+    "since": "2.0.0"
+  },
+  "simulator.topology.preview": {
+    "id": "simulator.topology.preview",
+    "domain": "solver",
+    "name": "Preview Topology Geometry",
+    "category": "analysis",
+    "tags": [
+      "simulation",
+      "topology",
+      "analysis",
+      "view"
+    ],
+    "complexity": "O(n)",
+    "cost": "medium",
+    "pure": false,
+    "deterministic": true,
+    "sideEffects": [
+      "state"
+    ],
+    "summary": "Builds lightweight preview geometry during simulation",
+    "stable": true,
+    "since": "2.1.0"
+  },
+  "simulator.topology.sync": {
+    "id": "simulator.topology.sync",
+    "domain": "solver",
+    "name": "Sync Topology Geometry",
+    "category": "io",
+    "tags": [
+      "simulation",
+      "topology",
+      "state",
+      "display"
+    ],
+    "complexity": "O(n)",
+    "cost": "medium",
+    "pure": false,
+    "deterministic": true,
+    "sideEffects": [
+      "state"
+    ],
+    "summary": "Synchronizes preview geometry into Roslyn viewport",
+    "stable": true,
+    "since": "2.1.0"
+  },
+  "simulator.topology.pause": {
+    "id": "simulator.topology.pause",
+    "domain": "solver",
+    "name": "Pause Topology Simulator",
+    "category": "utility",
+    "tags": [
+      "simulation",
+      "topology",
+      "control"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": false,
+    "deterministic": true,
+    "sideEffects": [
+      "state"
+    ],
+    "summary": "Pauses topology optimization iteration loop",
+    "stable": true,
+    "since": "2.1.0"
+  },
+  "simulator.topology.resume": {
+    "id": "simulator.topology.resume",
+    "domain": "solver",
+    "name": "Resume Topology Simulator",
+    "category": "utility",
+    "tags": [
+      "simulation",
+      "topology",
+      "control"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": false,
+    "deterministic": true,
+    "sideEffects": [
+      "state"
+    ],
+    "summary": "Resumes topology optimization iteration loop",
+    "stable": true,
+    "since": "2.1.0"
+  },
+  "simulator.topology.reset": {
+    "id": "simulator.topology.reset",
+    "domain": "solver",
+    "name": "Reset Topology Simulator",
+    "category": "utility",
+    "tags": [
+      "simulation",
+      "topology",
+      "control"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": false,
+    "deterministic": true,
+    "sideEffects": [
+      "state"
+    ],
+    "summary": "Resets topology simulation state and clears outputs",
+    "stable": true,
+    "since": "2.1.0"
+  },
+  "simulator.topology.plasticwrap": {
+    "id": "simulator.topology.plasticwrap",
+    "domain": "solver",
+    "name": "Plasticwrap Topology Geometry",
+    "category": "utility",
+    "tags": [
+      "simulation",
+      "topology",
+      "geometry"
+    ],
+    "complexity": "O(n)",
+    "cost": "medium",
+    "pure": false,
+    "deterministic": true,
+    "sideEffects": [
+      "state"
+    ],
+    "summary": "Applies plasticwrap smoothing pass to topology output",
+    "stable": true,
+    "since": "2.1.0"
+  },
+  "simulator.topology.stabilityGuard": {
+    "id": "simulator.topology.stabilityGuard",
+    "domain": "solver",
+    "name": "Topology Stability Guard",
+    "category": "analysis",
+    "tags": [
+      "simulation",
+      "topology",
+      "analysis",
+      "control"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": false,
+    "deterministic": true,
+    "sideEffects": [
+      "state"
+    ],
+    "summary": "Escalates convergence strategy when FE solver stalls repeatedly",
+    "stable": true,
+    "since": "2.1.0"
+  },
   "simulator.chemistry.initialize": {
     "id": "simulator.chemistry.initialize",
     "domain": "solver",
@@ -2181,7 +2476,7 @@
     "category": "analysis",
     "tags": [
       "chemistry",
-      "validation"
+      "analysis"
     ],
     "complexity": "O(n)",
     "cost": "low",
@@ -2199,7 +2494,8 @@
     "category": "analysis",
     "tags": [
       "chemistry",
-      "gradients"
+      "field",
+      "vector"
     ],
     "complexity": "O(n)",
     "cost": "high",
@@ -2235,7 +2531,8 @@
     "category": "analysis",
     "tags": [
       "chemistry",
-      "conservation"
+      "analysis",
+      "physics"
     ],
     "complexity": "O(n)",
     "cost": "medium",
@@ -3840,6 +4137,47 @@
     "deterministic": true,
     "sideEffects": [],
     "summary": "Creates a primitive geometry shape",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive.box": {
+    "id": "geometry.primitive.box",
+    "domain": "geometry",
+    "name": "Box",
+    "category": "primitive",
+    "tags": [
+      "geometry",
+      "primitive",
+      "box",
+      "cube",
+      "3d"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a box primitive with width, height, and depth",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.primitive.sphere": {
+    "id": "geometry.primitive.sphere",
+    "domain": "geometry",
+    "name": "Sphere",
+    "category": "primitive",
+    "tags": [
+      "geometry",
+      "primitive",
+      "sphere",
+      "3d"
+    ],
+    "complexity": "O(1)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "sideEffects": [],
+    "summary": "Creates a spherical primitive with a specified radius",
     "stable": true,
     "since": "1.0.0"
   },

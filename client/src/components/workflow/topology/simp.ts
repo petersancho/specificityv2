@@ -198,18 +198,38 @@ async function* runSimp2D(
 
   let prevCompliance = Infinity;
   let consecutiveConverged = 0;
-
   for (let iter = 1; iter <= params.maxIters; iter++) {
+    const emitEvery = Math.max(1, Math.round(params.emitEvery ?? 1));
+    const yieldEvery = Math.max(1, Math.round(params.yieldEvery ?? emitEvery));
+    const cgBoostFactor = Math.max(1, params.cgBoostFactor ?? 1);
+    const cgBoostMax = Math.min(
+      20000,
+      Math.round(params.cgMaxIters * cgBoostFactor)
+    );
     const penal = schedulePenal(iter, params);
     const rhoBar = applyDensityFilter(densities, filter);
     const K = assembleKCSR(model, rhoBar, penal, params.E0, params.Emin, Ke0);
-    const { u, converged: solverConverged } = solveFE(
+    let { u, converged: solverConverged, iters: solverIters } = solveFE(
       K,
       model.forces,
       model.fixedDofs,
       params.cgTol,
       params.cgMaxIters
     );
+    if (!solverConverged && cgBoostMax > params.cgMaxIters) {
+      const boosted = solveFE(
+        K,
+        model.forces,
+        model.fixedDofs,
+        params.cgTol,
+        cgBoostMax
+      );
+      if (boosted.converged) {
+        u = boosted.u;
+        solverConverged = true;
+        solverIters = boosted.iters;
+      }
+    }
     if (!solverConverged) {
       if (params.strictConvergence) {
         throw new Error(`Iteration ${iter}: FE solver did not converge`);
@@ -242,33 +262,41 @@ async function* runSimp2D(
     vol /= model.numElems;
 
     densities = newDensities;
-    const converged = checkConvergence(compliance, prevCompliance, maxChange, params.tolChange);
-    if (converged) {
+    const stepConverged = checkConvergence(compliance, prevCompliance, maxChange, params.tolChange);
+    if (stepConverged) {
       consecutiveConverged++;
     } else {
       consecutiveConverged = 0;
     }
 
-    const densitiesF32 = new Float32Array(densities.length);
-    for (let i = 0; i < densities.length; i++) {
-      densitiesF32[i] = densities[i];
+    const stabilized = consecutiveConverged >= 3;
+    const shouldEmit =
+      iter === 1 || stabilized || iter === params.maxIters || iter % emitEvery === 0;
+    if (shouldEmit) {
+      const densitiesF32 = new Float32Array(densities.length);
+      for (let i = 0; i < densities.length; i++) {
+        densitiesF32[i] = densities[i];
+      }
+      yield {
+        iter,
+        compliance,
+        change: maxChange,
+        vol,
+        densities: densitiesF32,
+        converged: stabilized,
+        feConverged: solverConverged,
+        feIters: solverIters,
+      };
     }
 
-    yield {
-      iter,
-      compliance,
-      change: maxChange,
-      vol,
-      densities: densitiesF32,
-      converged: consecutiveConverged >= 3,
-    };
-
-    if (consecutiveConverged >= 3) {
+    if (stabilized) {
       break;
     }
 
     prevCompliance = compliance;
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    if (iter % yieldEvery === 0) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
   }
 }
 
@@ -336,18 +364,38 @@ async function* runSimp3D(
 
   let prevCompliance = Infinity;
   let consecutiveConverged = 0;
-
   for (let iter = 1; iter <= params.maxIters; iter++) {
+    const emitEvery = Math.max(1, Math.round(params.emitEvery ?? 1));
+    const yieldEvery = Math.max(1, Math.round(params.yieldEvery ?? emitEvery));
+    const cgBoostFactor = Math.max(1, params.cgBoostFactor ?? 1);
+    const cgBoostMax = Math.min(
+      20000,
+      Math.round(params.cgMaxIters * cgBoostFactor)
+    );
     const penal = schedulePenal(iter, params);
     const rhoBar = applyDensityFilter(densities, filter);
     const K = assembleKCSR3D(model, rhoBar, penal, params.E0, params.Emin, Ke0);
-    const { u, converged: solverConverged } = solveFE(
+    let { u, converged: solverConverged, iters: solverIters } = solveFE(
       K,
       model.forces,
       model.fixedDofs,
       params.cgTol,
       params.cgMaxIters
     );
+    if (!solverConverged && cgBoostMax > params.cgMaxIters) {
+      const boosted = solveFE(
+        K,
+        model.forces,
+        model.fixedDofs,
+        params.cgTol,
+        cgBoostMax
+      );
+      if (boosted.converged) {
+        u = boosted.u;
+        solverConverged = true;
+        solverIters = boosted.iters;
+      }
+    }
     if (!solverConverged) {
       if (params.strictConvergence) {
         throw new Error(`Iteration ${iter}: FE solver did not converge`);
@@ -380,33 +428,41 @@ async function* runSimp3D(
     vol /= model.numElems;
 
     densities = newDensities;
-    const converged = checkConvergence(compliance, prevCompliance, maxChange, params.tolChange);
-    if (converged) {
+    const stepConverged = checkConvergence(compliance, prevCompliance, maxChange, params.tolChange);
+    if (stepConverged) {
       consecutiveConverged++;
     } else {
       consecutiveConverged = 0;
     }
 
-    const densitiesF32 = new Float32Array(densities.length);
-    for (let i = 0; i < densities.length; i++) {
-      densitiesF32[i] = densities[i];
+    const stabilized = consecutiveConverged >= 3;
+    const shouldEmit =
+      iter === 1 || stabilized || iter === params.maxIters || iter % emitEvery === 0;
+    if (shouldEmit) {
+      const densitiesF32 = new Float32Array(densities.length);
+      for (let i = 0; i < densities.length; i++) {
+        densitiesF32[i] = densities[i];
+      }
+      yield {
+        iter,
+        compliance,
+        change: maxChange,
+        vol,
+        densities: densitiesF32,
+        converged: stabilized,
+        feConverged: solverConverged,
+        feIters: solverIters,
+      };
     }
 
-    yield {
-      iter,
-      compliance,
-      change: maxChange,
-      vol,
-      densities: densitiesF32,
-      converged: consecutiveConverged >= 3,
-    };
-
-    if (consecutiveConverged >= 3) {
+    if (stabilized) {
       break;
     }
 
     prevCompliance = compliance;
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    if (iter % yieldEvery === 0) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
   }
 }
 

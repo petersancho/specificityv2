@@ -9257,7 +9257,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
 
       const meshA = geometryA && "mesh" in geometryA ? geometryA.mesh : null;
       const meshB = geometryB && "mesh" in geometryB ? geometryB.mesh : null;
-      if (!meshA || !meshB) {
+      if (!meshA || !meshB || !geometryA || !geometryB) {
         return {
           geometry: geometryId,
           mesh: { positions: [], normals: [], uvs: [], indices: [] },

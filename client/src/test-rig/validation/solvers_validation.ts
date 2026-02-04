@@ -11,11 +11,11 @@ const CATEGORY = "solvers";
 
 const nowTimestamp = () => new Date().toISOString();
 
-const ensure = (condition: boolean, message: string) => {
+function ensure(condition: boolean, message: string): asserts condition {
   if (!condition) {
     throw new Error(message);
   }
-};
+}
 
 const ensureFinite = (value: number, message: string) => {
   ensure(Number.isFinite(value), message);
@@ -180,7 +180,9 @@ const runNodeValidation = (nodeName: string, fn: () => void) => {
 };
 
 const validatePhysicsStatic = () => {
-  const { outputs, outputGeometry, baseGeometry, goals, config } = runPhysicsSolverRig("static");
+  const rig = runPhysicsSolverRig("static");
+  const outputs = rig.outputs as any;
+  const { outputGeometry, baseGeometry, goals, config } = rig;
   const baseVertexCount = Math.floor(baseGeometry.mesh.positions.length / 3);
   ensure(outputs.geometry === "physics-static-out", "Expected geometry id to match");
   ensure(outputs.result.success === true, "Expected physics solver success");
@@ -205,14 +207,17 @@ const validatePhysicsStatic = () => {
     report.stats.displacements.nonFiniteCount === 0,
     "Expected finite displacements"
   );
-  ensure(
-    report.stats.stressField.nonFiniteCount === 0,
-    "Expected finite stress field"
-  );
+  let stressNonFiniteCount = 0;
+  for (let i = 0; i < outputs.stressField.length; i += 1) {
+    if (!Number.isFinite(outputs.stressField[i])) stressNonFiniteCount += 1;
+  }
+  ensure(stressNonFiniteCount === 0, "Expected finite stress field");
 };
 
 const validatePhysicsDynamic = () => {
-  const { outputs, outputGeometry, baseGeometry, parameters, goals, config } = runPhysicsSolverRig("dynamic");
+  const rig = runPhysicsSolverRig("dynamic");
+  const outputs = rig.outputs as any;
+  const { outputGeometry, baseGeometry, parameters, goals, config } = rig;
   const baseVertexCount = Math.floor(baseGeometry.mesh.positions.length / 3);
   ensure(outputs.geometry === "physics-dynamic-out", "Expected geometry id to match");
   ensure(outputs.result.success === true, "Expected physics solver success");
@@ -240,7 +245,9 @@ const validatePhysicsDynamic = () => {
 };
 
 const validatePhysicsModal = () => {
-  const { outputs, outputGeometry, baseGeometry, goals, config } = runPhysicsSolverRig("modal");
+  const rig = runPhysicsSolverRig("modal");
+  const outputs = rig.outputs as any;
+  const { outputGeometry, baseGeometry, goals, config } = rig;
   ensure(outputs.geometry === "physics-modal-out", "Expected geometry id to match");
   ensure(outputs.result.success === true, "Expected physics solver success");
   ensure(outputs.animation !== null, "Expected animation for modal analysis");
@@ -264,7 +271,10 @@ const validatePhysicsModal = () => {
 };
 
 const validateVoxelSolver = () => {
-  const { outputs, isoOutputs, outputGeometry, parameters } = runTopologySolverRig("voxelSolver");
+  const rig = runTopologySolverRig("voxelSolver");
+  const outputs = rig.outputs as any;
+  const isoOutputs = rig.isoOutputs as any;
+  const { outputGeometry, parameters } = rig;
   ensure(outputs.status === "complete", "Expected voxel solver complete");
   ensure(Array.isArray(outputs.densityField), "Expected density field array");
   ensure(outputs.densityField.length > 0, "Expected density field data");
@@ -290,7 +300,9 @@ const validateVoxelSolver = () => {
 };
 
 const validateChemistrySolver = () => {
-  const { outputs, outputGeometry, goalRegions, context } = runChemistrySolverRig("regions");
+  const rig = runChemistrySolverRig("regions");
+  const outputs = rig.outputs as any;
+  const { outputGeometry, goalRegions, context } = rig;
   ensure(outputs.status === "complete", "Expected chemistry solver complete");
   ensure(goalRegions.stiffness.length > 0, "Expected stiffness goal regions");
   ensure(goalRegions.transparency.length > 0, "Expected transparency goal regions");
@@ -314,8 +326,10 @@ const validateChemistrySolver = () => {
     ensure(outputs.materialField.channels.length === outputs.materialField.materials.length, "Expected one channel per material");
   }
   const materialNames = outputs.materials
-    .map((material) => (material && typeof material === "object" ? (material as { name?: unknown }).name : null))
-    .filter((name): name is string => typeof name === "string");
+    .map((material: unknown) =>
+      material && typeof material === "object" ? (material as { name?: unknown }).name : null
+    )
+    .filter((name: unknown): name is string => typeof name === "string");
   if (materialNames.length > 0) {
     const particles = (outputs.materialParticles as unknown[]).filter(
       (particle): particle is { materials?: Record<string, unknown> } => {
@@ -327,7 +341,7 @@ const validateChemistrySolver = () => {
     const MIN_MAX_CONCENTRATION = 0.05;
     const SAMPLE_LIMIT = 2000;
     const sampledParticles = particles.slice(0, SAMPLE_LIMIT);
-    materialNames.forEach((name) => {
+    materialNames.forEach((name: string) => {
       let max = 0;
       sampledParticles.forEach((particle) => {
         const raw = particle.materials?.[name];
@@ -343,7 +357,9 @@ const validateChemistrySolver = () => {
 };
 
 const validateChemistrySolverTextInputs = () => {
-  const { outputs, outputGeometry, goalRegions, context, parameters } = runChemistrySolverRig("textInputs");
+  const rig = runChemistrySolverRig("textInputs");
+  const outputs = rig.outputs as any;
+  const { outputGeometry, goalRegions, context, parameters } = rig;
   ensure(outputs.status === "complete", "Expected chemistry solver complete");
   ensure(goalRegions.stiffness.length > 0, "Expected stiffness goal regions");
   ensure(goalRegions.transparency.length > 0, "Expected transparency goal regions");
@@ -389,9 +405,11 @@ const validateChemistrySolverTextInputs = () => {
       .filter(isTextMaterialEntry)
       .map((entry) => ("material" in entry ? entry.material.name : entry.name));
     const outputNames = outputs.materials
-      .map((material) => (material && typeof material === "object" ? (material as any).name : null))
-      .filter((name): name is string => typeof name === "string");
-    expectedNames.forEach((name) => {
+      .map((material: unknown) =>
+        material && typeof material === "object" ? (material as { name?: unknown }).name : null
+      )
+      .filter((name: unknown): name is string => typeof name === "string");
+    expectedNames.forEach((name: string) => {
       ensure(outputNames.includes(name), `Expected parsed materialsText to include ${name}`);
     });
   }
@@ -401,7 +419,8 @@ const validateChemistrySolverTextInputs = () => {
 };
 
 const validateChemistrySolverDisabled = () => {
-  const { outputs } = runChemistrySolverRig("disabled");
+  const rig = runChemistrySolverRig("disabled");
+  const outputs = rig.outputs as any;
   ensure(outputs.status === "disabled", "Expected chemistry solver disabled");
   ensure(outputs.materialParticles.length === 0, "Expected no chemistry particles");
   ensure(outputs.materialField === null, "Expected no chemistry field");

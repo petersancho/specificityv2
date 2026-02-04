@@ -12,6 +12,8 @@ uniform float opacity;
 uniform float sheenIntensity;
 uniform float ambientStrength;
 uniform float useVertexColor;
+uniform float clearcoatIntensity;
+uniform float clearcoatRoughness;
 varying vec3 vNormal;
 varying vec3 vPosition;
 varying vec3 vColor;
@@ -58,8 +60,17 @@ void main() {
   float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 3.0);
   vec3 sheenColor = mix(baseColor, vec3(1.0), 0.5); // Whiter sheen
   vec3 rim = sheenColor * (sheenIntensity * fresnel * 2.5);
+
+  // Clearcoat (plastic wrap highlight)
+  float coat = clamp(clearcoatIntensity, 0.0, 1.0);
+  float rough = clamp(clearcoatRoughness, 0.02, 1.0);
+  float coatPower = mix(160.0, 30.0, rough);
+  float coatSpec = pow(specAngle, coatPower);
+  float coatFresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 4.0);
+  vec3 coatColor = mix(vec3(1.0), baseColor, 0.08);
+  vec3 clearcoat = coatColor * coatSpec * (0.25 + 0.75 * coatFresnel) * coat;
   
-  vec3 color = diffuse + specularColor + rim;
+  vec3 color = diffuse + specularColor + rim + clearcoat;
   
   vec3 highlightTarget = clamp(color + selectionHighlight, 0.0, 1.0);
   color = mix(color, highlightTarget, clamp(isSelected, 0.0, 1.0));
