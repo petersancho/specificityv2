@@ -4878,7 +4878,7 @@ const applyPlasticwrapNodesToGeometry = (
         const relaxed = meshRelax(tessellation, relaxIterations, relaxStrength, true);
         const relaxedMesh = tessellationMeshToRenderMesh(relaxed);
         targetSamples = buildTargetSamples(
-          { ...target, mesh: relaxedMesh },
+          { ...target, mesh: relaxedMesh } as Geometry,
           geometryById
         );
       } catch (error) {

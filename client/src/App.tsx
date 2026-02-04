@@ -1,7 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
 import WebGLAppTopBar from "./components/WebGLAppTopBar";
-import { useUiTheme } from "./hooks/useUiTheme";
 import DocumentationPage from "./components/DocumentationPage";
 import ModelerSection from "./components/ModelerSection";
 import WorkflowSection from "./components/workflow/WorkflowSection";
@@ -169,7 +168,6 @@ const App = () => {
   const [showIntroOverlay, setShowIntroOverlay] = useState(true);
   const [isCapturing, setIsCapturing] = useState(false);
   const [capturePreview, setCapturePreview] = useState<{ url: string; label: string } | null>(null);
-  const { theme, toggleTheme } = useUiTheme();
 
   const setMaterials = useProjectStore((state) => state.setMaterials);
   const loadProject = useProjectStore((state) => state.loadProject);
@@ -696,8 +694,6 @@ const App = () => {
           status={status}
           docsHref={isDocsPage ? "#/" : "#/docs"}
           docsActive={isDocsPage}
-          theme={theme}
-          onToggleTheme={toggleTheme}
         />
       )}
 

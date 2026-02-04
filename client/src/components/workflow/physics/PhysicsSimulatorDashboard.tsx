@@ -1,7 +1,6 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useState } from "react";
 import styles from "./PhysicsSimulatorDashboard.module.css";
 import { useProjectStore } from "../../../store/useProjectStore";
-import { semanticOpEnd, semanticOpStart, withSemanticOpSync } from "../../../semantic/semanticTracer";
 
 const toNumber = (value: unknown, fallback: number) => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -37,7 +36,6 @@ export const PhysicsSimulatorDashboard: React.FC<PhysicsSimulatorDashboardProps>
 }) => {
   const [activeTab, setActiveTab] = useState<"setup" | "simulator" | "output">("setup");
   const [scale, setScale] = useState(100);
-  const semanticRunIdRef = useRef<string | null>(null);
 
   const { nodes, edges, updateNodeData, recalculateWorkflow } = useProjectStore(
     (state) => ({
@@ -80,25 +78,7 @@ export const PhysicsSimulatorDashboard: React.FC<PhysicsSimulatorDashboardProps>
   };
 
   const handleRun = () => {
-    const runId = `${nodeId}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 8)}`;
-    semanticRunIdRef.current = runId;
-    semanticOpStart({ nodeId, runId, opId: "simulator.physics.initialize" });
-    semanticOpEnd({ nodeId, runId, opId: "simulator.physics.initialize", ok: true });
-    try {
-      withSemanticOpSync({ nodeId, runId, opId: "simulator.physics.step" }, () => {
-        recalculateWorkflow();
-      });
-      semanticOpStart({ nodeId, runId, opId: "simulator.physics.finalize" });
-      semanticOpEnd({ nodeId, runId, opId: "simulator.physics.finalize", ok: true });
-    } catch (error) {
-      semanticOpEnd({
-        nodeId,
-        runId,
-        opId: "simulator.physics.finalize",
-        ok: false,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
+    recalculateWorkflow();
   };
 
   const stressField = Array.isArray(outputs.stressField)
