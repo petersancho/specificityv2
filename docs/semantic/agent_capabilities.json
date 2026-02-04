@@ -1,0 +1,4365 @@
+{
+  "meta": {
+    "version": "2.0.0",
+    "generatedAt": "2026-02-04T13:05:32.592Z",
+    "operationCount": 202
+  },
+  "capabilities": {
+    "math.add": {
+      "opId": "math.add",
+      "intent": "Adds two numbers",
+      "signature": {
+        "name": "math_add",
+        "description": "Adds two numbers",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.subtract": {
+      "opId": "math.subtract",
+      "intent": "Subtracts one number from another",
+      "signature": {
+        "name": "math_subtract",
+        "description": "Subtracts one number from another",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.multiply": {
+      "opId": "math.multiply",
+      "intent": "Multiplies two numbers",
+      "signature": {
+        "name": "math_multiply",
+        "description": "Multiplies two numbers",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.divide": {
+      "opId": "math.divide",
+      "intent": "Divides one number by another",
+      "signature": {
+        "name": "math_divide",
+        "description": "Divides one number by another",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.modulo": {
+      "opId": "math.modulo",
+      "intent": "Computes the remainder of division",
+      "signature": {
+        "name": "math_modulo",
+        "description": "Computes the remainder of division",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.power": {
+      "opId": "math.power",
+      "intent": "Raises a number to a power",
+      "signature": {
+        "name": "math_power",
+        "description": "Raises a number to a power",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.floor": {
+      "opId": "math.floor",
+      "intent": "Rounds down to the nearest integer",
+      "signature": {
+        "name": "math_floor",
+        "description": "Rounds down to the nearest integer",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.ceil": {
+      "opId": "math.ceil",
+      "intent": "Rounds up to the nearest integer",
+      "signature": {
+        "name": "math_ceil",
+        "description": "Rounds up to the nearest integer",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.round": {
+      "opId": "math.round",
+      "intent": "Rounds to the nearest integer",
+      "signature": {
+        "name": "math_round",
+        "description": "Rounds to the nearest integer",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.abs": {
+      "opId": "math.abs",
+      "intent": "Computes the absolute value",
+      "signature": {
+        "name": "math_abs",
+        "description": "Computes the absolute value",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.negate": {
+      "opId": "math.negate",
+      "intent": "Negates a number",
+      "signature": {
+        "name": "math_negate",
+        "description": "Negates a number",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.sqrt": {
+      "opId": "math.sqrt",
+      "intent": "Computes the square root",
+      "signature": {
+        "name": "math_sqrt",
+        "description": "Computes the square root",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.sin": {
+      "opId": "math.sin",
+      "intent": "Computes the sine of an angle",
+      "signature": {
+        "name": "math_sin",
+        "description": "Computes the sine of an angle",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.cos": {
+      "opId": "math.cos",
+      "intent": "Computes the cosine of an angle",
+      "signature": {
+        "name": "math_cos",
+        "description": "Computes the cosine of an angle",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.tan": {
+      "opId": "math.tan",
+      "intent": "Computes the tangent of an angle",
+      "signature": {
+        "name": "math_tan",
+        "description": "Computes the tangent of an angle",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.asin": {
+      "opId": "math.asin",
+      "intent": "Computes the arcsine",
+      "signature": {
+        "name": "math_asin",
+        "description": "Computes the arcsine",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.acos": {
+      "opId": "math.acos",
+      "intent": "Computes the arccosine",
+      "signature": {
+        "name": "math_acos",
+        "description": "Computes the arccosine",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.atan": {
+      "opId": "math.atan",
+      "intent": "Computes the arctangent",
+      "signature": {
+        "name": "math_atan",
+        "description": "Computes the arctangent",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.atan2": {
+      "opId": "math.atan2",
+      "intent": "Computes the arctangent of y/x",
+      "signature": {
+        "name": "math_atan2",
+        "description": "Computes the arctangent of y/x",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.exp": {
+      "opId": "math.exp",
+      "intent": "Computes e raised to a power",
+      "signature": {
+        "name": "math_exp",
+        "description": "Computes e raised to a power",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.log": {
+      "opId": "math.log",
+      "intent": "Computes the natural logarithm",
+      "signature": {
+        "name": "math_log",
+        "description": "Computes the natural logarithm",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.log10": {
+      "opId": "math.log10",
+      "intent": "Computes the base-10 logarithm",
+      "signature": {
+        "name": "math_log10",
+        "description": "Computes the base-10 logarithm",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.min": {
+      "opId": "math.min",
+      "intent": "Returns the smaller of two numbers",
+      "signature": {
+        "name": "math_min",
+        "description": "Returns the smaller of two numbers",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.max": {
+      "opId": "math.max",
+      "intent": "Returns the larger of two numbers",
+      "signature": {
+        "name": "math_max",
+        "description": "Returns the larger of two numbers",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.clamp": {
+      "opId": "math.clamp",
+      "intent": "Clamps a value between min and max",
+      "signature": {
+        "name": "math_clamp",
+        "description": "Clamps a value between min and max",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.lerp": {
+      "opId": "math.lerp",
+      "intent": "Linearly interpolates between two values",
+      "signature": {
+        "name": "math_lerp",
+        "description": "Linearly interpolates between two values",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.remap": {
+      "opId": "math.remap",
+      "intent": "Remaps a value from one range to another",
+      "signature": {
+        "name": "math_remap",
+        "description": "Remaps a value from one range to another",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.equal": {
+      "opId": "math.equal",
+      "intent": "Checks if two numbers are equal",
+      "signature": {
+        "name": "math_equal",
+        "description": "Checks if two numbers are equal",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.notEqual": {
+      "opId": "math.notEqual",
+      "intent": "Checks if two numbers are not equal",
+      "signature": {
+        "name": "math_notEqual",
+        "description": "Checks if two numbers are not equal",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.lessThan": {
+      "opId": "math.lessThan",
+      "intent": "Checks if one number is less than another",
+      "signature": {
+        "name": "math_lessThan",
+        "description": "Checks if one number is less than another",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.lessThanOrEqual": {
+      "opId": "math.lessThanOrEqual",
+      "intent": "Checks if one number is less than or equal to another",
+      "signature": {
+        "name": "math_lessThanOrEqual",
+        "description": "Checks if one number is less than or equal to another",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.greaterThan": {
+      "opId": "math.greaterThan",
+      "intent": "Checks if one number is greater than another",
+      "signature": {
+        "name": "math_greaterThan",
+        "description": "Checks if one number is greater than another",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.greaterThanOrEqual": {
+      "opId": "math.greaterThanOrEqual",
+      "intent": "Checks if one number is greater than or equal to another",
+      "signature": {
+        "name": "math_greaterThanOrEqual",
+        "description": "Checks if one number is greater than or equal to another",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.random": {
+      "opId": "math.random",
+      "intent": "Generates a random number",
+      "signature": {
+        "name": "math_random",
+        "description": "Generates a random number",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "math.sum": {
+      "opId": "math.sum",
+      "intent": "Computes the sum of an array of numbers",
+      "signature": {
+        "name": "math_sum",
+        "description": "Computes the sum of an array of numbers",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.average": {
+      "opId": "math.average",
+      "intent": "Computes the average of an array of numbers",
+      "signature": {
+        "name": "math_average",
+        "description": "Computes the average of an array of numbers",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.median": {
+      "opId": "math.median",
+      "intent": "Computes the median of an array of numbers",
+      "signature": {
+        "name": "math_median",
+        "description": "Computes the median of an array of numbers",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.stdDev": {
+      "opId": "math.stdDev",
+      "intent": "Computes the standard deviation of an array of numbers",
+      "signature": {
+        "name": "math_stdDev",
+        "description": "Computes the standard deviation of an array of numbers",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "math.expression": {
+      "opId": "math.expression",
+      "intent": "Evaluates a mathematical expression",
+      "signature": {
+        "name": "math_expression",
+        "description": "Evaluates a mathematical expression",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "vector.add": {
+      "opId": "vector.add",
+      "intent": "Adds two vectors",
+      "signature": {
+        "name": "vector_add",
+        "description": "Adds two vectors",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "vector.subtract": {
+      "opId": "vector.subtract",
+      "intent": "Subtracts one vector from another",
+      "signature": {
+        "name": "vector_subtract",
+        "description": "Subtracts one vector from another",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "vector.multiply": {
+      "opId": "vector.multiply",
+      "intent": "Multiplies a vector by a scalar",
+      "signature": {
+        "name": "vector_multiply",
+        "description": "Multiplies a vector by a scalar",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "vector.divide": {
+      "opId": "vector.divide",
+      "intent": "Divides a vector by a scalar",
+      "signature": {
+        "name": "vector_divide",
+        "description": "Divides a vector by a scalar",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "vector.dot": {
+      "opId": "vector.dot",
+      "intent": "Computes the dot product of two vectors",
+      "signature": {
+        "name": "vector_dot",
+        "description": "Computes the dot product of two vectors",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "vector.cross": {
+      "opId": "vector.cross",
+      "intent": "Computes the cross product of two vectors",
+      "signature": {
+        "name": "vector_cross",
+        "description": "Computes the cross product of two vectors",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "vector.normalize": {
+      "opId": "vector.normalize",
+      "intent": "Normalizes a vector to unit length",
+      "signature": {
+        "name": "vector_normalize",
+        "description": "Normalizes a vector to unit length",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "vector.length": {
+      "opId": "vector.length",
+      "intent": "Computes the length of a vector",
+      "signature": {
+        "name": "vector_length",
+        "description": "Computes the length of a vector",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "vector.distance": {
+      "opId": "vector.distance",
+      "intent": "Computes the distance between two points",
+      "signature": {
+        "name": "vector_distance",
+        "description": "Computes the distance between two points",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "vector.lerp": {
+      "opId": "vector.lerp",
+      "intent": "Linearly interpolates between two vectors",
+      "signature": {
+        "name": "vector_lerp",
+        "description": "Linearly interpolates between two vectors",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "vector.construct": {
+      "opId": "vector.construct",
+      "intent": "Constructs a vector from x, y, z components",
+      "signature": {
+        "name": "vector_construct",
+        "description": "Constructs a vector from x, y, z components",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "vector.deconstruct": {
+      "opId": "vector.deconstruct",
+      "intent": "Deconstructs a vector into x, y, z components",
+      "signature": {
+        "name": "vector_deconstruct",
+        "description": "Deconstructs a vector into x, y, z components",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "vector.angle": {
+      "opId": "vector.angle",
+      "intent": "Computes the angle between two vectors",
+      "signature": {
+        "name": "vector_angle",
+        "description": "Computes the angle between two vectors",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "vector.project": {
+      "opId": "vector.project",
+      "intent": "Projects one vector onto another",
+      "signature": {
+        "name": "vector_project",
+        "description": "Projects one vector onto another",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "vector.attractor": {
+      "opId": "vector.attractor",
+      "intent": "Creates an attractor field from a point",
+      "signature": {
+        "name": "vector_attractor",
+        "description": "Creates an attractor field from a point",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "vector.constant.origin": {
+      "opId": "vector.constant.origin",
+      "intent": "Returns the origin vector (0, 0, 0)",
+      "signature": {
+        "name": "vector_constant_origin",
+        "description": "Returns the origin vector (0, 0, 0)",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "vector.constant.unitX": {
+      "opId": "vector.constant.unitX",
+      "intent": "Returns the unit X vector (1, 0, 0)",
+      "signature": {
+        "name": "vector_constant_unitX",
+        "description": "Returns the unit X vector (1, 0, 0)",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "vector.constant.unitY": {
+      "opId": "vector.constant.unitY",
+      "intent": "Returns the unit Y vector (0, 1, 0)",
+      "signature": {
+        "name": "vector_constant_unitY",
+        "description": "Returns the unit Y vector (0, 1, 0)",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "vector.constant.unitZ": {
+      "opId": "vector.constant.unitZ",
+      "intent": "Returns the unit Z vector (0, 0, 1)",
+      "signature": {
+        "name": "vector_constant_unitZ",
+        "description": "Returns the unit Z vector (0, 0, 1)",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "vector.constant.unitXYZ": {
+      "opId": "vector.constant.unitXYZ",
+      "intent": "Returns the unit XYZ vector (1, 1, 1)",
+      "signature": {
+        "name": "vector_constant_unitXYZ",
+        "description": "Returns the unit XYZ vector (1, 1, 1)",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "vector.moveVector": {
+      "opId": "vector.moveVector",
+      "intent": "Creates a movement vector from two points",
+      "signature": {
+        "name": "vector_moveVector",
+        "description": "Creates a movement vector from two points",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "vector.scaleVector": {
+      "opId": "vector.scaleVector",
+      "intent": "Creates a scale vector from a scalar or components",
+      "signature": {
+        "name": "vector_scaleVector",
+        "description": "Creates a scale vector from a scalar or components",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "vector.fromPoints": {
+      "opId": "vector.fromPoints",
+      "intent": "Creates a vector from two points (end - start)",
+      "signature": {
+        "name": "vector_fromPoints",
+        "description": "Creates a vector from two points (end - start)",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "logic.and": {
+      "opId": "logic.and",
+      "intent": "Logical AND operation",
+      "signature": {
+        "name": "logic_and",
+        "description": "Logical AND operation",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "logic.or": {
+      "opId": "logic.or",
+      "intent": "Logical OR operation",
+      "signature": {
+        "name": "logic_or",
+        "description": "Logical OR operation",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "logic.not": {
+      "opId": "logic.not",
+      "intent": "Logical NOT operation",
+      "signature": {
+        "name": "logic_not",
+        "description": "Logical NOT operation",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "logic.xor": {
+      "opId": "logic.xor",
+      "intent": "Logical XOR operation",
+      "signature": {
+        "name": "logic_xor",
+        "description": "Logical XOR operation",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "logic.if": {
+      "opId": "logic.if",
+      "intent": "Conditional branching",
+      "signature": {
+        "name": "logic_if",
+        "description": "Conditional branching",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "logic.compare": {
+      "opId": "logic.compare",
+      "intent": "Compares two values",
+      "signature": {
+        "name": "logic_compare",
+        "description": "Compares two values",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "logic.toggle": {
+      "opId": "logic.toggle",
+      "intent": "Toggles between two values based on a boolean",
+      "signature": {
+        "name": "logic_toggle",
+        "description": "Toggles between two values based on a boolean",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "logic.conditionalToggle": {
+      "opId": "logic.conditionalToggle",
+      "intent": "Toggles between values based on a condition",
+      "signature": {
+        "name": "logic_conditionalToggle",
+        "description": "Toggles between values based on a condition",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "data.collect": {
+      "opId": "data.collect",
+      "intent": "Collects values into an array",
+      "signature": {
+        "name": "data_collect",
+        "description": "Collects values into an array",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "data.flatten": {
+      "opId": "data.flatten",
+      "intent": "Flattens nested arrays",
+      "signature": {
+        "name": "data_flatten",
+        "description": "Flattens nested arrays",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "data.filter": {
+      "opId": "data.filter",
+      "intent": "Filters array elements",
+      "signature": {
+        "name": "data_filter",
+        "description": "Filters array elements",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "data.map": {
+      "opId": "data.map",
+      "intent": "Maps array elements",
+      "signature": {
+        "name": "data_map",
+        "description": "Maps array elements",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "data.reduce": {
+      "opId": "data.reduce",
+      "intent": "Reduces array to single value",
+      "signature": {
+        "name": "data_reduce",
+        "description": "Reduces array to single value",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "data.sort": {
+      "opId": "data.sort",
+      "intent": "Sorts array elements",
+      "signature": {
+        "name": "data_sort",
+        "description": "Sorts array elements",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "data.unique": {
+      "opId": "data.unique",
+      "intent": "Removes duplicate elements",
+      "signature": {
+        "name": "data_unique",
+        "description": "Removes duplicate elements",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "data.length": {
+      "opId": "data.length",
+      "intent": "Returns array length",
+      "signature": {
+        "name": "data_length",
+        "description": "Returns array length",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "data.index": {
+      "opId": "data.index",
+      "intent": "Gets element at index",
+      "signature": {
+        "name": "data_index",
+        "description": "Gets element at index",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "data.indexOf": {
+      "opId": "data.indexOf",
+      "intent": "Finds the index of an element in an array",
+      "signature": {
+        "name": "data_indexOf",
+        "description": "Finds the index of an element in an array",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "data.partition": {
+      "opId": "data.partition",
+      "intent": "Partitions an array into chunks",
+      "signature": {
+        "name": "data_partition",
+        "description": "Partitions an array into chunks",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "data.slice": {
+      "opId": "data.slice",
+      "intent": "Extracts a slice of an array",
+      "signature": {
+        "name": "data_slice",
+        "description": "Extracts a slice of an array",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "data.reverse": {
+      "opId": "data.reverse",
+      "intent": "Reverses an array",
+      "signature": {
+        "name": "data_reverse",
+        "description": "Reverses an array",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "data.range": {
+      "opId": "data.range",
+      "intent": "Generates a range of numbers",
+      "signature": {
+        "name": "data_range",
+        "description": "Generates a range of numbers",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "data.linspace": {
+      "opId": "data.linspace",
+      "intent": "Generates linearly spaced numbers",
+      "signature": {
+        "name": "data_linspace",
+        "description": "Generates linearly spaced numbers",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "data.repeat": {
+      "opId": "data.repeat",
+      "intent": "Repeats a value n times",
+      "signature": {
+        "name": "data_repeat",
+        "description": "Repeats a value n times",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "string.concat": {
+      "opId": "string.concat",
+      "intent": "Concatenates strings",
+      "signature": {
+        "name": "string_concat",
+        "description": "Concatenates strings",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "string.split": {
+      "opId": "string.split",
+      "intent": "Splits string into array",
+      "signature": {
+        "name": "string_split",
+        "description": "Splits string into array",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "string.replace": {
+      "opId": "string.replace",
+      "intent": "Replaces substring",
+      "signature": {
+        "name": "string_replace",
+        "description": "Replaces substring",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "string.substring": {
+      "opId": "string.substring",
+      "intent": "Extracts substring",
+      "signature": {
+        "name": "string_substring",
+        "description": "Extracts substring",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "string.length": {
+      "opId": "string.length",
+      "intent": "Returns string length",
+      "signature": {
+        "name": "string_length",
+        "description": "Returns string length",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "string.toNumber": {
+      "opId": "string.toNumber",
+      "intent": "Converts string to number",
+      "signature": {
+        "name": "string_toNumber",
+        "description": "Converts string to number",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "string.format": {
+      "opId": "string.format",
+      "intent": "Formats string with values",
+      "signature": {
+        "name": "string_format",
+        "description": "Formats string with values",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "color.hexToRgb": {
+      "opId": "color.hexToRgb",
+      "intent": "Converts hex color to RGB",
+      "signature": {
+        "name": "color_hexToRgb",
+        "description": "Converts hex color to RGB",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "color.rgbToHex": {
+      "opId": "color.rgbToHex",
+      "intent": "Converts RGB color to hex",
+      "signature": {
+        "name": "color_rgbToHex",
+        "description": "Converts RGB color to hex",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "color.rgbToHsl": {
+      "opId": "color.rgbToHsl",
+      "intent": "Converts RGB to HSL",
+      "signature": {
+        "name": "color_rgbToHsl",
+        "description": "Converts RGB to HSL",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "color.hslToRgb": {
+      "opId": "color.hslToRgb",
+      "intent": "Converts HSL to RGB",
+      "signature": {
+        "name": "color_hslToRgb",
+        "description": "Converts HSL to RGB",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "color.blend": {
+      "opId": "color.blend",
+      "intent": "Blends two colors",
+      "signature": {
+        "name": "color_blend",
+        "description": "Blends two colors",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "color.clamp": {
+      "opId": "color.clamp",
+      "intent": "Clamps color values to valid range",
+      "signature": {
+        "name": "color_clamp",
+        "description": "Clamps color values to valid range",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "geometry.mesh": {
+      "opId": "geometry.mesh",
+      "intent": "Pass-through node for mesh geometry",
+      "signature": {
+        "name": "geometry_mesh",
+        "description": "Pass-through node for mesh geometry",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "geometry.brep": {
+      "opId": "geometry.brep",
+      "intent": "Pass-through node for B-Rep geometry",
+      "signature": {
+        "name": "geometry_brep",
+        "description": "Pass-through node for B-Rep geometry",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "geometry.pointCloud": {
+      "opId": "geometry.pointCloud",
+      "intent": "Creates a point cloud from a list of points",
+      "signature": {
+        "name": "geometry_pointCloud",
+        "description": "Creates a point cloud from a list of points",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "geometry.fillet": {
+      "opId": "geometry.fillet",
+      "intent": "Creates a fillet between curves or edges",
+      "signature": {
+        "name": "geometry_fillet",
+        "description": "Creates a fillet between curves or edges",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "geometry.filletEdges": {
+      "opId": "geometry.filletEdges",
+      "intent": "Creates fillets on edges of a solid",
+      "signature": {
+        "name": "geometry_filletEdges",
+        "description": "Creates fillets on edges of a solid",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "geometry.offsetSurface": {
+      "opId": "geometry.offsetSurface",
+      "intent": "Offsets a surface by a distance",
+      "signature": {
+        "name": "geometry_offsetSurface",
+        "description": "Offsets a surface by a distance",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "geometry.thickenMesh": {
+      "opId": "geometry.thickenMesh",
+      "intent": "Thickens a mesh by offsetting faces",
+      "signature": {
+        "name": "geometry_thickenMesh",
+        "description": "Thickens a mesh by offsetting faces",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "geometry.plasticwrap": {
+      "opId": "geometry.plasticwrap",
+      "intent": "Creates a convex hull around geometry",
+      "signature": {
+        "name": "geometry_plasticwrap",
+        "description": "Creates a convex hull around geometry",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "geometry.solid": {
+      "opId": "geometry.solid",
+      "intent": "Creates a solid from surfaces",
+      "signature": {
+        "name": "geometry_solid",
+        "description": "Creates a solid from surfaces",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "geometry.primitive": {
+      "opId": "geometry.primitive",
+      "intent": "Creates a primitive geometry shape",
+      "signature": {
+        "name": "geometry_primitive",
+        "description": "Creates a primitive geometry shape",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "solver.physics": {
+      "opId": "solver.physics",
+      "intent": "Solves structural mechanics simulation with force equilibrium",
+      "signature": {
+        "name": "solver_physics",
+        "description": "Solves structural mechanics simulation with force equilibrium",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "solver.chemistry": {
+      "opId": "solver.chemistry",
+      "intent": "Solves material distribution simulation with particle dynamics",
+      "signature": {
+        "name": "solver_chemistry",
+        "description": "Solves material distribution simulation with particle dynamics",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "solver.evolutionary": {
+      "opId": "solver.evolutionary",
+      "intent": "Solves optimization problems using genetic algorithms",
+      "signature": {
+        "name": "solver_evolutionary",
+        "description": "Solves optimization problems using genetic algorithms",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "solver.voxel": {
+      "opId": "solver.voxel",
+      "intent": "Converts geometry to voxel field representation",
+      "signature": {
+        "name": "solver_voxel",
+        "description": "Converts geometry to voxel field representation",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "solver.topologyOptimization": {
+      "opId": "solver.topologyOptimization",
+      "intent": "Optimizes material layout for structural performance",
+      "signature": {
+        "name": "solver_topologyOptimization",
+        "description": "Optimizes material layout for structural performance",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "simulator.initialize": {
+      "opId": "simulator.initialize",
+      "intent": "Initializes simulation state",
+      "signature": {
+        "name": "simulator_initialize",
+        "description": "Initializes simulation state",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "simulator.step": {
+      "opId": "simulator.step",
+      "intent": "Executes single simulation step",
+      "signature": {
+        "name": "simulator_step",
+        "description": "Executes single simulation step",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "simulator.converge": {
+      "opId": "simulator.converge",
+      "intent": "Checks simulation convergence criteria",
+      "signature": {
+        "name": "simulator_converge",
+        "description": "Checks simulation convergence criteria",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "simulator.finalize": {
+      "opId": "simulator.finalize",
+      "intent": "Finalizes simulation and generates output",
+      "signature": {
+        "name": "simulator_finalize",
+        "description": "Finalizes simulation and generates output",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "simulator.chemistry.initialize": {
+      "opId": "simulator.chemistry.initialize",
+      "intent": "Initializes particle system for chemistry simulation",
+      "signature": {
+        "name": "simulator_chemistry_initialize",
+        "description": "Initializes particle system for chemistry simulation",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "simulator.chemistry.step": {
+      "opId": "simulator.chemistry.step",
+      "intent": "Executes single particle simulation step with SPH dynamics",
+      "signature": {
+        "name": "simulator_chemistry_step",
+        "description": "Executes single particle simulation step with SPH dynamics",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "simulator.chemistry.converge": {
+      "opId": "simulator.chemistry.converge",
+      "intent": "Checks energy convergence for material distribution",
+      "signature": {
+        "name": "simulator_chemistry_converge",
+        "description": "Checks energy convergence for material distribution",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "simulator.chemistry.finalize": {
+      "opId": "simulator.chemistry.finalize",
+      "intent": "Generates voxel field and mesh from particle distribution",
+      "signature": {
+        "name": "simulator_chemistry_finalize",
+        "description": "Generates voxel field and mesh from particle distribution",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "simulator.chemistry.blendMaterials": {
+      "opId": "simulator.chemistry.blendMaterials",
+      "intent": "Blends materials at particle level using diffusion",
+      "signature": {
+        "name": "simulator_chemistry_blendMaterials",
+        "description": "Blends materials at particle level using diffusion",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "simulator.chemistry.evaluateGoals": {
+      "opId": "simulator.chemistry.evaluateGoals",
+      "intent": "Evaluates goal satisfaction for material distribution",
+      "signature": {
+        "name": "simulator_chemistry_evaluateGoals",
+        "description": "Evaluates goal satisfaction for material distribution",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "simulator.chemistry.analyze": {
+      "opId": "simulator.chemistry.analyze",
+      "intent": "Builds diagnostics, convergence, and distribution analysis for chemistry outputs",
+      "signature": {
+        "name": "simulator_chemistry_analyze",
+        "description": "Builds diagnostics, convergence, and distribution analysis for chemistry outputs",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "simulator.chemistry.validate": {
+      "opId": "simulator.chemistry.validate",
+      "intent": "Validates chemistry outputs for constraints and conservation checks",
+      "signature": {
+        "name": "simulator_chemistry_validate",
+        "description": "Validates chemistry outputs for constraints and conservation checks",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "simulator.chemistry.computeGradients": {
+      "opId": "simulator.chemistry.computeGradients",
+      "intent": "Computes gradient fields for material optimization analysis",
+      "signature": {
+        "name": "simulator_chemistry_computeGradients",
+        "description": "Computes gradient fields for material optimization analysis",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "simulator.chemistry.computeStatistics": {
+      "opId": "simulator.chemistry.computeStatistics",
+      "intent": "Computes particle and field statistics for chemistry diagnostics",
+      "signature": {
+        "name": "simulator_chemistry_computeStatistics",
+        "description": "Computes particle and field statistics for chemistry diagnostics",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "simulator.chemistry.checkConservation": {
+      "opId": "simulator.chemistry.checkConservation",
+      "intent": "Checks mass, energy, and momentum conservation for chemistry simulation",
+      "signature": {
+        "name": "simulator_chemistry_checkConservation",
+        "description": "Checks mass, energy, and momentum conservation for chemistry simulation",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "simulator.physics.initialize": {
+      "opId": "simulator.physics.initialize",
+      "intent": "Initializes FEA system for physics simulation",
+      "signature": {
+        "name": "simulator_physics_initialize",
+        "description": "Initializes FEA system for physics simulation",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "simulator.physics.step": {
+      "opId": "simulator.physics.step",
+      "intent": "Executes single solver iteration for structural analysis",
+      "signature": {
+        "name": "simulator_physics_step",
+        "description": "Executes single solver iteration for structural analysis",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "simulator.physics.converge": {
+      "opId": "simulator.physics.converge",
+      "intent": "Checks force/displacement convergence for equilibrium",
+      "signature": {
+        "name": "simulator_physics_converge",
+        "description": "Checks force/displacement convergence for equilibrium",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "simulator.physics.finalize": {
+      "opId": "simulator.physics.finalize",
+      "intent": "Generates stress field and deformed geometry",
+      "signature": {
+        "name": "simulator_physics_finalize",
+        "description": "Generates stress field and deformed geometry",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "simulator.physics.applyLoads": {
+      "opId": "simulator.physics.applyLoads",
+      "intent": "Applies forces and constraints to structural system",
+      "signature": {
+        "name": "simulator_physics_applyLoads",
+        "description": "Applies forces and constraints to structural system",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "simulator.physics.computeStress": {
+      "opId": "simulator.physics.computeStress",
+      "intent": "Computes stress field from displacement solution",
+      "signature": {
+        "name": "simulator_physics_computeStress",
+        "description": "Computes stress field from displacement solution",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "solver.voxel.voxelize": {
+      "opId": "solver.voxel.voxelize",
+      "intent": "Converts geometry to voxel grid representation",
+      "signature": {
+        "name": "solver_voxel_voxelize",
+        "description": "Converts geometry to voxel grid representation",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "solver.voxel.extractIsosurface": {
+      "opId": "solver.voxel.extractIsosurface",
+      "intent": "Extracts mesh isosurface from voxel field using marching cubes",
+      "signature": {
+        "name": "solver_voxel_extractIsosurface",
+        "description": "Extracts mesh isosurface from voxel field using marching cubes",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "solver.topologyOptimization.optimize": {
+      "opId": "solver.topologyOptimization.optimize",
+      "intent": "Optimizes material layout for structural performance",
+      "signature": {
+        "name": "solver_topologyOptimization_optimize",
+        "description": "Optimizes material layout for structural performance",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "workflow.literal": {
+      "opId": "workflow.literal",
+      "intent": "Returns a literal value",
+      "signature": {
+        "name": "workflow_literal",
+        "description": "Returns a literal value",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "workflow.identity": {
+      "opId": "workflow.identity",
+      "intent": "Passes through input unchanged",
+      "signature": {
+        "name": "workflow_identity",
+        "description": "Passes through input unchanged",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "workflow.constant": {
+      "opId": "workflow.constant",
+      "intent": "Returns a constant value",
+      "signature": {
+        "name": "workflow_constant",
+        "description": "Returns a constant value",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "command.createPoint": {
+      "opId": "command.createPoint",
+      "intent": "Creates a point at a clicked location",
+      "signature": {
+        "name": "command_createPoint",
+        "description": "Creates a point at a clicked location",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "command.createLine": {
+      "opId": "command.createLine",
+      "intent": "Creates straight line segments",
+      "signature": {
+        "name": "command_createLine",
+        "description": "Creates straight line segments",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "command.createPolyline": {
+      "opId": "command.createPolyline",
+      "intent": "Creates a connected sequence of straight segments",
+      "signature": {
+        "name": "command_createPolyline",
+        "description": "Creates a connected sequence of straight segments",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "command.createRectangle": {
+      "opId": "command.createRectangle",
+      "intent": "Creates a four-sided closed polyline with right-angle corners",
+      "signature": {
+        "name": "command_createRectangle",
+        "description": "Creates a four-sided closed polyline with right-angle corners",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "command.createCircle": {
+      "opId": "command.createCircle",
+      "intent": "Creates a perfect circular NURBS curve",
+      "signature": {
+        "name": "command_createCircle",
+        "description": "Creates a perfect circular NURBS curve",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "command.createArc": {
+      "opId": "command.createArc",
+      "intent": "Creates a circular arc segment using three-point definition",
+      "signature": {
+        "name": "command_createArc",
+        "description": "Creates a circular arc segment using three-point definition",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "command.createCurve": {
+      "opId": "command.createCurve",
+      "intent": "Creates a freeform NURBS curve influenced by control points",
+      "signature": {
+        "name": "command_createCurve",
+        "description": "Creates a freeform NURBS curve influenced by control points",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "command.createPrimitive": {
+      "opId": "command.createPrimitive",
+      "intent": "Creates a mesh primitive (box, sphere, cylinder, etc.)",
+      "signature": {
+        "name": "command_createPrimitive",
+        "description": "Creates a mesh primitive (box, sphere, cylinder, etc.)",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "command.createNurbsBox": {
+      "opId": "command.createNurbsBox",
+      "intent": "Creates a box primitive using NURBS surface representation",
+      "signature": {
+        "name": "command_createNurbsBox",
+        "description": "Creates a box primitive using NURBS surface representation",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "command.createNurbsSphere": {
+      "opId": "command.createNurbsSphere",
+      "intent": "Creates a sphere using exact NURBS surface definition",
+      "signature": {
+        "name": "command_createNurbsSphere",
+        "description": "Creates a sphere using exact NURBS surface definition",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "command.createNurbsCylinder": {
+      "opId": "command.createNurbsCylinder",
+      "intent": "Creates a cylinder using exact NURBS surface definition",
+      "signature": {
+        "name": "command_createNurbsCylinder",
+        "description": "Creates a cylinder using exact NURBS surface definition",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "command.boolean": {
+      "opId": "command.boolean",
+      "intent": "Performs Boolean operations (union, difference, intersection) on solids",
+      "signature": {
+        "name": "command_boolean",
+        "description": "Performs Boolean operations (union, difference, intersection) on solids",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "command.loft": {
+      "opId": "command.loft",
+      "intent": "Creates a surface by lofting through two or more curves",
+      "signature": {
+        "name": "command_loft",
+        "description": "Creates a surface by lofting through two or more curves",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "command.surface": {
+      "opId": "command.surface",
+      "intent": "Creates a surface from a closed curve",
+      "signature": {
+        "name": "command_surface",
+        "description": "Creates a surface from a closed curve",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "command.extrude": {
+      "opId": "command.extrude",
+      "intent": "Extrudes a profile along a direction to create a solid",
+      "signature": {
+        "name": "command_extrude",
+        "description": "Extrudes a profile along a direction to create a solid",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "command.meshMerge": {
+      "opId": "command.meshMerge",
+      "intent": "Merges multiple meshes into a single mesh",
+      "signature": {
+        "name": "command_meshMerge",
+        "description": "Merges multiple meshes into a single mesh",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "command.meshFlip": {
+      "opId": "command.meshFlip",
+      "intent": "Flips mesh normals (reverses face orientation)",
+      "signature": {
+        "name": "command_meshFlip",
+        "description": "Flips mesh normals (reverses face orientation)",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "command.meshThicken": {
+      "opId": "command.meshThicken",
+      "intent": "Thickens a mesh by offsetting faces along normals",
+      "signature": {
+        "name": "command_meshThicken",
+        "description": "Thickens a mesh by offsetting faces along normals",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "command.morph": {
+      "opId": "command.morph",
+      "intent": "Sculpts geometry by dragging vertices",
+      "signature": {
+        "name": "command_morph",
+        "description": "Sculpts geometry by dragging vertices",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "command.meshConvert": {
+      "opId": "command.meshConvert",
+      "intent": "Converts NURBS curves or surfaces to mesh",
+      "signature": {
+        "name": "command_meshConvert",
+        "description": "Converts NURBS curves or surfaces to mesh",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "command.brepToMesh": {
+      "opId": "command.brepToMesh",
+      "intent": "Converts B-Rep solids to mesh",
+      "signature": {
+        "name": "command_brepToMesh",
+        "description": "Converts B-Rep solids to mesh",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "command.meshToBrep": {
+      "opId": "command.meshToBrep",
+      "intent": "Converts meshes to B-Rep solids",
+      "signature": {
+        "name": "command_meshToBrep",
+        "description": "Converts meshes to B-Rep solids",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "command.nurbsRestore": {
+      "opId": "command.nurbsRestore",
+      "intent": "Restores NURBS from a mesh converted from NURBS",
+      "signature": {
+        "name": "command_nurbsRestore",
+        "description": "Restores NURBS from a mesh converted from NURBS",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "command.interpolate": {
+      "opId": "command.interpolate",
+      "intent": "Converts polyline to smooth NURBS curve passing through vertices",
+      "signature": {
+        "name": "command_interpolate",
+        "description": "Converts polyline to smooth NURBS curve passing through vertices",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "command.move": {
+      "opId": "command.move",
+      "intent": "Translates geometry by a vector",
+      "signature": {
+        "name": "command_move",
+        "description": "Translates geometry by a vector",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "command.rotate": {
+      "opId": "command.rotate",
+      "intent": "Rotates geometry around an axis",
+      "signature": {
+        "name": "command_rotate",
+        "description": "Rotates geometry around an axis",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "command.scale": {
+      "opId": "command.scale",
+      "intent": "Scales geometry by a factor",
+      "signature": {
+        "name": "command_scale",
+        "description": "Scales geometry by a factor",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "command.offset": {
+      "opId": "command.offset",
+      "intent": "Offsets curves by a distance",
+      "signature": {
+        "name": "command_offset",
+        "description": "Offsets curves by a distance",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "command.mirror": {
+      "opId": "command.mirror",
+      "intent": "Mirrors geometry across a plane",
+      "signature": {
+        "name": "command_mirror",
+        "description": "Mirrors geometry across a plane",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "command.array": {
+      "opId": "command.array",
+      "intent": "Replicates geometry in a pattern",
+      "signature": {
+        "name": "command_array",
+        "description": "Replicates geometry in a pattern",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "command.transform": {
+      "opId": "command.transform",
+      "intent": "Transforms geometry using gumball widget",
+      "signature": {
+        "name": "command_transform",
+        "description": "Transforms geometry using gumball widget",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "command.undo": {
+      "opId": "command.undo",
+      "intent": "Undoes the last action",
+      "signature": {
+        "name": "command_undo",
+        "description": "Undoes the last action",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "command.redo": {
+      "opId": "command.redo",
+      "intent": "Redoes the last undone action",
+      "signature": {
+        "name": "command_redo",
+        "description": "Redoes the last undone action",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "command.copy": {
+      "opId": "command.copy",
+      "intent": "Copies selection to clipboard",
+      "signature": {
+        "name": "command_copy",
+        "description": "Copies selection to clipboard",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "command.paste": {
+      "opId": "command.paste",
+      "intent": "Pastes from clipboard",
+      "signature": {
+        "name": "command_paste",
+        "description": "Pastes from clipboard",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "command.duplicate": {
+      "opId": "command.duplicate",
+      "intent": "Duplicates selection in place",
+      "signature": {
+        "name": "command_duplicate",
+        "description": "Duplicates selection in place",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: safe"
+      ]
+    },
+    "command.delete": {
+      "opId": "command.delete",
+      "intent": "Deletes selection",
+      "signature": {
+        "name": "command_delete",
+        "description": "Deletes selection",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "command.cancel": {
+      "opId": "command.cancel",
+      "intent": "Cancels the active command",
+      "signature": {
+        "name": "command_cancel",
+        "description": "Cancels the active command",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "command.confirm": {
+      "opId": "command.confirm",
+      "intent": "Confirms the active command",
+      "signature": {
+        "name": "command_confirm",
+        "description": "Confirms the active command",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "command.gumball": {
+      "opId": "command.gumball",
+      "intent": "Activates gumball transform widget",
+      "signature": {
+        "name": "command_gumball",
+        "description": "Activates gumball transform widget",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "command.focus": {
+      "opId": "command.focus",
+      "intent": "Frames the current selection",
+      "signature": {
+        "name": "command_focus",
+        "description": "Frames the current selection",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "command.frameAll": {
+      "opId": "command.frameAll",
+      "intent": "Frames all visible geometry",
+      "signature": {
+        "name": "command_frameAll",
+        "description": "Frames all visible geometry",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "command.screenshot": {
+      "opId": "command.screenshot",
+      "intent": "Captures the current viewport",
+      "signature": {
+        "name": "command_screenshot",
+        "description": "Captures the current viewport",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: external"
+      ]
+    },
+    "command.view": {
+      "opId": "command.view",
+      "intent": "Switches to a preset view (top/front/right/perspective)",
+      "signature": {
+        "name": "command_view",
+        "description": "Switches to a preset view (top/front/right/perspective)",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "command.camera": {
+      "opId": "command.camera",
+      "intent": "Toggles camera options",
+      "signature": {
+        "name": "command_camera",
+        "description": "Toggles camera options",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "command.pivot": {
+      "opId": "command.pivot",
+      "intent": "Sets the pivot point for transformations",
+      "signature": {
+        "name": "command_pivot",
+        "description": "Sets the pivot point for transformations",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "command.orbit": {
+      "opId": "command.orbit",
+      "intent": "Orbits the camera around the view center",
+      "signature": {
+        "name": "command_orbit",
+        "description": "Orbits the camera around the view center",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "command.pan": {
+      "opId": "command.pan",
+      "intent": "Pans the camera",
+      "signature": {
+        "name": "command_pan",
+        "description": "Pans the camera",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "command.zoom": {
+      "opId": "command.zoom",
+      "intent": "Zooms the camera in/out",
+      "signature": {
+        "name": "command_zoom",
+        "description": "Zooms the camera in/out",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "command.selectionFilter": {
+      "opId": "command.selectionFilter",
+      "intent": "Changes selection filter (object/vertex/edge/face)",
+      "signature": {
+        "name": "command_selectionFilter",
+        "description": "Changes selection filter (object/vertex/edge/face)",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "command.cycle": {
+      "opId": "command.cycle",
+      "intent": "Cycles through overlapping selections",
+      "signature": {
+        "name": "command_cycle",
+        "description": "Cycles through overlapping selections",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "command.snapping": {
+      "opId": "command.snapping",
+      "intent": "Toggles snapping modes (grid/vertex/endpoint/midpoint/intersection)",
+      "signature": {
+        "name": "command_snapping",
+        "description": "Toggles snapping modes (grid/vertex/endpoint/midpoint/intersection)",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "command.grid": {
+      "opId": "command.grid",
+      "intent": "Changes grid spacing/units or toggles adaptive grid",
+      "signature": {
+        "name": "command_grid",
+        "description": "Changes grid spacing/units or toggles adaptive grid",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "command.cplane": {
+      "opId": "command.cplane",
+      "intent": "Sets the construction plane",
+      "signature": {
+        "name": "command_cplane",
+        "description": "Sets the construction plane",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "command.display": {
+      "opId": "command.display",
+      "intent": "Switches display mode (wireframe/shaded/edges/ghosted/silhouette)",
+      "signature": {
+        "name": "command_display",
+        "description": "Switches display mode (wireframe/shaded/edges/ghosted/silhouette)",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "command.isolate": {
+      "opId": "command.isolate",
+      "intent": "Hides/locks selection or shows all",
+      "signature": {
+        "name": "command_isolate",
+        "description": "Hides/locks selection or shows all",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "command.outliner": {
+      "opId": "command.outliner",
+      "intent": "Manages groups, layers, and visibility",
+      "signature": {
+        "name": "command_outliner",
+        "description": "Manages groups, layers, and visibility",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "command.tolerance": {
+      "opId": "command.tolerance",
+      "intent": "Sets absolute and angle tolerance",
+      "signature": {
+        "name": "command_tolerance",
+        "description": "Sets absolute and angle tolerance",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "command.status": {
+      "opId": "command.status",
+      "intent": "Toggles command help/status bar",
+      "signature": {
+        "name": "command_status",
+        "description": "Toggles command help/status bar",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: stateful"
+      ]
+    },
+    "command.import.stl": {
+      "opId": "command.import.stl",
+      "intent": "Imports geometry from an STL file",
+      "signature": {
+        "name": "command_import_stl",
+        "description": "Imports geometry from an STL file",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: destructive"
+      ]
+    },
+    "command.export.stl": {
+      "opId": "command.export.stl",
+      "intent": "Exports geometry to an STL file",
+      "signature": {
+        "name": "command_export_stl",
+        "description": "Exports geometry to an STL file",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "examples": [],
+      "safetyNotes": [
+        "Safety class: destructive"
+      ]
+    }
+  },
+  "index": {
+    "byTag": {
+      "arithmetic": [
+        "math.add",
+        "math.subtract",
+        "math.multiply",
+        "math.divide",
+        "math.modulo",
+        "math.power",
+        "math.abs",
+        "math.negate",
+        "math.sqrt",
+        "math.lerp",
+        "math.remap",
+        "math.random",
+        "vector.add",
+        "vector.subtract",
+        "vector.multiply",
+        "vector.divide",
+        "vector.dot",
+        "vector.cross",
+        "vector.lerp"
+      ],
+      "pure": [
+        "math.add",
+        "math.subtract",
+        "math.multiply",
+        "math.divide",
+        "math.modulo",
+        "math.power",
+        "math.floor",
+        "math.ceil",
+        "math.round",
+        "math.abs",
+        "math.negate",
+        "math.sqrt",
+        "math.sin",
+        "math.cos",
+        "math.tan",
+        "math.asin",
+        "math.acos",
+        "math.atan",
+        "math.atan2",
+        "math.exp",
+        "math.log",
+        "math.log10",
+        "math.min",
+        "math.max",
+        "math.clamp",
+        "math.lerp",
+        "math.remap",
+        "math.equal",
+        "math.notEqual",
+        "math.lessThan",
+        "math.lessThanOrEqual",
+        "math.greaterThan",
+        "math.greaterThanOrEqual",
+        "math.sum",
+        "math.average",
+        "math.median",
+        "math.stdDev",
+        "math.expression",
+        "vector.add",
+        "vector.subtract",
+        "vector.multiply",
+        "vector.divide",
+        "vector.dot",
+        "vector.cross",
+        "vector.normalize",
+        "vector.length",
+        "vector.distance",
+        "vector.lerp",
+        "vector.construct",
+        "vector.deconstruct",
+        "vector.angle",
+        "vector.project",
+        "vector.attractor",
+        "vector.constant.origin",
+        "vector.constant.unitX",
+        "vector.constant.unitY",
+        "vector.constant.unitZ",
+        "vector.constant.unitXYZ",
+        "vector.moveVector",
+        "vector.scaleVector",
+        "vector.fromPoints",
+        "logic.and",
+        "logic.or",
+        "logic.not",
+        "logic.xor",
+        "logic.if",
+        "logic.compare",
+        "logic.toggle",
+        "logic.conditionalToggle",
+        "data.collect",
+        "data.flatten",
+        "data.filter",
+        "data.map",
+        "data.reduce",
+        "data.sort",
+        "data.unique",
+        "data.length",
+        "data.index",
+        "data.indexOf",
+        "data.partition",
+        "data.slice",
+        "data.reverse",
+        "data.range",
+        "data.linspace",
+        "data.repeat",
+        "string.concat",
+        "string.split",
+        "string.replace",
+        "string.substring",
+        "string.length",
+        "string.toNumber",
+        "string.format",
+        "color.hexToRgb",
+        "color.rgbToHex",
+        "color.rgbToHsl",
+        "color.hslToRgb",
+        "color.blend",
+        "color.clamp",
+        "workflow.literal",
+        "workflow.identity",
+        "workflow.constant"
+      ],
+      "deterministic": [
+        "math.add",
+        "math.subtract",
+        "math.multiply",
+        "math.divide",
+        "math.modulo",
+        "math.power",
+        "math.floor",
+        "math.ceil",
+        "math.round",
+        "math.abs",
+        "math.negate",
+        "math.sqrt",
+        "math.sin",
+        "math.cos",
+        "math.tan",
+        "math.asin",
+        "math.acos",
+        "math.atan",
+        "math.atan2",
+        "math.exp",
+        "math.log",
+        "math.log10",
+        "math.min",
+        "math.max",
+        "math.clamp",
+        "math.lerp",
+        "math.remap",
+        "math.equal",
+        "math.notEqual",
+        "math.lessThan",
+        "math.lessThanOrEqual",
+        "math.greaterThan",
+        "math.greaterThanOrEqual",
+        "math.sum",
+        "math.average",
+        "math.median",
+        "math.stdDev",
+        "math.expression",
+        "vector.add",
+        "vector.subtract",
+        "vector.multiply",
+        "vector.divide",
+        "vector.dot",
+        "vector.cross",
+        "vector.normalize",
+        "vector.length",
+        "vector.distance",
+        "vector.lerp",
+        "vector.construct",
+        "vector.deconstruct",
+        "vector.angle",
+        "vector.project",
+        "vector.attractor",
+        "vector.constant.origin",
+        "vector.constant.unitX",
+        "vector.constant.unitY",
+        "vector.constant.unitZ",
+        "vector.constant.unitXYZ",
+        "vector.moveVector",
+        "vector.scaleVector",
+        "vector.fromPoints",
+        "logic.and",
+        "logic.or",
+        "logic.not",
+        "logic.xor",
+        "logic.if",
+        "logic.compare",
+        "logic.toggle",
+        "logic.conditionalToggle",
+        "data.collect",
+        "data.flatten",
+        "data.filter",
+        "data.map",
+        "data.reduce",
+        "data.sort",
+        "data.unique",
+        "data.length",
+        "data.index",
+        "data.indexOf",
+        "data.partition",
+        "data.slice",
+        "data.reverse",
+        "data.range",
+        "data.linspace",
+        "data.repeat",
+        "string.concat",
+        "string.split",
+        "string.replace",
+        "string.substring",
+        "string.length",
+        "string.toNumber",
+        "string.format",
+        "color.hexToRgb",
+        "color.rgbToHex",
+        "color.rgbToHsl",
+        "color.hslToRgb",
+        "color.blend",
+        "color.clamp",
+        "workflow.literal",
+        "workflow.identity",
+        "workflow.constant"
+      ],
+      "exponential": [
+        "math.power",
+        "math.sqrt",
+        "math.exp",
+        "math.log",
+        "math.log10"
+      ],
+      "rounding": [
+        "math.floor",
+        "math.ceil",
+        "math.round"
+      ],
+      "trigonometry": [
+        "math.sin",
+        "math.cos",
+        "math.tan",
+        "math.asin",
+        "math.acos",
+        "math.atan",
+        "math.atan2"
+      ],
+      "comparison": [
+        "math.min",
+        "math.max",
+        "math.clamp",
+        "math.equal",
+        "math.notEqual",
+        "math.lessThan",
+        "math.lessThanOrEqual",
+        "math.greaterThan",
+        "math.greaterThanOrEqual",
+        "logic.compare"
+      ],
+      "statistics": [
+        "math.sum",
+        "math.average",
+        "math.median",
+        "math.stdDev",
+        "simulator.chemistry.computeStatistics"
+      ],
+      "expression": [
+        "math.expression"
+      ],
+      "vector3": [
+        "vector.add",
+        "vector.subtract",
+        "vector.multiply",
+        "vector.divide",
+        "vector.dot",
+        "vector.cross",
+        "vector.normalize",
+        "vector.length",
+        "vector.distance",
+        "vector.lerp",
+        "vector.construct",
+        "vector.deconstruct",
+        "vector.angle",
+        "vector.project",
+        "vector.attractor",
+        "vector.constant.origin",
+        "vector.constant.unitX",
+        "vector.constant.unitY",
+        "vector.constant.unitZ",
+        "vector.constant.unitXYZ",
+        "vector.moveVector",
+        "vector.scaleVector",
+        "vector.fromPoints"
+      ],
+      "field": [
+        "vector.attractor"
+      ],
+      "constant": [
+        "vector.constant.origin",
+        "vector.constant.unitX",
+        "vector.constant.unitY",
+        "vector.constant.unitZ",
+        "vector.constant.unitXYZ"
+      ],
+      "boolean": [
+        "logic.and",
+        "logic.or",
+        "logic.not",
+        "logic.xor",
+        "logic.toggle",
+        "logic.conditionalToggle",
+        "command.boolean"
+      ],
+      "conditional": [
+        "logic.if",
+        "logic.conditionalToggle"
+      ],
+      "array": [
+        "data.collect",
+        "data.flatten",
+        "data.filter",
+        "data.map",
+        "data.reduce",
+        "data.sort",
+        "data.unique",
+        "data.length",
+        "data.index",
+        "data.indexOf",
+        "data.partition",
+        "data.slice",
+        "data.reverse",
+        "data.range",
+        "data.linspace",
+        "data.repeat",
+        "command.array"
+      ],
+      "collection": [
+        "data.collect"
+      ],
+      "iteration": [
+        "data.filter",
+        "data.map",
+        "data.reduce"
+      ],
+      "search": [
+        "data.indexOf"
+      ],
+      "text": [
+        "string.concat",
+        "string.split",
+        "string.replace",
+        "string.substring",
+        "string.length",
+        "string.toNumber",
+        "string.format"
+      ],
+      "formatting": [
+        "string.format"
+      ],
+      "colorspace": [
+        "color.hexToRgb",
+        "color.rgbToHex",
+        "color.rgbToHsl",
+        "color.hslToRgb"
+      ],
+      "blending": [
+        "color.blend"
+      ],
+      "geometry": [
+        "geometry.mesh",
+        "geometry.brep",
+        "geometry.pointCloud",
+        "geometry.fillet",
+        "geometry.filletEdges",
+        "geometry.offsetSurface",
+        "geometry.thickenMesh",
+        "geometry.plasticwrap",
+        "geometry.solid",
+        "geometry.primitive",
+        "command.createPoint",
+        "command.createLine",
+        "command.createPolyline",
+        "command.createRectangle",
+        "command.createCircle",
+        "command.createArc",
+        "command.createCurve",
+        "command.createPrimitive",
+        "command.createNurbsBox",
+        "command.createNurbsSphere",
+        "command.createNurbsCylinder",
+        "command.boolean",
+        "command.loft",
+        "command.surface",
+        "command.extrude",
+        "command.meshMerge",
+        "command.meshFlip",
+        "command.meshThicken",
+        "command.morph",
+        "command.meshConvert",
+        "command.brepToMesh",
+        "command.meshToBrep",
+        "command.nurbsRestore",
+        "command.interpolate",
+        "command.move",
+        "command.rotate",
+        "command.scale",
+        "command.offset",
+        "command.mirror",
+        "command.array",
+        "command.transform"
+      ],
+      "mesh": [
+        "geometry.mesh",
+        "geometry.thickenMesh",
+        "command.createPrimitive",
+        "command.meshMerge",
+        "command.meshFlip",
+        "command.meshThicken",
+        "command.morph",
+        "command.meshConvert",
+        "command.brepToMesh",
+        "command.meshToBrep",
+        "command.nurbsRestore",
+        "command.import.stl",
+        "command.export.stl"
+      ],
+      "tessellation": [
+        "geometry.mesh"
+      ],
+      "brep": [
+        "geometry.brep",
+        "geometry.solid",
+        "command.brepToMesh",
+        "command.meshToBrep"
+      ],
+      "solid": [
+        "geometry.brep",
+        "geometry.solid",
+        "command.extrude"
+      ],
+      "point": [
+        "geometry.pointCloud",
+        "command.createPoint"
+      ],
+      "cloud": [
+        "geometry.pointCloud"
+      ],
+      "fillet": [
+        "geometry.fillet",
+        "geometry.filletEdges"
+      ],
+      "curve": [
+        "geometry.fillet",
+        "command.createLine",
+        "command.createPolyline",
+        "command.createRectangle",
+        "command.createCircle",
+        "command.createArc",
+        "command.createCurve",
+        "command.interpolate",
+        "command.offset"
+      ],
+      "smooth": [
+        "geometry.fillet",
+        "geometry.filletEdges"
+      ],
+      "edge": [
+        "geometry.filletEdges"
+      ],
+      "offset": [
+        "geometry.offsetSurface",
+        "command.meshThicken",
+        "command.offset"
+      ],
+      "surface": [
+        "geometry.offsetSurface",
+        "command.loft",
+        "command.surface"
+      ],
+      "thicken": [
+        "geometry.thickenMesh",
+        "command.meshThicken"
+      ],
+      "wrap": [
+        "geometry.plasticwrap"
+      ],
+      "convex": [
+        "geometry.plasticwrap"
+      ],
+      "hull": [
+        "geometry.plasticwrap"
+      ],
+      "primitive": [
+        "geometry.primitive",
+        "command.createPrimitive",
+        "command.createNurbsBox",
+        "command.createNurbsSphere",
+        "command.createNurbsCylinder"
+      ],
+      "3d": [
+        "geometry.primitive",
+        "solver.physics",
+        "solver.chemistry",
+        "solver.evolutionary",
+        "solver.voxel",
+        "solver.topologyOptimization",
+        "solver.voxel.voxelize"
+      ],
+      "simulation": [
+        "solver.physics",
+        "solver.chemistry",
+        "solver.evolutionary",
+        "simulator.initialize",
+        "simulator.step",
+        "simulator.converge",
+        "simulator.finalize",
+        "simulator.chemistry.initialize",
+        "simulator.chemistry.step",
+        "simulator.chemistry.converge",
+        "simulator.chemistry.finalize",
+        "simulator.physics.initialize",
+        "simulator.physics.step",
+        "simulator.physics.converge",
+        "simulator.physics.finalize"
+      ],
+      "equilibrium": [
+        "solver.physics"
+      ],
+      "distribution": [
+        "solver.chemistry"
+      ],
+      "optimization": [
+        "solver.evolutionary",
+        "solver.topologyOptimization",
+        "solver.topologyOptimization.optimize"
+      ],
+      "discrete": [
+        "solver.voxel"
+      ],
+      "structural": [
+        "solver.topologyOptimization",
+        "solver.topologyOptimization.optimize"
+      ],
+      "internal": [
+        "simulator.initialize",
+        "simulator.step",
+        "simulator.converge",
+        "simulator.finalize"
+      ],
+      "chemistry": [
+        "simulator.chemistry.initialize",
+        "simulator.chemistry.step",
+        "simulator.chemistry.converge",
+        "simulator.chemistry.finalize",
+        "simulator.chemistry.blendMaterials",
+        "simulator.chemistry.evaluateGoals",
+        "simulator.chemistry.analyze",
+        "simulator.chemistry.validate",
+        "simulator.chemistry.computeGradients",
+        "simulator.chemistry.computeStatistics",
+        "simulator.chemistry.checkConservation"
+      ],
+      "particles": [
+        "simulator.chemistry.initialize",
+        "simulator.chemistry.step"
+      ],
+      "voxel": [
+        "simulator.chemistry.finalize",
+        "solver.voxel.voxelize",
+        "solver.voxel.extractIsosurface"
+      ],
+      "materials": [
+        "simulator.chemistry.blendMaterials"
+      ],
+      "goals": [
+        "simulator.chemistry.evaluateGoals"
+      ],
+      "analysis": [
+        "simulator.chemistry.analyze"
+      ],
+      "validation": [
+        "simulator.chemistry.validate"
+      ],
+      "gradients": [
+        "simulator.chemistry.computeGradients"
+      ],
+      "conservation": [
+        "simulator.chemistry.checkConservation"
+      ],
+      "physics": [
+        "simulator.physics.initialize",
+        "simulator.physics.step",
+        "simulator.physics.converge",
+        "simulator.physics.finalize",
+        "simulator.physics.applyLoads",
+        "simulator.physics.computeStress"
+      ],
+      "fea": [
+        "simulator.physics.initialize",
+        "simulator.physics.step"
+      ],
+      "stress": [
+        "simulator.physics.finalize",
+        "simulator.physics.computeStress"
+      ],
+      "forces": [
+        "simulator.physics.applyLoads"
+      ],
+      "discretization": [
+        "solver.voxel.voxelize"
+      ],
+      "isosurface": [
+        "solver.voxel.extractIsosurface"
+      ],
+      "marching-cubes": [
+        "solver.voxel.extractIsosurface"
+      ],
+      "topology": [
+        "solver.topologyOptimization.optimize"
+      ],
+      "vertex": [
+        "command.createPoint"
+      ],
+      "line": [
+        "command.createLine"
+      ],
+      "polyline": [
+        "command.createPolyline"
+      ],
+      "rectangle": [
+        "command.createRectangle"
+      ],
+      "polygon": [
+        "command.createRectangle"
+      ],
+      "circle": [
+        "command.createCircle"
+      ],
+      "nurbs": [
+        "command.createCircle",
+        "command.createArc",
+        "command.createCurve",
+        "command.createNurbsBox",
+        "command.createNurbsSphere",
+        "command.createNurbsCylinder",
+        "command.meshConvert",
+        "command.nurbsRestore",
+        "command.interpolate"
+      ],
+      "arc": [
+        "command.createArc"
+      ],
+      "freeform": [
+        "command.createCurve"
+      ],
+      "box": [
+        "command.createNurbsBox"
+      ],
+      "sphere": [
+        "command.createNurbsSphere"
+      ],
+      "cylinder": [
+        "command.createNurbsCylinder"
+      ],
+      "csg": [
+        "command.boolean"
+      ],
+      "loft": [
+        "command.loft"
+      ],
+      "fill": [
+        "command.surface"
+      ],
+      "extrude": [
+        "command.extrude"
+      ],
+      "merge": [
+        "command.meshMerge"
+      ],
+      "flip": [
+        "command.meshFlip"
+      ],
+      "normals": [
+        "command.meshFlip"
+      ],
+      "sculpt": [
+        "command.morph"
+      ],
+      "deform": [
+        "command.morph"
+      ],
+      "conversion": [
+        "command.meshConvert",
+        "command.brepToMesh",
+        "command.meshToBrep",
+        "command.nurbsRestore"
+      ],
+      "interpolate": [
+        "command.interpolate"
+      ],
+      "transform": [
+        "command.move",
+        "command.rotate",
+        "command.scale",
+        "command.mirror",
+        "command.array",
+        "command.transform",
+        "command.gumball",
+        "command.pivot"
+      ],
+      "translate": [
+        "command.move"
+      ],
+      "rotate": [
+        "command.rotate"
+      ],
+      "scale": [
+        "command.scale"
+      ],
+      "mirror": [
+        "command.mirror"
+      ],
+      "replicate": [
+        "command.array"
+      ],
+      "gumball": [
+        "command.transform",
+        "command.gumball"
+      ],
+      "history": [
+        "command.undo",
+        "command.redo"
+      ],
+      "undo": [
+        "command.undo"
+      ],
+      "redo": [
+        "command.redo"
+      ],
+      "clipboard": [
+        "command.copy",
+        "command.paste",
+        "command.duplicate"
+      ],
+      "copy": [
+        "command.copy"
+      ],
+      "paste": [
+        "command.paste"
+      ],
+      "duplicate": [
+        "command.duplicate"
+      ],
+      "edit": [
+        "command.delete"
+      ],
+      "delete": [
+        "command.delete"
+      ],
+      "control": [
+        "command.cancel",
+        "command.confirm"
+      ],
+      "cancel": [
+        "command.cancel"
+      ],
+      "confirm": [
+        "command.confirm"
+      ],
+      "widget": [
+        "command.gumball"
+      ],
+      "view": [
+        "command.focus",
+        "command.frameAll",
+        "command.view",
+        "command.camera",
+        "command.orbit",
+        "command.pan",
+        "command.zoom"
+      ],
+      "focus": [
+        "command.focus"
+      ],
+      "frame": [
+        "command.focus",
+        "command.frameAll"
+      ],
+      "all": [
+        "command.frameAll"
+      ],
+      "export": [
+        "command.screenshot",
+        "command.export.stl"
+      ],
+      "screenshot": [
+        "command.screenshot"
+      ],
+      "image": [
+        "command.screenshot"
+      ],
+      "camera": [
+        "command.view",
+        "command.camera",
+        "command.orbit",
+        "command.pan",
+        "command.zoom"
+      ],
+      "preset": [
+        "command.view"
+      ],
+      "settings": [
+        "command.camera",
+        "command.tolerance"
+      ],
+      "pivot": [
+        "command.pivot"
+      ],
+      "origin": [
+        "command.pivot"
+      ],
+      "orbit": [
+        "command.orbit"
+      ],
+      "pan": [
+        "command.pan"
+      ],
+      "zoom": [
+        "command.zoom"
+      ],
+      "selection": [
+        "command.selectionFilter",
+        "command.cycle"
+      ],
+      "filter": [
+        "command.selectionFilter"
+      ],
+      "cycle": [
+        "command.cycle"
+      ],
+      "snap": [
+        "command.snapping"
+      ],
+      "grid": [
+        "command.snapping",
+        "command.grid"
+      ],
+      "precision": [
+        "command.snapping",
+        "command.tolerance"
+      ],
+      "units": [
+        "command.grid"
+      ],
+      "spacing": [
+        "command.grid"
+      ],
+      "cplane": [
+        "command.cplane"
+      ],
+      "construction": [
+        "command.cplane"
+      ],
+      "plane": [
+        "command.cplane"
+      ],
+      "display": [
+        "command.display"
+      ],
+      "shading": [
+        "command.display"
+      ],
+      "wireframe": [
+        "command.display"
+      ],
+      "visibility": [
+        "command.isolate"
+      ],
+      "isolate": [
+        "command.isolate"
+      ],
+      "hide": [
+        "command.isolate"
+      ],
+      "outliner": [
+        "command.outliner"
+      ],
+      "hierarchy": [
+        "command.outliner"
+      ],
+      "layers": [
+        "command.outliner"
+      ],
+      "tolerance": [
+        "command.tolerance"
+      ],
+      "status": [
+        "command.status"
+      ],
+      "help": [
+        "command.status"
+      ],
+      "ui": [
+        "command.status"
+      ],
+      "import": [
+        "command.import.stl"
+      ],
+      "stl": [
+        "command.import.stl",
+        "command.export.stl"
+      ],
+      "file": [
+        "command.import.stl",
+        "command.export.stl"
+      ]
+    },
+    "byIntent": {}
+  }
+}

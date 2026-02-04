@@ -9,8 +9,8 @@
 The semantic system establishes machine-checkable linkages between UI elements (nodes, commands) and backend operations (geometry, math, solvers, rendering). Every user interaction is semantically tagged, validated, and documented automatically.
 
 **What it governs:**
-- Operation definitions (178 operations across 10 domains)
-- Node-to-operation linkages (50 nodes with semanticOps)
+- Operation definitions (297 operations across 10 domains)
+- Node-to-operation linkages (170 nodes with semanticOps)
 - Command-to-operation linkages (91 commands, 100% coverage)
 - Validation rules (compile-time + runtime)
 - Documentation generation (automatic)
@@ -19,6 +19,71 @@ The semantic system establishes machine-checkable linkages between UI elements (
 - Implementation details of operations (handled by domain modules)
 - UI rendering (handled by React components)
 - Data flow between nodes (handled by workflow engine)
+
+---
+
+## Lingua Ontology Core (LOC)
+
+**Version 2.0** of the semantic system introduces an agent-first, ontology-backed architecture:
+
+### New Architecture
+
+```
+client/src/semantic/ontology/
+├── types.ts           # LOC entity types (Operation, Node, Command, DataType, Unit, Goal, Solver)
+├── registry.ts        # OntologyRegistry with CRUD, validation, export (JSON/DOT)
+├── seed.ts            # Core datatypes (37), units (20), solvers (5), goals (14)
+├── migration.ts       # Bridge between SemanticOpMeta → LOC Operation
+├── provenance.ts      # Runtime trace capture (withTrace, recordTrace, analyzeSession)
+├── coverage.ts        # Coverage 2.0 multi-dimensional metrics
+├── generateAgentCatalog.ts  # Generates agent_capabilities.json
+└── index.ts           # Barrel exports
+```
+
+### Key Features
+
+**1. Operation v2 Metadata**
+```typescript
+interface Operation {
+  inputs: ArgSchema[]      // Typed input arguments with units
+  outputs: OutputSchema[]  // Typed outputs
+  safety: SafetyClass      // 'safe' | 'idempotent' | 'stateful' | 'destructive' | 'external'
+  synonyms?: string[]      // NL synonyms for agent discovery
+  canonicalPrompt?: string // Prompt for LLM invocation
+  examples?: Example[]     // Input/output examples
+  invariants?: Invariant[] // Pre/post conditions
+}
+```
+
+**2. Agent Capabilities Catalog**
+```bash
+npm run generate:agent-catalog
+```
+Generates `docs/semantic/agent_capabilities.json` with LLM function-call signatures for 202 operations.
+
+**3. Provenance Tracing**
+```typescript
+import { withTrace, provenanceStore } from './ontology'
+const tracedAdd = withTrace('math.add', (a, b) => a + b)
+const result = tracedAdd(2, 3) // Trace captured
+const session = provenanceStore.endSession() // Get all traces
+```
+
+**4. Coverage 2.0**
+```bash
+npm run analyze:coverage2
+```
+Measures 7 dimensions: operation, schema, example, safety, agent readiness, integrity, purity.
+
+### Migration Path
+
+Existing operations auto-migrate to LOC format:
+```typescript
+import { migrateOpsModule, ontologyRegistry } from './ontology'
+import * as mathOps from './ops/mathOps'
+const locOps = migrateOpsModule(mathOps)
+locOps.forEach(op => ontologyRegistry.registerOperation(op))
+```
 
 ---
 
@@ -45,18 +110,18 @@ interface SemanticOperation {
 ```
 
 **Domains (10):**
-1. `geometry` - Mesh, NURBS, BRep operations (40 ops)
-2. `math` - Mathematical operations (37 ops)
-3. `vector` - Vector operations (10 ops)
-4. `logic` - Logic operations (6 ops)
-5. `data` - Data structure operations (9 ops)
+1. `geometry` - Mesh, NURBS, BRep operations (100 ops)
+2. `math` - Mathematical operations (48 ops)
+3. `vector` - Vector operations (11 ops)
+4. `logic` - Logic operations (10 ops)
+5. `data` - Data structure operations (16 ops)
 6. `string` - String operations (7 ops)
 7. `color` - Color operations (6 ops)
-8. `solver` - Solver operations (4 ops)
+8. `solver` - Solver/simulator operations (31 ops)
 9. `workflow` - Workflow operations (3 ops)
-10. `command` - Command operations (59 ops)
+10. `command` - Command operations (61 ops)
 
-**Total:** 178 operations
+**Total:** 297 operations (see `docs/semantic/SEMANTIC_INVENTORY.md` for authoritative count)
 
 ### Nodes
 
@@ -73,11 +138,7 @@ interface WorkflowNodeDefinition {
 ```
 
 **Coverage:**
-- 193 total nodes
-- 50 nodes with semanticOps (26%)
-- 42 nodes with non-empty semanticOps (use operations)
-- 8 nodes with empty semanticOps (declarative primitives)
-- 143 nodes without semanticOps (utility, UI, transformation nodes)
+- 170 total nodes with semanticOps
 
 **100% coverage:** All nodes that use semantic operations have semanticOps arrays.
 
@@ -110,20 +171,20 @@ interface CommandSemantic {
 ```
 client/src/semantic/
 ├── semanticOp.ts              # Operation metadata types
-├── semanticOpIds.ts           # Auto-generated operation IDs (178)
+├── semanticOpIds.ts           # Auto-generated operation IDs
 ├── operationRegistry.ts       # Operation registry
 ├── nodeSemantics.ts           # Node semantic registry
 ├── registerAllOps.ts          # Auto-registration system
 └── ops/
-    ├── mathOps.ts             # 37 math operations
-    ├── vectorOps.ts           # 10 vector operations
-    ├── logicOps.ts            # 6 logic operations
-    ├── dataOps.ts             # 9 data operations
-    ├── stringOps.ts           # 7 string operations
-    ├── colorOps.ts            # 6 color operations
-    ├── workflowOps.ts         # 3 workflow operations
-    ├── solverOps.ts           # 4 solver operations
-    ├── commandOps.ts          # 59 command operations
+    ├── mathOps.ts             # Math operations
+    ├── vectorOps.ts           # Vector operations
+    ├── logicOps.ts            # Logic operations
+    ├── dataOps.ts             # Data operations
+    ├── stringOps.ts           # String operations
+    ├── colorOps.ts            # Color operations
+    ├── workflowOps.ts         # Workflow operations
+    ├── solverOps.ts           # Solver operations
+    ├── commandOps.ts          # Command operations
     └── index.ts               # Exports all operations
 
 client/src/geometry/
@@ -140,7 +201,7 @@ client/src/commands/
 └── commandSemantics.ts        # Command semantic metadata
 
 client/src/workflow/
-└── nodeRegistry.ts            # Node definitions (193 nodes)
+└── nodeRegistry.ts            # Node definitions
 
 scripts/
 ├── validateSemanticLinkage.ts # Validates operations + nodes
@@ -149,13 +210,7 @@ scripts/
 └── analyzeNodeSemanticCoverage.ts # Analyzes node coverage
 
 docs/semantic/
-├── README.md                  # Generated semantic documentation
-├── operations.json            # All operations (machine-readable)
-├── operations-by-category.json # Operations grouped by category
-├── node-linkages.json         # Node-to-operation linkages
-├── operation-dependencies.dot # Dependency graph (DOT format)
-├── command-semantics.json     # Command semantic metadata
-└── command-operation-linkages.json # Command-to-operation linkages
+└── SEMANTIC_INVENTORY.md      # Auto-generated inventory (source of truth)
 ```
 
 ### Operational Lifecycle
@@ -204,7 +259,7 @@ Run script to auto-generate TypeScript types:
 npm run generate:semantic-ids
 ```
 
-This generates `semanticOpIds.ts` with all 178 operation IDs as TypeScript types.
+This generates `semanticOpIds.ts` with all operation IDs as TypeScript types.
 
 **4. Link Node to Operations**
 
@@ -255,12 +310,7 @@ This validates:
 **7. Generate Documentation**
 
 Documentation is auto-generated during validation:
-- `operations.json` - All operations
-- `operations-by-category.json` - Operations by category
-- `node-linkages.json` - Node-to-operation linkages
-- `operation-dependencies.dot` - Dependency graph
-- `command-semantics.json` - Command metadata
-- `command-operation-linkages.json` - Command-to-operation linkages
+- `docs/semantic/SEMANTIC_INVENTORY.md` - Complete semantic inventory
 
 ---
 
@@ -555,15 +605,9 @@ git commit --no-verify -m "..."
 **Location:** `docs/semantic/`
 
 **Files:**
-- `README.md` - Human-readable summary
-- `operations.json` - All operations (machine-readable)
-- `operations-by-category.json` - Operations by category
-- `node-linkages.json` - Node-to-operation linkages
-- `operation-dependencies.dot` - Dependency graph (DOT format)
-- `command-semantics.json` - Command metadata
-- `command-operation-linkages.json` - Command-to-operation linkages
+- `SEMANTIC_INVENTORY.md` - Auto-generated semantic inventory (source of truth)
 
-**Regenerated automatically during validation.**
+**Regenerated automatically during validation via `npm run validate:integrity`.**
 
 ---
 
@@ -573,13 +617,10 @@ git commit --no-verify -m "..."
 
 - **This document** - Canonical semantic system documentation
 - `SEMANTIC_OPERATION_GUIDELINES.md` - Developer guidelines for adding operations
-- `MATERIAL_FLOW_PIPELINE.md` - Material flow from nodes to rendering
 
 ### Generated Documentation
 
-- `docs/semantic/README.md` - Generated semantic documentation
-- `docs/semantic/operations.json` - All operations (machine-readable)
-- `docs/semantic/command-semantics.json` - Command metadata
+- `docs/semantic/SEMANTIC_INVENTORY.md` - Auto-generated semantic inventory (authoritative counts)
 
 ### Code References
 
@@ -597,11 +638,13 @@ git commit --no-verify -m "..."
 
 ## Statistics
 
-**Operations:** 178 across 10 domains
-**Nodes:** 50/193 with semanticOps (26%, 100% coverage)
-**Commands:** 91/91 with semantics (100% coverage)
-**Validation:** 0 errors, 0 warnings
-**Documentation:** 8,000+ lines (auto-generated)
+**Operations:** 297 across 10 domains
+**Nodes:** 170 with semanticOps
+**Dashboards:** 3
+**Orphan Operations:** 48
+**Dangling References:** 0
+
+*See `docs/semantic/SEMANTIC_INVENTORY.md` for authoritative counts (auto-generated).*
 
 ---
 

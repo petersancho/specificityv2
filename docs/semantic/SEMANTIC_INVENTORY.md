@@ -1,13 +1,13 @@
 # Semantic Inventory
 
-Generated: 2026-02-04T10:19:55.959Z
+Generated: 2026-02-04T14:40:20.380Z
 
 ## Summary
 
 - **Total Operations**: 315
 - **Total Nodes**: 172
 - **Total Dashboards**: 3
-- **Orphan Operations**: 50
+- **Orphan Operations**: 61
 - **Dangling References**: 0
 
 ## Operations by Domain
@@ -297,17 +297,17 @@ Generated: 2026-02-04T10:19:55.959Z
 | `simulator.voxel.initialize` | Initialize Voxel Simulator | utility | ✅ | voxelSolver |
 | `simulator.voxel.step` | Voxelize Geometry | conversion | ✅ | voxelSolver |
 | `simulator.voxel.finalize` | Finalize Voxel Simulator | utility | ✅ | voxelSolver |
-| `simulator.topology.initialize` | Initialize Topology Simulator | utility | ✅ | topologyOptimizationSolver |
-| `simulator.topology.step` | Step Topology Simulator | utility | ✅ | topologyOptimizationSolver |
-| `simulator.topology.converge` | Check Topology Convergence | analysis | ✅ | topologyOptimizationSolver |
-| `simulator.topology.finalize` | Finalize Topology Simulator | utility | ✅ | topologyOptimizationSolver |
-| `simulator.topology.preview` | Preview Topology Geometry | analysis | ✅ | topologyOptimizationSolver |
-| `simulator.topology.sync` | Sync Topology Geometry | io | ✅ | topologyOptimizationSolver |
-| `simulator.topology.pause` | Pause Topology Simulator | utility | ✅ | topologyOptimizationSolver |
-| `simulator.topology.resume` | Resume Topology Simulator | utility | ✅ | topologyOptimizationSolver |
-| `simulator.topology.reset` | Reset Topology Simulator | utility | ✅ | topologyOptimizationSolver |
-| `simulator.topology.plasticwrap` | Plasticwrap Topology Geometry | utility | ✅ | topologyOptimizationSolver |
-| `simulator.topology.stabilityGuard` | Topology Stability Guard | analysis | ✅ | topologyOptimizationSolver |
+| `simulator.topology.initialize` | Initialize Topology Simulator | utility | ✅ | (none) |
+| `simulator.topology.step` | Step Topology Simulator | utility | ✅ | (none) |
+| `simulator.topology.converge` | Check Topology Convergence | analysis | ✅ | (none) |
+| `simulator.topology.finalize` | Finalize Topology Simulator | utility | ✅ | (none) |
+| `simulator.topology.preview` | Preview Topology Geometry | analysis | ✅ | (none) |
+| `simulator.topology.sync` | Sync Topology Geometry | io | ✅ | (none) |
+| `simulator.topology.pause` | Pause Topology Simulator | utility | ✅ | (none) |
+| `simulator.topology.resume` | Resume Topology Simulator | utility | ✅ | (none) |
+| `simulator.topology.reset` | Reset Topology Simulator | utility | ✅ | (none) |
+| `simulator.topology.plasticwrap` | Plasticwrap Topology Geometry | utility | ✅ | (none) |
+| `simulator.topology.stabilityGuard` | Topology Stability Guard | analysis | ✅ | (none) |
 | `simulator.chemistry.initialize` | Initialize Chemistry Simulator | utility | ✅ | chemistrySolver |
 | `simulator.chemistry.step` | Step Chemistry Simulator | utility | ✅ | chemistrySolver |
 | `simulator.chemistry.converge` | Check Chemistry Convergence | analysis | ✅ | chemistrySolver |
@@ -552,7 +552,7 @@ Generated: 2026-02-04T10:19:55.959Z
 | `chemistrySolver` | Ἐπιλύτης Χημείας | solver | `solver.chemistry`, `simulator.chemistry.initialize`, `simulator.chemistry.step`, `simulator.chemistry.converge`, `simulator.chemistry.finalize`, `simulator.chemistry.blendMaterials`, `simulator.chemistry.evaluateGoals`, `simulator.chemistry.analyze`, `simulator.chemistry.validate`, `simulator.chemistry.computeGradients`, `simulator.chemistry.computeStatistics`, `simulator.chemistry.checkConservation` |
 | `evolutionarySolver` | Evolutionary Solver | solver | `solver.evolutionary`, `simulator.initialize`, `simulator.step`, `simulator.converge`, `simulator.finalize` |
 | `voxelSolver` | Voxelizer | voxel | `solver.voxel`, `simulator.voxel.initialize`, `simulator.voxel.step`, `simulator.voxel.finalize` |
-| `topologyOptimizationSolver` | Topology Optimization | solver | `solver.topologyOptimization`, `simulator.topology.initialize`, `simulator.topology.step`, `simulator.topology.converge`, `simulator.topology.finalize`, `simulator.topology.preview`, `simulator.topology.sync`, `simulator.topology.pause`, `simulator.topology.resume`, `simulator.topology.reset`, `simulator.topology.plasticwrap`, `simulator.topology.stabilityGuard` |
+| `topologyOptimizationSolver` | Topology Optimization | solver | `solver.topologyOptimization` |
 
 ## Dashboards
 
@@ -597,6 +597,17 @@ Generated: 2026-02-04T10:19:55.959Z
 
 These operations are defined but never used by any node:
 
+- `simulator.topology.initialize`
+- `simulator.topology.step`
+- `simulator.topology.converge`
+- `simulator.topology.finalize`
+- `simulator.topology.preview`
+- `simulator.topology.sync`
+- `simulator.topology.pause`
+- `simulator.topology.resume`
+- `simulator.topology.reset`
+- `simulator.topology.plasticwrap`
+- `simulator.topology.stabilityGuard`
 - `solver.topologyOptimization.optimize`
 - `command.createNurbsBox`
 - `command.createNurbsSphere`

@@ -75,7 +75,7 @@ const mix = (a: RGBA, b: RGBA, t: number): RGBA => [
 
 const UI_FONT_FAMILY = '"Montreal Neue", "Space Grotesk", sans-serif';
 
-const PALETTE = {
+const PALETTE_LIGHT = {
   bgTop: rgb(250, 248, 244, 1),
   bgBottom: rgb(244, 242, 238, 1),
   border: rgb(18, 16, 12, 0.12),
@@ -96,12 +96,41 @@ const PALETTE = {
   toggleText: rgb(18, 16, 12, 0.9),
 };
 
-const TITLE_PALETTE = {
+const PALETTE_DARK = {
+  bgTop: rgb(32, 32, 32, 1),
+  bgBottom: rgb(26, 26, 26, 1),
+  border: rgb(255, 255, 255, 0.1),
+  topAccent: rgb(255, 255, 255, 0.25),
+  topAccentSoft: rgb(255, 255, 255, 0.12),
+  dotStrong: rgb(255, 255, 255, 0.08),
+  dotSoft: rgb(255, 255, 255, 0.03),
+  chipFill: rgb(42, 42, 42, 0.98),
+  chipHighlight: rgb(60, 60, 60, 0.55),
+  chipBorder: rgb(255, 255, 255, 0.15),
+  chipShadow: rgb(0, 0, 0, 0.3),
+  chipText: rgb(240, 240, 240, 0.92),
+  keyLabel: rgb(240, 240, 240, 0.6),
+  toggleFill: rgb(38, 38, 38, 1),
+  toggleHighlight: rgb(55, 55, 55, 0.6),
+  toggleBorder: rgb(255, 255, 255, 0.18),
+  toggleActive: rgb(240, 240, 240, 0.92),
+  toggleText: rgb(240, 240, 240, 0.9),
+};
+
+const TITLE_PALETTE_LIGHT = {
   fill: rgb(246, 243, 238, 1),
   stroke: rgb(198, 193, 187, 1),
   text: rgb(24, 24, 28, 0.95),
   shadow: rgb(0, 0, 0, 0.22),
   glow: rgb(255, 255, 255, 0.35),
+};
+
+const TITLE_PALETTE_DARK = {
+  fill: rgb(38, 38, 38, 1),
+  stroke: rgb(70, 70, 70, 1),
+  text: rgb(240, 240, 240, 0.95),
+  shadow: rgb(0, 0, 0, 0.4),
+  glow: rgb(60, 60, 60, 0.35),
 };
 
 const TITLE_ACCENTS: Record<LogoTone, RGBA> = {
@@ -256,6 +285,8 @@ const WebGLStatusFooter = ({
   const uiRef = useRef<WebGLUIRenderer | null>(null);
   const textRef = useRef<WebGLTextRenderer | null>(null);
   const dprRef = useRef(1);
+  const paletteRef = useRef(PALETTE_LIGHT);
+  const titlePaletteRef = useRef(TITLE_PALETTE_LIGHT);
   const layoutRef = useRef<LayoutState>({
     width: 1,
     height: FOOTER_HEIGHT,
@@ -317,13 +348,14 @@ const WebGLStatusFooter = ({
     const radius = Math.min(CHIP_RADIUS, rect.height * 0.5);
     const shadowOffset = { x: 1.2, y: 2.2 };
 
+    const palette = paletteRef.current;
     ui.drawRoundedRect(
       (rect.x + shadowOffset.x) * dpr,
       (rect.y + shadowOffset.y) * dpr,
       rect.width * dpr,
       rect.height * dpr,
       radius * dpr,
-      PALETTE.chipShadow
+      palette.chipShadow
     );
     ui.drawRoundedRect(
       rect.x * dpr,
@@ -331,7 +363,7 @@ const WebGLStatusFooter = ({
       rect.width * dpr,
       rect.height * dpr,
       radius * dpr,
-      PALETTE.chipFill
+      palette.chipFill
     );
 
     const highlightInset = CHIP_STROKE;
@@ -341,7 +373,7 @@ const WebGLStatusFooter = ({
       (rect.width - highlightInset * 2) * dpr,
       rect.height * 0.48 * dpr,
       Math.max(2, radius - highlightInset) * dpr,
-      mix(PALETTE.chipHighlight, PALETTE.chipFill, 0.35)
+      mix(palette.chipHighlight, palette.chipFill, 0.35)
     );
 
     ui.drawRectStroke(
@@ -350,7 +382,7 @@ const WebGLStatusFooter = ({
       rect.width * dpr,
       rect.height * dpr,
       CHIP_STROKE * dpr,
-      PALETTE.chipBorder
+      palette.chipBorder
     );
   };
 
@@ -361,6 +393,7 @@ const WebGLStatusFooter = ({
     if (!ui || !textRenderer || !canvas) return;
     const dpr = dprRef.current;
     const accent = TITLE_ACCENTS[titleTone] ?? TITLE_ACCENTS.neutral;
+    const titlePalette = titlePaletteRef.current;
 
     ui.drawRoundedRect(
       (rect.x + TITLE_SHADOW_OFFSET) * dpr,
@@ -368,7 +401,7 @@ const WebGLStatusFooter = ({
       rect.width * dpr,
       rect.height * dpr,
       TITLE_RADIUS * dpr,
-      TITLE_PALETTE.shadow
+      titlePalette.shadow
     );
     ui.drawRoundedRect(
       rect.x * dpr,
@@ -376,7 +409,7 @@ const WebGLStatusFooter = ({
       rect.width * dpr,
       rect.height * dpr,
       TITLE_RADIUS * dpr,
-      TITLE_PALETTE.fill
+      titlePalette.fill
     );
     ui.drawRoundedRect(
       (rect.x + TITLE_STROKE) * dpr,
@@ -384,7 +417,7 @@ const WebGLStatusFooter = ({
       (rect.width - TITLE_STROKE * 2) * dpr,
       rect.height * 0.52 * dpr,
       Math.max(2, TITLE_RADIUS - TITLE_STROKE) * dpr,
-      mix(TITLE_PALETTE.glow, TITLE_PALETTE.fill, 0.4)
+      mix(titlePalette.glow, titlePalette.fill, 0.4)
     );
     ui.drawRectStroke(
       rect.x * dpr,
@@ -392,7 +425,7 @@ const WebGLStatusFooter = ({
       rect.width * dpr,
       rect.height * dpr,
       TITLE_STROKE * dpr,
-      TITLE_PALETTE.stroke
+      titlePalette.stroke
     );
     ui.drawRoundedRect(
       (rect.x + TITLE_STROKE) * dpr,
@@ -418,8 +451,8 @@ const WebGLStatusFooter = ({
     const shadowOffset = 1.2;
 
     prepareText(parts.base, TITLE_FONT_SIZE, 700);
-    drawPreparedText((textX + shadowOffset) * dpr, (textY + shadowOffset) * dpr, TITLE_PALETTE.shadow);
-    drawPreparedText(textX * dpr, textY * dpr, TITLE_PALETTE.text);
+    drawPreparedText((textX + shadowOffset) * dpr, (textY + shadowOffset) * dpr, titlePalette.shadow);
+    drawPreparedText(textX * dpr, textY * dpr, titlePalette.text);
 
     if (parts.accent) {
       const accentX = textX + baseWidth + TITLE_GAP;
@@ -427,7 +460,7 @@ const WebGLStatusFooter = ({
       drawPreparedText(
         (accentX + shadowOffset * 0.6) * dpr,
         (textY + shadowOffset * 0.6) * dpr,
-        TITLE_PALETTE.shadow
+        titlePalette.shadow
       );
       drawPreparedText(accentX * dpr, textY * dpr, accent);
 
@@ -525,10 +558,11 @@ const WebGLStatusFooter = ({
     heightCss: number,
     dpr: number
   ) => {
+    const palette = paletteRef.current;
     const stepHeightCss = heightCss / GRADIENT_STEPS;
     for (let i = 0; i < GRADIENT_STEPS; i += 1) {
       const t0 = i / (GRADIENT_STEPS - 1);
-      const color = mix(PALETTE.bgTop, PALETTE.bgBottom, t0);
+      const color = mix(palette.bgTop, palette.bgBottom, t0);
       ui.drawRect(
         0,
         i * stepHeightCss * dpr,
@@ -538,8 +572,8 @@ const WebGLStatusFooter = ({
       );
     }
 
-    ui.drawRect(0, 0, widthCss * dpr, 1.5 * dpr, PALETTE.topAccent);
-    ui.drawRect(0, 1.5 * dpr, widthCss * 0.38 * dpr, 1 * dpr, PALETTE.topAccentSoft);
+    ui.drawRect(0, 0, widthCss * dpr, 1.5 * dpr, palette.topAccent);
+    ui.drawRect(0, 1.5 * dpr, widthCss * 0.38 * dpr, 1 * dpr, palette.topAccentSoft);
   };
 
   const drawDotGrid = (
@@ -548,6 +582,7 @@ const WebGLStatusFooter = ({
     heightCss: number,
     dpr: number
   ) => {
+    const palette = paletteRef.current;
     const cols = Math.ceil(widthCss / DOT_SPACING) + 1;
     const rows = Math.ceil(heightCss / DOT_SPACING) + 1;
 
@@ -561,7 +596,7 @@ const WebGLStatusFooter = ({
           yCss * dpr,
           DOT_SIZE * dpr,
           DOT_SIZE * dpr,
-          isStrong ? PALETTE.dotStrong : PALETTE.dotSoft
+          isStrong ? palette.dotStrong : palette.dotSoft
         );
       }
     }
@@ -589,10 +624,11 @@ const WebGLStatusFooter = ({
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
+    const palette = paletteRef.current;
     ui.begin(canvas.width, canvas.height);
     drawGradientBackground(ui, widthCss, heightCss, dpr);
     drawDotGrid(ui, widthCss, heightCss, dpr);
-    ui.drawRect(0, 0, canvas.width, 1 * dpr, PALETTE.border);
+    ui.drawRect(0, 0, canvas.width, 1 * dpr, palette.border);
 
     if (titleRect && titleParts) {
       drawTitleBadge(titleRect, titleParts);
@@ -610,7 +646,7 @@ const WebGLStatusFooter = ({
         box.width * dpr,
         box.height * dpr,
         toggleRadius * dpr,
-        PALETTE.toggleFill
+        palette.toggleFill
       );
       ui.drawRoundedRect(
         (box.x + 1) * dpr,
@@ -618,7 +654,7 @@ const WebGLStatusFooter = ({
         (box.width - 2) * dpr,
         box.height * 0.5 * dpr,
         Math.max(2, toggleRadius - 1) * dpr,
-        mix(PALETTE.toggleHighlight, PALETTE.toggleFill, 0.4)
+        mix(palette.toggleHighlight, palette.toggleFill, 0.4)
       );
       ui.drawRectStroke(
         box.x * dpr,
@@ -626,7 +662,7 @@ const WebGLStatusFooter = ({
         box.width * dpr,
         box.height * dpr,
         1 * dpr,
-        PALETTE.toggleBorder
+        palette.toggleBorder
       );
       if (toggleItem.checked) {
         const x1 = (box.x + 3) * dpr;
@@ -635,8 +671,8 @@ const WebGLStatusFooter = ({
         const y2 = (box.y + box.height - 3) * dpr;
         const x3 = (box.x + box.width - 2.5) * dpr;
         const y3 = (box.y + 3) * dpr;
-        ui.drawLine(x1, y1, x2, y2, 2.2 * dpr, PALETTE.toggleActive);
-        ui.drawLine(x2, y2, x3, y3, 2.2 * dpr, PALETTE.toggleActive);
+        ui.drawLine(x1, y1, x2, y2, 2.2 * dpr, palette.toggleActive);
+        ui.drawLine(x2, y2, x3, y3, 2.2 * dpr, palette.toggleActive);
       }
     });
 
@@ -659,11 +695,11 @@ const WebGLStatusFooter = ({
     };
 
     centerLayout.forEach((chip) => {
-      drawCenteredText(chip.text, chip.rect, CHIP_FONT_SIZE, 700, PALETTE.chipText);
+      drawCenteredText(chip.text, chip.rect, CHIP_FONT_SIZE, 700, palette.chipText);
     });
 
     rightLayout.forEach((chip) => {
-      drawCenteredText(chip.text, chip.rect, CHIP_FONT_SIZE, 700, PALETTE.chipText);
+      drawCenteredText(chip.text, chip.rect, CHIP_FONT_SIZE, 700, palette.chipText);
     });
 
     leftKeys.forEach((keyLayout) => {
@@ -672,7 +708,7 @@ const WebGLStatusFooter = ({
         keyLayout.rect,
         KEY_FONT_SIZE,
         700,
-        PALETTE.chipText,
+        palette.chipText,
         KEY_TEXT_OFFSET
       );
       drawCenteredText(
@@ -680,7 +716,7 @@ const WebGLStatusFooter = ({
         keyLayout.rect,
         LABEL_FONT_SIZE,
         600,
-        PALETTE.keyLabel,
+        palette.keyLabel,
         KEY_LABEL_OFFSET
       );
     });
@@ -691,7 +727,7 @@ const WebGLStatusFooter = ({
       const textHeight = size.height / dpr;
       const textY =
         (toggleItem.rect.y + toggleItem.rect.height * 0.5 - textHeight * 0.5) * dpr;
-      drawPreparedText(textX, textY, PALETTE.toggleText);
+      drawPreparedText(textX, textY, palette.toggleText);
     });
   };
 
@@ -707,7 +743,27 @@ const WebGLStatusFooter = ({
     glRef.current = gl;
     uiRef.current = new WebGLUIRenderer(gl);
     textRef.current = new WebGLTextRenderer(gl);
-    draw();
+
+    // Theme detection
+    const updatePalette = () => {
+      const isDark = document.documentElement.dataset.theme === "dark";
+      paletteRef.current = isDark ? PALETTE_DARK : PALETTE_LIGHT;
+      titlePaletteRef.current = isDark ? TITLE_PALETTE_DARK : TITLE_PALETTE_LIGHT;
+      draw();
+    };
+    updatePalette();
+
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.attributeName === "data-theme") {
+          updatePalette();
+          break;
+        }
+      }
+    });
+    observer.observe(document.documentElement, { attributes: true });
+
+    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {

@@ -1,7 +1,6 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useState, useMemo } from "react";
 import styles from "./EvolutionarySimulatorDashboard.module.css";
 import { useProjectStore } from "../../../store/useProjectStore";
-import { semanticOpEnd, semanticOpStart, withSemanticOpSync } from "../../../semantic/semanticTracer";
 
 type EvolutionarySimulatorDashboardProps = {
   nodeId: string;
@@ -25,7 +24,6 @@ const EvolutionarySimulatorDashboard = ({
 }: EvolutionarySimulatorDashboardProps) => {
   const [activeTab, setActiveTab] = useState<TabId>("setup");
   const [uiScale, setUiScale] = useState(0.9);
-  const semanticRunIdRef = useRef<string | null>(null);
 
   const scalePercent = Math.round(uiScale * 100);
 
@@ -65,25 +63,7 @@ const EvolutionarySimulatorDashboard = ({
   };
 
   const handleRun = () => {
-    const runId = `${nodeId}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 8)}`;
-    semanticRunIdRef.current = runId;
-    semanticOpStart({ nodeId, runId, opId: "simulator.initialize" });
-    semanticOpEnd({ nodeId, runId, opId: "simulator.initialize", ok: true });
-    try {
-      withSemanticOpSync({ nodeId, runId, opId: "simulator.step" }, () => {
-        recalculateWorkflow();
-      });
-      semanticOpStart({ nodeId, runId, opId: "simulator.finalize" });
-      semanticOpEnd({ nodeId, runId, opId: "simulator.finalize", ok: true });
-    } catch (error) {
-      semanticOpEnd({
-        nodeId,
-        runId,
-        opId: "simulator.finalize",
-        ok: false,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
+    recalculateWorkflow();
   };
 
   const metadata = outputs.metadata as Record<string, unknown> | undefined;

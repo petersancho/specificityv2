@@ -25,10 +25,6 @@ import {
   type WebGLButtonVariant,
 } from "./webglButtonRenderer";
 import { renderIconDataUrl, type IconId } from "../../webgl/ui/WebGLIconRenderer";
-import type { SemanticOpId } from "../../semantic/semanticOpIds";
-import type { UISemanticDomain } from "../../semantic/uiSemantics";
-import { resolveSemanticColorValue } from "../../semantic/uiColorTokens";
-import { resolveStickerMeta } from "../../semantic/uiStickerRegistry";
 
 export type WebGLButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children"> & {
   label: string;
@@ -40,8 +36,6 @@ export type WebGLButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "ch
   size?: WebGLButtonSize;
   shape?: WebGLButtonShape;
   accentColor?: string;
-  semanticDomain?: UISemanticDomain;
-  semanticOps?: SemanticOpId[];
   active?: boolean;
   hideLabel?: boolean;
   shortLabel?: string;
@@ -92,18 +86,6 @@ const resolveState = ({
   return "idle";
 };
 
-const inferDomainFromOp = (opId: SemanticOpId): UISemanticDomain => {
-  if (opId.startsWith("math.")) return "numeric";
-  if (opId.startsWith("vector.")) return "numeric";
-  if (opId.startsWith("logic.")) return "logic";
-  if (opId.startsWith("data.")) return "data";
-  if (opId.startsWith("string.")) return "data";
-  if (opId.startsWith("color.")) return "data";
-  if (opId.startsWith("solver.")) return "feedback";
-  if (opId.startsWith("simulator.")) return "feedback";
-  return "structure";
-};
-
 export const WebGLButton = ({
   label,
   iconId,
@@ -114,8 +96,6 @@ export const WebGLButton = ({
   size = "md",
   shape = "auto",
   accentColor,
-  semanticDomain,
-  semanticOps,
   active = false,
   hideLabel = false,
   shortLabel,
@@ -192,24 +172,7 @@ export const WebGLButton = ({
     resolvedIconStyle === "sticker" || resolvedIconStyle === "sticker2";
   const stickerVariant = resolvedIconStyle === "sticker" ? "library" : "site";
 
-  const inferredOps = useMemo(
-    () => (iconId ? resolveStickerMeta(String(iconId)).semanticOps : undefined),
-    [iconId]
-  );
-  const resolvedSemanticOps = semanticOps ?? inferredOps;
-  const resolvedSemanticDomain = useMemo(() => {
-    if (semanticDomain) return semanticDomain;
-    if (resolvedSemanticOps && resolvedSemanticOps.length > 0) {
-      return inferDomainFromOp(resolvedSemanticOps[0]);
-    }
-    return undefined;
-  }, [semanticDomain, resolvedSemanticOps]);
-
   const state = resolveState({ disabled, active, hovered, pressed });
-  const semanticAccent = useMemo(
-    () => (resolvedSemanticDomain ? resolveSemanticColorValue(resolvedSemanticDomain) : undefined),
-    [resolvedSemanticDomain]
-  );
 
   const visuals = resolveButtonVisuals({
     width: measuredSize.width,
@@ -218,7 +181,7 @@ export const WebGLButton = ({
     state,
     size,
     shape,
-    accentColor: accentColor ?? semanticAccent,
+    accentColor,
     iconTintOverride,
     iconOnly,
     elevated,
@@ -276,9 +239,6 @@ export const WebGLButton = ({
   setVar("--webgl-button-text-color", visuals.textColor);
   setVar("--webgl-button-fallback-fill", visuals.fallbackFill);
   setVar("--webgl-button-fallback-border", visuals.fallbackBorder);
-  if (resolvedSemanticDomain) {
-    setVar("--semantic-accent", semanticAccent ?? "");
-  }
 
   if (iconOnly && !squareClass && !cssVars.width) {
     cssVars.width = `${visuals.minHeight}px`;
@@ -361,8 +321,6 @@ export const WebGLButton = ({
       className={classes}
       style={cssVars}
       data-state={state}
-      data-semantic-domain={resolvedSemanticDomain}
-      data-semantic-state={state}
       data-active={active ? "true" : "false"}
       data-no-workspace-pan="true"
       disabled={disabled}
@@ -384,8 +342,6 @@ export const WebGLButton = ({
             variant={stickerVariant}
             size={Math.round(visuals.iconSize)}
             tint={stickerTint}
-            semanticDomain={resolvedSemanticDomain}
-            semanticOps={resolvedSemanticOps}
             signature={resolvedIconSignature}
             className={styles.icon}
             ariaHidden

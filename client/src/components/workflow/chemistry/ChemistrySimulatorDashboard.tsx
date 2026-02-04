@@ -1,7 +1,6 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useState } from "react";
 import styles from "./ChemistrySimulatorDashboard.module.css";
 import { useProjectStore } from "../../../store/useProjectStore";
-import { semanticOpEnd, semanticOpStart, withSemanticOpSync } from "../../../semantic/semanticTracer";
 import { SemanticOpsPanel } from "../SemanticOpsPanel";
 import type { ChemistryMaterialSpec } from "../../../data/chemistryMaterials";
 
@@ -70,7 +69,6 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
 }) => {
   const [activeTab, setActiveTab] = useState<"parameters" | "output" | "semantic">("parameters");
   const [scale, setScale] = useState(100);
-  const semanticRunIdRef = useRef<string | null>(null);
 
   const { nodes, edges, updateNodeData, recalculateWorkflow } = useProjectStore(
     (state) => ({
@@ -126,25 +124,7 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
   };
 
   const handleRun = () => {
-    const runId = `${nodeId}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 8)}`;
-    semanticRunIdRef.current = runId;
-    semanticOpStart({ nodeId, runId, opId: "simulator.chemistry.initialize" });
-    semanticOpEnd({ nodeId, runId, opId: "simulator.chemistry.initialize", ok: true });
-    try {
-      withSemanticOpSync({ nodeId, runId, opId: "simulator.chemistry.step" }, () => {
-        recalculateWorkflow();
-      });
-      semanticOpStart({ nodeId, runId, opId: "simulator.chemistry.finalize" });
-      semanticOpEnd({ nodeId, runId, opId: "simulator.chemistry.finalize", ok: true });
-    } catch (error) {
-      semanticOpEnd({
-        nodeId,
-        runId,
-        opId: "simulator.chemistry.finalize",
-        ok: false,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
+    recalculateWorkflow();
   };
 
   const particlesArray = Array.isArray(outputs.particles)

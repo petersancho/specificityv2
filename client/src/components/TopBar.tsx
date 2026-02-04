@@ -1,3 +1,4 @@
+import logoLinguaSymbol from "../assets/logos/logo-lingua-symbol.svg";
 import WebGLButton from "./ui/WebGLButton";
 import LinguaLogo from "./LinguaLogo";
 import styles from "./TopBar.module.css";
@@ -120,7 +121,14 @@ const TopBar = ({
         <span className={styles.status}>{status}</span>
       </div>
       <div className={styles.brand}>
-        <LinguaLogo size={28} withText />
+        <LinguaLogo size={28} />
+        <img
+          className={styles.brandSymbol}
+          src={logoLinguaSymbol}
+          alt="Lingua symbol"
+        />
+        <span className={styles.brandTagline}>CREATIVITY</span>
+        <span className={styles.brandName}>Lingua</span>
       </div>
     </header>
   );

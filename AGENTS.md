@@ -42,6 +42,12 @@ npm run generate:semantic-ids
 
 # Analyze node semantic coverage
 npm run analyze:coverage
+
+# LOC Coverage 2.0 (multi-dimensional coverage metrics)
+npm run analyze:coverage2
+
+# Generate agent capabilities catalog
+npm run generate:agent-catalog
 ```
 
 CI runs `npm run validate:all` on every push and PR. Builds fail if validation fails.
@@ -66,6 +72,21 @@ Every UI element must be semantically linked to backend computation. The chain:
 ```
 UI → Command → CommandSemantic → Node → SemanticOpId → SemanticOperation → Backend
 ```
+
+### LOC (Lingua Ontology Core)
+
+LOC is the v2 semantic ontology system providing:
+- **Unified ontology registry**: `client/src/semantic/ontology/registry.ts`
+- **Provenance tracing**: `client/src/semantic/ontology/provenance.ts`
+- **Coverage 2.0 metrics**: `client/src/semantic/ontology/coverage.ts`
+- **Core types**: `client/src/semantic/ontology/types.ts`
+- **Seed data**: `client/src/semantic/ontology/seed.ts`
+
+Key exports from `client/src/semantic/index.ts`:
+- `ontologyRegistry` - Global ontology registry singleton
+- `provenanceStore` - Runtime execution tracing
+- `withTrace()` / `withTraceAsync()` - Function wrappers for tracing
+- `analyzeCoverage()` - Multi-dimensional coverage analysis
 
 ### Adding New Operations
 1. Add to `client/src/semantic/ops/{domain}Ops.ts` (domains: geometry, math, vector, logic, data, string, color, solver, workflow, command)
@@ -98,6 +119,8 @@ UI → Command → CommandSemantic → Node → SemanticOpId → SemanticOperati
 | Command Registry | `client/src/commands/registry.ts` |
 | Node Registry | `client/src/workflow/nodeRegistry.ts` |
 | Semantic Ops | `client/src/semantic/ops/` |
+| LOC Ontology | `client/src/semantic/ontology/` |
+| Operation Registry | `client/src/semantic/operationRegistry.ts` |
 
 ## State Management Patterns
 

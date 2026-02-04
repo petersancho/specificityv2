@@ -2,13 +2,6 @@ import { useEffect, useRef } from "react";
 import { WebGLUIRenderer, type RGBA } from "../webgl/ui/WebGLUIRenderer";
 import { WebGLTextRenderer } from "../webgl/ui/WebGLTextRenderer";
 import styles from "./WebGLTitleLogo.module.css";
-import {
-  UI_BASE_COLORS,
-  UI_DOMAIN_COLORS,
-  UI_FEEDBACK_COLORS,
-  mixHex,
-  rgbaFromHex,
-} from "../semantic/uiColorTokens";
 
 type LogoTone = "roslyn" | "numerica" | "neutral";
 
@@ -23,7 +16,12 @@ type TitleParts = {
   accent: string;
 };
 
-const rgba = (hex: string, alpha = 1): RGBA => rgbaFromHex(hex, alpha);
+const rgb = (r: number, g: number, b: number, a = 1): RGBA => [
+  r / 255,
+  g / 255,
+  b / 255,
+  a,
+];
 
 const mix = (a: RGBA, b: RGBA, t: number): RGBA => [
   a[0] + (b[0] - a[0]) * t,
@@ -32,19 +30,28 @@ const mix = (a: RGBA, b: RGBA, t: number): RGBA => [
   a[3] + (b[3] - a[3]) * t,
 ];
 
-const PALETTE = {
-  fill: rgba(UI_BASE_COLORS.porcelain, 1),
-  stroke: rgba(mixHex(UI_BASE_COLORS.black, UI_BASE_COLORS.white, 0.75), 1),
-  text: rgba(UI_BASE_COLORS.ink, 0.96),
-  textShadow: rgba(UI_BASE_COLORS.black, 0.35),
-  glow: rgba(UI_BASE_COLORS.white, 0.5),
-  shadow: rgba(UI_BASE_COLORS.black, 1),
+const PALETTE_LIGHT = {
+  fill: rgb(246, 243, 238, 1),
+  stroke: rgb(198, 193, 187, 1),
+  text: rgb(24, 24, 28, 0.96),
+  textShadow: rgb(0, 0, 0, 0.35),
+  glow: rgb(255, 255, 255, 0.5),
+  shadow: rgb(0, 0, 0, 1),
+};
+
+const PALETTE_DARK = {
+  fill: rgb(38, 38, 38, 1),
+  stroke: rgb(70, 70, 70, 1),
+  text: rgb(240, 240, 240, 0.96),
+  textShadow: rgb(0, 0, 0, 0.5),
+  glow: rgb(60, 60, 60, 0.5),
+  shadow: rgb(0, 0, 0, 1),
 };
 
 const TONE_ACCENTS: Record<LogoTone, RGBA> = {
-  roslyn: rgba(UI_DOMAIN_COLORS.data, 1),
-  numerica: rgba(UI_DOMAIN_COLORS.logic, 1),
-  neutral: rgba(UI_FEEDBACK_COLORS.warning, 1),
+  roslyn: rgb(0, 212, 255, 1),
+  numerica: rgb(255, 0, 153, 1),
+  neutral: rgb(204, 91, 26, 1),
 };
 
 const TITLE_PARTS: Record<string, TitleParts> = {
@@ -81,6 +88,7 @@ const WebGLTitleLogo = ({ title, tone = "neutral", className }: WebGLTitleLogoPr
   const glRef = useRef<WebGLRenderingContext | null>(null);
   const uiRef = useRef<WebGLUIRenderer | null>(null);
   const textRef = useRef<WebGLTextRenderer | null>(null);
+  const paletteRef = useRef(PALETTE_LIGHT);
 
   const draw = () => {
     const canvas = canvasRef.current;
@@ -93,14 +101,14 @@ const WebGLTitleLogo = ({ title, tone = "neutral", className }: WebGLTitleLogoPr
     const parts = resolveTitleParts(title);
     const accent = TONE_ACCENTS[tone] ?? TONE_ACCENTS.neutral;
 
-      textRenderer.setText(parts.base, {
-        fontSize: FONT_SIZE * dpr,
-        fontWeight: BASE_WEIGHT,
-        fontFamily: FONT_FAMILY,
-        paddingX: 0,
-        paddingY: 0,
-        color: UI_BASE_COLORS.white,
-      });
+    textRenderer.setText(parts.base, {
+      fontSize: FONT_SIZE * dpr,
+      fontWeight: BASE_WEIGHT,
+      fontFamily: FONT_FAMILY,
+      paddingX: 0,
+      paddingY: 0,
+      color: "#ffffff",
+    });
     const baseSize = textRenderer.getSize();
     let accentSize = { width: 0, height: 0 };
     if (parts.accent) {
@@ -110,7 +118,7 @@ const WebGLTitleLogo = ({ title, tone = "neutral", className }: WebGLTitleLogoPr
         fontFamily: FONT_FAMILY,
         paddingX: 0,
         paddingY: 0,
-        color: UI_BASE_COLORS.white,
+        color: "#ffffff",
       });
       accentSize = textRenderer.getSize();
     }
@@ -137,13 +145,14 @@ const WebGLTitleLogo = ({ title, tone = "neutral", className }: WebGLTitleLogoPr
     const radius = Math.min(RADIUS, rect.height / 2);
 
     ui.begin(canvas.width, canvas.height);
+    const palette = paletteRef.current;
     ui.drawRoundedRect(
       (rect.x + SHADOW_OFFSET) * dpr,
       (rect.y + SHADOW_OFFSET) * dpr,
       rect.width * dpr,
       rect.height * dpr,
       radius * dpr,
-      PALETTE.shadow
+      palette.shadow
     );
     ui.drawRoundedRect(
       rect.x * dpr,
@@ -151,7 +160,7 @@ const WebGLTitleLogo = ({ title, tone = "neutral", className }: WebGLTitleLogoPr
       rect.width * dpr,
       rect.height * dpr,
       radius * dpr,
-      PALETTE.fill
+      palette.fill
     );
     ui.drawRoundedRect(
       (rect.x + STROKE) * dpr,
@@ -159,7 +168,7 @@ const WebGLTitleLogo = ({ title, tone = "neutral", className }: WebGLTitleLogoPr
       rect.width * dpr,
       rect.height * 0.52 * dpr,
       Math.max(2, (radius - STROKE)) * dpr,
-      mix(PALETTE.glow, PALETTE.fill, 0.35)
+      mix(palette.glow, palette.fill, 0.35)
     );
     ui.drawRectStroke(
       rect.x * dpr,
@@ -167,7 +176,7 @@ const WebGLTitleLogo = ({ title, tone = "neutral", className }: WebGLTitleLogoPr
       rect.width * dpr,
       rect.height * dpr,
       STROKE * dpr,
-      PALETTE.stroke
+      palette.stroke
     );
 
     const barHeight = rect.height - STROKE * 2;
@@ -208,15 +217,15 @@ const WebGLTitleLogo = ({ title, tone = "neutral", className }: WebGLTitleLogoPr
       fontFamily: FONT_FAMILY,
       paddingX: 0,
       paddingY: 0,
-      color: UI_BASE_COLORS.white,
+      color: "#ffffff",
     });
     textRenderer.draw(
       (textX + shadowOffset) * dpr,
       (textY + shadowOffset) * dpr,
       resolution,
-      PALETTE.textShadow
+      palette.textShadow
     );
-    textRenderer.draw(textX * dpr, textY * dpr, resolution, PALETTE.text);
+    textRenderer.draw(textX * dpr, textY * dpr, resolution, palette.text);
 
     if (parts.accent) {
       const accentX = textX + baseWidth + ACCENT_GAP;
@@ -226,13 +235,13 @@ const WebGLTitleLogo = ({ title, tone = "neutral", className }: WebGLTitleLogoPr
         fontFamily: FONT_FAMILY,
         paddingX: 0,
         paddingY: 0,
-        color: UI_BASE_COLORS.white,
+        color: "#ffffff",
       });
       textRenderer.draw(
         (accentX + shadowOffset * 0.6) * dpr,
         (textY + shadowOffset * 0.6) * dpr,
         resolution,
-        mix(accent, PALETTE.textShadow, 0.35)
+        mix(accent, palette.textShadow, 0.35)
       );
       textRenderer.draw(accentX * dpr, textY * dpr, resolution, accent);
     }
@@ -249,7 +258,26 @@ const WebGLTitleLogo = ({ title, tone = "neutral", className }: WebGLTitleLogoPr
     glRef.current = gl;
     uiRef.current = new WebGLUIRenderer(gl);
     textRef.current = new WebGLTextRenderer(gl);
-    draw();
+
+    // Theme detection
+    const updatePalette = () => {
+      const isDark = document.documentElement.dataset.theme === "dark";
+      paletteRef.current = isDark ? PALETTE_DARK : PALETTE_LIGHT;
+      draw();
+    };
+    updatePalette();
+
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.attributeName === "data-theme") {
+          updatePalette();
+          break;
+        }
+      }
+    });
+    observer.observe(document.documentElement, { attributes: true });
+
+    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {

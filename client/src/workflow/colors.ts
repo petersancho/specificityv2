@@ -146,29 +146,21 @@ export function getCategoryAccentColor(categoryId: NodeCategoryId): string {
 }
 
 /**
- * Get a lighter tint of a CMYK color for band/background use
- * Returns a color with 10% opacity for subtle backgrounds
+ * Get uniform grey for node bands (monochrome design)
+ * All categories use the same grey band color for cleaner UI
  */
-export function getCategoryBandColor(categoryId: NodeCategoryId): string {
-  const accent = getCategoryAccentColor(categoryId);
-  // Convert hex to rgba with 10% opacity
-  const r = parseInt(accent.slice(1, 3), 16);
-  const g = parseInt(accent.slice(3, 5), 16);
-  const b = parseInt(accent.slice(5, 7), 16);
-  return `rgba(${r}, ${g}, ${b}, 0.1)`;
+export function getCategoryBandColor(_categoryId: NodeCategoryId): string {
+  // Monochrome: all bands are uniform grey
+  return "#d0d0d0";
 }
 
 /**
- * Get a medium tint of a CMYK color for port backgrounds
- * Returns a color with 40% opacity
+ * Get uniform grey for port backgrounds (monochrome design)
+ * All categories use the same grey port color
  */
-export function getCategoryPortColor(categoryId: NodeCategoryId): string {
-  const accent = getCategoryAccentColor(categoryId);
-  // Convert hex to rgba with 40% opacity
-  const r = parseInt(accent.slice(1, 3), 16);
-  const g = parseInt(accent.slice(3, 5), 16);
-  const b = parseInt(accent.slice(5, 7), 16);
-  return `rgba(${r}, ${g}, ${b}, 0.4)`;
+export function getCategoryPortColor(_categoryId: NodeCategoryId): string {
+  // Monochrome: all ports are uniform grey
+  return "#888888";
 }
 
 /**
@@ -195,6 +187,49 @@ export function getDisabledColor(baseColor: string): string {
   const g = parseInt(baseColor.slice(3, 5), 16);
   const b = parseInt(baseColor.slice(5, 7), 16);
   return `rgba(${r}, ${g}, ${b}, 0.4)`;
+}
+
+/**
+ * Sticker tint colors for node icons
+ * These are the only colored elements on otherwise monochrome nodes
+ */
+export const STICKER_TINTS: Record<string, string> = {
+  data: "#0099cc",
+  basics: "#cc9900",
+  lists: "#00cccc",
+  primitives: "#00d4ff",
+  curves: "#ff0099",
+  nurbs: "#6600cc",
+  brep: "#ff6600",
+  mesh: "#8800ff",
+  tessellation: "#0066cc",
+  modifiers: "#ff9966",
+  transforms: "#cc0077",
+  arrays: "#ffdd00",
+  euclidean: "#6600ff",
+  ranges: "#9933ff",
+  signals: "#66cc00",
+  analysis: "#88ff00",
+  interop: "#0055aa",
+  measurement: "#00cccc",
+  voxel: "#66cc00",
+  solver: "#8800ff",
+  goal: "#b366ff",
+  optimization: "#ff0066",
+  math: "#cc9900",
+  logic: "#0066cc",
+};
+
+/**
+ * Get the sticker tint color for a node category
+ * Returns normalized hex color or undefined for unknown categories
+ */
+export function getStickerTint(categoryId: string | null | undefined): string | undefined {
+  if (!categoryId) return undefined;
+  const color = STICKER_TINTS[categoryId];
+  if (!color) return undefined;
+  // Normalize to lowercase hex
+  return color.toLowerCase();
 }
 
 /**

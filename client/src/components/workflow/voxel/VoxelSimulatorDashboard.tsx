@@ -1,7 +1,6 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import styles from './VoxelSimulatorDashboard.module.css';
 import { useProjectStore } from '../../../store/useProjectStore';
-import { semanticOpEnd, semanticOpStart, withSemanticOpSync } from "../../../semantic/semanticTracer";
 
 interface VoxelSimulatorDashboardProps {
   nodeId: string;
@@ -25,7 +24,6 @@ export const VoxelSimulatorDashboard: React.FC<VoxelSimulatorDashboardProps> = (
 }) => {
   const [activeTab, setActiveTab] = useState<TabId>('setup');
   const [scale, setScale] = useState(100);
-  const semanticRunIdRef = useRef<string | null>(null);
 
   const { nodes, edges, updateNodeData, recalculateWorkflow } = useProjectStore(
     (state) => ({
@@ -56,25 +54,7 @@ export const VoxelSimulatorDashboard: React.FC<VoxelSimulatorDashboardProps> = (
   };
 
   const handleRun = () => {
-    const runId = `${nodeId}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 8)}`;
-    semanticRunIdRef.current = runId;
-    semanticOpStart({ nodeId, runId, opId: "simulator.voxel.initialize" });
-    semanticOpEnd({ nodeId, runId, opId: "simulator.voxel.initialize", ok: true });
-    try {
-      withSemanticOpSync({ nodeId, runId, opId: "simulator.voxel.step" }, () => {
-        recalculateWorkflow();
-      });
-      semanticOpStart({ nodeId, runId, opId: "simulator.voxel.finalize" });
-      semanticOpEnd({ nodeId, runId, opId: "simulator.voxel.finalize", ok: true });
-    } catch (error) {
-      semanticOpEnd({
-        nodeId,
-        runId,
-        opId: "simulator.voxel.finalize",
-        ok: false,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
+    recalculateWorkflow();
   };
 
   const cellCount = toNumber(outputs.cellCount, 0);

@@ -48,11 +48,11 @@ const runNodeValidation = (nodeName: string, fn: () => void) => {
 
 const validateSlider = () => {
   const node = getNodeDefinition("slider");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "math", "Expected category math");
-  ensure(node.inputs.length === 0, "Expected 0 inputs");
-  ensure(node.outputs.length === 1, "Expected 1 output");
-  ensure(node.outputs[0].key === "value", "Expected output key value");
+  ensure((node.inputs as any[]).length === 0, "Expected 0 inputs");
+  ensure((node.outputs as any[]).length === 1, "Expected 1 output");
+  ensure((node.outputs as any[])[0].key === "value", "Expected output key value");
 
   const context = createContext();
   const result = node.compute({
@@ -72,11 +72,11 @@ const validateSlider = () => {
 
 const validateNumber = () => {
   const node = getNodeDefinition("number");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "math", "Expected category math");
-  ensure(node.inputs.length === 0, "Expected 0 inputs");
-  ensure(node.outputs.length === 1, "Expected 1 output");
-  ensure(node.outputs[0].key === "value", "Expected output key value");
+  ensure((node.inputs as any[]).length === 0, "Expected 0 inputs");
+  ensure((node.outputs as any[]).length === 1, "Expected 1 output");
+  ensure((node.outputs as any[])[0].key === "value", "Expected output key value");
 
   const context = createContext();
   const result = node.compute({
@@ -90,9 +90,9 @@ const validateNumber = () => {
 
 const validateAdd = () => {
   const node = getNodeDefinition("add");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "math", "Expected category math");
-  ensure(node.outputs[0].key === "result", "Expected output key result");
+  ensure((node.outputs as any[])[0].key === "result", "Expected output key result");
 
   const context = createContext();
   const result = node.compute({
@@ -106,9 +106,9 @@ const validateAdd = () => {
 
 const validateSubtract = () => {
   const node = getNodeDefinition("subtract");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "math", "Expected category math");
-  ensure(node.outputs[0].key === "result", "Expected output key result");
+  ensure((node.outputs as any[])[0].key === "result", "Expected output key result");
 
   const context = createContext();
   const result = node.compute({
@@ -122,9 +122,9 @@ const validateSubtract = () => {
 
 const validateMultiply = () => {
   const node = getNodeDefinition("multiply");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "math", "Expected category math");
-  ensure(node.outputs[0].key === "result", "Expected output key result");
+  ensure((node.outputs as any[])[0].key === "result", "Expected output key result");
 
   const context = createContext();
   const result = node.compute({
@@ -138,9 +138,9 @@ const validateMultiply = () => {
 
 const validateDivide = () => {
   const node = getNodeDefinition("divide");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "math", "Expected category math");
-  ensure(node.outputs[0].key === "result", "Expected output key result");
+  ensure((node.outputs as any[])[0].key === "result", "Expected output key result");
 
   const context = createContext();
   const result = node.compute({
@@ -154,9 +154,9 @@ const validateDivide = () => {
 
 const validateClamp = () => {
   const node = getNodeDefinition("clamp");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "math", "Expected category math");
-  ensure(node.outputs[0].key === "result", "Expected output key result");
+  ensure((node.outputs as any[])[0].key === "result", "Expected output key result");
 
   const context = createContext();
   const result = node.compute({
@@ -170,9 +170,9 @@ const validateClamp = () => {
 
 const validateMin = () => {
   const node = getNodeDefinition("min");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "math", "Expected category math");
-  ensure(node.outputs[0].key === "result", "Expected output key result");
+  ensure((node.outputs as any[])[0].key === "result", "Expected output key result");
 
   const context = createContext();
   const result = node.compute({
@@ -186,9 +186,9 @@ const validateMin = () => {
 
 const validateMax = () => {
   const node = getNodeDefinition("max");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "math", "Expected category math");
-  ensure(node.outputs[0].key === "result", "Expected output key result");
+  ensure((node.outputs as any[])[0].key === "result", "Expected output key result");
 
   const context = createContext();
   const result = node.compute({
@@ -202,9 +202,9 @@ const validateMax = () => {
 
 const validateExpression = () => {
   const node = getNodeDefinition("expression");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "math", "Expected category math");
-  ensure(node.outputs[0].key === "result", "Expected output key result");
+  ensure((node.outputs as any[])[0].key === "result", "Expected output key result");
 
   const context = createContext();
   const result = node.compute({
@@ -218,9 +218,9 @@ const validateExpression = () => {
 
 const validateScalarFunctions = () => {
   const node = getNodeDefinition("scalarFunctions");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "math", "Expected category math");
-  ensure(node.outputs[0].key === "result", "Expected output key result");
+  ensure((node.outputs as any[])[0].key === "result", "Expected output key result");
 
   const context = createContext();
   const result = node.compute({

@@ -1,10 +1,16 @@
-/* Voxel Simulator Dashboard - Lime/Green Color Scheme */
+/* Voxel Simulator Dashboard - Archimedes (Volumetric Discretization) */
+/* Extends base dashboard styles with Lime accent color scheme */
 
+@import "../dashboard.base.module.css";
+
+/* Solver-specific CSS custom properties */
 .dashboard {
-  --solver-accent: var(--color-solver-voxel);
-  --solver-accent-deep: var(--semantic-data-deep);
-  --solver-accent-soft: var(--semantic-data-soft);
+  --solver-accent: var(--bk-lime);
+  --solver-accent-secondary: var(--bk-cyan);
+  --solver-accent-tertiary: var(--bk-yellow);
+  --solver-accent-soft: var(--bk-lime-soft);
   
+  /* Override: centered modal style instead of fullscreen */
   position: fixed;
   top: 50%;
   left: 50%;
@@ -12,20 +18,13 @@
   width: 90vw;
   max-width: 1400px;
   height: 85vh;
-  background: var(--surface-page);
-  border: 2px solid var(--ui-black);
+  border: 2px solid var(--bk-black);
   border-radius: 16px;
   box-shadow: var(--shadow-sticker);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  z-index: 10000;
-  animation: fadeIn 0.3s ease-out;
-  font-family: var(--font-sans);
-  color: var(--ui-black);
+  animation: voxelFadeIn 0.3s ease-out;
 }
 
-@keyframes fadeIn {
+@keyframes voxelFadeIn {
   from {
     opacity: 0;
     transform: translate(-50%, -48%);
@@ -36,17 +35,13 @@
   }
 }
 
-/* Header */
-.header {
-  flex-shrink: 0;
+/* Voxel-specific header overrides */
+.headerBar {
+  height: 6px;
 }
 
 .headerContent {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   padding: 1.5rem 2rem;
-  background: var(--surface-card);
 }
 
 .headerTitle {
@@ -63,7 +58,7 @@
   margin: 0;
   font-size: 1.75rem;
   font-weight: 700;
-  color: var(--ui-black);
+  color: var(--bk-black);
 }
 
 .headerSubtitle {
@@ -78,105 +73,26 @@
   gap: 1.5rem;
 }
 
-.scaleControl {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  color: var(--gray-600);
-}
-
-.scaleControl input[type="range"] {
-  width: 100px;
-}
-
-.closeButton {
-  width: 32px;
-  height: 32px;
-  border: 2px solid var(--ui-black);
-  background: var(--semantic-numeric);
-  border-radius: 8px;
-  font-size: 1.5rem;
-  line-height: 1;
-  cursor: pointer;
-  transition: all 0.2s;
-  color: var(--ui-black);
-  box-shadow: var(--shadow-sticker-pressed);
-}
-
-.closeButton:hover {
-  background: var(--semantic-logic);
-  color: var(--surface-card);
-  box-shadow: var(--shadow-sticker-hover);
-  transform: translateY(-1px);
-}
-
-.headerBar {
-  height: 6px;
-  background: var(--solver-accent);
-}
-
-/* Tabs */
+/* Tab overrides for voxel */
 .tabs {
-  display: flex;
-  gap: 0;
-  background: var(--surface-card);
-  border-bottom: 2px solid var(--ui-black);
+  border-bottom: 2px solid var(--bk-black);
   padding: 0 2rem;
-  flex-shrink: 0;
 }
 
 .tab {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  background: transparent;
-  font-size: 0.9375rem;
-  font-weight: 500;
-  color: color-mix(in srgb, var(--ui-black) 60%, transparent);
-  cursor: pointer;
-  transition: all 0.2s;
   border-bottom: 3px solid transparent;
-  position: relative;
 }
 
 .tab:hover {
-  color: var(--solver-accent);
-  background: color-mix(in srgb, var(--semantic-data-soft) 50%, transparent);
+  background: color-mix(in srgb, var(--bk-lime-soft) 50%, transparent);
 }
 
-.tabActive {
-  color: var(--solver-accent);
-  border-bottom-color: var(--solver-accent);
-}
-
-/* Content */
+/* Content padding override */
 .content {
-  flex: 1;
-  overflow-y: auto;
   padding: 2rem;
 }
 
-/* Setup Tab */
-.setupTab {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-}
-
-.section {
-  background: var(--surface-card);
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: var(--shadow-sticker-pressed);
-}
-
-.section h3 {
-  margin: 0 0 1rem 0;
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--ui-black);
-}
-
+/* Voxel-specific parameter controls */
 .parameterGrid {
   display: flex;
   flex-direction: column;
@@ -195,412 +111,63 @@
   align-items: center;
   font-size: 0.9375rem;
   font-weight: 500;
-  color: color-mix(in srgb, var(--ui-black) 70%, transparent);
+  color: color-mix(in srgb, var(--bk-black) 70%, transparent);
 }
 
-.parameterValue {
-  font-weight: 700;
+.rangeSlider {
+  width: 100%;
+  accent-color: var(--solver-accent);
+}
+
+.rangeValue {
+  min-width: 60px;
+  text-align: right;
+  font-weight: 600;
   color: var(--solver-accent);
-  font-size: 1rem;
 }
 
-.slider {
-  width: 100%;
-  height: 6px;
-  border-radius: 3px;
-  background: var(--gray-200);
-  outline: none;
-  -webkit-appearance: none;
-}
-
-.slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--solver-accent);
-  cursor: pointer;
-  box-shadow: var(--shadow-sticker-pressed);
-}
-
-.slider::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--solver-accent);
-  cursor: pointer;
-  border: none;
-  box-shadow: var(--shadow-sticker-pressed);
-}
-
-.parameterHint {
-  font-size: 0.8125rem;
-  color: var(--gray-400);
-  font-style: italic;
-}
-
-.infoGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-}
-
-.infoCard {
-  background: var(--semantic-data-soft);
-  border: 1px solid var(--semantic-data-soft);
-  border-radius: 8px;
-  padding: 1rem;
-  text-align: center;
-}
-
-.infoLabel {
-  font-size: 0.8125rem;
-  color: var(--text-secondary);
-  margin-bottom: 0.5rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.infoValue {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--solver-accent-deep);
-}
-
-.geometryPreview {
-  min-height: 200px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.geometryPlaceholder {
-  text-align: center;
-  color: var(--gray-400);
-}
-
-.geometryPlaceholder span {
-  font-size: 4rem;
-  display: block;
-  margin-bottom: 1rem;
-  opacity: 0.5;
-}
-
-.geometryPlaceholder p {
-  margin: 0;
-  font-size: 0.9375rem;
-}
-
-/* Simulator Tab */
-.simulatorTab {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-}
-
-.controlPanel {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-}
-
-.controlButton {
-  padding: 0.75rem 2rem;
-  border: none;
-  border-radius: 8px;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: var(--shadow-sticker-pressed);
-}
-
-.startButton {
-  background: var(--solver-accent);
-  color: var(--gray-800);
-}
-
-.startButton:hover:not(:disabled) {
-  background: var(--solver-accent);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-sticker-hover);
-}
-
-.startButton:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.resetButton {
-  background: var(--gray-50);
-  color: var(--gray-600);
-  border: 1px solid var(--gray-200);
-}
-
-.resetButton:hover:not(:disabled) {
-  background: var(--gray-100);
-}
-
-.progressSection {
+/* Voxel grid visualization */
+.voxelPreview {
   background: var(--surface-card);
   border-radius: 12px;
   padding: 1.5rem;
   box-shadow: var(--shadow-sticker-pressed);
 }
 
-.progressBar {
-  width: 100%;
-  height: 24px;
-  background: var(--gray-200);
-  border-radius: 12px;
-  overflow: hidden;
-  margin-bottom: 0.5rem;
-}
-
-.progressFill {
-  height: 100%;
-  background: var(--solver-accent);
-  transition: width 0.3s ease-out;
-  border-radius: 12px;
-}
-
-.progressLabel {
-  text-align: center;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--gray-600);
-}
-
-.visualizationGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
-}
-
-.voxelVisualization,
-.sliceViews {
-  background: var(--surface-card);
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: var(--shadow-sticker-pressed);
-}
-
-.voxelVisualization h4,
-.sliceViews h4 {
-  margin: 0 0 1rem 0;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--gray-700);
-}
-
-.voxelGridPlaceholder {
-  min-height: 300px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: var(--semantic-data-soft);
-  border-radius: 8px;
-  border: 2px dashed var(--semantic-data-soft);
-  color: var(--gray-400);
-}
-
-.voxelCube {
-  width: 120px;
-  height: 120px;
-  position: relative;
-  transform-style: preserve-3d;
-  transform: rotateX(-20deg) rotateY(30deg);
-  margin-bottom: 1rem;
-}
-
-.voxelFace {
-  position: absolute;
-  width: 120px;
-  height: 120px;
-  background: rgba(136, 255, 0, 0.3);
+.voxelCanvas {
+  aspect-ratio: 1;
+  background: linear-gradient(135deg, var(--bk-lime-soft) 0%, var(--surface-page) 100%);
   border: 2px solid var(--solver-accent);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.voxelFace:nth-child(1) {
-  transform: translateZ(60px);
-}
-
-.voxelFace:nth-child(2) {
-  transform: rotateY(90deg) translateZ(60px);
-}
-
-.voxelFace:nth-child(3) {
-  transform: rotateX(90deg) translateZ(60px);
-}
-
-.sliceGrid {
+/* Density controls */
+.densityControls {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
+  margin-top: 1rem;
 }
 
-.sliceView {
+.densitySlider label {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  font-size: 0.875rem;
+  color: color-mix(in srgb, var(--bk-black) 65%, transparent);
 }
 
-.sliceLabel {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--gray-600);
-  text-align: center;
-}
-
-.slicePlaceholder {
-  aspect-ratio: 1;
-  background: var(--semantic-data-soft);
-  border-radius: 8px;
-  border: 2px solid var(--semantic-data-soft);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-}
-
-.slicePattern {
-  width: 80%;
-  height: 80%;
-  background: var(--semantic-data-soft);
-  opacity: 0.3;
-}
-
-.statsSection {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-}
-
-.statCard {
-  background: var(--surface-card);
+/* Override section for voxel */
+.section {
   border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: var(--shadow-sticker-pressed);
-  text-align: center;
-  border-top: 4px solid var(--solver-accent);
 }
 
-.statLabel {
-  font-size: 0.8125rem;
-  color: var(--text-secondary);
-  margin-bottom: 0.5rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.statValue {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: var(--solver-accent-deep);
-}
-
-/* Output Tab */
-.outputTab {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-}
-
-.meshPreview {
-  min-height: 300px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--semantic-data-soft);
-  border-radius: 8px;
-  border: 2px dashed var(--semantic-data-soft);
-}
-
-.meshPlaceholder {
-  text-align: center;
-  color: var(--gray-400);
-}
-
-.meshPlaceholder span {
-  font-size: 4rem;
-  display: block;
-  margin-bottom: 1rem;
-  opacity: 0.5;
-}
-
-.meshPlaceholder p {
-  margin: 0;
-  font-size: 0.9375rem;
-}
-
-.statsGrid {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.statRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem;
-  background: var(--semantic-data-soft);
-  border-radius: 8px;
-  border-left: 4px solid var(--solver-accent);
-}
-
-.statRowLabel {
-  font-size: 0.9375rem;
-  color: var(--gray-600);
-  font-weight: 500;
-}
-
-.statRowValue {
-  font-size: 0.9375rem;
-  color: var(--solver-accent-deep);
-  font-weight: 700;
-}
-
-.exportButtons {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.exportButton {
-  padding: 0.75rem 1.5rem;
-  border: 2px solid var(--solver-accent);
-  background: var(--surface-card);
-  border-radius: 8px;
-  font-size: 0.9375rem;
+.section h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.125rem;
   font-weight: 600;
-  color: var(--solver-accent-deep);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.exportButton:hover {
-  background: var(--solver-accent);
-  color: var(--gray-800);
-  transform: translateX(4px);
-}
-
-/* Scrollbar */
-.content::-webkit-scrollbar {
-  width: 8px;
-}
-
-.content::-webkit-scrollbar-track {
-  background: var(--gray-50);
-}
-
-.content::-webkit-scrollbar-thumb {
-  background: var(--gray-300);
-  border-radius: 4px;
-}
-
-.content::-webkit-scrollbar-thumb:hover {
-  background: var(--gray-400);
+  color: var(--bk-black);
 }

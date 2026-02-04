@@ -72,7 +72,7 @@ export const ANALYSIS_OPS: readonly SemanticOpMeta[] = [
     domain: "geometry",
     name: "Geometry Extent Vertices",
     category: "analysis",
-    tags: ["geometry", "analysis", "vertices", "extent", "axis"],
+    tags: ["geometry", "analysis", "vertices"],
     complexity: "O(n)",
     cost: "low",
     pure: true,

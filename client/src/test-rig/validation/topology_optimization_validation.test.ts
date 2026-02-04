@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { buildVoxelHeroGeometry } from "../solvers/solver-hero-geometry";
 import { findVertexIndicesAtExtent } from "../solvers/rig-utils";
-import { extractGoalMarkers } from "../../components/workflow/topology/goals";
+import { extractGoalMarkers, generateGeometryFromDensities } from "../../components/workflow/topology/geometry";
 import { runSimp } from "../../components/workflow/topology/simp";
-import { generateGeometryFromDensities } from "../../components/workflow/topology/geometryGeneratorV2";
 import { computeBoundsFromMesh } from "../../geometry/bounds";
 import type { SimpParams } from "../../components/workflow/topology/types";
 import type { RenderMesh } from "../../types";
