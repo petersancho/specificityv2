@@ -1,0 +1,820 @@
+# =============================================================================
+# Lingua Semantic Schema: Topology Optimization Simulator
+# =============================================================================
+# Version: 2.0.0
+# Domain: solver
+# Stability: stable
+# Since: 2026-02-04
+#
+# This schema defines the mathematical constraints, validation rules, and
+# semantic metadata for the SIMP topology optimization simulator. It ensures
+# mathematical assurity through rigorous validation of inputs, parameters,
+# and outputs.
+#
+# The schema is designed to be:
+# - Versioned: Supports semantic versioning for future upgrades
+# - Extensible: New constraints and validations can be added
+# - Machine-checkable: Can be parsed and validated programmatically
+# - Human-readable: Clear documentation of mathematical requirements
+#
+# =============================================================================
+
+meta:
+  schemaVersion: "2.0.0"
+  linguaVersion: "2.0.0"
+  generatedAt: "2026-02-04T00:00:00Z"
+  description: "Semantic validation schema for SIMP topology optimization"
+  maintainers:
+    - "Lingua Core Team"
+  changelog:
+    - version: "2.0.0"
+      date: "2026-02-04"
+      changes:
+        - "Initial schema with full mathematical validation"
+        - "FEA correctness constraints"
+        - "Coordinate frame validation"
+        - "Convergence criteria validation"
+
+# =============================================================================
+# OPERATION DEFINITION
+# =============================================================================
+
+operation:
+  id: "solver.topologyOptimization"
+  name: "Topology Optimization Solver"
+  domain: "solver"
+  category: "optimization"
+  tags:
+    - "3d"
+    - "structural"
+    - "optimization"
+    - "simp"
+    - "fea"
+  
+  summary: "Optimizes material layout for structural performance using SIMP method"
+  
+  description: |
+    Solid Isotropic Material with Penalization (SIMP) topology optimization.
+    Solves the minimum compliance problem subject to volume constraint:
+    
+    minimize:   C(ρ) = U^T K(ρ) U
+    subject to: V(ρ) / V₀ ≤ volFrac
+                0 < ρ_min ≤ ρ ≤ 1
+                K(ρ) U = F
+    
+    where:
+    - ρ: density field (design variables)
+    - C: compliance (structural flexibility)
+    - K: global stiffness matrix
+    - U: displacement field
+    - F: force vector
+    - V: volume
+    - volFrac: target volume fraction
+  
+  complexity: "O(n_iter × n_elem × n_dof)"
+  cost: "high"
+  pure: false
+  deterministic: true
+  sideEffects:
+    - "state"
+    - "geometry"
+  
+  safety: "stateful"
+  
+  stability: "stable"
+  since: "2.0.0"
+
+# =============================================================================
+# PHYSICAL DIMENSIONS AND UNITS
+# =============================================================================
+
+dimensions:
+  length:
+    symbol: "L"
+    siUnit: "meter"
+    description: "Spatial dimension"
+  
+  force:
+    symbol: "F"
+    siUnit: "newton"
+    description: "Force dimension (M·L·T⁻²)"
+    composition:
+      M: 1
+      L: 1
+      T: -2
+  
+  stress:
+    symbol: "σ"
+    siUnit: "pascal"
+    description: "Stress dimension (M·L⁻¹·T⁻²)"
+    composition:
+      M: 1
+      L: -1
+      T: -2
+  
+  dimensionless:
+    symbol: "1"
+    description: "Dimensionless quantity"
+
+# =============================================================================
+# INPUT SCHEMAS
+# =============================================================================
+
+inputs:
+  # Geometry Input
+  - name: "mesh"
+    type: "Mesh3D"
+    shape: "object"
+    required: true
+    description: "Input geometry as structured hexahedral mesh"
+    
+    schema:
+      type: "object"
+      required: ["positions", "nx", "ny", "nz"]
+      properties:
+        positions:
+          type: "array"
+          items:
+            type: "array"
+            items: { type: "number" }
+            minItems: 3
+            maxItems: 3
+          minItems: 8
+          description: "Vertex positions [x, y, z]"
+        
+        nx:
+          type: "integer"
+          minimum: 2
+          maximum: 200
+          description: "Number of elements in X direction"
+        
+        ny:
+          type: "integer"
+          minimum: 2
+          maximum: 200
+          description: "Number of elements in Y direction"
+        
+        nz:
+          type: "integer"
+          minimum: 1
+          maximum: 200
+          description: "Number of elements in Z direction (1 for 2D)"
+    
+    constraints:
+      - type: "custom"
+        name: "non_degenerate_geometry"
+        expression: "volume(mesh) > 1e-12"
+        message: "Mesh must have non-zero volume"
+      
+      - type: "custom"
+        name: "finite_coordinates"
+        expression: "all(isFinite(positions))"
+        message: "All coordinates must be finite (no NaN/Infinity)"
+      
+      - type: "custom"
+        name: "aspect_ratio"
+        expression: "max(spanX, spanY, spanZ) / min(spanX, spanY, spanZ) < 1000"
+        message: "Aspect ratio should be less than 1000:1"
+        severity: "warning"
+  
+  # Boundary Conditions Input
+  - name: "markers"
+    type: "BoundaryConditions"
+    shape: "object"
+    required: true
+    description: "Boundary conditions (anchors and loads)"
+    
+    schema:
+      type: "object"
+      required: ["anchors", "loads"]
+      properties:
+        anchors:
+          type: "array"
+          items:
+            type: "object"
+            required: ["position"]
+            properties:
+              position:
+                type: "array"
+                items: { type: "number" }
+                minItems: 3
+                maxItems: 3
+              dofs:
+                type: "array"
+                items: { type: "integer", minimum: 0, maximum: 2 }
+                description: "Constrained DOFs: 0=x, 1=y, 2=z"
+          minItems: 1
+          description: "Fixed support locations"
+        
+        loads:
+          type: "array"
+          items:
+            type: "object"
+            required: ["position", "force"]
+            properties:
+              position:
+                type: "array"
+                items: { type: "number" }
+                minItems: 3
+                maxItems: 3
+              force:
+                type: "array"
+                items: { type: "number" }
+                minItems: 3
+                maxItems: 3
+                description: "Force vector [Fx, Fy, Fz]"
+          minItems: 1
+          description: "Applied load locations"
+    
+    constraints:
+      - type: "custom"
+        name: "sufficient_constraints"
+        expression: "countFixedDofs(markers.anchors) >= 6"
+        message: "At least 6 DOFs must be constrained to prevent rigid body motion"
+        severity: "warning"
+      
+      - type: "custom"
+        name: "non_zero_loads"
+        expression: "some(markers.loads, load => norm(load.force) > 1e-12)"
+        message: "At least one load must have non-zero magnitude"
+      
+      - type: "custom"
+        name: "no_bc_conflicts"
+        expression: "!hasOverlappingFixedAndLoaded(markers)"
+        message: "DOFs cannot be both fixed and loaded"
+        severity: "error"
+
+# =============================================================================
+# PARAMETER SCHEMAS
+# =============================================================================
+
+parameters:
+  # Material Properties
+  - name: "E0"
+    type: "number"
+    unit: "pascal"
+    dimension: "stress"
+    default: 1.0
+    description: "Young's modulus of solid material"
+    
+    constraints:
+      - type: "min"
+        value: 1e-6
+        message: "Young's modulus must be positive"
+      
+      - type: "max"
+        value: 1e12
+        message: "Young's modulus unrealistically high"
+        severity: "warning"
+  
+  - name: "Emin"
+    type: "number"
+    unit: "pascal"
+    dimension: "stress"
+    default: 1e-9
+    description: "Young's modulus of void (numerical stability)"
+    
+    constraints:
+      - type: "min"
+        value: 1e-12
+        message: "Emin must be positive for numerical stability"
+      
+      - type: "custom"
+        expression: "Emin < E0"
+        message: "Void stiffness must be less than solid stiffness"
+  
+  - name: "nu"
+    type: "number"
+    unit: "dimensionless"
+    default: 0.3
+    description: "Poisson's ratio"
+    
+    constraints:
+      - type: "range"
+        value: [-0.99, 0.49]
+        message: "Poisson's ratio must be in (-1, 0.5) for physical materials"
+      
+      - type: "range"
+        value: [0.0, 0.45]
+        message: "Typical engineering materials have ν ∈ [0, 0.45]"
+        severity: "warning"
+  
+  # Optimization Parameters
+  - name: "volFrac"
+    type: "number"
+    unit: "dimensionless"
+    default: 0.5
+    description: "Target volume fraction (0 = empty, 1 = solid)"
+    
+    constraints:
+      - type: "range"
+        value: [0.01, 0.99]
+        message: "Volume fraction must be in (0.01, 0.99)"
+      
+      - type: "range"
+        value: [0.1, 0.8]
+        message: "Typical designs use volFrac ∈ [0.1, 0.8]"
+        severity: "warning"
+  
+  - name: "penal"
+    type: "number"
+    unit: "dimensionless"
+    default: 3.0
+    description: "SIMP penalization exponent (pushes to 0/1)"
+    
+    constraints:
+      - type: "min"
+        value: 1.0
+        message: "Penalization must be ≥ 1"
+      
+      - type: "max"
+        value: 5.0
+        message: "Penalization > 5 may cause numerical issues"
+        severity: "warning"
+      
+      - type: "custom"
+        expression: "penal >= 3.0"
+        message: "Typical SIMP uses p = 3 for good 0/1 convergence"
+        severity: "info"
+  
+  - name: "rmin"
+    type: "number"
+    unit: "dimensionless"
+    default: 1.5
+    description: "Density filter radius (in element units)"
+    
+    constraints:
+      - type: "min"
+        value: 0.0
+        message: "Filter radius must be non-negative"
+      
+      - type: "range"
+        value: [1.0, 3.0]
+        message: "Typical filter radius is 1.5-2.5 elements"
+        severity: "info"
+  
+  # Convergence Parameters
+  - name: "tolChange"
+    type: "number"
+    unit: "dimensionless"
+    default: 1e-5
+    description: "Convergence tolerance for density/compliance change"
+    
+    constraints:
+      - type: "range"
+        value: [1e-8, 1e-2]
+        message: "Tolerance should be in [1e-8, 1e-2]"
+      
+      - type: "custom"
+        expression: "tolChange <= 1e-3"
+        message: "Tolerance > 1e-3 may give poor quality results"
+        severity: "warning"
+  
+  - name: "minIterations"
+    type: "integer"
+    default: 3
+    description: "Minimum consecutive stable iterations for convergence"
+    
+    constraints:
+      - type: "range"
+        value: [1, 10]
+        message: "Stable iterations should be 1-10"
+  
+  - name: "grayTol"
+    type: "number"
+    unit: "dimensionless"
+    default: 0.05
+    description: "Gray level tolerance (0 = pure 0/1, 1 = all gray)"
+    
+    constraints:
+      - type: "range"
+        value: [0.01, 0.2]
+        message: "Gray tolerance should be in [0.01, 0.2]"
+      
+      - type: "custom"
+        expression: "grayTol <= 0.1"
+        message: "Gray tolerance > 0.1 allows too much intermediate density"
+        severity: "warning"
+  
+  - name: "betaMax"
+    type: "integer"
+    default: 256
+    description: "Maximum Heaviside projection parameter"
+    
+    constraints:
+      - type: "range"
+        value: [16, 1024]
+        message: "Beta max should be in [16, 1024]"
+      
+      - type: "custom"
+        expression: "betaMax >= 64"
+        message: "Beta < 64 may not produce crisp 0/1 designs"
+        severity: "warning"
+  
+  - name: "maxIters"
+    type: "integer"
+    default: 200
+    description: "Maximum optimization iterations"
+    
+    constraints:
+      - type: "range"
+        value: [10, 1000]
+        message: "Max iterations should be in [10, 1000]"
+  
+  # Solver Parameters
+  - name: "cgTol"
+    type: "number"
+    unit: "dimensionless"
+    default: 1e-5
+    description: "PCG solver tolerance"
+    
+    constraints:
+      - type: "range"
+        value: [1e-8, 1e-2]
+        message: "CG tolerance should be in [1e-8, 1e-2]"
+  
+  - name: "cgMaxIters"
+    type: "integer"
+    default: 5000
+    description: "Maximum PCG iterations"
+    
+    constraints:
+      - type: "range"
+        value: [100, 10000]
+        message: "CG max iterations should be in [100, 10000]"
+  
+  # Geometry Extraction Parameters
+  - name: "densityThreshold"
+    type: "number"
+    unit: "dimensionless"
+    default: 0.7
+    description: "Density threshold for geometry extraction"
+    
+    constraints:
+      - type: "range"
+        value: [0.1, 0.9]
+        message: "Density threshold should be in [0.1, 0.9]"
+      
+      - type: "custom"
+        expression: "densityThreshold >= 0.5"
+        message: "Threshold < 0.5 includes too much gray material"
+        severity: "warning"
+  
+  - name: "maxLinksPerPoint"
+    type: "integer"
+    default: 2
+    description: "Maximum structural connections per point"
+    
+    constraints:
+      - type: "range"
+        value: [1, 6]
+        message: "Max links should be in [1, 6]"
+  
+  - name: "maxSpanLength"
+    type: "number"
+    unit: "dimensionless"
+    default: 1.2
+    description: "Maximum connection span (in element units)"
+    
+    constraints:
+      - type: "range"
+        value: [0.5, 3.0]
+        message: "Max span should be in [0.5, 3.0]"
+
+# =============================================================================
+# OUTPUT SCHEMAS
+# =============================================================================
+
+outputs:
+  - name: "densityField"
+    type: "ScalarField3D"
+    shape: "grid"
+    description: "Optimized density distribution (0 = void, 1 = solid)"
+    
+    schema:
+      type: "object"
+      required: ["values", "nx", "ny", "nz"]
+      properties:
+        values:
+          type: "array"
+          items: { type: "number", minimum: 0, maximum: 1 }
+        nx: { type: "integer" }
+        ny: { type: "integer" }
+        nz: { type: "integer" }
+    
+    postconditions:
+      - expression: "all(densityField.values, v => v >= 0 && v <= 1)"
+        message: "All densities must be in [0, 1]"
+      
+      - expression: "sum(densityField.values) / length(densityField.values) ≈ volFrac"
+        message: "Average density should match target volume fraction"
+        tolerance: 0.01
+  
+  - name: "geometry"
+    type: "Geometry3D"
+    shape: "object"
+    description: "Extracted structural geometry"
+    
+    schema:
+      type: "object"
+      properties:
+        pointCloud:
+          type: "object"
+          description: "Dense points from high-density elements"
+        
+        curveNetwork:
+          type: "object"
+          description: "Structural skeleton as connected curves"
+        
+        mesh:
+          type: "object"
+          description: "Smoothed surface mesh"
+    
+    postconditions:
+      - expression: "geometry.pointCloud.positions.length > 0"
+        message: "Geometry must contain at least one point"
+      
+      - expression: "all(geometry.pointCloud.positions, p => isFinite(p))"
+        message: "All geometry coordinates must be finite"
+  
+  - name: "convergenceHistory"
+    type: "TimeSeries"
+    shape: "list"
+    description: "Optimization convergence metrics"
+    
+    schema:
+      type: "array"
+      items:
+        type: "object"
+        required: ["iteration", "compliance", "densityChange", "grayLevel"]
+        properties:
+          iteration: { type: "integer", minimum: 0 }
+          compliance: { type: "number", minimum: 0 }
+          densityChange: { type: "number", minimum: 0 }
+          grayLevel: { type: "number", minimum: 0, maximum: 1 }
+          beta: { type: "number", minimum: 1 }
+    
+    postconditions:
+      - expression: "convergenceHistory.length > 0"
+        message: "Must have at least one iteration"
+      
+      - expression: "isMonotonicallyDecreasing(convergenceHistory.map(h => h.compliance))"
+        message: "Compliance should decrease (or stay constant) over iterations"
+        severity: "warning"
+      
+      - expression: "last(convergenceHistory).grayLevel < grayTol"
+        message: "Final design should meet gray level tolerance"
+
+# =============================================================================
+# MATHEMATICAL INVARIANTS
+# =============================================================================
+
+invariants:
+  # FEA Correctness
+  - type: "precondition"
+    name: "equilibrium_solvable"
+    expression: "rank(K) = n_dof - n_fixed"
+    description: "Stiffness matrix must be full rank after BC enforcement"
+    
+  - type: "postcondition"
+    name: "equilibrium_satisfied"
+    expression: "||K(ρ)U - F|| < cgTol × ||F||"
+    description: "Displacement field must satisfy equilibrium"
+  
+  - type: "postcondition"
+    name: "positive_compliance"
+    expression: "C = U^T K U > 0"
+    description: "Compliance must be positive (structural energy)"
+  
+  # Volume Constraint
+  - type: "postcondition"
+    name: "volume_constraint"
+    expression: "abs(sum(ρ) / n_elem - volFrac) < 0.01"
+    description: "Volume constraint must be satisfied within 1%"
+  
+  # Density Bounds
+  - type: "invariant"
+    name: "density_bounds"
+    expression: "all(ρ, v => 0 <= v <= 1)"
+    description: "Densities must remain in [0, 1]"
+  
+  # Convergence
+  - type: "postcondition"
+    name: "converged"
+    expression: "densityChange < tolChange && complianceChange < tolChange && grayLevel < grayTol"
+    description: "Must satisfy all convergence criteria"
+  
+  # Coordinate Frame Consistency
+  - type: "invariant"
+    name: "coordinate_consistency"
+    expression: "worldFrame → meshFrame → gridFrame → dofIndex is bijective"
+    description: "Coordinate transformations must be invertible"
+  
+  # Boundary Condition Enforcement
+  - type: "invariant"
+    name: "bc_enforcement"
+    expression: "all(fixedDofs, dof => U[dof] = 0)"
+    description: "Fixed DOFs must have zero displacement"
+
+# =============================================================================
+# VALIDATION RULES
+# =============================================================================
+
+validationRules:
+  # Geometry Validation
+  - name: "validate_mesh_topology"
+    severity: "error"
+    checks:
+      - "mesh.positions.length = (nx+1) × (ny+1) × (nz+1)"
+      - "all positions are finite"
+      - "mesh volume > 1e-12"
+      - "aspect ratio < 1000"
+  
+  # Boundary Condition Validation
+  - name: "validate_boundary_conditions"
+    severity: "error"
+    checks:
+      - "at least one anchor"
+      - "at least one load"
+      - "no BC conflicts (fixed + loaded)"
+      - "all markers within mesh bounds (or snappable)"
+      - "at least 6 DOFs constrained (warning)"
+  
+  # Parameter Validation
+  - name: "validate_parameters"
+    severity: "error"
+    checks:
+      - "E0 > Emin > 0"
+      - "nu ∈ (-1, 0.5)"
+      - "volFrac ∈ (0.01, 0.99)"
+      - "penal ≥ 1"
+      - "rmin ≥ 0"
+      - "tolChange > 0"
+      - "betaMax ≥ 16"
+  
+  # FEA Validation
+  - name: "validate_fea"
+    severity: "error"
+    checks:
+      - "stiffness matrix is symmetric"
+      - "stiffness matrix is positive definite (after BC)"
+      - "force vector is finite"
+      - "displacement solution is finite"
+      - "compliance is positive"
+  
+  # Convergence Validation
+  - name: "validate_convergence"
+    severity: "warning"
+    checks:
+      - "compliance decreases monotonically"
+      - "density change decreases over time"
+      - "gray level decreases over time"
+      - "final gray level < grayTol"
+  
+  # Output Validation
+  - name: "validate_outputs"
+    severity: "error"
+    checks:
+      - "all densities ∈ [0, 1]"
+      - "volume constraint satisfied"
+      - "geometry is non-empty"
+      - "all geometry coordinates are finite"
+
+# =============================================================================
+# EXAMPLES
+# =============================================================================
+
+examples:
+  - name: "cantilever_beam"
+    description: "Classic cantilever beam optimization"
+    inputs:
+      mesh:
+        nx: 60
+        ny: 20
+        nz: 4
+        spanX: 10.0
+        spanY: 5.0
+        spanZ: 1.0
+      markers:
+        anchors:
+          - position: [0, 2.5, 0.5]
+            dofs: [0, 1, 2]
+        loads:
+          - position: [10, 2.5, 0.5]
+            force: [0, -100, 0]
+    parameters:
+      volFrac: 0.5
+      penal: 3.0
+      rmin: 1.5
+      tolChange: 1e-5
+      grayTol: 0.05
+      betaMax: 256
+    expectedOutputs:
+      densityField:
+        grayLevel: "< 0.05"
+        volumeFraction: "≈ 0.5"
+      convergenceHistory:
+        iterations: "60-100"
+        finalCompliance: "< initial × 0.5"
+  
+  - name: "bridge"
+    description: "Bridge with supports at ends"
+    inputs:
+      mesh:
+        nx: 80
+        ny: 20
+        nz: 4
+      markers:
+        anchors:
+          - position: [0, 0, 0.5]
+          - position: [10, 0, 0.5]
+        loads:
+          - position: [5, 5, 0.5]
+            force: [0, -100, 0]
+    parameters:
+      volFrac: 0.4
+    expectedOutputs:
+      geometry:
+        structure: "arch or truss"
+
+# =============================================================================
+# MIGRATION AND VERSIONING
+# =============================================================================
+
+migrations:
+  - fromVersion: "1.0.0"
+    toVersion: "2.0.0"
+    changes:
+      - "Added grayTol parameter"
+      - "Added betaMax parameter"
+      - "Added minIterations parameter"
+      - "Tightened default tolChange from 1e-4 to 1e-5"
+      - "Increased default betaMax from 64 to 256"
+      - "Added coordinate frame validation"
+      - "Added FEA correctness invariants"
+    
+    transformations:
+      parameters:
+        grayTol: "0.05"  # New default
+        betaMax: "256"   # New default
+        minIterations: "3"  # New default
+        tolChange: "min(tolChange, 1e-5)"  # Tighten if needed
+
+# =============================================================================
+# SEMANTIC LINKAGES
+# =============================================================================
+
+semanticLinks:
+  operations:
+    - "simulator.topology.initialize"
+    - "simulator.topology.step"
+    - "simulator.topology.converge"
+    - "simulator.topology.finalize"
+    - "simulator.topology.preview"
+    - "simulator.topology.sync"
+  
+  nodes:
+    - "TopologyOptimizationSolver"
+    - "AnchorGoal"
+    - "LoadGoal"
+  
+  datatypes:
+    - "Mesh3D"
+    - "ScalarField3D"
+    - "Geometry3D"
+    - "BoundaryConditions"
+  
+  relatedSchemas:
+    - "physics-solver.schema.yml"
+    - "mesh-generation.schema.yml"
+    - "goal-system.schema.yml"
+
+# =============================================================================
+# VALIDATION SCRIPT INTEGRATION
+# =============================================================================
+
+validation:
+  scriptPath: "scripts/validateTopologyOptimization.ts"
+  runOn:
+    - "precommit"
+    - "ci"
+  
+  checks:
+    - name: "schema_validity"
+      description: "Validate YAML schema structure"
+    
+    - name: "parameter_ranges"
+      description: "Check all parameter constraints"
+    
+    - name: "invariant_satisfaction"
+      description: "Verify mathematical invariants"
+    
+    - name: "example_execution"
+      description: "Run example cases and verify outputs"
+    
+    - name: "backward_compatibility"
+      description: "Ensure migrations work correctly"
+
+# =============================================================================
+# END OF SCHEMA
+# =============================================================================

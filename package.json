@@ -19,7 +19,8 @@
     "validate:ui-semantics": "tsx scripts/validateUISemantics.ts",
     "validate:docs-semantics": "tsx scripts/validateDocSemanticLinks.ts",
     "generate:semantic-css": "tsx scripts/generateSemanticCSS.ts",
-    "validate:all": "npm run validate:semantic && npm run validate:commands && npm run validate:integrity && npm run validate:ui-semantics && npm run validate:docs-semantics",
+    "validate:topology": "tsx scripts/validateTopologyOptimization.ts",
+    "validate:all": "npm run validate:semantic && npm run validate:commands && npm run validate:integrity && npm run validate:ui-semantics && npm run validate:docs-semantics && npm run validate:topology",
     "analyze:semantic": "tsx scripts/comprehensiveSemanticAnalysis.ts",
     "analyze:coverage": "tsx scripts/analyzeNodeSemanticCoverage.ts",
     "analyze:coverage2": "tsx scripts/analyzeCoverage2.ts",
@@ -30,6 +31,7 @@
   },
   "devDependencies": {
     "concurrently": "^9.1.0",
-    "tsx": "^4.21.0"
+    "tsx": "^4.21.0",
+    "yaml": "^2.8.2"
   }
 }
