@@ -20,6 +20,9 @@ export type SimpParams = {
   move: number;            // Move limit (0.1-0.2)
   maxIters: number;        // Maximum iterations
   tolChange: number;       // Convergence tolerance
+  minIterations?: number;  // Minimum stable iterations for convergence
+  grayTol?: number;        // Gray level tolerance (0 = pure 0/1, 1 = all gray)
+  betaMax?: number;        // Maximum beta for Heaviside projection
   E0: number;              // Young's modulus (solid material)
   Emin: number;            // Minimum stiffness (void material)
   rhoMin: number;          // Minimum density

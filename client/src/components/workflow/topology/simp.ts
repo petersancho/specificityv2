@@ -435,6 +435,10 @@ export async function* runSimp(mesh: RenderMesh, markers: GoalMarkers, params: S
   let beta = 1.0, prevCompliance = Infinity, consecutiveConverged = 0;
   let prevRhoPhysical: Float64Array | null = null;
   
+  const minIterations = params.minIterations ?? 3;
+  const grayTol = params.grayTol ?? 0.05;
+  const betaMax = params.betaMax ?? 64;
+  
   for (let iter = 1; iter <= params.maxIters; iter++) {
     const penal = schedulePenal(iter, params);
     const rhoBar = applyDensityFilter(densities, filter);
@@ -476,7 +480,7 @@ export async function* runSimp(mesh: RenderMesh, markers: GoalMarkers, params: S
     // Beta continuation
     const grayLevel = computeGrayLevel(rhoPhysical);
     const isStable = maxChange < 0.01 && (prevRhoPhysical === null || !rhoPhysical.some((r, i) => Math.abs(r - prevRhoPhysical![i]) > 0.02));
-    if (isStable && grayLevel > 0.05 && beta < 64) beta = Math.min(beta * 2, 64);
+    if (isStable && grayLevel > grayTol && beta < betaMax) beta = Math.min(beta * 2, betaMax);
     prevRhoPhysical = Float64Array.from(rhoPhysical);
     
     // Convergence
@@ -487,9 +491,9 @@ export async function* runSimp(mesh: RenderMesh, markers: GoalMarkers, params: S
     const densitiesF32 = new Float32Array(numElems);
     for (let i = 0; i < numElems; i++) densitiesF32[i] = rhoPhysical[i];
     
-    yield { iter, compliance, change: maxChange, vol, densities: densitiesF32, converged: consecutiveConverged >= 3 };
+    yield { iter, compliance, change: maxChange, vol, densities: densitiesF32, converged: consecutiveConverged >= minIterations };
     
-    if (consecutiveConverged >= 3) break;
+    if (consecutiveConverged >= minIterations) break;
     prevCompliance = compliance;
     await new Promise(r => setTimeout(r, 0));
   }

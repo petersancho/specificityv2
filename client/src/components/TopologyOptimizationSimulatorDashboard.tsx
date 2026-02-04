@@ -483,6 +483,9 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       move,
       maxIters,
       tolChange,
+      minIterations: toNumber(parameters.minIterations, 3),
+      grayTol: toNumber(parameters.grayTol, 0.05),
+      betaMax: toNumber(parameters.betaMax, 64),
       E0,
       Emin,
       rhoMin,
@@ -859,6 +862,72 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                     disabled={simulationState === 'running'}
                   />
                   <span className={styles.parameterValue}>{tolChange.toFixed(4)}</span>
+                </div>
+              </div>
+
+              <div className={styles.parameterGroup}>
+                <label className={styles.parameterLabel}>
+                  Min Stable Iterations
+                  <span className={styles.parameterDescription}>
+                    Consecutive stable iterations required (1-10)
+                  </span>
+                </label>
+                <div className={styles.parameterControl}>
+                  <input
+                    type="range"
+                    min="1"
+                    max="10"
+                    step="1"
+                    value={toNumber(parameters.minIterations, 3)}
+                    onChange={(e) => handleParameterChange("minIterations", Number(e.target.value))}
+                    className={styles.slider}
+                    disabled={simulationState === 'running'}
+                  />
+                  <span className={styles.parameterValue}>{toNumber(parameters.minIterations, 3)}</span>
+                </div>
+              </div>
+
+              <div className={styles.parameterGroup}>
+                <label className={styles.parameterLabel}>
+                  Gray Level Tolerance
+                  <span className={styles.parameterDescription}>
+                    Max gray level for convergence (0.01-0.2, lower = more binary)
+                  </span>
+                </label>
+                <div className={styles.parameterControl}>
+                  <input
+                    type="range"
+                    min="0.01"
+                    max="0.2"
+                    step="0.01"
+                    value={toNumber(parameters.grayTol, 0.05)}
+                    onChange={(e) => handleParameterChange("grayTol", Number(e.target.value))}
+                    className={styles.slider}
+                    disabled={simulationState === 'running'}
+                  />
+                  <span className={styles.parameterValue}>{toNumber(parameters.grayTol, 0.05).toFixed(2)}</span>
+                </div>
+              </div>
+
+              <div className={styles.parameterGroup}>
+                <label className={styles.parameterLabel}>
+                  Beta Max
+                  <span className={styles.parameterDescription}>
+                    Max Heaviside projection sharpness (64-512, higher = sharper 0/1)
+                  </span>
+                </label>
+                <div className={styles.parameterControl}>
+                  <input
+                    type="range"
+                    min="64"
+                    max="512"
+                    step="64"
+                    value={toNumber(parameters.betaMax, 64)}
+                    onChange={(e) => handleParameterChange("betaMax", Number(e.target.value))}
+                    className={styles.slider}
+                    disabled={simulationState === 'running'}
+                  />
+                  <span className={styles.parameterValue}>{toNumber(parameters.betaMax, 64)}</span>
                 </div>
               </div>
             </div>
