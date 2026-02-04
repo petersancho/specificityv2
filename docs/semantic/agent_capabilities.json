@@ -1,8 +1,8 @@
 {
   "meta": {
     "version": "2.0.0",
-    "generatedAt": "2026-02-04T13:05:32.592Z",
-    "operationCount": 202
+    "generatedAt": "2026-02-04T20:25:00.000Z",
+    "operationCount": 203
   },
   "capabilities": {
     "math.add": {
@@ -2333,6 +2333,61 @@
       "safetyNotes": [
         "Safety class: safe"
       ]
+    },
+    "solver.topologyOptimization": {
+      "opId": "solver.topologyOptimization",
+      "intent": "SIMP topology optimization solver with mathematical validation",
+      "signature": {
+        "name": "solver_topologyOptimization",
+        "description": "Optimizes material layout for structural performance using SIMP method",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "E0": { "type": "number", "description": "Young's modulus of solid material (Pa)" },
+            "Emin": { "type": "number", "description": "Young's modulus of void (Pa)" },
+            "nu": { "type": "number", "description": "Poisson's ratio" },
+            "volFrac": { "type": "number", "description": "Target volume fraction (0-1)" },
+            "penal": { "type": "number", "description": "SIMP penalization exponent" },
+            "rmin": { "type": "number", "description": "Density filter radius" },
+            "tolChange": { "type": "number", "description": "Convergence tolerance" },
+            "minIterations": { "type": "integer", "description": "Min stable iterations" },
+            "grayTol": { "type": "number", "description": "Gray level tolerance" },
+            "betaMax": { "type": "number", "description": "Max Heaviside projection beta" },
+            "maxIters": { "type": "integer", "description": "Maximum iterations" },
+            "cgTol": { "type": "number", "description": "PCG solver tolerance" },
+            "cgMaxIters": { "type": "integer", "description": "PCG max iterations" },
+            "densityThreshold": { "type": "number", "description": "Geometry extraction threshold" },
+            "maxLinksPerPoint": { "type": "integer", "description": "Max connections per point" },
+            "maxSpanLength": { "type": "number", "description": "Max connection span" }
+          },
+          "required": ["mesh", "markers"]
+        }
+      },
+      "examples": [
+        {
+          "description": "Cantilever beam optimization",
+          "input": {
+            "mesh": "10×5×1 box",
+            "markers": { "anchors": "left face", "loads": "right center" },
+            "volFrac": 0.5
+          },
+          "output": "Optimized beam structure"
+        }
+      ],
+      "safetyNotes": [
+        "Safety class: stateful",
+        "Validates inputs using YAML schema",
+        "Enforces mathematical invariants (FEA correctness, volume constraint, etc.)",
+        "Schema version: 2.0.0",
+        "Schema path: client/src/semantic/schemas/topology-optimization.schema.yml"
+      ],
+      "schemaValidation": {
+        "hasSchema": true,
+        "schemaVersion": "2.0.0",
+        "schemaPath": "client/src/semantic/schemas/topology-optimization.schema.yml",
+        "invariants": 8,
+        "validationRules": 6
+      }
     },
     "solver.topologyOptimization.optimize": {
       "opId": "solver.topologyOptimization.optimize",

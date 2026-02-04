@@ -1,0 +1,317 @@
+{
+  "version": "1.0.0",
+  "generated": "2026-02-04T20:23:47.900Z",
+  "description": "AI Agent-readable catalog of operations with semantic validation schemas",
+  "operations": {
+    "solver.topologyOptimization": {
+      "operationId": "solver.topologyOptimization",
+      "name": "Topology Optimization Solver",
+      "domain": "solver",
+      "category": "optimization",
+      "description": "Semantic validation schema for SIMP topology optimization",
+      "schemaVersion": "2.0.0",
+      "schemaPath": "client/src/semantic/schemas/topology-optimization.schema.yml",
+      "parameters": [
+        {
+          "name": "E0",
+          "type": "number",
+          "unit": "pascal",
+          "default": 1,
+          "description": "Young's modulus of solid material",
+          "constraints": [
+            "E0 ≥ 0.000001",
+            "E0 ≤ 1000000000000"
+          ]
+        },
+        {
+          "name": "Emin",
+          "type": "number",
+          "unit": "pascal",
+          "default": 1e-9,
+          "description": "Young's modulus of void (numerical stability)",
+          "constraints": [
+            "Emin ≥ 1e-12",
+            "Void stiffness must be less than solid stiffness"
+          ]
+        },
+        {
+          "name": "nu",
+          "type": "number",
+          "unit": "dimensionless",
+          "default": 0.3,
+          "description": "Poisson's ratio",
+          "constraints": [
+            "nu ∈ [-0.99, 0.49]",
+            "nu ∈ [0, 0.45]"
+          ]
+        },
+        {
+          "name": "volFrac",
+          "type": "number",
+          "unit": "dimensionless",
+          "default": 0.5,
+          "description": "Target volume fraction (0 = empty, 1 = solid)",
+          "constraints": [
+            "volFrac ∈ [0.01, 0.99]",
+            "volFrac ∈ [0.1, 0.8]"
+          ]
+        },
+        {
+          "name": "penal",
+          "type": "number",
+          "unit": "dimensionless",
+          "default": 3,
+          "description": "SIMP penalization exponent (pushes to 0/1)",
+          "constraints": [
+            "penal ≥ 1",
+            "penal ≤ 5",
+            "Typical SIMP uses p = 3 for good 0/1 convergence"
+          ]
+        },
+        {
+          "name": "rmin",
+          "type": "number",
+          "unit": "dimensionless",
+          "default": 1.5,
+          "description": "Density filter radius (in element units)",
+          "constraints": [
+            "rmin ≥ 0",
+            "rmin ∈ [1, 3]"
+          ]
+        },
+        {
+          "name": "tolChange",
+          "type": "number",
+          "unit": "dimensionless",
+          "default": 0.00001,
+          "description": "Convergence tolerance for density/compliance change",
+          "constraints": [
+            "tolChange ∈ [1e-8, 0.01]",
+            "Tolerance > 1e-3 may give poor quality results"
+          ]
+        },
+        {
+          "name": "minIterations",
+          "type": "integer",
+          "default": 3,
+          "description": "Minimum consecutive stable iterations for convergence",
+          "constraints": [
+            "minIterations ∈ [1, 10]"
+          ]
+        },
+        {
+          "name": "grayTol",
+          "type": "number",
+          "unit": "dimensionless",
+          "default": 0.05,
+          "description": "Gray level tolerance (0 = pure 0/1, 1 = all gray)",
+          "constraints": [
+            "grayTol ∈ [0.01, 0.2]",
+            "Gray tolerance > 0.1 allows too much intermediate density"
+          ]
+        },
+        {
+          "name": "betaMax",
+          "type": "integer",
+          "default": 256,
+          "description": "Maximum Heaviside projection parameter",
+          "constraints": [
+            "betaMax ∈ [16, 1024]",
+            "Beta < 64 may not produce crisp 0/1 designs"
+          ]
+        },
+        {
+          "name": "maxIters",
+          "type": "integer",
+          "default": 200,
+          "description": "Maximum optimization iterations",
+          "constraints": [
+            "maxIters ∈ [10, 1000]"
+          ]
+        },
+        {
+          "name": "cgTol",
+          "type": "number",
+          "unit": "dimensionless",
+          "default": 0.00001,
+          "description": "PCG solver tolerance",
+          "constraints": [
+            "cgTol ∈ [1e-8, 0.01]"
+          ]
+        },
+        {
+          "name": "cgMaxIters",
+          "type": "integer",
+          "default": 5000,
+          "description": "Maximum PCG iterations",
+          "constraints": [
+            "cgMaxIters ∈ [100, 10000]"
+          ]
+        },
+        {
+          "name": "densityThreshold",
+          "type": "number",
+          "unit": "dimensionless",
+          "default": 0.7,
+          "description": "Density threshold for geometry extraction",
+          "constraints": [
+            "densityThreshold ∈ [0.1, 0.9]",
+            "Threshold < 0.5 includes too much gray material"
+          ]
+        },
+        {
+          "name": "maxLinksPerPoint",
+          "type": "integer",
+          "default": 2,
+          "description": "Maximum structural connections per point",
+          "constraints": [
+            "maxLinksPerPoint ∈ [1, 6]"
+          ]
+        },
+        {
+          "name": "maxSpanLength",
+          "type": "number",
+          "unit": "dimensionless",
+          "default": 1.2,
+          "description": "Maximum connection span (in element units)",
+          "constraints": [
+            "maxSpanLength ∈ [0.5, 3]"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "name": "mesh",
+          "type": "Mesh3D",
+          "description": "Input geometry as structured hexahedral mesh",
+          "required": true,
+          "validations": []
+        },
+        {
+          "name": "markers",
+          "type": "BoundaryConditions",
+          "description": "Boundary conditions (anchors and loads)",
+          "required": true,
+          "validations": []
+        }
+      ],
+      "outputs": [
+        {
+          "name": "densityField",
+          "type": "ScalarField3D",
+          "description": "Optimized density distribution (0 = void, 1 = solid)",
+          "postconditions": [
+            {
+              "expression": "all(densityField.values, v => v >= 0 && v <= 1)",
+              "message": "All densities must be in [0, 1]"
+            },
+            {
+              "expression": "sum(densityField.values) / length(densityField.values) ≈ volFrac",
+              "message": "Average density should match target volume fraction",
+              "tolerance": 0.01
+            }
+          ]
+        },
+        {
+          "name": "geometry",
+          "type": "Geometry3D",
+          "description": "Extracted structural geometry",
+          "postconditions": [
+            {
+              "expression": "geometry.pointCloud.positions.length > 0",
+              "message": "Geometry must contain at least one point"
+            },
+            {
+              "expression": "all(geometry.pointCloud.positions, p => isFinite(p))",
+              "message": "All geometry coordinates must be finite"
+            }
+          ]
+        },
+        {
+          "name": "convergenceHistory",
+          "type": "TimeSeries",
+          "description": "Optimization convergence metrics",
+          "postconditions": [
+            {
+              "expression": "convergenceHistory.length > 0",
+              "message": "Must have at least one iteration"
+            },
+            {
+              "expression": "isMonotonicallyDecreasing(convergenceHistory.map(h => h.compliance))",
+              "message": "Compliance should decrease (or stay constant) over iterations",
+              "severity": "warning"
+            },
+            {
+              "expression": "last(convergenceHistory).grayLevel < grayTol",
+              "message": "Final design should meet gray level tolerance"
+            }
+          ]
+        }
+      ],
+      "invariants": [
+        {
+          "type": "precondition",
+          "name": "equilibrium_solvable",
+          "expression": "rank(K) = n_dof - n_fixed",
+          "description": "Stiffness matrix must be full rank after BC enforcement"
+        },
+        {
+          "type": "postcondition",
+          "name": "equilibrium_satisfied",
+          "expression": "||K(ρ)U - F|| < cgTol × ||F||",
+          "description": "Displacement field must satisfy equilibrium"
+        },
+        {
+          "type": "postcondition",
+          "name": "positive_compliance",
+          "expression": "C = U^T K U > 0",
+          "description": "Compliance must be positive (structural energy)"
+        },
+        {
+          "type": "postcondition",
+          "name": "volume_constraint",
+          "expression": "abs(sum(ρ) / n_elem - volFrac) < 0.01",
+          "description": "Volume constraint must be satisfied within 1%"
+        },
+        {
+          "type": "invariant",
+          "name": "density_bounds",
+          "expression": "all(ρ, v => 0 <= v <= 1)",
+          "description": "Densities must remain in [0, 1]"
+        },
+        {
+          "type": "postcondition",
+          "name": "converged",
+          "expression": "densityChange < tolChange && complianceChange < tolChange && grayLevel < grayTol",
+          "description": "Must satisfy all convergence criteria"
+        },
+        {
+          "type": "invariant",
+          "name": "coordinate_consistency",
+          "expression": "worldFrame → meshFrame → gridFrame → dofIndex is bijective",
+          "description": "Coordinate transformations must be invertible"
+        },
+        {
+          "type": "invariant",
+          "name": "bc_enforcement",
+          "expression": "all(fixedDofs, dof => U[dof] = 0)",
+          "description": "Fixed DOFs must have zero displacement"
+        }
+      ],
+      "tags": [
+        "3d",
+        "structural",
+        "optimization",
+        "simp",
+        "fea"
+      ],
+      "capabilities": {
+        "canValidateInputs": true,
+        "canValidateOutputs": true,
+        "hasInvariants": true,
+        "hasMathematicalModel": true,
+        "isVersioned": true
+      }
+    }
+  }
+}

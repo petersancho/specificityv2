@@ -20,13 +20,14 @@
     "validate:docs-semantics": "tsx scripts/validateDocSemanticLinks.ts",
     "generate:semantic-css": "tsx scripts/generateSemanticCSS.ts",
     "validate:topology": "tsx scripts/validateTopologyOptimization.ts",
-    "validate:all": "npm run validate:semantic && npm run validate:commands && npm run validate:integrity && npm run validate:ui-semantics && npm run validate:docs-semantics && npm run validate:topology",
+    "validate:all": "npm run validate:semantic && npm run validate:commands && npm run validate:integrity && npm run validate:ui-semantics && npm run validate:docs-semantics && npm run validate:topology && npm run generate:agent-catalog && npm run validate:semantic-integration",
     "analyze:semantic": "tsx scripts/comprehensiveSemanticAnalysis.ts",
     "analyze:coverage": "tsx scripts/analyzeNodeSemanticCoverage.ts",
     "analyze:coverage2": "tsx scripts/analyzeCoverage2.ts",
     "regenerate:node-ops": "node scripts/regenerateNodeSemanticOps.js",
     "generate:semantic-ids": "node scripts/generateSemanticOpIds.js",
-    "generate:agent-catalog": "tsx client/src/semantic/ontology/generateAgentCatalog.ts",
+    "generate:agent-catalog": "tsx scripts/generateAgentCatalog.ts",
+    "validate:semantic-integration": "tsx scripts/validateSemanticIntegration.ts",
     "precommit": "npm run validate:all"
   },
   "devDependencies": {

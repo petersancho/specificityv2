@@ -7,6 +7,8 @@
 - Validate: `pnpm run validate:all`
 - Semantic validation: `pnpm run validate:semantic`
 - Generate semantic IDs: `pnpm run generate:semantic-ids`
+- Generate agent catalog: `pnpm run generate:agent-catalog`
+- Validate semantic integration: `pnpm run validate:semantic-integration`
 
 ## Code Style
 - TypeScript strict mode
@@ -47,3 +49,39 @@
 - **New command**: registry.ts → commandSemantics.ts → undo/redo hooks
 - **New workflow node**: nodeRegistry.ts → validate:semantic → compute function
 - **New semantic op**: ops/{domain}Ops.ts → generate:semantic-ids → validate:semantic
+- **New solver/simulator**: Create YAML schema → generate:agent-catalog → validate:semantic-integration
+
+## Semantic Integration System
+
+### YAML Schemas
+Operations with complex validation can define YAML schemas in `client/src/semantic/schemas/`:
+- **Parameters**: Type, unit, default, constraints (range, min, max, enum, custom)
+- **Inputs/Outputs**: Type, description, validation rules, postconditions
+- **Invariants**: Preconditions, postconditions, mathematical invariants
+- **Examples**: Test cases with expected results
+- **Versioning**: Semantic versioning with migration paths
+
+### Agent Catalog
+AI agents discover operations through `docs/semantic/agent-catalog.json`:
+- Generated from YAML schemas via `pnpm run generate:agent-catalog`
+- Machine-readable operation metadata
+- Parameter constraints and validation rules
+- Mathematical invariants and postconditions
+- Links to schema files for detailed validation
+
+### Integration Validation
+`pnpm run validate:semantic-integration` ensures:
+- All schema operations exist in operations.json
+- All schema operations exist in agent_capabilities.json
+- Schema IDs match catalog keys
+- Parameter counts match between schema and catalog
+- Invariant counts match between schema and catalog
+- Operations have proper ontological completeness
+
+### Benefits for AI Agents
+- **Discover operations** through agent-catalog.json
+- **Validate parameters** using YAML schemas before execution
+- **Understand constraints** via mathematical invariants
+- **Navigate codebase** ontologically through semantic links
+- **Suggest fixes** based on validation rules and postconditions
+- **Verify correctness** through invariant checking
