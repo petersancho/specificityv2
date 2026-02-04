@@ -15,8 +15,52 @@ import type { WorkflowComputeContext, WorkflowValue } from "../../workflow/nodeR
 import type { Geometry, RenderMesh, Vec3 } from "../../types";
 import type { ChemistryMaterialAssignment, ChemistrySeed } from "../../workflow/nodes/solver/ChemistrySolver";
 import { resolveChemistryMaterialSpec } from "../../data/chemistryMaterials";
-import { withSemanticOpSync } from "../../semantic/semanticTracer";
-import { clearSemanticRun, getSemanticEvents } from "../../semantic/semanticTraceStore";
+import { withTrace, provenanceStore } from "../../semantic/ontology/provenance";
+
+// Sync version of withTrace for tests
+function withSemanticOpSync<T>(
+  params: { nodeId: string; runId: string; opId: string },
+  fn: () => T
+): T {
+  const startTime = Date.now();
+  try {
+    const result = fn();
+    provenanceStore.addEntry({
+      opId: params.opId,
+      timestamp: startTime,
+      duration: Date.now() - startTime,
+      inputs: { nodeId: params.nodeId, runId: params.runId },
+      deterministic: true,
+      metadata: { nodeId: params.nodeId, runId: params.runId },
+    });
+    return result;
+  } catch (e) {
+    provenanceStore.addEntry({
+      opId: params.opId,
+      timestamp: startTime,
+      duration: Date.now() - startTime,
+      inputs: { nodeId: params.nodeId, runId: params.runId },
+      deterministic: true,
+      error: e instanceof Error ? e.message : String(e),
+      metadata: { nodeId: params.nodeId, runId: params.runId },
+    });
+    throw e;
+  }
+}
+
+function clearSemanticRun(runId: string): void {
+  // Start a new session for each test run
+  provenanceStore.startSession({ runId });
+}
+
+function getSemanticEvents(): Array<{ opId: string; phase: string; runId?: string }> {
+  const session = provenanceStore.getCurrentSession();
+  return (session?.entries ?? []).map((e) => ({
+    opId: e.opId,
+    phase: 'end', // LOC entries are complete
+    runId: (e.metadata as any)?.runId,
+  }));
+}
 
 // Create a simple test geometry (cube)
 const createTestCube = (): RenderMesh => {

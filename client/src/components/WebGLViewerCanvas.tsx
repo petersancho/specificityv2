@@ -59,13 +59,16 @@ import { PRIMITIVE_COMMAND_IDS } from "../data/primitiveCatalog";
 import { WebGLRenderer, type Camera } from "../webgl/WebGLRenderer";
 import {
   VIEW_STYLE,
+  getViewStyle,
   adjustForSelection,
   clamp01,
   darkenColor,
   lerp,
   mixColor,
   smoothstep,
+  type ViewStyleProfile,
 } from "../webgl/viewProfile";
+import { getThemeMode } from "../theme";
 import {
   createGumballPickMeshes,
   createGumballBuffers,
@@ -120,11 +123,11 @@ const PREVIEW_MESH_ID = "__preview-mesh";
 const PREVIEW_EDGE_ID = "__preview-mesh-edges";
 const HOVER_LINE_ID = "__hover-line";
 
-const resolveViewerDpr = () => {
+const resolveViewerDpr = (style: ViewStyleProfile = VIEW_STYLE) => {
   if (typeof window === "undefined") return 1;
   const baseDpr = window.devicePixelRatio || 1;
-  const scaled = baseDpr * (VIEW_STYLE.renderQualityScale ?? 1);
-  const maxDpr = VIEW_STYLE.maxRenderDpr ?? scaled;
+  const scaled = baseDpr * (style.renderQualityScale ?? 1);
+  const maxDpr = style.maxRenderDpr ?? scaled;
   return Math.min(scaled, maxDpr);
 };
 
@@ -1255,6 +1258,25 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     meta: false,
     alt: false,
   });
+
+  // Theme-aware view style
+  const viewStyleRef = useRef<ViewStyleProfile>(
+    getViewStyle(getThemeMode() === "dark")
+  );
+
+  // Subscribe to theme changes
+  useEffect(() => {
+    const updateStyle = () => {
+      viewStyleRef.current = getViewStyle(getThemeMode() === "dark");
+    };
+    updateStyle();
+    const observer = new MutationObserver(updateStyle);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const handleModifierEvent = (event: KeyboardEvent) => {
@@ -7199,7 +7221,9 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         return;
       }
 
-      renderer.setClearColor(VIEW_STYLE.clearColor);
+      // Use theme-aware view style
+      const style = viewStyleRef.current;
+      renderer.setClearColor(style.clearColor);
       renderer.clear();
 
       const cameraState = cameraRef.current;
@@ -7235,12 +7259,12 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
       renderer.setBackfaceCulling(false);
       const viewSettingsShowEdges = viewSettingsRef.current.showEdges !== false;
       const showEdges = !isSilhouette && viewSettingsShowEdges;
-      const renderScale = lerp(1, VIEW_STYLE.solidRenderScale, solidBlend);
-      const baseDpr = resolveViewerDpr();
+      const renderScale = lerp(1, style.solidRenderScale, solidBlend);
+      const baseDpr = resolveViewerDpr(style);
       const dpr = baseDpr * renderScale;
-      const edgePrimaryWidth = VIEW_STYLE.edgePrimaryWidth * dpr;
-      const edgeSecondaryWidth = VIEW_STYLE.edgeSecondaryWidth * dpr;
-      const edgeTertiaryWidth = VIEW_STYLE.edgeTertiaryWidth * dpr;
+      const edgePrimaryWidth = style.edgePrimaryWidth * dpr;
+      const edgeSecondaryWidth = style.edgeSecondaryWidth * dpr;
+      const edgeTertiaryWidth = style.edgeTertiaryWidth * dpr;
       const edgeBias = lerp(0.00022, 0.00045, edgeFade);
       const edgeDepthBias = edgeBias * 1.5;
       const lineDepthBias = edgeBias * 1.15;
@@ -7256,14 +7280,14 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
       const gridMajorBuffer = gridMajorBufferRef.current;
       if (gridMinorBuffer) {
         renderer.renderEdges(gridMinorBuffer, cameraPayload, {
-          edgeColor: VIEW_STYLE.gridMinor,
+          edgeColor: style.gridMinor,
           opacity: 0.35,
           dashEnabled: 0,
         });
       }
       if (gridMajorBuffer) {
         renderer.renderEdges(gridMajorBuffer, cameraPayload, {
-          edgeColor: VIEW_STYLE.gridMajor,
+          edgeColor: style.gridMajor,
           opacity: 0.5,
           dashEnabled: 0,
         });
@@ -7334,12 +7358,12 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
             : SILHOUETTE_BASE_COLOR;
           renderer.renderGeometry(renderable.buffer, cameraPayload, {
             materialColor,
-            lightPosition: VIEW_STYLE.lightPosition,
-            lightColor: VIEW_STYLE.light,
-            ambientColor: VIEW_STYLE.ambient,
+            lightPosition: style.lightPosition,
+            lightColor: style.light,
+            ambientColor: style.ambient,
             ambientStrength: 1,
             cameraPosition: cameraPayload.position,
-            selectionHighlight: VIEW_STYLE.selection,
+            selectionHighlight: style.selection,
             isSelected: isSelected ? SELECTION_HIGHLIGHT_INTENSITY : 0,
             sheenIntensity: 0,
             clearcoatIntensity: 0,
@@ -7350,8 +7374,8 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         }
 
         const customOverrides = customMaterialMapRef.current.get(renderable.id);
-        const baseColor = customOverrides?.color ?? VIEW_STYLE.mesh;
-        const materialColor = adjustForSelection(baseColor, isSelected, hasSelection);
+        const baseColor = customOverrides?.color ?? style.mesh;
+        const materialColor = adjustForSelection(baseColor, isSelected, hasSelection, style);
         const selectionFactor = hasSelection
           ? lerp(
               1,
@@ -7370,13 +7394,13 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         );
         const geometryUniforms = {
           materialColor,
-          lightPosition: VIEW_STYLE.lightPosition,
-          lightColor: VIEW_STYLE.light,
-          ambientColor: VIEW_STYLE.ambient,
+          lightPosition: style.lightPosition,
+          lightColor: style.light,
+          ambientColor: style.ambient,
           ambientStrength:
-            customOverrides?.ambientStrength ?? VIEW_STYLE.ambientStrength,
+            customOverrides?.ambientStrength ?? style.ambientStrength,
           cameraPosition: cameraPayload.position,
-          selectionHighlight: VIEW_STYLE.selection,
+          selectionHighlight: style.selection,
           isSelected: isSelected ? SELECTION_HIGHLIGHT_INTENSITY : 0,
           sheenIntensity:
             customOverrides?.sheenIntensity ?? viewSettingsRef.current.sheen ?? 0.08,
@@ -7515,10 +7539,10 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
 
         if (!showEdges) return;
         const customOverrides = customMaterialMapRef.current.get(renderable.id);
-        const baseColor = customOverrides?.color ?? VIEW_STYLE.mesh;
+        const baseColor = customOverrides?.color ?? style.mesh;
         const edgeLineBuffers = renderable.edgeLineBuffers;
         const edgeBase = darkenColor(
-          adjustForSelection(baseColor, isSelected, hasSelection),
+          adjustForSelection(baseColor, isSelected, hasSelection, style),
           0.22
         );
         const edgeInternalColor = mixColor(edgeBase, [1, 1, 1], 0.28);
@@ -7538,20 +7562,20 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         const edgeOpacities: [number, number, number] = [
           Math.min(
             1,
-            VIEW_STYLE.edgeTertiaryOpacity *
+            style.edgeTertiaryOpacity *
               edgeOpacityScale *
               edgeInternalScale *
               internalOpacityScale
           ),
           Math.min(
             1,
-            VIEW_STYLE.edgeSecondaryOpacity *
+            style.edgeSecondaryOpacity *
               edgeOpacityScale *
               creaseOpacityScale
           ),
           Math.min(
             1,
-            VIEW_STYLE.edgePrimaryOpacity *
+            style.edgePrimaryOpacity *
               edgeOpacityScale *
               silhouetteOpacityScale
           ),
@@ -7653,9 +7677,10 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
             : SILHOUETTE_BASE_COLOR
           : darkenColor(
               adjustForSelection(
-                customMaterialMapRef.current.get(renderable.id)?.color ?? VIEW_STYLE.mesh,
+                customMaterialMapRef.current.get(renderable.id)?.color ?? style.mesh,
                 isSelected,
-                hasSelection
+                hasSelection,
+                style
               ),
               0.22
             );
@@ -7801,11 +7826,11 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         if (selectedFaceBuffer && selectedFaceBuffer.indexCount > 0) {
           renderer.renderGeometry(selectedFaceBuffer, cameraPayload, {
             materialColor: highlightColor,
-            lightPosition: VIEW_STYLE.lightPosition,
-            lightColor: VIEW_STYLE.light,
-            ambientColor: VIEW_STYLE.ambient,
-            ambientStrength: VIEW_STYLE.ambientStrength,
-            selectionHighlight: VIEW_STYLE.selection,
+            lightPosition: style.lightPosition,
+            lightColor: style.light,
+            ambientColor: style.ambient,
+            ambientStrength: style.ambientStrength,
+            selectionHighlight: style.selection,
             isSelected: 0,
             sheenIntensity: viewSettingsRef.current.sheen ?? 0.08,
             opacity: 0.38,
@@ -7852,18 +7877,18 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
           resolution: [canvas.width, canvas.height],
           lineColor: [0.2, 0.64, 0.66],
           lineOpacity: 0.75,
-          selectionHighlight: VIEW_STYLE.selection,
+          selectionHighlight: style.selection,
           isSelected: 0,
           linePixelSnap: edgePixelSnap,
         }, { depthFunc: "always", depthMask: false });
       } else if (preview?.kind === "mesh" && previewMeshBuffer) {
         renderer.renderGeometry(previewMeshBuffer, cameraPayload, {
           materialColor: [0.2, 0.64, 0.66],
-          lightPosition: VIEW_STYLE.lightPosition,
-          lightColor: VIEW_STYLE.light,
-          ambientColor: VIEW_STYLE.ambient,
-          ambientStrength: VIEW_STYLE.ambientStrength,
-          selectionHighlight: VIEW_STYLE.selection,
+          lightPosition: style.lightPosition,
+          lightColor: style.light,
+          ambientColor: style.ambient,
+          ambientStrength: style.ambientStrength,
+          selectionHighlight: style.selection,
           isSelected: 0,
           sheenIntensity: viewSettingsRef.current.sheen ?? 0.08,
           opacity: 0.5,
@@ -7883,11 +7908,11 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
       if (hoverSelection && hoverMeshBuffer && hoverSelection.kind === "face") {
         renderer.renderGeometry(hoverMeshBuffer, cameraPayload, {
           materialColor: [0.2, 0.64, 0.66],
-          lightPosition: VIEW_STYLE.lightPosition,
-          lightColor: VIEW_STYLE.light,
-          ambientColor: VIEW_STYLE.ambient,
-          ambientStrength: VIEW_STYLE.ambientStrength,
-          selectionHighlight: VIEW_STYLE.selection,
+          lightPosition: style.lightPosition,
+          lightColor: style.light,
+          ambientColor: style.ambient,
+          ambientStrength: style.ambientStrength,
+          selectionHighlight: style.selection,
           isSelected: 0,
           sheenIntensity: viewSettingsRef.current.sheen ?? 0.08,
           opacity: 0.28,
@@ -7989,10 +8014,10 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
             activeHandle,
           },
           {
-            lightPosition: VIEW_STYLE.lightPosition,
-            lightColor: VIEW_STYLE.light,
-            ambientColor: VIEW_STYLE.ambient,
-            ambientStrength: VIEW_STYLE.ambientStrength,
+            lightPosition: style.lightPosition,
+            lightColor: style.light,
+            ambientColor: style.ambient,
+            ambientStrength: style.ambientStrength,
             sheenIntensity: viewSettingsRef.current.sheen ?? 0.08,
             showRotate: showRings,
             showMove: showMoveArmsRef.current,
@@ -8052,11 +8077,11 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
         const gumballEdgeOpacities: [number, number, number] = [
           Math.min(
             1,
-            VIEW_STYLE.edgeTertiaryOpacity * edgeOpacityScale * edgeInternalScale
+            style.edgeTertiaryOpacity * edgeOpacityScale * edgeInternalScale
           ) * gumballOpacityScale,
-          Math.min(1, VIEW_STYLE.edgeSecondaryOpacity * edgeOpacityScale) *
+          Math.min(1, style.edgeSecondaryOpacity * edgeOpacityScale) *
             gumballOpacityScale,
-          Math.min(1, VIEW_STYLE.edgePrimaryOpacity * edgeOpacityScale) *
+          Math.min(1, style.edgePrimaryOpacity * edgeOpacityScale) *
             gumballOpacityScale,
         ];
         const renderGumballEdges = (
@@ -8220,10 +8245,10 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
             renderer.renderGeometry(gumballBuffers.scale, cameraPayload, {
               modelMatrix,
               materialColor: color,
-              lightPosition: VIEW_STYLE.lightPosition,
-              lightColor: VIEW_STYLE.light,
-              ambientColor: VIEW_STYLE.ambient,
-              ambientStrength: VIEW_STYLE.ambientStrength,
+              lightPosition: style.lightPosition,
+              lightColor: style.light,
+              ambientColor: style.ambient,
+              ambientStrength: style.ambientStrength,
               sheenIntensity: viewSettingsRef.current.sheen ?? 0.08,
               opacity: 0.95 * gumballOpacityScale,
             });

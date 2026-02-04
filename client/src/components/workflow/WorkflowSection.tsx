@@ -21,6 +21,7 @@ import { createIconSignature } from "./iconSignature";
 import { arrayBufferToBase64 } from "../../utils/binary";
 import { downloadBlob } from "../../utils/download";
 import { normalizeHexColor } from "../../utils/color";
+import { getStickerTint } from "../../workflow/colors";
 import { safeLocalStorageGet, safeLocalStorageSet } from "../../utils/safeStorage";
 import {
   NODE_CATEGORIES,
@@ -46,38 +47,8 @@ import { VoxelSimulatorDashboard } from "./voxel/VoxelSimulatorDashboard";
 import { TopologyOptimizationSimulatorDashboard } from "../TopologyOptimizationSimulatorDashboard";
 import styles from "./WorkflowSection.module.css";
 
-const STICKER_TINTS: Record<string, string> = {
-  data: "#0099cc",
-  basics: "#cc9900",
-  lists: "#00cccc",
-  primitives: "#00d4ff",
-  curves: "#ff0099",
-  nurbs: "#6600cc",
-  brep: "#ff6600",
-  mesh: "#8800ff",
-  tessellation: "#0066cc",
-  modifiers: "#ff9966",
-  transforms: "#cc0077",
-  arrays: "#ffdd00",
-  euclidean: "#6600ff",
-  ranges: "#9933ff",
-  signals: "#66cc00",
-  analysis: "#88ff00",
-  interop: "#0055aa",
-  measurement: "#00cccc",
-  voxel: "#66cc00",
-  solver: "#8800ff",
-  goal: "#b366ff",
-  optimization: "#ff0066",
-  math: "#cc9900",
-  logic: "#0066cc",
-};
-
-const resolveStickerTint = (categoryId?: string | null) => {
-  if (!categoryId) return undefined;
-  const color = STICKER_TINTS[categoryId];
-  return normalizeHexColor(color) ?? undefined;
-};
+// Sticker tints are now centralized in workflow/colors.ts
+const resolveStickerTint = getStickerTint;
 
 const nodeOptions = NODE_DEFINITIONS.filter(
   (definition) => definition.type !== "primitive"

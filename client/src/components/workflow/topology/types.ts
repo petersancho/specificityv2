@@ -96,6 +96,7 @@ export type SolverFrame = {
   converged: boolean;
   feConverged?: boolean;
   feIters?: number;
+  error?: string;
 };
 
 /**

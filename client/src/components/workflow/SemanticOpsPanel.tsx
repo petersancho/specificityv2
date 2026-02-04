@@ -1,8 +1,46 @@
 import React, { useMemo } from "react";
-import { getSemanticOpMeta } from "../../semantic/semanticOpRegistry";
-import { useSemanticMetrics } from "../../semantic/useSemanticMetrics";
+import { ontologyRegistry } from "../../semantic/ontology/registry";
+import { useProvenanceMetrics } from "../../semantic/useProvenanceMetrics";
 import { getNodeDefinition } from "../../workflow/nodeRegistry";
 import styles from "./SemanticOpsPanel.module.css";
+
+// Get operation metadata from LOC ontology
+function getSemanticOpMeta(id: string) {
+  const op = ontologyRegistry.getOperation(id);
+  if (op) {
+    return {
+      id: op.id,
+      label: op.name,
+      description: op.description,
+      category: mapDomainToCategory(op.domain),
+      defaultCostUnit: 10, // Default cost, could be derived from complexity
+    };
+  }
+  // Fallback for unregistered operations
+  return {
+    id,
+    label: id.split('.').pop() || id,
+    category: "other" as const,
+    description: `Semantic operation: ${id}`,
+  };
+}
+
+// Map LOC domain to UI category
+function mapDomainToCategory(domain: string): string {
+  const mapping: Record<string, string> = {
+    geometry: 'other',
+    math: 'analysis',
+    vector: 'analysis',
+    solver: 'step',
+    workflow: 'io',
+    command: 'other',
+    data: 'io',
+    logic: 'analysis',
+    string: 'other',
+    color: 'other',
+  };
+  return mapping[domain] || 'other';
+}
 
 type SemanticOpsPanelProps = {
   nodeId: string;
@@ -14,7 +52,7 @@ export function SemanticOpsPanel({ nodeId, nodeType, runId = "default" }: Semant
   const nodeDef = getNodeDefinition(nodeType);
   const semanticOps = nodeDef?.semanticOps ?? [];
   
-  const { totals, totalOperations, totalDuration, totalErrors } = useSemanticMetrics({ 
+  const { totals, totalOperations, totalDuration, totalErrors } = useProvenanceMetrics({ 
     nodeId, 
     runId 
   });

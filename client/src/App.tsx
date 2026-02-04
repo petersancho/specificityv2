@@ -8,7 +8,7 @@ import WorkflowSection from "./components/workflow/WorkflowSection";
 import WebGLButton from "./components/ui/WebGLButton";
 import { useProjectStore } from "./store/useProjectStore";
 import { buildApiUrl, SOCKET_URL } from "./config/runtime";
-import logoLinguaSymbol from "./assets/logo-lingua-symbol.svg";
+import logoLinguaSymbol from "./assets/logos/logo-lingua-symbol.svg";
 import styles from "./App.module.css";
 
 type PanelId = "roslyn" | "numerica";

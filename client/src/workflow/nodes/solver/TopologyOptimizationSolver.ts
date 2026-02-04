@@ -19,20 +19,7 @@ export const TopologyOptimizationSolverNode: WorkflowNodeDefinition = {
   shortLabel: "TOPO",
   description: "Generates topologically optimized structures using goal-based optimization.",
   category: "solver",
-  semanticOps: [
-    'solver.topologyOptimization',
-    'simulator.topology.initialize',
-    'simulator.topology.step',
-    'simulator.topology.converge',
-    'simulator.topology.finalize',
-    'simulator.topology.preview',
-    'simulator.topology.sync',
-    'simulator.topology.pause',
-    'simulator.topology.resume',
-    'simulator.topology.reset',
-    'simulator.topology.plasticwrap',
-    'simulator.topology.stabilityGuard',
-  ],
+  semanticOps: ['solver.topologyOptimization'],
   iconId: "topologyOptimizationSolver",
   inputs: [
     {
@@ -77,8 +64,8 @@ export const TopologyOptimizationSolverNode: WorkflowNodeDefinition = {
       label: "Resolution Z",
       type: "number",
       parameterKey: "nz",
-      defaultValue: 6,
-      description: "Grid resolution in Z (>= 2 for 3D).",
+      defaultValue: 1,
+      description: "Grid resolution in Z (1 for 2D, >1 for 3D). Use 20-40 for 3D.",
     },
     {
       key: "volFrac",
@@ -237,7 +224,7 @@ export const TopologyOptimizationSolverNode: WorkflowNodeDefinition = {
     {
       key: "optimizedMesh",
       label: "Optimized Mesh",
-      type: "geometry",
+      type: "mesh",
       description: "Topologically optimized structure (multipipe result).",
     },
     {
@@ -312,11 +299,11 @@ export const TopologyOptimizationSolverNode: WorkflowNodeDefinition = {
       key: "nz",
       label: "Resolution Z",
       type: "number",
-      defaultValue: 6,
+      defaultValue: 1,
       min: 1,
-      max: 40,
+      max: 60,
       step: 1,
-      description: "Grid resolution in Z (>= 2 for 3D).",
+      description: "Grid resolution in Z (1 for 2D, 20-40 for 3D).",
     },
     {
       key: "volFrac",

@@ -1,10 +1,10 @@
-import CubeLogo from "./CubeLogo";
+import CubeLogo, { type CubeLogoVariant } from "./CubeLogo";
 import type { CSSProperties } from "react";
 
 type LinguaLogoProps = {
   size?: number;
   withText?: boolean;
-  variant?: "mono" | "cmyk";
+  variant?: CubeLogoVariant;
   className?: string;
   style?: CSSProperties;
 };
@@ -12,7 +12,7 @@ type LinguaLogoProps = {
 const LinguaLogo = ({
   size = 32,
   withText = false,
-  variant = "mono",
+  variant = "monochrome",
   className,
   style,
 }: LinguaLogoProps) => {
@@ -36,12 +36,11 @@ const LinguaLogo = ({
           fontFamily: '"Montreal Neue", "Space Grotesk", sans-serif',
           fontSize: `${size * 0.5}px`,
           fontWeight: 700,
-          color: "var(--color-text)",
-          letterSpacing: "0.06em",
-          textTransform: "uppercase",
+          color: "currentColor",
+          letterSpacing: "0.02em",
         }}
       >
-        Lingua
+        LINGUA
       </span>
     </div>
   );

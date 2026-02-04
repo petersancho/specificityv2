@@ -250,12 +250,15 @@ const getVariantBasePalette = (
   accentOverride?: string
 ): VariantPalette => {
   const theme = getThemePalette();
+  // Use ink (dark grey) as default for monochrome design
   const accent = accentOverride
-    ? parseCssColor(accentOverride, theme.accent)
+    ? parseCssColor(accentOverride, theme.ink)
     : theme.ink;
   const cream = theme.cream;
   const ink = theme.ink;
   const border = theme.border;
+  // Icons are monochrome by default - use ink color
+  const iconColor = ink;
 
   switch (variant) {
     case "primary":
@@ -263,30 +266,30 @@ const getVariantBasePalette = (
         fill: cream,
         border: withAlpha(darken(border, 0.1), 0.9),
         shadow: withAlpha(darken(ink, 0.6), 0.36),
-        glow: withAlpha(lighten(accent, 0.3), 0.32),
+        glow: withAlpha(lighten(ink, 0.3), 0.2),
         gloss: withAlpha(WHITE, 0.24),
         text: ink,
-        icon: accent,
+        icon: iconColor,
       };
     case "ghost":
       return {
         fill: withAlpha(cream, 0.95),
         border: withAlpha(darken(border, 0.15), 0.7),
         shadow: withAlpha(darken(ink, 0.35), 0.28),
-        glow: withAlpha(lighten(accent, 0.35), 0.24),
+        glow: withAlpha(lighten(ink, 0.35), 0.15),
         gloss: withAlpha(WHITE, 0.16),
         text: ink,
-        icon: accent,
+        icon: iconColor,
       };
     case "chip":
       return {
         fill: cream,
         border: withAlpha(darken(border, 0.1), 0.86),
         shadow: withAlpha(darken(ink, 0.45), 0.26),
-        glow: withAlpha(lighten(accent, 0.4), 0.2),
+        glow: withAlpha(lighten(ink, 0.4), 0.12),
         gloss: withAlpha(WHITE, 0.2),
         text: ink,
-        icon: accent,
+        icon: iconColor,
       };
     case "icon":
       return {
@@ -296,7 +299,7 @@ const getVariantBasePalette = (
         glow: withAlpha(BLACK, 0),
         gloss: withAlpha(WHITE, 0),
         text: ink,
-        icon: accent,
+        icon: iconColor,
       };
     case "palette": {
       return {
@@ -306,7 +309,7 @@ const getVariantBasePalette = (
         glow: withAlpha(BLACK, 0),
         gloss: withAlpha(WHITE, 0),
         text: ink,
-        icon: accent,
+        icon: iconColor,
       };
     }
     case "outliner":
@@ -317,7 +320,7 @@ const getVariantBasePalette = (
         glow: withAlpha(BLACK, 0),
         gloss: withAlpha(WHITE, 0),
         text: ink,
-        icon: accent,
+        icon: iconColor,
       };
     case "command":
       return {
@@ -327,7 +330,7 @@ const getVariantBasePalette = (
         glow: withAlpha(BLACK, 0),
         gloss: withAlpha(WHITE, 0),
         text: ink,
-        icon: accent,
+        icon: iconColor,
       };
     case "secondary":
     default:
@@ -335,10 +338,10 @@ const getVariantBasePalette = (
         fill: cream,
         border: withAlpha(darken(ink, 0.03), 0.92),
         shadow: withAlpha(darken(ink, 0.65), 0.34),
-        glow: withAlpha(lighten(accent, 0.32), 0.24),
+        glow: withAlpha(lighten(ink, 0.32), 0.15),
         gloss: withAlpha(WHITE, 0.22),
         text: ink,
-        icon: accent,
+        icon: iconColor,
       };
   }
 };

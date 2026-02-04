@@ -1,141 +1,57 @@
 # Lingua Documentation
 
-This folder contains architecture docs, specs, implementation guides, and
-reference documentation. Start with the overview and architecture documents,
-then branch into the subsystem or reference docs you need.
-
-The in-app documentation is accessible from the top bar via the Documentation link.
-Click it again while in the docs view to return to the Roslyn + Numerica workspace.
+Consolidated documentation for the Lingua parametric design environment.
 
 ---
 
-## Start Here
+## Documentation Index
 
-- Overview: `lingua_readme.md`
-- Architecture: `lingua_architecture.md`
-- Conventions: `lingua_conventions.md`
-- AI agent quick reference: `agents.md` (start here for fast context)
-- AI agent detailed guide: `ai_agent_guide.md`
-- Charlie agent guide: `CharlieAgent.md`
-- Charlie planning guide: `CharlieAgentPlans.md`
-- Warp agent guide: `warpagent.md` (onboarding for Warp agent)
-- Large refactor template: `warpplans.md`
+### Core
+- **`AGENTS.md`** — AI agent quick reference (build commands, code style, key files)
+- **`architecture.md`** — System architecture and design principles
+- **`philosophy.md`** — Design philosophy and ontology
 
-Note: `CharlieAgent.md` and `CharlieAgentPlans.md` are a one-off CamelCase exception to docs naming conventions. `lingua_conventions.md` → Naming Conventions is the only canonical source for documentation naming rules and exceptions; this note is just a pointer.
+### Subsystems
+- **`semantic_system.md`** — Semantic operation system (operations, nodes, commands)
+- **`geometry_kernel.md`** — Geometry kernel API reference
+- **`numerica_spec.md`** — Numerica workflow system (nodes, data types, canvas)
+- **`rendering.md`** — WebGL rendering and shaders
+- **`ui_spec.md`** — Panel UI specification
 
----
+### Design
+- **`brandkit.md`** — CMYK + Porcelain visual design system
 
-## Geometry Kernel
+### Solvers
+- **`SOLVERS.md`** — Solver overview and architecture
+- **`solvers/`** — Detailed solver specifications:
+  - `CHEMISTRY_SOLVER.md`
+  - `EVOLUTIONARY_SOLVER.md`
+  - `PHYSICS_SOLVER.md`
+  - `TOPOLOGY_OPTIMIZATION_SOLVER.md`
+  - `VOXEL_SOLVER.md`
 
-**Primary references for geometry development:**
-
-- **Geometry Kernel Reference: `geometry_kernel_reference.md`** — Complete API reference for mesh, NURBS, B-Rep operations
-- Geometry paradigms (mesh, NURBS, B-Rep): `geometry_types.md`
-- Geometry mathematics spec: `geometry_mathematics_spec.md`
-- Geometry math implementation guide: `geometry_math_v2_implementation.md`
-- Tessellation patterns guide: `tessellation_patterns_guide.md`
-- NURBS workflow spec: `nurbs_workflow_spec.md`
-- Voxel optimization spec: `voxel_optimization_spec.md`
-
----
-
-## Numerica (Workflow Nodes)
-
-**Primary references for node development:**
-
-- **Node Development Guide: `numerica_node_development.md`** — How to add/modify nodes
-- Nodes reference (generated): `numerica_nodes_reference.md`
-- Node library (full template): `numerica_node_library.md`
-- Command reference (generated): `numerica_command_reference.md`
-- Command + node test matrix: `command_node_test_matrix.md`
-
-**Concepts & Usage:**
-
-- Manual: `numerica_manual.md`
-- Core concepts: `numerica_core_concepts.md`
-- Technical spec: `numerica_technical_spec.md`
-- Glossary: `numerica_glossary.md`
-- Troubleshooting: `numerica_troubleshooting.md`
-- Interaction commands: `numerica_interaction_commands.md`
-- Interchange: `numerica_interchange.md`
-- Rendering: `numerica_rendering.md`
-- Workflow implementation map: `numerica-roslyn-semantics/IMPLEMENTATION_MAP.md`
+### Generated
+- **`semantic/`** — Auto-generated semantic metadata (JSON)
 
 ---
 
-## Subsystems & Architecture
+## Quick Start
 
-- Subsystems deep dive: `subsystems_guide.md`
-- Commands + nodes reference: `commands_nodes_reference.md`
-- Ontology treatise prompt: `lingua_ontology_comprehensive_prompt_v2.md`
-
-## Semantic System
-
-**Primary references for semantic operations:**
-
-- **Semantic System: `SEMANTIC_SYSTEM.md`** — Canonical documentation for semantic operation system
-- **Developer Guidelines: `SEMANTIC_OPERATION_GUIDELINES.md`** — Practical guidelines for adding operations
-- **Material Flow Pipeline: `MATERIAL_FLOW_PIPELINE.md`** — Material flow from nodes to rendering
-- Generated documentation: `semantic/` — Auto-generated operation metadata and linkages
-
----
-
-## Solvers & Optimization
-
-- Solver architecture guide: `solver_architecture_guide.md`
-- Chemistry solver implementation: `epilytes_chemias_implementation.md`
-- Chemistry solver workflow guide: `chemistry_solver_workflow.md`
-
----
-
-## UI, Rendering & Design
-
-- **Brand Kit: `brandkit.md`** — CMYK + Porcelain visual design system
-- Panel UI spec: `panel_ui_specification.md`
-- Icon palette: `icon_palette.md`
-- Rendering style guide: `webgl_rendering_style.md`
-- Shader inventory (legacy audit): `SHADER_INVENTORY.md`
-
----
-
-## MVP & Stabilization
-
-- Stabilization doctrine: `PART_1_Stabilization_Doctrine.md`
-- MVP completion guide: `PART_2_MVP_Completion_Guide.md`
-- MVP testing plan: `mvp_testing_plan.md`
-- Slider node implementation ticket: `SLIDER_NODE_IMPLEMENTATION_TICKET.md`
-
----
-
-## Archive (Historical)
-
-These are point-in-time project logs and may reference legacy naming (e.g.
-`ViewerCanvas`) or early planning terminology. Current implementation uses
-`WebGLViewerCanvas` for the viewport and `NumericalCanvas` for the workflow editor.
-
-Archive index: `archive/README.md` (Phases 1–4 + other historical docs)
-
-Key phase logs:
-- `archive/PHASE1_AUDIT.md` – Phase 1 Audit
-- `archive/PHASE2_COMPLETE.md` – Phase 2 Complete
-- `archive/PHASE3_PROGRESS.md` – Phase 3 Progress
-- `archive/PHASE4_COMPLETE.md` – Phase 4 Complete
-
-Legacy baseline (WebGL-only, superseded): `basic_implementation_guide.md`
+1. **AI Agents**: Start with `AGENTS.md` for build commands and key conventions
+2. **Architecture**: Read `architecture.md` for system overview
+3. **Subsystems**: Dive into specific areas as needed
 
 ---
 
 ## Documentation Maintenance
 
-**Regenerating docs:**
+**Regenerating semantic docs:**
 ```bash
-node tools/docgen.cjs
-node tools/generateNodeDocs.cjs
+pnpm run generate:semantic-ids
+pnpm run validate:semantic
 ```
 
 **Guidelines:**
-- Generated references (`numerica_nodes_reference.md`, `numerica_command_reference.md`, `numerica_node_library.md`) should be refreshed from their registries rather than hand-edited.
-- Generated JSON outputs live in `docs/generated/` and should not be hand-edited.
-- Use or update `Updated:` stamps inside generated docs when they are regenerated.
-- When architectural changes land, update at minimum: `lingua_readme.md`, `lingua_architecture.md`, `subsystems_guide.md`, `geometry_kernel_reference.md`.
-- Keep this map aligned with changes in `docs/` and add new docs here when introduced.
+- Generated JSON in `semantic/` should not be hand-edited
+- Keep docs consolidated — avoid creating new files for content that fits existing docs
+- Update `AGENTS.md` when build/test commands change

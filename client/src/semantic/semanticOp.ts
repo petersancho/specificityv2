@@ -266,6 +266,10 @@ export type OpTag =
   | 'marching-cubes' // Marching cubes algorithm
   | 'discretization' // Discretization
   | 'discrete'       // Discrete operations
+  | 'validation'     // Validation operations
+  | 'gradients'      // Gradient-based operations
+  | 'conservation'   // Conservation law operations
+  | 'sensitivity'    // Sensitivity analysis
   // Math/data tags
   | 'expression'     // Expression evaluation
   | 'statistics'     // Statistics operations

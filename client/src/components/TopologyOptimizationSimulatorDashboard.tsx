@@ -5,18 +5,9 @@ import { computeMeshArea } from "../geometry/mesh";
 import { computeMeshVolumeAndCentroid } from "../geometry/physical";
 import type { RenderMesh, Vec3 } from "../types";
 import type { SimpParams, SolverFrame, SimulationState, SimulationHistory, GoalMarkers } from "./workflow/topology/types";
-import { extractGoalMarkers } from "./workflow/topology/goals";
-import { TopologyRenderer } from "./workflow/topology/TopologyRenderer";
-import { TopologyConvergence } from "./workflow/topology/TopologyConvergence";
-import { TopologyGeometryPreview } from "./workflow/topology/TopologyGeometryPreview";
-import { generateGeometryFromDensities } from "./workflow/topology/geometryGeneratorV2";
-import { applyPlasticwrapSmoothing } from "./workflow/topology/plasticwrapSmoothing";
-import { generateIsosurfaceMeshFromDensities } from "./workflow/topology/isosurface";
-import { semanticOpEnd, semanticOpStart } from "../semantic/semanticTracer";
-import { SemanticOpsPanel } from "./workflow/SemanticOpsPanel";
-import { useSemanticMetrics } from "../semantic/useSemanticMetrics";
-import { getSemanticOpMeta } from "../semantic/semanticOpRegistry";
-import LinguaLogo from "./LinguaLogo";
+import { runSimp, is3DMode } from "./workflow/topology/simp";
+import { extractGoalMarkers, generateGeometryFromDensities } from "./workflow/topology/geometry";
+import { TopologyRenderer, TopologyConvergence, TopologyGeometryPreview } from "./workflow/topology/TopologyUI";
 
 // ============================================================================
 // TOPOLOGY OPTIMIZATION SIMULATOR DASHBOARD
@@ -36,23 +27,6 @@ const toNumber = (value: unknown, fallback: number) => {
     const parsed = Number(value);
     if (Number.isFinite(parsed)) return parsed;
   }
-  return fallback;
-};
-
-const toBoolean = (value: unknown, fallback: boolean) => {
-  if (typeof value === "boolean") return value;
-  if (typeof value === "number") return value !== 0;
-  if (typeof value === "string") {
-    const normalized = value.trim().toLowerCase();
-    if (["true", "1", "yes", "on"].includes(normalized)) return true;
-    if (["false", "0", "no", "off"].includes(normalized)) return false;
-  }
-  return fallback;
-};
-
-const toString = (value: unknown, fallback: string) => {
-  if (typeof value === "string" && value.trim().length > 0) return value;
-  if (typeof value === "number" && Number.isFinite(value)) return String(value);
   return fallback;
 };
 
@@ -99,41 +73,18 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   });
   const [markers, setMarkers] = useState<GoalMarkers | null>(null);
   const [previewGeometry, setPreviewGeometry] = useState<RenderMesh | null>(null);
-  const [semanticRunId, setSemanticRunId] = useState<string | null>(null);
-  const lastUiUpdateRef = useRef(0);
-  const lastPreviewUpdateRef = useRef(0);
-  const lastRoslynSyncRef = useRef(0);
-  const previewBusyRef = useRef(false);
-  const lastFrameRef = useRef<SolverFrame | null>(null);
-  const geometryGeneratedRef = useRef(false);
-  const semanticRunIdRef = useRef<string | null>(null);
-  const baseMeshRef = useRef<RenderMesh | null>(null);
-  const previewMeshIdRef = useRef<string | null>(null);
-  const stallCountRef = useRef(0);
-  const stabilityGuardRef = useRef(false);
   
   const solverGeneratorRef = useRef<AsyncGenerator<SolverFrame> | null>(null);
-  const workerRef = useRef<Worker | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const isRunningRef = useRef(false);
 
-  const {
-    nodes,
-    edges,
-    updateNodeData,
-    geometry,
-    addGeometryMesh,
-    syncWorkflowGeometryToRoslyn,
-    toggleGeometryVisibility,
-  } = useProjectStore(
+  const { nodes, edges, updateNodeData, geometry, addGeometryMesh } = useProjectStore(
     (state) => ({
       nodes: state.workflow.nodes,
       edges: state.workflow.edges,
       updateNodeData: state.updateNodeData,
       geometry: state.geometry,
       addGeometryMesh: state.addGeometryMesh,
-      syncWorkflowGeometryToRoslyn: state.syncWorkflowGeometryToRoslyn,
-      toggleGeometryVisibility: state.toggleGeometryVisibility,
     })
   );
 
@@ -144,15 +95,6 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
 
   const parameters = solverNode?.data?.parameters ?? {};
   const outputs = solverNode?.data?.outputs ?? {};
-
-  const semanticMetrics = useSemanticMetrics({
-    nodeId,
-    runId: semanticRunId ?? "default",
-  });
-  const recentSemanticEvents = useMemo(
-    () => semanticMetrics.events.slice(-8).reverse(),
-    [semanticMetrics.events]
-  );
 
   const inputOverrides = useMemo(() => {
     const overrides = new Map<string, unknown>();
@@ -183,20 +125,6 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     return toNumber((parameters as Record<string, unknown>)[key], fallback);
   };
 
-  const resolveBoolean = (key: string, fallback: boolean) => {
-    if (inputOverrides.has(key)) {
-      return toBoolean(inputOverrides.get(key), fallback);
-    }
-    return toBoolean((parameters as Record<string, unknown>)[key], fallback);
-  };
-
-  const resolveString = (key: string, fallback: string) => {
-    if (inputOverrides.has(key)) {
-      return toString(inputOverrides.get(key), fallback);
-    }
-    return toString((parameters as Record<string, unknown>)[key], fallback);
-  };
-
   // SIMP parameters
   const nx = resolveNumber("nx", 80);
   const ny = resolveNumber("ny", 60);
@@ -223,102 +151,50 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   const pipeRadius = resolveNumber("pipeRadius", 0.045);
   const pipeSegmentsRaw = resolveNumber("pipeSegments", 12);
   const pipeSegments = Math.max(6, Math.min(32, Math.round(pipeSegmentsRaw)));
-  const liveRoslyn = resolveBoolean("liveRoslyn", true);
-  const plasticwrapEnabled = resolveBoolean("plasticwrapEnabled", true);
-  const plasticwrapDistance = resolveNumber("plasticwrapDistance", 0.25);
-  const plasticwrapSmooth = resolveNumber("plasticwrapSmooth", 0.55);
-  const roslynSyncInterval = resolveNumber("roslynSyncInterval", 1500);
-  const convergenceStrategy = resolveString("convergenceStrategy", "balanced");
-  const strategyKeyRaw = convergenceStrategy.toLowerCase();
-  const strategyKey = ["steady", "balanced", "turbo"].includes(strategyKeyRaw)
-    ? strategyKeyRaw
-    : "balanced";
-  const emitEvery =
-    strategyKey === "steady" ? 1 : strategyKey === "turbo" ? (nz > 1 ? 4 : 3) : (nz > 1 ? 3 : 2);
-  const yieldEvery = emitEvery;
-  const cgBoostFactor = strategyKey === "steady" ? 4 : strategyKey === "turbo" ? 2 : 3;
-  const cgMaxMultiplier = strategyKey === "steady" ? 1.5 : strategyKey === "turbo" ? 0.7 : 1;
-  const effectiveCgMaxIters = Math.max(50, Math.round(cgMaxIters * cgMaxMultiplier));
-  const clearcoatIntensity = resolveNumber("clearcoatIntensity", 0.6);
-  const clearcoatRoughness = resolveNumber("clearcoatRoughness", 0.2);
-  const liveFrame = currentFrame ?? lastFrameRef.current;
-  const liveIteration = liveFrame?.iter ?? 0;
-  const liveCompliance = liveFrame?.compliance ?? 0;
-  const liveChange = liveFrame?.change ?? 0;
-  const liveVolume = liveFrame?.vol ?? 0;
-  const liveFeIters = liveFrame?.feIters ?? null;
-  const liveFeConverged = liveFrame?.feConverged;
 
   // Check connections
-  const geometryEdge = useMemo(
-    () => edges.find((edge) => edge.target === nodeId && edge.targetHandle === "geometry"),
-    [edges, nodeId]
+  const geometryEdge = edges.find(
+    (edge) => edge.target === nodeId && edge.targetHandle === "geometry"
   );
-  const goalEdges = useMemo(
-    () => edges.filter((edge) => edge.target === nodeId && edge.targetHandle === "goals"),
-    [edges, nodeId]
+  const goalEdges = edges.filter(
+    (edge) => edge.target === nodeId && edge.targetHandle === "goals"
   );
 
   const hasGeometry = !!geometryEdge;
   const goalsCount = goalEdges.length;
 
   // Get geometry and goals
-  const resolveBaseMesh = (geometryList = geometry) => {
+  const baseMesh = useMemo(() => {
     if (!geometryEdge) return null;
-
+    
     const sourceNode = nodes.find((n) => n.id === geometryEdge.source);
     if (!sourceNode) return null;
-
+    
     if (DEBUG) console.log('[TOPOLOGY] Source node type:', sourceNode.type);
-
+    
+    // Try direct geometry output first (Box Builder, Sphere, etc.)
     const directGeometry = sourceNode.data?.outputs?.geometry;
-    if (typeof directGeometry === "string") {
-      const geom = geometryList.find((g) => g.id === directGeometry);
-      if (geom?.type === "mesh") {
-        if (DEBUG) console.log('[TOPOLOGY] Using mesh from geometry output id');
-        return geom.mesh;
-      }
-    }
-    if (directGeometry && typeof directGeometry === "object" && "type" in directGeometry) {
+    if (directGeometry && typeof directGeometry === 'object' && 'type' in directGeometry) {
       const geomObj = directGeometry as { type: string; mesh?: RenderMesh };
-      if (geomObj.type === "mesh" && geomObj.mesh) {
-        if (DEBUG) console.log("[TOPOLOGY] Using mesh from direct geometry output");
+      if (geomObj.type === 'mesh' && geomObj.mesh) {
+        if (DEBUG) console.log('[TOPOLOGY] Using mesh from direct geometry output');
         return geomObj.mesh;
       }
     }
-    if (directGeometry && typeof directGeometry === "object" && "mesh" in directGeometry) {
-      const geomObj = directGeometry as { mesh?: RenderMesh };
-      if (geomObj.mesh) {
-        if (DEBUG) console.log("[TOPOLOGY] Using mesh from geometry output mesh");
-        return geomObj.mesh;
-      }
-    }
-
-    const geometryId =
-      sourceNode.data?.geometryId ||
-      sourceNode.data?.outputs?.geometryId ||
-      (typeof directGeometry === "string" ? directGeometry : undefined);
+    
+    // Try geometry ID (Geometry Reference nodes)
+    const geometryId = sourceNode.data?.geometryId || sourceNode.data?.outputs?.geometryId;
     if (geometryId) {
-      const geom = geometryList.find((g) => g.id === geometryId);
-      if (geom?.type === "mesh") {
-        if (DEBUG) console.log("[TOPOLOGY] Using mesh from geometry store");
+      const geom = geometry.find(g => g.id === geometryId);
+      if (geom?.type === 'mesh') {
+        if (DEBUG) console.log('[TOPOLOGY] Using mesh from geometry store');
         return geom.mesh;
       }
     }
-
+    
+    console.error('[TOPOLOGY] ❌ No valid mesh geometry found');
     return null;
-  };
-
-  const baseMesh = useMemo(
-    () => resolveBaseMesh(),
-    [geometryEdge, nodes, geometry]
-  );
-
-  useEffect(() => {
-    if (baseMesh) {
-      baseMeshRef.current = baseMesh;
-    }
-  }, [baseMesh]);
+  }, [geometryEdge, nodes, geometry]);
 
   const baseBounds = useMemo(() => {
     if (!baseMesh) return null;
@@ -337,119 +213,32 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     return goalList;
   }, [goalEdges, nodes]);
 
-  const baseVolume = useMemo(() => {
-    if (!baseMesh) return 0;
-    const { volume_m3 } = computeMeshVolumeAndCentroid(baseMesh);
-    return Number.isFinite(volume_m3) ? volume_m3 : 0;
-  }, [baseMesh]);
-
-  const goalVolumeFraction = useMemo(() => {
-    if (baseVolume <= 0) return null;
-    const volumeGoal = goals.find((goal) => goal?.goalType === "volume");
-    if (!volumeGoal || typeof volumeGoal !== "object") return null;
-    const goalAny = volumeGoal as { target?: number; parameters?: Record<string, unknown> };
-    const targetParam = goalAny.parameters?.targetVolume;
-    const target =
-      typeof goalAny.target === "number" && Number.isFinite(goalAny.target)
-        ? goalAny.target
-        : typeof targetParam === "number" && Number.isFinite(targetParam)
-          ? targetParam
-          : null;
-    if (!target || target <= 0) return null;
-    const ratio = target / baseVolume;
-    return Math.max(0.05, Math.min(0.95, ratio));
-  }, [baseVolume, goals]);
-
-  const effectiveVolFrac = goalVolumeFraction ?? volFrac;
-
-  const goalStiffness = useMemo(() => {
-    const stiffnessGoal = goals.find((goal) => goal?.goalType === "stiffness");
-    if (!stiffnessGoal || typeof stiffnessGoal !== "object") return null;
-    const params = (stiffnessGoal as { parameters?: Record<string, unknown> }).parameters ?? {};
-    const youngModulus =
-      typeof params.youngModulus === "number" && Number.isFinite(params.youngModulus)
-        ? params.youngModulus
-        : null;
-    const poissonRatio =
-      typeof params.poissonRatio === "number" && Number.isFinite(params.poissonRatio)
-        ? params.poissonRatio
-        : null;
-    return { youngModulus, poissonRatio };
-  }, [goals]);
-
-  const effectiveE0 = goalStiffness?.youngModulus ?? E0;
-  const effectiveNu = goalStiffness?.poissonRatio ?? nu;
-
   // Parameter change handler
-  const handleParameterChange = (key: string, value: number | string) => {
+  const handleParameterChange = (key: string, value: number) => {
     updateNodeData(nodeId, { parameters: { [key]: value } }, { recalculate: false });
-  };
-
-  const handleBooleanChange = (key: string, value: boolean) => {
-    updateNodeData(nodeId, { parameters: { [key]: value } }, { recalculate: false });
-  };
-
-  const beginSemanticRun = () => {
-    const runId = `${nodeId}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 8)}`;
-    semanticRunIdRef.current = runId;
-    setSemanticRunId(runId);
-    return runId;
-  };
-
-  const markSemanticInstant = (opId: string, ok = true, error?: string) => {
-    const runId = semanticRunIdRef.current;
-    if (!runId) return;
-    semanticOpStart({ nodeId, runId, opId });
-    semanticOpEnd({ nodeId, runId, opId, ok, error });
-  };
-
-  const formatSemanticOp = (opId: string) => {
-    const meta = getSemanticOpMeta(opId);
-    return meta?.label ?? opId;
   };
 
   // Extract goal markers
-  const sameMarkers = (a: GoalMarkers | null, b: GoalMarkers | null) => {
-    if (a === b) return true;
-    if (!a || !b) return false;
-    if (a.anchors.length !== b.anchors.length || a.loads.length !== b.loads.length) return false;
-    const equalVec = (v1: Vec3, v2: Vec3) =>
-      v1.x === v2.x && v1.y === v2.y && v1.z === v2.z;
-    for (let i = 0; i < a.anchors.length; i += 1) {
-      if (!equalVec(a.anchors[i].position, b.anchors[i].position)) return false;
-    }
-    for (let i = 0; i < a.loads.length; i += 1) {
-      if (!equalVec(a.loads[i].position, b.loads[i].position)) return false;
-      if (!equalVec(a.loads[i].force, b.loads[i].force)) return false;
-    }
-    return true;
-  };
-
   useEffect(() => {
     if (DEBUG) console.log('[TOPOLOGY] Extracting goal markers...');
     
     if (!baseMesh || !hasGeometry) {
-      setMarkers((prev) => (prev ? null : prev));
+      setMarkers(null);
       return;
     }
 
     try {
       const extracted = extractGoalMarkers(baseMesh, goals);
       if (DEBUG) console.log('[TOPOLOGY] ✅ Extracted goal markers:', extracted);
-      setMarkers((prev) => (sameMarkers(prev, extracted) ? prev : extracted));
+      setMarkers(extracted);
     } catch (error) {
       console.error('[TOPOLOGY] ❌ Failed to extract goal markers:', error);
-      setMarkers((prev) => (prev ? null : prev));
+      setMarkers(null);
     }
   }, [baseMesh, goals, hasGeometry]);
 
-
   // Generate and register 3D geometry from converged density field
   const generateAndRegisterGeometry = (frame: SolverFrame, mesh: RenderMesh) => {
-    const runId = semanticRunIdRef.current;
-    if (runId) {
-      semanticOpStart({ nodeId, runId, opId: "simulator.topology.finalize" });
-    }
     try {
       // Calculate bounds from mesh
       const bounds = calculateMeshBounds(mesh);
@@ -474,40 +263,6 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
         pipeRadius,
         pipeSegments
       );
-      const isoMesh = generateIsosurfaceMeshFromDensities(
-        {
-          densities,
-          nx,
-          ny,
-          nz,
-          bounds,
-        },
-        densityThreshold,
-        {
-          filterRadius: rmin,
-          iter: frame.iter,
-          rampIters: penalRampIters,
-          betaStart: 2,
-          betaEnd: 16,
-          eta: 0.5,
-          refineFactor: 2,
-          smoothing: {
-            iterations: 15,
-            lambda: 0.5,
-            mu: -0.53,
-          },
-        }
-      );
-
-      const optimizedMesh = plasticwrapEnabled
-        ? applyPlasticwrapSmoothing(isoMesh, {
-            distance: plasticwrapDistance,
-            smooth: plasticwrapSmooth,
-          })
-        : isoMesh;
-      if (plasticwrapEnabled) {
-        markSemanticInstant("simulator.topology.plasticwrap");
-      }
       
       // Register geometries in the store
       if (DEBUG) {
@@ -538,12 +293,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
         sourceNodeId: nodeId,
         recordHistory: false,
         geometryId: cachedPointCloudId,
-        metadata: {
-          generatedBy: "topology-optimization",
-          type: "point-cloud",
-          label: "Topology Points",
-          customMaterial: { hex: "#FFDD00" },
-        },
+        metadata: { generatedBy: 'topology-optimization', type: 'point-cloud' }
       });
       if (DEBUG) console.log('[GEOM] Registered point cloud:', pointCloudId);
       
@@ -551,47 +301,27 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
         sourceNodeId: nodeId,
         recordHistory: false,
         geometryId: cachedCurveNetworkId,
-        metadata: {
-          generatedBy: "topology-optimization",
-          type: "curve-network",
-          label: "Topology Curves",
-          customMaterial: { hex: "#FF0099" },
-        },
+        metadata: { generatedBy: 'topology-optimization', type: 'curve-network' }
       });
       if (DEBUG) console.log('[GEOM] Registered curve network:', curveNetworkId);
       
-      const multipipeId = addGeometryMesh(optimizedMesh, { 
+      const multipipeId = addGeometryMesh(geometryOutput.multipipe, { 
         sourceNodeId: nodeId,
         recordHistory: false,
         geometryId: cachedOptimizedMeshId,
-        metadata: {
-          generatedBy: "topology-optimization",
-          type: "isosurface",
-          label: "Topology Surface",
-          customMaterial: {
-            hex: "#00D4FF",
-            sheenIntensity: 0.22,
-            ambientStrength: 0.62,
-            clearcoatIntensity,
-            clearcoatRoughness,
-          },
-        },
+        metadata: { generatedBy: 'topology-optimization', type: 'multipipe' }
       });
-      if (DEBUG) console.log('[GEOM] Registered surface:', multipipeId);
+      if (DEBUG) console.log('[GEOM] Registered multipipe:', multipipeId);
 
       const surfaceArea = computeMeshArea(
-        optimizedMesh.positions,
-        optimizedMesh.indices
+        geometryOutput.multipipe.positions,
+        geometryOutput.multipipe.indices
       );
-      const { volume_m3 } = computeMeshVolumeAndCentroid(optimizedMesh);
+      const { volume_m3 } = computeMeshVolumeAndCentroid(geometryOutput.multipipe);
 
       updateNodeData(
         nodeId,
         {
-          geometryId: multipipeId,
-          geometryIds: [pointCloudId, curveNetworkId, multipipeId],
-          geometryType: "mesh",
-          isLinked: true,
           parameters: {
             optimizedMeshId: multipipeId,
             pointCloudId,
@@ -618,295 +348,116 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
             surfaceArea,
           },
         },
-        { recalculate: true }
+        { recalculate: false }
       );
-      toggleGeometryVisibility(pointCloudId, true);
-      toggleGeometryVisibility(curveNetworkId, true);
-      toggleGeometryVisibility(multipipeId, true);
-      syncWorkflowGeometryToRoslyn(nodeId);
-      if (runId) {
-        semanticOpEnd({ nodeId, runId, opId: "simulator.topology.finalize", ok: true });
-      }
       
       if (DEBUG) {
         console.log(`[GEOM] ✅ Generated topology optimization geometry:
           - Point cloud: ${pointCloudId} (${geometryOutput.pointCount} points)
           - Curve network: ${curveNetworkId} (${geometryOutput.curveCount} curves)
-          - Surface: ${multipipeId}`);
+          - Multipipe: ${multipipeId}`);
       }
       
     } catch (error) {
-      if (runId) {
-        semanticOpEnd({
-          nodeId,
-          runId,
-          opId: "simulator.topology.finalize",
-          ok: false,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
       console.error('[GEOM] ❌ Failed to generate geometry from density field:', error);
       throw error;
     }
   };
-
-  const registerPreviewGeometry = (mesh: RenderMesh, frame: SolverFrame) => {
-    const runId = semanticRunIdRef.current;
-    if (runId) {
-      semanticOpStart({ nodeId, runId, opId: "simulator.topology.sync" });
-    }
-    try {
-      const cachedOptimizedMeshId =
-        typeof parameters.optimizedMeshId === "string"
-          ? parameters.optimizedMeshId
-          : typeof outputs.optimizedMesh === "string"
-            ? outputs.optimizedMesh
-            : previewMeshIdRef.current ?? undefined;
-
-      const previewMeshId = addGeometryMesh(mesh, {
-        sourceNodeId: nodeId,
-        recordHistory: false,
-        geometryId: cachedOptimizedMeshId,
-        metadata: {
-          generatedBy: "topology-optimization",
-          type: "isosurface-preview",
-          label: "Topology Preview Surface",
-          customMaterial: {
-            hex: "#00D4FF",
-            sheenIntensity: 0.22,
-            ambientStrength: 0.62,
-            clearcoatIntensity,
-            clearcoatRoughness,
-          },
-        },
-      });
-      previewMeshIdRef.current = previewMeshId;
-
-      updateNodeData(
-        nodeId,
-        {
-          geometryId: previewMeshId,
-          geometryIds: [previewMeshId],
-          geometryType: "mesh",
-          isLinked: true,
-          parameters: {
-            optimizedMeshId: previewMeshId,
-            simulationStep: "running",
-          },
-          topologyProgress: {
-            iteration: frame.iter,
-            objective: frame.compliance,
-            constraint: frame.vol,
-            status: "running",
-          },
-          outputs: {
-            ...outputs,
-            optimizedMesh: previewMeshId,
-            volume: baseVolume > 0 ? baseVolume * frame.vol : frame.vol,
-            surfaceArea: undefined,
-          },
-        },
-        { recalculate: false }
-      );
-      toggleGeometryVisibility(previewMeshId, true);
-      syncWorkflowGeometryToRoslyn(nodeId);
-      if (runId) {
-        semanticOpEnd({ nodeId, runId, opId: "simulator.topology.sync", ok: true });
-      }
-    } catch (error) {
-      if (runId) {
-        semanticOpEnd({
-          nodeId,
-          runId,
-          opId: "simulator.topology.sync",
-          ok: false,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-      console.error("[TOPOLOGY] ❌ Failed to sync preview geometry:", error);
-    }
-  };
   
 
-  const handleFrame = (frame: SolverFrame) => {
-    lastFrameRef.current = frame;
-    markSemanticInstant("simulator.topology.step");
-    const now = performance.now();
-    const shouldUpdateUi =
-      now - lastUiUpdateRef.current > 50 ||
-      frame.iter === 1 ||
-      frame.converged;
-    if (shouldUpdateUi) {
-      lastUiUpdateRef.current = now;
+  // Iteration loop (extracted to allow resume)
+  const iterate = async () => {
+    if (!isRunningRef.current || !solverGeneratorRef.current) return;
+
+    try {
+      const result = await solverGeneratorRef.current.next();
+      
+      if (result.done) {
+        isRunningRef.current = false;
+        setSimulationState('converged');
+        return;
+      }
+
+      const frame = result.value;
       setCurrentFrame(frame);
-      setHistory((prev) => {
-        const nextCompliance = [...prev.compliance, frame.compliance];
-        const nextChange = [...prev.change, frame.change];
-        const nextVol = [...prev.vol, frame.vol];
-        const limit = 400;
-        return {
-          compliance: nextCompliance.slice(-limit),
-          change: nextChange.slice(-limit),
-          vol: nextVol.slice(-limit),
-        };
-      });
-    }
+      setHistory(prev => ({
+        compliance: [...prev.compliance, frame.compliance],
+        change: [...prev.change, frame.change],
+        vol: [...prev.vol, frame.vol]
+      }));
 
-    if (frame.feConverged === false) {
-      stallCountRef.current += 1;
-    } else {
-      stallCountRef.current = 0;
-    }
-
-    if (
-      frame.feConverged === false &&
-      stallCountRef.current >= 3 &&
-      !stabilityGuardRef.current
-    ) {
-      stabilityGuardRef.current = true;
-      updateNodeData(
-        nodeId,
-        {
-          parameters: { convergenceStrategy: "steady" },
-        },
-        { recalculate: false }
-      );
-      const tunedCgMax = Math.max(50, Math.round(cgMaxIters * 1.5));
-      workerRef.current?.postMessage({
-        type: "tune",
-        params: {
-          emitEvery: 1,
-          yieldEvery: 1,
-          cgMaxIters: tunedCgMax,
-          cgBoostFactor: 4,
-        },
-      });
-      markSemanticInstant("simulator.topology.stabilityGuard");
-    }
-
-    if (baseMesh && !previewBusyRef.current && now - lastPreviewUpdateRef.current > 650) {
-      previewBusyRef.current = true;
-      lastPreviewUpdateRef.current = now;
-      try {
-        const bounds = calculateMeshBounds(baseMesh);
-        const field = {
-          densities: Float64Array.from(frame.densities),
-          nx,
-          ny,
-          nz,
-          bounds,
-        };
-        const previewMesh = generateIsosurfaceMeshFromDensities(
-          field,
-          densityThreshold,
-          {
-            filterRadius: rmin,
-            iter: frame.iter,
-            rampIters: penalRampIters,
-            betaStart: 2,
-            betaEnd: 16,
-            eta: 0.5,
-            refineFactor: 1,
-            smoothing: {
-              iterations: 4,
-              lambda: 0.5,
-              mu: -0.53,
-            },
-          }
-        );
-        setPreviewGeometry(previewMesh);
-        markSemanticInstant("simulator.topology.preview");
-        if (liveRoslyn && now - lastRoslynSyncRef.current > roslynSyncInterval) {
-          lastRoslynSyncRef.current = now;
-          registerPreviewGeometry(previewMesh, frame);
-        }
-      } catch (error) {
-        console.error('[TOPOLOGY] Preview generation error:', error);
-      } finally {
-        previewBusyRef.current = false;
-      }
-    }
-
-    if (frame.converged) {
-      isRunningRef.current = false;
-      setSimulationState('converged');
-      markSemanticInstant("simulator.topology.converge");
-      if (DEBUG) {
-        console.log('[TOPOLOGY] Simulation converged! Generating geometry...');
-        console.log('[TOPOLOGY] baseMesh:', baseMesh ? 'exists' : 'NULL');
-        console.log('[TOPOLOGY] frame.densities:', frame.densities ? `${frame.densities.length} elements` : 'NULL');
-      }
-      if (baseMesh) {
+      // Generate preview geometry every 10 iterations
+      if (baseMesh && frame.iter % 10 === 0) {
         try {
-          generateAndRegisterGeometry(frame, baseMesh);
-          geometryGeneratedRef.current = true;
-          if (DEBUG) console.log('[TOPOLOGY] ✅ Geometry generation completed successfully');
+          const bounds = calculateMeshBounds(baseMesh);
+          const field = {
+            densities: Float64Array.from(frame.densities),
+            nx, ny, nz,
+            bounds
+          };
+          const result = generateGeometryFromDensities(
+            field,
+            densityThreshold,
+            maxLinksPerPoint,
+            maxSpanLength,
+            pipeRadius,
+            pipeSegments
+          );
+          setPreviewGeometry(result.multipipe);
         } catch (error) {
-          console.error('[TOPOLOGY] ❌ Geometry generation FAILED:', error);
+          console.error('[TOPOLOGY] Preview generation error:', error);
         }
-      } else {
-        console.error('[TOPOLOGY] ❌ Cannot generate geometry: baseMesh is null');
       }
+
+      if (frame.converged) {
+        isRunningRef.current = false;
+        setSimulationState('converged');
+        
+        // Generate 3D geometry from converged density field
+        if (DEBUG) {
+          console.log('[TOPOLOGY] Simulation converged! Generating geometry...');
+          console.log('[TOPOLOGY] baseMesh:', baseMesh ? 'exists' : 'NULL');
+          console.log('[TOPOLOGY] frame.densities:', frame.densities ? `${frame.densities.length} elements` : 'NULL');
+        }
+        
+        if (baseMesh) {
+          try {
+            generateAndRegisterGeometry(frame, baseMesh);
+            if (DEBUG) console.log('[TOPOLOGY] ✅ Geometry generation completed successfully');
+          } catch (error) {
+            console.error('[TOPOLOGY] ❌ Geometry generation FAILED:', error);
+          }
+        } else {
+          console.error('[TOPOLOGY] ❌ Cannot generate geometry: baseMesh is null');
+        }
+        
+        return;
+      }
+
+      // Continue iteration
+      if (isRunningRef.current) {
+        animationFrameRef.current = requestAnimationFrame(iterate);
+      }
+    } catch (error) {
+      console.error('Simulation error:', error);
+      isRunningRef.current = false;
+      setSimulationState('error');
     }
   };
 
   // Start simulation
   const handleStart = async () => {
-    if (simulationState === "running") return;
-    if (goals.length === 0) {
-      console.error('[TOPOLOGY] ❌ Cannot start: solver goals are required');
-      setSimulationState('error');
-      return;
-    }
-
-    let startMesh = baseMesh;
-    if (!startMesh && geometryEdge) {
-      const sourceNode = nodes.find((n) => n.id === geometryEdge.source);
-      if (sourceNode) {
-        syncWorkflowGeometryToRoslyn(sourceNode.id);
-        startMesh = resolveBaseMesh(useProjectStore.getState().geometry);
-      }
-    }
-    if (!startMesh) {
-      console.error('[TOPOLOGY] ❌ Cannot start: missing geometry input');
-      setSimulationState('error');
-      return;
-    }
-
-    let startMarkers = markers;
-    if (!startMarkers) {
-      try {
-        startMarkers = extractGoalMarkers(startMesh, goals);
-        setMarkers(startMarkers);
-      } catch (error) {
-        console.error('[TOPOLOGY] ❌ Failed to extract goal markers:', error);
-        startMarkers = null;
-      }
-    }
-    if (!startMarkers) {
-      console.error('[TOPOLOGY] ❌ Cannot start: missing goal markers');
-      setSimulationState('error');
-      return;
-    }
-    if (startMarkers.anchors.length === 0 || startMarkers.loads.length === 0) {
-      console.error('[TOPOLOGY] ❌ Cannot start: anchor and load goals must define vertices');
-      setSimulationState('error');
+    if (!baseMesh || !markers || simulationState === 'running') {
+      console.error('[TOPOLOGY] ❌ Cannot start: missing requirements');
       return;
     }
 
     if (DEBUG) console.log('[TOPOLOGY] Starting simulation...');
-    beginSemanticRun();
-    markSemanticInstant("simulator.topology.initialize");
     
     isRunningRef.current = true;
-    stallCountRef.current = 0;
-    stabilityGuardRef.current = false;
     setSimulationState('running');
     setHistory({ compliance: [], change: [], vol: [] });
     setCurrentFrame(undefined);
-    lastFrameRef.current = null;
-    geometryGeneratedRef.current = false;
-    previewMeshIdRef.current = null;
     updateNodeData(
       nodeId,
       {
@@ -914,7 +465,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
         topologyProgress: {
           iteration: 0,
           objective: 0,
-          constraint: effectiveVolFrac,
+          constraint: volFrac,
           status: "running",
         },
       },
@@ -923,7 +474,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
 
     const simpParams: SimpParams = {
       nx, ny, nz,
-      volFrac: effectiveVolFrac,
+      volFrac,
       penal: penalStart, // Will be updated via continuation
       penalStart,
       penalEnd,
@@ -932,118 +483,20 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       move,
       maxIters,
       tolChange,
-      E0: effectiveE0,
+      E0,
       Emin,
       rhoMin,
-      nu: effectiveNu,
+      nu,
       cgTol,
-      cgMaxIters: effectiveCgMaxIters,
-      emitEvery,
-      yieldEvery,
-      cgBoostFactor,
+      cgMaxIters
     };
 
     if (DEBUG) console.log('[TOPOLOGY] SIMP parameters:', simpParams);
-
-    if (workerRef.current) {
-      workerRef.current.terminate();
-      workerRef.current = null;
-    }
-
-    const worker = new Worker(
-      new URL("./workflow/topology/simpWorker.ts", import.meta.url),
-      { type: "module" }
-    );
-    workerRef.current = worker;
-
-    worker.onmessage = (event) => {
-      const message = event.data as { type: string; frame?: SolverFrame; error?: string };
-      if (message.type === "frame" && message.frame) {
-        handleFrame(message.frame);
-      }
-      if (message.type === "done") {
-        isRunningRef.current = false;
-        setSimulationState('converged');
-        if (!geometryGeneratedRef.current && baseMesh && lastFrameRef.current) {
-          try {
-            generateAndRegisterGeometry(lastFrameRef.current, baseMesh);
-            geometryGeneratedRef.current = true;
-          } catch (error) {
-            console.error('[TOPOLOGY] ❌ Geometry generation FAILED:', error);
-          }
-        }
-      }
-      if (message.type === "error") {
-        console.error('Simulation error:', message.error);
-        isRunningRef.current = false;
-        setSimulationState('error');
-      }
-    };
-    worker.onerror = (event) => {
-      console.error('Simulation worker error:', event.message);
-      isRunningRef.current = false;
-      setSimulationState('error');
-    };
-
-    worker.postMessage({
-      type: "start",
-      mesh: startMesh,
-      markers: startMarkers,
-      params: simpParams,
-    });
-  };
-
-  const handleSyncRoslyn = () => {
-    const frame = lastFrameRef.current ?? currentFrame;
-    const mesh = baseMesh ?? baseMeshRef.current;
-    if (!frame || !mesh) return;
-    if (previewGeometry) {
-      registerPreviewGeometry(previewGeometry, frame);
-      return;
-    }
-    try {
-      const bounds = calculateMeshBounds(mesh);
-      const previewMesh = generateIsosurfaceMeshFromDensities(
-        {
-          densities: Float64Array.from(frame.densities),
-          nx,
-          ny,
-          nz,
-          bounds,
-        },
-        densityThreshold,
-        {
-          filterRadius: rmin,
-          iter: frame.iter,
-          rampIters: penalRampIters,
-          betaStart: 2,
-          betaEnd: 16,
-          eta: 0.5,
-          refineFactor: 1,
-          smoothing: {
-            iterations: 4,
-            lambda: 0.5,
-            mu: -0.53,
-          },
-        }
-      );
-      setPreviewGeometry(previewMesh);
-      registerPreviewGeometry(previewMesh, frame);
-    } catch (error) {
-      console.error("[TOPOLOGY] ❌ Failed to sync preview geometry:", error);
-    }
-  };
-
-  const handleFinalizeNow = () => {
-    const frame = lastFrameRef.current ?? currentFrame;
-    const mesh = baseMesh ?? baseMeshRef.current;
-    if (!frame || !mesh) return;
-    try {
-      generateAndRegisterGeometry(frame, mesh);
-      geometryGeneratedRef.current = true;
-    } catch (error) {
-      console.error("[TOPOLOGY] ❌ Finalize failed:", error);
-    }
+    
+    // Unified solver handles both 2D and 3D based on nz
+    if (DEBUG) console.log('[TOPOLOGY] Using SIMP solver (nz =', nz, ', mode =', is3DMode(nz) ? '3D' : '2D', ')');
+    solverGeneratorRef.current = runSimp(baseMesh, markers, simpParams);
+    iterate();
   };
 
   // Pause simulation
@@ -1051,43 +504,34 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     if (simulationState === 'running') {
       isRunningRef.current = false;
       setSimulationState('paused');
-      workerRef.current?.postMessage({ type: "pause" });
-      markSemanticInstant("simulator.topology.pause");
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
     }
   };
 
   // Resume simulation
   const handleResume = () => {
-    if (simulationState === 'paused') {
+    if (simulationState === 'paused' && solverGeneratorRef.current) {
       isRunningRef.current = true;
       setSimulationState('running');
-      workerRef.current?.postMessage({ type: "resume" });
-      markSemanticInstant("simulator.topology.resume");
+      iterate();
     }
   };
 
   // Reset simulation
   const handleReset = () => {
     isRunningRef.current = false;
-    semanticRunIdRef.current = null;
-    setSemanticRunId(null);
-    stallCountRef.current = 0;
-    stabilityGuardRef.current = false;
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
     }
     solverGeneratorRef.current = null;
-    if (workerRef.current) {
-      workerRef.current.postMessage({ type: "stop" });
-      workerRef.current.terminate();
-      workerRef.current = null;
-    }
     setSimulationState('idle');
     setCurrentFrame(undefined);
     setHistory({ compliance: [], change: [], vol: [] });
     setPreviewGeometry(null);
-    previewMeshIdRef.current = null;
     updateNodeData(
       nodeId,
       {
@@ -1101,7 +545,6 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       },
       { recalculate: false }
     );
-    markSemanticInstant("simulator.topology.reset");
   };
 
   // Cleanup on unmount
@@ -1110,60 +553,37 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
-      if (workerRef.current) {
-        workerRef.current.terminate();
-        workerRef.current = null;
-      }
     };
   }, []);
 
-  useEffect(() => {
-    if (simulationState !== "running") return;
-    workerRef.current?.postMessage({
-      type: "tune",
-      params: {
-        emitEvery,
-        yieldEvery,
-        cgMaxIters: effectiveCgMaxIters,
-        cgBoostFactor,
-      },
-    });
-  }, [simulationState, emitEvery, yieldEvery, effectiveCgMaxIters, cgBoostFactor]);
-
   return (
-    <div className={styles.dashboard}>
-      <div className={styles.dashboardBody} style={{ fontSize: `${scale}%` }}>
-        <div className={styles.header}>
-          <div className={styles.headerBar} />
-          <div className={styles.headerContent}>
-            <div className={styles.title}>
-              <div className={styles.titleRow}>
-                <LinguaLogo size={22} withText />
-                <span className={styles.titleGreek}>Τοπολογική Βελτιστοποίηση</span>
-              </div>
-              <span className={styles.titleEnglish}>Topology Optimization</span>
-              <span className={styles.titleSubtext}>
-                Euclid · SIMP Algorithm · Ontology Trace
-              </span>
-            </div>
-            <div className={styles.headerControls}>
-              <label className={styles.scaleControl}>
-                Scale:
-                <input
-                  type="range"
-                  min="50"
-                  max="100"
-                  value={scale}
-                  onChange={(e) => setScale(Number(e.target.value))}
-                />
-                <span>{scale}%</span>
-              </label>
-              <button className={styles.closeButton} onClick={onClose}>
-                ✕
-              </button>
-            </div>
+    <div className={styles.dashboard} style={{ fontSize: `${scale}%` }}>
+      <div className={styles.header}>
+        <div className={styles.headerBar} />
+        <div className={styles.headerContent}>
+          <div className={styles.title}>
+            <span className={styles.titleGreek}>Τοπολογική Βελτιστοποίηση</span>
+            <span className={styles.titleEnglish}>Topology Optimization</span>
+            <span className={styles.titleSubtext}>Euclid · SIMP Algorithm</span>
+          </div>
+          <div className={styles.headerControls}>
+            <label className={styles.scaleControl}>
+              Scale:
+              <input
+                type="range"
+                min="50"
+                max="100"
+                value={scale}
+                onChange={(e) => setScale(Number(e.target.value))}
+              />
+              <span>{scale}%</span>
+            </label>
+            <button className={styles.closeButton} onClick={onClose}>
+              ✕
+            </button>
           </div>
         </div>
+      </div>
 
       <div className={styles.tabs}>
         <button
@@ -1234,6 +654,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                     value={nx}
                     onChange={(e) => handleParameterChange("nx", Number(e.target.value))}
                     className={styles.slider}
+                    disabled={simulationState === 'running'}
                   />
                   <span className={styles.parameterValue}>{nx}</span>
                 </div>
@@ -1255,29 +676,9 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                     value={ny}
                     onChange={(e) => handleParameterChange("ny", Number(e.target.value))}
                     className={styles.slider}
+                    disabled={simulationState === 'running'}
                   />
                   <span className={styles.parameterValue}>{ny}</span>
-                </div>
-              </div>
-
-              <div className={styles.parameterGroup}>
-                <label className={styles.parameterLabel}>
-                  Resolution Z
-                  <span className={styles.parameterDescription}>
-                    Number of elements in Z direction (1-40)
-                  </span>
-                </label>
-                <div className={styles.parameterControl}>
-                  <input
-                    type="range"
-                    min="1"
-                    max="40"
-                    step="1"
-                    value={nz}
-                    onChange={(e) => handleParameterChange("nz", Number(e.target.value))}
-                    className={styles.slider}
-                  />
-                  <span className={styles.parameterValue}>{nz}</span>
                 </div>
               </div>
             </div>
@@ -1301,6 +702,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                     value={volFrac}
                     onChange={(e) => handleParameterChange("volFrac", Number(e.target.value))}
                     className={styles.slider}
+                    disabled={simulationState === 'running'}
                   />
                   <span className={styles.parameterValue}>{(volFrac * 100).toFixed(0)}%</span>
                 </div>
@@ -1322,6 +724,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                     value={penalStart}
                     onChange={(e) => handleParameterChange("penalStart", Number(e.target.value))}
                     className={styles.slider}
+                    disabled={simulationState === 'running'}
                   />
                   <span className={styles.parameterValue}>{penalStart.toFixed(1)}</span>
                 </div>
@@ -1343,6 +746,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                     value={penalEnd}
                     onChange={(e) => handleParameterChange("penalEnd", Number(e.target.value))}
                     className={styles.slider}
+                    disabled={simulationState === 'running'}
                   />
                   <span className={styles.parameterValue}>{penalEnd.toFixed(1)}</span>
                 </div>
@@ -1364,6 +768,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                     value={penalRampIters}
                     onChange={(e) => handleParameterChange("penalRampIters", Number(e.target.value))}
                     className={styles.slider}
+                    disabled={simulationState === 'running'}
                   />
                   <span className={styles.parameterValue}>{penalRampIters}</span>
                 </div>
@@ -1385,6 +790,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                     value={move}
                     onChange={(e) => handleParameterChange("move", Number(e.target.value))}
                     className={styles.slider}
+                    disabled={simulationState === 'running'}
                   />
                   <span className={styles.parameterValue}>{move.toFixed(2)}</span>
                 </div>
@@ -1406,6 +812,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                     value={rmin}
                     onChange={(e) => handleParameterChange("rmin", Number(e.target.value))}
                     className={styles.slider}
+                    disabled={simulationState === 'running'}
                   />
                   <span className={styles.parameterValue}>{rmin.toFixed(1)}</span>
                 </div>
@@ -1427,6 +834,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                     value={maxIters}
                     onChange={(e) => handleParameterChange("maxIters", Number(e.target.value))}
                     className={styles.slider}
+                    disabled={simulationState === 'running'}
                   />
                   <span className={styles.parameterValue}>{maxIters}</span>
                 </div>
@@ -1448,36 +856,9 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                     value={tolChange}
                     onChange={(e) => handleParameterChange("tolChange", Number(e.target.value))}
                     className={styles.slider}
+                    disabled={simulationState === 'running'}
                   />
                   <span className={styles.parameterValue}>{tolChange.toFixed(4)}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>Convergence Strategy</h3>
-              <div className={styles.parameterGroup}>
-                <label className={styles.parameterLabel}>
-                  Strategy
-                  <span className={styles.parameterDescription}>
-                    Balance speed vs stability by adapting emit cadence + CG iterations
-                  </span>
-                </label>
-                <div className={styles.parameterControl}>
-                  <select
-                    className={styles.strategySelect}
-                    value={strategyKey}
-                    onChange={(e) =>
-                      handleParameterChange("convergenceStrategy", e.target.value)
-                    }
-                  >
-                    <option value="steady">Steady (stable)</option>
-                    <option value="balanced">Balanced</option>
-                    <option value="turbo">Turbo (fast)</option>
-                  </select>
-                  <span className={styles.parameterValue}>
-                    emit:{emitEvery} · cg:{effectiveCgMaxIters}
-                  </span>
                 </div>
               </div>
             </div>
@@ -1503,6 +884,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                       handleParameterChange("densityThreshold", Number(e.target.value))
                     }
                     className={styles.slider}
+                    disabled={simulationState === 'running'}
                   />
                   <span className={styles.parameterValue}>{densityThreshold.toFixed(2)}</span>
                 </div>
@@ -1526,6 +908,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                       handleParameterChange("maxLinksPerPoint", Number(e.target.value))
                     }
                     className={styles.slider}
+                    disabled={simulationState === 'running'}
                   />
                   <span className={styles.parameterValue}>{maxLinksPerPoint}</span>
                 </div>
@@ -1549,6 +932,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                       handleParameterChange("maxSpanLength", Number(e.target.value))
                     }
                     className={styles.slider}
+                    disabled={simulationState === 'running'}
                   />
                   <span className={styles.parameterValue}>{maxSpanLength.toFixed(1)}</span>
                 </div>
@@ -1572,6 +956,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                       handleParameterChange("pipeRadius", Number(e.target.value))
                     }
                     className={styles.slider}
+                    disabled={simulationState === 'running'}
                   />
                   <span className={styles.parameterValue}>{pipeRadius.toFixed(3)}</span>
                 </div>
@@ -1595,104 +980,9 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                       handleParameterChange("pipeSegments", Number(e.target.value))
                     }
                     className={styles.slider}
+                    disabled={simulationState === 'running'}
                   />
                   <span className={styles.parameterValue}>{pipeSegments}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>Refinement (Plasticwrap)</h3>
-              <div className={styles.parameterGroup}>
-                <label className={styles.parameterLabel}>
-                  Wrap Distance
-                  <span className={styles.parameterDescription}>
-                    Post-process smoothing distance applied after convergence (0.05-1.0)
-                  </span>
-                </label>
-                <div className={styles.parameterControl}>
-                  <input
-                    type="range"
-                    min="0.05"
-                    max="1.0"
-                    step="0.05"
-                    value={plasticwrapDistance}
-                    onChange={(e) =>
-                      handleParameterChange("plasticwrapDistance", Number(e.target.value))
-                    }
-                    className={styles.slider}
-                  />
-                  <span className={styles.parameterValue}>{plasticwrapDistance.toFixed(2)}</span>
-                </div>
-              </div>
-              <div className={styles.parameterGroup}>
-                <label className={styles.parameterLabel}>
-                  Wrap Smoothness
-                  <span className={styles.parameterDescription}>
-                    Higher values preserve the natural topology silhouette (0-1)
-                  </span>
-                </label>
-                <div className={styles.parameterControl}>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.05"
-                    value={plasticwrapSmooth}
-                    onChange={(e) =>
-                      handleParameterChange("plasticwrapSmooth", Number(e.target.value))
-                    }
-                    className={styles.slider}
-                  />
-                  <span className={styles.parameterValue}>{plasticwrapSmooth.toFixed(2)}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>Material Finish</h3>
-              <div className={styles.parameterGroup}>
-                <label className={styles.parameterLabel}>
-                  Clearcoat Intensity
-                  <span className={styles.parameterDescription}>
-                    Plastic wrap gloss strength (0-1)
-                  </span>
-                </label>
-                <div className={styles.parameterControl}>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.05"
-                    value={clearcoatIntensity}
-                    onChange={(e) =>
-                      handleParameterChange("clearcoatIntensity", Number(e.target.value))
-                    }
-                    className={styles.slider}
-                  />
-                  <span className={styles.parameterValue}>{clearcoatIntensity.toFixed(2)}</span>
-                </div>
-              </div>
-              <div className={styles.parameterGroup}>
-                <label className={styles.parameterLabel}>
-                  Clearcoat Roughness
-                  <span className={styles.parameterDescription}>
-                    Lower values = tighter highlights (0.02-1.0)
-                  </span>
-                </label>
-                <div className={styles.parameterControl}>
-                  <input
-                    type="range"
-                    min="0.02"
-                    max="1"
-                    step="0.02"
-                    value={clearcoatRoughness}
-                    onChange={(e) =>
-                      handleParameterChange("clearcoatRoughness", Number(e.target.value))
-                    }
-                    className={styles.slider}
-                  />
-                  <span className={styles.parameterValue}>{clearcoatRoughness.toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -1703,9 +993,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
           <div className={styles.simulatorTab}>
             <div className={styles.simulatorLayout}>
               <div className={styles.geometryView}>
-                <h3 className={styles.viewTitle}>
-                  {nz > 1 ? "SIMP Density Field (3D)" : "SIMP Density Field (2D)"}
-                </h3>
+                <h3 className={styles.viewTitle}>Density Field Evolution</h3>
                 {markers && baseMesh ? (
                   <TopologyRenderer
                     fe={{ 
@@ -1713,17 +1001,14 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                       ny, 
                       nz, 
                       numElements: nx * ny * nz, 
-                      numNodes: (nx + 1) * (ny + 1) * (nz + 1), 
-                      numDofs: (nx + 1) * (ny + 1) * (nz + 1) * 3, 
+                      numNodes: (nx + 1) * (ny + 1) * (nz > 1 ? nz + 1 : 1), 
+                      numDofs: (nx + 1) * (ny + 1) * (nz > 1 ? nz + 1 : 1) * (nz > 1 ? 3 : 2), 
                       elementSize: { 
                         x: Math.max(1e-6, (baseBounds?.max.x ?? 1) - (baseBounds?.min.x ?? 0)) / nx, 
                         y: Math.max(1e-6, (baseBounds?.max.y ?? 1) - (baseBounds?.min.y ?? 0)) / ny, 
-                        z:
-                          nz > 1
-                            ? Math.max(1e-6, (baseBounds?.max.z ?? 1) - (baseBounds?.min.z ?? 0)) / nz
-                            : 0,
+                        z: nz > 1 ? Math.max(1e-6, (baseBounds?.max.z ?? 1) - (baseBounds?.min.z ?? 0)) / nz : 0 
                       }, 
-                      bounds: baseBounds ?? { min: { x: 0, y: 0, z: 0 }, max: { x: 1, y: 1, z: 0 } } 
+                      bounds: baseBounds ?? { min: { x: 0, y: 0, z: 0 }, max: { x: 1, y: 1, z: nz > 1 ? 1 : 0 } } 
                     }}
                     markers={markers}
                     frame={currentFrame}
@@ -1738,14 +1023,14 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
               </div>
 
               <div className={styles.geometryPreviewView}>
-                <h3 className={styles.viewTitle}>Optimized Multipipe Preview (3D)</h3>
+                <h3 className={styles.viewTitle}>3D Geometry Preview</h3>
                 <TopologyGeometryPreview
                   geometry={previewGeometry}
                   width={600}
                   height={450}
                 />
                 <div className={styles.previewHint}>
-                  Drag to rotate • Updates every {emitEvery} iterations
+                  Drag to rotate • Updates every 10 iterations
                 </div>
               </div>
             </div>
@@ -1761,136 +1046,13 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
               </div>
             </div>
 
-            <div className={styles.simulatorMetrics}>
-              <div className={styles.metricCard}>
-                <div className={styles.metricHeader}>
-                  <span className={styles.metricTitle}>Live Telemetry</span>
-                  <span className={styles.metricBadge}>{simulationState.toUpperCase()}</span>
-                </div>
-                <div className={styles.metricGrid}>
-                  <div className={styles.metricItem}>
-                    <span className={styles.metricLabel}>Iteration</span>
-                    <span className={styles.metricValue}>{liveIteration}</span>
-                  </div>
-                  <div className={styles.metricItem}>
-                    <span className={styles.metricLabel}>Compliance</span>
-                    <span className={styles.metricValue}>{liveCompliance.toFixed(4)}</span>
-                  </div>
-                  <div className={styles.metricItem}>
-                    <span className={styles.metricLabel}>Volume</span>
-                    <span className={styles.metricValue}>{(liveVolume * 100).toFixed(1)}%</span>
-                  </div>
-                  <div className={styles.metricItem}>
-                    <span className={styles.metricLabel}>Change</span>
-                    <span className={styles.metricValue}>{liveChange.toFixed(4)}</span>
-                  </div>
-                  <div className={styles.metricItem}>
-                    <span className={styles.metricLabel}>FE Status</span>
-                    <span className={styles.metricValue}>
-                      {liveFeConverged === false
-                        ? "Stalled"
-                        : liveFeConverged === true
-                          ? "Converged"
-                          : "--"}
-                    </span>
-                  </div>
-                  <div className={styles.metricItem}>
-                    <span className={styles.metricLabel}>FE Iters</span>
-                    <span className={styles.metricValue}>{liveFeIters ?? "--"}</span>
-                  </div>
-                  <div className={styles.metricItem}>
-                    <span className={styles.metricLabel}>Stalls</span>
-                    <span className={styles.metricValue}>{stallCountRef.current}</span>
-                  </div>
-                  <div className={styles.metricItem}>
-                    <span className={styles.metricLabel}>Target Vol</span>
-                    <span className={styles.metricValue}>{(effectiveVolFrac * 100).toFixed(1)}%</span>
-                  </div>
-                  <div className={styles.metricItem}>
-                    <span className={styles.metricLabel}>Density Cut</span>
-                    <span className={styles.metricValue}>{densityThreshold.toFixed(2)}</span>
-                  </div>
-                  <div className={styles.metricItem}>
-                    <span className={styles.metricLabel}>Strategy</span>
-                    <span className={styles.metricValue}>{strategyKey}</span>
-                  </div>
-                  <div className={styles.metricItem}>
-                    <span className={styles.metricLabel}>Emit Every</span>
-                    <span className={styles.metricValue}>{emitEvery}</span>
-                  </div>
-                  <div className={styles.metricItem}>
-                    <span className={styles.metricLabel}>CG Max</span>
-                    <span className={styles.metricValue}>{effectiveCgMaxIters}</span>
-                  </div>
-                  <div className={styles.metricItem}>
-                    <span className={styles.metricLabel}>CG Boost</span>
-                    <span className={styles.metricValue}>{cgBoostFactor}x</span>
-                  </div>
-                </div>
-              </div>
-              <div className={styles.metricCard}>
-                <div className={styles.metricHeader}>
-                  <span className={styles.metricTitle}>Semantic Pulse</span>
-                  <span className={styles.metricBadge}>
-                    {semanticRunId ? "RUN" : "IDLE"}
-                  </span>
-                </div>
-                <div className={styles.metricGrid}>
-                  <div className={styles.metricItem}>
-                    <span className={styles.metricLabel}>Ops</span>
-                    <span className={styles.metricValue}>{semanticMetrics.totalOperations}</span>
-                  </div>
-                  <div className={styles.metricItem}>
-                    <span className={styles.metricLabel}>Errors</span>
-                    <span className={styles.metricValue}>{semanticMetrics.totalErrors}</span>
-                  </div>
-                  <div className={styles.metricItem}>
-                    <span className={styles.metricLabel}>Duration</span>
-                    <span className={styles.metricValue}>
-                      {Math.round(semanticMetrics.totalDuration)}ms
-                    </span>
-                  </div>
-                  <div className={styles.metricItem}>
-                    <span className={styles.metricLabel}>Run Id</span>
-                    <span className={styles.metricValue}>
-                      {semanticRunId ? semanticRunId.slice(0, 10) : "—"}
-                    </span>
-                  </div>
-                </div>
-                <div className={styles.semanticEvents}>
-                  {recentSemanticEvents.length === 0 ? (
-                    <div className={styles.noEvents}>Waiting for semantic ops…</div>
-                  ) : (
-                    recentSemanticEvents.map((event, index) => (
-                      <div
-                        key={`${event.opId}-${event.phase}-${event.t}-${index}`}
-                        className={styles.semanticEvent}
-                      >
-                        <span className={styles.eventOp}>{formatSemanticOp(event.opId)}</span>
-                        <span className={styles.eventPhase}>
-                          {event.phase === "start" ? "start" : event.ok === false ? "error" : "end"}
-                        </span>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-              <div className={styles.metricCard}>
-                <SemanticOpsPanel
-                  nodeId={nodeId}
-                  nodeType="topologyOptimizationSolver"
-                  runId={semanticRunId ?? "default"}
-                />
-              </div>
-            </div>
-
             <div className={styles.simulationControls}>
               <div className={styles.controlButtons}>
                 {simulationState === 'idle' && (
                   <button
                     className={styles.startButton}
                     onClick={handleStart}
-                    disabled={!markers || !(baseMesh || baseMeshRef.current)}
+                    disabled={!markers || !baseMesh}
                   >
                     ▶ Start Optimization
                   </button>
@@ -1927,43 +1089,6 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                     ⏹ Reset
                   </button>
                 )}
-                <button
-                  className={styles.secondaryButton}
-                  onClick={handleSyncRoslyn}
-                  disabled={(!lastFrameRef.current && !currentFrame) || !(baseMesh || baseMeshRef.current)}
-                >
-                  ⟲ Sync Roslyn
-                </button>
-                <button
-                  className={styles.secondaryButton}
-                  onClick={handleFinalizeNow}
-                  disabled={(!lastFrameRef.current && !currentFrame) || !(baseMesh || baseMeshRef.current)}
-                >
-                  ◆ Finalize Now
-                </button>
-              </div>
-
-              <div className={styles.controlToggles}>
-                <label className={styles.toggle}>
-                  <input
-                    type="checkbox"
-                    checked={liveRoslyn}
-                    onChange={(event) =>
-                      handleBooleanChange("liveRoslyn", event.target.checked)
-                    }
-                  />
-                  <span>Live Roslyn</span>
-                </label>
-                <label className={styles.toggle}>
-                  <input
-                    type="checkbox"
-                    checked={plasticwrapEnabled}
-                    onChange={(event) =>
-                      handleBooleanChange("plasticwrapEnabled", event.target.checked)
-                    }
-                  />
-                  <span>Plasticwrap</span>
-                </label>
               </div>
 
               <div className={styles.statusDisplay}>
@@ -1986,18 +1111,6 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                     <div className={styles.statusItem}>
                       <span className={styles.statusLabel}>Volume:</span>
                       <span className={styles.statusValue}>{(currentFrame.vol * 100).toFixed(1)}%</span>
-                    </div>
-                    <div className={styles.statusItem}>
-                      <span className={styles.statusLabel}>FE:</span>
-                      <span className={styles.statusValue}>
-                        {currentFrame.feConverged === false ? "Stalled" : "OK"}
-                      </span>
-                    </div>
-                    <div className={styles.statusItem}>
-                      <span className={styles.statusLabel}>CG Iters:</span>
-                      <span className={styles.statusValue}>
-                        {typeof currentFrame.feIters === "number" ? currentFrame.feIters : "-"}
-                      </span>
                     </div>
                   </>
                 )}
@@ -2045,7 +1158,6 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
             </div>
           </div>
         )}
-      </div>
       </div>
     </div>
   );

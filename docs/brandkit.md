@@ -502,3 +502,97 @@ import NumericaLogo from './NumericaLogo';
 <NumericaLogo size={24} />
 <NumericaLogo size={24} withText />
 ```
+
+---
+
+## Semantic Color Mapping
+
+### Yellow (#ffdd00) - Numeric/Quantitative
+**Port Types:** `number`, `vector`
+**Categories:** math, basics, arrays, ranges, signals
+**Examples:** Width/height parameters, resolution sliders, position vectors
+
+### Magenta (#ff0099) - Logic/Goals
+**Port Types:** `boolean`, `goal`, `fitnessSpec`
+**Categories:** logic, goal, optimization
+**Examples:** Enabled toggles, conditional branches, physics/chemistry goals
+
+### Cyan (#00d4ff) - Text/Specifications
+**Port Types:** `string`, `genomeSpec`, `phenotypeSpec`
+**Categories:** data, lists, interop, measurement, analysis
+**Examples:** Node labels, material names, file paths, metadata
+
+### Black (#000000) - Geometry/Structure
+**Port Types:** `geometry`, `mesh`, `nurb`, `brep`, `voxelGrid`, `any`
+**Categories:** primitives, curves, nurbs, brep, mesh, voxel, solver, transforms
+**Examples:** Box/sphere geometry, mesh data, voxel grids, NURBS curves
+
+---
+
+## CSS Variables
+
+```css
+:root {
+  /* CMYK Colors */
+  --cmyk-yellow: #ffdd00;
+  --cmyk-magenta: #ff0099;
+  --cmyk-cyan: #00d4ff;
+  --cmyk-black: #000000;
+  
+  /* Neutrals */
+  --sp-porcelain: #F5F2EE;
+  --sp-uiGrey: #E9E6E2;
+  --sp-divider: #C9C5C0;
+  --sp-ink: #1F1F22;
+  
+  /* Brand Colors */
+  --brand-accent: var(--cmyk-cyan);
+  --brand-accent-deep: var(--cmyk-magenta);
+  --brand-accent-glow: rgba(0, 212, 255, 0.18);
+  
+  /* Shadows */
+  --shadow-node: 0 4px 0 #000000;
+  --shadow-node-hover: 0 6px 0 #000000;
+  --shadow-node-pressed: 0 2px 0 #000000;
+}
+```
+
+---
+
+## Usage Rules
+
+**DO:**
+- Use CMYK colors for all port types and node categories
+- Use semantic color mapping (Yellow = numeric, Magenta = logic, etc.)
+- Use centralized color functions from `client/src/workflow/colors.ts`
+- Use opacity variations (10%, 40%, 80%) for backgrounds and states
+
+**DON'T:**
+- Hardcode hex colors in components
+- Use arbitrary colors for ports or categories
+- Add new colors outside the CMYK palette
+- Use gradients in workflow UI
+
+---
+
+## FAQ
+
+**Q: Can I add a new color for a special node type?**
+A: No. Use one of the four CMYK colors based on semantic meaning.
+
+**Q: What about gradients or color mixing?**
+A: Avoid gradients. Use opacity variations of CMYK colors instead.
+
+**Q: Can I use tints/shades of CMYK colors?**
+A: Only through opacity (rgba). Don't create new hex colors.
+
+---
+
+## References
+
+- **Color Module:** `client/src/workflow/colors.ts`
+- **Node Registry:** `client/src/workflow/nodeRegistry.ts`
+- **Logo Component:** `client/src/components/LinguaLogo.tsx`
+- **Top Bar:** `client/src/components/WebGLAppTopBar.tsx`
+- **Sticker Icons:** `client/src/components/StickerIcon.tsx`
+- **Global Styles:** `client/src/styles/global.css`

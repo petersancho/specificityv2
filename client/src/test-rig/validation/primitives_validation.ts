@@ -93,7 +93,7 @@ const primitiveInputValues = {
 
 const validatePoint = () => {
   const node = getNodeDefinition("point");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "primitives", "Expected category primitives");
 
   const context = createContext();
@@ -106,12 +106,13 @@ const validatePoint = () => {
   ensure(result.geometry === "point-geom", "Expected geometry output to match geometryId");
   ensureVec3(result.position, "Expected position vector");
   ensure(result.x === 1 && result.y === 2 && result.z === 3, "Expected XYZ outputs to match inputs");
-  ensure(result.position.x === 1 && result.position.y === 2 && result.position.z === 3, "Expected position to match XYZ");
+  const pos = result.position as { x: number; y: number; z: number };
+  ensure(pos.x === 1 && pos.y === 2 && pos.z === 3, "Expected position to match XYZ");
 };
 
 const validatePointCloud = () => {
   const node = getNodeDefinition("pointCloud");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "primitives", "Expected category primitives");
 
   const context = createContext();
@@ -122,16 +123,18 @@ const validatePointCloud = () => {
   });
 
   ensure(result.geometry === "pc-1", "Expected geometry to be first geometryId");
-  ensure(Array.isArray(result.geometryList), "Expected geometryList array");
-  ensure(result.geometryList.length === 2, "Expected geometryList length 2");
-  ensure(Array.isArray(result.points), "Expected points array");
-  ensure(result.points.length === 2, "Expected points length 2");
+  const geometryList = result.geometryList as any[];
+  ensure(Array.isArray(geometryList), "Expected geometryList array");
+  ensure(geometryList.length === 2, "Expected geometryList length 2");
+  const points = result.points as any[];
+  ensure(Array.isArray(points), "Expected points array");
+  ensure(points.length === 2, "Expected points length 2");
   ensure(result.count === 2, "Expected count 2");
 };
 
 const validatePrimitiveGeneric = () => {
   const node = getNodeDefinition("primitive");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "primitives", "Expected category primitives");
 
   const context = createContext();
@@ -144,15 +147,16 @@ const validatePrimitiveGeneric = () => {
   ensure(result.geometry === "primitive-geom", "Expected geometry output to match geometryId");
   ensure(result.kind === "cylinder", "Expected kind output to match input");
   ensure(result.representation === "mesh", "Expected representation mesh");
-  ensure(typeof result.params === "object" && result.params !== null, "Expected params object");
+  const params = result.params as Record<string, unknown>;
+  ensure(typeof params === "object" && params !== null, "Expected params object");
   PRIMITIVE_PARAM_KEYS.forEach((key) => {
-    ensure(typeof result.params[key] === "number", `Expected params.${key} to be number`);
+    ensure(typeof params[key] === "number", `Expected params.${key} to be number`);
   });
 };
 
 const validateBox = () => {
   const node = getNodeDefinition("box");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "primitives", "Expected category primitives");
 
   const context = createContext();
@@ -172,13 +176,13 @@ const validateBox = () => {
   ensureVec3(result.anchor, "Expected anchor vector");
   ensure(result.width === 2 && result.height === 3 && result.depth === 4, "Expected dimensions to match inputs");
   ensure(result.centerMode === true, "Expected centerMode true");
-  ensure(approxEqual(result.volume, 24), "Expected volume 24");
+  ensure(approxEqual(result.volume as number, 24), "Expected volume 24");
   ensure(result.representation === "mesh", "Expected representation mesh");
 };
 
 const validateSphere = () => {
   const node = getNodeDefinition("sphere");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "primitives", "Expected category primitives");
 
   const context = createContext();
@@ -192,13 +196,13 @@ const validateSphere = () => {
   ensure(result.geometry === "sphere-geom", "Expected geometry output to match geometryId");
   ensureVec3(result.center, "Expected center vector");
   ensure(result.radius === 2, "Expected radius 2");
-  ensure(approxEqual(result.volume, expectedVolume), "Expected volume to match radius");
+  ensure(approxEqual(result.volume as number, expectedVolume), "Expected volume to match radius");
   ensure(result.representation === "mesh", "Expected representation mesh");
 };
 
 const validateCatalogPrimitive = (nodeType: string) => {
   const node = getNodeDefinition(nodeType);
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "primitives", "Expected category primitives");
 
   const context = createContext();
@@ -210,9 +214,10 @@ const validateCatalogPrimitive = (nodeType: string) => {
 
   ensure(result.geometry === `${nodeType}-geom`, "Expected geometry output to match geometryId");
   ensure(result.representation === "mesh", "Expected representation mesh");
-  ensure(typeof result.params === "object" && result.params !== null, "Expected params object");
+  const params = result.params as Record<string, unknown>;
+  ensure(typeof params === "object" && params !== null, "Expected params object");
   PRIMITIVE_PARAM_KEYS.forEach((key) => {
-    ensure(typeof result.params[key] === "number", `Expected params.${key} to be number`);
+    ensure(typeof params[key] === "number", `Expected params.${key} to be number`);
   });
 };
 

@@ -22,9 +22,10 @@
     "validate:all": "npm run validate:semantic && npm run validate:commands && npm run validate:integrity && npm run validate:ui-semantics && npm run validate:docs-semantics",
     "analyze:semantic": "tsx scripts/comprehensiveSemanticAnalysis.ts",
     "analyze:coverage": "tsx scripts/analyzeNodeSemanticCoverage.ts",
+    "analyze:coverage2": "tsx scripts/analyzeCoverage2.ts",
     "regenerate:node-ops": "node scripts/regenerateNodeSemanticOps.js",
     "generate:semantic-ids": "node scripts/generateSemanticOpIds.js",
-    "generate:docs": "tsx scripts/generateComprehensiveDocumentation.ts",
+    "generate:agent-catalog": "tsx client/src/semantic/ontology/generateAgentCatalog.ts",
     "precommit": "npm run validate:all"
   },
   "devDependencies": {

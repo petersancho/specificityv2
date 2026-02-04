@@ -1,13 +1,13 @@
 # Semantic Inventory
 
-Generated: 2026-02-04T10:19:55.959Z
+Generated: 2026-02-04T13:54:34.214Z
 
 ## Summary
 
-- **Total Operations**: 315
-- **Total Nodes**: 172
+- **Total Operations**: 297
+- **Total Nodes**: 170
 - **Total Dashboards**: 3
-- **Orphan Operations**: 50
+- **Orphan Operations**: 48
 - **Dangling References**: 0
 
 ## Operations by Domain
@@ -110,7 +110,7 @@ Generated: 2026-02-04T10:19:55.959Z
 | `data.linspace` | Linspace | creation | ✅ | linspace |
 | `data.repeat` | Repeat | creation | ✅ | repeat |
 
-### geometry (104 operations)
+### geometry (100 operations)
 
 | ID | Name | Category | Stable | Used By |
 |----|------|----------|--------|----------|
@@ -124,8 +124,6 @@ Generated: 2026-02-04T10:19:55.959Z
 | `geometry.plasticwrap` | Plastic Wrap | operation | ✅ | plasticwrap |
 | `geometry.solid` | Solid | operation | ✅ | solid |
 | `geometry.primitive` | Primitive | creation | ✅ | primitive |
-| `geometry.primitive.box` | Box | primitive | ✅ | (none) |
-| `geometry.primitive.sphere` | Sphere | primitive | ✅ | (none) |
 | `geometry.primitive.cylinder` | Cylinder | primitive | ✅ | cylinder |
 | `geometry.primitive.torus` | Torus | primitive | ✅ | torus |
 | `geometry.primitive.pyramid` | Pyramid | primitive | ✅ | pyramid |
@@ -163,9 +161,7 @@ Generated: 2026-02-04T10:19:55.959Z
 | `geometry.array.geometry` | Geometry Array | utility | ✅ | geometryArray |
 | `geometry.analyze.info` | Geometry Info | analysis | ✅ | geometryInfo |
 | `geometry.analyze.dimensions` | Dimensions | analysis | ✅ | dimensions |
-| `geometry.analyze.volume` | Volume | analysis | ✅ | volume |
 | `geometry.analyze.vertices` | Geometry Vertices | analysis | ✅ | geometryVertices |
-| `geometry.analyze.extentVertices` | Geometry Extent Vertices | analysis | ✅ | geometryExtentVertices |
 | `geometry.analyze.edges` | Geometry Edges | analysis | ✅ | geometryEdges |
 | `geometry.analyze.faces` | Geometry Faces | analysis | ✅ | geometryFaces |
 | `geometry.analyze.normals` | Geometry Normals | analysis | ✅ | geometryNormals |
@@ -281,7 +277,7 @@ Generated: 2026-02-04T10:19:55.959Z
 | `math.wave.triangle` | Triangle Wave | primitive | ✅ | triangleWave |
 | `math.wave.square` | Square Wave | primitive | ✅ | squareWave |
 
-### solver (43 operations)
+### solver (29 operations)
 
 | ID | Name | Category | Stable | Used By |
 |----|------|----------|--------|----------|
@@ -294,20 +290,6 @@ Generated: 2026-02-04T10:19:55.959Z
 | `simulator.step` | Step Simulator | utility | ✅ | evolutionarySolver |
 | `simulator.converge` | Check Convergence | analysis | ✅ | evolutionarySolver |
 | `simulator.finalize` | Finalize Simulator | utility | ✅ | evolutionarySolver |
-| `simulator.voxel.initialize` | Initialize Voxel Simulator | utility | ✅ | voxelSolver |
-| `simulator.voxel.step` | Voxelize Geometry | conversion | ✅ | voxelSolver |
-| `simulator.voxel.finalize` | Finalize Voxel Simulator | utility | ✅ | voxelSolver |
-| `simulator.topology.initialize` | Initialize Topology Simulator | utility | ✅ | topologyOptimizationSolver |
-| `simulator.topology.step` | Step Topology Simulator | utility | ✅ | topologyOptimizationSolver |
-| `simulator.topology.converge` | Check Topology Convergence | analysis | ✅ | topologyOptimizationSolver |
-| `simulator.topology.finalize` | Finalize Topology Simulator | utility | ✅ | topologyOptimizationSolver |
-| `simulator.topology.preview` | Preview Topology Geometry | analysis | ✅ | topologyOptimizationSolver |
-| `simulator.topology.sync` | Sync Topology Geometry | io | ✅ | topologyOptimizationSolver |
-| `simulator.topology.pause` | Pause Topology Simulator | utility | ✅ | topologyOptimizationSolver |
-| `simulator.topology.resume` | Resume Topology Simulator | utility | ✅ | topologyOptimizationSolver |
-| `simulator.topology.reset` | Reset Topology Simulator | utility | ✅ | topologyOptimizationSolver |
-| `simulator.topology.plasticwrap` | Plasticwrap Topology Geometry | utility | ✅ | topologyOptimizationSolver |
-| `simulator.topology.stabilityGuard` | Topology Stability Guard | analysis | ✅ | topologyOptimizationSolver |
 | `simulator.chemistry.initialize` | Initialize Chemistry Simulator | utility | ✅ | chemistrySolver |
 | `simulator.chemistry.step` | Step Chemistry Simulator | utility | ✅ | chemistrySolver |
 | `simulator.chemistry.converge` | Check Chemistry Convergence | analysis | ✅ | chemistrySolver |
@@ -439,10 +421,8 @@ Generated: 2026-02-04T10:19:55.959Z
 | `listStdDev` | List Std Dev | analysis | `math.stdDev` |
 | `geometryInfo` | Geometry Info | analysis | `geometry.analyze.info` |
 | `measurement` | Measurement | measurement | `mesh.computeArea` |
-| `volume` | Volume | measurement | `geometry.analyze.volume` |
 | `dimensions` | Dimensions | measurement | `geometry.analyze.dimensions` |
 | `geometryVertices` | Geometry Vertices | analysis | `geometry.analyze.vertices` |
-| `geometryExtentVertices` | Geometry Extent Vertices | analysis | `geometry.analyze.extentVertices` |
 | `geometryEdges` | Geometry Edges | analysis | `geometry.analyze.edges` |
 | `geometryFaces` | Geometry Faces | analysis | `geometry.analyze.faces` |
 | `geometryNormals` | Geometry Normals | analysis | `geometry.analyze.normals` |
@@ -551,8 +531,8 @@ Generated: 2026-02-04T10:19:55.959Z
 | `physicsSolver` | Ἐπιλύτης Φυσικῆς | solver | `solver.physics`, `simulator.physics.initialize`, `simulator.physics.step`, `simulator.physics.converge`, `simulator.physics.finalize`, `simulator.physics.applyLoads`, `simulator.physics.computeStress` |
 | `chemistrySolver` | Ἐπιλύτης Χημείας | solver | `solver.chemistry`, `simulator.chemistry.initialize`, `simulator.chemistry.step`, `simulator.chemistry.converge`, `simulator.chemistry.finalize`, `simulator.chemistry.blendMaterials`, `simulator.chemistry.evaluateGoals`, `simulator.chemistry.analyze`, `simulator.chemistry.validate`, `simulator.chemistry.computeGradients`, `simulator.chemistry.computeStatistics`, `simulator.chemistry.checkConservation` |
 | `evolutionarySolver` | Evolutionary Solver | solver | `solver.evolutionary`, `simulator.initialize`, `simulator.step`, `simulator.converge`, `simulator.finalize` |
-| `voxelSolver` | Voxelizer | voxel | `solver.voxel`, `simulator.voxel.initialize`, `simulator.voxel.step`, `simulator.voxel.finalize` |
-| `topologyOptimizationSolver` | Topology Optimization | solver | `solver.topologyOptimization`, `simulator.topology.initialize`, `simulator.topology.step`, `simulator.topology.converge`, `simulator.topology.finalize`, `simulator.topology.preview`, `simulator.topology.sync`, `simulator.topology.pause`, `simulator.topology.resume`, `simulator.topology.reset`, `simulator.topology.plasticwrap`, `simulator.topology.stabilityGuard` |
+| `voxelSolver` | Voxelizer | voxel | `solver.voxel` |
+| `topologyOptimizationSolver` | Topology Optimization | solver | `solver.topologyOptimization` |
 
 ## Dashboards
 
@@ -643,8 +623,6 @@ These operations are defined but never used by any node:
 - `command.tolerance`
 - `command.status`
 - `geometry.brep`
-- `geometry.primitive.box`
-- `geometry.primitive.sphere`
 - `tess.tessellateCurveAdaptive`
 - `tess.tessellateSurfaceAdaptive`
 
