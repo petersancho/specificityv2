@@ -6,24 +6,29 @@
 
 import type { SimpParams, SolverFrame, GoalMarkers } from "./types";
 import type { RenderMesh, Vec3 } from "../../../types";
+import { validateProblem, DefaultValidationConfig, type ValidationConfig } from "./validation";
+import { SimpValidationError, hasErrors } from "./errors";
+import { computeStrictBounds, worldToGrid, gridToNodeIndex, buildDofMapping } from "./coordinateFrames";
 
 // ============================================================================
-// DENSITY FILTER
+// DENSITY FILTER (Flat Sparse Storage for Performance)
 // ============================================================================
 
 interface DensityFilter {
   numElems: number;
-  neighbors: Uint32Array[];
-  weights: Float64Array[];
+  neighborData: Uint32Array;
+  weightData: Float64Array;
+  offsets: Uint32Array;
   Hs: Float64Array;
 }
 
 function precomputeDensityFilter(nx: number, ny: number, nz: number, rmin: number): DensityFilter {
   const numElems = nx * ny * nz;
-  const neighbors: Uint32Array[] = [];
-  const weights: Float64Array[] = [];
-  const Hs = new Float64Array(numElems);
   const rminCeil = Math.ceil(rmin);
+  
+  const tempNeighbors: number[][] = [];
+  const tempWeights: number[][] = [];
+  const Hs = new Float64Array(numElems);
   
   for (let ez = 0; ez < nz; ez++) {
     for (let ey = 0; ey < ny; ey++) {
@@ -47,35 +52,60 @@ function precomputeDensityFilter(nx: number, ny: number, nz: number, rmin: numbe
           }
         }
         
-        neighbors.push(new Uint32Array(neighborList));
-        weights.push(new Float64Array(weightList));
+        tempNeighbors.push(neighborList);
+        tempWeights.push(weightList);
         Hs[e] = sumWeight;
       }
     }
   }
   
-  return { numElems, neighbors, weights, Hs };
+  let totalNnz = 0;
+  for (const neighs of tempNeighbors) totalNnz += neighs.length;
+  
+  const neighborData = new Uint32Array(totalNnz);
+  const weightData = new Float64Array(totalNnz);
+  const offsets = new Uint32Array(numElems + 1);
+  
+  let offset = 0;
+  for (let e = 0; e < numElems; e++) {
+    offsets[e] = offset;
+    const neighs = tempNeighbors[e];
+    const weights = tempWeights[e];
+    for (let i = 0; i < neighs.length; i++) {
+      neighborData[offset] = neighs[i];
+      weightData[offset] = weights[i];
+      offset++;
+    }
+  }
+  offsets[numElems] = offset;
+  
+  return { numElems, neighborData, weightData, offsets, Hs };
 }
 
-function applyDensityFilter(rho: Float64Array, filter: DensityFilter): Float64Array {
-  const rhoBar = new Float64Array(filter.numElems);
+function applyDensityFilter(rho: Float64Array, filter: DensityFilter, out?: Float64Array): Float64Array {
+  const rhoBar = out ?? new Float64Array(filter.numElems);
   for (let e = 0; e < filter.numElems; e++) {
     let sum = 0;
-    const neighs = filter.neighbors[e];
-    const ws = filter.weights[e];
-    for (let i = 0; i < neighs.length; i++) sum += ws[i] * rho[neighs[i]];
-    rhoBar[e] = sum / filter.Hs[e];
+    const start = filter.offsets[e];
+    const end = filter.offsets[e + 1];
+    for (let i = start; i < end; i++) {
+      sum += filter.weightData[i] * rho[filter.neighborData[i]];
+    }
+    rhoBar[e] = filter.Hs[e] > 1e-14 ? sum / filter.Hs[e] : rho[e];
   }
   return rhoBar;
 }
 
-function applyFilterChainRule(dCdrhoBar: Float64Array, filter: DensityFilter): Float64Array {
-  const dCdrho = new Float64Array(filter.numElems);
+function applyFilterChainRule(dCdrhoBar: Float64Array, filter: DensityFilter, out?: Float64Array): Float64Array {
+  const dCdrho = out ?? new Float64Array(filter.numElems);
+  dCdrho.fill(0);
   for (let e = 0; e < filter.numElems; e++) {
-    const neighs = filter.neighbors[e];
-    const ws = filter.weights[e];
     const factor = dCdrhoBar[e] / filter.Hs[e];
-    for (let i = 0; i < neighs.length; i++) dCdrho[neighs[i]] += ws[i] * factor;
+    const start = filter.offsets[e];
+    const end = filter.offsets[e + 1];
+    for (let i = start; i < end; i++) {
+      dCdrho[filter.neighborData[i]] += filter.weightData[i] * factor;
+    }
   }
   return dCdrho;
 }
@@ -229,8 +259,9 @@ function matrixFreeKx(kernel: ElementKernel, rho: Float64Array, x: Float64Array,
   return y;
 }
 
-function computeKDiagonal(kernel: ElementKernel, rho: Float64Array, penal: number, E0: number, Emin: number): Float64Array {
-  const diag = new Float64Array(kernel.numDofs);
+function computeKDiagonal(kernel: ElementKernel, rho: Float64Array, penal: number, E0: number, Emin: number, out?: Float64Array): Float64Array {
+  const diag = out ?? new Float64Array(kernel.numDofs);
+  diag.fill(0);
   for (let e = 0; e < kernel.numElems; e++) {
     const scale = (Emin + Math.pow(rho[e], penal) * (E0 - Emin)) * kernel.elemVol;
     for (let i = 0; i < 24; i++) diag[kernel.edofMat[e * 24 + i]] += kernel.Ke0Diag[i] * scale;
@@ -264,46 +295,90 @@ function dot(a: Float64Array, b: Float64Array): number {
 }
 
 // ============================================================================
-// PCG SOLVER
+// PCG SOLVER (with Workspace Pooling and Warm Start)
 // ============================================================================
+
+interface PCGWorkspace {
+  r: Float64Array;
+  z: Float64Array;
+  p: Float64Array;
+  Ap: Float64Array;
+  M: Float64Array;
+  fMod: Float64Array;
+}
+
+function createPCGWorkspace(numDofs: number): PCGWorkspace {
+  return {
+    r: new Float64Array(numDofs),
+    z: new Float64Array(numDofs),
+    p: new Float64Array(numDofs),
+    Ap: new Float64Array(numDofs),
+    M: new Float64Array(numDofs),
+    fMod: new Float64Array(numDofs)
+  };
+}
 
 function solvePCG(
   kernel: ElementKernel, rho: Float64Array, f: Float64Array, fixedDofs: Set<number>,
-  penal: number, E0: number, Emin: number, tol: number, maxIters: number
+  penal: number, E0: number, Emin: number, tol: number, maxIters: number,
+  workspace: PCGWorkspace, uPrev?: Float64Array
 ): { u: Float64Array; converged: boolean; iters: number } {
   const n = kernel.numDofs;
+  const { r, z, p, Ap, M, fMod } = workspace;
+  
   const u = new Float64Array(n);
-  const M = computeKDiagonal(kernel, rho, penal, E0, Emin);
+  if (uPrev) {
+    for (let i = 0; i < n; i++) u[i] = uPrev[i];
+  }
+  
+  computeKDiagonal(kernel, rho, penal, E0, Emin, M);
   for (const dof of fixedDofs) M[dof] = 1.0;
   
-  const fMod = Float64Array.from(f);
+  for (let i = 0; i < n; i++) fMod[i] = f[i];
   for (const dof of fixedDofs) fMod[dof] = 0;
   
-  let r = Float64Array.from(fMod);
-  const z = new Float64Array(n);
-  for (let i = 0; i < n; i++) z[i] = r[i] / M[i];
+  if (uPrev) {
+    const Ku = matrixFreeKx(kernel, rho, u, penal, E0, Emin);
+    for (let i = 0; i < n; i++) r[i] = fMod[i] - Ku[i];
+    for (const dof of fixedDofs) r[dof] = 0;
+  } else {
+    for (let i = 0; i < n; i++) r[i] = fMod[i];
+  }
   
-  let p = Float64Array.from(z);
+  for (let i = 0; i < n; i++) z[i] = r[i] / M[i];
+  for (let i = 0; i < n; i++) p[i] = z[i];
+  
   let rz = dot(r, z);
   const tolAbs = Math.max(tol * Math.sqrt(dot(fMod, fMod)), 1e-14);
   
   let converged = false, iters = 0;
   for (iters = 0; iters < maxIters; iters++) {
-    if (Math.sqrt(dot(r, r)) < tolAbs) { converged = true; break; }
+    const resNorm = Math.sqrt(dot(r, r));
+    if (resNorm < tolAbs) { converged = true; break; }
+    if (!Number.isFinite(resNorm)) break;
     
-    const Ap = matrixFreeKx(kernel, rho, p, penal, E0, Emin);
-    for (const dof of fixedDofs) Ap[dof] = p[dof];
+    const ApData = matrixFreeKx(kernel, rho, p, penal, E0, Emin);
+    for (let i = 0; i < n; i++) Ap[i] = ApData[i];
+    for (const dof of fixedDofs) Ap[dof] = 0;
     
     const pAp = dot(p, Ap);
-    if (Math.abs(pAp) < 1e-30) break;
+    if (Math.abs(pAp) < 1e-30 || !Number.isFinite(pAp)) break;
     const alpha = rz / pAp;
+    if (!Number.isFinite(alpha)) break;
     
-    for (let i = 0; i < n; i++) { u[i] += alpha * p[i]; r[i] -= alpha * Ap[i]; z[i] = r[i] / M[i]; }
+    for (let i = 0; i < n; i++) {
+      u[i] += alpha * p[i];
+      r[i] -= alpha * Ap[i];
+      z[i] = r[i] / M[i];
+    }
     
     const rzNew = dot(r, z);
+    if (!Number.isFinite(rzNew)) break;
     const beta = rzNew / rz;
     rz = rzNew;
+    
     for (let i = 0; i < n; i++) p[i] = z[i] + beta * p[i];
+    for (const dof of fixedDofs) p[dof] = 0;
   }
   
   for (const dof of fixedDofs) u[dof] = 0;
@@ -314,29 +389,27 @@ function solvePCG(
 // SIMP ALGORITHM
 // ============================================================================
 
-function computeMeshBounds(mesh: RenderMesh): { min: Vec3; max: Vec3 } {
-  const pos = mesh.positions;
-  if (!pos || pos.length === 0) return { min: { x: 0, y: 0, z: 0 }, max: { x: 1, y: 1, z: 1 } };
-  
-  let minX = Infinity, minY = Infinity, minZ = Infinity;
-  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
-  
-  for (let i = 0; i < pos.length; i += 3) {
-    if (pos[i] < minX) minX = pos[i]; if (pos[i] > maxX) maxX = pos[i];
-    if (pos[i + 1] < minY) minY = pos[i + 1]; if (pos[i + 1] > maxY) maxY = pos[i + 1];
-    if (pos[i + 2] < minZ) minZ = pos[i + 2]; if (pos[i + 2] > maxZ) maxZ = pos[i + 2];
-  }
-  return { min: { x: minX, y: minY, z: minZ }, max: { x: maxX, y: maxY, z: maxZ } };
-}
+const ADAPTIVE_CG_TOL_EARLY = 1e-2;
+const ADAPTIVE_CG_TOL_MID = 1e-3;
+const ADAPTIVE_CG_EARLY_ITERS = 10;
+const ADAPTIVE_CG_MID_ITERS = 30;
+
+const MOVE_LIMIT_STABLE_THRESHOLD = 0.005;
+const MOVE_LIMIT_UNSTABLE_THRESHOLD = 0.05;
+const MOVE_LIMIT_INCREASE_FACTOR = 1.1;
+const MOVE_LIMIT_DECREASE_FACTOR = 0.8;
+const MOVE_LIMIT_MAX = 0.3;
+const MOVE_LIMIT_MIN = 0.01;
+
+const BETA_INCREASE_FACTOR = 1.5;
+
+
 
 function nodeIndex(ix: number, iy: number, iz: number, nx: number, ny: number): number {
   return iz * (nx + 1) * (ny + 1) + iy * (nx + 1) + ix;
 }
 
-function schedulePenal(iter: number, params: SimpParams): number {
-  if (iter >= params.penalRampIters) return params.penalEnd;
-  return params.penalStart + (iter / params.penalRampIters) * (params.penalEnd - params.penalStart);
-}
+
 
 function computeSensitivities(rho: Float64Array, ce: Float64Array, penal: number, E0: number, Emin: number): Float64Array {
   const dc = new Float64Array(rho.length);
@@ -381,48 +454,31 @@ export function is3DMode(nz: number): boolean {
   return nz > 1;
 }
 
-/** Unified SIMP solver - handles both 2D (nz=1) and 3D (nz>1) */
-export async function* runSimp(mesh: RenderMesh, markers: GoalMarkers, params: SimpParams): AsyncGenerator<SolverFrame> {
+/** Validated SIMP solver - handles both 2D (nz=1) and 3D (nz>1) with strict validation */
+export async function* runSimp(
+  mesh: RenderMesh,
+  markers: GoalMarkers,
+  params: SimpParams,
+  config: ValidationConfig = DefaultValidationConfig
+): AsyncGenerator<SolverFrame> {
+  const validation = validateProblem(mesh, markers, params, config);
+  
+  if (hasErrors(validation.issues)) {
+    throw new SimpValidationError(validation.issues);
+  }
+  
+  if (!validation.validated) {
+    throw new Error('Validation succeeded but no validated problem returned');
+  }
+  
+  const { bounds, fixedDofs, loadedDofs } = validation.validated;
   const { nx, ny, nz } = params;
-  const bounds = computeMeshBounds(mesh);
-  const spanX = Math.max(1e-6, bounds.max.x - bounds.min.x);
-  const spanY = Math.max(1e-6, bounds.max.y - bounds.min.y);
-  const spanZ = Math.max(1e-6, nz > 1 ? bounds.max.z - bounds.min.z : 1);
   
-  // Build fixed DOFs
-  const fixedDofs = new Set<number>();
-  for (const anchor of markers.anchors) {
-    const ix = Math.round((anchor.position.x - bounds.min.x) / spanX * nx);
-    const iy = Math.round((anchor.position.y - bounds.min.y) / spanY * ny);
-    const iz = nz > 1 ? Math.round((anchor.position.z - bounds.min.z) / spanZ * nz) : 0;
-    const node = nodeIndex(Math.max(0, Math.min(nx, ix)), Math.max(0, Math.min(ny, iy)), Math.max(0, Math.min(nz, iz)), nx, ny);
-    fixedDofs.add(node * 3); fixedDofs.add(node * 3 + 1); fixedDofs.add(node * 3 + 2);
-  }
-  
-  if (fixedDofs.size < 6) {
-    fixedDofs.add(0); fixedDofs.add(1); fixedDofs.add(2);
-    const corner = nodeIndex(nx, 0, 0, nx, ny);
-    fixedDofs.add(corner * 3 + 1); fixedDofs.add(corner * 3 + 2);
-    fixedDofs.add(nodeIndex(0, ny, 0, nx, ny) * 3 + 2);
-  }
-  
-  // Build forces
   const numNodes = (nx + 1) * (ny + 1) * (nz + 1);
   const forces = new Float64Array(numNodes * 3);
   
-  for (const load of markers.loads) {
-    const ix = Math.round((load.position.x - bounds.min.x) / spanX * nx);
-    const iy = Math.round((load.position.y - bounds.min.y) / spanY * ny);
-    const iz = nz > 1 ? Math.round((load.position.z - bounds.min.z) / spanZ * nz) : 0;
-    const node = nodeIndex(Math.max(0, Math.min(nx, ix)), Math.max(0, Math.min(ny, iy)), Math.max(0, Math.min(nz, iz)), nx, ny);
-    forces[node * 3] += load.force.x;
-    forces[node * 3 + 1] += load.force.y;
-    forces[node * 3 + 2] += load.force.z;
-  }
-  
-  if (!forces.some(f => Math.abs(f) > 1e-14)) {
-    const midNode = nodeIndex(nx, Math.floor(ny / 2), Math.floor(nz / 2), nx, ny);
-    forces[midNode * 3 + 1] = -1.0;
+  for (const [dof, force] of loadedDofs.entries()) {
+    forces[dof] = force;
   }
   
   const kernel = createElementKernel(nx, ny, nz, bounds, params.nu);
@@ -432,44 +488,68 @@ export async function* runSimp(mesh: RenderMesh, markers: GoalMarkers, params: S
   let densities = new Float64Array(numElems);
   densities.fill(params.volFrac);
   
-  let beta = 1.0, prevCompliance = Infinity, consecutiveConverged = 0;
-  let prevRhoPhysical: Float64Array | null = null;
-  
   const minIterations = params.minIterations ?? 3;
   const grayTol = params.grayTol ?? 0.05;
   const betaMax = params.betaMax ?? 64;
   
+  let beta = 1.0;
+  let penal = params.penalStart;
+  let moveLimit = params.move;
+  let prevCompliance = Infinity;
+  let consecutiveConverged = 0;
+  let uPrev = new Float64Array(kernel.numDofs);
+  
+  const pcgWorkspace = createPCGWorkspace(kernel.numDofs);
+  const rhoBar = new Float64Array(numElems);
+  const rhoPhysical = new Float64Array(numElems);
+  const dCdrhoBar = new Float64Array(numElems);
+  const dCdrho = new Float64Array(numElems);
+  
+  const penalRampRate = (params.penalEnd - params.penalStart) / params.penalRampIters;
+  
   for (let iter = 1; iter <= params.maxIters; iter++) {
-    const penal = schedulePenal(iter, params);
-    const rhoBar = applyDensityFilter(densities, filter);
+    applyDensityFilter(densities, filter, rhoBar);
     
-    // Heaviside projection
-    const rhoPhysical = new Float64Array(numElems);
-    for (let e = 0; e < numElems; e++) rhoPhysical[e] = heavisideProject(rhoBar[e], beta, 0.5);
+    for (let e = 0; e < numElems; e++) {
+      rhoPhysical[e] = heavisideProject(rhoBar[e], beta, 0.5);
+    }
     
-    // Solve FE
-    const { u, converged: solverOk } = solvePCG(kernel, rhoPhysical, forces, fixedDofs, penal, params.E0, params.Emin, params.cgTol, params.cgMaxIters);
+    const adaptiveCgTol = iter <= ADAPTIVE_CG_EARLY_ITERS ? ADAPTIVE_CG_TOL_EARLY : 
+                           iter <= ADAPTIVE_CG_MID_ITERS ? ADAPTIVE_CG_TOL_MID : 
+                           params.cgTol;
+    
+    const { u, converged: solverOk, iters: cgIters } = solvePCG(
+      kernel, rhoPhysical, forces, fixedDofs, penal, params.E0, params.Emin,
+      adaptiveCgTol, params.cgMaxIters, pcgWorkspace, iter === 1 ? undefined : uPrev
+    );
     
     if (!solverOk) {
-      yield { iter, compliance: Infinity, change: 1.0, vol: params.volFrac, densities: new Float32Array(densities), converged: false, error: `Solver failed at iter ${iter}` };
+      yield { iter, compliance: Infinity, change: 1.0, vol: params.volFrac, densities: new Float32Array(densities), converged: false, error: `PCG failed at iter ${iter}` };
       return;
     }
     
-    // Compute compliance and sensitivities
+    for (let i = 0; i < kernel.numDofs; i++) uPrev[i] = u[i];
+    
     const compliance = dot(forces, u);
+    if (!Number.isFinite(compliance) || compliance <= 0) {
+      yield { iter, compliance: Infinity, change: 1.0, vol: params.volFrac, densities: new Float32Array(densities), converged: false, error: `Invalid compliance at iter ${iter}` };
+      return;
+    }
+    
     const ce = computeElementCe(kernel, u);
     const dCdrhoTilde = computeSensitivities(rhoPhysical, ce, penal, params.E0, params.Emin);
     
-    // Chain rule: projection + filter
-    const dCdrhoBar = new Float64Array(numElems);
-    for (let e = 0; e < numElems; e++) dCdrhoBar[e] = dCdrhoTilde[e] * heavisideDerivative(rhoBar[e], beta, 0.5);
-    const dCdrho = applyFilterChainRule(dCdrhoBar, filter);
+    for (let e = 0; e < numElems; e++) {
+      dCdrhoBar[e] = dCdrhoTilde[e] * heavisideDerivative(rhoBar[e], beta, 0.5);
+    }
+    applyFilterChainRule(dCdrhoBar, filter, dCdrho);
     
-    // OC update
-    const newDensities = updateDensitiesOC(densities, dCdrho, params.volFrac, params.move, params.rhoMin);
+    const newDensities = updateDensitiesOC(densities, dCdrho, params.volFrac, moveLimit, params.rhoMin);
     
     let maxChange = 0;
-    for (let e = 0; e < numElems; e++) maxChange = Math.max(maxChange, Math.abs(newDensities[e] - densities[e]));
+    for (let e = 0; e < numElems; e++) {
+      maxChange = Math.max(maxChange, Math.abs(newDensities[e] - densities[e]));
+    }
     
     let vol = 0;
     for (let e = 0; e < numElems; e++) vol += rhoPhysical[e];
@@ -477,16 +557,36 @@ export async function* runSimp(mesh: RenderMesh, markers: GoalMarkers, params: S
     
     densities = newDensities;
     
-    // Beta continuation
     const grayLevel = computeGrayLevel(rhoPhysical);
-    const isStable = maxChange < 0.01 && (prevRhoPhysical === null || !rhoPhysical.some((r, i) => Math.abs(r - prevRhoPhysical![i]) > 0.02));
-    if (isStable && grayLevel > grayTol && beta < betaMax) beta = Math.min(beta * 2, betaMax);
-    prevRhoPhysical = Float64Array.from(rhoPhysical);
-    
-    // Convergence
     const compChange = Math.abs(compliance - prevCompliance) / Math.max(1, compliance);
-    if (compChange < params.tolChange && maxChange < params.tolChange) consecutiveConverged++;
-    else consecutiveConverged = 0;
+    
+    const isConverging = compChange < params.tolChange && maxChange < params.tolChange;
+    const isDiscrete = grayLevel < grayTol;
+    
+    if (isConverging && isDiscrete) {
+      consecutiveConverged++;
+    } else if (isConverging) {
+      consecutiveConverged = Math.max(0, consecutiveConverged - 1);
+    } else {
+      consecutiveConverged = 0;
+    }
+    
+    if (isConverging && maxChange < MOVE_LIMIT_STABLE_THRESHOLD) {
+      moveLimit = Math.min(moveLimit * MOVE_LIMIT_INCREASE_FACTOR, MOVE_LIMIT_MAX);
+    } else if (!isConverging && maxChange > MOVE_LIMIT_UNSTABLE_THRESHOLD) {
+      moveLimit = Math.max(moveLimit * MOVE_LIMIT_DECREASE_FACTOR, MOVE_LIMIT_MIN);
+    }
+    
+    if (isConverging && grayLevel > grayTol && beta < betaMax) {
+      beta = Math.min(beta * BETA_INCREASE_FACTOR, betaMax);
+      consecutiveConverged = 0;
+    }
+    
+    if (iter < params.penalRampIters) {
+      penal = params.penalStart + iter * penalRampRate;
+    } else {
+      penal = params.penalEnd;
+    }
     
     const densitiesF32 = new Float32Array(numElems);
     for (let i = 0; i < numElems; i++) densitiesF32[i] = rhoPhysical[i];
@@ -494,10 +594,46 @@ export async function* runSimp(mesh: RenderMesh, markers: GoalMarkers, params: S
     yield { iter, compliance, change: maxChange, vol, densities: densitiesF32, converged: consecutiveConverged >= minIterations };
     
     if (consecutiveConverged >= minIterations) break;
+    
     prevCompliance = compliance;
     await new Promise(r => setTimeout(r, 0));
   }
 }
 
+/** Permissive SIMP solver - attempts to run with fallbacks for backward compatibility */
+export async function* runSimpPermissive(
+  mesh: RenderMesh,
+  markers: GoalMarkers,
+  params: SimpParams
+): AsyncGenerator<SolverFrame> {
+  const permissiveConfig: ValidationConfig = {
+    ...DefaultValidationConfig,
+    mode: 'permissive',
+    policies: {
+      missingLoad: 'warn',
+      missingSupport: 'warn',
+      loadOnFixedDof: 'warn'
+    }
+  };
+  
+  try {
+    yield* runSimp(mesh, markers, params, permissiveConfig);
+  } catch (error) {
+    if (error instanceof SimpValidationError) {
+      yield {
+        iter: 0,
+        compliance: Infinity,
+        change: 1.0,
+        vol: params.volFrac,
+        densities: new Float32Array(params.nx * params.ny * params.nz),
+        converged: false,
+        error: error.message
+      };
+    } else {
+      throw error;
+    }
+  }
+}
+
 /** Legacy export for backwards compatibility */
-export const runSimp3D = runSimp;
+export const runSimp3D = runSimpPermissive;
