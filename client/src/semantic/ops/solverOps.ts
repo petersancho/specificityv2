@@ -84,6 +84,7 @@ export const SOLVER_OPS: readonly SemanticOpMeta[] = [
     stable: false,
     since: '2.0.0'
   },
+  // Internal simulator operations (not directly exposed to nodes)
   {
     id: 'simulator.initialize',
     domain: 'solver',
@@ -95,9 +96,10 @@ export const SOLVER_OPS: readonly SemanticOpMeta[] = [
     pure: false,
     deterministic: true,
     sideEffects: ['state'],
-    summary: 'Initializes simulation state',
+    summary: 'Initializes simulation state (internal implementation detail)',
     stable: true,
-    since: '1.0.0'
+    since: '1.0.0',
+    internal: true
   },
   {
     id: 'simulator.step',
@@ -110,9 +112,10 @@ export const SOLVER_OPS: readonly SemanticOpMeta[] = [
     pure: false,
     deterministic: false,
     sideEffects: ['state'],
-    summary: 'Executes single simulation step',
+    summary: 'Executes single simulation step (internal implementation detail)',
     stable: true,
-    since: '1.0.0'
+    since: '1.0.0',
+    internal: true
   },
   {
     id: 'simulator.converge',
@@ -125,9 +128,10 @@ export const SOLVER_OPS: readonly SemanticOpMeta[] = [
     pure: true,
     deterministic: true,
     sideEffects: [],
-    summary: 'Checks simulation convergence criteria',
+    summary: 'Checks simulation convergence criteria (internal implementation detail)',
     stable: true,
-    since: '1.0.0'
+    since: '1.0.0',
+    internal: true
   },
   {
     id: 'simulator.finalize',
@@ -140,9 +144,10 @@ export const SOLVER_OPS: readonly SemanticOpMeta[] = [
     pure: false,
     deterministic: true,
     sideEffects: ['state'],
-    summary: 'Finalizes simulation and generates output',
+    summary: 'Finalizes simulation and generates output (internal implementation detail)',
     stable: true,
-    since: '1.0.0'
+    since: '1.0.0',
+    internal: true
   },
 
   // Voxel Simulator Operations
@@ -192,171 +197,182 @@ export const SOLVER_OPS: readonly SemanticOpMeta[] = [
     since: '2.0.0'
   },
 
-  // Topology Simulator Operations
+  // Topology Simulator Operations (internal implementation details)
   {
     id: 'simulator.topology.initialize',
     domain: 'solver',
     name: 'Initialize Topology Simulator',
     category: 'utility',
-    tags: ['simulation', 'topology', 'optimization'],
+    tags: ['simulation', 'topology', 'optimization', 'internal'],
     complexity: 'O(n)',
     cost: 'medium',
     pure: false,
     deterministic: true,
     sideEffects: ['state'],
-    summary: 'Initializes SIMP density field and topology constraints',
+    summary: 'Initializes SIMP density field and topology constraints (internal)',
     stable: true,
-    since: '2.0.0'
+    since: '2.0.0',
+    internal: true
   },
   {
     id: 'simulator.topology.step',
     domain: 'solver',
     name: 'Step Topology Simulator',
     category: 'utility',
-    tags: ['simulation', 'topology', 'optimization'],
+    tags: ['simulation', 'topology', 'optimization', 'internal'],
     complexity: 'O(n)',
     cost: 'high',
     pure: false,
     deterministic: true,
     sideEffects: ['state'],
-    summary: 'Executes one SIMP optimization iteration',
+    summary: 'Executes one SIMP optimization iteration (internal)',
     stable: true,
-    since: '2.0.0'
+    since: '2.0.0',
+    internal: true
   },
   {
     id: 'simulator.topology.converge',
     domain: 'solver',
     name: 'Check Topology Convergence',
     category: 'analysis',
-    tags: ['simulation', 'topology', 'optimization'],
+    tags: ['simulation', 'topology', 'optimization', 'internal'],
     complexity: 'O(1)',
     cost: 'low',
     pure: true,
     deterministic: true,
     sideEffects: [],
-    summary: 'Checks topology optimization convergence criteria',
+    summary: 'Checks topology optimization convergence criteria (internal)',
     stable: true,
-    since: '2.0.0'
+    since: '2.0.0',
+    internal: true
   },
   {
     id: 'simulator.topology.finalize',
     domain: 'solver',
     name: 'Finalize Topology Simulator',
     category: 'utility',
-    tags: ['simulation', 'topology', 'geometry'],
+    tags: ['simulation', 'topology', 'geometry', 'internal'],
     complexity: 'O(n)',
     cost: 'high',
     pure: false,
     deterministic: true,
     sideEffects: ['state'],
-    summary: 'Extracts and registers topology geometry from the density field',
+    summary: 'Extracts and registers topology geometry from the density field (internal)',
     stable: true,
-    since: '2.0.0'
+    since: '2.0.0',
+    internal: true
   },
   {
     id: 'simulator.topology.preview',
     domain: 'solver',
     name: 'Preview Topology Geometry',
     category: 'analysis',
-    tags: ['simulation', 'topology', 'analysis', 'view'],
+    tags: ['simulation', 'topology', 'analysis', 'view', 'internal'],
     complexity: 'O(n)',
     cost: 'medium',
     pure: false,
     deterministic: true,
     sideEffects: ['state'],
-    summary: 'Builds lightweight preview geometry during simulation',
+    summary: 'Builds lightweight preview geometry during simulation (internal)',
     stable: true,
-    since: '2.1.0'
+    since: '2.1.0',
+    internal: true
   },
   {
     id: 'simulator.topology.sync',
     domain: 'solver',
     name: 'Sync Topology Geometry',
     category: 'io',
-    tags: ['simulation', 'topology', 'state', 'display'],
+    tags: ['simulation', 'topology', 'state', 'display', 'internal'],
     complexity: 'O(n)',
     cost: 'medium',
     pure: false,
     deterministic: true,
     sideEffects: ['state'],
-    summary: 'Synchronizes preview geometry into Roslyn viewport',
+    summary: 'Synchronizes preview geometry into Roslyn viewport (internal)',
     stable: true,
-    since: '2.1.0'
+    since: '2.1.0',
+    internal: true
   },
   {
     id: 'simulator.topology.pause',
     domain: 'solver',
     name: 'Pause Topology Simulator',
     category: 'utility',
-    tags: ['simulation', 'topology', 'control'],
+    tags: ['simulation', 'topology', 'control', 'internal'],
     complexity: 'O(1)',
     cost: 'low',
     pure: false,
     deterministic: true,
     sideEffects: ['state'],
-    summary: 'Pauses topology optimization iteration loop',
+    summary: 'Pauses topology optimization iteration loop (internal)',
     stable: true,
-    since: '2.1.0'
+    since: '2.1.0',
+    internal: true
   },
   {
     id: 'simulator.topology.resume',
     domain: 'solver',
     name: 'Resume Topology Simulator',
     category: 'utility',
-    tags: ['simulation', 'topology', 'control'],
+    tags: ['simulation', 'topology', 'control', 'internal'],
     complexity: 'O(1)',
     cost: 'low',
     pure: false,
     deterministic: true,
     sideEffects: ['state'],
-    summary: 'Resumes topology optimization iteration loop',
+    summary: 'Resumes topology optimization iteration loop (internal)',
     stable: true,
-    since: '2.1.0'
+    since: '2.1.0',
+    internal: true
   },
   {
     id: 'simulator.topology.reset',
     domain: 'solver',
     name: 'Reset Topology Simulator',
     category: 'utility',
-    tags: ['simulation', 'topology', 'control'],
+    tags: ['simulation', 'topology', 'control', 'internal'],
     complexity: 'O(1)',
     cost: 'low',
     pure: false,
     deterministic: true,
     sideEffects: ['state'],
-    summary: 'Resets topology simulation state and clears outputs',
+    summary: 'Resets topology simulation state and clears outputs (internal)',
     stable: true,
-    since: '2.1.0'
+    since: '2.1.0',
+    internal: true
   },
   {
     id: 'simulator.topology.plasticwrap',
     domain: 'solver',
     name: 'Plasticwrap Topology Geometry',
     category: 'utility',
-    tags: ['simulation', 'topology', 'geometry'],
+    tags: ['simulation', 'topology', 'geometry', 'internal'],
     complexity: 'O(n)',
     cost: 'medium',
     pure: false,
     deterministic: true,
     sideEffects: ['state'],
-    summary: 'Applies plasticwrap smoothing pass to topology output',
+    summary: 'Applies plasticwrap smoothing pass to topology output (internal)',
     stable: true,
-    since: '2.1.0'
+    since: '2.1.0',
+    internal: true
   },
   {
     id: 'simulator.topology.stabilityGuard',
     domain: 'solver',
     name: 'Topology Stability Guard',
     category: 'analysis',
-    tags: ['simulation', 'topology', 'analysis', 'control'],
+    tags: ['simulation', 'topology', 'analysis', 'control', 'internal'],
     complexity: 'O(1)',
     cost: 'low',
     pure: false,
     deterministic: true,
     sideEffects: ['state'],
-    summary: 'Escalates convergence strategy when FE solver stalls repeatedly',
+    summary: 'Escalates convergence strategy when FE solver stalls repeatedly (internal)',
     stable: true,
-    since: '2.1.0'
+    since: '2.1.0',
+    internal: true
   },
   
   // Chemistry Simulator Operations

@@ -1,13 +1,13 @@
 # Semantic Inventory
 
-Generated: 2026-02-04T20:15:51.866Z
+Generated: 2026-02-04T20:34:56.551Z
 
 ## Summary
 
 - **Total Operations**: 315
 - **Total Nodes**: 172
 - **Total Dashboards**: 3
-- **Orphan Operations**: 61
+- **Orphan Operations**: 50
 - **Dangling References**: 0
 
 ## Operations by Domain
@@ -597,17 +597,6 @@ Generated: 2026-02-04T20:15:51.866Z
 
 These operations are defined but never used by any node:
 
-- `simulator.topology.initialize`
-- `simulator.topology.step`
-- `simulator.topology.converge`
-- `simulator.topology.finalize`
-- `simulator.topology.preview`
-- `simulator.topology.sync`
-- `simulator.topology.pause`
-- `simulator.topology.resume`
-- `simulator.topology.reset`
-- `simulator.topology.plasticwrap`
-- `simulator.topology.stabilityGuard`
 - `solver.topologyOptimization.optimize`
 - `command.createNurbsBox`
 - `command.createNurbsSphere`

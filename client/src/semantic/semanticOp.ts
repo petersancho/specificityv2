@@ -391,6 +391,9 @@ export interface SemanticOpMeta {
   
   /** Whether this operation is stable (false = experimental) */
   stable?: boolean;
+  
+  /** Whether this is an internal implementation detail (not exposed to nodes/commands) */
+  internal?: boolean;
 }
 
 /**

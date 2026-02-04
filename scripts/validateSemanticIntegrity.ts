@@ -118,7 +118,7 @@ function validateSemanticIntegrity(): ValidationResult {
   
   const orphanOperations = operations
     .filter(op => !usedOperations.has(op.id))
-    .filter(op => !op.tags?.includes('internal')) // Exclude internal operations
+    .filter(op => !op.tags?.includes('internal') && !op.internal) // Exclude internal operations
     .map(op => op.id);
   
   if (orphanOperations.length > 0) {

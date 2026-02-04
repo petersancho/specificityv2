@@ -1974,9 +1974,10 @@
     "sideEffects": [
       "state"
     ],
-    "summary": "Initializes simulation state",
+    "summary": "Initializes simulation state (internal implementation detail)",
     "stable": true,
-    "since": "1.0.0"
+    "since": "1.0.0",
+    "internal": true
   },
   "simulator.step": {
     "id": "simulator.step",
@@ -1994,9 +1995,10 @@
     "sideEffects": [
       "state"
     ],
-    "summary": "Executes single simulation step",
+    "summary": "Executes single simulation step (internal implementation detail)",
     "stable": true,
-    "since": "1.0.0"
+    "since": "1.0.0",
+    "internal": true
   },
   "simulator.converge": {
     "id": "simulator.converge",
@@ -2012,9 +2014,10 @@
     "pure": true,
     "deterministic": true,
     "sideEffects": [],
-    "summary": "Checks simulation convergence criteria",
+    "summary": "Checks simulation convergence criteria (internal implementation detail)",
     "stable": true,
-    "since": "1.0.0"
+    "since": "1.0.0",
+    "internal": true
   },
   "simulator.finalize": {
     "id": "simulator.finalize",
@@ -2032,9 +2035,10 @@
     "sideEffects": [
       "state"
     ],
-    "summary": "Finalizes simulation and generates output",
+    "summary": "Finalizes simulation and generates output (internal implementation detail)",
     "stable": true,
-    "since": "1.0.0"
+    "since": "1.0.0",
+    "internal": true
   },
   "simulator.voxel.initialize": {
     "id": "simulator.voxel.initialize",
@@ -2107,7 +2111,8 @@
     "tags": [
       "simulation",
       "topology",
-      "optimization"
+      "optimization",
+      "internal"
     ],
     "complexity": "O(n)",
     "cost": "medium",
@@ -2116,9 +2121,10 @@
     "sideEffects": [
       "state"
     ],
-    "summary": "Initializes SIMP density field and topology constraints",
+    "summary": "Initializes SIMP density field and topology constraints (internal)",
     "stable": true,
-    "since": "2.0.0"
+    "since": "2.0.0",
+    "internal": true
   },
   "simulator.topology.step": {
     "id": "simulator.topology.step",
@@ -2128,7 +2134,8 @@
     "tags": [
       "simulation",
       "topology",
-      "optimization"
+      "optimization",
+      "internal"
     ],
     "complexity": "O(n)",
     "cost": "high",
@@ -2137,9 +2144,10 @@
     "sideEffects": [
       "state"
     ],
-    "summary": "Executes one SIMP optimization iteration",
+    "summary": "Executes one SIMP optimization iteration (internal)",
     "stable": true,
-    "since": "2.0.0"
+    "since": "2.0.0",
+    "internal": true
   },
   "simulator.topology.converge": {
     "id": "simulator.topology.converge",
@@ -2149,16 +2157,18 @@
     "tags": [
       "simulation",
       "topology",
-      "optimization"
+      "optimization",
+      "internal"
     ],
     "complexity": "O(1)",
     "cost": "low",
     "pure": true,
     "deterministic": true,
     "sideEffects": [],
-    "summary": "Checks topology optimization convergence criteria",
+    "summary": "Checks topology optimization convergence criteria (internal)",
     "stable": true,
-    "since": "2.0.0"
+    "since": "2.0.0",
+    "internal": true
   },
   "simulator.topology.finalize": {
     "id": "simulator.topology.finalize",
@@ -2168,7 +2178,8 @@
     "tags": [
       "simulation",
       "topology",
-      "geometry"
+      "geometry",
+      "internal"
     ],
     "complexity": "O(n)",
     "cost": "high",
@@ -2177,9 +2188,10 @@
     "sideEffects": [
       "state"
     ],
-    "summary": "Extracts and registers topology geometry from the density field",
+    "summary": "Extracts and registers topology geometry from the density field (internal)",
     "stable": true,
-    "since": "2.0.0"
+    "since": "2.0.0",
+    "internal": true
   },
   "simulator.topology.preview": {
     "id": "simulator.topology.preview",
@@ -2190,7 +2202,8 @@
       "simulation",
       "topology",
       "analysis",
-      "view"
+      "view",
+      "internal"
     ],
     "complexity": "O(n)",
     "cost": "medium",
@@ -2199,9 +2212,10 @@
     "sideEffects": [
       "state"
     ],
-    "summary": "Builds lightweight preview geometry during simulation",
+    "summary": "Builds lightweight preview geometry during simulation (internal)",
     "stable": true,
-    "since": "2.1.0"
+    "since": "2.1.0",
+    "internal": true
   },
   "simulator.topology.sync": {
     "id": "simulator.topology.sync",
@@ -2212,7 +2226,8 @@
       "simulation",
       "topology",
       "state",
-      "display"
+      "display",
+      "internal"
     ],
     "complexity": "O(n)",
     "cost": "medium",
@@ -2221,9 +2236,10 @@
     "sideEffects": [
       "state"
     ],
-    "summary": "Synchronizes preview geometry into Roslyn viewport",
+    "summary": "Synchronizes preview geometry into Roslyn viewport (internal)",
     "stable": true,
-    "since": "2.1.0"
+    "since": "2.1.0",
+    "internal": true
   },
   "simulator.topology.pause": {
     "id": "simulator.topology.pause",
@@ -2233,7 +2249,8 @@
     "tags": [
       "simulation",
       "topology",
-      "control"
+      "control",
+      "internal"
     ],
     "complexity": "O(1)",
     "cost": "low",
@@ -2242,9 +2259,10 @@
     "sideEffects": [
       "state"
     ],
-    "summary": "Pauses topology optimization iteration loop",
+    "summary": "Pauses topology optimization iteration loop (internal)",
     "stable": true,
-    "since": "2.1.0"
+    "since": "2.1.0",
+    "internal": true
   },
   "simulator.topology.resume": {
     "id": "simulator.topology.resume",
@@ -2254,7 +2272,8 @@
     "tags": [
       "simulation",
       "topology",
-      "control"
+      "control",
+      "internal"
     ],
     "complexity": "O(1)",
     "cost": "low",
@@ -2263,9 +2282,10 @@
     "sideEffects": [
       "state"
     ],
-    "summary": "Resumes topology optimization iteration loop",
+    "summary": "Resumes topology optimization iteration loop (internal)",
     "stable": true,
-    "since": "2.1.0"
+    "since": "2.1.0",
+    "internal": true
   },
   "simulator.topology.reset": {
     "id": "simulator.topology.reset",
@@ -2275,7 +2295,8 @@
     "tags": [
       "simulation",
       "topology",
-      "control"
+      "control",
+      "internal"
     ],
     "complexity": "O(1)",
     "cost": "low",
@@ -2284,9 +2305,10 @@
     "sideEffects": [
       "state"
     ],
-    "summary": "Resets topology simulation state and clears outputs",
+    "summary": "Resets topology simulation state and clears outputs (internal)",
     "stable": true,
-    "since": "2.1.0"
+    "since": "2.1.0",
+    "internal": true
   },
   "simulator.topology.plasticwrap": {
     "id": "simulator.topology.plasticwrap",
@@ -2296,7 +2318,8 @@
     "tags": [
       "simulation",
       "topology",
-      "geometry"
+      "geometry",
+      "internal"
     ],
     "complexity": "O(n)",
     "cost": "medium",
@@ -2305,9 +2328,10 @@
     "sideEffects": [
       "state"
     ],
-    "summary": "Applies plasticwrap smoothing pass to topology output",
+    "summary": "Applies plasticwrap smoothing pass to topology output (internal)",
     "stable": true,
-    "since": "2.1.0"
+    "since": "2.1.0",
+    "internal": true
   },
   "simulator.topology.stabilityGuard": {
     "id": "simulator.topology.stabilityGuard",
@@ -2318,7 +2342,8 @@
       "simulation",
       "topology",
       "analysis",
-      "control"
+      "control",
+      "internal"
     ],
     "complexity": "O(1)",
     "cost": "low",
@@ -2327,9 +2352,10 @@
     "sideEffects": [
       "state"
     ],
-    "summary": "Escalates convergence strategy when FE solver stalls repeatedly",
+    "summary": "Escalates convergence strategy when FE solver stalls repeatedly (internal)",
     "stable": true,
-    "since": "2.1.0"
+    "since": "2.1.0",
+    "internal": true
   },
   "simulator.chemistry.initialize": {
     "id": "simulator.chemistry.initialize",
