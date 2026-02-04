@@ -5005,9 +5005,7 @@
     "tags": [
       "geometry",
       "analysis",
-      "vertices",
-      "extent",
-      "axis"
+      "vertices"
     ],
     "complexity": "O(n)",
     "cost": "low",
