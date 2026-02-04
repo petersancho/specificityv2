@@ -1,173 +1,17 @@
 /* Chemistry Simulator Dashboard - Apollonius (Material Distribution) */
-/* Color Scheme: Cyan (primary), Yellow (secondary), Magenta (accent) */
+/* Extends base dashboard styles with Cyan accent color scheme */
 
+@import "../dashboard.base.module.css";
+
+/* Solver-specific CSS custom properties */
 .dashboard {
-  --solver-accent: var(--color-solver-chemistry);
+  --solver-accent: var(--bk-cyan);
   --solver-accent-secondary: var(--bk-yellow);
   --solver-accent-tertiary: var(--bk-magenta);
-  
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 10000;
-  background: var(--surface-page);
-  display: flex;
-  flex-direction: column;
-  font-family: var(--font-sans);
-  color: var(--bk-black);
-  overflow: hidden;
+  --solver-accent-soft: var(--bk-cyan-soft);
 }
 
-/* Header */
-.header {
-  flex-shrink: 0;
-  background: var(--surface-card);
-  border-bottom: 1px solid color-mix(in srgb, var(--bk-black) 18%, transparent);
-  box-shadow: var(--shadow-sticker-pressed);
-}
-
-.headerBar {
-  height: 4px;
-  background: var(--bk-cyan);
-}
-
-.headerContent {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem 1.5rem;
-}
-
-.title {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.titleGreek {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--bk-cyan);
-  letter-spacing: 0.02em;
-}
-
-.titleEnglish {
-  font-size: 0.9rem;
-  color: color-mix(in srgb, var(--bk-black) 65%, transparent);
-  font-weight: 500;
-}
-
-.titleSubtext {
-  font-size: 0.75rem;
-  color: color-mix(in srgb, var(--bk-black) 45%, transparent);
-  font-style: italic;
-}
-
-.headerControls {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.scaleControl {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.85rem;
-  color: color-mix(in srgb, var(--bk-black) 60%, transparent);
-}
-
-.scaleControl input[type="range"] {
-  width: 100px;
-}
-
-.scaleControl span {
-  min-width: 3rem;
-  text-align: right;
-  font-weight: 500;
-}
-
-.closeButton {
-  width: 2rem;
-  height: 2rem;
-  border: 2px solid var(--bk-black);
-  background: var(--bk-yellow);
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 1.2rem;
-  color: var(--bk-black);
-  transition: all 0.2s;
-  box-shadow: var(--shadow-sticker-pressed);
-}
-
-.closeButton:hover {
-  background: var(--bk-magenta);
-  color: var(--surface-card);
-}
-
-/* Tabs */
-.tabs {
-  display: flex;
-  background: var(--surface-card);
-  border-bottom: 1px solid color-mix(in srgb, var(--bk-black) 18%, transparent);
-  padding: 0 1.5rem;
-  flex-shrink: 0;
-}
-
-.tab {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: color-mix(in srgb, var(--bk-black) 60%, transparent);
-  border-bottom: 2px solid transparent;
-  transition: all 0.2s;
-  position: relative;
-}
-
-.tab:hover {
-  color: var(--bk-cyan);
-}
-
-.tabActive {
-  color: var(--bk-cyan);
-  border-bottom-color: var(--bk-cyan);
-}
-
-/* Content */
-.content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 1.5rem;
-}
-
-/* Setup Tab */
-.setupTab {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.section {
-  background: var(--surface-card);
-  border-radius: 8px;
-  padding: 1.5rem;
-  box-shadow: var(--shadow-sticker-pressed);
-}
-
-.sectionTitle {
-  margin: 0 0 1rem 0;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--bk-black);
-  border-bottom: 2px solid var(--bk-cyan);
-  padding-bottom: 0.5rem;
-}
-
+/* Chemistry-specific: Material Selection Grid */
 .materialGrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -184,15 +28,15 @@
 }
 
 .materialCard:hover {
-  border-color: var(--bk-cyan);
-  box-shadow: 0 4px 12px rgba(0, 212, 255, 0.15);
+  border-color: var(--solver-accent);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--solver-accent) 15%, transparent);
   transform: translateY(-2px);
 }
 
 .materialCardSelected {
-  border-color: var(--bk-cyan);
-  background: var(--bk-cyan-soft);
-  box-shadow: 0 4px 12px rgba(0, 212, 255, 0.2);
+  border-color: var(--solver-accent);
+  background: var(--solver-accent-soft);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--solver-accent) 20%, transparent);
 }
 
 .materialColor {
@@ -218,33 +62,7 @@
   color: #666;
 }
 
-.twoColumn {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
-}
-
-.addButton,
-.goalButton {
-  padding: 0.5rem 1rem;
-  border: 2px dashed var(--bk-cyan);
-  background: rgba(0, 212, 255, 0.05);
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: var(--bk-cyan);
-  transition: all 0.2s;
-  margin-bottom: 1rem;
-}
-
-.addButton:hover,
-.goalButton:hover {
-  background: rgba(0, 212, 255, 0.1);
-  border-color: var(--bk-cyan);
-  transform: translateY(-1px);
-}
-
+/* Chemistry-specific: Goal Buttons */
 .goalButtons {
   display: flex;
   flex-wrap: wrap;
@@ -253,11 +71,25 @@
 }
 
 .goalButton {
-  margin-bottom: 0;
+  padding: 0.5rem 1rem;
+  border: 2px dashed var(--solver-accent);
+  background: color-mix(in srgb, var(--solver-accent) 5%, transparent);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--solver-accent);
+  transition: all 0.2s;
   flex: 1;
   min-width: 120px;
 }
 
+.goalButton:hover {
+  background: color-mix(in srgb, var(--solver-accent) 10%, transparent);
+  transform: translateY(-1px);
+}
+
+/* Chemistry-specific: Seed and Goal Lists */
 .seedList,
 .goalList {
   display: flex;
@@ -281,23 +113,6 @@
   margin-bottom: 0.75rem;
   font-weight: 600;
   color: #333;
-}
-
-.removeButton {
-  width: 1.5rem;
-  height: 1.5rem;
-  border: none;
-  background: #f5f5f5;
-  border-radius: 3px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  color: #999;
-  transition: all 0.2s;
-}
-
-.removeButton:hover {
-  background: var(--bk-magenta);
-  color: var(--surface-card);
 }
 
 .seedControls {
@@ -328,6 +143,7 @@
   width: 100%;
 }
 
+/* Chemistry-specific: Parameter Grid */
 .paramGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -355,124 +171,17 @@
 
 .paramGrid span {
   font-weight: 600;
-  color: var(--bk-cyan);
+  color: var(--solver-accent);
 }
 
-/* Simulator Tab */
-.simulatorTab {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.controlPanel {
-  display: flex;
-  gap: 0.75rem;
-  background: var(--surface-card);
-  padding: 1rem;
-  border-radius: 8px;
-  box-shadow: var(--shadow-sticker-pressed);
-}
-
-.controlButton {
-  flex: 1;
-  padding: 0.75rem 1.5rem;
-  border: 2px solid var(--bk-black);
-  background: var(--bk-cyan);
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--bk-black);
-  transition: all 0.2s;
-  box-shadow: var(--shadow-sticker-pressed);
-}
-
-.controlButton:hover:not(:disabled) {
-  background: #1fe8ff;
-  color: var(--bk-black);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-sticker-hover);
-}
-
-.controlButton:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.statsGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-}
-
-.statCard {
-  background: var(--surface-card);
-  border-radius: 8px;
-  padding: 1.25rem;
-  box-shadow: var(--shadow-sticker-pressed);
-  border-left: 4px solid var(--bk-cyan);
-}
-
-.statLabel {
-  font-size: 0.85rem;
-  color: #666;
-  margin-bottom: 0.5rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.statValue {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--bk-cyan);
-}
-
+/* Chemistry-specific: Visualization Grid */
 .visualizationGrid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
 }
 
-.visualizationCard {
-  background: var(--surface-card);
-  border-radius: 8px;
-  padding: 1rem;
-  box-shadow: var(--shadow-sticker-pressed);
-}
-
-.visualizationCard h4 {
-  margin: 0 0 1rem 0;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #333;
-  border-bottom: 1px solid #e0e0e0;
-  padding-bottom: 0.5rem;
-}
-
-.placeholder {
-  aspect-ratio: 16 / 9;
-  background: var(--bk-cyan-soft);
-  border: 2px dashed var(--bk-cyan);
-  border-radius: 6px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
-.placeholderText {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--bk-cyan);
-}
-
-.placeholderSubtext {
-  font-size: 0.85rem;
-  color: #999;
-}
-
+/* Chemistry-specific: Material Legend */
 .materialLegend {
   background: var(--surface-card);
   border-radius: 8px;
@@ -498,447 +207,73 @@
   align-items: center;
   gap: 0.5rem;
   font-size: 0.9rem;
-  color: #666;
+  color: #333;
 }
 
 .legendColor {
   width: 24px;
   height: 24px;
   border-radius: 4px;
-  box-shadow: var(--shadow-sticker-pressed);
+  border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
-/* Output Tab */
-.outputTab {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.meshPreview {
-  aspect-ratio: 16 / 9;
-}
-
-.analysisCard,
-.metricsCard {
-  background: #fafafa;
-  border-radius: 6px;
-  padding: 1rem;
-  border: 1px solid #e0e0e0;
-}
-
-.metricRow {
-  display: flex;
-  justify-content: space-between;
-  padding: 0.75rem 0;
-  border-bottom: 1px solid #e0e0e0;
-  font-size: 0.9rem;
-  color: #666;
-}
-
-.metricRow:last-child {
-  border-bottom: none;
-}
-
-.metricValue {
-  font-weight: 600;
-  color: var(--bk-cyan);
-}
-
-.sliceGrid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-}
-
-.sliceCard {
-  background: var(--surface-card);
-  border-radius: 8px;
-  padding: 1rem;
-  box-shadow: var(--shadow-sticker-pressed);
-}
-
-.sliceCard h4 {
-  margin: 0 0 0.75rem 0;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #333;
-  text-align: center;
-}
-
-.exportButtons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-}
-
-.exportButton {
-  flex: 1;
-  min-width: 200px;
-  padding: 0.75rem 1.5rem;
-  border: 2px solid var(--bk-yellow);
-  background: var(--surface-card);
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--bk-yellow);
-  transition: all 0.2s;
-}
-
-.exportButton:hover {
-  background: var(--bk-yellow);
-  color: #333;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(255, 221, 0, 0.3);
-}
-
-/* Animations */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.setupTab,
-.simulatorTab,
-.outputTab {
-  animation: fadeIn 0.3s ease-out;
-}
-
-/* Scrollbar */
-.content::-webkit-scrollbar {
-  width: 8px;
-}
-
-.content::-webkit-scrollbar-track {
-  background: #f5f5f5;
-}
-
-.content::-webkit-scrollbar-thumb {
-  background: var(--bk-cyan);
+/* Chemistry-specific: Concentration Bars */
+.concentrationBar {
+  height: 8px;
   border-radius: 4px;
+  background: linear-gradient(to right, var(--solver-accent-soft), var(--solver-accent));
+  transition: width 0.3s ease;
 }
 
-.content::-webkit-scrollbar-thumb:hover {
-  background: #00b8e6;
-}
-
-.parametersTab {
+.concentrationLabel {
   display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.summaryGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 0.75rem;
-}
-
-.summaryCard {
-  background: var(--surface-card);
-  border: 2px solid #000000;
-  border-radius: 6px;
-  padding: 0.75rem;
-  box-shadow: 0 4px 0 #000000;
-}
-
-.summaryLabel {
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  justify-content: space-between;
+  font-size: 0.8rem;
   color: #666;
-  margin-bottom: 0.35rem;
+  margin-top: 0.25rem;
 }
 
-.summaryValue {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #111;
-}
-
-.outputGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 0.75rem;
-}
-
-.outputCard {
+/* Chemistry-specific: Reaction Progress */
+.reactionProgress {
   background: var(--surface-card);
-  border: 2px solid #000000;
-  border-radius: 6px;
-  padding: 0.85rem;
-  box-shadow: 0 4px 0 #000000;
-}
-
-.outputLabel {
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #666;
-  margin-bottom: 0.35rem;
-}
-
-.outputValue {
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: #111;
-}
-
-.warningsList {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.warningItem {
-  background: #fff7ed;
-  border: 2px solid #000000;
-  border-radius: 6px;
-  padding: 0.6rem 0.75rem;
-  box-shadow: 0 3px 0 #000000;
-  font-size: 0.85rem;
-}
-
-.diagnosticsStack {
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
-}
-
-.diagnosticGroup {
-  border: 2px solid #000000;
   border-radius: 8px;
-  background: var(--surface-card);
-  box-shadow: 0 4px 0 #000000;
-  padding: 0;
-  overflow: hidden;
-}
-
-.diagnosticSummary {
-  cursor: pointer;
-  padding: 0.85rem 1rem;
-  font-weight: 600;
-  background: var(--bk-yellow-soft);
-  border-bottom: 2px solid #000000;
-}
-
-.diagnosticBody {
   padding: 1rem;
+  box-shadow: var(--shadow-sticker-pressed);
+}
+
+.progressBar {
+  height: 12px;
+  background: var(--surface-page);
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 0.75rem 0;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--solver-accent), var(--solver-accent-secondary));
+  border-radius: 6px;
+  transition: width 0.5s ease;
+}
+
+/* Chemistry-specific: Energy Display */
+.energyDisplay {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 1rem;
-}
-
-.metricGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 0.75rem;
-}
-
-.metricCard {
-  border: 2px solid #000000;
-  border-radius: 6px;
-  padding: 0.75rem;
-  background: #ffffff;
-  box-shadow: 0 3px 0 #000000;
-}
-
-.metricLabel {
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: #666;
-  margin-bottom: 0.4rem;
-}
-
-.metricValue {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #111;
-  margin-bottom: 0.35rem;
-}
-
-.metricMeta {
-  font-size: 0.8rem;
-  color: #555;
-}
-
-.metricDetail {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 0.5rem;
-  font-size: 0.75rem;
-  color: #555;
-}
-
-.metricDetailLabel {
-  font-size: 0.65rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #666;
-}
-
-.metricDetailValue {
-  font-weight: 600;
-  color: #111;
-}
-
-.metricStatus {
-  margin-top: 0.5rem;
-  display: inline-flex;
-  align-items: center;
-  padding: 0.2rem 0.5rem;
-  border-radius: 999px;
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.metricStatusGood {
-  background: var(--bk-cyan);
-  color: #000;
-}
-
-.metricStatusWarn {
-  background: var(--bk-magenta);
-  color: #fff;
-}
-
-.subSection {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.subTitle {
-  font-weight: 600;
-  color: #222;
-}
-
-.flagGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 0.6rem;
-}
-
-.flagItem {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem 0.75rem;
-  border: 2px solid #000000;
-  border-radius: 6px;
-  background: #ffffff;
-  box-shadow: 0 3px 0 #000000;
-  font-size: 0.85rem;
-}
-
-.flagGood {
-  color: #0f766e;
-  font-weight: 700;
-}
-
-.flagBad {
-  color: #b91c1c;
-  font-weight: 700;
-}
-
-.distributionGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 0.75rem;
-}
-
-.distributionCard {
-  border: 2px solid #000000;
-  border-radius: 6px;
-  padding: 0.75rem;
-  background: #ffffff;
-  box-shadow: 0 3px 0 #000000;
-}
-
-.distributionTitle {
-  font-weight: 600;
-  margin-bottom: 0.35rem;
-}
-
-.distributionMeta {
-  font-size: 0.8rem;
-  color: #555;
-}
-
-.materialList {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
-
-.materialItem {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  border: 2px solid #000000;
+  padding: 1rem;
+  background: var(--solver-accent-soft);
   border-radius: 8px;
-  padding: 0.6rem 0.75rem;
-  background: #ffffff;
-  box-shadow: 0 3px 0 #000000;
+  border: 2px solid var(--solver-accent);
 }
 
-.materialSwatch {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  border: 2px solid #000000;
+.energyValue {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--solver-accent);
 }
 
-.materialDetails {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-
-.materialMeta {
-  font-size: 0.78rem;
-  color: #555;
-}
-
-.semanticGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 0.75rem;
-}
-
-.semanticCard {
-  border: 2px solid #000000;
-  border-radius: 8px;
-  padding: 0.75rem;
-  background: #ffffff;
-  box-shadow: 0 3px 0 #000000;
-}
-
-.semanticTitle {
-  font-weight: 600;
-  margin-bottom: 0.35rem;
-}
-
-.semanticMeta {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+.energyUnit {
+  font-size: 0.9rem;
   color: #666;
-  margin-bottom: 0.4rem;
-}
-
-.semanticDescription {
-  font-size: 0.8rem;
-  color: #555;
 }

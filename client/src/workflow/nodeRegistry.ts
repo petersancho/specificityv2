@@ -52,7 +52,7 @@ import { ChemistrySolverNode } from "./nodes/solver/ChemistrySolver";
 import { EvolutionarySolver } from "./nodes/solver/EvolutionarySolver";
 import { VoxelSolverNode } from "./nodes/solver/VoxelSolver";
 import { TopologyOptimizationSolverNode } from "./nodes/solver/TopologyOptimizationSolver";
-import { AnchorGoalNode, LoadGoalNode, StiffnessGoalNode, VolumeGoalNode } from "./nodes/solver/goals/physics";
+import { AnchorGoalNode, LoadGoalNode } from "./nodes/solver/goals/physics";
 import {
   ChemistryBlendGoalNode,
   ChemistryMassGoalNode,
@@ -3809,7 +3809,7 @@ const PRIMITIVE_NODE_DEFINITIONS: WorkflowNodeDefinition[] = PRIMITIVE_NODE_CATA
     description: `Create a ${entry.label} primitive.`,
     category: "primitives",
     iconId: `primitive:${entry.id}`,
-    semanticOps: [`geometry.primitive.${entry.kind}`],
+    semanticOps: [`geometry.primitive.${entry.kind}`] as any,
     inputs: PRIMITIVE_PARAMETER_PORTS,
     outputs: [
       { key: "geometry", label: entry.label, type: "geometry", required: true },
@@ -9239,8 +9239,8 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       }
 
       if (operation === "intersection") {
-        const pointsA = collectGeometryVertices(geometryA, context, Number.POSITIVE_INFINITY);
-        const pointsB = collectGeometryVertices(geometryB, context, Number.POSITIVE_INFINITY);
+        const pointsA = collectGeometryVertices(geometryA!, context, Number.POSITIVE_INFINITY);
+        const pointsB = collectGeometryVertices(geometryB!, context, Number.POSITIVE_INFINITY);
         const boundsA = computeBounds(pointsA);
         const boundsB = computeBounds(pointsB);
         const min = {
@@ -11360,8 +11360,6 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
 
 NODE_DEFINITIONS.push(PhysicsSolverNode, ChemistrySolverNode, EvolutionarySolver, VoxelSolverNode, TopologyOptimizationSolverNode);
 NODE_DEFINITIONS.push(
-  StiffnessGoalNode,
-  VolumeGoalNode,
   LoadGoalNode,
   AnchorGoalNode,
   ChemistryMaterialGoalNode,

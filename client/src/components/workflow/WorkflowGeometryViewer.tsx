@@ -5,6 +5,7 @@ import { add, cross, dot, length, normalize, scale, sub } from "../../geometry/m
 import { WebGLRenderer, type Camera } from "../../webgl/WebGLRenderer";
 import {
   VIEW_STYLE,
+  getViewStyle,
   adjustForSelection,
   clamp01,
   darkenColor,
@@ -321,6 +322,7 @@ const WorkflowGeometryViewer = ({
   const resizeRef = useRef<(() => void) | null>(null);
   const activeGeometryIdsRef = useRef<Set<string>>(new Set());
   const cameraRef = useRef<CameraState>({ ...DEFAULT_CAMERA });
+  const isDarkRef = useRef(false);
 
   const storeGeometry = useProjectStore((state) => state.geometry);
   const gridSettings = useProjectStore((state) => state.gridSettings);
@@ -431,13 +433,30 @@ const WorkflowGeometryViewer = ({
     );
     adapterRef.current = adapter;
 
+    // Theme detection
+    const updateTheme = () => {
+      isDarkRef.current = document.documentElement.dataset.theme === "dark";
+    };
+    updateTheme();
+
+    const themeObserver = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.attributeName === "data-theme") {
+          updateTheme();
+          break;
+        }
+      }
+    });
+    themeObserver.observe(document.documentElement, { attributes: true });
+
     const resize = () => {
       const rect = container.getBoundingClientRect();
       const baseDpr = window.devicePixelRatio || 1;
       const isSilhouette = displayModeRef.current === "silhouette";
       const solidity = clamp01(viewSolidityRef.current);
+      const viewStyle = getViewStyle(isDarkRef.current);
       const solidBlend = isSilhouette ? 1 : smoothstep(0.55, 1, solidity);
-      const renderScale = lerp(1, VIEW_STYLE.solidRenderScale, solidBlend);
+      const renderScale = lerp(1, viewStyle.solidRenderScale, solidBlend);
       const dpr = baseDpr * renderScale;
       canvas.width = Math.max(1, rect.width * dpr);
       canvas.height = Math.max(1, rect.height * dpr);
@@ -446,11 +465,12 @@ const WorkflowGeometryViewer = ({
 
     resize();
     resizeRef.current = resize;
-    const observer = new ResizeObserver(resize);
-    observer.observe(container);
+    const sizeObserver = new ResizeObserver(resize);
+    sizeObserver.observe(container);
 
     return () => {
-      observer.disconnect();
+      sizeObserver.disconnect();
+      themeObserver.disconnect();
       renderer.dispose();
       adapter.dispose();
       rendererRef.current = null;
@@ -681,7 +701,8 @@ const WorkflowGeometryViewer = ({
         return;
       }
 
-      renderer.setClearColor(VIEW_STYLE.clearColor);
+      const viewStyle = getViewStyle(isDarkRef.current);
+      renderer.setClearColor(viewStyle.clearColor);
       renderer.clear();
 
       const cameraPayload = toCamera({
@@ -703,12 +724,12 @@ const WorkflowGeometryViewer = ({
       const wireframeBoost = isSilhouette ? 0 : Math.pow(1 - smoothSolidity, 1.25);
       renderer.setBackfaceCulling(Boolean(viewSettingsRef.current.backfaceCulling));
       const showEdges = !isSilhouette;
-      const renderScale = lerp(1, VIEW_STYLE.solidRenderScale, solidBlend);
+      const renderScale = lerp(1, viewStyle.solidRenderScale, solidBlend);
       const baseDpr = window.devicePixelRatio || 1;
       const dpr = baseDpr * renderScale;
-      const edgePrimaryWidth = VIEW_STYLE.edgePrimaryWidth * dpr;
-      const edgeSecondaryWidth = VIEW_STYLE.edgeSecondaryWidth * dpr;
-      const edgeTertiaryWidth = VIEW_STYLE.edgeTertiaryWidth * dpr;
+      const edgePrimaryWidth = viewStyle.edgePrimaryWidth * dpr;
+      const edgeSecondaryWidth = viewStyle.edgeSecondaryWidth * dpr;
+      const edgeTertiaryWidth = viewStyle.edgeTertiaryWidth * dpr;
       const edgeBias = lerp(0.00022, 0.00045, edgeFade);
       const edgeDepthBias = edgeBias * 1.5;
       const lineDepthBias = edgeBias * 1.15;
@@ -722,14 +743,14 @@ const WorkflowGeometryViewer = ({
 
       if (gridMinorBufferRef.current) {
         renderer.renderEdges(gridMinorBufferRef.current, cameraPayload, {
-          edgeColor: VIEW_STYLE.gridMinor,
+          edgeColor: viewStyle.gridMinor,
           opacity: 0.35,
           dashEnabled: 0,
         });
       }
       if (gridMajorBufferRef.current) {
         renderer.renderEdges(gridMajorBufferRef.current, cameraPayload, {
-          edgeColor: VIEW_STYLE.gridMajor,
+          edgeColor: viewStyle.gridMajor,
           opacity: 0.5,
           dashEnabled: 0,
         });
@@ -829,12 +850,12 @@ const WorkflowGeometryViewer = ({
             : SILHOUETTE_BASE_COLOR;
           renderer.renderGeometry(renderable.buffer, cameraPayload, {
             materialColor,
-            lightPosition: VIEW_STYLE.lightPosition,
-            lightColor: VIEW_STYLE.light,
-            ambientColor: VIEW_STYLE.ambient,
+            lightPosition: viewStyle.lightPosition,
+            lightColor: viewStyle.light,
+            ambientColor: viewStyle.ambient,
             cameraPosition: cameraPayload.position,
             ambientStrength: 1,
-            selectionHighlight: VIEW_STYLE.selection,
+            selectionHighlight: viewStyle.selection,
             isSelected: isSelected ? SELECTION_HIGHLIGHT_INTENSITY : 0,
             sheenIntensity: 0,
             opacity: fillOpacity,
@@ -843,8 +864,8 @@ const WorkflowGeometryViewer = ({
         }
 
         const customOverrides = customMaterialMapRef.current.get(renderable.id);
-        const baseColor = customOverrides?.color ?? VIEW_STYLE.mesh;
-        const materialColor = adjustForSelection(baseColor, isSelected, hasSelection);
+        const baseColor = customOverrides?.color ?? viewStyle.mesh;
+        const materialColor = adjustForSelection(baseColor, isSelected, hasSelection, viewStyle);
         const selectionFactor = hasSelection
           ? lerp(
               1,
@@ -863,13 +884,13 @@ const WorkflowGeometryViewer = ({
         );
         const geometryUniforms = {
           materialColor,
-          lightPosition: VIEW_STYLE.lightPosition,
-          lightColor: VIEW_STYLE.light,
-          ambientColor: VIEW_STYLE.ambient,
+          lightPosition: viewStyle.lightPosition,
+          lightColor: viewStyle.light,
+          ambientColor: viewStyle.ambient,
           cameraPosition: cameraPayload.position,
           ambientStrength:
-            customOverrides?.ambientStrength ?? VIEW_STYLE.ambientStrength,
-          selectionHighlight: VIEW_STYLE.selection,
+            customOverrides?.ambientStrength ?? viewStyle.ambientStrength,
+          selectionHighlight: viewStyle.selection,
           isSelected: isSelected ? SELECTION_HIGHLIGHT_INTENSITY : 0,
           sheenIntensity:
             customOverrides?.sheenIntensity ?? viewSettingsRef.current.sheen ?? 0.08,
@@ -1032,20 +1053,20 @@ const WorkflowGeometryViewer = ({
         const edgeOpacities: [number, number, number] = [
           Math.min(
             1,
-            VIEW_STYLE.edgeTertiaryOpacity *
+            viewStyle.edgeTertiaryOpacity *
               edgeOpacityScale *
               edgeInternalScale *
               internalOpacityScale
           ),
           Math.min(
             1,
-            VIEW_STYLE.edgeSecondaryOpacity *
+            viewStyle.edgeSecondaryOpacity *
               edgeOpacityScale *
               creaseOpacityScale
           ),
           Math.min(
             1,
-            VIEW_STYLE.edgePrimaryOpacity *
+            viewStyle.edgePrimaryOpacity *
               edgeOpacityScale *
               silhouetteOpacityScale
           ),
@@ -1144,9 +1165,10 @@ const WorkflowGeometryViewer = ({
             : SILHOUETTE_BASE_COLOR
           : darkenColor(
               adjustForSelection(
-                customMaterialMapRef.current.get(renderable.id)?.color ?? VIEW_STYLE.mesh,
+                customMaterialMapRef.current.get(renderable.id)?.color ?? viewStyle.mesh,
                 isSelected,
-                hasSelection
+                hasSelection,
+                viewStyle
               ),
               0.22
             );
@@ -1191,6 +1213,8 @@ const WorkflowGeometryViewer = ({
 
   const showPlaceholder = resolvedGeometries.length === 0;
 
+  const isDark = isDarkRef.current;
+
   return (
     <div
       ref={containerRef}
@@ -1200,7 +1224,7 @@ const WorkflowGeometryViewer = ({
         height: "100%",
         borderRadius: "6px",
         overflow: "hidden",
-        background: "rgba(245, 244, 241, 0.9)",
+        background: isDark ? "rgba(26, 26, 26, 0.9)" : "rgba(245, 244, 241, 0.9)",
       }}
     >
       <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block" }} />
@@ -1212,8 +1236,8 @@ const WorkflowGeometryViewer = ({
             left: "8px",
             padding: "2px 6px",
             borderRadius: "999px",
-            background: "rgba(31, 31, 34, 0.85)",
-            color: "#f5f2ee",
+            background: isDark ? "rgba(240, 240, 240, 0.85)" : "rgba(31, 31, 34, 0.85)",
+            color: isDark ? "#1a1a1a" : "#f5f2ee",
             fontSize: "9px",
             letterSpacing: "0.08em",
             textTransform: "uppercase",
@@ -1233,8 +1257,8 @@ const WorkflowGeometryViewer = ({
             fontSize: "10px",
             letterSpacing: "0.12em",
             textTransform: "uppercase",
-            color: "rgba(30, 30, 30, 0.55)",
-            background: "rgba(245, 244, 241, 0.7)",
+            color: isDark ? "rgba(240, 240, 240, 0.55)" : "rgba(30, 30, 30, 0.55)",
+            background: isDark ? "rgba(26, 26, 26, 0.7)" : "rgba(245, 244, 241, 0.7)",
             pointerEvents: "none",
           }}
         >

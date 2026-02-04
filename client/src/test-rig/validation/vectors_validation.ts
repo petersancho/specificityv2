@@ -57,7 +57,7 @@ const runNodeValidation = (nodeName: string, fn: () => void) => {
 
 const validateVectorConstruct = () => {
   const node = getNodeDefinition("vectorConstruct");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "euclidean", "Expected category euclidean");
 
   const context = createContext();
@@ -68,12 +68,13 @@ const validateVectorConstruct = () => {
   });
 
   ensureVec3(result.vector, "Expected vector output");
-  ensure(result.vector.x === 1 && result.vector.y === 2 && result.vector.z === 3, "Expected vector 1,2,3");
+  const vec = result.vector as { x: number; y: number; z: number };
+  ensure(vec.x === 1 && vec.y === 2 && vec.z === 3, "Expected vector 1,2,3");
 };
 
 const validateVectorDeconstruct = () => {
   const node = getNodeDefinition("vectorDeconstruct");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "euclidean", "Expected category euclidean");
 
   const context = createContext();
@@ -88,7 +89,7 @@ const validateVectorDeconstruct = () => {
 
 const validateVectorAdd = () => {
   const node = getNodeDefinition("vectorAdd");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "euclidean", "Expected category euclidean");
 
   const context = createContext();
@@ -99,12 +100,13 @@ const validateVectorAdd = () => {
   });
 
   ensureVec3(result.vector, "Expected vector output");
-  ensure(result.vector.x === 5 && result.vector.y === 7 && result.vector.z === 9, "Expected vector 5,7,9");
+  const vec = result.vector as { x: number; y: number; z: number };
+  ensure(vec.x === 5 && vec.y === 7 && vec.z === 9, "Expected vector 5,7,9");
 };
 
 const validateVectorSubtract = () => {
   const node = getNodeDefinition("vectorSubtract");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "euclidean", "Expected category euclidean");
 
   const context = createContext();
@@ -115,12 +117,13 @@ const validateVectorSubtract = () => {
   });
 
   ensureVec3(result.vector, "Expected vector output");
-  ensure(result.vector.x === 4 && result.vector.y === 3 && result.vector.z === 2, "Expected vector 4,3,2");
+  const vec = result.vector as { x: number; y: number; z: number };
+  ensure(vec.x === 4 && vec.y === 3 && vec.z === 2, "Expected vector 4,3,2");
 };
 
 const validateVectorLength = () => {
   const node = getNodeDefinition("vectorLength");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "euclidean", "Expected category euclidean");
 
   const context = createContext();
@@ -130,12 +133,12 @@ const validateVectorLength = () => {
     context,
   });
 
-  ensure(approxEqual(result.length, 13), "Expected vector length 13");
+  ensure(approxEqual(result.length as number, 13), "Expected vector length 13");
 };
 
 const validateVectorNormalize = () => {
   const node = getNodeDefinition("vectorNormalize");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "euclidean", "Expected category euclidean");
 
   const context = createContext();
@@ -146,14 +149,15 @@ const validateVectorNormalize = () => {
   });
 
   ensureVec3(result.vector, "Expected vector output");
-  ensure(approxEqual(result.vector.x, 0.6), "Expected normalized x=0.6");
-  ensure(approxEqual(result.vector.y, 0.8), "Expected normalized y=0.8");
-  ensure(approxEqual(result.vector.z, 0), "Expected normalized z=0");
+  const vec = result.vector as { x: number; y: number; z: number };
+  ensure(approxEqual(vec.x, 0.6), "Expected normalized x=0.6");
+  ensure(approxEqual(vec.y, 0.8), "Expected normalized y=0.8");
+  ensure(approxEqual(vec.z, 0), "Expected normalized z=0");
 };
 
 const validateVectorDot = () => {
   const node = getNodeDefinition("vectorDot");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "euclidean", "Expected category euclidean");
 
   const context = createContext();
@@ -168,7 +172,7 @@ const validateVectorDot = () => {
 
 const validateVectorCross = () => {
   const node = getNodeDefinition("vectorCross");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "euclidean", "Expected category euclidean");
 
   const context = createContext();
@@ -179,12 +183,13 @@ const validateVectorCross = () => {
   });
 
   ensureVec3(result.vector, "Expected vector output");
-  ensure(result.vector.x === 0 && result.vector.y === 0 && result.vector.z === 1, "Expected cross product (0,0,1)");
+  const vec = result.vector as { x: number; y: number; z: number };
+  ensure(vec.x === 0 && vec.y === 0 && vec.z === 1, "Expected cross product (0,0,1)");
 };
 
 const validateDistance = () => {
   const node = getNodeDefinition("distance");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "euclidean", "Expected category euclidean");
 
   const context = createContext();
@@ -194,12 +199,12 @@ const validateDistance = () => {
     context,
   });
 
-  ensure(approxEqual(result.distance, 5), "Expected distance 5");
+  ensure(approxEqual(result.distance as number, 5), "Expected distance 5");
 };
 
 const validateVectorFromPoints = () => {
   const node = getNodeDefinition("vectorFromPoints");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "euclidean", "Expected category euclidean");
 
   const context = createContext();
@@ -210,13 +215,14 @@ const validateVectorFromPoints = () => {
   });
 
   ensureVec3(result.vector, "Expected vector output");
-  ensure(result.vector.x === 3 && result.vector.y === 0 && result.vector.z === 0, "Expected vector (3,0,0)");
-  ensure(approxEqual(result.length, 3), "Expected length 3");
+  const vec = result.vector as { x: number; y: number; z: number };
+  ensure(vec.x === 3 && vec.y === 0 && vec.z === 0, "Expected vector (3,0,0)");
+  ensure(approxEqual(result.length as number, 3), "Expected length 3");
 };
 
 const validateVectorAngle = () => {
   const node = getNodeDefinition("vectorAngle");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "euclidean", "Expected category euclidean");
 
   const context = createContext();
@@ -226,13 +232,13 @@ const validateVectorAngle = () => {
     context,
   });
 
-  ensure(approxEqual(result.angleDeg, 90), "Expected angle 90 deg");
-  ensure(approxEqual(result.angleRad, Math.PI / 2), "Expected angle PI/2 rad");
+  ensure(approxEqual(result.angleDeg as number, 90), "Expected angle 90 deg");
+  ensure(approxEqual(result.angleRad as number, Math.PI / 2), "Expected angle PI/2 rad");
 };
 
 const validateVectorLerp = () => {
   const node = getNodeDefinition("vectorLerp");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "euclidean", "Expected category euclidean");
 
   const context = createContext();
@@ -243,15 +249,16 @@ const validateVectorLerp = () => {
   });
 
   ensureVec3(result.vector, "Expected vector output");
-  ensure(approxEqual(result.vector.x, 2.5), "Expected lerp x=2.5");
-  ensure(approxEqual(result.vector.y, 0), "Expected lerp y=0");
-  ensure(approxEqual(result.vector.z, 0), "Expected lerp z=0");
-  ensure(approxEqual(result.t, 0.25), "Expected t=0.25");
+  const vec = result.vector as { x: number; y: number; z: number };
+  ensure(approxEqual(vec.x, 2.5), "Expected lerp x=2.5");
+  ensure(approxEqual(vec.y, 0), "Expected lerp y=0");
+  ensure(approxEqual(vec.z, 0), "Expected lerp z=0");
+  ensure(approxEqual(result.t as number, 0.25), "Expected t=0.25");
 };
 
 const validateVectorProject = () => {
   const node = getNodeDefinition("vectorProject");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "euclidean", "Expected category euclidean");
 
   const context = createContext();
@@ -262,13 +269,14 @@ const validateVectorProject = () => {
   });
 
   ensureVec3(result.vector, "Expected vector output");
-  ensure(result.vector.x === 2 && result.vector.y === 0 && result.vector.z === 0, "Expected projection (2,0,0)");
-  ensure(approxEqual(result.scale, 2), "Expected scale 2");
+  const vec = result.vector as { x: number; y: number; z: number };
+  ensure(vec.x === 2 && vec.y === 0 && vec.z === 0, "Expected projection (2,0,0)");
+  ensure(approxEqual(result.scale as number, 2), "Expected scale 2");
 };
 
 const validatePointAttractor = () => {
   const node = getNodeDefinition("pointAttractor");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "euclidean", "Expected category euclidean");
 
   const context = createContext();
@@ -284,16 +292,17 @@ const validatePointAttractor = () => {
   });
 
   ensureVec3(result.vector, "Expected vector output");
-  ensure(approxEqual(result.distance, 5), "Expected distance 5");
-  ensure(approxEqual(result.falloff, 0.5), "Expected falloff 0.5");
-  ensure(approxEqual(result.strength, 2), "Expected strength 2");
-  ensure(approxEqual(result.radius, 10), "Expected radius 10");
-  ensure(approxEqual(result.vector.x, 0) && approxEqual(result.vector.y, 0) && approxEqual(result.vector.z, 1), "Expected vector (0,0,1)");
+  const vec = result.vector as { x: number; y: number; z: number };
+  ensure(approxEqual(result.distance as number, 5), "Expected distance 5");
+  ensure(approxEqual(result.falloff as number, 0.5), "Expected falloff 0.5");
+  ensure(approxEqual(result.strength as number, 2), "Expected strength 2");
+  ensure(approxEqual(result.radius as number, 10), "Expected radius 10");
+  ensure(approxEqual(vec.x, 0) && approxEqual(vec.y, 0) && approxEqual(vec.z, 1), "Expected vector (0,0,1)");
 };
 
 const validateMovePoint = () => {
   const node = getNodeDefinition("movePoint");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "euclidean", "Expected category euclidean");
 
   const context = createContext();
@@ -309,14 +318,16 @@ const validateMovePoint = () => {
 
   ensureVec3(result.point, "Expected point output");
   ensureVec3(result.directionUnit, "Expected directionUnit output");
-  ensure(approxEqual(result.point.x, 3) && approxEqual(result.point.y, 1) && approxEqual(result.point.z, 1), "Expected moved point (3,1,1)");
-  ensure(approxEqual(result.directionUnit.x, 1) && approxEqual(result.directionUnit.y, 0) && approxEqual(result.directionUnit.z, 0), "Expected direction unit (1,0,0)");
-  ensure(approxEqual(result.distance, 2), "Expected distance 2");
+  const pt = result.point as { x: number; y: number; z: number };
+  const dir = result.directionUnit as { x: number; y: number; z: number };
+  ensure(approxEqual(pt.x, 3) && approxEqual(pt.y, 1) && approxEqual(pt.z, 1), "Expected moved point (3,1,1)");
+  ensure(approxEqual(dir.x, 1) && approxEqual(dir.y, 0) && approxEqual(dir.z, 0), "Expected direction unit (1,0,0)");
+  ensure(approxEqual(result.distance as number, 2), "Expected distance 2");
 };
 
 const validateMovePointByVector = () => {
   const node = getNodeDefinition("movePointByVector");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "euclidean", "Expected category euclidean");
 
   const context = createContext();
@@ -327,12 +338,13 @@ const validateMovePointByVector = () => {
   });
 
   ensureVec3(result.point, "Expected point output");
-  ensure(result.point.x === 3 && result.point.y === 4 && result.point.z === 5, "Expected moved point (3,4,5)");
+  const pt = result.point as { x: number; y: number; z: number };
+  ensure(pt.x === 3 && pt.y === 4 && pt.z === 5, "Expected moved point (3,4,5)");
 };
 
 const validateRotateVectorAxis = () => {
   const node = getNodeDefinition("rotateVectorAxis");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "euclidean", "Expected category euclidean");
 
   const context = createContext();
@@ -343,13 +355,14 @@ const validateRotateVectorAxis = () => {
   });
 
   ensureVec3(result.vector, "Expected vector output");
-  ensure(approxEqual(result.vector.x, 0) && approxEqual(result.vector.y, 1) && approxEqual(result.vector.z, 0), "Expected rotated vector (0,1,0)");
-  ensure(approxEqual(result.angleDeg, 90), "Expected angle 90");
+  const vec = result.vector as { x: number; y: number; z: number };
+  ensure(approxEqual(vec.x, 0) && approxEqual(vec.y, 1) && approxEqual(vec.z, 0), "Expected rotated vector (0,1,0)");
+  ensure(approxEqual(result.angleDeg as number, 90), "Expected angle 90");
 };
 
 const validateMirrorVector = () => {
   const node = getNodeDefinition("mirrorVector");
-  ensure(node !== null, "Node definition not found");
+  if (!node) throw new Error("Node definition not found");
   ensure(node.category === "euclidean", "Expected category euclidean");
 
   const context = createContext();
@@ -360,7 +373,8 @@ const validateMirrorVector = () => {
   });
 
   ensureVec3(result.vector, "Expected vector output");
-  ensure(result.vector.x === 1 && result.vector.y === -2 && result.vector.z === 3, "Expected mirrored vector (1,-2,3)");
+  const vec = result.vector as { x: number; y: number; z: number };
+  ensure(vec.x === 1 && vec.y === -2 && vec.z === 3, "Expected mirrored vector (1,-2,3)");
 };
 
 export const runVectorsValidation = () => {

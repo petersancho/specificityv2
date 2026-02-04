@@ -1,8 +1,11 @@
 import { useEffect, useRef } from "react";
 import type { CSSProperties } from "react";
 
+export type CubeLogoVariant = "cmyk" | "monochrome" | "custom";
+
 type CubeLogoProps = {
   size?: number;
+  variant?: CubeLogoVariant;
   colors?: {
     top: string;
     left: string;
@@ -12,16 +15,35 @@ type CubeLogoProps = {
   style?: CSSProperties;
 };
 
-const CubeLogo = ({ 
-  size = 32, 
-  colors = {
-    top: "#ffdd00",
-    left: "#ff0099", 
-    right: "#00d4ff"
-  },
+const CMYK_COLORS = {
+  top: "#ffdd00",
+  left: "#ff0099",
+  right: "#00d4ff",
+};
+
+const MONOCHROME_COLORS = {
+  top: "#b0b0b0",
+  left: "#808080",
+  right: "#a0a0a0",
+};
+
+const resolveColors = (
+  variant: CubeLogoVariant,
+  customColors?: { top: string; left: string; right: string }
+) => {
+  if (variant === "custom" && customColors) return customColors;
+  if (variant === "cmyk") return CMYK_COLORS;
+  return MONOCHROME_COLORS;
+};
+
+const CubeLogo = ({
+  size = 32,
+  variant = "monochrome",
+  colors,
   className,
-  style
+  style,
 }: CubeLogoProps) => {
+  const resolvedColors = resolveColors(variant, colors);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -92,10 +114,10 @@ const CubeLogo = ({
     drawFace(top, "rgba(0, 0, 0, 0.12)", 0);
     ctx.restore();
 
-    drawFace(left, colors.left);
-    drawFace(right, colors.right);
-    drawFace(top, colors.top);
-  }, [size, colors]);
+    drawFace(left, resolvedColors.left);
+    drawFace(right, resolvedColors.right);
+    drawFace(top, resolvedColors.top);
+  }, [size, resolvedColors]);
 
   return (
     <canvas 

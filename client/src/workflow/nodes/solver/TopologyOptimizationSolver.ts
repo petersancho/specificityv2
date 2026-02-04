@@ -65,7 +65,7 @@ export const TopologyOptimizationSolverNode: WorkflowNodeDefinition = {
       type: "number",
       parameterKey: "nz",
       defaultValue: 1,
-      description: "Grid resolution in Z (1 for 2D).",
+      description: "Grid resolution in Z (1 for 2D, >1 for 3D). Use 20-40 for 3D.",
     },
     {
       key: "volFrac",
@@ -301,9 +301,9 @@ export const TopologyOptimizationSolverNode: WorkflowNodeDefinition = {
       type: "number",
       defaultValue: 1,
       min: 1,
-      max: 6,
+      max: 60,
       step: 1,
-      description: "Grid resolution in Z (1 for 2D).",
+      description: "Grid resolution in Z (1 for 2D, 20-40 for 3D).",
     },
     {
       key: "volFrac",

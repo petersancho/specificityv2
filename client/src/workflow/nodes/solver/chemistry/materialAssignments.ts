@@ -77,6 +77,8 @@ const coerceChemistryMaterialSpec = (
       ? clamp(candidate.diffusivity, 0, 4)
       : base.diffusivity;
     const color = coerceChemistryColor(candidate.color, base.color);
+    const category = typeof candidate.category === "string" ? candidate.category as ChemistryMaterialSpec["category"] : base.category;
+    const description = typeof candidate.description === "string" ? candidate.description : base.description;
     return {
       name,
       density,
@@ -85,6 +87,8 @@ const coerceChemistryMaterialSpec = (
       opticalTransmission,
       diffusivity,
       color,
+      category,
+      description,
     };
   }
   return resolveChemistryMaterialSpec(fallbackName);

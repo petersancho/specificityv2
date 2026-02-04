@@ -81,20 +81,20 @@ const validateVoxelGridConsistency = (
     `${label}: expected resolution to be an integer (got ${outputs.resolution}, nearest ${res})`
   );
   ensure(outputs.voxelGrid !== null, `${label}: expected voxel grid output`);
+  const voxelGrid = outputs.voxelGrid!;
 
-  const densities = outputs.voxelGrid.densities;
+  const densities = voxelGrid.densities;
   ensure(Array.isArray(densities) && densities.length > 0, `${label}: expected density data`);
 
-  const gridResolution = outputs.voxelGrid.resolution as unknown;
+  const gridResolution = voxelGrid.resolution as unknown;
   ensure(
     gridResolution !== null && typeof gridResolution === "object",
     `${label}: expected voxelGrid resolution object`
   );
-  const { x, y, z } = gridResolution as {
-    x?: unknown;
-    y?: unknown;
-    z?: unknown;
-  };
+  const gridRes = gridResolution as { x: number; y: number; z: number };
+  const x = gridRes.x;
+  const y = gridRes.y;
+  const z = gridRes.z;
   ensure(
     typeof x === "number" && Number.isFinite(x) &&
       typeof y === "number" && Number.isFinite(y) &&
@@ -183,12 +183,14 @@ const validatePhysicsStatic = () => {
   const { outputs, outputGeometry, baseGeometry, goals, config } = runPhysicsSolverRig("static");
   const baseVertexCount = Math.floor(baseGeometry.mesh.positions.length / 3);
   ensure(outputs.geometry === "physics-static-out", "Expected geometry id to match");
-  ensure(outputs.result.success === true, "Expected physics solver success");
+  const result = outputs.result as any;
+  ensure(result.success === true, "Expected physics solver success");
   ensure(outputs.animation === null, "Expected no animation for static analysis");
-  ensure(Array.isArray(outputs.displacements), "Expected displacements array");
-  ensure(outputs.displacements.length === baseVertexCount, "Expected displacement per vertex");
+  const displacements = outputs.displacements as any[];
+  ensure(Array.isArray(displacements), "Expected displacements array");
+  ensure(displacements.length === baseVertexCount, "Expected displacement per vertex");
   ensure(Array.isArray(outputs.stressField), "Expected stress field array");
-  ensureFinite(outputs.result.finalObjectiveValue, "Expected finite objective value");
+  ensureFinite(result.finalObjectiveValue, "Expected finite objective value");
   ensureMesh(outputs.mesh as RenderMesh, "physics static mesh");
   ensureMesh(outputGeometry.mesh, "physics static geometry");
   ensureStressColors(outputGeometry.mesh, "physics static geometry");
@@ -199,14 +201,14 @@ const validatePhysicsStatic = () => {
     mesh: baseGeometry.mesh,
     goals,
     config,
-    result: outputs.result,
+    result,
   });
   ensure(
     report.stats.displacements.nonFiniteCount === 0,
     "Expected finite displacements"
   );
   ensure(
-    report.stats.stressField.nonFiniteCount === 0,
+    (report.stats.stressField as any).nonFiniteCount === 0,
     "Expected finite stress field"
   );
 };
@@ -215,12 +217,15 @@ const validatePhysicsDynamic = () => {
   const { outputs, outputGeometry, baseGeometry, parameters, goals, config } = runPhysicsSolverRig("dynamic");
   const baseVertexCount = Math.floor(baseGeometry.mesh.positions.length / 3);
   ensure(outputs.geometry === "physics-dynamic-out", "Expected geometry id to match");
-  ensure(outputs.result.success === true, "Expected physics solver success");
-  ensure(outputs.result.iterations === parameters.animationFrames, "Expected iterations to match frames");
+  const result = outputs.result as any;
+  ensure(result.success === true, "Expected physics solver success");
+  ensure(result.iterations === parameters.animationFrames, "Expected iterations to match frames");
   ensure(outputs.animation !== null, "Expected animation for dynamic analysis");
-  ensure(outputs.animation.frames.length === parameters.animationFrames, "Expected frame count");
-  ensure(outputs.animation.timeStamps.length === parameters.animationFrames, "Expected timestamp count");
-  ensure(outputs.displacements.length === baseVertexCount, "Expected displacement per vertex");
+  const animation = outputs.animation as any;
+  ensure(animation.frames.length === parameters.animationFrames, "Expected frame count");
+  ensure(animation.timeStamps.length === parameters.animationFrames, "Expected timestamp count");
+  const displacements = outputs.displacements as any[];
+  ensure(displacements.length === baseVertexCount, "Expected displacement per vertex");
   ensureMesh(outputs.mesh as RenderMesh, "physics dynamic mesh");
   ensureMesh(outputGeometry.mesh, "physics dynamic geometry");
   ensureStressColors(outputGeometry.mesh, "physics dynamic geometry");
@@ -231,7 +236,7 @@ const validatePhysicsDynamic = () => {
     mesh: baseGeometry.mesh,
     goals,
     config,
-    result: outputs.result,
+    result,
   });
   ensure(
     report.stats.displacements.nonFiniteCount === 0,
@@ -242,9 +247,11 @@ const validatePhysicsDynamic = () => {
 const validatePhysicsModal = () => {
   const { outputs, outputGeometry, baseGeometry, goals, config } = runPhysicsSolverRig("modal");
   ensure(outputs.geometry === "physics-modal-out", "Expected geometry id to match");
-  ensure(outputs.result.success === true, "Expected physics solver success");
+  const result = outputs.result as any;
+  ensure(result.success === true, "Expected physics solver success");
   ensure(outputs.animation !== null, "Expected animation for modal analysis");
-  ensure(outputs.animation.frames.length > 0, "Expected modal frames");
+  const animation = outputs.animation as any;
+  ensure(animation.frames.length > 0, "Expected modal frames");
   ensureMesh(outputs.mesh as RenderMesh, "physics modal mesh");
   ensureMesh(outputGeometry.mesh, "physics modal geometry");
   ensureStressColors(outputGeometry.mesh, "physics modal geometry");
@@ -255,7 +262,7 @@ const validatePhysicsModal = () => {
     mesh: baseGeometry.mesh,
     goals,
     config,
-    result: outputs.result,
+    result,
   });
   ensure(
     report.stats.displacements.nonFiniteCount === 0,
@@ -266,21 +273,23 @@ const validatePhysicsModal = () => {
 const validateVoxelSolver = () => {
   const { outputs, isoOutputs, outputGeometry, parameters } = runTopologySolverRig("voxelSolver");
   ensure(outputs.status === "complete", "Expected voxel solver complete");
-  ensure(Array.isArray(outputs.densityField), "Expected density field array");
-  ensure(outputs.densityField.length > 0, "Expected density field data");
+  const densityField = outputs.densityField as number[];
+  ensure(Array.isArray(densityField), "Expected density field array");
+  ensure(densityField.length > 0, "Expected density field data");
   ensure(outputs.voxelGrid !== null, "Expected voxel grid output");
   // In this validation rig, successful voxel solver runs are expected to produce an iso surface mesh.
   ensure(isoOutputs.mesh !== null, "Expected voxel iso mesh output for voxelSolver rig");
-  ensureFinite(outputs.objective, "Expected objective to be finite");
-  ensureFinite(outputs.constraint, "Expected constraint to be finite");
+  ensureFinite(outputs.objective as number, "Expected objective to be finite");
+  ensureFinite(outputs.constraint as number, "Expected constraint to be finite");
 
-  if (outputs.voxelGrid) {
+  const voxelGrid = outputs.voxelGrid as { densities: number[]; resolution: unknown } | null;
+  if (voxelGrid) {
     validateVoxelGridConsistency(
       "voxel",
       {
-        voxelGrid: outputs.voxelGrid,
-        densityField: outputs.densityField,
-        resolution: outputs.resolution,
+        voxelGrid,
+        densityField,
+        resolution: outputs.resolution as number,
       },
       parameters
     );
@@ -298,24 +307,28 @@ const validateChemistrySolver = () => {
   [...goalRegions.stiffness, ...goalRegions.transparency, ...goalRegions.thermal].forEach((id) => {
     ensure(context.geometryById.has(id), `Expected region geometry ${id}`);
   });
-  ensure(outputs.materialParticles.length > 0, "Expected chemistry particles");
+  const materialParticles = outputs.materialParticles as any[];
+  ensure(materialParticles.length > 0, "Expected chemistry particles");
   ensure(outputs.materialField !== null, "Expected chemistry field");
-  ensure(Array.isArray(outputs.history), "Expected chemistry history array");
-  ensure(outputs.history.length > 0, "Expected chemistry history entries");
+  const history = outputs.history as any[];
+  ensure(Array.isArray(history), "Expected chemistry history array");
+  ensure(history.length > 0, "Expected chemistry history entries");
   ensure(outputs.bestState !== null, "Expected chemistry best state");
-  ensureFinite(outputs.totalEnergy, "Expected chemistry energy");
-  ensure(outputs.materials.length > 0, "Expected materials list");
-  if (outputs.materialField) {
+  ensureFinite(outputs.totalEnergy as number, "Expected chemistry energy");
+  const materials = outputs.materials as any[];
+  ensure(materials.length > 0, "Expected materials list");
+  const materialField = outputs.materialField as any;
+  if (materialField) {
     const cellCount =
-      outputs.materialField.resolution.x *
-      outputs.materialField.resolution.y *
-      outputs.materialField.resolution.z;
-    ensure(outputs.materialField.densities.length === cellCount, "Expected field density length");
-    ensure(outputs.materialField.channels.length === outputs.materialField.materials.length, "Expected one channel per material");
+      materialField.resolution.x *
+      materialField.resolution.y *
+      materialField.resolution.z;
+    ensure(materialField.densities.length === cellCount, "Expected field density length");
+    ensure(materialField.channels.length === materialField.materials.length, "Expected one channel per material");
   }
-  const materialNames = outputs.materials
-    .map((material) => (material && typeof material === "object" ? (material as { name?: unknown }).name : null))
-    .filter((name): name is string => typeof name === "string");
+  const materialNames = materials
+    .map((material: any) => (material && typeof material === "object" ? material.name : null))
+    .filter((name: any): name is string => typeof name === "string");
   if (materialNames.length > 0) {
     const particles = (outputs.materialParticles as unknown[]).filter(
       (particle): particle is { materials?: Record<string, unknown> } => {
@@ -351,9 +364,11 @@ const validateChemistrySolverTextInputs = () => {
   [...goalRegions.stiffness, ...goalRegions.transparency, ...goalRegions.thermal].forEach((id) => {
     ensure(context.geometryById.has(id), `Expected region geometry ${id}`);
   });
-  ensure(outputs.materialParticles.length > 0, "Expected chemistry particles");
+  const materialParticles = outputs.materialParticles as any[];
+  ensure(materialParticles.length > 0, "Expected chemistry particles");
   ensure(outputs.materialField !== null, "Expected chemistry field");
-  ensure(outputs.materials.length >= 3, "Expected materials list");
+  const materials = outputs.materials as any[];
+  ensure(materials.length >= 3, "Expected materials list");
 
   const expectedMaterialsText = (parameters as { materialsText?: unknown }).materialsText;
   if (typeof expectedMaterialsText === "string" && expectedMaterialsText.trim().length > 0) {
@@ -388,9 +403,9 @@ const validateChemistrySolverTextInputs = () => {
     const expectedNames = parsedList
       .filter(isTextMaterialEntry)
       .map((entry) => ("material" in entry ? entry.material.name : entry.name));
-    const outputNames = outputs.materials
-      .map((material) => (material && typeof material === "object" ? (material as any).name : null))
-      .filter((name): name is string => typeof name === "string");
+    const outputNames = materials
+      .map((material: any) => (material && typeof material === "object" ? material.name : null))
+      .filter((name: any): name is string => typeof name === "string");
     expectedNames.forEach((name) => {
       ensure(outputNames.includes(name), `Expected parsed materialsText to include ${name}`);
     });
@@ -403,10 +418,13 @@ const validateChemistrySolverTextInputs = () => {
 const validateChemistrySolverDisabled = () => {
   const { outputs } = runChemistrySolverRig("disabled");
   ensure(outputs.status === "disabled", "Expected chemistry solver disabled");
-  ensure(outputs.materialParticles.length === 0, "Expected no chemistry particles");
+  const materialParticles = outputs.materialParticles as any[];
+  ensure(materialParticles.length === 0, "Expected no chemistry particles");
   ensure(outputs.materialField === null, "Expected no chemistry field");
-  ensure(outputs.materials.length === 0, "Expected no materials list");
-  ensure(Array.isArray(outputs.history) && outputs.history.length === 0, "Expected no history when disabled");
+  const materials = outputs.materials as any[];
+  ensure(materials.length === 0, "Expected no materials list");
+  const history = outputs.history as any[];
+  ensure(Array.isArray(history) && history.length === 0, "Expected no history when disabled");
   ensure(outputs.bestState === null, "Expected no best state when disabled");
   ensure((outputs.mesh as RenderMesh).positions.length === 0, "Expected empty disabled mesh");
 };

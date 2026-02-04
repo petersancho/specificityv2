@@ -5,12 +5,9 @@ import { computeMeshArea } from "../geometry/mesh";
 import { computeMeshVolumeAndCentroid } from "../geometry/physical";
 import type { RenderMesh, Vec3 } from "../types";
 import type { SimpParams, SolverFrame, SimulationState, SimulationHistory, GoalMarkers } from "./workflow/topology/types";
-import { extractGoalMarkers } from "./workflow/topology/goals";
-import { runSimp } from "./workflow/topology/simp";
-import { TopologyRenderer } from "./workflow/topology/TopologyRenderer";
-import { TopologyConvergence } from "./workflow/topology/TopologyConvergence";
-import { TopologyGeometryPreview } from "./workflow/topology/TopologyGeometryPreview";
-import { generateGeometryFromDensities } from "./workflow/topology/geometryGeneratorV2";
+import { runSimp, is3DMode } from "./workflow/topology/simp";
+import { extractGoalMarkers, generateGeometryFromDensities } from "./workflow/topology/geometry";
+import { TopologyRenderer, TopologyConvergence, TopologyGeometryPreview } from "./workflow/topology/TopologyUI";
 
 // ============================================================================
 // TOPOLOGY OPTIMIZATION SIMULATOR DASHBOARD
@@ -243,12 +240,6 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   // Generate and register 3D geometry from converged density field
   const generateAndRegisterGeometry = (frame: SolverFrame, mesh: RenderMesh) => {
     try {
-      // Validate 2D only
-      if (nz !== 1) {
-        console.error('Only 2D topology optimization (nz=1) is currently supported');
-        return;
-      }
-      
       // Calculate bounds from mesh
       const bounds = calculateMeshBounds(mesh);
       
@@ -501,6 +492,9 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     };
 
     if (DEBUG) console.log('[TOPOLOGY] SIMP parameters:', simpParams);
+    
+    // Unified solver handles both 2D and 3D based on nz
+    if (DEBUG) console.log('[TOPOLOGY] Using SIMP solver (nz =', nz, ', mode =', is3DMode(nz) ? '3D' : '2D', ')');
     solverGeneratorRef.current = runSimp(baseMesh, markers, simpParams);
     iterate();
   };
@@ -1005,16 +999,16 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                     fe={{ 
                       nx, 
                       ny, 
-                      nz: 1, 
-                      numElements: nx * ny, 
-                      numNodes: (nx + 1) * (ny + 1), 
-                      numDofs: (nx + 1) * (ny + 1) * 2, 
+                      nz, 
+                      numElements: nx * ny * nz, 
+                      numNodes: (nx + 1) * (ny + 1) * (nz > 1 ? nz + 1 : 1), 
+                      numDofs: (nx + 1) * (ny + 1) * (nz > 1 ? nz + 1 : 1) * (nz > 1 ? 3 : 2), 
                       elementSize: { 
                         x: Math.max(1e-6, (baseBounds?.max.x ?? 1) - (baseBounds?.min.x ?? 0)) / nx, 
                         y: Math.max(1e-6, (baseBounds?.max.y ?? 1) - (baseBounds?.min.y ?? 0)) / ny, 
-                        z: 0 
+                        z: nz > 1 ? Math.max(1e-6, (baseBounds?.max.z ?? 1) - (baseBounds?.min.z ?? 0)) / nz : 0 
                       }, 
-                      bounds: baseBounds ?? { min: { x: 0, y: 0, z: 0 }, max: { x: 1, y: 1, z: 0 } } 
+                      bounds: baseBounds ?? { min: { x: 0, y: 0, z: 0 }, max: { x: 1, y: 1, z: nz > 1 ? 1 : 0 } } 
                     }}
                     markers={markers}
                     frame={currentFrame}

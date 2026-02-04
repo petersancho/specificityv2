@@ -65,7 +65,7 @@ const rgb = (r: number, g: number, b: number, a = 1): RGBA => [
   a,
 ];
 
-const PALETTE = {
+const PALETTE_LIGHT = {
   button: rgb(233, 230, 226, 1),
   buttonHover: rgb(238, 235, 231, 1),
   buttonActive: rgb(224, 220, 214, 1),
@@ -84,6 +84,29 @@ const PALETTE = {
   logoAccent: rgb(11, 138, 151, 1),
   logoAccentDeep: rgb(81, 50, 194, 1),
   logoGlow: rgb(255, 255, 255, 0.24),
+  tooltipBg: rgb(20, 24, 34, 0.96),
+  tooltipBorder: rgb(24, 30, 42, 0.9),
+};
+
+const PALETTE_DARK = {
+  button: rgb(42, 42, 42, 1),
+  buttonHover: rgb(52, 52, 52, 1),
+  buttonActive: rgb(35, 35, 35, 1),
+  border: rgb(70, 70, 70, 1),
+  shadow: rgb(0, 0, 0, 1),
+  shadowDeep: rgb(0, 0, 0, 0.85),
+  glow: rgb(0, 0, 0, 0),
+  highlight: rgb(70, 70, 70, 0),
+  icon: rgb(220, 220, 220, 0.95),
+  iconActive: rgb(240, 240, 240, 1),
+  iconDisabled: rgb(120, 120, 120, 0.45),
+  logoFill: rgb(38, 38, 38, 1),
+  logoFillSoft: rgb(32, 32, 32, 1),
+  logoStroke: rgb(70, 70, 70, 1),
+  logoText: rgb(240, 240, 240, 0.96),
+  logoAccent: rgb(11, 138, 151, 1),
+  logoAccentDeep: rgb(81, 50, 194, 1),
+  logoGlow: rgb(60, 60, 60, 0.24),
   tooltipBg: rgb(20, 24, 34, 0.96),
   tooltipBorder: rgb(24, 30, 42, 0.9),
 };
@@ -138,7 +161,7 @@ const LOGO_ACCENTS: Record<
 > = {
   roslyn: { primary: rgb(11, 138, 151, 1), deep: rgb(194, 22, 107, 1) },
   numerica: { primary: rgb(81, 50, 194, 1), deep: rgb(11, 138, 151, 1) },
-  neutral: { primary: PALETTE.logoAccent, deep: PALETTE.logoAccentDeep },
+  neutral: { primary: PALETTE_LIGHT.logoAccent, deep: PALETTE_LIGHT.logoAccentDeep },
 };
 
 const resolveLogoAccent = (tone?: "roslyn" | "numerica" | "neutral") =>
@@ -400,14 +423,14 @@ const resolveActionCategory = (action: WebGLTopBarAction): TopBarCategory => {
   return "neutral";
 };
 
-const resolveActionTint = (action: WebGLTopBarAction): RGBA => {
+const resolveActionTint = (action: WebGLTopBarAction, palette: typeof PALETTE_LIGHT): RGBA => {
   const category = resolveActionCategory(action);
-  const categoryTint = CATEGORY_TINTS[category] ?? PALETTE.icon;
+  const categoryTint = CATEGORY_TINTS[category] ?? palette.icon;
   if (category !== "neutral") return categoryTint;
   return parseCssColor(action.iconTint, categoryTint);
 };
 
-const resolveGroupLabelColor = (label: string): RGBA => {
+const resolveGroupLabelColor = (label: string, palette: typeof PALETTE_LIGHT): RGBA => {
   const normalized = label.trim().toLowerCase();
   if (normalized.includes("primitive")) return withAlpha(CATEGORY_TINTS.primitive, 0.82);
   if (normalized.includes("curve")) return withAlpha(CATEGORY_TINTS.curve, 0.82);
@@ -427,7 +450,7 @@ const resolveGroupLabelColor = (label: string): RGBA => {
   if (normalized.includes("group")) return withAlpha(CATEGORY_TINTS.group, 0.82);
   if (normalized.includes("camera")) return withAlpha(CATEGORY_TINTS.camera, 0.82);
   if (normalized.includes("view")) return withAlpha(CATEGORY_TINTS.view, 0.82);
-  return withAlpha(PALETTE.icon, 0.72);
+  return withAlpha(palette.icon, 0.72);
 };
 
 const WebGLPanelTopBar = ({
@@ -446,6 +469,7 @@ const WebGLPanelTopBar = ({
   const textRef = useRef<WebGLTextRenderer | null>(null);
   const iconRef = useRef<WebGLIconRenderer | null>(null);
   const dprRef = useRef(1);
+  const paletteRef = useRef(PALETTE_LIGHT);
   const hoveredIdRef = useRef<string | null>(null);
   const focusRectRef = useRef<Rect | null>(null);
   const keyboardModeRef = useRef(false);
@@ -940,13 +964,14 @@ const WebGLPanelTopBar = ({
   };
 
   const drawLogoBackground = (logo: LogoLayout) => {
+    const palette = paletteRef.current;
     const rect = logo.rect;
     const radius = Math.min(metrics.logoRadius, rect.height / 2);
     const stroke = metrics.logoStroke;
     const accents = resolveLogoAccent(logoTone);
 
-    drawShadowRoundedRect(rect, radius, metrics.logoShadowOffset, withAlpha(PALETTE.shadow, 0.22));
-    drawRoundedRect(rect, radius, PALETTE.logoFill);
+    drawShadowRoundedRect(rect, radius, metrics.logoShadowOffset, withAlpha(palette.shadow, 0.22));
+    drawRoundedRect(rect, radius, palette.logoFill);
     drawRoundedRect(
       {
         x: rect.x + stroke,
@@ -955,9 +980,9 @@ const WebGLPanelTopBar = ({
         height: rect.height * 0.4,
       },
       Math.max(2, radius - stroke),
-      withAlpha(PALETTE.logoGlow, 0.2)
+      withAlpha(palette.logoGlow, 0.2)
     );
-    drawRectStroke(rect, stroke, PALETTE.logoStroke);
+    drawRectStroke(rect, stroke, palette.logoStroke);
 
     if (logo.accentText) {
       const accentWidth = logo.accentSize.width;
@@ -993,6 +1018,7 @@ const WebGLPanelTopBar = ({
   const drawLogoText = (logo: LogoLayout) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    const palette = paletteRef.current;
     const shadowOffset = metrics.logoShadowOffset * 0.8;
     const accents = resolveLogoAccent(logoTone);
 
@@ -1003,7 +1029,7 @@ const WebGLPanelTopBar = ({
       metrics.logoFontSize,
       LOGO_BASE_WEIGHT,
       metrics.logoTracking,
-      withAlpha(PALETTE.shadowDeep, 0.6)
+      withAlpha(palette.shadowDeep, 0.6)
     );
     drawTrackedText(
       logo.baseText,
@@ -1012,7 +1038,7 @@ const WebGLPanelTopBar = ({
       metrics.logoFontSize,
       LOGO_BASE_WEIGHT,
       metrics.logoTracking,
-      PALETTE.logoText
+      palette.logoText
     );
 
     if (logo.accentText) {
@@ -1131,6 +1157,7 @@ const WebGLPanelTopBar = ({
     if (logoLayout) {
       drawLogoBackground(logoLayout);
     }
+    const palette = paletteRef.current;
     layoutRef.current.separators.forEach((separator) => {
       const rect = {
         x: separator.x - scrollOffset,
@@ -1138,7 +1165,7 @@ const WebGLPanelTopBar = ({
         width: separator.width,
         height: separator.height,
       };
-      drawRoundedRect(rect, 1, withAlpha(PALETTE.border, 0.6));
+      drawRoundedRect(rect, 1, withAlpha(palette.border, 0.6));
     });
     layoutRef.current.buttons.forEach((button) => {
       const { action } = button;
@@ -1152,19 +1179,19 @@ const WebGLPanelTopBar = ({
       const isHovered = hoveredIdRef.current === button.id && !isDisabled;
       const isActive = Boolean(action.isActive);
       const category = resolveActionCategory(action);
-      const categoryTint = resolveActionTint(action);
+      const categoryTint = resolveActionTint(action, palette);
       const baseFill = isActive
-        ? PALETTE.buttonActive
+        ? palette.buttonActive
         : isHovered
-          ? PALETTE.buttonHover
-          : PALETTE.button;
+          ? palette.buttonHover
+          : palette.button;
       const disabledFill = withAlpha(mix(baseFill, rgb(210, 210, 210, 1), 0.45), 0.6);
       const finalFill = isDisabled ? disabledFill : baseFill;
       const borderBase = isActive
-        ? darken(PALETTE.border, 0.08)
+        ? darken(palette.border, 0.08)
         : isHovered
-          ? darken(PALETTE.border, 0.04)
-          : PALETTE.border;
+          ? darken(palette.border, 0.04)
+          : palette.border;
       const border = withAlpha(borderBase, isDisabled ? 0.45 : 1);
       const radius = Math.min(metrics.buttonRadius, rect.width / 2, rect.height / 2);
       const stroke = metrics.buttonStroke;
@@ -1214,7 +1241,7 @@ const WebGLPanelTopBar = ({
             height: rect.height + 4,
           },
           radius + 2,
-          withAlpha(PALETTE.shadow, 0.5)
+          withAlpha(palette.shadow, 0.5)
         );
       }
     });
@@ -1231,7 +1258,7 @@ const WebGLPanelTopBar = ({
         group.label.toUpperCase(),
         rect,
         metrics.groupLabelSize,
-        resolveGroupLabelColor(group.label)
+        resolveGroupLabelColor(group.label, palette)
       );
     });
 
@@ -1257,12 +1284,12 @@ const WebGLPanelTopBar = ({
           height: iconRect.height * dpr,
         };
 
-        const baseTint = resolveActionTint(button.action);
+        const baseTint = resolveActionTint(button.action, palette);
         const highlightTint = lighten(baseTint, 0.08);
         const isHighlighted =
           hoveredIdRef.current === button.id || Boolean(button.action.isActive);
         const tint = button.action.isDisabled
-          ? withAlpha(mix(baseTint, PALETTE.iconDisabled, 0.6), 0.45)
+          ? withAlpha(mix(baseTint, palette.iconDisabled, 0.6), 0.45)
           : isHighlighted
             ? highlightTint
             : baseTint;
@@ -1294,12 +1321,12 @@ const WebGLPanelTopBar = ({
           height: button.rect.height,
         };
         const { iconRect } = getButtonIconLayout(renderRect);
-        const baseTint = resolveActionTint(button.action);
+        const baseTint = resolveActionTint(button.action, palette);
         const highlightTint = lighten(baseTint, 0.08);
         const isHighlighted =
           hoveredIdRef.current === button.id || Boolean(button.action.isActive);
         const tint = button.action.isDisabled
-          ? withAlpha(mix(baseTint, PALETTE.iconDisabled, 0.6), 0.45)
+          ? withAlpha(mix(baseTint, palette.iconDisabled, 0.6), 0.45)
           : isHighlighted
             ? highlightTint
             : baseTint;
@@ -1334,9 +1361,9 @@ const WebGLPanelTopBar = ({
       };
       const { labelRect } = getButtonIconLayout(renderRect);
       const isHighlighted = hoveredIdRef.current === button.id || button.action.isActive;
-      const baseTint = resolveActionTint(button.action);
+      const baseTint = resolveActionTint(button.action, palette);
       const labelColor = button.action.isDisabled
-        ? withAlpha(mix(baseTint, PALETTE.iconDisabled, 0.6), 0.45)
+        ? withAlpha(mix(baseTint, palette.iconDisabled, 0.6), 0.45)
         : isHighlighted
           ? lighten(baseTint, 0.08)
           : withAlpha(baseTint, 0.9);
@@ -1351,7 +1378,7 @@ const WebGLPanelTopBar = ({
     if (logoLayout) {
       drawLogoText(logoLayout);
     } else if (label) {
-      drawText(label, metrics.paddingX, metrics.paddingY, metrics.labelSize, PALETTE.icon);
+      drawText(label, metrics.paddingX, metrics.paddingY, metrics.labelSize, palette.icon);
     }
 
     const hovered = layoutRef.current.buttons.find(
@@ -1398,8 +1425,8 @@ const WebGLPanelTopBar = ({
 
     ui.begin(canvas.width, canvas.height);
     const tooltipRadius = 6;
-    drawShadowRoundedRect(rect, tooltipRadius, 4, withAlpha(PALETTE.shadowDeep, 0.7));
-    drawRoundedRect(rect, tooltipRadius, PALETTE.tooltipBorder);
+    drawShadowRoundedRect(rect, tooltipRadius, 4, withAlpha(palette.shadowDeep, 0.7));
+    drawRoundedRect(rect, tooltipRadius, palette.tooltipBorder);
     drawRoundedRect(
       {
         x: rect.x + 1,
@@ -1408,7 +1435,7 @@ const WebGLPanelTopBar = ({
         height: rect.height - 2,
       },
       Math.max(2, tooltipRadius - 1),
-      PALETTE.tooltipBg
+      palette.tooltipBg
     );
     ui.flush();
 
@@ -1432,7 +1459,26 @@ const WebGLPanelTopBar = ({
     uiRef.current = new WebGLUIRenderer(gl);
     textRef.current = new WebGLTextRenderer(gl);
     iconRef.current = new WebGLIconRenderer(gl);
-    draw();
+
+    // Theme detection
+    const updatePalette = () => {
+      const isDark = document.documentElement.dataset.theme === "dark";
+      paletteRef.current = isDark ? PALETTE_DARK : PALETTE_LIGHT;
+      draw();
+    };
+    updatePalette();
+
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.attributeName === "data-theme") {
+          updatePalette();
+          break;
+        }
+      }
+    });
+    observer.observe(document.documentElement, { attributes: true });
+
+    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {

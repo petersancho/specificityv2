@@ -1,5 +1,3 @@
-export { StiffnessGoalNode } from "./physics/StiffnessGoal";
-export { VolumeGoalNode } from "./physics/VolumeGoal";
 export { LoadGoalNode } from "./physics/LoadGoal";
 export { AnchorGoalNode } from "./physics/AnchorGoal";
 export {

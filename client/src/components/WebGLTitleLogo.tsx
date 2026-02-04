@@ -30,12 +30,21 @@ const mix = (a: RGBA, b: RGBA, t: number): RGBA => [
   a[3] + (b[3] - a[3]) * t,
 ];
 
-const PALETTE = {
+const PALETTE_LIGHT = {
   fill: rgb(246, 243, 238, 1),
   stroke: rgb(198, 193, 187, 1),
   text: rgb(24, 24, 28, 0.96),
   textShadow: rgb(0, 0, 0, 0.35),
   glow: rgb(255, 255, 255, 0.5),
+  shadow: rgb(0, 0, 0, 1),
+};
+
+const PALETTE_DARK = {
+  fill: rgb(38, 38, 38, 1),
+  stroke: rgb(70, 70, 70, 1),
+  text: rgb(240, 240, 240, 0.96),
+  textShadow: rgb(0, 0, 0, 0.5),
+  glow: rgb(60, 60, 60, 0.5),
   shadow: rgb(0, 0, 0, 1),
 };
 
@@ -79,6 +88,7 @@ const WebGLTitleLogo = ({ title, tone = "neutral", className }: WebGLTitleLogoPr
   const glRef = useRef<WebGLRenderingContext | null>(null);
   const uiRef = useRef<WebGLUIRenderer | null>(null);
   const textRef = useRef<WebGLTextRenderer | null>(null);
+  const paletteRef = useRef(PALETTE_LIGHT);
 
   const draw = () => {
     const canvas = canvasRef.current;
@@ -135,13 +145,14 @@ const WebGLTitleLogo = ({ title, tone = "neutral", className }: WebGLTitleLogoPr
     const radius = Math.min(RADIUS, rect.height / 2);
 
     ui.begin(canvas.width, canvas.height);
+    const palette = paletteRef.current;
     ui.drawRoundedRect(
       (rect.x + SHADOW_OFFSET) * dpr,
       (rect.y + SHADOW_OFFSET) * dpr,
       rect.width * dpr,
       rect.height * dpr,
       radius * dpr,
-      PALETTE.shadow
+      palette.shadow
     );
     ui.drawRoundedRect(
       rect.x * dpr,
@@ -149,7 +160,7 @@ const WebGLTitleLogo = ({ title, tone = "neutral", className }: WebGLTitleLogoPr
       rect.width * dpr,
       rect.height * dpr,
       radius * dpr,
-      PALETTE.fill
+      palette.fill
     );
     ui.drawRoundedRect(
       (rect.x + STROKE) * dpr,
@@ -157,7 +168,7 @@ const WebGLTitleLogo = ({ title, tone = "neutral", className }: WebGLTitleLogoPr
       rect.width * dpr,
       rect.height * 0.52 * dpr,
       Math.max(2, (radius - STROKE)) * dpr,
-      mix(PALETTE.glow, PALETTE.fill, 0.35)
+      mix(palette.glow, palette.fill, 0.35)
     );
     ui.drawRectStroke(
       rect.x * dpr,
@@ -165,7 +176,7 @@ const WebGLTitleLogo = ({ title, tone = "neutral", className }: WebGLTitleLogoPr
       rect.width * dpr,
       rect.height * dpr,
       STROKE * dpr,
-      PALETTE.stroke
+      palette.stroke
     );
 
     const barHeight = rect.height - STROKE * 2;
@@ -212,9 +223,9 @@ const WebGLTitleLogo = ({ title, tone = "neutral", className }: WebGLTitleLogoPr
       (textX + shadowOffset) * dpr,
       (textY + shadowOffset) * dpr,
       resolution,
-      PALETTE.textShadow
+      palette.textShadow
     );
-    textRenderer.draw(textX * dpr, textY * dpr, resolution, PALETTE.text);
+    textRenderer.draw(textX * dpr, textY * dpr, resolution, palette.text);
 
     if (parts.accent) {
       const accentX = textX + baseWidth + ACCENT_GAP;
@@ -230,7 +241,7 @@ const WebGLTitleLogo = ({ title, tone = "neutral", className }: WebGLTitleLogoPr
         (accentX + shadowOffset * 0.6) * dpr,
         (textY + shadowOffset * 0.6) * dpr,
         resolution,
-        mix(accent, PALETTE.textShadow, 0.35)
+        mix(accent, palette.textShadow, 0.35)
       );
       textRenderer.draw(accentX * dpr, textY * dpr, resolution, accent);
     }
@@ -247,7 +258,26 @@ const WebGLTitleLogo = ({ title, tone = "neutral", className }: WebGLTitleLogoPr
     glRef.current = gl;
     uiRef.current = new WebGLUIRenderer(gl);
     textRef.current = new WebGLTextRenderer(gl);
-    draw();
+
+    // Theme detection
+    const updatePalette = () => {
+      const isDark = document.documentElement.dataset.theme === "dark";
+      paletteRef.current = isDark ? PALETTE_DARK : PALETTE_LIGHT;
+      draw();
+    };
+    updatePalette();
+
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.attributeName === "data-theme") {
+          updatePalette();
+          break;
+        }
+      }
+    });
+    observer.observe(document.documentElement, { attributes: true });
+
+    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { WebGLUIRenderer, type RGBA } from "../webgl/ui/WebGLUIRenderer";
 import { WebGLTextRenderer } from "../webgl/ui/WebGLTextRenderer";
 import { WebGLIconRenderer } from "../webgl/ui/WebGLIconRenderer";
+import { getThemeMode } from "../theme";
 import LinguaLogo from "./LinguaLogo";
 import styles from "./WebGLAppTopBar.module.css";
 
@@ -58,7 +59,30 @@ const mix = (a: RGBA, b: RGBA, t: number): RGBA => [
   a[3] + (b[3] - a[3]) * t,
 ];
 
-const PALETTE = {
+type TopBarPalette = {
+  bgTop: RGBA;
+  bgBottom: RGBA;
+  border: RGBA;
+  topAccent: RGBA;
+  topAccentSoft: RGBA;
+  dotStrong: RGBA;
+  dotSoft: RGBA;
+  glow: RGBA;
+  brandText: RGBA;
+  brandAccent: RGBA;
+  brandAccentDeep: RGBA;
+  brandAccentGlow: RGBA;
+  brandShadow: RGBA;
+  brandBadgeFill: RGBA;
+  brandBadgeStroke: RGBA;
+  brandBadgeGlow: RGBA;
+  brandBadgeShadow: RGBA;
+  chipShadow: RGBA;
+  chipText: RGBA;
+  subtleRect: RGBA;
+};
+
+const PALETTE_LIGHT: TopBarPalette = {
   bgTop: rgb(250, 248, 244, 1),
   bgBottom: rgb(244, 242, 238, 1),
   border: rgb(18, 16, 12, 0.12),
@@ -78,12 +102,38 @@ const PALETTE = {
   brandBadgeShadow: rgb(0, 0, 0, 0.14),
   chipShadow: rgb(0, 0, 0, 0.08),
   chipText: rgb(18, 16, 12, 0.92),
+  subtleRect: rgb(18, 16, 12, 0.02),
 };
 
-const CHIP_TONES: Record<
-  ChipTone,
-  { fill: RGBA; border: RGBA; dot: RGBA; bar: RGBA | null }
-> = {
+const PALETTE_DARK: TopBarPalette = {
+  bgTop: rgb(32, 32, 32, 1),
+  bgBottom: rgb(26, 26, 26, 1),
+  border: rgb(255, 255, 255, 0.1),
+  topAccent: rgb(255, 255, 255, 0.25),
+  topAccentSoft: rgb(255, 255, 255, 0.12),
+  dotStrong: rgb(255, 255, 255, 0.08),
+  dotSoft: rgb(255, 255, 255, 0.03),
+  glow: rgb(210, 139, 92, 0.08),
+  brandText: rgb(255, 255, 255, 0.95),
+  brandAccent: rgb(0, 212, 255, 0.92),        // Cyan - CMYK branding
+  brandAccentDeep: rgb(255, 0, 153, 0.92),    // Magenta - CMYK branding
+  brandAccentGlow: rgb(0, 212, 255, 0.22),    // Cyan glow
+  brandShadow: rgb(0, 0, 0, 0.3),
+  brandBadgeFill: rgb(42, 42, 42, 1),
+  brandBadgeStroke: rgb(70, 70, 70, 1),
+  brandBadgeGlow: rgb(255, 255, 255, 0.08),
+  brandBadgeShadow: rgb(0, 0, 0, 0.25),
+  chipShadow: rgb(0, 0, 0, 0.2),
+  chipText: rgb(255, 255, 255, 0.92),
+  subtleRect: rgb(255, 255, 255, 0.03),
+};
+
+const getTopBarPalette = (isDark: boolean): TopBarPalette =>
+  isDark ? PALETTE_DARK : PALETTE_LIGHT;
+
+type ChipToneColors = { fill: RGBA; border: RGBA; dot: RGBA; bar: RGBA | null };
+
+const CHIP_TONES_LIGHT: Record<ChipTone, ChipToneColors> = {
   accent: {
     fill: rgb(250, 245, 238, 0.98),
     border: rgb(210, 139, 92, 0.4),
@@ -103,6 +153,30 @@ const CHIP_TONES: Record<
     bar: rgb(59, 130, 246, 0.55),
   },
 };
+
+const CHIP_TONES_DARK: Record<ChipTone, ChipToneColors> = {
+  accent: {
+    fill: rgb(50, 42, 35, 0.98),
+    border: rgb(210, 139, 92, 0.5),
+    dot: rgb(210, 139, 92, 0.9),
+    bar: rgb(210, 139, 92, 0.7),
+  },
+  neutral: {
+    fill: rgb(45, 45, 45, 0.98),
+    border: rgb(255, 255, 255, 0.14),
+    dot: rgb(255, 255, 255, 0.5),
+    bar: null,
+  },
+  tech: {
+    fill: rgb(35, 42, 55, 0.98),
+    border: rgb(59, 130, 246, 0.45),
+    dot: rgb(59, 130, 246, 0.8),
+    bar: rgb(59, 130, 246, 0.65),
+  },
+};
+
+const getChipTones = (isDark: boolean): Record<ChipTone, ChipToneColors> =>
+  isDark ? CHIP_TONES_DARK : CHIP_TONES_LIGHT;
 
 const BAR_HEIGHT = 44;
 const BRAND_TEXT_BASE = "LING";
@@ -231,6 +305,9 @@ const WebGLAppTopBar = ({
   const textRef = useRef<WebGLTextRenderer | null>(null);
   const iconRef = useRef<WebGLIconRenderer | null>(null);
   const dprRef = useRef(1);
+  const isDarkRef = useRef(getThemeMode() === "dark");
+  const paletteRef = useRef<TopBarPalette>(getTopBarPalette(isDarkRef.current));
+  const chipTonesRef = useRef<Record<ChipTone, ChipToneColors>>(getChipTones(isDarkRef.current));
   const layoutRef = useRef<LayoutState>({
     width: 1,
     height: BAR_HEIGHT,
@@ -418,10 +495,11 @@ const WebGLAppTopBar = ({
     heightCss: number,
     dpr: number
   ) => {
+    const p = paletteRef.current;
     const stepHeightCss = heightCss / GRADIENT_STEPS;
     for (let i = 0; i < GRADIENT_STEPS; i += 1) {
       const t0 = i / (GRADIENT_STEPS - 1);
-      const color = mix(PALETTE.bgTop, PALETTE.bgBottom, t0);
+      const color = mix(p.bgTop, p.bgBottom, t0);
       ui.drawRect(
         0,
         i * stepHeightCss * dpr,
@@ -431,8 +509,8 @@ const WebGLAppTopBar = ({
       );
     }
 
-    ui.drawRect(0, 0, widthCss * dpr, 1.5 * dpr, PALETTE.topAccent);
-    ui.drawRect(0, 1.5 * dpr, widthCss * 0.32 * dpr, 1 * dpr, PALETTE.topAccentSoft);
+    ui.drawRect(0, 0, widthCss * dpr, 1.5 * dpr, p.topAccent);
+    ui.drawRect(0, 1.5 * dpr, widthCss * 0.32 * dpr, 1 * dpr, p.topAccentSoft);
   };
 
   const drawDotGrid = (
@@ -441,6 +519,7 @@ const WebGLAppTopBar = ({
     heightCss: number,
     dpr: number
   ) => {
+    const p = paletteRef.current;
     const cols = Math.ceil(widthCss / DOT_SPACING) + 1;
     const rows = Math.ceil(heightCss / DOT_SPACING) + 1;
 
@@ -454,7 +533,7 @@ const WebGLAppTopBar = ({
           yCss * dpr,
           DOT_SIZE * dpr,
           DOT_SIZE * dpr,
-          isStrong ? PALETTE.dotStrong : PALETTE.dotSoft
+          isStrong ? p.dotStrong : p.dotSoft
         );
       }
     }
@@ -474,7 +553,8 @@ const WebGLAppTopBar = ({
   };
 
   const drawChipShapes = (chip: LayoutChip, ui: WebGLUIRenderer, dpr: number, radius: number) => {
-    const tone = CHIP_TONES[chip.spec.tone];
+    const p = paletteRef.current;
+    const tone = chipTonesRef.current[chip.spec.tone];
     const shadowOffset = { x: 1.4, y: 2.4 };
 
     ui.drawRoundedRect(
@@ -483,7 +563,7 @@ const WebGLAppTopBar = ({
       chip.rect.width * dpr,
       chip.rect.height * dpr,
       radius * dpr,
-      PALETTE.chipShadow
+      p.chipShadow
     );
 
     ui.drawRoundedRect(
@@ -524,13 +604,15 @@ const WebGLAppTopBar = ({
     dpr: number,
     resolution: { width: number; height: number }
   ) => {
+    const p = paletteRef.current;
+    const textColor = isDarkRef.current ? "#ffffff" : "#14120f";
     textRenderer.setText(chip.spec.label, {
       fontSize: chip.fontSize * dpr,
       fontWeight: 700,
       fontFamily: UI_FONT_FAMILY,
       paddingX: 0,
       paddingY: 0,
-      color: "#14120f",
+      color: textColor,
     });
     const textSize = textRenderer.getSize();
     const textWidth = textSize.width / dpr;
@@ -538,7 +620,7 @@ const WebGLAppTopBar = ({
     const textX = (chip.rect.x + chip.rect.width * 0.5 - textWidth * 0.5) * dpr;
     const textY = (chip.rect.y + chip.rect.height * 0.5 - textHeight * 0.5) * dpr;
 
-    textRenderer.draw(textX, textY, resolution, PALETTE.chipText);
+    textRenderer.draw(textX, textY, resolution, p.chipText);
   };
 
   const drawTrackedText = (
@@ -554,6 +636,7 @@ const WebGLAppTopBar = ({
     dpr: number,
     resolution: { width: number; height: number }
   ) => {
+    const textColor = isDarkRef.current ? "#ffffff" : "#14120f";
     let cursor = x;
     for (let i = 0; i < text.length; i += 1) {
       const char = text[i];
@@ -563,7 +646,7 @@ const WebGLAppTopBar = ({
         fontFamily,
         paddingX: 0,
         paddingY: 0,
-        color: "#14120f",
+        color: textColor,
       });
       const size = textRenderer.getSize();
       textRenderer.draw(cursor * dpr, y * dpr, resolution, color);
@@ -582,12 +665,14 @@ const WebGLAppTopBar = ({
     const iconRenderer = iconRef.current;
     if (!canvas || !gl || !ui || !textRenderer) return;
 
+    const p = paletteRef.current;
     const dpr = dprRef.current;
     const { scale, chips, statusChip, chipRadius, brandSymbolRect, brandFontSize, brandTextX } =
       layoutRef.current;
     const widthCss = layoutRef.current.width;
     const heightCss = layoutRef.current.height;
     const resolution = { width: canvas.width, height: canvas.height };
+    const textColor = isDarkRef.current ? "#ffffff" : "#14120f";
 
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clearColor(0, 0, 0, 0);
@@ -598,7 +683,7 @@ const WebGLAppTopBar = ({
     drawGradientBackground(ui, widthCss, heightCss, dpr);
     drawDotGrid(ui, widthCss, heightCss, dpr);
 
-    ui.drawRect(0, (heightCss - 2) * dpr, widthCss * dpr, 2 * dpr, PALETTE.border);
+    ui.drawRect(0, (heightCss - 2) * dpr, widthCss * dpr, 2 * dpr, p.border);
 
     ui.drawRoundedRect(
       widthCss * 0.28 * dpr,
@@ -606,7 +691,7 @@ const WebGLAppTopBar = ({
       widthCss * 0.4 * dpr,
       heightCss * 0.58 * dpr,
       18 * dpr,
-      rgb(18, 16, 12, 0.02)
+      p.subtleRect
     );
     ui.flush();
 
@@ -620,7 +705,7 @@ const WebGLAppTopBar = ({
       fontFamily: BRAND_FONT_FAMILY,
       paddingX: 0,
       paddingY: 0,
-      color: "#14120f",
+      color: textColor,
     });
     const brandBaseSize = textRenderer.getSize();
     textRenderer.setText(BRAND_TEXT_ACCENT, {
@@ -629,7 +714,7 @@ const WebGLAppTopBar = ({
       fontFamily: BRAND_FONT_FAMILY,
       paddingX: 0,
       paddingY: 0,
-      color: "#14120f",
+      color: textColor,
     });
     const brandAccentSize = textRenderer.getSize();
 
@@ -666,7 +751,7 @@ const WebGLAppTopBar = ({
 
     // Accent + chip shapes pass.
     ui.begin(canvas.width, canvas.height);
-    drawGlowRect(ui, brandBadgeRect, PALETTE.glow, dpr, scale);
+    drawGlowRect(ui, brandBadgeRect, p.glow, dpr, scale);
     const badgeShadowOffsetX = 1.4 * scale;
     const badgeShadowOffsetY = 2.2 * scale;
     ui.drawRoundedRect(
@@ -675,7 +760,7 @@ const WebGLAppTopBar = ({
       brandBadgeRect.width * dpr,
       brandBadgeRect.height * dpr,
       brandBadgeRadius * dpr,
-      PALETTE.brandBadgeShadow
+      p.brandBadgeShadow
     );
     ui.drawRoundedRect(
       brandBadgeRect.x * dpr,
@@ -683,7 +768,7 @@ const WebGLAppTopBar = ({
       brandBadgeRect.width * dpr,
       brandBadgeRect.height * dpr,
       brandBadgeRadius * dpr,
-      PALETTE.brandBadgeFill
+      p.brandBadgeFill
     );
     ui.drawRoundedRect(
       (brandBadgeRect.x + brandBadgeStroke) * dpr,
@@ -691,7 +776,7 @@ const WebGLAppTopBar = ({
       brandBadgeRect.width * dpr,
       brandBadgeRect.height * 0.4 * dpr,
       Math.max(2, brandBadgeRadius - brandBadgeStroke) * dpr,
-      PALETTE.brandBadgeGlow
+      p.brandBadgeGlow
     );
     ui.drawRectStroke(
       brandBadgeRect.x * dpr,
@@ -699,7 +784,7 @@ const WebGLAppTopBar = ({
       brandBadgeRect.width * dpr,
       brandBadgeRect.height * dpr,
       brandBadgeStroke * dpr,
-      PALETTE.brandBadgeStroke
+      p.brandBadgeStroke
     );
     const barHeight = brandBadgeRect.height - brandBadgeStroke * 2;
     const barRadius = Math.min(3 * scale, barHeight * 0.5);
@@ -709,7 +794,7 @@ const WebGLAppTopBar = ({
       brandBadgeBarWidth * dpr,
       barHeight * dpr,
       barRadius * dpr,
-      PALETTE.brandAccent
+      p.brandAccent
     );
     const underlineHeight = Math.max(1.4, 1.6 * scale);
     const underlineY = brandTextY + brandTextHeight - underlineHeight - 4 * scale;
@@ -719,7 +804,7 @@ const WebGLAppTopBar = ({
       brandAccentWidth * dpr,
       underlineHeight * dpr,
       underlineHeight * 0.6 * dpr,
-      PALETTE.brandAccent
+      p.brandAccent
     );
     if (brandAccentWidth > underlineHeight * 2) {
       ui.drawRoundedRect(
@@ -728,7 +813,7 @@ const WebGLAppTopBar = ({
         (brandAccentWidth * 0.45) * dpr,
         underlineHeight * dpr,
         underlineHeight * 0.6 * dpr,
-        PALETTE.brandAccentDeep
+        p.brandAccentDeep
       );
     }
 
@@ -758,7 +843,7 @@ const WebGLAppTopBar = ({
           height: (brandSymbolRect.height + symbolPad * 2) * dpr,
         },
         "linguaSymbol",
-        PALETTE.brandAccentGlow
+        p.brandAccentGlow
       );
       iconRenderer.drawIcon(
         {
@@ -768,7 +853,7 @@ const WebGLAppTopBar = ({
           height: brandSymbolRect.height * dpr,
         },
         "linguaSymbol",
-        PALETTE.brandText
+        p.brandText
       );
       iconRenderer.flush();
     }
@@ -783,7 +868,7 @@ const WebGLAppTopBar = ({
       BRAND_WEIGHT,
       BRAND_FONT_FAMILY,
       BRAND_TRACKING * scale,
-      PALETTE.brandShadow,
+      p.brandShadow,
       textRenderer,
       dpr,
       resolution
@@ -796,7 +881,7 @@ const WebGLAppTopBar = ({
       BRAND_WEIGHT,
       BRAND_FONT_FAMILY,
       BRAND_TRACKING * scale,
-      PALETTE.brandText,
+      p.brandText,
       textRenderer,
       dpr,
       resolution
@@ -810,7 +895,7 @@ const WebGLAppTopBar = ({
       BRAND_ACCENT_WEIGHT,
       BRAND_FONT_FAMILY,
       BRAND_ACCENT_TRACKING * scale,
-      PALETTE.brandAccentGlow,
+      p.brandAccentGlow,
       textRenderer,
       dpr,
       resolution
@@ -823,7 +908,7 @@ const WebGLAppTopBar = ({
       BRAND_ACCENT_WEIGHT,
       BRAND_FONT_FAMILY,
       BRAND_ACCENT_TRACKING * scale,
-      PALETTE.brandAccent,
+      p.brandAccent,
       textRenderer,
       dpr,
       resolution
@@ -849,6 +934,24 @@ const WebGLAppTopBar = ({
     textRef.current = new WebGLTextRenderer(gl);
     iconRef.current = new WebGLIconRenderer(gl);
     draw();
+  }, []);
+
+  // Subscribe to theme changes
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      const isDark = getThemeMode() === "dark";
+      if (isDark !== isDarkRef.current) {
+        isDarkRef.current = isDark;
+        paletteRef.current = getTopBarPalette(isDark);
+        chipTonesRef.current = getChipTones(isDark);
+        draw();
+      }
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {

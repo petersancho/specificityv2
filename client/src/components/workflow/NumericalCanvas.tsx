@@ -33,6 +33,13 @@ import {
   resolveNodePorts,
   type WorkflowPortSpec,
 } from "./nodeCatalog";
+import {
+  type CanvasPalette,
+  CANVAS_LIGHT,
+  CANVAS_DARK,
+  getThemeMode,
+  getCanvasPalette,
+} from "../../theme";
 
 type ViewTransform = {
   x: number;
@@ -145,29 +152,7 @@ type NumericalCanvasProps = {
   hoverPopupsEnabled?: boolean;
 };
 
-type CanvasPalette = {
-  canvasBg: string;
-  gridMinor: string;
-  gridMajor: string;
-  edge: string;
-  edgeSoft: string;
-  edgeHover: string;
-  edgePreview: string;
-  nodeFill: string;
-  nodeFillHover: string;
-  nodeStroke: string;
-  nodeStrokeHover: string;
-  nodeShadow: string;
-  nodeErrorBorder: string;
-  nodeErrorFill: string;
-  nodeWarningBorder: string;
-  nodeWarningFill: string;
-  text: string;
-  textMuted: string;
-  portFill: string;
-  portFillHover: string;
-  portStroke: string;
-};
+// CanvasPalette type imported from theme module
 
 const NODE_WIDTH = 180;
 const NODE_MIN_HEIGHT = 98;
@@ -241,24 +226,8 @@ const GRID_MINOR_BASE = 24;
 const GRID_MAJOR_FACTOR = 5;
 const GRID_SNAP_KEY = "lingua.numericaGridSnap";
 const SHORTCUT_OVERLAY_KEY = "lingua.numericaShortcutOverlay";
-const SOLVER_NODE_FILL_TOP = "#9933ff";
-const SOLVER_NODE_FILL_BOTTOM = "#7700dd";
-const SOLVER_NODE_FILL_TOP_HOVER = "#aa44ff";
-const SOLVER_NODE_FILL_BOTTOM_HOVER = "#8811ee";
-const SOLVER_NODE_BORDER = "#6600cc";
-const GOAL_NODE_FILL_TOP = "#cc99ff";
-const GOAL_NODE_FILL_BOTTOM = "#aa66ff";
-const GOAL_NODE_FILL_TOP_HOVER = "#ddaaff";
-const GOAL_NODE_FILL_BOTTOM_HOVER = "#bb77ff";
-const GOAL_NODE_BORDER = "#9933ff";
-const SOLVER_NODE_TEXT = "#ffffff";
-const SOLVER_NODE_TEXT_MUTED = "rgba(255, 255, 255, 0.78)";
-const GOAL_NODE_TEXT = "#2a2a2a";
-const GOAL_NODE_TEXT_MUTED = "#444444";
-const SOLVER_BAND_TINT = "rgba(255, 255, 255, 0.16)";
-const GOAL_BAND_TINT = "rgba(255, 255, 255, 0.45)";
-const SOLVER_BAND_ACCENT = "rgba(255, 255, 255, 0.6)";
-const GOAL_BAND_ACCENT = "rgba(151, 128, 232, 0.7)";
+// Removed: SOLVER_NODE_* and GOAL_NODE_* colors
+// All nodes now use uniform grey styling from the theme module
 
 const clampValue = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
@@ -483,50 +452,9 @@ const readCssVar = (name: string, fallback: string) => {
   return value || fallback;
 };
 
-const getPalette = (): CanvasPalette => {
-  const bg = "#f8f6f2";
-  const surface = "#ffffff";
-  const surfaceMuted = "#faf8f5";
-  const border = "#000000";
-  const text = "#000000";
-  const muted = "#666666";
-  const edge = "#000000";
-  const edgeSoft = "rgba(0, 0, 0, 0.25)";
-  const accent = "#00d4ff";
-  const gridMinor = "rgba(0, 0, 0, 0.06)";
-  const gridMajor = "rgba(0, 0, 0, 0.12)";
-  const portFill = "#8800ff";
-  const portFillHover = "#9933ff";
-  const portStroke = "#000000";
-  const nodeErrorBorder = "#ff0066";
-  const nodeErrorFill = "#ffcce6";
-  const nodeWarningBorder = "#ffdd00";
-  const nodeWarningFill = "#fff9cc";
-
-  return {
-    canvasBg: bg,
-    gridMinor,
-    gridMajor,
-    edge,
-    edgeSoft,
-    edgeHover: accent,
-    edgePreview: "rgba(20, 20, 20, 0.55)",
-    nodeFill: surface,
-    nodeFillHover: surfaceMuted,
-    nodeStroke: border,
-    nodeStrokeHover: accent,
-    nodeShadow: "#000000",
-    nodeErrorBorder,
-    nodeErrorFill,
-    nodeWarningBorder,
-    nodeWarningFill,
-    text,
-    textMuted: muted,
-    portFill,
-    portFillHover,
-    portStroke,
-  };
-};
+// Palette functions imported from theme module
+// getThemeMode, CANVAS_LIGHT, CANVAS_DARK, getCanvasPalette
+const getPalette = getCanvasPalette;
 
 const createNodeGradient = (
   ctx: CanvasRenderingContext2D,
@@ -4224,9 +4152,9 @@ export const NumericalCanvas = ({
                 height: Math.max(18, 18 * viewTransform.scale),
                 padding: "2px 6px",
                 borderRadius: 4,
-                border: "1px solid rgba(31, 31, 34, 0.25)",
-                background: "rgba(255, 255, 255, 0.98)",
-                color: "#1f1f22",
+                border: `1px solid ${paletteRef.current.isDark ? "rgba(255,255,255,0.2)" : "rgba(31,31,34,0.25)"}`,
+                background: paletteRef.current.isDark ? "rgba(42,42,42,0.98)" : "rgba(255,255,255,0.98)",
+                color: paletteRef.current.text,
                 font: `600 ${Math.max(
                   10,
                   11 * viewTransform.scale
@@ -4263,9 +4191,9 @@ export const NumericalCanvas = ({
                 height: Math.max(24, inlineEditorScreen.height + 6),
                 padding: 0,
                 border: "none",
-                borderBottom: "1px dashed rgba(31, 31, 34, 0.35)",
+                borderBottom: `1px dashed ${paletteRef.current.isDark ? "rgba(255,255,255,0.35)" : "rgba(31,31,34,0.35)"}`,
                 background: "transparent",
-                color: "#1f1f22",
+                color: paletteRef.current.text,
                 font: `500 ${Math.max(
                   12,
                   (inlineEditorLayout.textFontSize ?? TEXT_NODE_DEFAULT_SIZE) *
@@ -4320,10 +4248,10 @@ export const NumericalCanvas = ({
                   inlineEditorScreen.height -
                   (NOTE_PADDING_TOP + NOTE_PADDING_BOTTOM) * viewTransform.scale,
                 padding: 0,
-                border: "1px solid rgba(191, 143, 69, 0.35)",
+                border: paletteRef.current.isDark ? "1px solid rgba(191,143,69,0.45)" : "1px solid rgba(191,143,69,0.35)",
                 borderRadius: 5,
-                background: "rgba(255, 255, 255, 0.35)",
-                color: "#3b332d",
+                background: paletteRef.current.isDark ? "rgba(60,50,40,0.35)" : "rgba(255,255,255,0.35)",
+                color: paletteRef.current.isDark ? "#d4c9b8" : "#3b332d",
                 font: `500 ${Math.max(
                   10,
                   11 * viewTransform.scale
@@ -4566,7 +4494,7 @@ export const NumericalCanvas = ({
                 fontWeight: 700,
                 letterSpacing: "0.16em",
                 textTransform: "uppercase",
-                color: "rgba(31, 31, 34, 0.7)",
+                color: paletteRef.current.textMuted,
               }}
             >
               Node Search
@@ -4601,8 +4529,9 @@ export const NumericalCanvas = ({
                 width: "100%",
                 padding: "6px 8px",
                 borderRadius: 6,
-                border: "1px solid rgba(0, 0, 0, 0.2)",
-                background: "#ffffff",
+                border: `1px solid ${paletteRef.current.isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)"}`,
+                background: paletteRef.current.isDark ? "#2a2a2a" : "#ffffff",
+                color: paletteRef.current.text,
                 font: '500 11px "Montreal Neue", "Space Grotesk", sans-serif',
               }}
             />
@@ -4619,7 +4548,7 @@ export const NumericalCanvas = ({
                 <div
                   style={{
                     fontSize: "11px",
-                    color: "rgba(31, 31, 34, 0.55)",
+                    color: paletteRef.current.textMuted,
                     padding: "4px 2px",
                   }}
                 >
@@ -4656,7 +4585,7 @@ export const NumericalCanvas = ({
                         style={{
                           fontSize: "11px",
                           fontWeight: 700,
-                          color: "#1f1f22",
+                          color: paletteRef.current.text,
                         }}
                       >
                         {greek}
@@ -4666,7 +4595,7 @@ export const NumericalCanvas = ({
                           fontSize: "9px",
                           letterSpacing: "0.08em",
                           textTransform: "uppercase",
-                          color: "rgba(31, 31, 34, 0.6)",
+                          color: paletteRef.current.textMuted,
                         }}
                       >
                         {english} · {category}
@@ -4770,14 +4699,10 @@ function drawConnections(
     const isHovered = hoveredTarget.type === "edge" && hoveredTarget.edgeId === edge.id;
     const isSelected = Boolean(edge.selected);
     const isActive = isHovered || isSelected;
-    const portColor = resolvePortColor(endpoints.sourcePort.port, "#8800ff");
-    const baseColor = isActive ? "#00d4ff" : portColor;
-    const baseWidth =
-      endpoints.sourcePort.port.type === "geometry"
-        ? 2.6
-        : endpoints.sourcePort.port.type === "vector"
-          ? 2.4
-          : 2.1;
+    // Use grey for all wires, cyan on hover/select
+    const wireColor = palette.edge;
+    const baseColor = isActive ? palette.edgeHover : wireColor;
+    const baseWidth = 2.2;
     const lineWidth = (isActive ? baseWidth + 0.7 : baseWidth) / transform.scale;
     const haloWidth = lineWidth + 2.1 / transform.scale;
 
@@ -4793,8 +4718,8 @@ function drawConnections(
     );
 
     ctx.save();
-    ctx.strokeStyle = portColor;
-    ctx.globalAlpha = isActive ? 0.38 : 0.22;
+    ctx.strokeStyle = wireColor;
+    ctx.globalAlpha = isActive ? 0.35 : 0.18;
     ctx.lineWidth = haloWidth;
     ctx.stroke(path);
     ctx.restore();
@@ -4823,20 +4748,16 @@ function drawEdgePreview(
 
   const dx = targetX - sourceX;
   const controlOffset = Math.abs(dx) * 0.5;
-  const portColor = resolvePortColor(sourcePort.port, palette.edge);
-  const baseWidth =
-    sourcePort.port.type === "geometry"
-      ? 2.6
-      : sourcePort.port.type === "vector"
-        ? 2.4
-        : 2.1;
+  // Use grey wire color for preview
+  const wireColor = palette.edge;
+  const baseWidth = 2.4;
   const lineWidth = (baseWidth + 0.4) / transform.scale;
   const haloWidth = lineWidth + 1.6 / transform.scale;
   const dash = [6 / transform.scale, 6 / transform.scale];
 
   ctx.save();
-  ctx.strokeStyle = portColor;
-  ctx.globalAlpha = 0.24;
+  ctx.strokeStyle = wireColor;
+  ctx.globalAlpha = 0.2;
   ctx.lineWidth = haloWidth;
   ctx.setLineDash(dash);
   ctx.beginPath();
@@ -4852,7 +4773,7 @@ function drawEdgePreview(
   ctx.stroke();
   ctx.restore();
 
-  ctx.strokeStyle = portColor;
+  ctx.strokeStyle = wireColor;
   ctx.lineWidth = lineWidth;
   ctx.setLineDash(dash);
   ctx.beginPath();
@@ -5346,36 +5267,17 @@ function drawNodes(
     const showWarning = !isGhost && missingRequiredInputs.length > 0 && !isInvalid;
     const definition = layout.definition ?? getNodeDefinition(node.type);
     const category = definition ? NODE_CATEGORY_BY_ID.get(definition.category) : undefined;
-    const baseCategoryBand = category?.band ?? "#ece8e2";
     const categoryAccent = category?.accent ?? palette.nodeStroke;
     const fallbackPortColor = category?.port ?? palette.portFill;
     const isSolverNode = definition?.category === "solver";
     const isGoalNode = definition?.category === "goal";
-    const categoryBand = isSolverNode
-      ? SOLVER_BAND_TINT
-      : isGoalNode
-        ? GOAL_BAND_TINT
-        : baseCategoryBand;
-    const categoryBandAccent = isSolverNode
-      ? SOLVER_BAND_ACCENT
-      : isGoalNode
-        ? GOAL_BAND_ACCENT
-        : categoryAccent;
-    const categoryLabelColor = isSolverNode
-      ? "rgba(255, 255, 255, 0.85)"
-      : isGoalNode
-        ? "#4b3f73"
-        : categoryAccent;
-    const nodeTextColor = isSolverNode
-      ? SOLVER_NODE_TEXT
-      : isGoalNode
-        ? GOAL_NODE_TEXT
-        : palette.text;
-    const nodeMutedTextColor = isSolverNode
-      ? SOLVER_NODE_TEXT_MUTED
-      : isGoalNode
-        ? GOAL_NODE_TEXT_MUTED
-        : palette.textMuted;
+    // All nodes now use uniform grey styling
+    const categoryBand = palette.nodeBand;
+    const categoryBandAccent = palette.nodeBandAccent;
+    const categoryLabelColor = palette.categoryLabel;
+    const nodeTextColor = palette.text;
+    const nodeMutedTextColor = palette.textMuted;
+    // Keep icon tints colorful - this is the only color on nodes (the sticker)
     const iconTint = parseCssColor(categoryAccent, defaultIconTint);
     const baseLabel = node.data?.label ?? definition?.label ?? node.type ?? "Node";
     const label = node.type === "panel" ? "DATA" : baseLabel;
@@ -5516,7 +5418,8 @@ function drawNodes(
           ctx.font = portFont;
           ctx.textBaseline = "middle";
           ctx.textAlign = portLayout.isOutput ? "right" : "left";
-          ctx.fillStyle = portColor;
+          // Use black text for port labels
+          ctx.fillStyle = palette.portLabel;
           ctx.globalAlpha = isPortHovered ? 1 : 0.86;
           const labelText = truncateToWidth(ctx, port.label, portLabelMaxWidth);
           const labelX = portLayout.isOutput ? x + noteWidth - 12 : x + 10;
@@ -5542,7 +5445,7 @@ function drawNodes(
           ctx.restore();
         }
         ctx.save();
-        ctx.strokeStyle = categoryAccent ?? palette.portStroke;
+        ctx.strokeStyle = palette.portStroke;
         ctx.globalAlpha = isPortHovered ? 0.9 : 0.55;
         ctx.lineWidth = 1;
         ctx.stroke();
@@ -5570,29 +5473,8 @@ function drawNodes(
       ctx.fill();
       ctx.restore();
 
-      const baseFill = isSolverNode
-        ? createNodeGradient(
-            ctx,
-            x,
-            y,
-            NODE_WIDTH,
-            height,
-            isHovered ? SOLVER_NODE_FILL_TOP_HOVER : SOLVER_NODE_FILL_TOP,
-            isHovered ? SOLVER_NODE_FILL_BOTTOM_HOVER : SOLVER_NODE_FILL_BOTTOM
-          )
-        : isGoalNode
-          ? createNodeGradient(
-              ctx,
-              x,
-              y,
-              NODE_WIDTH,
-              height,
-              isHovered ? GOAL_NODE_FILL_TOP_HOVER : GOAL_NODE_FILL_TOP,
-              isHovered ? GOAL_NODE_FILL_BOTTOM_HOVER : GOAL_NODE_FILL_BOTTOM
-            )
-          : isHovered
-            ? palette.nodeFillHover
-            : palette.nodeFill;
+      // All nodes now use uniform grey styling
+      const baseFill = isHovered ? palette.nodeFillHover : palette.nodeFill;
       ctx.fillStyle = isInvalid
         ? palette.nodeErrorFill
         : showWarning
@@ -5602,13 +5484,9 @@ function drawNodes(
         ? palette.nodeErrorBorder
         : showWarning
           ? palette.nodeWarningBorder
-          : isSolverNode
-            ? SOLVER_NODE_BORDER
-            : isGoalNode
-              ? GOAL_NODE_BORDER
-              : isHovered
-                ? palette.nodeStrokeHover
-                : palette.nodeStroke;
+          : isHovered
+            ? palette.nodeStrokeHover
+            : palette.nodeStroke;
       ctx.lineWidth = 2;
 
       ctx.beginPath();
@@ -5879,7 +5757,8 @@ function drawNodes(
         ctx.font = portFont;
         ctx.textBaseline = "middle";
         ctx.textAlign = portLayout.isOutput ? "right" : "left";
-        ctx.fillStyle = portColor;
+        // Use black/white text for port labels instead of colored
+        ctx.fillStyle = palette.portLabel;
         ctx.globalAlpha = isPortHovered ? 1 : 0.86;
         const labelText = truncateToWidth(ctx, port.label, portLabelMaxWidth);
         const labelX = portLayout.isOutput ? x + NODE_WIDTH - 12 : x + 10;
@@ -5891,6 +5770,7 @@ function drawNodes(
         return;
       }
 
+      // Port circles remain colored - they're semantic identifiers
       ctx.fillStyle = portColor;
       ctx.beginPath();
       ctx.arc(portLayout.x, portLayout.y, PORT_RADIUS, 0, Math.PI * 2);
@@ -5905,7 +5785,7 @@ function drawNodes(
         ctx.restore();
       }
       ctx.save();
-      ctx.strokeStyle = categoryAccent ?? palette.portStroke;
+      ctx.strokeStyle = palette.portStroke;
       ctx.globalAlpha = isPortHovered ? 0.9 : 0.55;
       ctx.lineWidth = 1;
       ctx.stroke();

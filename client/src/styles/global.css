@@ -278,8 +278,11 @@
   --surface-soft: var(--ink-700);
   --color-topbar-bg: var(--ink-900);
   --color-topbar-border: var(--ink-700);
-  --color-grid-dot: rgba(253, 253, 252, 0.2);
-  --color-grid-dot-soft: rgba(253, 253, 252, 0.08);
+  --color-canvas: #1a1a1a;
+  --color-grid-dot: rgba(253, 253, 252, 0.15);
+  --color-grid-dot-soft: rgba(253, 253, 252, 0.06);
+  --canvas-grid-dot: rgba(253, 253, 252, 0.12);
+  --canvas-grid-dot-soft: rgba(253, 253, 252, 0.05);
   --color-footer-bg: color-mix(in srgb, var(--ink-900) 92%, transparent);
   --color-footer-border: rgba(253, 253, 252, 0.12);
   --color-footer-grid-strong: rgba(253, 253, 252, 0.15);
@@ -292,12 +295,23 @@
   --color-handle-dot-strong: rgba(253, 253, 252, 0.9);
   --color-handle-dot-soft: rgba(253, 253, 252, 0.7);
   --color-handle-stroke: rgba(253, 253, 252, 0.6);
+  --color-text: #f0f0f0;
+  --color-muted: #999999;
   --shadow-xs: 0 1px 0 rgba(0, 0, 0, 0.6);
   --shadow-sm: 0 6px 0 rgba(0, 0, 0, 0.8);
   --shadow-md-up: 0 -6px 0 rgba(0, 0, 0, 0.8);
   --shadow-panel: 0 16px 0 rgba(0, 0, 0, 0.85);
   --shadow-panel-active: 0 20px 0 rgba(0, 0, 0, 0.92);
   --shadow-panel-outline: 0 0 0 2px rgba(253, 253, 252, 0.15);
+
+  /* Monochrome node styling for dark mode */
+  --node-fill: #2a2a2a;
+  --node-fill-hover: #353535;
+  --node-stroke: #555555;
+  --node-band: #3a3a3a;
+  --node-band-accent: #666666;
+  --port-label: #f0f0f0;
+  --wire-color: #666666;
 }
 
 * {
