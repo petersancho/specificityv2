@@ -416,11 +416,12 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     // Log performance metrics every 10 iterations
     if (frame.iter % 10 === 0 && frame.timings) {
       console.log(`[TOPOLOGY] Iter ${frame.iter} performance:`, {
-        filterMs: frame.timings.filterMs?.toFixed(1),
-        solveMs: frame.timings.solveMs?.toFixed(1),
-        updateMs: frame.timings.updateMs?.toFixed(1),
-        totalMs: frame.timings.totalMs?.toFixed(1),
-        cgIters: frame.feIters,
+        filterMs: typeof frame.timings.filterMs === 'number' ? frame.timings.filterMs.toFixed(1) : frame.timings.filterMs,
+        solveMs: typeof frame.timings.solveMs === 'number' ? frame.timings.solveMs.toFixed(1) : frame.timings.solveMs,
+        updateMs: typeof frame.timings.updateMs === 'number' ? frame.timings.updateMs.toFixed(1) : frame.timings.updateMs,
+        totalMs: typeof frame.timings.totalMs === 'number' ? frame.timings.totalMs.toFixed(1) : frame.timings.totalMs,
+        cgIters: frame.timings.cgIters ?? frame.feIters,
+        cgTol: frame.timings.cgTol,
         compliance: frame.compliance.toFixed(2),
       });
 

@@ -22,6 +22,7 @@ interface DensityFilter {
   weightData: Float64Array;
   offsets: Uint32Array;
   Hs: Float64Array;
+  invHs: Float64Array;
 }
 
 interface FilterOffset {
@@ -59,6 +60,7 @@ function precomputeDensityFilter(nx: number, ny: number, nz: number, rmin: numbe
   const tempNeighbors: number[][] = [];
   const tempWeights: number[][] = [];
   const Hs = new Float64Array(numElems);
+  const invHs = new Float64Array(numElems);
   
   for (let ez = 0; ez < nz; ez++) {
     for (let ey = 0; ey < ny; ey++) {
@@ -83,6 +85,7 @@ function precomputeDensityFilter(nx: number, ny: number, nz: number, rmin: numbe
         tempNeighbors.push(neighborList);
         tempWeights.push(weightList);
         Hs[e] = sumWeight;
+        invHs[e] = sumWeight > 1e-14 ? 1.0 / sumWeight : 1.0;
       }
     }
   }
@@ -110,7 +113,7 @@ function precomputeDensityFilter(nx: number, ny: number, nz: number, rmin: numbe
   const t1 = performance.now();
   console.log(`[SIMP] Density filter precomputed in ${(t1 - t0).toFixed(1)}ms (${numElems} elements, ${totalNnz} neighbors, ${offsets.length} unique offsets)`);
   
-  return { numElems, neighborData, weightData, offsets: offsetsArray, Hs };
+  return { numElems, neighborData, weightData, offsets: offsetsArray, Hs, invHs };
 }
 
 function applyDensityFilter(rho: Float64Array, filter: DensityFilter, out?: Float64Array): Float64Array {
@@ -122,7 +125,7 @@ function applyDensityFilter(rho: Float64Array, filter: DensityFilter, out?: Floa
     for (let i = start; i < end; i++) {
       sum += filter.weightData[i] * rho[filter.neighborData[i]];
     }
-    rhoBar[e] = filter.Hs[e] > 1e-14 ? sum / filter.Hs[e] : rho[e];
+    rhoBar[e] = sum * filter.invHs[e];
   }
   return rhoBar;
 }
@@ -272,8 +275,9 @@ function createElementKernel(nx: number, ny: number, nz: number, bounds: { min: 
   return { nx, ny, nz, numElems, numNodes, numDofs, elemVol, Ke0, Ke0Diag, edofMat, bounds };
 }
 
-function matrixFreeKx(kernel: ElementKernel, rho: Float64Array, x: Float64Array, penal: number, E0: number, Emin: number): Float64Array {
-  const y = new Float64Array(kernel.numDofs);
+function matrixFreeKx(kernel: ElementKernel, rho: Float64Array, x: Float64Array, penal: number, E0: number, Emin: number, out?: Float64Array): Float64Array {
+  const y = out ?? new Float64Array(kernel.numDofs);
+  if (out) y.fill(0);
   const ue = new Float64Array(24), Kue = new Float64Array(24);
   
   for (let e = 0; e < kernel.numElems; e++) {
@@ -369,8 +373,8 @@ function solvePCG(
   for (const dof of fixedDofs) fMod[dof] = 0;
   
   if (uPrev) {
-    const Ku = matrixFreeKx(kernel, rho, u, penal, E0, Emin);
-    for (let i = 0; i < n; i++) r[i] = fMod[i] - Ku[i];
+    matrixFreeKx(kernel, rho, u, penal, E0, Emin, r);
+    for (let i = 0; i < n; i++) r[i] = fMod[i] - r[i];
     for (const dof of fixedDofs) r[dof] = 0;
   } else {
     for (let i = 0; i < n; i++) r[i] = fMod[i];
@@ -388,8 +392,7 @@ function solvePCG(
     if (resNorm < tolAbs) { converged = true; break; }
     if (!Number.isFinite(resNorm)) break;
     
-    const ApData = matrixFreeKx(kernel, rho, p, penal, E0, Emin);
-    for (let i = 0; i < n; i++) Ap[i] = ApData[i];
+    matrixFreeKx(kernel, rho, p, penal, E0, Emin, Ap);
     for (const dof of fixedDofs) Ap[dof] = 0;
     
     const pAp = dot(p, Ap);
@@ -420,10 +423,11 @@ function solvePCG(
 // SIMP ALGORITHM
 // ============================================================================
 
-const ADAPTIVE_CG_TOL_EARLY = 1e-2;
-const ADAPTIVE_CG_TOL_MID = 1e-3;
-const ADAPTIVE_CG_EARLY_ITERS = 10;
-const ADAPTIVE_CG_MID_ITERS = 30;
+const ADAPTIVE_CG_TOL_EARLY = 1e-1;
+const ADAPTIVE_CG_TOL_MID = 1e-2;
+const ADAPTIVE_CG_TOL_LATE = 1e-3;
+const ADAPTIVE_CG_EARLY_ITERS = 15;
+const ADAPTIVE_CG_MID_ITERS = 40;
 
 const MOVE_LIMIT_STABLE_THRESHOLD = 0.005;
 const MOVE_LIMIT_UNSTABLE_THRESHOLD = 0.05;
@@ -560,6 +564,7 @@ export async function* runSimp(
     
     const adaptiveCgTol = iter <= ADAPTIVE_CG_EARLY_ITERS ? ADAPTIVE_CG_TOL_EARLY : 
                            iter <= ADAPTIVE_CG_MID_ITERS ? ADAPTIVE_CG_TOL_MID : 
+                           iter <= 60 ? ADAPTIVE_CG_TOL_LATE :
                            params.cgTol;
     
     const { u, converged: solverOk, iters: cgIters } = solvePCG(
@@ -612,10 +617,12 @@ export async function* runSimp(
     const isDiscrete = grayLevel < grayTol;
     
     const timings = {
-      filterMs: tFilter - t0,
-      solveMs: tSolve - tFilter,
-      updateMs: tUpdate - tSolve,
-      totalMs: tUpdate - t0,
+      filterMs: (tFilter - t0).toFixed(1),
+      solveMs: (tSolve - tFilter).toFixed(1),
+      updateMs: (tUpdate - tSolve).toFixed(1),
+      totalMs: (tUpdate - t0).toFixed(1),
+      cgIters,
+      cgTol: adaptiveCgTol.toExponential(1),
     };
     
     if (DEBUG && iter <= 5) {

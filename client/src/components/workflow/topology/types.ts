@@ -119,10 +119,12 @@ export type SolverFrame = {
   feIters?: number;
   error?: string;
   timings?: {
-    filterMs?: number;
-    solveMs?: number;
-    updateMs?: number;
-    totalMs?: number;
+    filterMs?: number | string;
+    solveMs?: number | string;
+    updateMs?: number | string;
+    totalMs?: number | string;
+    cgIters?: number;
+    cgTol?: string;
   };
 };
 
