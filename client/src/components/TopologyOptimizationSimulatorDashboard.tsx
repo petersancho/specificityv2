@@ -78,15 +78,11 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   const animationFrameRef = useRef<number | null>(null);
   const isRunningRef = useRef(false);
 
-  const { nodes, edges, updateNodeData, geometry, addGeometryMesh } = useProjectStore(
-    (state) => ({
-      nodes: state.workflow.nodes,
-      edges: state.workflow.edges,
-      updateNodeData: state.updateNodeData,
-      geometry: state.geometry,
-      addGeometryMesh: state.addGeometryMesh,
-    })
-  );
+  const nodes = useProjectStore((state) => state.workflow.nodes);
+  const edges = useProjectStore((state) => state.workflow.edges);
+  const updateNodeData = useProjectStore((state) => state.updateNodeData);
+  const geometry = useProjectStore((state) => state.geometry);
+  const addGeometryMesh = useProjectStore((state) => state.addGeometryMesh);
 
   const solverNode = useMemo(
     () => nodes.find((node) => node.id === nodeId),

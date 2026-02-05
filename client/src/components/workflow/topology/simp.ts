@@ -10,6 +10,8 @@ import { validateProblem, DefaultValidationConfig, type ValidationConfig } from 
 import { SimpValidationError, hasErrors } from "./errors";
 import { computeStrictBounds, worldToGrid, gridToNodeIndex, buildDofMapping } from "./coordinateFrames";
 
+const DEBUG = false;
+
 // ============================================================================
 // DENSITY FILTER (Flat Sparse Storage for Performance)
 // ============================================================================
@@ -507,6 +509,15 @@ export async function* runSimp(
   
   const penalRampRate = (params.penalEnd - params.penalStart) / params.penalRampIters;
   
+  if (DEBUG) {
+    console.log('[SIMP] Starting optimization loop', {
+      maxIters: params.maxIters,
+      volFrac: params.volFrac,
+      tolChange: params.tolChange,
+      minIterations,
+    });
+  }
+  
   for (let iter = 1; iter <= params.maxIters; iter++) {
     applyDensityFilter(densities, filter, rhoBar);
     
@@ -563,6 +574,20 @@ export async function* runSimp(
     const isConverging = compChange < params.tolChange && maxChange < params.tolChange;
     const isDiscrete = grayLevel < grayTol;
     
+    if (DEBUG && iter <= 5) {
+      console.log(`[SIMP] Iteration ${iter}:`, {
+        compliance,
+        compChange,
+        maxChange,
+        vol,
+        grayLevel,
+        isConverging,
+        isDiscrete,
+        consecutiveConverged,
+        prevCompliance,
+      });
+    }
+    
     if (isConverging && isDiscrete) {
       consecutiveConverged++;
     } else if (isConverging) {
@@ -593,7 +618,19 @@ export async function* runSimp(
     
     yield { iter, compliance, change: maxChange, vol, densities: densitiesF32, converged: consecutiveConverged >= minIterations };
     
-    if (consecutiveConverged >= minIterations) break;
+    if (consecutiveConverged >= minIterations) {
+      if (DEBUG) {
+        console.log(`[SIMP] Converged at iteration ${iter}`, {
+          compliance,
+          compChange,
+          maxChange,
+          vol,
+          consecutiveConverged,
+          minIterations,
+        });
+      }
+      break;
+    }
     
     prevCompliance = compliance;
     await new Promise(r => setTimeout(r, 0));
