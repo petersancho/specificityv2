@@ -448,8 +448,9 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       { recalculate: false }
     );
 
-    // Generate preview geometry every 10 iterations
-    if (baseMesh && frame.iter % 10 === 0) {
+    // Generate preview geometry every 10 iterations OR at convergence
+    const shouldGeneratePreview = baseMesh && (frame.iter % 10 === 0 || frame.converged);
+    if (shouldGeneratePreview) {
       try {
         const t0 = performance.now();
         const bounds = calculateMeshBounds(baseMesh);
@@ -479,7 +480,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
         });
         
         const t1 = performance.now();
-        if (DEBUG) console.log(`[TOPOLOGY] Preview generation took ${(t1 - t0).toFixed(1)}ms`);
+        console.log(`[TOPOLOGY] Preview generation took ${(t1 - t0).toFixed(1)}ms`);
       } catch (error) {
         console.error('[TOPOLOGY] Preview generation error:', error);
       }

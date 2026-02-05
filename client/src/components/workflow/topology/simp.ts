@@ -798,7 +798,7 @@ export async function* runSimp(
       cgTol: adaptiveCgTol.toExponential(1),
     };
     
-    if (iter % 10 === 0 || iter <= 5) {
+    if (iter % 10 === 0 || iter <= 5 || iter >= minIterations - 5) {
       console.log(`[SIMP] Iteration ${iter}:`, {
         compliance: compliance.toExponential(3),
         relCompChange: relCompChange.toExponential(3),
@@ -809,6 +809,7 @@ export async function* runSimp(
         isDiscrete,
         consecutiveConverged,
         shouldStop,
+        minItersReached: (iter + 1) >= minIterations,
         cgIters,
       });
     }
@@ -841,7 +842,7 @@ export async function* runSimp(
     const stableWindow = 8;
     const minItersReached = (iter + 1) >= minIterations;
     const stableEnough = consecutiveConverged >= stableWindow;
-    const hasConverged = (shouldStop && minItersReached) || (minItersReached && stableEnough);
+    const hasConverged = minItersReached && (shouldStop || stableEnough);
     
     yield { 
       iter, 
