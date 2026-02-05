@@ -141,11 +141,57 @@ Key exports from `client/src/semantic/index.ts`:
 Five solvers with automatic mesh generation:
 - **Physics (Pythagoras)**: FEA stress analysis
 - **Chemistry (Apollonius)**: Material blending/reactions
-- **Topological Optimization (Euclid)**: Weight reduction
+- **Topological Optimization (Euclid)**: Weight reduction via SIMP method
 - **Voxel (Archimedes)**: Volumetric discretization
 - **Biological (Galen)**: Reaction-diffusion morphogenesis
 
 Solver nodes use `semanticOps: ['solver.{name}']`. Goal nodes are declarative and must NOT have `semanticOps`.
+
+### Topology Optimization Solver
+
+**Status:** ✅ Production-ready with full semantic integration
+
+**Key Features:**
+- Matrix-free FEA with proper Jacobian transformation
+- Preconditioned Conjugate Gradient (PCG) solver
+- Heaviside projection with staged continuation (β: 1 → 256)
+- Workspace pooling and warm-start PCG for performance
+- Multi-criterion convergence (compliance + density + gray level)
+- YAML validation schema with 8 mathematical invariants
+- AI agent discoverable via `docs/semantic/agent-catalog.json`
+
+**Files:**
+- Core: `client/src/components/workflow/topology/simp.ts`
+- Validation: `client/src/components/workflow/topology/validation.ts`
+- Schema: `client/src/semantic/schemas/topology-optimization.schema.yml`
+- Node: `client/src/workflow/nodes/solver/TopologyOptimizationSolver.ts`
+
+**Validation:**
+```bash
+npm run validate:topology              # Validate YAML schema
+npm run validate:semantic-integration  # Validate cross-references
+```
+
+### Numerica Simulator Ontology
+
+**Solver Rigs:**
+- Box Builder → Extent Selectors → Goal Nodes → Solver
+- NO parameter slider nodes in rig
+- All parameters editable from SETUP page
+
+**Goal Nodes:**
+- Anchor Goal: 1 input (`vertices` - WHERE to anchor)
+- Load Goal: 3 inputs (`applicationPoints`, `forceMagnitude`, `direction`)
+- Goal nodes extract geometry and pass to solver
+
+**Solver Node:**
+- 2 inputs: `geometry`, `goals`
+- All parameters in SETUP page (not connected from workflow)
+
+**Simulator Dashboard:**
+- SETUP page: All parameter sliders
+- SIMULATOR page: Visualization and controls
+- OUTPUT page: Results and exports
 
 ## Documentation
 
@@ -156,9 +202,30 @@ Key docs in `docs/`:
 - `SEMANTIC_OPERATION_GUIDELINES.md` – Semantic system guidelines
 - `SKILL.md` (root) – Development patterns and rules
 
+## Semantic Integration System
+
+**AI Agent Discovery:**
+- Machine-readable catalog: `docs/semantic/agent-catalog.json`
+- YAML schemas: `client/src/semantic/schemas/*.schema.yml`
+- Agent capabilities: `docs/semantic/agent_capabilities.json`
+
+**How AI Agents Use This:**
+1. **Discovery** - Load catalog, filter by domain/category/tags
+2. **Validation** - Parse constraints, validate parameters before execution
+3. **Invariant Checking** - Verify preconditions/postconditions
+4. **Navigation** - Follow semantic links: Operation → Schema → Node → Implementation
+5. **Fix Suggestions** - Use validation rules to suggest fixes
+
+**Benefits:**
+- ✅ Efficient search through catalog-based discovery
+- ✅ Deep understanding through mathematical invariants
+- ✅ Better solutions through validation and postcondition checking
+- ✅ Ontological navigation through semantic links
+
 ## Change Impact Checklist
 
 - **New geometry type**: Update `types.ts`, kernel ops, render adapter, hit testing, selection UI, persistence
 - **New command**: Update registry, validation, command semantics, command ops, undo/redo hooks
 - **New workflow node**: Update node registry, validation, compute function, add `semanticOps` if computational
 - **New render mode**: Update shaders, renderer, UI labels, docs
+- **New solver/simulator**: Create YAML schema, add to agent catalog, define semantic ops, create goal nodes, implement solver rig
