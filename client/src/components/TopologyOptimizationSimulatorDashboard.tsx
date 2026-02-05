@@ -79,41 +79,68 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   const animationFrameRef = useRef<number | null>(null);
   const isRunningRef = useRef(false);
 
-  const nodes = useProjectStore((state) => state.workflow.nodes);
-  const edges = useProjectStore((state) => state.workflow.edges);
   const updateNodeData = useProjectStore((state) => state.updateNodeData);
-  const geometry = useProjectStore((state) => state.geometry);
   const addGeometryMesh = useProjectStore((state) => state.addGeometryMesh);
-
-  const solverNode = useMemo(
-    () => nodes.find((node) => node.id === nodeId),
-    [nodes, nodeId]
+  
+  // Use stable selectors to avoid infinite loops
+  const solverNode = useProjectStore((state) => 
+    state.workflow.nodes.find((node) => node.id === nodeId)
   );
+  
+  const edges = useProjectStore((state) => state.workflow.edges);
+  
+  // Get only the nodes we actually need, not the entire array
+  const geometryEdge = useMemo(() => 
+    edges.find((edge) => edge.target === nodeId && edge.targetHandle === "geometry"),
+    [edges, nodeId]
+  );
+  
+  const goalEdges = useMemo(() => 
+    edges.filter((edge) => edge.target === nodeId && edge.targetHandle === "goals"),
+    [edges, nodeId]
+  );
+  
+  const geometrySourceNode = useProjectStore((state) => 
+    geometryEdge ? state.workflow.nodes.find((n) => n.id === geometryEdge.source) : null
+  );
+  
+  const goalSourceNodes = useProjectStore((state) => 
+    goalEdges.map(edge => state.workflow.nodes.find((n) => n.id === edge.source)).filter(Boolean)
+  );
+  
+  const geometryStore = useProjectStore((state) => state.geometry);
 
   const parameters = solverNode?.data?.parameters ?? {};
   const outputs = solverNode?.data?.outputs ?? {};
 
+  // Get all source nodes for input overrides
+  const inputSourceNodes = useProjectStore((state) => {
+    const relevantEdges = state.workflow.edges.filter(e => e.target === nodeId);
+    return relevantEdges.map(edge => ({
+      edge,
+      node: state.workflow.nodes.find(n => n.id === edge.source)
+    })).filter(item => item.node);
+  });
+
   const inputOverrides = useMemo(() => {
     const overrides = new Map<string, unknown>();
-    const outputKeyFallback = (sourceNode?: typeof nodes[number]) => {
+    const outputKeyFallback = (sourceNode?: any) => {
       if (!sourceNode?.data?.outputs) return null;
       if ("value" in sourceNode.data.outputs) return "value";
       const keys = Object.keys(sourceNode.data.outputs);
       return keys.length > 0 ? keys[0] : null;
     };
 
-    for (const edge of edges) {
-      if (edge.target !== nodeId) continue;
+    for (const { edge, node: sourceNode } of inputSourceNodes) {
       const targetHandle = edge.targetHandle;
       if (!targetHandle) continue;
-      const sourceNode = nodes.find((node) => node.id === edge.source);
       if (!sourceNode?.data?.outputs) continue;
       const outputKey = edge.sourceHandle ?? outputKeyFallback(sourceNode);
       if (!outputKey) continue;
       overrides.set(targetHandle, sourceNode.data.outputs[outputKey]);
     }
     return overrides;
-  }, [edges, nodeId, nodes]);
+  }, [inputSourceNodes, nodeId]);
 
   const resolveNumber = (key: string, fallback: number) => {
     if (inputOverrides.has(key)) {
@@ -149,28 +176,17 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   const pipeSegmentsRaw = resolveNumber("pipeSegments", 12);
   const pipeSegments = Math.max(6, Math.min(32, Math.round(pipeSegmentsRaw)));
 
-  // Check connections
-  const geometryEdge = edges.find(
-    (edge) => edge.target === nodeId && edge.targetHandle === "geometry"
-  );
-  const goalEdges = edges.filter(
-    (edge) => edge.target === nodeId && edge.targetHandle === "goals"
-  );
-
   const hasGeometry = !!geometryEdge;
   const goalsCount = goalEdges.length;
 
   // Get geometry and goals
   const baseMesh = useMemo(() => {
-    if (!geometryEdge) return null;
+    if (!geometryEdge || !geometrySourceNode) return null;
     
-    const sourceNode = nodes.find((n) => n.id === geometryEdge.source);
-    if (!sourceNode) return null;
-    
-    if (DEBUG) console.log('[TOPOLOGY] Source node type:', sourceNode.type);
+    if (DEBUG) console.log('[TOPOLOGY] Source node type:', geometrySourceNode.type);
     
     // Try direct geometry output first (Box Builder, Sphere, etc.)
-    const directGeometry = sourceNode.data?.outputs?.geometry;
+    const directGeometry = geometrySourceNode.data?.outputs?.geometry;
     if (directGeometry && typeof directGeometry === 'object' && 'type' in directGeometry) {
       const geomObj = directGeometry as { type: string; mesh?: RenderMesh };
       if (geomObj.type === 'mesh' && geomObj.mesh) {
@@ -180,9 +196,9 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     }
     
     // Try geometry ID (Geometry Reference nodes)
-    const geometryId = sourceNode.data?.geometryId || sourceNode.data?.outputs?.geometryId;
+    const geometryId = geometrySourceNode.data?.geometryId || geometrySourceNode.data?.outputs?.geometryId;
     if (geometryId) {
-      const geom = geometry.find(g => g.id === geometryId);
+      const geom = geometryStore.find(g => g.id === geometryId);
       if (geom?.type === 'mesh') {
         if (DEBUG) console.log('[TOPOLOGY] Using mesh from geometry store');
         return geom.mesh;
@@ -191,7 +207,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     
     console.error('[TOPOLOGY] ❌ No valid mesh geometry found');
     return null;
-  }, [geometryEdge, nodes, geometry]);
+  }, [geometryEdge, geometrySourceNode, geometryStore]);
 
   const baseBounds = useMemo(() => {
     if (!baseMesh) return null;
@@ -200,15 +216,14 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
 
   const goals = useMemo(() => {
     const goalList: any[] = [];
-    for (const edge of goalEdges) {
-      const sourceNode = nodes.find((n) => n.id === edge.source);
+    for (const sourceNode of goalSourceNodes) {
       const goal = sourceNode?.data?.outputs?.goal;
       if (goal && typeof goal === 'object') {
         goalList.push(goal);
       }
     }
     return goalList;
-  }, [goalEdges, nodes]);
+  }, [goalSourceNodes]);
 
   // Parameter change handler
   const handleParameterChange = (key: string, value: number) => {
