@@ -261,10 +261,13 @@ export function validateBoundaryConditions(
   const dofMapping = buildDofMapping(params.nx, params.ny, params.nz);
   const fixedDofs = new Set<number>();
   const loadedDofs = new Set<number>();
+  const anchorNodes = new Map<number, Vec3>();
+  const loadNodes = new Map<number, Vec3>();
   
   for (const anchor of markers.anchors) {
     const grid = worldToGrid(anchor.position, bounds, params.nx, params.ny, params.nz);
     const nodeIdx = gridToNodeIndex(grid, params.nx, params.ny);
+    anchorNodes.set(nodeIdx, anchor.position);
     const dofs = dofMapping.nodeToDofs.get(nodeIdx);
     if (dofs) {
       dofs.forEach(dof => fixedDofs.add(dof));
@@ -274,6 +277,7 @@ export function validateBoundaryConditions(
   for (const load of markers.loads) {
     const grid = worldToGrid(load.position, bounds, params.nx, params.ny, params.nz);
     const nodeIdx = gridToNodeIndex(grid, params.nx, params.ny);
+    loadNodes.set(nodeIdx, load.position);
     const dofs = dofMapping.nodeToDofs.get(nodeIdx);
     if (dofs) {
       dofs.forEach(dof => loadedDofs.add(dof));
@@ -281,19 +285,43 @@ export function validateBoundaryConditions(
   }
   
   const conflicts: number[] = [];
+  const conflictingNodes: number[] = [];
   for (const dof of fixedDofs) {
     if (loadedDofs.has(dof)) {
       conflicts.push(dof);
+      const nodeIdx = dofMapping.dofToNode.get(dof);
+      if (nodeIdx !== undefined && !conflictingNodes.includes(nodeIdx)) {
+        conflictingNodes.push(nodeIdx);
+      }
     }
   }
   
   if (conflicts.length > 0) {
     const severity = config.policies.loadOnFixedDof === 'error' ? 'error' : 'warning';
+    const diagnostics: string[] = [];
+    for (const nodeIdx of conflictingNodes.slice(0, 3)) {
+      const anchorPos = anchorNodes.get(nodeIdx);
+      const loadPos = loadNodes.get(nodeIdx);
+      if (anchorPos && loadPos) {
+        diagnostics.push(
+          `Node ${nodeIdx}: anchor at (${anchorPos.x.toFixed(3)}, ${anchorPos.y.toFixed(3)}, ${anchorPos.z.toFixed(3)}), ` +
+          `load at (${loadPos.x.toFixed(3)}, ${loadPos.y.toFixed(3)}, ${loadPos.z.toFixed(3)})`
+        );
+      } else if (anchorPos) {
+        diagnostics.push(`Node ${nodeIdx}: anchor at (${anchorPos.x.toFixed(3)}, ${anchorPos.y.toFixed(3)}, ${anchorPos.z.toFixed(3)})`);
+      } else if (loadPos) {
+        diagnostics.push(`Node ${nodeIdx}: load at (${loadPos.x.toFixed(3)}, ${loadPos.y.toFixed(3)}, ${loadPos.z.toFixed(3)})`);
+      }
+    }
+    const message = `${conflicts.length} DOF(s) are both fixed and loaded. This creates inconsistent boundary conditions.\n` +
+      `Conflicting nodes: ${conflictingNodes.length}\n` +
+      (diagnostics.length > 0 ? `Details:\n${diagnostics.join('\n')}` : '') +
+      `\nSuggestion: Increase grid resolution (nx/ny/nz) or adjust goal regions to avoid overlap.`;
     issues.push(createIssue(
       'BC_CONFLICT',
       severity,
-      `${conflicts.length} DOF(s) are both fixed and loaded. This creates inconsistent boundary conditions.`,
-      { conflicts: conflicts.slice(0, 10) }
+      message,
+      { conflicts: conflicts.slice(0, 10), conflictingNodes, diagnostics }
     ));
   }
   
