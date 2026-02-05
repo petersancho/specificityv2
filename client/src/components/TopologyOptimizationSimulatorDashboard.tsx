@@ -598,8 +598,8 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       onDone: handleDone,
       onError: handleError,
     }, {
-      frameStride: 10,       // Send frame every 10 iterations (reduced from 5 for stability)
-      frameIntervalMs: 500,  // At most 2 fps (reduced from 4 fps for less overhead)
+      frameStride: 1,        // Send frame every iteration for real-time convergence monitoring
+      frameIntervalMs: 200,  // At most 5 fps for smooth visual feedback
     });
   };
 
@@ -1303,8 +1303,29 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                     </div>
                     <div className={styles.statusItem}>
                       <span className={styles.statusLabel}>Compliance:</span>
-                      <span className={styles.statusValue}>{currentFrame.compliance.toFixed(2)}</span>
+                      <span className={styles.statusValue} style={{ 
+                        color: currentFrame.compliance > 1e8 ? '#ff4444' : 'inherit',
+                        fontWeight: currentFrame.compliance > 1e8 ? 'bold' : 'normal'
+                      }}>
+                        {currentFrame.compliance > 1e6 
+                          ? currentFrame.compliance.toExponential(2) 
+                          : currentFrame.compliance.toFixed(2)}
+                      </span>
                     </div>
+                    {currentFrame.compliance > 1e8 && (
+                      <div className={styles.warningMessage} style={{
+                        backgroundColor: '#442200',
+                        border: '1px solid #ff8800',
+                        padding: '8px',
+                        marginTop: '8px',
+                        borderRadius: '4px',
+                        fontSize: '12px'
+                      }}>
+                        <strong>⚠️ WARNING:</strong> Compliance is extremely high ({currentFrame.compliance.toExponential(2)}). 
+                        This usually means force magnitude is too large. 
+                        Delete this rig and create a new one (new rigs use correct force scale).
+                      </div>
+                    )}
                     <div className={styles.statusItem}>
                       <span className={styles.statusLabel}>Volume:</span>
                       <span className={styles.statusValue}>{(currentFrame.vol * 100).toFixed(1)}%</span>

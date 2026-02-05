@@ -650,6 +650,16 @@ export async function* runSimp(
     numFixedDofs: fixedDofs.size,
   });
   
+  if (forceMax >= 10) {
+    console.warn(`[SIMP] ⚠️  WARNING: Force magnitude is very high (${forceMax.toFixed(1)}). This may cause:
+  - Extremely high compliance (>1e9)
+  - Uniform density field (no structure)
+  - Poor optimization results
+  
+  SOLUTION: Delete this rig and create a new one (new rigs use force=-1.0 instead of -100).
+  Or manually edit the Load Goal node parameters to reduce force magnitude.`);
+  }
+  
   const kernel = createElementKernel(nx, ny, nz, bounds, params.nu);
   const filter = precomputeSeparableDensityFilter(nx, ny, nz, params.rmin);
   
@@ -828,18 +838,23 @@ export async function* runSimp(
       penal = params.penalEnd;
     }
     
+    const stableWindow = 8;
+    const minItersReached = (iter + 1) >= minIterations;
+    const stableEnough = consecutiveConverged >= stableWindow;
+    const hasConverged = (shouldStop && minItersReached) || (minItersReached && stableEnough);
+    
     yield { 
       iter, 
       compliance, 
       change: maxChange, 
       vol, 
       densities: rhoPhysical, 
-      converged: shouldStop || consecutiveConverged >= minIterations,
+      converged: hasConverged,
       feIters: cgIters,
       timings,
     };
     
-    if (shouldStop || consecutiveConverged >= minIterations) {
+    if (hasConverged) {
       console.log(`[SIMP] Converged at iteration ${iter}`, {
         compliance: compliance.toExponential(3),
         relCompChange: relCompChange.toExponential(3),
@@ -848,7 +863,9 @@ export async function* runSimp(
         grayLevel: grayLevel.toFixed(3),
         consecutiveConverged,
         minIterations,
-        reason: shouldStop ? 'stall window' : 'consecutive converged',
+        minItersReached,
+        stableEnough,
+        reason: shouldStop ? 'stall window' : 'stable convergence',
       });
       break;
     }
