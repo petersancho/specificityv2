@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
-import { shallow } from "zustand/shallow";
 import styles from "./TopologyOptimizationSimulatorDashboard.module.css";
 import { useProjectStore } from "../store/useProjectStore";
 import { computeMeshArea } from "../geometry/mesh";
@@ -107,15 +106,17 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     geometryEdgeId ? state.workflow.nodes.find((n) => n.id === geometryEdgeId) : null
   );
   
-  const goalSourceNodes = useProjectStore(
-    (state) => {
-      if (goalEdgeIds.length === 0) return [];
-      return goalEdgeIds
-        .map(id => state.workflow.nodes.find((n) => n.id === id))
-        .filter((n): n is NonNullable<typeof n> => n !== undefined);
-    },
-    shallow
-  );
+  // Use JSON.stringify for deep comparison of goal nodes
+  const goalSourceNodesRaw = useProjectStore((state) => {
+    if (goalEdgeIds.length === 0) return [];
+    return goalEdgeIds
+      .map(id => state.workflow.nodes.find((n) => n.id === id))
+      .filter((n): n is NonNullable<typeof n> => n !== undefined);
+  });
+  
+  const goalSourceNodes = useMemo(() => goalSourceNodesRaw, [
+    JSON.stringify(goalSourceNodesRaw.map(n => ({ id: n.id, data: n.data })))
+  ]);
   
   const geometryStore = useProjectStore((state) => state.geometry);
   
