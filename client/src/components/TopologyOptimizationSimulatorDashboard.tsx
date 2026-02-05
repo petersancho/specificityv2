@@ -531,6 +531,15 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       cgMaxIters
     };
 
+    console.log('[TOPOLOGY] Grid resolution:', { nx, ny, nz });
+    console.log('[TOPOLOGY] Total nodes:', (nx + 1) * (ny + 1) * (nz + 1));
+    
+    // Warn if using old/low resolution
+    if (nz < 60) {
+      console.warn('[TOPOLOGY] ⚠️ Low Z resolution detected (nz=' + nz + '). For 3D problems, recommend nz >= 60 to avoid BC_CONFLICT.');
+      console.warn('[TOPOLOGY] ⚠️ If you created this rig before recent updates, please delete it and create a new one.');
+    }
+    
     if (DEBUG) console.log('[TOPOLOGY] SIMP parameters:', simpParams);
     
     // Unified solver handles both 2D and 3D based on nz
@@ -678,6 +687,26 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
 
             <div className={styles.section}>
               <h3 className={styles.sectionTitle}>Grid Resolution</h3>
+              
+              {nz < 60 && (
+                <div style={{
+                  padding: '12px',
+                  marginBottom: '16px',
+                  background: 'rgba(255, 165, 0, 0.1)',
+                  border: '1px solid rgba(255, 165, 0, 0.3)',
+                  borderRadius: '4px',
+                  color: '#ffa500'
+                }}>
+                  <strong>⚠️ Low Resolution Warning</strong>
+                  <p style={{ margin: '8px 0 0 0', fontSize: '13px', lineHeight: '1.4' }}>
+                    Current Z resolution (nz={nz}) is low for 3D problems. This may cause BC_CONFLICT errors.
+                    <br />
+                    <strong>Recommended:</strong> nz ≥ 60 (current default: 80)
+                    <br />
+                    <strong>Action:</strong> Delete this rig and create a new one to get updated defaults.
+                  </p>
+                </div>
+              )}
               
               <div className={styles.parameterGroup}>
                 <label className={styles.parameterLabel}>
