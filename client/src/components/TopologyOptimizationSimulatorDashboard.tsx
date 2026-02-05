@@ -171,23 +171,23 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   };
 
   // SIMP parameters
-  const nx = resolveNumber("nx", 80);
-  const ny = resolveNumber("ny", 60);
-  const nz = resolveNumber("nz", 40);
+  const nx = resolveNumber("nx", 40);
+  const ny = resolveNumber("ny", 30);
+  const nz = resolveNumber("nz", 20);
   const volFrac = resolveNumber("volFrac", 0.4);
   const penalStart = resolveNumber("penalStart", 1.0);
   const penalEnd = resolveNumber("penalEnd", 3.0);
   const penalRampIters = resolveNumber("penalRampIters", 60);
   const rmin = resolveNumber("rmin", 1.2);
   const move = resolveNumber("move", 0.15);
-  const maxIters = resolveNumber("maxIters", 150);
+  const maxIters = resolveNumber("maxIters", 80);
   const tolChange = resolveNumber("tolChange", 0.001);
   const E0 = resolveNumber("E0", 1.0);
   const Emin = resolveNumber("Emin", 1e-9);
   const rhoMin = resolveNumber("rhoMin", 1e-3);
   const nu = resolveNumber("nu", 0.3);
   const cgTol = resolveNumber("cgTol", 1e-6);
-  const cgMaxIters = resolveNumber("cgMaxIters", 1000);
+  const cgMaxIters = resolveNumber("cgMaxIters", 120);
   
   // Geometry generation parameters
   const densityThreshold = resolveNumber("densityThreshold", 0.3);
@@ -576,10 +576,10 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     console.log('[TOPOLOGY] Total nodes:', (nx + 1) * (ny + 1) * (nz + 1));
     console.log('[TOPOLOGY] Using web worker for computation');
     
-    if (nz < 20) {
+    if (nz < 15) {
       console.error('[TOPOLOGY] ⚠️⚠️⚠️ CRITICAL: Low Z resolution detected (nz=' + nz + ') ⚠️⚠️⚠️');
       console.error('[TOPOLOGY] This will cause BC_CONFLICT errors!');
-      console.error('[TOPOLOGY] Current defaults: nx=80, ny=60, nz=40');
+      console.error('[TOPOLOGY] Current defaults: nx=40, ny=30, nz=20');
       console.error('[TOPOLOGY] Your rig has: nx=' + nx + ', ny=' + ny + ', nz=' + nz);
       console.error('[TOPOLOGY] ACTION REQUIRED: Delete this rig and create a new one!');
       console.error('[TOPOLOGY] Solver Node ID:', nodeId);

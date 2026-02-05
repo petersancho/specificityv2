@@ -12,6 +12,42 @@ import { computeStrictBounds, worldToGrid, gridToNodeIndex, buildDofMapping } fr
 
 const DEBUG = false;
 
+const MAX_ELEMS = 60_000;
+const MAX_MEMORY_MB = 400;
+const PCG_TIME_BUDGET_MS = 500;
+const PCG_DIVERGENCE_FACTOR = 1e6;
+
+// ============================================================================
+// STABILITY HELPERS
+// ============================================================================
+
+function assertFiniteNumber(name: string, v: number): void {
+  if (!Number.isFinite(v)) {
+    throw new Error(`[SIMP] ${name} is not finite: ${v}`);
+  }
+}
+
+function assertFiniteArray(name: string, a: ArrayLike<number>, sampleStride = 97): void {
+  for (let i = 0; i < a.length; i += sampleStride) {
+    const v = a[i];
+    if (!Number.isFinite(v)) {
+      throw new Error(`[SIMP] ${name}[${i}] is not finite: ${v}`);
+    }
+  }
+}
+
+function estimateMemoryMB(nx: number, ny: number, nz: number): number {
+  const numElems = nx * ny * nz;
+  const numNodes = (nx + 1) * (ny + 1) * (nz + 1);
+  const numDofs = numNodes * 3;
+  
+  const bytesPerElem = 8 * 10;
+  const bytesPerDof = 8 * 8;
+  
+  const totalBytes = numElems * bytesPerElem + numDofs * bytesPerDof;
+  return totalBytes / (1024 * 1024);
+}
+
 // ============================================================================
 // DENSITY FILTER (Flat Sparse Storage for Performance)
 // ============================================================================
@@ -386,11 +422,25 @@ function solvePCG(
   let rz = dot(r, z);
   const tolAbs = Math.max(tol * Math.sqrt(dot(fMod, fMod)), 1e-14);
   
+  const maxIterClamped = Math.min(maxIters, 150);
+  const t0 = performance.now();
+  let resNorm0 = -1;
+  
   let converged = false, iters = 0;
-  for (iters = 0; iters < maxIters; iters++) {
+  for (iters = 0; iters < maxIterClamped; iters++) {
     const resNorm = Math.sqrt(dot(r, r));
+    
+    if (iters === 0) resNorm0 = resNorm;
+    if (resNorm0 > 0 && resNorm > resNorm0 * PCG_DIVERGENCE_FACTOR) {
+      throw new Error(`PCG diverging (resNorm grew from ${resNorm0.toExponential(2)} to ${resNorm.toExponential(2)}). Reduce resolution or check boundary conditions.`);
+    }
+    
     if (resNorm < tolAbs) { converged = true; break; }
     if (!Number.isFinite(resNorm)) break;
+    
+    if (performance.now() - t0 > PCG_TIME_BUDGET_MS) {
+      throw new Error(`PCG time budget exceeded (${PCG_TIME_BUDGET_MS}ms). Reduce resolution (nx/ny/nz) or cgMaxIters.`);
+    }
     
     matrixFreeKx(kernel, rho, p, penal, E0, Emin, Ap);
     for (const dof of fixedDofs) Ap[dof] = 0;
@@ -509,6 +559,18 @@ export async function* runSimp(
   const { bounds, fixedDofs, loadedDofs } = validation.validated;
   const { nx, ny, nz } = params;
   
+  const numElems = nx * ny * nz;
+  if (numElems > MAX_ELEMS) {
+    throw new Error(`Resolution too high (${numElems} elements > ${MAX_ELEMS} max). Reduce nx/ny/nz for stability.`);
+  }
+  
+  const estimatedMB = estimateMemoryMB(nx, ny, nz);
+  if (estimatedMB > MAX_MEMORY_MB) {
+    throw new Error(`Model too large (est. ${Math.round(estimatedMB)}MB > ${MAX_MEMORY_MB}MB max). Reduce resolution.`);
+  }
+  
+  console.log(`[SIMP] Starting optimization: ${numElems} elements, est. ${Math.round(estimatedMB)}MB`);
+  
   const numNodes = (nx + 1) * (ny + 1) * (nz + 1);
   const forces = new Float64Array(numNodes * 3);
   
@@ -518,7 +580,6 @@ export async function* runSimp(
   
   const kernel = createElementKernel(nx, ny, nz, bounds, params.nu);
   const filter = precomputeDensityFilter(nx, ny, nz, params.rmin);
-  const numElems = nx * ny * nz;
   
   let densities = new Float64Array(numElems);
   densities.fill(params.volFrac);
@@ -582,10 +643,14 @@ export async function* runSimp(
     for (let i = 0; i < kernel.numDofs; i++) uPrev[i] = u[i];
     
     const compliance = dot(forces, u);
-    if (!Number.isFinite(compliance) || compliance <= 0) {
-      yield { iter, compliance: Infinity, change: 1.0, vol: params.volFrac, densities: new Float32Array(densities), converged: false, error: `Invalid compliance at iter ${iter}` };
+    assertFiniteNumber("compliance", compliance);
+    
+    if (compliance <= 0) {
+      yield { iter, compliance: Infinity, change: 1.0, vol: params.volFrac, densities: new Float32Array(densities), converged: false, error: `Invalid compliance at iter ${iter}: ${compliance}` };
       return;
     }
+    
+    assertFiniteArray("densities", densities, 97);
     
     const ce = computeElementCe(kernel, u);
     const dCdrhoTilde = computeSensitivities(rhoPhysical, ce, penal, params.E0, params.Emin);
