@@ -150,7 +150,6 @@ export const SavedScriptsDropdown = ({
               key={script.id}
               type="button"
               className={styles.scriptButton}
-              onPointerDown={(event) => handleScriptActivate(event, script.onClick)}
               onClick={(event) => handleScriptActivate(event, script.onClick)}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
