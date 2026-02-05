@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
+import { shallow } from "zustand/shallow";
 import styles from "./TopologyOptimizationSimulatorDashboard.module.css";
 import { useProjectStore } from "../store/useProjectStore";
 import { computeMeshArea } from "../geometry/mesh";
@@ -89,7 +90,36 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   
   const edges = useProjectStore((state) => state.workflow.edges);
   
-  // Get only the nodes we actually need, not the entire array
+  // Get only the edge IDs we need, not the entire arrays
+  const geometryEdgeId = useMemo(() => {
+    const edge = edges.find((edge) => edge.target === nodeId && edge.targetHandle === "geometry");
+    return edge ? edge.source : null;
+  }, [edges, nodeId]);
+  
+  const goalEdgeIds = useMemo(() => {
+    return edges
+      .filter((edge) => edge.target === nodeId && edge.targetHandle === "goals")
+      .map(edge => edge.source);
+  }, [edges, nodeId]);
+  
+  // Get specific nodes by ID (stable references)
+  const geometrySourceNode = useProjectStore((state) => 
+    geometryEdgeId ? state.workflow.nodes.find((n) => n.id === geometryEdgeId) : null
+  );
+  
+  const goalSourceNodes = useProjectStore(
+    (state) => {
+      if (goalEdgeIds.length === 0) return [];
+      return goalEdgeIds
+        .map(id => state.workflow.nodes.find((n) => n.id === id))
+        .filter((n): n is NonNullable<typeof n> => n !== undefined);
+    },
+    shallow
+  );
+  
+  const geometryStore = useProjectStore((state) => state.geometry);
+  
+  // Reconstruct edges for compatibility
   const geometryEdge = useMemo(() => 
     edges.find((edge) => edge.target === nodeId && edge.targetHandle === "geometry"),
     [edges, nodeId]
@@ -99,16 +129,6 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     edges.filter((edge) => edge.target === nodeId && edge.targetHandle === "goals"),
     [edges, nodeId]
   );
-  
-  const geometrySourceNode = useProjectStore((state) => 
-    geometryEdge ? state.workflow.nodes.find((n) => n.id === geometryEdge.source) : null
-  );
-  
-  const goalSourceNodes = useProjectStore((state) => 
-    goalEdges.map(edge => state.workflow.nodes.find((n) => n.id === edge.source)).filter(Boolean)
-  );
-  
-  const geometryStore = useProjectStore((state) => state.geometry);
 
   const parameters = solverNode?.data?.parameters ?? {};
   const outputs = solverNode?.data?.outputs ?? {};
