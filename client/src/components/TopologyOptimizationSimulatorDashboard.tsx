@@ -171,9 +171,9 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   };
 
   // SIMP parameters
-  const nx = resolveNumber("nx", 150);
-  const ny = resolveNumber("ny", 120);
-  const nz = resolveNumber("nz", 80);
+  const nx = resolveNumber("nx", 80);
+  const ny = resolveNumber("ny", 60);
+  const nz = resolveNumber("nz", 40);
   const volFrac = resolveNumber("volFrac", 0.4);
   const penalStart = resolveNumber("penalStart", 1.0);
   const penalEnd = resolveNumber("penalEnd", 3.0);
@@ -406,6 +406,18 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       vol: [...prev.vol, frame.vol]
     }));
 
+    // Log performance metrics every 10 iterations
+    if (frame.iter % 10 === 0 && frame.timings) {
+      console.log(`[TOPOLOGY] Iter ${frame.iter} performance:`, {
+        filterMs: frame.timings.filterMs?.toFixed(1),
+        solveMs: frame.timings.solveMs?.toFixed(1),
+        updateMs: frame.timings.updateMs?.toFixed(1),
+        totalMs: frame.timings.totalMs?.toFixed(1),
+        cgIters: frame.feIters,
+        compliance: frame.compliance.toFixed(2),
+      });
+    }
+
     updateNodeData(
       nodeId,
       {
@@ -534,10 +546,10 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     console.log('[TOPOLOGY] Total nodes:', (nx + 1) * (ny + 1) * (nz + 1));
     console.log('[TOPOLOGY] Using web worker for computation');
     
-    if (nz < 60) {
+    if (nz < 20) {
       console.error('[TOPOLOGY] ⚠️⚠️⚠️ CRITICAL: Low Z resolution detected (nz=' + nz + ') ⚠️⚠️⚠️');
       console.error('[TOPOLOGY] This will cause BC_CONFLICT errors!');
-      console.error('[TOPOLOGY] Current defaults: nx=150, ny=120, nz=80');
+      console.error('[TOPOLOGY] Current defaults: nx=80, ny=60, nz=40');
       console.error('[TOPOLOGY] Your rig has: nx=' + nx + ', ny=' + ny + ', nz=' + nz);
       console.error('[TOPOLOGY] ACTION REQUIRED: Delete this rig and create a new one!');
       console.error('[TOPOLOGY] Solver Node ID:', nodeId);
@@ -553,6 +565,9 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       onFrame: handleFrame,
       onDone: handleDone,
       onError: handleError,
+    }, {
+      frameStride: 5,        // Send frame every 5 iterations
+      frameIntervalMs: 250,  // At most 4 fps
     });
   };
 

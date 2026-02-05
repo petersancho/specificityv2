@@ -2,7 +2,7 @@ import type { RenderMesh } from "../../../types";
 import type { SimpParams, SolverFrame, GoalMarkers } from "./types";
 
 type WorkerIncomingMessage =
-  | { type: "start"; mesh: RenderMesh; markers: GoalMarkers; params: SimpParams }
+  | { type: "start"; mesh: RenderMesh; markers: GoalMarkers; params: SimpParams; options?: WorkerOptions }
   | { type: "pause" }
   | { type: "resume" }
   | { type: "stop" };
@@ -17,6 +17,11 @@ export type SimpWorkerStatus = "idle" | "running" | "paused" | "converged" | "er
 export type FrameCallback = (frame: SolverFrame) => void;
 export type DoneCallback = () => void;
 export type ErrorCallback = (error: string) => void;
+
+export interface WorkerOptions {
+  frameStride?: number;      // Send frame every N iterations (default: 1)
+  frameIntervalMs?: number;  // Minimum ms between frames (default: 0)
+}
 
 export class SimpWorkerClient {
   private worker: Worker | null = null;
@@ -73,7 +78,8 @@ export class SimpWorkerClient {
       onFrame: FrameCallback;
       onDone: DoneCallback;
       onError: ErrorCallback;
-    }
+    },
+    options?: WorkerOptions
   ) {
     if (!this.worker) {
       callbacks.onError("Worker not initialized");
@@ -90,6 +96,7 @@ export class SimpWorkerClient {
       mesh,
       markers,
       params,
+      options,
     };
 
     this.worker.postMessage(message);

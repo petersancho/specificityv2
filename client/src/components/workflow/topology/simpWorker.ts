@@ -2,11 +2,17 @@ import { runSimp } from "./simp";
 import type { SimpParams, SolverFrame, GoalMarkers } from "./types";
 import type { RenderMesh } from "../../../types";
 
+type WorkerOptions = {
+  frameStride?: number;
+  frameIntervalMs?: number;
+};
+
 type StartMessage = {
   type: "start";
   mesh: RenderMesh;
   markers: GoalMarkers;
   params: SimpParams;
+  options?: WorkerOptions;
 };
 
 type ControlMessage = { type: "pause" | "resume" | "stop" };
@@ -44,11 +50,26 @@ const post = (message: OutgoingMessage, transfer?: Transferable[]) => {
   }
 };
 
-const run = async (mesh: RenderMesh, markers: GoalMarkers, params: SimpParams) => {
+const run = async (mesh: RenderMesh, markers: GoalMarkers, params: SimpParams, options?: WorkerOptions) => {
   running = true;
   stopRequested = false;
   paused = false;
   activeParams = params;
+  
+  const frameStride = options?.frameStride ?? 1;
+  const frameIntervalMs = options?.frameIntervalMs ?? 0;
+  let lastFrameTime = 0;
+  
+  const shouldSendFrame = (iter: number): boolean => {
+    if (frameStride > 1 && (iter % frameStride) !== 0) return false;
+    if (frameIntervalMs > 0) {
+      const now = performance.now();
+      if (now - lastFrameTime < frameIntervalMs) return false;
+      lastFrameTime = now;
+    }
+    return true;
+  };
+  
   try {
     for await (const frame of runSimp(mesh, markers, params)) {
       if (stopRequested) break;
@@ -56,7 +77,12 @@ const run = async (mesh: RenderMesh, markers: GoalMarkers, params: SimpParams) =
         await waitForResume();
       }
       if (stopRequested) break;
-      post({ type: "frame", frame }, [frame.densities.buffer]);
+      
+      // Only send frame if throttling allows it, or if converged
+      if (shouldSendFrame(frame.iter) || frame.converged) {
+        post({ type: "frame", frame }, [frame.densities.buffer]);
+      }
+      
       if (frame.converged) break;
     }
     if (!stopRequested) {
@@ -84,7 +110,7 @@ self.onmessage = (event: MessageEvent<IncomingMessage>) => {
         resumeResolver = null;
       }
     }
-    run(message.mesh, message.markers, message.params);
+    run(message.mesh, message.markers, message.params, message.options);
     return;
   }
 

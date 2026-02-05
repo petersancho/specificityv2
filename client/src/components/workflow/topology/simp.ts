@@ -519,11 +519,15 @@ export async function* runSimp(
   }
   
   for (let iter = 1; iter <= params.maxIters; iter++) {
+    const t0 = performance.now();
+    
     applyDensityFilter(densities, filter, rhoBar);
     
     for (let e = 0; e < numElems; e++) {
       rhoPhysical[e] = heavisideProject(rhoBar[e], beta, 0.5);
     }
+    
+    const tFilter = performance.now();
     
     const adaptiveCgTol = iter <= ADAPTIVE_CG_EARLY_ITERS ? ADAPTIVE_CG_TOL_EARLY : 
                            iter <= ADAPTIVE_CG_MID_ITERS ? ADAPTIVE_CG_TOL_MID : 
@@ -533,6 +537,8 @@ export async function* runSimp(
       kernel, rhoPhysical, forces, fixedDofs, penal, params.E0, params.Emin,
       adaptiveCgTol, params.cgMaxIters, pcgWorkspace, iter === 1 ? undefined : uPrev
     );
+    
+    const tSolve = performance.now();
     
     if (!solverOk) {
       yield { iter, compliance: Infinity, change: 1.0, vol: params.volFrac, densities: new Float32Array(densities), converged: false, error: `PCG failed at iter ${iter}` };
@@ -568,11 +574,20 @@ export async function* runSimp(
     
     densities = newDensities;
     
+    const tUpdate = performance.now();
+    
     const grayLevel = computeGrayLevel(rhoPhysical);
     const compChange = Math.abs(compliance - prevCompliance) / Math.max(1, compliance);
     
     const isConverging = compChange < params.tolChange && maxChange < params.tolChange;
     const isDiscrete = grayLevel < grayTol;
+    
+    const timings = {
+      filterMs: tFilter - t0,
+      solveMs: tSolve - tFilter,
+      updateMs: tUpdate - tSolve,
+      totalMs: tUpdate - t0,
+    };
     
     if (DEBUG && iter <= 5) {
       console.log(`[SIMP] Iteration ${iter}:`, {
@@ -585,6 +600,8 @@ export async function* runSimp(
         isDiscrete,
         consecutiveConverged,
         prevCompliance,
+        cgIters,
+        timings,
       });
     }
     
@@ -616,7 +633,16 @@ export async function* runSimp(
     const densitiesF32 = new Float32Array(numElems);
     for (let i = 0; i < numElems; i++) densitiesF32[i] = rhoPhysical[i];
     
-    yield { iter, compliance, change: maxChange, vol, densities: densitiesF32, converged: consecutiveConverged >= minIterations };
+    yield { 
+      iter, 
+      compliance, 
+      change: maxChange, 
+      vol, 
+      densities: densitiesF32, 
+      converged: consecutiveConverged >= minIterations,
+      feIters: cgIters,
+      timings,
+    };
     
     if (consecutiveConverged >= minIterations) {
       if (DEBUG) {

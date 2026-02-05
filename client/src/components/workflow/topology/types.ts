@@ -118,6 +118,12 @@ export type SolverFrame = {
   feConverged?: boolean;
   feIters?: number;
   error?: string;
+  timings?: {
+    filterMs?: number;
+    solveMs?: number;
+    updateMs?: number;
+    totalMs?: number;
+  };
 };
 
 /**
