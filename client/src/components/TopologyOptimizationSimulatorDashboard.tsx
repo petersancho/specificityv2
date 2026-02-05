@@ -171,9 +171,9 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   };
 
   // SIMP parameters
-  const nx = resolveNumber("nx", 80);
-  const ny = resolveNumber("ny", 60);
-  const nz = resolveNumber("nz", 1);
+  const nx = resolveNumber("nx", 150);
+  const ny = resolveNumber("ny", 120);
+  const nz = resolveNumber("nz", 80);
   const volFrac = resolveNumber("volFrac", 0.4);
   const penalStart = resolveNumber("penalStart", 1.0);
   const penalEnd = resolveNumber("penalEnd", 3.0);
