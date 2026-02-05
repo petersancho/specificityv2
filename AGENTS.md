@@ -52,6 +52,50 @@ npm run generate:agent-catalog
 
 CI runs `npm run validate:all` on every push and PR. Builds fail if validation fails.
 
+## Definition of Done (CRITICAL - Prevents "Claimed but Not Implemented" Issues)
+
+**NO FEATURE IS CONSIDERED DONE UNLESS:**
+
+1. ✅ **Code exists in repo** - Changes are committed to a branch (not just claimed)
+2. ✅ **Build passes** - `npm run build` succeeds with no errors
+3. ✅ **Tests updated** - New features have tests; changed features have updated tests
+4. ✅ **Validation passes** - `npm run validate:all` succeeds (for semantic changes)
+5. ✅ **Verification command provided** - Reviewer can run a single command to verify the feature works
+6. ✅ **Pushed to remote** - Changes are pushed to GitHub (not just local commits)
+7. ✅ **Status verified** - Run `git status` and `git log` to confirm changes are committed and pushed
+
+**CLAIMS POLICY:**
+- Do NOT claim implementation until changes are committed AND pushed to remote
+- Do NOT say "I've implemented X" unless you can show the commit hash
+- Do NOT move to the next task until current changes are pushed
+- ALWAYS run `git status` before claiming completion
+- ALWAYS push immediately after committing (unless explicitly told not to)
+
+**VERIFICATION CHECKLIST (Run before claiming completion):**
+```bash
+# 1. Check working tree is clean
+git status
+
+# 2. Verify commits exist
+git log --oneline -5
+
+# 3. Verify pushed to remote
+git log origin/main..HEAD  # Should be empty if pushed
+
+# 4. Build passes
+npm run build
+
+# 5. Validation passes (if semantic changes)
+npm run validate:all
+```
+
+**IF USER SAYS "ALL PROGRESS IS GONE":**
+- This means you claimed to implement features but didn't actually commit/push them
+- Immediately run `git status` and `git log` to verify what's actually in the repo
+- Re-implement ALL claimed features from scratch
+- Commit and push IMMEDIATELY after each feature
+- Update this document with lessons learned
+
 ## Architecture Overview
 
 **Lingua** is a parametric design environment with two integrated panels:

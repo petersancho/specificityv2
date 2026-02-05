@@ -36,15 +36,33 @@ export type SimpParams = {
 };
 
 /**
+ * Goal region metadata (PhD-level geometry analysis)
+ */
+export type GoalRegionMetadata = {
+  vertices: number[];
+  positions: Vec3[];
+  centroid: Vec3;
+  weightedCentroid: Vec3;
+  totalArea: number;
+  averageNormal: Vec3;
+  bounds: { min: Vec3; max: Vec3 };
+  isValid: boolean;
+  validationErrors: string[];
+};
+
+/**
  * Goal markers extracted from goal nodes
  */
 export type AnchorMarker = {
   position: Vec3;
+  metadata?: GoalRegionMetadata;
 };
 
 export type LoadMarker = {
   position: Vec3;
   force: Vec3;
+  distributed: boolean;
+  metadata?: GoalRegionMetadata;
 };
 
 export type GoalMarkers = {

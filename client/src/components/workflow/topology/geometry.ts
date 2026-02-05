@@ -4,7 +4,7 @@
 // ============================================================================
 
 import type { Vec3, RenderMesh } from "../../../types";
-import type { GoalMarkers, AnchorMarker, LoadMarker } from "./types";
+import type { GoalMarkers, AnchorMarker, LoadMarker, GoalRegionMetadata } from "./types";
 
 // ============================================================================
 // GOAL EXTRACTION
@@ -34,6 +34,233 @@ function centroid(points: Vec3[]): Vec3 {
   return { x: sx / points.length, y: sy / points.length, z: sz / points.length };
 }
 
+// ============================================================================
+// PhD-LEVEL GEOMETRY ANALYSIS
+// ============================================================================
+
+/**
+ * Compute area-weighted centroid using triangulation
+ * More accurate than arithmetic centroid for FEA boundary conditions
+ */
+function weightedCentroid(mesh: RenderMesh, vertices: number[]): Vec3 {
+  if (vertices.length === 0) return { x: 0, y: 0, z: 0 };
+  if (vertices.length === 1) {
+    const i = vertices[0] * 3;
+    return { x: mesh.positions[i], y: mesh.positions[i + 1], z: mesh.positions[i + 2] };
+  }
+  if (vertices.length === 2) {
+    const i0 = vertices[0] * 3, i1 = vertices[1] * 3;
+    return {
+      x: (mesh.positions[i0] + mesh.positions[i1]) / 2,
+      y: (mesh.positions[i0 + 1] + mesh.positions[i1 + 1]) / 2,
+      z: (mesh.positions[i0 + 2] + mesh.positions[i1 + 2]) / 2,
+    };
+  }
+
+  // Triangulate from first vertex
+  const positions = positionsFromElements(mesh, vertices);
+  const p0 = positions[0];
+  let totalArea = 0;
+  let cx = 0, cy = 0, cz = 0;
+
+  for (let i = 1; i < positions.length - 1; i++) {
+    const p1 = positions[i];
+    const p2 = positions[i + 1];
+    
+    // Triangle area via cross product
+    const ux = p1.x - p0.x, uy = p1.y - p0.y, uz = p1.z - p0.z;
+    const vx = p2.x - p0.x, vy = p2.y - p0.y, vz = p2.z - p0.z;
+    const nx = uy * vz - uz * vy;
+    const ny = uz * vx - ux * vz;
+    const nz = ux * vy - uy * vx;
+    const area = 0.5 * Math.sqrt(nx * nx + ny * ny + nz * nz);
+    
+    if (area > 1e-12) {
+      // Triangle centroid
+      const tcx = (p0.x + p1.x + p2.x) / 3;
+      const tcy = (p0.y + p1.y + p2.y) / 3;
+      const tcz = (p0.z + p1.z + p2.z) / 3;
+      
+      cx += area * tcx;
+      cy += area * tcy;
+      cz += area * tcz;
+      totalArea += area;
+    }
+  }
+
+  if (totalArea < 1e-12) {
+    // Degenerate geometry, fallback to arithmetic centroid
+    return centroid(positions);
+  }
+
+  return { x: cx / totalArea, y: cy / totalArea, z: cz / totalArea };
+}
+
+/**
+ * Compute average surface normal using Newell's method
+ * Robust for non-planar regions
+ */
+function averageNormal(mesh: RenderMesh, vertices: number[]): Vec3 {
+  if (vertices.length < 3) return { x: 0, y: 1, z: 0 };
+
+  const positions = positionsFromElements(mesh, vertices);
+  let nx = 0, ny = 0, nz = 0;
+
+  // Newell's method: sum edge cross products
+  for (let i = 0; i < positions.length; i++) {
+    const curr = positions[i];
+    const next = positions[(i + 1) % positions.length];
+    
+    nx += (curr.y - next.y) * (curr.z + next.z);
+    ny += (curr.z - next.z) * (curr.x + next.x);
+    nz += (curr.x - next.x) * (curr.y + next.y);
+  }
+
+  const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
+  if (len < 1e-12) return { x: 0, y: 1, z: 0 };
+
+  return { x: nx / len, y: ny / len, z: nz / len };
+}
+
+/**
+ * Compute total surface area
+ */
+function totalArea(mesh: RenderMesh, vertices: number[]): number {
+  if (vertices.length < 3) return 0;
+
+  const positions = positionsFromElements(mesh, vertices);
+  const p0 = positions[0];
+  let area = 0;
+
+  for (let i = 1; i < positions.length - 1; i++) {
+    const p1 = positions[i];
+    const p2 = positions[i + 1];
+    
+    const ux = p1.x - p0.x, uy = p1.y - p0.y, uz = p1.z - p0.z;
+    const vx = p2.x - p0.x, vy = p2.y - p0.y, vz = p2.z - p0.z;
+    const nx = uy * vz - uz * vy;
+    const ny = uz * vx - ux * vz;
+    const nz = ux * vy - uy * vx;
+    area += 0.5 * Math.sqrt(nx * nx + ny * ny + nz * nz);
+  }
+
+  return area;
+}
+
+/**
+ * Compute bounding box of positions
+ */
+function computePositionBounds(positions: Vec3[]): { min: Vec3; max: Vec3 } {
+  if (positions.length === 0) {
+    return { min: { x: 0, y: 0, z: 0 }, max: { x: 0, y: 0, z: 0 } };
+  }
+
+  let minX = Infinity, minY = Infinity, minZ = Infinity;
+  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+
+  for (const p of positions) {
+    if (p.x < minX) minX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.z < minZ) minZ = p.z;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y > maxY) maxY = p.y;
+    if (p.z > maxZ) maxZ = p.z;
+  }
+
+  return {
+    min: { x: minX, y: minY, z: minZ },
+    max: { x: maxX, y: maxY, z: maxZ },
+  };
+}
+
+/**
+ * Validate goal region geometry
+ */
+function validateGoalRegion(mesh: RenderMesh, vertices: number[]): { isValid: boolean; errors: string[] } {
+  const errors: string[] = [];
+
+  if (vertices.length === 0) {
+    errors.push('No vertices in goal region');
+    return { isValid: false, errors };
+  }
+
+  // Check vertex indices are in range
+  const maxIndex = mesh.positions.length / 3;
+  for (const v of vertices) {
+    if (v < 0 || v >= maxIndex) {
+      errors.push(`Vertex index ${v} out of range [0, ${maxIndex})`);
+    }
+  }
+
+  if (errors.length > 0) {
+    return { isValid: false, errors };
+  }
+
+  // Check for degenerate geometry (all vertices at same point)
+  const positions = positionsFromElements(mesh, vertices);
+  if (positions.length > 1) {
+    const p0 = positions[0];
+    let allSame = true;
+    for (let i = 1; i < positions.length; i++) {
+      const p = positions[i];
+      const dx = p.x - p0.x, dy = p.y - p0.y, dz = p.z - p0.z;
+      if (Math.sqrt(dx * dx + dy * dy + dz * dz) > 1e-9) {
+        allSame = false;
+        break;
+      }
+    }
+    if (allSame) {
+      errors.push('All vertices are at the same position (degenerate geometry)');
+      return { isValid: false, errors };
+    }
+  }
+
+  return { isValid: true, errors: [] };
+}
+
+/**
+ * Analyze goal region geometry (PhD-level)
+ * Returns complete metadata for SIMP solver
+ */
+function analyzeGoalRegion(mesh: RenderMesh, vertices: number[]): GoalRegionMetadata {
+  const validation = validateGoalRegion(mesh, vertices);
+  
+  if (!validation.isValid) {
+    const positions = positionsFromElements(mesh, vertices);
+    const fallbackCentroid = centroid(positions);
+    return {
+      vertices,
+      positions,
+      centroid: fallbackCentroid,
+      weightedCentroid: fallbackCentroid,
+      totalArea: 0,
+      averageNormal: { x: 0, y: 1, z: 0 },
+      bounds: computePositionBounds(positions),
+      isValid: false,
+      validationErrors: validation.errors,
+    };
+  }
+
+  const positions = positionsFromElements(mesh, vertices);
+  const arithmeticCentroid = centroid(positions);
+  const areaWeightedCentroid = weightedCentroid(mesh, vertices);
+  const area = totalArea(mesh, vertices);
+  const normal = averageNormal(mesh, vertices);
+  const bounds = computePositionBounds(positions);
+
+  return {
+    vertices,
+    positions,
+    centroid: arithmeticCentroid,
+    weightedCentroid: areaWeightedCentroid,
+    totalArea: area,
+    averageNormal: normal,
+    bounds,
+    isValid: true,
+    validationErrors: [],
+  };
+}
+
 function extractForce(parameters?: Record<string, unknown>): Vec3 {
   if (!parameters) return { x: 0, y: -100, z: 0 };
   const force = parameters.force as Vec3 | undefined;
@@ -58,7 +285,7 @@ function computeBounds(mesh: RenderMesh): { min: Vec3; max: Vec3 } {
   return { min: { x: minX, y: minY, z: minZ }, max: { x: maxX, y: maxY, z: maxZ } };
 }
 
-/** Extract goal markers from mesh and goal nodes */
+/** Extract goal markers from mesh and goal nodes (PhD-level) */
 export function extractGoalMarkers(mesh: RenderMesh, goals: GoalBase[]): GoalMarkers {
   const anchors: AnchorMarker[] = [];
   const loads: LoadMarker[] = [];
@@ -70,16 +297,36 @@ export function extractGoalMarkers(mesh: RenderMesh, goals: GoalBase[]): GoalMar
     const elements = goal.geometry?.elements ?? [];
     if (goal.goalType === 'anchor') {
       if (elements.length > 0) {
-        anchors.push({ position: centroid(positionsFromElements(mesh, elements)) });
+        const metadata = analyzeGoalRegion(mesh, elements);
+        if (!metadata.isValid) {
+          console.warn('[ANCHOR GOAL] Invalid geometry:', metadata.validationErrors);
+          anchors.push({ position: { x: bounds.min.x, y: bounds.min.y, z: bounds.min.z } });
+        } else {
+          anchors.push({ 
+            position: metadata.weightedCentroid,
+            metadata 
+          });
+        }
       } else if (!hasAnchorWithElements) {
         anchors.push({ position: { x: bounds.min.x, y: bounds.min.y, z: bounds.min.z } });
       }
     } else if (goal.goalType === 'load') {
       const force = extractForce(goal.parameters);
       if (elements.length > 0) {
-        loads.push({ position: centroid(positionsFromElements(mesh, elements)), force });
+        const metadata = analyzeGoalRegion(mesh, elements);
+        if (!metadata.isValid) {
+          console.warn('[LOAD GOAL] Invalid geometry:', metadata.validationErrors);
+          loads.push({ position: { x: bounds.max.x, y: bounds.max.y, z: bounds.max.z }, force, distributed: true });
+        } else {
+          loads.push({ 
+            position: metadata.weightedCentroid,
+            force,
+            distributed: true,
+            metadata 
+          });
+        }
       } else if (!hasLoadWithElements) {
-        loads.push({ position: { x: bounds.max.x, y: bounds.max.y, z: bounds.max.z }, force });
+        loads.push({ position: { x: bounds.max.x, y: bounds.max.y, z: bounds.max.z }, force, distributed: true });
       }
     }
   }
@@ -88,7 +335,7 @@ export function extractGoalMarkers(mesh: RenderMesh, goals: GoalBase[]): GoalMar
     anchors.push({ position: { x: bounds.min.x, y: bounds.min.y, z: bounds.min.z } });
   }
   if (loads.length === 0 && goals.some(g => g.goalType === 'load')) {
-    loads.push({ position: { x: bounds.max.x, y: bounds.max.y, z: bounds.max.z }, force: { x: 0, y: -100, z: 0 } });
+    loads.push({ position: { x: bounds.max.x, y: bounds.max.y, z: bounds.max.z }, force: { x: 0, y: -100, z: 0 }, distributed: true });
   }
   
   return { anchors, loads };

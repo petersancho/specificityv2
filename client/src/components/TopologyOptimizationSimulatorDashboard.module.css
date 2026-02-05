@@ -1,24 +1,29 @@
-/* Topology Optimization Simulator Dashboard - Purple/Orange Color Scheme */
+/* Topology Optimization Simulator Dashboard - Brandkit (Black/White + Y/M/C) */
 
 .dashboardOverlay {
-  --solver-accent: var(--color-solver-topology);
-  --solver-accent-secondary: var(--semantic-numeric);
-  --solver-accent-tertiary: var(--semantic-data);
+  --bk-bg: #0a0a0a;
+  --bk-fg: #ffffff;
+  --bk-muted: #666666;
+  --bk-cyan: #00ffff;
+  --bk-magenta: #ff00ff;
+  --bk-yellow: #ffff00;
+  --bk-border: #333333;
+  --bk-shadow: rgba(0, 0, 0, 0.5);
   
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(0, 0, 0, 0.92);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 10000;
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px);
   animation: fadeIn 0.3s ease-out;
   font-family: var(--font-sans);
-  color: var(--surface-card);
+  color: var(--bk-fg);
 }
 
 @keyframes fadeIn {
@@ -31,9 +36,8 @@
 }
 
 .dashboardContainer {
-  background: var(--surface-card);
-  border: var(--border-crisp);
-  border-color: var(--solver-accent);
+  background: var(--bk-bg);
+  border: 2px solid var(--bk-border);
   border-radius: 16px;
   width: 90vw;
   max-width: 1400px;
@@ -41,10 +45,22 @@
   max-height: 900px;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 60px rgba(136, 0, 255, 0.4), 0 0 0 1px rgba(136, 0, 255, 0.2);
+  box-shadow: 0 20px 60px var(--bk-shadow), 0 0 0 1px rgba(255, 255, 255, 0.1);
   transform-origin: center;
   transition: transform 0.2s ease-out;
   animation: slideUp 0.4s ease-out;
+  position: relative;
+}
+
+.dashboardContainer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--bk-cyan) 0%, var(--bk-magenta) 50%, var(--bk-yellow) 100%);
+  border-radius: 16px 16px 0 0;
 }
 
 @keyframes slideUp {
@@ -60,13 +76,13 @@
 
 /* Header */
 .dashboardHeader {
-  background: var(--semantic-logic);
+  background: var(--bk-bg);
+  border-bottom: 1px solid var(--bk-border);
   padding: 20px 24px;
   border-radius: 14px 14px 0 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: var(--shadow-sticker);
 }
 
 .headerLeft {
@@ -90,14 +106,13 @@
   margin: 0;
   font-size: 24px;
   font-weight: 700;
-  color: var(--surface-card);
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  color: var(--bk-fg);
 }
 
 .dashboardSubtitle {
   margin: 0;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--bk-muted);
   font-style: italic;
 }
 
@@ -108,9 +123,9 @@
 }
 
 .scaleButton {
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: var(--surface-card);
+  background: var(--bk-bg);
+  border: 1px solid var(--bk-border);
+  color: var(--bk-fg);
   width: 32px;
   height: 32px;
   border-radius: 6px;
@@ -124,22 +139,23 @@
 }
 
 .scaleButton:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: var(--bk-border);
+  border-color: var(--bk-cyan);
   transform: scale(1.05);
 }
 
 .scaleLabel {
   font-size: 14px;
   font-weight: 600;
-  color: var(--surface-card);
+  color: var(--bk-fg);
   min-width: 45px;
   text-align: center;
 }
 
 .closeButton {
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: var(--surface-card);
+  background: var(--bk-bg);
+  border: 1px solid var(--bk-border);
+  color: var(--bk-fg);
   width: 36px;
   height: 36px;
   border-radius: 6px;
