@@ -1,8 +1,7 @@
 import type { WorkflowNodeDefinition } from "../../../../nodeRegistry";
 import type { LoadGoal } from "../../types";
-import { clamp, resolveVec3Input, toBoolean, toIndexList, toNumber, vectorParameterSpecs } from "../../utils";
+import { resolveVec3Input, toIndexList, toNumber, vectorParameterSpecs } from "../../utils";
 
-const DEFAULT_FORCE = { x: 0, y: 0, z: -1000 };
 const DEFAULT_DIRECTION = { x: 0, y: 0, z: -1 };
 
 export const LoadGoalNode: WorkflowNodeDefinition = {
@@ -20,59 +19,24 @@ export const LoadGoalNode: WorkflowNodeDefinition = {
   },
   inputs: [
     {
-      key: "force",
-      label: "Force",
-      type: "vector",
-      description: "Force vector (N).",
+      key: "applicationPoints",
+      label: "Application Points",
+      type: "any",
+      allowMultiple: true,
+      required: true,
+      description: "Vertex indices where the load is applied.",
     },
     {
       key: "forceMagnitude",
-      label: "Magnitude",
+      label: "Force Magnitude",
       type: "number",
-      description: "Force magnitude (N) overrides vector if provided.",
+      description: "Force magnitude in Newtons (N).",
     },
     {
       key: "direction",
       label: "Direction",
       type: "vector",
-      description: "Direction for magnitude-based loads.",
-    },
-    {
-      key: "applicationPoints",
-      label: "Application Points",
-      type: "any",
-      allowMultiple: true,
-      description: "Vertex indices where the load is applied.",
-    },
-    {
-      key: "distributed",
-      label: "Distributed",
-      type: "boolean",
-      description: "Distribute load across points.",
-    },
-    {
-      key: "loadType",
-      label: "Load Type",
-      type: "string",
-      description: "Static, dynamic, or cyclic loading.",
-    },
-    {
-      key: "timeProfile",
-      label: "Time Profile",
-      type: "any",
-      description: "Time-varying load profile for dynamic loads.",
-    },
-    {
-      key: "frequency",
-      label: "Frequency",
-      type: "number",
-      description: "Frequency in Hz for cyclic loads.",
-    },
-    {
-      key: "weight",
-      label: "Weight",
-      type: "number",
-      description: "Relative importance.",
+      description: "Load direction vector (normalized automatically).",
     },
   ],
   outputs: [
@@ -84,48 +48,15 @@ export const LoadGoalNode: WorkflowNodeDefinition = {
     },
   ],
   parameters: [
-    ...vectorParameterSpecs("force", "Force", DEFAULT_FORCE),
     {
       key: "forceMagnitude",
       label: "Force Magnitude (N)",
       type: "number",
-      defaultValue: 0,
+      defaultValue: 1000,
       min: 0,
+      step: 100,
     },
     ...vectorParameterSpecs("direction", "Direction", DEFAULT_DIRECTION),
-    {
-      key: "distributed",
-      label: "Distributed",
-      type: "boolean",
-      defaultValue: false,
-    },
-    {
-      key: "loadType",
-      label: "Load Type",
-      type: "select",
-      defaultValue: "static",
-      options: [
-        { label: "Static", value: "static" },
-        { label: "Dynamic", value: "dynamic" },
-        { label: "Cyclic", value: "cyclic" },
-      ],
-    },
-    {
-      key: "frequency",
-      label: "Frequency (Hz)",
-      type: "number",
-      defaultValue: 0,
-      min: 0,
-    },
-    {
-      key: "weight",
-      label: "Weight",
-      type: "number",
-      defaultValue: 1,
-      min: 0,
-      max: 1,
-      step: 0.05,
-    },
   ],
   primaryOutputKey: "goal",
   compute: ({ inputs, parameters }) => {
@@ -134,54 +65,31 @@ export const LoadGoalNode: WorkflowNodeDefinition = {
       throw new Error("Load goal requires at least one application point.");
     }
 
-    const forceMagnitude = toNumber(inputs.forceMagnitude, toNumber(parameters.forceMagnitude, Number.NaN));
+    const forceMagnitude = toNumber(inputs.forceMagnitude, toNumber(parameters.forceMagnitude, 1000));
     const direction = resolveVec3Input(inputs, parameters, "direction", "direction", DEFAULT_DIRECTION);
-    const forceVector = resolveVec3Input(inputs, parameters, "force", "force", DEFAULT_FORCE);
 
-    const finalForce = Number.isFinite(forceMagnitude) && forceMagnitude > 0
-      ? {
-          x: direction.x,
-          y: direction.y,
-          z: direction.z,
-        }
-      : forceVector;
+    const length = Math.sqrt(direction.x ** 2 + direction.y ** 2 + direction.z ** 2);
+    const normalized = length > 1e-9 
+      ? { x: direction.x / length, y: direction.y / length, z: direction.z / length } 
+      : { x: 0, y: 0, z: -1 };
 
-    const length = Math.sqrt(finalForce.x ** 2 + finalForce.y ** 2 + finalForce.z ** 2);
-    const normalized = length > 1e-9 ? { x: finalForce.x / length, y: finalForce.y / length, z: finalForce.z / length } : { x: 0, y: 0, z: 0 };
-    const appliedForce = Number.isFinite(forceMagnitude) && forceMagnitude > 0
-      ? { x: normalized.x * forceMagnitude, y: normalized.y * forceMagnitude, z: normalized.z * forceMagnitude }
-      : finalForce;
-
-    const distributed = toBoolean(inputs.distributed, toBoolean(parameters.distributed, false));
-    const loadTypeRaw = typeof inputs.loadType === "string" ? inputs.loadType : parameters.loadType;
-    const loadType = loadTypeRaw === "dynamic" || loadTypeRaw === "cyclic" ? loadTypeRaw : "static";
-
-    const timeProfile = Array.isArray(inputs.timeProfile) ? inputs.timeProfile.map((entry) => toNumber(entry, 0)) : undefined;
-    const frequency = toNumber(inputs.frequency, toNumber(parameters.frequency, Number.NaN));
-
-    if (loadType === "dynamic" && (!timeProfile || timeProfile.length === 0)) {
-      throw new Error("Dynamic loads require a time profile.");
-    }
-
-    if (loadType === "cyclic" && (!Number.isFinite(frequency) || frequency <= 0)) {
-      throw new Error("Cyclic loads require a frequency specification.");
-    }
-
-    const weight = clamp(toNumber(inputs.weight, toNumber(parameters.weight, 1)), 0, 1);
+    const appliedForce = {
+      x: normalized.x * forceMagnitude,
+      y: normalized.y * forceMagnitude,
+      z: normalized.z * forceMagnitude,
+    };
 
     const goal: LoadGoal = {
       goalType: "load",
-      weight,
+      weight: 1,
       geometry: {
         elements: applicationPoints,
       },
       parameters: {
         force: appliedForce,
         applicationPoints,
-        distributed,
-        loadType,
-        timeProfile: timeProfile && timeProfile.length > 0 ? timeProfile : undefined,
-        frequency: Number.isFinite(frequency) && frequency > 0 ? frequency : undefined,
+        distributed: true,
+        loadType: "static",
       },
     };
 
