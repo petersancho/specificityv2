@@ -65,6 +65,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   const [activeTab, setActiveTab] = useState<"setup" | "simulator" | "output">("simulator");
   const [scale, setScale] = useState(75);
   const [simulationState, setSimulationState] = useState<SimulationState>('idle');
+  const [simulationError, setSimulationError] = useState<string | null>(null);
   const [currentFrame, setCurrentFrame] = useState<SolverFrame | undefined>();
   const [history, setHistory] = useState<SimulationHistory>({
     compliance: [],
@@ -435,9 +436,11 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
         animationFrameRef.current = requestAnimationFrame(iterate);
       }
     } catch (error) {
-      console.error('Simulation error:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('Simulation error:', errorMessage, error);
       isRunningRef.current = false;
       setSimulationState('error');
+      setSimulationError(errorMessage);
     }
   };
 
@@ -445,6 +448,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   const handleStart = async () => {
     if (!baseMesh || !markers || simulationState === 'running') {
       console.error('[TOPOLOGY] ❌ Cannot start: missing requirements');
+      setSimulationError('Missing geometry or goal markers. Connect geometry and goals first.');
       return;
     }
 
@@ -452,6 +456,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     
     isRunningRef.current = true;
     setSimulationState('running');
+    setSimulationError(null);
     setHistory({ compliance: [], change: [], vol: [] });
     setCurrentFrame(undefined);
     updateNodeData(
@@ -528,6 +533,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     }
     solverGeneratorRef.current = null;
     setSimulationState('idle');
+    setSimulationError(null);
     setCurrentFrame(undefined);
     setHistory({ compliance: [], change: [], vol: [] });
     setPreviewGeometry(null);
@@ -1181,6 +1187,12 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                 )}
               </div>
             </div>
+
+            {simulationError && (
+              <div className={styles.errorMessage}>
+                <strong>Error:</strong> {simulationError}
+              </div>
+            )}
           </div>
         )}
 
