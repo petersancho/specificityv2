@@ -531,13 +531,18 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       cgMaxIters
     };
 
+    console.log('[TOPOLOGY] Solver Node ID:', nodeId);
     console.log('[TOPOLOGY] Grid resolution:', { nx, ny, nz });
     console.log('[TOPOLOGY] Total nodes:', (nx + 1) * (ny + 1) * (nz + 1));
     
     // Warn if using old/low resolution
     if (nz < 60) {
-      console.warn('[TOPOLOGY] ⚠️ Low Z resolution detected (nz=' + nz + '). For 3D problems, recommend nz >= 60 to avoid BC_CONFLICT.');
-      console.warn('[TOPOLOGY] ⚠️ If you created this rig before recent updates, please delete it and create a new one.');
+      console.error('[TOPOLOGY] ⚠️⚠️⚠️ CRITICAL: Low Z resolution detected (nz=' + nz + ') ⚠️⚠️⚠️');
+      console.error('[TOPOLOGY] This will cause BC_CONFLICT errors!');
+      console.error('[TOPOLOGY] Current defaults: nx=150, ny=120, nz=80');
+      console.error('[TOPOLOGY] Your rig has: nx=' + nx + ', ny=' + ny + ', nz=' + nz);
+      console.error('[TOPOLOGY] ACTION REQUIRED: Delete this rig and create a new one!');
+      console.error('[TOPOLOGY] Solver Node ID:', nodeId);
     }
     
     if (DEBUG) console.log('[TOPOLOGY] SIMP parameters:', simpParams);

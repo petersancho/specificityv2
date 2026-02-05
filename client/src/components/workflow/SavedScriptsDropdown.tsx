@@ -41,9 +41,11 @@ export const SavedScriptsDropdown = ({
     event.stopPropagation();
     const now = typeof performance === "undefined" ? Date.now() : performance.now();
     if (now - activationRef.current < 250) {
+      console.log('[DROPDOWN] Debounced duplicate click (< 250ms)');
       return;
     }
     activationRef.current = now;
+    console.log('[DROPDOWN] Activating script action');
     action();
     setIsExpanded(false);
   };

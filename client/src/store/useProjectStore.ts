@@ -7850,6 +7850,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
      *
      * Named after Leonhard Euler (topology pioneer, Euler characteristic).
      */
+    console.log('[STORE] addTopologySolverRig called at position:', position);
     const ts = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     const NODE_WIDTH = 200;
     const NODE_HEIGHT = 120;
