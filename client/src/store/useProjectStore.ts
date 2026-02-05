@@ -7843,10 +7843,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     /**
      * Topology Optimization Solver Rig (Clean Numerica Ontology)
      *
-     * Creates a minimal topology optimization workflow:
+     * Creates a complete topology optimization workflow:
      * - Box Builder → Extent Selectors → Goal Nodes → Solver
-     * - NO parameter sliders (all parameters in SETUP page)
-     * - Only geometry and goals flow through the rig
+     * - Force magnitude slider → LoadGoal
+     * - Unit Z vector → Multiply by -1 → LoadGoal direction
+     * - Ensures LoadGoal uses connected inputs, not fallback parameters
      *
      * Named after Leonhard Euler (topology pioneer, Euler characteristic).
      */
@@ -7869,13 +7870,25 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const loadExtentId = `node-extent-load-${ts}`;
     const loadExtentPos = { x: col2X, y: position.y + NODE_HEIGHT + V_GAP };
 
-    // Column 3: Goal Nodes
+    // Column 3: Goal Nodes + Force Inputs
     const col3X = col2X + NODE_WIDTH + H_GAP;
     const anchorGoalId = `node-anchorGoal-${ts}`;
     const anchorGoalPos = { x: col3X, y: position.y };
 
     const loadGoalId = `node-loadGoal-${ts}`;
     const loadGoalPos = { x: col3X, y: position.y + NODE_HEIGHT + V_GAP };
+
+    // Force magnitude slider (above load goal)
+    const forceSliderId = `node-slider-force-${ts}`;
+    const forceSliderPos = { x: col3X, y: loadGoalPos.y + NODE_HEIGHT + V_GAP };
+
+    // Unit Z vector (below force slider)
+    const unitZId = `node-unitZ-${ts}`;
+    const unitZPos = { x: col3X, y: forceSliderPos.y + 80 + V_GAP };
+
+    // Multiply by -1 (below unit Z)
+    const multiplyId = `node-multiply-${ts}`;
+    const multiplyPos = { x: col3X, y: unitZPos.y + NODE_HEIGHT + V_GAP };
 
     // Column 4: Topology Optimization Solver
     const col4X = col3X + NODE_WIDTH + H_GAP;
@@ -7940,11 +7953,41 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         position: loadGoalPos,
         data: {
           label: "Load",
+        },
+      },
+      {
+        id: forceSliderId,
+        type: "slider" as const,
+        position: forceSliderPos,
+        data: {
+          label: "Force Magnitude",
           parameters: {
-            forceMagnitude: 1.0,
-            directionX: 0,
-            directionY: 0,
-            directionZ: -1,
+            value: 1.0,
+            min: 0.1,
+            max: 10.0,
+            step: 0.1,
+          },
+        },
+      },
+      {
+        id: unitZId,
+        type: "unitVector" as const,
+        position: unitZPos,
+        data: {
+          label: "Unit Z",
+          parameters: {
+            axis: "z",
+          },
+        },
+      },
+      {
+        id: multiplyId,
+        type: "multiply" as const,
+        position: multiplyPos,
+        data: {
+          label: "Multiply by -1",
+          parameters: {
+            b: -1,
           },
         },
       },
@@ -8007,6 +8050,27 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         sourceHandle: "goal",
         target: solverId,
         targetHandle: "goals",
+      },
+      {
+        id: `edge-${forceSliderId}-${loadGoalId}-forceMagnitude`,
+        source: forceSliderId,
+        sourceHandle: "value",
+        target: loadGoalId,
+        targetHandle: "forceMagnitude",
+      },
+      {
+        id: `edge-${unitZId}-${multiplyId}-a`,
+        source: unitZId,
+        sourceHandle: "vector",
+        target: multiplyId,
+        targetHandle: "a",
+      },
+      {
+        id: `edge-${multiplyId}-${loadGoalId}-direction`,
+        source: multiplyId,
+        sourceHandle: "result",
+        target: loadGoalId,
+        targetHandle: "direction",
       },
     ];
 
