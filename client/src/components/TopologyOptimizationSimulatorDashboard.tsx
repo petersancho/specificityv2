@@ -448,8 +448,8 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       { recalculate: false }
     );
 
-    // Generate preview geometry every 20 iterations (reduced from 10 for stability)
-    if (baseMesh && frame.iter % 20 === 0) {
+    // Generate preview geometry every 10 iterations
+    if (baseMesh && frame.iter % 10 === 0) {
       try {
         const t0 = performance.now();
         const bounds = calculateMeshBounds(baseMesh);
@@ -1356,6 +1356,26 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
               ) : (
                 <div className={styles.noResults}>
                   Run simulation to see results
+                </div>
+              )}
+            </div>
+            
+            <div className={styles.section}>
+              <h3 className={styles.sectionTitle}>3D Geometry Preview</h3>
+              {previewGeometry ? (
+                <div>
+                  <TopologyGeometryPreview
+                    geometry={previewGeometry}
+                    width={800}
+                    height={600}
+                  />
+                  <div className={styles.previewHint}>
+                    Drag to rotate • Scroll to zoom • Last updated: Iteration {currentFrame?.iter ?? 0}
+                  </div>
+                </div>
+              ) : (
+                <div className={styles.noResults}>
+                  {simulationState === 'idle' ? 'Run simulation to generate geometry' : 'Waiting for geometry... (updates every 10 iterations)'}
                 </div>
               )}
             </div>

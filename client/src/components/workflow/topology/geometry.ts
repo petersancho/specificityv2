@@ -262,12 +262,12 @@ function analyzeGoalRegion(mesh: RenderMesh, vertices: number[]): GoalRegionMeta
 }
 
 function extractForce(parameters?: Record<string, unknown>): Vec3 {
-  if (!parameters) return { x: 0, y: -100, z: 0 };
+  if (!parameters) return { x: 0, y: -1.0, z: 0 };
   const force = parameters.force as Vec3 | undefined;
   if (force && typeof force.x === 'number') return { x: force.x ?? 0, y: force.y ?? 0, z: force.z ?? 0 };
   return {
     x: typeof parameters.forceX === 'number' ? parameters.forceX : typeof parameters.fx === 'number' ? parameters.fx : 0,
-    y: typeof parameters.forceY === 'number' ? parameters.forceY : typeof parameters.fy === 'number' ? parameters.fy : -100,
+    y: typeof parameters.forceY === 'number' ? parameters.forceY : typeof parameters.fy === 'number' ? parameters.fy : -1.0,
     z: typeof parameters.forceZ === 'number' ? parameters.forceZ : typeof parameters.fz === 'number' ? parameters.fz : 0
   };
 }
@@ -335,7 +335,7 @@ export function extractGoalMarkers(mesh: RenderMesh, goals: GoalBase[]): GoalMar
     anchors.push({ position: { x: bounds.min.x, y: bounds.min.y, z: bounds.min.z } });
   }
   if (loads.length === 0 && goals.some(g => g.goalType === 'load')) {
-    loads.push({ position: { x: bounds.max.x, y: bounds.max.y, z: bounds.max.z }, force: { x: 0, y: -100, z: 0 }, distributed: true });
+    loads.push({ position: { x: bounds.max.x, y: bounds.max.y, z: bounds.max.z }, force: { x: 0, y: -1.0, z: 0 }, distributed: true });
   }
   
   return { anchors, loads };
