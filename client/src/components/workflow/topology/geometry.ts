@@ -485,14 +485,17 @@ export function generateGeometryFromDensities(
   baseRadius: number = 0.045,
   pipeSegments: number = 12
 ): GeometryOutput {
-  const segs = Math.max(6, Math.round(pipeSegments));
+  const segs = Math.max(4, Math.round(pipeSegments));  // Reduced min from 6 to 4 for lower quality
   const points = extractDensePoints(field, densityThreshold);
   const curves = generateCurveNetwork(points, maxLinksPerPoint, maxSpanLength);
   
+  // Only generate multipipe mesh for performance (skip pointCloud and curveNetwork)
+  const multipipe = createMultipipeMesh(curves, baseRadius, segs);
+  
   return {
-    pointCloud: createPointCloudMesh(points, baseRadius * 0.5),
-    curveNetwork: createMultipipeMesh(curves, baseRadius * 0.4, Math.max(6, Math.round(segs * 0.5))),
-    multipipe: createMultipipeMesh(curves, baseRadius, segs),
+    pointCloud: multipipe,      // Reuse multipipe to avoid extra allocation
+    curveNetwork: multipipe,    // Reuse multipipe to avoid extra allocation
+    multipipe: multipipe,
     pointCount: points.length,
     curveCount: curves.length
   };

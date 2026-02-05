@@ -189,13 +189,13 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   const cgTol = resolveNumber("cgTol", 1e-6);
   const cgMaxIters = resolveNumber("cgMaxIters", 120);
   
-  // Geometry generation parameters
+  // Geometry generation parameters (optimized for stability over quality)
   const densityThreshold = resolveNumber("densityThreshold", 0.3);
-  const maxLinksPerPoint = resolveNumber("maxLinksPerPoint", 6);
-  const maxSpanLength = resolveNumber("maxSpanLength", 1.5);
-  const pipeRadius = resolveNumber("pipeRadius", 0.045);
-  const pipeSegmentsRaw = resolveNumber("pipeSegments", 12);
-  const pipeSegments = Math.max(6, Math.min(32, Math.round(pipeSegmentsRaw)));
+  const maxLinksPerPoint = resolveNumber("maxLinksPerPoint", 4);  // Reduced from 6 for simpler topology
+  const maxSpanLength = resolveNumber("maxSpanLength", 1.2);      // Reduced from 1.5 for fewer curves
+  const pipeRadius = resolveNumber("pipeRadius", 0.035);          // Reduced from 0.045 for less geometry
+  const pipeSegmentsRaw = resolveNumber("pipeSegments", 6);       // Reduced from 12 for pixelated look
+  const pipeSegments = Math.max(4, Math.min(32, Math.round(pipeSegmentsRaw)));
 
   const hasGeometry = !!geometryEdge;
   const goalsCount = goalEdges.length;
@@ -448,7 +448,8 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       { recalculate: false }
     );
 
-    if (baseMesh && frame.iter % 10 === 0) {
+    // Generate preview geometry every 20 iterations (reduced from 10 for stability)
+    if (baseMesh && frame.iter % 20 === 0) {
       try {
         const t0 = performance.now();
         const bounds = calculateMeshBounds(baseMesh);
@@ -468,6 +469,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
         
         setPreviewGeometry(prev => {
           if (prev) {
+            // Clear old arrays to allow GC
             prev.positions = [];
             prev.normals = [];
             prev.uvs = [];
@@ -596,8 +598,8 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       onDone: handleDone,
       onError: handleError,
     }, {
-      frameStride: 5,        // Send frame every 5 iterations
-      frameIntervalMs: 250,  // At most 4 fps
+      frameStride: 10,       // Send frame every 10 iterations (reduced from 5 for stability)
+      frameIntervalMs: 500,  // At most 2 fps (reduced from 4 fps for less overhead)
     });
   };
 
