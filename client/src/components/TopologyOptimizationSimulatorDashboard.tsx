@@ -178,7 +178,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   const penalStart = resolveNumber("penalStart", 1.0);
   const penalEnd = resolveNumber("penalEnd", 3.0);
   const penalRampIters = resolveNumber("penalRampIters", 60);
-  const rmin = resolveNumber("rmin", 1.5);
+  const rmin = resolveNumber("rmin", 1.2);
   const move = resolveNumber("move", 0.15);
   const maxIters = resolveNumber("maxIters", 150);
   const tolChange = resolveNumber("tolChange", 0.001);
@@ -398,12 +398,19 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   };
   
 
+  const HISTORY_LIMIT = 100;
+
+  const appendLimited = (arr: number[], value: number, limit = HISTORY_LIMIT) => {
+    if (arr.length < limit) return [...arr, value];
+    return [...arr.slice(arr.length - (limit - 1)), value];
+  };
+
   const handleFrame = (frame: SolverFrame) => {
     setCurrentFrame(frame);
     setHistory(prev => ({
-      compliance: [...prev.compliance, frame.compliance],
-      change: [...prev.change, frame.change],
-      vol: [...prev.vol, frame.vol]
+      compliance: appendLimited(prev.compliance, frame.compliance),
+      change: appendLimited(prev.change, frame.change),
+      vol: appendLimited(prev.vol, frame.vol)
     }));
 
     // Log performance metrics every 10 iterations
@@ -416,6 +423,15 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
         cgIters: frame.feIters,
         compliance: frame.compliance.toFixed(2),
       });
+
+      // Log memory usage (Chrome only)
+      const pm = (performance as any).memory;
+      if (pm) {
+        console.log('[TOPOLOGY] Memory:', {
+          usedMB: Math.round(pm.usedJSHeapSize / 1024 / 1024),
+          totalMB: Math.round(pm.totalJSHeapSize / 1024 / 1024),
+        });
+      }
     }
 
     updateNodeData(
@@ -433,9 +449,10 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
 
     if (baseMesh && frame.iter % 10 === 0) {
       try {
+        const t0 = performance.now();
         const bounds = calculateMeshBounds(baseMesh);
         const field = {
-          densities: Float64Array.from(frame.densities),
+          densities: frame.densities,
           nx, ny, nz,
           bounds
         };
@@ -447,7 +464,19 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
           pipeRadius,
           pipeSegments
         );
-        setPreviewGeometry(result.multipipe);
+        
+        setPreviewGeometry(prev => {
+          if (prev) {
+            prev.positions = [];
+            prev.normals = [];
+            prev.uvs = [];
+            prev.indices = [];
+          }
+          return result.multipipe;
+        });
+        
+        const t1 = performance.now();
+        if (DEBUG) console.log(`[TOPOLOGY] Preview generation took ${(t1 - t0).toFixed(1)}ms`);
       } catch (error) {
         console.error('[TOPOLOGY] Preview generation error:', error);
       }
@@ -622,6 +651,16 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
         workerClientRef.current.terminate();
         workerClientRef.current = null;
       }
+      
+      setPreviewGeometry(prev => {
+        if (prev) {
+          prev.positions = [];
+          prev.normals = [];
+          prev.uvs = [];
+          prev.indices = [];
+        }
+        return null;
+      });
     };
   }, []);
 

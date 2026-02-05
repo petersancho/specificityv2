@@ -346,7 +346,7 @@ export function extractGoalMarkers(mesh: RenderMesh, goals: GoalBase[]): GoalMar
 // ============================================================================
 
 export interface DensityField {
-  densities: Float64Array;
+  densities: Float32Array | Float64Array;
   nx: number; ny: number; nz: number;
   bounds: { min: Vec3; max: Vec3 };
 }

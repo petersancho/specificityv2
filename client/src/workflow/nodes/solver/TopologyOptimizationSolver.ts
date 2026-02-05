@@ -165,11 +165,11 @@ export const TopologyOptimizationSolverNode: WorkflowNodeDefinition = {
       key: "rmin",
       label: "Filter Radius",
       type: "number",
-      defaultValue: 1.5,
+      defaultValue: 1.2,
       min: 0.5,
       max: 3.0,
       step: 0.1,
-      description: "Sensitivity filter radius.",
+      description: "Sensitivity filter radius (lower = faster, higher = smoother).",
     },
     {
       key: "move",

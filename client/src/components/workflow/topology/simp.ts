@@ -24,9 +24,37 @@ interface DensityFilter {
   Hs: Float64Array;
 }
 
+interface FilterOffset {
+  dx: number;
+  dy: number;
+  dz: number;
+  w: number;
+}
+
+function buildFilterOffsets(rmin: number): FilterOffset[] {
+  const r = Math.ceil(rmin);
+  const offsets: FilterOffset[] = [];
+  const rmin2 = rmin * rmin;
+
+  for (let dz = -r; dz <= r; dz++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        const d2 = dx * dx + dy * dy + dz * dz;
+        if (d2 <= rmin2) {
+          const dist = Math.sqrt(d2);
+          offsets.push({ dx, dy, dz, w: rmin - dist });
+        }
+      }
+    }
+  }
+  return offsets;
+}
+
 function precomputeDensityFilter(nx: number, ny: number, nz: number, rmin: number): DensityFilter {
+  const t0 = performance.now();
   const numElems = nx * ny * nz;
-  const rminCeil = Math.ceil(rmin);
+  
+  const offsets = buildFilterOffsets(rmin);
   
   const tempNeighbors: number[][] = [];
   const tempWeights: number[][] = [];
@@ -40,17 +68,15 @@ function precomputeDensityFilter(nx: number, ny: number, nz: number, rmin: numbe
         const weightList: number[] = [];
         let sumWeight = 0;
         
-        for (let kz = Math.max(0, ez - rminCeil); kz <= Math.min(nz - 1, ez + rminCeil); kz++) {
-          for (let jy = Math.max(0, ey - rminCeil); jy <= Math.min(ny - 1, ey + rminCeil); jy++) {
-            for (let ix = Math.max(0, ex - rminCeil); ix <= Math.min(nx - 1, ex + rminCeil); ix++) {
-              const dist = Math.sqrt((ex - ix) ** 2 + (ey - jy) ** 2 + (ez - kz) ** 2);
-              if (dist <= rmin) {
-                const weight = rmin - dist;
-                neighborList.push(kz * nx * ny + jy * nx + ix);
-                weightList.push(weight);
-                sumWeight += weight;
-              }
-            }
+        for (const offset of offsets) {
+          const ix = ex + offset.dx;
+          const jy = ey + offset.dy;
+          const kz = ez + offset.dz;
+          
+          if (ix >= 0 && ix < nx && jy >= 0 && jy < ny && kz >= 0 && kz < nz) {
+            neighborList.push(kz * nx * ny + jy * nx + ix);
+            weightList.push(offset.w);
+            sumWeight += offset.w;
           }
         }
         
@@ -66,11 +92,11 @@ function precomputeDensityFilter(nx: number, ny: number, nz: number, rmin: numbe
   
   const neighborData = new Uint32Array(totalNnz);
   const weightData = new Float64Array(totalNnz);
-  const offsets = new Uint32Array(numElems + 1);
+  const offsetsArray = new Uint32Array(numElems + 1);
   
   let offset = 0;
   for (let e = 0; e < numElems; e++) {
-    offsets[e] = offset;
+    offsetsArray[e] = offset;
     const neighs = tempNeighbors[e];
     const weights = tempWeights[e];
     for (let i = 0; i < neighs.length; i++) {
@@ -79,9 +105,12 @@ function precomputeDensityFilter(nx: number, ny: number, nz: number, rmin: numbe
       offset++;
     }
   }
-  offsets[numElems] = offset;
+  offsetsArray[numElems] = offset;
   
-  return { numElems, neighborData, weightData, offsets, Hs };
+  const t1 = performance.now();
+  console.log(`[SIMP] Density filter precomputed in ${(t1 - t0).toFixed(1)}ms (${numElems} elements, ${totalNnz} neighbors, ${offsets.length} unique offsets)`);
+  
+  return { numElems, neighborData, weightData, offsets: offsetsArray, Hs };
 }
 
 function applyDensityFilter(rho: Float64Array, filter: DensityFilter, out?: Float64Array): Float64Array {
