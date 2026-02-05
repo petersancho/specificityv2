@@ -52,9 +52,9 @@ export const LoadGoalNode: WorkflowNodeDefinition = {
       key: "forceMagnitude",
       label: "Force Magnitude (N)",
       type: "number",
-      defaultValue: 1000,
+      defaultValue: 1.0,
       min: 0,
-      step: 100,
+      step: 0.1,
     },
     ...vectorParameterSpecs("direction", "Direction", DEFAULT_DIRECTION),
   ],
@@ -65,7 +65,7 @@ export const LoadGoalNode: WorkflowNodeDefinition = {
       throw new Error("Load goal requires at least one application point.");
     }
 
-    const forceMagnitude = toNumber(inputs.forceMagnitude, toNumber(parameters.forceMagnitude, 1000));
+    const forceMagnitude = toNumber(inputs.forceMagnitude, toNumber(parameters.forceMagnitude, 1.0));
     const direction = resolveVec3Input(inputs, parameters, "direction", "direction", DEFAULT_DIRECTION);
 
     const length = Math.sqrt(direction.x ** 2 + direction.y ** 2 + direction.z ** 2);

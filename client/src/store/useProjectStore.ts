@@ -7941,7 +7941,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         data: {
           label: "Load",
           parameters: {
-            forceMagnitude: 1000,
+            forceMagnitude: 1.0,
             directionX: 0,
             directionY: 0,
             directionZ: -1,

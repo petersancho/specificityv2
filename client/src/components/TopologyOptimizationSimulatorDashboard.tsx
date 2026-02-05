@@ -563,7 +563,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       move,
       maxIters,
       tolChange,
-      minIterations: toNumber(parameters.minIterations, 3),
+      minIterations: toNumber(parameters.minIterations, 30),
       grayTol: toNumber(parameters.grayTol, 0.05),
       betaMax: toNumber(parameters.betaMax, 64),
       E0,
@@ -1007,12 +1007,12 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                     min="1"
                     max="10"
                     step="1"
-                    value={toNumber(parameters.minIterations, 3)}
+                    value={toNumber(parameters.minIterations, 30)}
                     onChange={(e) => handleParameterChange("minIterations", Number(e.target.value))}
                     className={styles.slider}
                     disabled={simulationState === 'running'}
                   />
-                  <span className={styles.parameterValue}>{toNumber(parameters.minIterations, 3)}</span>
+                  <span className={styles.parameterValue}>{toNumber(parameters.minIterations, 30)}</span>
                 </div>
               </div>
 
