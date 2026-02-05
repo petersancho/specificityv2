@@ -49,134 +49,192 @@ function estimateMemoryMB(nx: number, ny: number, nz: number): number {
 }
 
 // ============================================================================
-// DENSITY FILTER (Flat Sparse Storage for Performance)
+// DENSITY FILTER (Separable 3D Convolution for Performance)
+// Based on Lazarov & Sigmund (2011) - O(N·K) instead of O(N·K³)
 // ============================================================================
 
-interface DensityFilter {
+interface SeparableDensityFilter {
+  nx: number;
+  ny: number;
+  nz: number;
   numElems: number;
-  neighborData: Uint32Array;
-  weightData: Float64Array;
-  offsets: Uint32Array;
-  Hs: Float64Array;
-  invHs: Float64Array;
+  weightsX: Float32Array;
+  weightsY: Float32Array;
+  weightsZ: Float32Array;
+  radiusX: number;
+  radiusY: number;
+  radiusZ: number;
+  normFactor: number;
+  temp1: Float32Array;
+  temp2: Float32Array;
 }
 
-interface FilterOffset {
-  dx: number;
-  dy: number;
-  dz: number;
-  w: number;
-}
-
-function buildFilterOffsets(rmin: number): FilterOffset[] {
+function build1DWeights(rmin: number): { weights: Float32Array; radius: number } {
   const r = Math.ceil(rmin);
-  const offsets: FilterOffset[] = [];
-  const rmin2 = rmin * rmin;
-
-  for (let dz = -r; dz <= r; dz++) {
-    for (let dy = -r; dy <= r; dy++) {
-      for (let dx = -r; dx <= r; dx++) {
-        const d2 = dx * dx + dy * dy + dz * dz;
-        if (d2 <= rmin2) {
-          const dist = Math.sqrt(d2);
-          offsets.push({ dx, dy, dz, w: rmin - dist });
-        }
-      }
+  const weights: number[] = [];
+  
+  for (let d = -r; d <= r; d++) {
+    const dist = Math.abs(d);
+    if (dist <= rmin) {
+      weights.push(rmin - dist);
     }
   }
-  return offsets;
+  
+  return { weights: new Float32Array(weights), radius: r };
 }
 
-function precomputeDensityFilter(nx: number, ny: number, nz: number, rmin: number): DensityFilter {
+function precomputeSeparableDensityFilter(nx: number, ny: number, nz: number, rmin: number): SeparableDensityFilter {
   const t0 = performance.now();
   const numElems = nx * ny * nz;
   
-  const offsets = buildFilterOffsets(rmin);
+  const { weights: weightsX, radius: radiusX } = build1DWeights(rmin);
+  const { weights: weightsY, radius: radiusY } = build1DWeights(rmin);
+  const { weights: weightsZ, radius: radiusZ } = build1DWeights(rmin);
   
-  const tempNeighbors: number[][] = [];
-  const tempWeights: number[][] = [];
-  const Hs = new Float64Array(numElems);
-  const invHs = new Float64Array(numElems);
+  let sumWeights = 0;
+  for (let i = 0; i < weightsX.length; i++) sumWeights += weightsX[i];
+  const normFactor = sumWeights > 1e-14 ? 1.0 / (sumWeights * sumWeights * sumWeights) : 1.0;
   
+  const temp1 = new Float32Array(numElems);
+  const temp2 = new Float32Array(numElems);
+  
+  const t1 = performance.now();
+  const totalWeights = weightsX.length + weightsY.length + weightsZ.length;
+  console.log(`[SIMP] Separable density filter precomputed in ${(t1 - t0).toFixed(1)}ms (${numElems} elements, ${totalWeights} total weights, radius=${rmin.toFixed(1)})`);
+  
+  return { nx, ny, nz, numElems, weightsX, weightsY, weightsZ, radiusX, radiusY, radiusZ, normFactor, temp1, temp2 };
+}
+
+function applySeparableDensityFilter(rho: Float32Array, filter: SeparableDensityFilter, out?: Float32Array): Float32Array {
+  const { nx, ny, nz, weightsX, weightsY, weightsZ, radiusX, radiusY, radiusZ, normFactor, temp1, temp2 } = filter;
+  const rhoBar = out ?? new Float32Array(filter.numElems);
+  
+  const centerX = radiusX;
+  const centerY = radiusY;
+  const centerZ = radiusZ;
+  
+  temp1.fill(0);
   for (let ez = 0; ez < nz; ez++) {
     for (let ey = 0; ey < ny; ey++) {
       for (let ex = 0; ex < nx; ex++) {
         const e = ez * nx * ny + ey * nx + ex;
-        const neighborList: number[] = [];
-        const weightList: number[] = [];
-        let sumWeight = 0;
-        
-        for (const offset of offsets) {
-          const ix = ex + offset.dx;
-          const jy = ey + offset.dy;
-          const kz = ez + offset.dz;
-          
-          if (ix >= 0 && ix < nx && jy >= 0 && jy < ny && kz >= 0 && kz < nz) {
-            neighborList.push(kz * nx * ny + jy * nx + ix);
-            weightList.push(offset.w);
-            sumWeight += offset.w;
+        let sum = 0;
+        for (let i = 0; i < weightsX.length; i++) {
+          const dx = i - centerX;
+          const ix = ex + dx;
+          if (ix >= 0 && ix < nx) {
+            const neighbor = ez * nx * ny + ey * nx + ix;
+            sum += weightsX[i] * rho[neighbor];
           }
         }
-        
-        tempNeighbors.push(neighborList);
-        tempWeights.push(weightList);
-        Hs[e] = sumWeight;
-        invHs[e] = sumWeight > 1e-14 ? 1.0 / sumWeight : 1.0;
+        temp1[e] = sum;
       }
     }
   }
   
-  let totalNnz = 0;
-  for (const neighs of tempNeighbors) totalNnz += neighs.length;
-  
-  const neighborData = new Uint32Array(totalNnz);
-  const weightData = new Float64Array(totalNnz);
-  const offsetsArray = new Uint32Array(numElems + 1);
-  
-  let offset = 0;
-  for (let e = 0; e < numElems; e++) {
-    offsetsArray[e] = offset;
-    const neighs = tempNeighbors[e];
-    const weights = tempWeights[e];
-    for (let i = 0; i < neighs.length; i++) {
-      neighborData[offset] = neighs[i];
-      weightData[offset] = weights[i];
-      offset++;
+  temp2.fill(0);
+  for (let ez = 0; ez < nz; ez++) {
+    for (let ey = 0; ey < ny; ey++) {
+      for (let ex = 0; ex < nx; ex++) {
+        const e = ez * nx * ny + ey * nx + ex;
+        let sum = 0;
+        for (let j = 0; j < weightsY.length; j++) {
+          const dy = j - centerY;
+          const jy = ey + dy;
+          if (jy >= 0 && jy < ny) {
+            const neighbor = ez * nx * ny + jy * nx + ex;
+            sum += weightsY[j] * temp1[neighbor];
+          }
+        }
+        temp2[e] = sum;
+      }
     }
   }
-  offsetsArray[numElems] = offset;
   
-  const t1 = performance.now();
-  console.log(`[SIMP] Density filter precomputed in ${(t1 - t0).toFixed(1)}ms (${numElems} elements, ${totalNnz} neighbors, ${offsets.length} unique offsets)`);
-  
-  return { numElems, neighborData, weightData, offsets: offsetsArray, Hs, invHs };
-}
-
-function applyDensityFilter(rho: Float64Array, filter: DensityFilter, out?: Float64Array): Float64Array {
-  const rhoBar = out ?? new Float64Array(filter.numElems);
-  for (let e = 0; e < filter.numElems; e++) {
-    let sum = 0;
-    const start = filter.offsets[e];
-    const end = filter.offsets[e + 1];
-    for (let i = start; i < end; i++) {
-      sum += filter.weightData[i] * rho[filter.neighborData[i]];
+  rhoBar.fill(0);
+  for (let ez = 0; ez < nz; ez++) {
+    for (let ey = 0; ey < ny; ey++) {
+      for (let ex = 0; ex < nx; ex++) {
+        const e = ez * nx * ny + ey * nx + ex;
+        let sum = 0;
+        for (let k = 0; k < weightsZ.length; k++) {
+          const dz = k - centerZ;
+          const kz = ez + dz;
+          if (kz >= 0 && kz < nz) {
+            const neighbor = kz * nx * ny + ey * nx + ex;
+            sum += weightsZ[k] * temp2[neighbor];
+          }
+        }
+        rhoBar[e] = sum * normFactor;
+      }
     }
-    rhoBar[e] = sum * filter.invHs[e];
   }
+  
   return rhoBar;
 }
 
-function applyFilterChainRule(dCdrhoBar: Float64Array, filter: DensityFilter, out?: Float64Array): Float64Array {
-  const dCdrho = out ?? new Float64Array(filter.numElems);
-  dCdrho.fill(0);
-  for (let e = 0; e < filter.numElems; e++) {
-    const factor = dCdrhoBar[e] / filter.Hs[e];
-    const start = filter.offsets[e];
-    const end = filter.offsets[e + 1];
-    for (let i = start; i < end; i++) {
-      dCdrho[filter.neighborData[i]] += filter.weightData[i] * factor;
+function applySeparableFilterChainRule(dCdrhoBar: Float32Array, filter: SeparableDensityFilter, out?: Float32Array): Float32Array {
+  const { nx, ny, nz, weightsX, weightsY, weightsZ, radiusX, radiusY, radiusZ, normFactor, temp1, temp2 } = filter;
+  const dCdrho = out ?? new Float32Array(filter.numElems);
+  
+  const centerX = radiusX;
+  const centerY = radiusY;
+  const centerZ = radiusZ;
+  
+  temp2.fill(0);
+  for (let ez = 0; ez < nz; ez++) {
+    for (let ey = 0; ey < ny; ey++) {
+      for (let ex = 0; ex < nx; ex++) {
+        const e = ez * nx * ny + ey * nx + ex;
+        const val = dCdrhoBar[e] * normFactor;
+        for (let k = 0; k < weightsZ.length; k++) {
+          const dz = k - centerZ;
+          const kz = ez + dz;
+          if (kz >= 0 && kz < nz) {
+            const neighbor = kz * nx * ny + ey * nx + ex;
+            temp2[neighbor] += weightsZ[k] * val;
+          }
+        }
+      }
     }
   }
+  
+  temp1.fill(0);
+  for (let ez = 0; ez < nz; ez++) {
+    for (let ey = 0; ey < ny; ey++) {
+      for (let ex = 0; ex < nx; ex++) {
+        const e = ez * nx * ny + ey * nx + ex;
+        const val = temp2[e];
+        for (let j = 0; j < weightsY.length; j++) {
+          const dy = j - centerY;
+          const jy = ey + dy;
+          if (jy >= 0 && jy < ny) {
+            const neighbor = ez * nx * ny + jy * nx + ex;
+            temp1[neighbor] += weightsY[j] * val;
+          }
+        }
+      }
+    }
+  }
+  
+  dCdrho.fill(0);
+  for (let ez = 0; ez < nz; ez++) {
+    for (let ey = 0; ey < ny; ey++) {
+      for (let ex = 0; ex < nx; ex++) {
+        const e = ez * nx * ny + ey * nx + ex;
+        const val = temp1[e];
+        for (let i = 0; i < weightsX.length; i++) {
+          const dx = i - centerX;
+          const ix = ex + dx;
+          if (ix >= 0 && ix < nx) {
+            const neighbor = ez * nx * ny + ey * nx + ix;
+            dCdrho[neighbor] += weightsX[i] * val;
+          }
+        }
+      }
+    }
+  }
+  
   return dCdrho;
 }
 
@@ -197,7 +255,7 @@ function heavisideDerivative(rhoBar: number, beta: number, eta: number): number 
   return beta * (1.0 - tanhTerm * tanhTerm) / denom;
 }
 
-function computeGrayLevel(rho: Float64Array): number {
+function computeGrayLevel(rho: Float32Array | Float64Array): number {
   let sum = 0;
   for (let i = 0; i < rho.length; i++) sum += rho[i] * (1.0 - rho[i]);
   return (4.0 * sum) / rho.length;
@@ -503,9 +561,9 @@ function computeSensitivities(rho: Float64Array, ce: Float64Array, penal: number
   return dc;
 }
 
-function updateDensitiesOC(densities: Float64Array, sens: Float64Array, volFrac: number, move: number, rhoMin: number): Float64Array<ArrayBuffer> {
+function updateDensitiesOC(densities: Float32Array, sens: Float32Array, volFrac: number, move: number, rhoMin: number): Float32Array {
   const n = densities.length;
-  const newDensities = new Float64Array(n);
+  const newDensities = new Float32Array(n);
   
   let minSens = Infinity, maxSens = -Infinity;
   for (let i = 0; i < n; i++) {
@@ -579,9 +637,9 @@ export async function* runSimp(
   }
   
   const kernel = createElementKernel(nx, ny, nz, bounds, params.nu);
-  const filter = precomputeDensityFilter(nx, ny, nz, params.rmin);
+  const filter = precomputeSeparableDensityFilter(nx, ny, nz, params.rmin);
   
-  let densities = new Float64Array(numElems);
+  let densities = new Float32Array(numElems);
   densities.fill(params.volFrac);
   
   const minIterations = params.minIterations ?? 3;
@@ -596,10 +654,11 @@ export async function* runSimp(
   let uPrev = new Float64Array(kernel.numDofs);
   
   const pcgWorkspace = createPCGWorkspace(kernel.numDofs);
-  const rhoBar = new Float64Array(numElems);
-  const rhoPhysical = new Float64Array(numElems);
-  const dCdrhoBar = new Float64Array(numElems);
-  const dCdrho = new Float64Array(numElems);
+  const rhoBar = new Float32Array(numElems);
+  const rhoPhysical = new Float32Array(numElems);
+  const rhoPhysicalF64 = new Float64Array(numElems);
+  const dCdrhoBar = new Float32Array(numElems);
+  const dCdrho = new Float32Array(numElems);
   
   const penalRampRate = (params.penalEnd - params.penalStart) / params.penalRampIters;
   
@@ -615,10 +674,11 @@ export async function* runSimp(
   for (let iter = 1; iter <= params.maxIters; iter++) {
     const t0 = performance.now();
     
-    applyDensityFilter(densities, filter, rhoBar);
+    applySeparableDensityFilter(densities, filter, rhoBar);
     
     for (let e = 0; e < numElems; e++) {
       rhoPhysical[e] = heavisideProject(rhoBar[e], beta, 0.5);
+      rhoPhysicalF64[e] = rhoPhysical[e];
     }
     
     const tFilter = performance.now();
@@ -629,7 +689,7 @@ export async function* runSimp(
                            params.cgTol;
     
     const { u, converged: solverOk, iters: cgIters } = solvePCG(
-      kernel, rhoPhysical, forces, fixedDofs, penal, params.E0, params.Emin,
+      kernel, rhoPhysicalF64, forces, fixedDofs, penal, params.E0, params.Emin,
       adaptiveCgTol, params.cgMaxIters, pcgWorkspace, iter === 1 ? undefined : uPrev
     );
     
@@ -653,12 +713,12 @@ export async function* runSimp(
     assertFiniteArray("densities", densities, 97);
     
     const ce = computeElementCe(kernel, u);
-    const dCdrhoTilde = computeSensitivities(rhoPhysical, ce, penal, params.E0, params.Emin);
+    const dCdrhoTilde = computeSensitivities(rhoPhysicalF64, ce, penal, params.E0, params.Emin);
     
     for (let e = 0; e < numElems; e++) {
       dCdrhoBar[e] = dCdrhoTilde[e] * heavisideDerivative(rhoBar[e], beta, 0.5);
     }
-    applyFilterChainRule(dCdrhoBar, filter, dCdrho);
+    applySeparableFilterChainRule(dCdrhoBar, filter, dCdrho);
     
     const newDensities = updateDensitiesOC(densities, dCdrho, params.volFrac, moveLimit, params.rhoMin);
     
@@ -671,7 +731,7 @@ export async function* runSimp(
     for (let e = 0; e < numElems; e++) vol += rhoPhysical[e];
     vol /= numElems;
     
-    densities = newDensities;
+    for (let e = 0; e < numElems; e++) densities[e] = newDensities[e];
     
     const tUpdate = performance.now();
     
@@ -731,15 +791,12 @@ export async function* runSimp(
       penal = params.penalEnd;
     }
     
-    const densitiesF32 = new Float32Array(numElems);
-    for (let i = 0; i < numElems; i++) densitiesF32[i] = rhoPhysical[i];
-    
     yield { 
       iter, 
       compliance, 
       change: maxChange, 
       vol, 
-      densities: densitiesF32, 
+      densities: rhoPhysical, 
       converged: consecutiveConverged >= minIterations,
       feIters: cgIters,
       timings,
