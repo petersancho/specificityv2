@@ -636,21 +636,39 @@ export async function* runSimp(
     forces[dof] = force;
   }
   
+  let forceL2 = 0, forceMax = 0;
+  for (let i = 0; i < forces.length; i++) {
+    forceL2 += forces[i] * forces[i];
+    forceMax = Math.max(forceMax, Math.abs(forces[i]));
+  }
+  forceL2 = Math.sqrt(forceL2);
+  
+  console.log(`[SIMP] Force stats:`, {
+    l2Norm: forceL2.toExponential(3),
+    maxAbs: forceMax.toExponential(3),
+    numLoadedDofs: loadedDofs.size,
+    numFixedDofs: fixedDofs.size,
+  });
+  
   const kernel = createElementKernel(nx, ny, nz, bounds, params.nu);
   const filter = precomputeSeparableDensityFilter(nx, ny, nz, params.rmin);
   
   let densities = new Float32Array(numElems);
   densities.fill(params.volFrac);
   
-  const minIterations = params.minIterations ?? 3;
+  const minIterations = params.minIterations ?? 30;
   const grayTol = params.grayTol ?? 0.05;
   const betaMax = params.betaMax ?? 64;
+  const minIterForCheck = 25;
+  const stallWindow = 8;
   
   let beta = 1.0;
   let penal = params.penalStart;
   let moveLimit = params.move;
   let prevCompliance = Infinity;
   let consecutiveConverged = 0;
+  const relCompHistory: number[] = [];
+  const maxChangeHistory: number[] = [];
   let uPrev = new Float64Array(kernel.numDofs);
   
   const pcgWorkspace = createPCGWorkspace(kernel.numDofs);
@@ -736,9 +754,29 @@ export async function* runSimp(
     const tUpdate = performance.now();
     
     const grayLevel = computeGrayLevel(rhoPhysical);
-    const compChange = Math.abs(compliance - prevCompliance) / Math.max(1, compliance);
     
-    const isConverging = compChange < params.tolChange && maxChange < params.tolChange;
+    const eps = 1e-12;
+    const relCompChange = Math.abs(compliance - prevCompliance) / Math.max(Math.abs(prevCompliance), eps);
+    const compChange = relCompChange;
+    
+    relCompHistory.push(relCompChange);
+    maxChangeHistory.push(maxChange);
+    
+    let shouldStop = false;
+    if (iter >= minIterForCheck && relCompHistory.length >= stallWindow) {
+      const lastRel = relCompHistory.slice(-stallWindow);
+      const lastMax = maxChangeHistory.slice(-stallWindow);
+      
+      const stalled = lastRel.every(v => v < 0.002) && lastMax.every(v => v < 0.005);
+      const discreteEnough = grayLevel < grayTol;
+      
+      if (stalled && discreteEnough) {
+        shouldStop = true;
+        consecutiveConverged = stallWindow;
+      }
+    }
+    
+    const isConverging = relCompChange < 0.002 && maxChange < 0.005;
     const isDiscrete = grayLevel < grayTol;
     
     const timings = {
@@ -750,19 +788,18 @@ export async function* runSimp(
       cgTol: adaptiveCgTol.toExponential(1),
     };
     
-    if (DEBUG && iter <= 5) {
+    if (iter % 10 === 0 || iter <= 5) {
       console.log(`[SIMP] Iteration ${iter}:`, {
-        compliance,
-        compChange,
-        maxChange,
-        vol,
-        grayLevel,
+        compliance: compliance.toExponential(3),
+        relCompChange: relCompChange.toExponential(3),
+        maxChange: maxChange.toFixed(4),
+        vol: vol.toFixed(3),
+        grayLevel: grayLevel.toFixed(3),
         isConverging,
         isDiscrete,
         consecutiveConverged,
-        prevCompliance,
+        shouldStop,
         cgIters,
-        timings,
       });
     }
     
@@ -797,22 +834,22 @@ export async function* runSimp(
       change: maxChange, 
       vol, 
       densities: rhoPhysical, 
-      converged: consecutiveConverged >= minIterations,
+      converged: shouldStop || consecutiveConverged >= minIterations,
       feIters: cgIters,
       timings,
     };
     
-    if (consecutiveConverged >= minIterations) {
-      if (DEBUG) {
-        console.log(`[SIMP] Converged at iteration ${iter}`, {
-          compliance,
-          compChange,
-          maxChange,
-          vol,
-          consecutiveConverged,
-          minIterations,
-        });
-      }
+    if (shouldStop || consecutiveConverged >= minIterations) {
+      console.log(`[SIMP] Converged at iteration ${iter}`, {
+        compliance: compliance.toExponential(3),
+        relCompChange: relCompChange.toExponential(3),
+        maxChange: maxChange.toFixed(4),
+        vol: vol.toFixed(3),
+        grayLevel: grayLevel.toFixed(3),
+        consecutiveConverged,
+        minIterations,
+        reason: shouldStop ? 'stall window' : 'consecutive converged',
+      });
       break;
     }
     
