@@ -1,12 +1,12 @@
 import type { WorkflowNodeDefinition } from "../../nodeRegistry";
 import type { Geometry, RenderMesh, Vec3, MeshGeometry } from "../../../types";
-import type { GoalSpecification, VolumeGoal, StiffnessGoal, AnchorGoal, LoadGoal } from "./types";
+import type { GoalSpecification, AnchorGoal, LoadGoal } from "./types";
 
 /**
  * Topology Optimization Solver Node
  * 
  * This solver generates topologically optimized structures using:
- * 1. Goal-based optimization (volume, stiffness, anchor, load)
+ * 1. Goal-based optimization (anchor, load)
  * 2. Point cloud generation (optimized based on goals)
  * 3. Curve network generation (constrained connectivity)
  * 4. Multipipe operation (pipes along curves)
@@ -33,215 +33,7 @@ export const TopologyOptimizationSolverNode: WorkflowNodeDefinition = {
       label: "Goals",
       type: "goal",
       allowMultiple: true,
-      description: "Optimization goals (volume, stiffness, anchor, load).",
-    },
-    {
-      key: "pointDensity",
-      label: "Point Density",
-      type: "number",
-      parameterKey: "pointDensity",
-      defaultValue: 100,
-      description: "Deprecated. Use Density Threshold for SIMP-derived point selection.",
-    },
-    {
-      key: "nx",
-      label: "Resolution X",
-      type: "number",
-      parameterKey: "nx",
-      defaultValue: 80,
-      description: "Grid resolution in X for SIMP (20-120).",
-    },
-    {
-      key: "ny",
-      label: "Resolution Y",
-      type: "number",
-      parameterKey: "ny",
-      defaultValue: 60,
-      description: "Grid resolution in Y for SIMP (20-120).",
-    },
-    {
-      key: "nz",
-      label: "Resolution Z",
-      type: "number",
-      parameterKey: "nz",
-      defaultValue: 1,
-      description: "Grid resolution in Z (1 for 2D, >1 for 3D). Use 20-40 for 3D.",
-    },
-    {
-      key: "volFrac",
-      label: "Volume Fraction",
-      type: "number",
-      parameterKey: "volFrac",
-      defaultValue: 0.4,
-      description: "Target material fraction (0.1-0.9).",
-    },
-    {
-      key: "penalStart",
-      label: "Penalty Start",
-      type: "number",
-      parameterKey: "penalStart",
-      defaultValue: 1.0,
-      description: "Initial SIMP penalty exponent.",
-    },
-    {
-      key: "penalEnd",
-      label: "Penalty End",
-      type: "number",
-      parameterKey: "penalEnd",
-      defaultValue: 3.0,
-      description: "Final SIMP penalty exponent.",
-    },
-    {
-      key: "penalRampIters",
-      label: "Penalty Ramp",
-      type: "number",
-      parameterKey: "penalRampIters",
-      defaultValue: 60,
-      description: "Iterations to ramp penalty.",
-    },
-    {
-      key: "rmin",
-      label: "Filter Radius",
-      type: "number",
-      parameterKey: "rmin",
-      defaultValue: 1.5,
-      description: "Sensitivity filter radius.",
-    },
-    {
-      key: "move",
-      label: "Move Limit",
-      type: "number",
-      parameterKey: "move",
-      defaultValue: 0.15,
-      description: "Maximum density change per iteration.",
-    },
-    {
-      key: "maxIters",
-      label: "Max Iterations",
-      type: "number",
-      parameterKey: "maxIters",
-      defaultValue: 150,
-      description: "Maximum SIMP iterations.",
-    },
-    {
-      key: "tolChange",
-      label: "Convergence Tolerance",
-      type: "number",
-      parameterKey: "tolChange",
-      defaultValue: 0.001,
-      description: "Stopping criterion for convergence.",
-    },
-    {
-      key: "minIterations",
-      label: "Min Stable Iterations",
-      type: "number",
-      parameterKey: "minIterations",
-      defaultValue: 3,
-      description: "Minimum consecutive stable iterations for convergence.",
-    },
-    {
-      key: "grayTol",
-      label: "Gray Level Tolerance",
-      type: "number",
-      parameterKey: "grayTol",
-      defaultValue: 0.05,
-      description: "Gray level tolerance (0.01-0.2). Lower = more binary design.",
-    },
-    {
-      key: "betaMax",
-      label: "Beta Max",
-      type: "number",
-      parameterKey: "betaMax",
-      defaultValue: 64,
-      description: "Maximum beta for Heaviside projection (64-512). Higher = sharper 0/1.",
-    },
-    {
-      key: "E0",
-      label: "Young's Modulus",
-      type: "number",
-      parameterKey: "E0",
-      defaultValue: 1.0,
-      description: "Solid material stiffness.",
-    },
-    {
-      key: "Emin",
-      label: "Min Stiffness",
-      type: "number",
-      parameterKey: "Emin",
-      defaultValue: 1e-9,
-      description: "Void material stiffness.",
-    },
-    {
-      key: "rhoMin",
-      label: "Min Density",
-      type: "number",
-      parameterKey: "rhoMin",
-      defaultValue: 1e-3,
-      description: "Minimum density clamp.",
-    },
-    {
-      key: "nu",
-      label: "Poisson Ratio",
-      type: "number",
-      parameterKey: "nu",
-      defaultValue: 0.3,
-      description: "Poisson's ratio.",
-    },
-    {
-      key: "cgTol",
-      label: "CG Tolerance",
-      type: "number",
-      parameterKey: "cgTol",
-      defaultValue: 1e-6,
-      description: "Conjugate gradient tolerance.",
-    },
-    {
-      key: "cgMaxIters",
-      label: "CG Max Iters",
-      type: "number",
-      parameterKey: "cgMaxIters",
-      defaultValue: 1000,
-      description: "Conjugate gradient max iterations.",
-    },
-    {
-      key: "densityThreshold",
-      label: "Density Threshold",
-      type: "number",
-      parameterKey: "densityThreshold",
-      defaultValue: 0.3,
-      description: "Density cutoff for extracting points from SIMP field (0.1-0.9).",
-    },
-    {
-      key: "maxLinksPerPoint",
-      label: "Max Links Per Point",
-      type: "number",
-      parameterKey: "maxLinksPerPoint",
-      defaultValue: 4,
-      description: "Maximum connectivity degree (2-8).",
-    },
-    {
-      key: "maxSpanLength",
-      label: "Max Span Length",
-      type: "number",
-      parameterKey: "maxSpanLength",
-      defaultValue: 1.0,
-      description: "Maximum distance between connected points (0.1-10.0).",
-    },
-    {
-      key: "pipeRadius",
-      label: "Pipe Radius",
-      type: "number",
-      parameterKey: "pipeRadius",
-      defaultValue: 0.05,
-      description: "Radius for multipipe operation (0.01-1.0).",
-    },
-    {
-      key: "pipeSegments",
-      label: "Pipe Segments",
-      type: "number",
-      parameterKey: "pipeSegments",
-      defaultValue: 12,
-      description: "Multipipe smoothness (6-32).",
+      description: "Optimization goals (anchor, load).",
     },
   ],
   outputs: [
@@ -554,16 +346,16 @@ export const TopologyOptimizationSolverNode: WorkflowNodeDefinition = {
     };
     
     const pointDensity = Math.max(10, Math.min(1000, Math.round(
-      Number(inputs.pointDensity ?? parameters.pointDensity ?? 100)
+      Number(parameters.pointDensity ?? 100)
     )));
     const maxLinksPerPoint = Math.max(2, Math.min(8, Math.round(
-      Number(inputs.maxLinksPerPoint ?? parameters.maxLinksPerPoint ?? 4)
+      Number(parameters.maxLinksPerPoint ?? 4)
     )));
     const maxSpanLength = Math.max(0.1, Math.min(10.0, 
-      Number(inputs.maxSpanLength ?? parameters.maxSpanLength ?? 1.0)
+      Number(parameters.maxSpanLength ?? 1.0)
     ));
     const pipeRadius = Math.max(0.01, Math.min(1.0, 
-      Number(inputs.pipeRadius ?? parameters.pipeRadius ?? 0.05)
+      Number(parameters.pipeRadius ?? 0.05)
     ));
     const seed = Math.max(0, Math.min(9999, Math.round(
       Number(parameters.seed ?? 42)
