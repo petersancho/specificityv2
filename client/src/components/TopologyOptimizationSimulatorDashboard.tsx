@@ -392,13 +392,14 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       console.log('[TOPOLOGY] ✅✅✅ Selected geometry in Roslyn:', isosurfaceId);
       
       // Verify geometry is in store
-      const geometries = get().geometries;
+      const state = useProjectStore.getState();
+      const geometries = state.geometry;
       const geometryExists = geometries.some(g => g.id === isosurfaceId);
       console.log('[TOPOLOGY] Geometry exists in store:', geometryExists);
       console.log('[TOPOLOGY] Total geometries in store:', geometries.length);
       
       // Verify geometry is selected
-      const selectedGeometryIds = get().selectedGeometryIds;
+      const selectedGeometryIds = state.selectedGeometryIds;
       const isSelected = selectedGeometryIds.includes(isosurfaceId);
       console.log('[TOPOLOGY] Geometry is selected:', isSelected);
       console.log('[TOPOLOGY] Selected geometry IDs:', selectedGeometryIds);

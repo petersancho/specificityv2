@@ -891,10 +891,11 @@ export async function* runSimp(
   let oscillationDetected = false;                        // Pause continuation if oscillating
   
   // Divergence detection (sliding window tracker catches gradual increases)
+  // DISABLED: Too aggressive for this problem - let it run to minIterations
   const complianceTracker = new ComplianceTracker(
     30,    // windowSize: track last 30 iterations
-    0.015, // tolBest: 1.5% worse than best is concerning
-    3      // badWindowsToStop: stop after 3 consecutive bad windows
+    0.10,  // tolBest: 10% worse than best is concerning (was 1.5%, too strict)
+    10     // badWindowsToStop: stop after 10 consecutive bad windows (was 3, too strict)
   );
   
   // Adaptive continuation parameters (from params or defaults)
