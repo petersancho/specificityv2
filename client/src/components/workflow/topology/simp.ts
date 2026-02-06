@@ -834,11 +834,11 @@ export async function* runSimp(
   let oscillationDetected = false;                        // Pause continuation if oscillating
   
   // Adaptive continuation parameters (from params or defaults)
-  const PENALTY_STEP = params.penalStep ?? 0.02;          // Fixed step size (reduced from 0.05)
-  const BETA_MULTIPLIER = params.betaMultiplier ?? 1.02;  // Beta multiplier (reduced from 1.1)
-  const CONT_STABLE_ITERS = params.contStableIters ?? 30; // Stability required before changes (increased from 15)
-  const CONT_TOL_REL = params.contTolRel ?? 0.001;        // Stability tolerance: 0.1% (tighter from 0.2%)
-  const MIN_CHANGE_GAP = 50;                              // Minimum gap between changes (increased from 25)
+  const PENALTY_STEP = params.penalStep ?? 0.10;          // Fixed step size (balanced for convergence)
+  const BETA_MULTIPLIER = params.betaMultiplier ?? 1.2;   // Beta multiplier (balanced for convergence)
+  const CONT_STABLE_ITERS = params.contStableIters ?? 10; // Stability required before changes (relaxed from 30)
+  const CONT_TOL_REL = params.contTolRel ?? 0.005;        // Stability tolerance: 0.5% (relaxed from 0.1%)
+  const MIN_CHANGE_GAP = 40;                              // Minimum gap between changes (balanced from 50)
   
   // Checkpoint/rollback for best design (prevents losing good designs)
   // CRITICAL: Must save AND restore penalty/beta along with densities!
