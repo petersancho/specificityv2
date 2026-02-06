@@ -673,9 +673,9 @@ function solvePCG(
 
 const ADAPTIVE_CG_TOL_EARLY = 1e-2;  // 1% error - early iterations (problem is ill-conditioned with uniform density)
 const ADAPTIVE_CG_TOL_MID = 1e-2;    // 1% error - mid iterations (keep loose to handle ill-conditioning)
-const ADAPTIVE_CG_TOL_LATE = 1e-3;   // 0.1% error - late iterations
+const ADAPTIVE_CG_TOL_LATE = 1e-2;   // 1% error - late iterations (keep loose to avoid slowdown)
 const ADAPTIVE_CG_EARLY_ITERS = 40;  // Keep loose tolerance longer
-const ADAPTIVE_CG_MID_ITERS = 80;    // Tighten only in late iterations
+const ADAPTIVE_CG_MID_ITERS = 120;   // Delay tightening to avoid slowdown at iteration 80
 
 const STABLE_WINDOW = 8;  // Need 8 consecutive converged iterations for stability
 
@@ -834,10 +834,10 @@ export async function* runSimp(
   let oscillationDetected = false;                        // Pause continuation if oscillating
   
   // Adaptive continuation parameters (from params or defaults)
-  const PENALTY_STEP = params.penalStep ?? 0.10;          // Fixed step size (balanced for convergence)
-  const BETA_MULTIPLIER = params.betaMultiplier ?? 1.2;   // Beta multiplier (balanced for convergence)
-  const CONT_STABLE_ITERS = params.contStableIters ?? 10; // Stability required before changes (relaxed from 30)
-  const CONT_TOL_REL = params.contTolRel ?? 0.005;        // Stability tolerance: 0.5% (relaxed from 0.1%)
+  const PENALTY_STEP = params.penalStep ?? 0.05;          // Fixed step size (gentler to prevent spikes)
+  const BETA_MULTIPLIER = params.betaMultiplier ?? 1.1;   // Beta multiplier (gentler to prevent spikes)
+  const CONT_STABLE_ITERS = params.contStableIters ?? 15; // Stability required before changes (balanced)
+  const CONT_TOL_REL = params.contTolRel ?? 0.003;        // Stability tolerance: 0.3% (balanced)
   const MIN_CHANGE_GAP = 40;                              // Minimum gap between changes (balanced from 50)
   
   // Checkpoint/rollback for best design (prevents losing good designs)
