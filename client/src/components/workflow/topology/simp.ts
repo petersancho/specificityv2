@@ -840,7 +840,9 @@ export async function* runSimp(
     
     // Penalty continuation: p = penalStart → penalEnd over penalRampIters
     if (iter < params.penalRampIters) {
-      const t = (iter - 1) / (params.penalRampIters - 1);  // 0 to 1
+      const t = params.penalRampIters > 1 
+        ? (iter - 1) / (params.penalRampIters - 1)  // 0 to 1
+        : 0;  // Edge case: penalRampIters = 1
       penal = params.penalStart + t * (params.penalEnd - params.penalStart);
     } else {
       penal = params.penalEnd;
