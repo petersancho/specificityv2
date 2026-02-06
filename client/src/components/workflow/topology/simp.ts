@@ -13,7 +13,8 @@ import { computeStrictBounds, worldToGrid, gridToNodeIndex, buildDofMapping } fr
 const DEBUG = false;
 
 const MAX_MEMORY_MB = 400;
-const PCG_DIVERGENCE_FACTOR = 1e6;
+const PCG_DIVERGENCE_FACTOR = 1e10;
+const PCG_MIN_ITERS_BEFORE_DIVERGENCE_CHECK = 5;
 
 
 
@@ -488,33 +489,38 @@ function solvePCG(
     
     if (iters === 0) {
       resNorm0 = resNorm;
-      if (DEBUG || resNorm < tolAbs) {
-        console.log(`[PCG] Initial residual: ${resNorm.toExponential(2)}, tolerance: ${tolAbs.toExponential(2)}, warmStart: ${uPrev !== undefined}`);
-      }
+      console.log(`[PCG] Starting: resNorm0=${resNorm.toExponential(2)}, tol=${tolAbs.toExponential(2)}, warmStart=${uPrev !== undefined}, maxIters=${maxIters}`);
     }
     
-    if (resNorm0 > 0 && resNorm > resNorm0 * PCG_DIVERGENCE_FACTOR) {
-      console.error(`[PCG] Diverging (resNorm grew from ${resNorm0.toExponential(2)} to ${resNorm.toExponential(2)}). Reduce resolution or check boundary conditions.`);
+    if (iters >= PCG_MIN_ITERS_BEFORE_DIVERGENCE_CHECK && resNorm0 > 0 && resNorm > resNorm0 * PCG_DIVERGENCE_FACTOR) {
+      console.error(`[PCG] Diverging at iter ${iters} (resNorm grew from ${resNorm0.toExponential(2)} to ${resNorm.toExponential(2)}). Check boundary conditions.`);
       for (const dof of fixedDofs) u[dof] = 0;
       return { u, converged: false, iters };
     }
     
     if (resNorm < tolAbs) { 
       converged = true;
-      if (DEBUG || iters === 0) {
-        console.log(`[PCG] Converged in ${iters} iterations (resNorm: ${resNorm.toExponential(2)}, tol: ${tolAbs.toExponential(2)})`);
-      }
+      console.log(`[PCG] Converged in ${iters} iterations (resNorm=${resNorm.toExponential(2)}, tol=${tolAbs.toExponential(2)})`);
       break;
     }
-    if (!Number.isFinite(resNorm)) break;
+    if (!Number.isFinite(resNorm)) {
+      console.error(`[PCG] resNorm is ${resNorm} at iter ${iters}. Numerical instability detected.`);
+      break;
+    }
     
     matrixFreeKx(kernel, rho, p, penal, E0, Emin, Ap);
     for (const dof of fixedDofs) Ap[dof] = 0;
     
     const pAp = dot(p, Ap);
-    if (Math.abs(pAp) < 1e-30 || !Number.isFinite(pAp)) break;
+    if (Math.abs(pAp) < 1e-30 || !Number.isFinite(pAp)) {
+      console.error(`[PCG] pAp=${pAp} at iter ${iters}. Matrix may be singular or ill-conditioned.`);
+      break;
+    }
     const alpha = rz / pAp;
-    if (!Number.isFinite(alpha)) break;
+    if (!Number.isFinite(alpha)) {
+      console.error(`[PCG] alpha=${alpha} at iter ${iters} (rz=${rz}, pAp=${pAp}). Numerical instability.`);
+      break;
+    }
     
     for (let i = 0; i < n; i++) {
       u[i] += alpha * p[i];
@@ -523,7 +529,10 @@ function solvePCG(
     }
     
     const rzNew = dot(r, z);
-    if (!Number.isFinite(rzNew)) break;
+    if (!Number.isFinite(rzNew)) {
+      console.error(`[PCG] rzNew=${rzNew} at iter ${iters}. Numerical instability.`);
+      break;
+    }
     const beta = rzNew / rz;
     rz = rzNew;
     
@@ -532,6 +541,11 @@ function solvePCG(
   }
   
   for (const dof of fixedDofs) u[dof] = 0;
+  
+  if (!converged && iters >= maxIters) {
+    console.warn(`[PCG] Did not converge in ${iters} iterations (resNorm=${Math.sqrt(dot(r, r)).toExponential(2)}, tol=${tolAbs.toExponential(2)})`);
+  }
+  
   return { u, converged, iters };
 }
 
