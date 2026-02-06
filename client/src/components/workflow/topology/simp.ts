@@ -834,11 +834,11 @@ export async function* runSimp(
   let oscillationDetected = false;                        // Pause continuation if oscillating
   
   // Adaptive continuation parameters (from params or defaults)
-  const PENALTY_STEP = params.penalStep ?? 0.05;          // Fixed step size (gentler to prevent spikes)
-  const BETA_MULTIPLIER = params.betaMultiplier ?? 1.1;   // Beta multiplier (gentler to prevent spikes)
-  const CONT_STABLE_ITERS = params.contStableIters ?? 15; // Stability required before changes (balanced)
-  const CONT_TOL_REL = params.contTolRel ?? 0.003;        // Stability tolerance: 0.3% (balanced)
-  const MIN_CHANGE_GAP = 40;                              // Minimum gap between changes (balanced from 50)
+  const PENALTY_STEP = params.penalStep ?? 0.03;          // Fixed step size (ultra-conservative to prevent stalling)
+  const BETA_MULTIPLIER = params.betaMultiplier ?? 1.05;  // Beta multiplier (ultra-conservative to prevent spikes)
+  const CONT_STABLE_ITERS = params.contStableIters ?? 20; // Stability required before changes (stricter)
+  const CONT_TOL_REL = params.contTolRel ?? 0.002;        // Stability tolerance: 0.2% (stricter)
+  const MIN_CHANGE_GAP = 50;                              // Minimum gap between changes (more time to adapt)
   
   // Checkpoint/rollback for best design (prevents losing good designs)
   // CRITICAL: Must save AND restore penalty/beta along with densities!
@@ -932,10 +932,11 @@ export async function* runSimp(
     const tFilter = performance.now();
     
     // Adaptive CG tolerance: loose early (ill-conditioned), tight late (well-conditioned)
-    // After iteration 60, use the tighter of ADAPTIVE_CG_TOL_LATE or user's cgTol
+    // Keep CG tolerance constant throughout to avoid slowdown
+    // User's cgTol parameter is ignored to prevent sudden tightening
     const adaptiveCgTol = iter <= ADAPTIVE_CG_EARLY_ITERS ? ADAPTIVE_CG_TOL_EARLY : 
                            iter <= ADAPTIVE_CG_MID_ITERS ? ADAPTIVE_CG_TOL_MID : 
-                           Math.min(ADAPTIVE_CG_TOL_LATE, params.cgTol);
+                           ADAPTIVE_CG_TOL_LATE;
     
     const { u, converged: solverOk, iters: cgIters } = solvePCG(
       kernel, rhoPhysicalF64, forces, fixedDofs, penal, params.E0, params.Emin,
