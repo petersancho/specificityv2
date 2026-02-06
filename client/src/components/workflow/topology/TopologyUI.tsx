@@ -199,6 +199,10 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
   return <canvas ref={canvasRef} style={{ cursor: isDraggingRef.current ? 'grabbing' : 'grab' }} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} />;
 };
 
+function triArea2(ax: number, ay: number, bx: number, by: number, cx: number, cy: number): number {
+  return Math.abs((bx - ax) * (cy - ay) - (by - ay) * (cx - ax));
+}
+
 function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, width: number, height: number, rotation: { x: number; y: number }) {
   const positions = geometry.positions, indices = geometry.indices;
   if (!positions || positions.length === 0) return;
@@ -221,37 +225,83 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
     projected.push({ x: width / 2 + x * scale, y: height / 2 - y * scale, z });
   }
 
-  if (indices && indices.length > 0) {
-    const triangles: Array<{ indices: [number, number, number]; avgZ: number }> = [];
-    for (let i = 0; i < indices.length; i += 3) {
-      triangles.push({ indices: [indices[i], indices[i + 1], indices[i + 2]], avgZ: (projected[indices[i]].z + projected[indices[i + 1]].z + projected[indices[i + 2]].z) / 3 });
-    }
-    triangles.sort((a, b) => a.avgZ - b.avgZ);
+  // Dark theme for high contrast on porcelain background
+  const BASE = { r: 40, g: 44, b: 52 };
+  const LIGHT = { r: 90, g: 98, b: 112 };
+  const STROKE = { r: 15, g: 18, b: 22 };
+  const POINT_COLOR = `rgb(${BASE.r}, ${BASE.g}, ${BASE.b})`;
 
-    // Dark theme for high contrast on porcelain background
-    // Base: charcoal (40, 44, 52), Light: slate (90, 98, 112), Stroke: near-black (15, 18, 22)
-    const BASE = { r: 40, g: 44, b: 52 };
-    const LIGHT = { r: 90, g: 98, b: 112 };
-    const STROKE = { r: 15, g: 18, b: 22 };
+  // Fallback: if no indices, render vertices as points
+  if (!indices || indices.length === 0) {
+    console.warn('[RENDER] No triangle indices, rendering vertices as points');
+    ctx.fillStyle = POINT_COLOR;
+    for (const p of projected) {
+      ctx.fillRect(p.x - 1.5, p.y - 1.5, 3, 3);
+    }
+    return;
+  }
+
+  const triangles: Array<{ indices: [number, number, number]; avgZ: number }> = [];
+  for (let i = 0; i < indices.length; i += 3) {
+    const i0 = indices[i], i1 = indices[i + 1], i2 = indices[i + 2];
+    if (i0 >= projected.length || i1 >= projected.length || i2 >= projected.length) continue;
+    triangles.push({ 
+      indices: [i0, i1, i2], 
+      avgZ: (projected[i0].z + projected[i1].z + projected[i2].z) / 3 
+    });
+  }
+  
+  if (triangles.length === 0) {
+    console.warn('[RENDER] No valid triangles, rendering vertices as points');
+    ctx.fillStyle = POINT_COLOR;
+    for (const p of projected) {
+      ctx.fillRect(p.x - 1.5, p.y - 1.5, 3, 3);
+    }
+    return;
+  }
+  
+  triangles.sort((a, b) => a.avgZ - b.avgZ);
+
+  const zMin = triangles[0].avgZ;
+  const zMax = triangles[triangles.length - 1].avgZ;
+  const zRange = Math.max(0.001, zMax - zMin);
+
+  const MIN_AREA2 = 4.0; // Minimum screen-space area (2x area) for triangle rendering
+  let microTriCount = 0;
+
+  for (const tri of triangles) {
+    const [i0, i1, i2] = tri.indices;
+    const p0 = projected[i0], p1 = projected[i1], p2 = projected[i2];
     
-    // Compute Z range for normalization
-    const zMin = triangles.length > 0 ? triangles[0].avgZ : 0;
-    const zMax = triangles.length > 0 ? triangles[triangles.length - 1].avgZ : 1;
-    const zRange = Math.max(0.001, zMax - zMin);
-
-    for (const tri of triangles) {
-      const [i0, i1, i2] = tri.indices;
-      // Normalize depth to [0, 1] range
-      const t = Math.max(0, Math.min(1, (tri.avgZ - zMin) / zRange));
-      // Interpolate from dark (back) to lighter (front)
-      const r = Math.round(BASE.r + (LIGHT.r - BASE.r) * t);
-      const g = Math.round(BASE.g + (LIGHT.g - BASE.g) * t);
-      const b = Math.round(BASE.b + (LIGHT.b - BASE.b) * t);
-      
+    const t = Math.max(0, Math.min(1, (tri.avgZ - zMin) / zRange));
+    const r = Math.round(BASE.r + (LIGHT.r - BASE.r) * t);
+    const g = Math.round(BASE.g + (LIGHT.g - BASE.g) * t);
+    const b = Math.round(BASE.b + (LIGHT.b - BASE.b) * t);
+    
+    const area2 = triArea2(p0.x, p0.y, p1.x, p1.y, p2.x, p2.y);
+    
+    if (area2 < MIN_AREA2) {
+      microTriCount++;
+      const cx = (p0.x + p1.x + p2.x) / 3;
+      const cy = (p0.y + p1.y + p2.y) / 3;
       ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-      ctx.strokeStyle = `rgb(${STROKE.r}, ${STROKE.g}, ${STROKE.b})`;
-      ctx.lineWidth = 0.75;
-      ctx.beginPath(); ctx.moveTo(projected[i0].x, projected[i0].y); ctx.lineTo(projected[i1].x, projected[i1].y); ctx.lineTo(projected[i2].x, projected[i2].y); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillRect(cx - 1, cy - 1, 2, 2);
+      continue;
     }
+    
+    ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+    ctx.strokeStyle = `rgb(${STROKE.r}, ${STROKE.g}, ${STROKE.b})`;
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(p0.x, p0.y);
+    ctx.lineTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.closePath();
+    ctx.fill();
+    if (area2 > 20) ctx.stroke(); // Only stroke larger triangles
+  }
+  
+  if (microTriCount > triangles.length * 0.5) {
+    console.warn(`[RENDER] ${microTriCount}/${triangles.length} triangles are micro-sized. Consider lowering density threshold.`);
   }
 }

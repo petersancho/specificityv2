@@ -468,7 +468,7 @@ function resampleToCubicGrid(field: VoxelScalarField): VoxelField {
 
 export function generateGeometryFromVoxels(
   field: VoxelScalarField,
-  isovalue: number = 0.3
+  isovalue: number = 0.2
 ): GeometryOutput {
   if (field.nx <= 0 || field.ny <= 0 || field.nz <= 0) {
     throw new Error(`Invalid field dimensions: ${field.nx}×${field.ny}×${field.nz}`);
@@ -580,7 +580,7 @@ function laplacianSmoothMesh(mesh: { positions: number[], normals: number[], uvs
 
 export function generateGeometryFromDensities(
   field: VoxelScalarField,
-  densityThreshold: number = 0.55
+  densityThreshold: number = 0.2
 ): GeometryOutput {
   return generateGeometryFromVoxels(field, densityThreshold);
 }
