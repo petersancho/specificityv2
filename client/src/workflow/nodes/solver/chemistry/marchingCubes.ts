@@ -561,10 +561,18 @@ export const marchingCubes = (
     return vertexIndex;
   };
   
+  // Track statistics for debugging
+  let cubesProcessed = 0;
+  let cubesSkippedAllInside = 0;
+  let cubesSkippedAllOutside = 0;
+  let cubesWithTriangles = 0;
+  
   // Process each cube in the grid
   for (let z = 0; z < res - 1; z++) {
     for (let y = 0; y < res - 1; y++) {
       for (let x = 0; x < res - 1; x++) {
+        cubesProcessed++;
+        
         // Get density values at 8 cube corners
         const cornerValues: number[] = [];
         for (let i = 0; i < 8; i++) {
@@ -582,7 +590,16 @@ export const marchingCubes = (
         }
         
         // Skip if cube is entirely inside or outside
-        if (cubeIndex === 0 || cubeIndex === 255) continue;
+        if (cubeIndex === 0) {
+          cubesSkippedAllOutside++;
+          continue;
+        }
+        if (cubeIndex === 255) {
+          cubesSkippedAllInside++;
+          continue;
+        }
+        
+        cubesWithTriangles++;
         
         // Get edge mask for this configuration
         const edgeMask = EDGE_TABLE[cubeIndex];
@@ -608,6 +625,17 @@ export const marchingCubes = (
       }
     }
   }
+  
+  console.log('[MARCHING CUBES] ⚠️⚠️⚠️ Statistics:', {
+    resolution: res,
+    isovalue,
+    cubesProcessed,
+    cubesSkippedAllOutside: `${cubesSkippedAllOutside} (${(100 * cubesSkippedAllOutside / cubesProcessed).toFixed(1)}%)`,
+    cubesSkippedAllInside: `${cubesSkippedAllInside} (${(100 * cubesSkippedAllInside / cubesProcessed).toFixed(1)}%)`,
+    cubesWithTriangles: `${cubesWithTriangles} (${(100 * cubesWithTriangles / cubesProcessed).toFixed(1)}%)`,
+    verticesGenerated: positions.length / 3,
+    trianglesGenerated: indices.length / 3,
+  });
   
   return { positions, normals, colors, indices, uvs };
 };

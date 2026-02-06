@@ -434,6 +434,16 @@ function resampleToCubicGrid(field: VoxelScalarField): VoxelField {
   const resolution = is2D ? Math.max(nx, ny) : Math.max(nx, ny, nz);
   const resZ = is2D ? 1 : resolution;
   
+  console.log('[GEOMETRY] Resampling to cubic grid:', {
+    input: `${nx}×${ny}×${nz}`,
+    output: `${resolution}×${resolution}×${resZ}`,
+    is2D,
+    bounds: {
+      min: `(${bounds.min.x.toFixed(2)}, ${bounds.min.y.toFixed(2)}, ${bounds.min.z.toFixed(2)})`,
+      max: `(${bounds.max.x.toFixed(2)}, ${bounds.max.y.toFixed(2)}, ${bounds.max.z.toFixed(2)})`,
+    }
+  });
+  
   const cellSize: Vec3 = {
     x: (bounds.max.x - bounds.min.x) / resolution,
     y: (bounds.max.y - bounds.min.y) / resolution,
@@ -441,6 +451,9 @@ function resampleToCubicGrid(field: VoxelScalarField): VoxelField {
   };
   
   const cubicDensities = new Float32Array(resolution * resolution * resZ);
+  
+  // Track min/max during resampling
+  let resampledMin = Infinity, resampledMax = -Infinity;
   
   for (let z = 0; z < resZ; z++) {
     for (let y = 0; y < resolution; y++) {
@@ -452,10 +465,20 @@ function resampleToCubicGrid(field: VoxelScalarField): VoxelField {
         const srcIdx = srcX + srcY * nx + srcZ * nx * ny;
         const dstIdx = x + y * resolution + z * resolution * resolution;
         
-        cubicDensities[dstIdx] = densities[srcIdx];
+        const val = densities[srcIdx];
+        cubicDensities[dstIdx] = val;
+        
+        if (val < resampledMin) resampledMin = val;
+        if (val > resampledMax) resampledMax = val;
       }
     }
   }
+  
+  console.log('[GEOMETRY] Resampled density range:', {
+    min: resampledMin.toFixed(4),
+    max: resampledMax.toFixed(4),
+    totalVoxels: cubicDensities.length,
+  });
   
   return {
     resolution,
@@ -479,15 +502,55 @@ export function generateGeometryFromVoxels(
     throw new Error(`Densities array is empty or detached (length=${field.densities?.length ?? 'undefined'})`);
   }
   
-  // Compute min/max to help diagnose threshold issues
+  // Compute min/max and distribution to help diagnose threshold issues
   let minDensity = Infinity, maxDensity = -Infinity;
+  let countBelow01 = 0, countBelow02 = 0, countBelow05 = 0;
+  let countAbove05 = 0, countAbove08 = 0, countAbove09 = 0;
+  
   for (let i = 0; i < field.densities.length; i++) {
     const v = field.densities[i];
     if (v < minDensity) minDensity = v;
     if (v > maxDensity) maxDensity = v;
+    if (v < 0.1) countBelow01++;
+    if (v < 0.2) countBelow02++;
+    if (v < 0.5) countBelow05++;
+    if (v > 0.5) countAbove05++;
+    if (v > 0.8) countAbove08++;
+    if (v > 0.9) countAbove09++;
   }
   
-  console.log(`[GEOMETRY] Density range: [${minDensity.toFixed(3)}, ${maxDensity.toFixed(3)}], isovalue: ${isovalue}`);
+  const total = field.densities.length;
+  console.log(`[GEOMETRY] ⚠️⚠️⚠️ Density field analysis:`, {
+    dimensions: `${field.nx}×${field.ny}×${field.nz}`,
+    totalVoxels: total,
+    range: `[${minDensity.toFixed(3)}, ${maxDensity.toFixed(3)}]`,
+    isovalue,
+    distribution: {
+      'below 0.1': `${countBelow01} (${(100 * countBelow01 / total).toFixed(1)}%)`,
+      'below 0.2': `${countBelow02} (${(100 * countBelow02 / total).toFixed(1)}%)`,
+      'below 0.5': `${countBelow05} (${(100 * countBelow05 / total).toFixed(1)}%)`,
+      'above 0.5': `${countAbove05} (${(100 * countAbove05 / total).toFixed(1)}%)`,
+      'above 0.8': `${countAbove08} (${(100 * countAbove08 / total).toFixed(1)}%)`,
+      'above 0.9': `${countAbove09} (${(100 * countAbove09 / total).toFixed(1)}%)`,
+    }
+  });
+  
+  // Sample some densities at different positions to understand spatial distribution
+  const samplePositions = [
+    { name: 'corner (0,0,0)', idx: 0 },
+    { name: 'center', idx: Math.floor(field.nx/2) + Math.floor(field.ny/2) * field.nx + Math.floor(field.nz/2) * field.nx * field.ny },
+    { name: 'corner (max)', idx: (field.nx-1) + (field.ny-1) * field.nx + (field.nz-1) * field.nx * field.ny },
+    { name: 'edge x', idx: Math.floor(field.nx/2) },
+    { name: 'edge y', idx: Math.floor(field.ny/2) * field.nx },
+    { name: 'edge z', idx: Math.floor(field.nz/2) * field.nx * field.ny },
+  ];
+  
+  console.log('[GEOMETRY] Sample densities at key positions:');
+  for (const { name, idx } of samplePositions) {
+    if (idx >= 0 && idx < total) {
+      console.log(`  ${name}: ${field.densities[idx].toFixed(4)}`);
+    }
+  }
   
   if (isovalue < 0 || isovalue > 1) {
     console.warn(`Isovalue ${isovalue} outside [0,1], clamping`);
