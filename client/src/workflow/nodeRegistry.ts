@@ -8086,8 +8086,19 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
         };
       }
 
+      // Area-based candidate generation (not limited by triangle count)
+      // For Poisson disk sampling, we need enough candidates to fill the surface
+      // Expected points ≈ area / (π * spacing²), oversample by 20x for good coverage
+      const diskArea = Math.PI * spacing * spacing;
+      const expectedPoints = Math.ceil(totalArea / diskArea);
       const oversampleFactor = 20;
-      const numCandidates = Math.min(maxCount * oversampleFactor, triangles.length * 10);
+      const minCandidates = 500; // Ensure enough candidates even for small areas
+      const maxCandidatesHard = 100000; // Hard cap for performance
+      const desiredCandidates = Math.max(expectedPoints, maxCount) * oversampleFactor;
+      const numCandidates = Math.min(Math.max(desiredCandidates, minCandidates), maxCandidatesHard);
+      
+      console.log(`[DIVIDE SURFACE] Area: ${totalArea.toFixed(4)}, spacing: ${spacing}, expectedPoints: ${expectedPoints}, numCandidates: ${numCandidates}`);
+      
       const candidates: Array<[number, number, number]> = [];
 
       for (let i = 0; i < numCandidates; i++) {
@@ -8178,6 +8189,8 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
           grid.get(key)?.push(candidate);
         }
       }
+
+      console.log(`[DIVIDE SURFACE] Accepted ${accepted.length} points after Poisson disk sampling (maxCount: ${maxCount})`);
 
       const nearestVertexIndices: number[] = [];
       const numVertices = Math.floor(positions.length / 3);
