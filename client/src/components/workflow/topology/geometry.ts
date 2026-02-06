@@ -443,7 +443,7 @@ export function generateGeometryFromVoxels(
   
   const voxelField = resampleToCubicGrid(field);
   
-  const defaultColor: [number, number, number] = [0.8, 0.6, 0.4];
+  const defaultColor: [number, number, number] = [0.92, 0.92, 0.94];
   let mesh = chemistryMarchingCubes(voxelField, isovalue, [defaultColor]);
   
   if (mesh.positions.length === 0) {

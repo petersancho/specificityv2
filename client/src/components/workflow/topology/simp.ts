@@ -486,13 +486,12 @@ function solvePCG(
   let rz = dot(r, z);
   const tolAbs = Math.max(tol * Math.sqrt(dot(fMod, fMod)), 1e-14);
   
-  const maxIterClamped = Math.min(maxIters, 150);
   const budget = timeBudgetMs ?? computePCGTimeBudget(kernel.numElems);
   const t0 = performance.now();
   let resNorm0 = -1;
   
   let converged = false, iters = 0, budgetExceeded = false;
-  for (iters = 0; iters < maxIterClamped; iters++) {
+  for (iters = 0; iters < maxIters; iters++) {
     const resNorm = Math.sqrt(dot(r, r));
     
     if (iters === 0) resNorm0 = resNorm;
@@ -582,7 +581,7 @@ function updateDensitiesOC(densities: Float32Array, sens: Float32Array, volFrac:
   let l1 = minSens > 1e-14 ? minSens * 1e-4 : 1e-10;
   let l2 = maxSens > 1e-14 ? maxSens * 1e4 : 1e9;
   
-  for (let bisect = 0; bisect < 100 && (l2 - l1) > 1e-4 * l2; bisect++) {
+  for (let bisect = 0; bisect < 200 && (l2 - l1) > 1e-6 * l2; bisect++) {
     const lmid = 0.5 * (l1 + l2);
     let vol = 0;
     
@@ -596,12 +595,6 @@ function updateDensitiesOC(densities: Float32Array, sens: Float32Array, volFrac:
     }
     
     if (vol / n > volFrac) l1 = lmid; else l2 = lmid;
-  }
-  
-  const currentVol = newDensities.reduce((sum, rho) => sum + rho, 0) / n;
-  const scale = volFrac / currentVol;
-  for (let i = 0; i < n; i++) {
-    newDensities[i] = Math.max(rhoMin, Math.min(1.0, newDensities[i] * scale));
   }
   
   return newDensities;
@@ -783,11 +776,11 @@ export async function* runSimp(
       maxChange = Math.max(maxChange, Math.abs(newDensities[e] - densities[e]));
     }
     
-    let vol = 0;
-    for (let e = 0; e < numElems; e++) vol += rhoPhysical[e];
-    vol /= numElems;
-    
     for (let e = 0; e < numElems; e++) densities[e] = newDensities[e];
+    
+    let vol = 0;
+    for (let e = 0; e < numElems; e++) vol += densities[e];
+    vol /= numElems;
     
     const tUpdate = performance.now();
     
