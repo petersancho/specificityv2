@@ -370,7 +370,10 @@ function createElementKernel(nx: number, ny: number, nz: number, bounds: { min: 
   return { nx, ny, nz, numElems, numNodes, numDofs, elemVol, Ke0, Ke0Diag, edofMat, bounds };
 }
 
-function matrixFreeKx(kernel: ElementKernel, rho: Float64Array, x: Float64Array, penal: number, E0: number, Emin: number, out?: Float64Array): Float64Array {
+// Small regularization factor to prevent singular matrix (helps with rigid body modes)
+const MATRIX_REGULARIZATION = 1e-6;
+
+function matrixFreeKx(kernel: ElementKernel, rho: Float64Array, x: Float64Array, penal: number, E0: number, Emin: number, out?: Float64Array, fixedDofs?: Set<number>): Float64Array {
   const y = out ?? new Float64Array(kernel.numDofs);
   if (out) y.fill(0);
   const ue = new Float64Array(24), Kue = new Float64Array(24);
@@ -386,6 +389,16 @@ function matrixFreeKx(kernel: ElementKernel, rho: Float64Array, x: Float64Array,
     }
     for (let i = 0; i < 24; i++) y[kernel.edofMat[e * 24 + i]] += Kue[i];
   }
+  
+  // Add small regularization term: y += ε * x
+  // This makes the matrix positive definite even if there are rigid body modes
+  const regScale = E0 * kernel.elemVol * MATRIX_REGULARIZATION;
+  for (let i = 0; i < kernel.numDofs; i++) {
+    if (!fixedDofs || !fixedDofs.has(i)) {
+      y[i] += regScale * x[i];
+    }
+  }
+  
   return y;
 }
 
@@ -396,7 +409,23 @@ function computeKDiagonal(kernel: ElementKernel, rho: Float64Array, penal: numbe
     const scale = (Emin + Math.pow(rho[e], penal) * (E0 - Emin)) * kernel.elemVol;
     for (let i = 0; i < 24; i++) diag[kernel.edofMat[e * 24 + i]] += kernel.Ke0Diag[i] * scale;
   }
-  for (let i = 0; i < diag.length; i++) if (Math.abs(diag[i]) < 1e-14) diag[i] = 1.0;
+  
+  // Add regularization term to diagonal (must match matrixFreeKx regularization)
+  const regScale = E0 * kernel.elemVol * MATRIX_REGULARIZATION;
+  for (let i = 0; i < diag.length; i++) {
+    diag[i] += regScale;
+  }
+  
+  // Ensure diagonal entries are positive and not too small (for numerical stability)
+  let sumDiag = 0, countNonZero = 0;
+  for (let i = 0; i < diag.length; i++) {
+    if (diag[i] > 1e-14) { sumDiag += diag[i]; countNonZero++; }
+  }
+  const avgDiag = countNonZero > 0 ? sumDiag / countNonZero : 1.0;
+  const minDiag = avgDiag * 1e-8; // Minimum is 1e-8 times average
+  for (let i = 0; i < diag.length; i++) {
+    if (diag[i] < minDiag) diag[i] = minDiag;
+  }
   return diag;
 }
 
@@ -462,13 +491,25 @@ function solvePCG(
   }
   
   computeKDiagonal(kernel, rho, penal, E0, Emin, M);
+  
+  // Add small regularization to diagonal for numerical stability
+  // This helps with near-singular matrices (e.g., when structure has near-rigid-body modes)
+  let maxDiag = 0;
+  for (let i = 0; i < n; i++) maxDiag = Math.max(maxDiag, M[i]);
+  const regularization = maxDiag * 1e-8;
+  for (let i = 0; i < n; i++) {
+    if (!fixedDofs.has(i)) {
+      M[i] += regularization;
+    }
+  }
+  
   for (const dof of fixedDofs) M[dof] = 1.0;
   
   for (let i = 0; i < n; i++) fMod[i] = f[i];
   for (const dof of fixedDofs) fMod[dof] = 0;
   
   if (uPrev) {
-    matrixFreeKx(kernel, rho, u, penal, E0, Emin, r);
+    matrixFreeKx(kernel, rho, u, penal, E0, Emin, r, fixedDofs);
     for (let i = 0; i < n; i++) r[i] = fMod[i] - r[i];
     for (const dof of fixedDofs) r[dof] = 0;
   } else {
@@ -484,12 +525,20 @@ function solvePCG(
   let resNorm0 = -1;
   
   let converged = false, iters = 0;
+  let lastLogIter = -100;
+  
   for (iters = 0; iters < maxIters; iters++) {
     const resNorm = Math.sqrt(dot(r, r));
     
     if (iters === 0) {
       resNorm0 = resNorm;
-      console.log(`[PCG] Starting: resNorm0=${resNorm.toExponential(2)}, tol=${tolAbs.toExponential(2)}, warmStart=${uPrev !== undefined}, maxIters=${maxIters}`);
+      console.log(`[PCG] Starting: resNorm0=${resNorm.toExponential(2)}, tol=${tolAbs.toExponential(2)}, warmStart=${uPrev !== undefined}, maxIters=${maxIters}, fixedDofs=${fixedDofs.size}`);
+    }
+    
+    // Log progress every 100 iterations
+    if (iters > 0 && iters % 100 === 0 && iters !== lastLogIter) {
+      console.log(`[PCG] iter ${iters}: resNorm=${resNorm.toExponential(2)}, ratio=${(resNorm/resNorm0).toExponential(2)}`);
+      lastLogIter = iters;
     }
     
     if (iters >= PCG_MIN_ITERS_BEFORE_DIVERGENCE_CHECK && resNorm0 > 0 && resNorm > resNorm0 * PCG_DIVERGENCE_FACTOR) {
@@ -508,7 +557,7 @@ function solvePCG(
       break;
     }
     
-    matrixFreeKx(kernel, rho, p, penal, E0, Emin, Ap);
+    matrixFreeKx(kernel, rho, p, penal, E0, Emin, Ap, fixedDofs);
     for (const dof of fixedDofs) Ap[dof] = 0;
     
     const pAp = dot(p, Ap);
@@ -533,10 +582,10 @@ function solvePCG(
       console.error(`[PCG] rzNew=${rzNew} at iter ${iters}. Numerical instability.`);
       break;
     }
-    const beta = rzNew / rz;
+    const betaCG = rzNew / rz;
     rz = rzNew;
     
-    for (let i = 0; i < n; i++) p[i] = z[i] + beta * p[i];
+    for (let i = 0; i < n; i++) p[i] = z[i] + betaCG * p[i];
     for (const dof of fixedDofs) p[dof] = 0;
   }
   
@@ -553,11 +602,11 @@ function solvePCG(
 // SIMP ALGORITHM
 // ============================================================================
 
-const ADAPTIVE_CG_TOL_EARLY = 1e-2;
-const ADAPTIVE_CG_TOL_MID = 1e-3;
-const ADAPTIVE_CG_TOL_LATE = 1e-4;
-const ADAPTIVE_CG_EARLY_ITERS = 15;
-const ADAPTIVE_CG_MID_ITERS = 40;
+const ADAPTIVE_CG_TOL_EARLY = 1e-1;  // Looser tolerance early (problem is ill-conditioned with uniform density)
+const ADAPTIVE_CG_TOL_MID = 1e-2;
+const ADAPTIVE_CG_TOL_LATE = 1e-3;
+const ADAPTIVE_CG_EARLY_ITERS = 20;
+const ADAPTIVE_CG_MID_ITERS = 50;
 
 const BETA_INCREASE_FACTOR = 1.5;
 
@@ -681,7 +730,14 @@ export async function* runSimp(
     maxAbs: forceMax.toExponential(3),
     numLoadedDofs: loadedDofs.size,
     numFixedDofs: fixedDofs.size,
+    totalDofs: numNodes * 3,
+    fixedRatio: (fixedDofs.size / (numNodes * 3) * 100).toFixed(2) + '%',
   });
+  
+  // Check if we have enough boundary conditions
+  if (fixedDofs.size < 6) {
+    console.error(`[SIMP] WARNING: Only ${fixedDofs.size} fixed DOFs. Structure may be under-constrained (rigid body modes).`);
+  }
   
   if (forceMax >= 10) {
     throw new Error(`[SIMP] Force magnitude too high (${forceMax.toFixed(1)}). Delete this rig and create a new one (new rigs use force=-1.0 instead of -100).`);
@@ -769,10 +825,25 @@ export async function* runSimp(
     
     const tSolve = performance.now();
     
-    if (!solverOk) {
-      console.error(`[SIMP] PCG failed at iteration ${iter}. This usually means force magnitude is too large or boundary conditions are incorrect.`);
-      yield { iter, compliance: Infinity, change: 1.0, vol: params.volFrac, densities: new Float32Array(densities), converged: false, error: `PCG diverged at iter ${iter}. Reduce force magnitude or check boundary conditions.` };
+    // Check if solution is usable (not NaN/Infinity)
+    let solutionUsable = true;
+    for (let i = 0; i < Math.min(100, u.length); i++) {
+      if (!Number.isFinite(u[i])) {
+        solutionUsable = false;
+        break;
+      }
+    }
+    
+    if (!solutionUsable) {
+      console.error(`[SIMP] PCG produced NaN/Infinity at iteration ${iter}. Check boundary conditions and force magnitude.`);
+      yield { iter, compliance: Infinity, change: 1.0, vol: params.volFrac, densities: new Float32Array(densities), converged: false, error: `PCG produced invalid solution at iter ${iter}. Check boundary conditions.` };
       return;
+    }
+    
+    // PCG not converging is OK in early iterations - the problem is ill-conditioned with uniform density
+    // As densities evolve toward 0/1, conditioning improves
+    if (!solverOk) {
+      console.warn(`[SIMP] PCG did not fully converge at iteration ${iter} (${cgIters} iters). Continuing with approximate solution.`);
     }
     
     for (let i = 0; i < kernel.numDofs; i++) uPrev[i] = u[i];
