@@ -6033,6 +6033,43 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     compute: () => ({ vector: UNIT_XYZ_VEC3 }),
   },
   {
+    type: "scaleVector",
+    label: "Scale Vector",
+    shortLabel: "SCALE",
+    description: "Scale a vector by a scalar value.",
+    category: "basics",
+    semanticOps: ["vector.scaleVector"],
+    iconId: "multiply",
+    inputs: [
+      { key: "vector", label: "Vector", type: "vector", required: true },
+      { key: "scale", label: "Scale", type: "number", parameterKey: "scale", defaultValue: 1 },
+    ],
+    outputs: [
+      { key: "result", label: "Result", type: "vector" },
+    ],
+    parameters: [
+      {
+        key: "scale",
+        label: "Scale",
+        type: "number",
+        defaultValue: 1,
+        step: 0.1,
+      },
+    ],
+    primaryOutputKey: "result",
+    compute: ({ inputs, parameters }) => {
+      const vector = coerceVec3(inputs.vector as Partial<Vec3Value> | undefined, ZERO_VEC3);
+      const scale = toNumber(inputs.scale, toNumber(parameters.scale, 1));
+      return {
+        result: {
+          x: vector.x * scale,
+          y: vector.y * scale,
+          z: vector.z * scale,
+        },
+      };
+    },
+  },
+  {
     type: "moveVector",
     label: "Move Vector",
     shortLabel: "MOVE",
