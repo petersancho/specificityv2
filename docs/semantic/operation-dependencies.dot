@@ -88,6 +88,7 @@ digraph SemanticOperations {
   "data.range" [label="Range", fillcolor="#FFD9CC", style=filled];
   "data.linspace" [label="Linspace", fillcolor="#FFD9CC", style=filled];
   "data.repeat" [label="Repeat", fillcolor="#FFD9CC", style=filled];
+  "data.union" [label="Union", fillcolor="#FFFFCC", style=filled];
   "string.concat" [label="Concatenate", fillcolor="#FFE6E6", style=filled];
   "string.split" [label="Split", fillcolor="#FFFFCC", style=filled];
   "string.replace" [label="Replace", fillcolor="#FFFFCC", style=filled];
@@ -267,6 +268,7 @@ digraph SemanticOperations {
   "geometry.analyze.proximity3d" [label="3D Proximity", fillcolor="#FFCCCC", style=filled];
   "geometry.analyze.proximity2d" [label="2D Proximity", fillcolor="#FFCCCC", style=filled];
   "geometry.analyze.curveProximity" [label="Curve Proximity", fillcolor="#FFCCCC", style=filled];
+  "geometry.analyze.divideSurface" [label="Divide Surface", fillcolor="#FFCCCC", style=filled];
   "math.wave.sine" [label="Sine Wave", fillcolor="#FFE6CC", style=filled];
   "math.wave.cosine" [label="Cosine Wave", fillcolor="#FFE6CC", style=filled];
   "math.wave.sawtooth" [label="Sawtooth Wave", fillcolor="#FFE6CC", style=filled];

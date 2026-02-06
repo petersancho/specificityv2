@@ -162,6 +162,7 @@ export type NodeType =
   | "listFlatten"
   | "listSlice"
   | "listReverse"
+  | "listUnion"
   | "listSum"
   | "listAverage"
   | "listMin"
@@ -173,6 +174,7 @@ export type NodeType =
   | "annotations"
   | "geometryVertices"
   | "geometryExtentVertices"
+  | "geometryDivideSurface"
   | "geometryEdges"
   | "geometryFaces"
   | "geometryNormals"
@@ -357,6 +359,7 @@ export const SUPPORTED_WORKFLOW_NODE_TYPES: NodeType[] = [
   "listFlatten",
   "listSlice",
   "listReverse",
+  "listUnion",
   "listSum",
   "listAverage",
   "listMin",
@@ -368,6 +371,7 @@ export const SUPPORTED_WORKFLOW_NODE_TYPES: NodeType[] = [
   "annotations",
   "geometryVertices",
   "geometryExtentVertices",
+  "geometryDivideSurface",
   "geometryEdges",
   "geometryFaces",
   "geometryNormals",

@@ -6517,6 +6517,50 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     },
   },
   {
+    type: "listUnion",
+    label: "List Union",
+    shortLabel: "UNION",
+    description: "Merge multiple lists and remove duplicates.",
+    category: "lists",
+    semanticOps: ["data.union"],
+    iconId: "listCreate",
+    inputs: [
+      { key: "listA", label: "List A", type: "any", required: true },
+      { key: "listB", label: "List B", type: "any", required: true },
+      { key: "listC", label: "List C", type: "any" },
+      { key: "listD", label: "List D", type: "any" },
+    ],
+    outputs: [
+      { key: "list", label: "List", type: "any" },
+      { key: "count", label: "Count", type: "number" },
+    ],
+    parameters: [],
+    primaryOutputKey: "list",
+    compute: ({ inputs }) => {
+      const listA = toList(inputs.listA);
+      const listB = toList(inputs.listB);
+      const listC = toList(inputs.listC);
+      const listD = toList(inputs.listD);
+      
+      const combined = [...listA, ...listB, ...listC, ...listD];
+      const seen = new Set<string>();
+      const unique: WorkflowValue[] = [];
+      
+      for (const item of combined) {
+        const key = JSON.stringify(item);
+        if (!seen.has(key)) {
+          seen.add(key);
+          unique.push(item);
+        }
+      }
+      
+      return {
+        list: unique,
+        count: unique.length,
+      };
+    },
+  },
+  {
     type: "range",
     label: "Range",
     shortLabel: "RNG",
@@ -7856,6 +7900,307 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
         count: indices.length,
         extentValue: target,
         threshold: epsilon,
+      };
+    },
+  },
+  {
+    type: "geometryDivideSurface",
+    label: "Divide Surface",
+    shortLabel: "DIV",
+    description: "Sample evenly spaced points on a mesh surface using Poisson-disk sampling.",
+    category: "analysis",
+    semanticOps: ["geometry.analyze.divideSurface"],
+    iconId: "geometryVertices",
+    inputs: [
+      { key: "geometry", label: "Geometry", type: "geometry", required: true },
+      { key: "axis", label: "Axis (Filter)", type: "string" },
+      { key: "mode", label: "Side (Filter)", type: "string" },
+      { key: "band", label: "Band", type: "number" },
+      { key: "spacing", label: "Spacing", type: "number" },
+      { key: "maxCount", label: "Max Count", type: "number" },
+    ],
+    outputs: [
+      { key: "points", label: "Points", type: "any" },
+      { key: "indices", label: "Nearest Vertex Indices", type: "any" },
+      { key: "count", label: "Count", type: "number" },
+    ],
+    parameters: [
+      {
+        key: "axis",
+        label: "Axis (Filter)",
+        type: "select",
+        defaultValue: "none",
+        options: [
+          { label: "None", value: "none" },
+          { label: "X", value: "x" },
+          { label: "Y", value: "y" },
+          { label: "Z", value: "z" },
+        ],
+      },
+      {
+        key: "mode",
+        label: "Side (Filter)",
+        type: "select",
+        defaultValue: "min",
+        options: [
+          { label: "Min", value: "min" },
+          { label: "Max", value: "max" },
+        ],
+      },
+      {
+        key: "band",
+        label: "Band",
+        type: "number",
+        defaultValue: 0.05,
+        min: 0,
+        max: 0.5,
+        step: 0.01,
+      },
+      {
+        key: "spacing",
+        label: "Spacing",
+        type: "number",
+        defaultValue: 0.1,
+        min: 0.01,
+        max: 2.0,
+        step: 0.01,
+      },
+      {
+        key: "maxCount",
+        label: "Max Count",
+        type: "number",
+        defaultValue: 100,
+        min: 1,
+        max: 1000,
+        step: 1,
+      },
+    ],
+    primaryOutputKey: "indices",
+    compute: ({ inputs, parameters, context }) => {
+      const geometry = resolveGeometryInput(inputs, context, { allowMissing: true });
+      if (!geometry) {
+        return {
+          points: [],
+          indices: [],
+          count: 0,
+        };
+      }
+
+      const axisRaw = typeof inputs.axis === "string" ? inputs.axis : parameters.axis;
+      const axis = axisRaw === "x" || axisRaw === "y" || axisRaw === "z" ? axisRaw : "none";
+      const modeRaw = typeof inputs.mode === "string" ? inputs.mode : parameters.mode;
+      const mode = modeRaw === "min" ? "min" : "max";
+      const bandRaw = typeof inputs.band === "number" ? inputs.band : parameters.band;
+      const band = Number.isFinite(bandRaw) ? Math.max(0, Math.min(0.5, bandRaw as number)) : 0.05;
+      const spacingRaw = typeof inputs.spacing === "number" ? inputs.spacing : parameters.spacing;
+      const spacing = Number.isFinite(spacingRaw) ? Math.max(0.01, spacingRaw as number) : 0.1;
+      const maxCountRaw = typeof inputs.maxCount === "number" ? inputs.maxCount : parameters.maxCount;
+      const maxCount = Number.isFinite(maxCountRaw)
+        ? Math.max(1, Math.round(maxCountRaw as number))
+        : 100;
+
+      let positions: number[] = [];
+      let indices: number[] = [];
+      if ("mesh" in geometry && geometry.mesh?.positions?.length && geometry.mesh?.indices?.length) {
+        positions = geometry.mesh.positions;
+        indices = geometry.mesh.indices;
+      } else if (geometry.type === "brep" && geometry.mesh?.positions?.length && geometry.mesh?.indices?.length) {
+        positions = geometry.mesh.positions;
+        indices = geometry.mesh.indices;
+      }
+
+      if (positions.length === 0 || indices.length === 0) {
+        return {
+          points: [],
+          indices: [],
+          count: 0,
+        };
+      }
+
+      const numTriangles = Math.floor(indices.length / 3);
+      const triangles: Array<[number, number, number]> = [];
+      const triangleAreas: number[] = [];
+      let totalArea = 0;
+
+      for (let i = 0; i < numTriangles; i++) {
+        const i0 = indices[i * 3 + 0] ?? 0;
+        const i1 = indices[i * 3 + 1] ?? 0;
+        const i2 = indices[i * 3 + 2] ?? 0;
+
+        const v0x = positions[i0 * 3 + 0] ?? 0;
+        const v0y = positions[i0 * 3 + 1] ?? 0;
+        const v0z = positions[i0 * 3 + 2] ?? 0;
+        const v1x = positions[i1 * 3 + 0] ?? 0;
+        const v1y = positions[i1 * 3 + 1] ?? 0;
+        const v1z = positions[i1 * 3 + 2] ?? 0;
+        const v2x = positions[i2 * 3 + 0] ?? 0;
+        const v2y = positions[i2 * 3 + 1] ?? 0;
+        const v2z = positions[i2 * 3 + 2] ?? 0;
+
+        if (axis !== "none") {
+          const axisOffset = axis === "x" ? 0 : axis === "y" ? 1 : 2;
+          const val0 = positions[i0 * 3 + axisOffset] ?? 0;
+          const val1 = positions[i1 * 3 + axisOffset] ?? 0;
+          const val2 = positions[i2 * 3 + axisOffset] ?? 0;
+          const centroidVal = (val0 + val1 + val2) / 3;
+
+          let min = Number.POSITIVE_INFINITY;
+          let max = Number.NEGATIVE_INFINITY;
+          for (let j = 0; j < positions.length; j += 3) {
+            const value = positions[j + axisOffset] ?? 0;
+            min = Math.min(min, value);
+            max = Math.max(max, value);
+          }
+
+          const target = mode === "min" ? min : max;
+          const epsilon = Math.max(1e-6, Math.abs(max - min) * band);
+          if (Math.abs(centroidVal - target) > epsilon) {
+            continue;
+          }
+        }
+
+        const e1x = v1x - v0x;
+        const e1y = v1y - v0y;
+        const e1z = v1z - v0z;
+        const e2x = v2x - v0x;
+        const e2y = v2y - v0y;
+        const e2z = v2z - v0z;
+
+        const crossX = e1y * e2z - e1z * e2y;
+        const crossY = e1z * e2x - e1x * e2z;
+        const crossZ = e1x * e2y - e1y * e2x;
+        const area = 0.5 * Math.sqrt(crossX * crossX + crossY * crossY + crossZ * crossZ);
+
+        if (area > 1e-10) {
+          triangles.push([i0, i1, i2]);
+          triangleAreas.push(area);
+          totalArea += area;
+        }
+      }
+
+      if (triangles.length === 0 || totalArea === 0) {
+        return {
+          points: [],
+          indices: [],
+          count: 0,
+        };
+      }
+
+      const oversampleFactor = 20;
+      const numCandidates = Math.min(maxCount * oversampleFactor, triangles.length * 10);
+      const candidates: Array<[number, number, number]> = [];
+
+      for (let i = 0; i < numCandidates; i++) {
+        let r = Math.random() * totalArea;
+        let triIndex = 0;
+        for (let j = 0; j < triangleAreas.length; j++) {
+          r -= triangleAreas[j] ?? 0;
+          if (r <= 0) {
+            triIndex = j;
+            break;
+          }
+        }
+
+        const [i0, i1, i2] = triangles[triIndex] ?? [0, 0, 0];
+        const v0x = positions[i0 * 3 + 0] ?? 0;
+        const v0y = positions[i0 * 3 + 1] ?? 0;
+        const v0z = positions[i0 * 3 + 2] ?? 0;
+        const v1x = positions[i1 * 3 + 0] ?? 0;
+        const v1y = positions[i1 * 3 + 1] ?? 0;
+        const v1z = positions[i1 * 3 + 2] ?? 0;
+        const v2x = positions[i2 * 3 + 0] ?? 0;
+        const v2y = positions[i2 * 3 + 1] ?? 0;
+        const v2z = positions[i2 * 3 + 2] ?? 0;
+
+        let u = Math.random();
+        let v = Math.random();
+        if (u + v > 1) {
+          u = 1 - u;
+          v = 1 - v;
+        }
+        const w = 1 - u - v;
+
+        const px = w * v0x + u * v1x + v * v2x;
+        const py = w * v0y + u * v1y + v * v2y;
+        const pz = w * v0z + u * v1z + v * v2z;
+
+        candidates.push([px, py, pz]);
+      }
+
+      const accepted: Array<[number, number, number]> = [];
+      const spacingSq = spacing * spacing;
+      const gridSize = spacing;
+      const grid = new Map<string, Array<[number, number, number]>>();
+
+      const getGridKey = (x: number, y: number, z: number): string => {
+        const gx = Math.floor(x / gridSize);
+        const gy = Math.floor(y / gridSize);
+        const gz = Math.floor(z / gridSize);
+        return `${gx},${gy},${gz}`;
+      };
+
+      for (const candidate of candidates) {
+        if (accepted.length >= maxCount) break;
+
+        const [cx, cy, cz] = candidate;
+        const key = getGridKey(cx, cy, cz);
+
+        let tooClose = false;
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dz = -1; dz <= 1; dz++) {
+              const gx = Math.floor(cx / gridSize) + dx;
+              const gy = Math.floor(cy / gridSize) + dy;
+              const gz = Math.floor(cz / gridSize) + dz;
+              const neighborKey = `${gx},${gy},${gz}`;
+              const neighbors = grid.get(neighborKey);
+              if (neighbors) {
+                for (const [nx, ny, nz] of neighbors) {
+                  const distSq = (cx - nx) ** 2 + (cy - ny) ** 2 + (cz - nz) ** 2;
+                  if (distSq < spacingSq) {
+                    tooClose = true;
+                    break;
+                  }
+                }
+              }
+              if (tooClose) break;
+            }
+            if (tooClose) break;
+          }
+          if (tooClose) break;
+        }
+
+        if (!tooClose) {
+          accepted.push(candidate);
+          if (!grid.has(key)) {
+            grid.set(key, []);
+          }
+          grid.get(key)?.push(candidate);
+        }
+      }
+
+      const nearestVertexIndices: number[] = [];
+      const numVertices = Math.floor(positions.length / 3);
+      for (const [px, py, pz] of accepted) {
+        let bestIndex = 0;
+        let bestDistSq = Number.POSITIVE_INFINITY;
+        for (let i = 0; i < numVertices; i++) {
+          const vx = positions[i * 3 + 0] ?? 0;
+          const vy = positions[i * 3 + 1] ?? 0;
+          const vz = positions[i * 3 + 2] ?? 0;
+          const distSq = (px - vx) ** 2 + (py - vy) ** 2 + (pz - vz) ** 2;
+          if (distSq < bestDistSq) {
+            bestDistSq = distSq;
+            bestIndex = i;
+          }
+        }
+        nearestVertexIndices.push(bestIndex);
+      }
+
+      return {
+        points: accepted,
+        indices: nearestVertexIndices,
+        count: accepted.length,
       };
     },
   },

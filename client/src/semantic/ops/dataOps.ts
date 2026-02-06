@@ -231,5 +231,19 @@ export const DATA_OPS: readonly SemanticOpMeta[] = [
     summary: 'Repeats a value n times',
     stable: true,
     since: '1.0.0'
+  },
+  {
+    id: 'data.union',
+    domain: 'data',
+    name: 'Union',
+    category: 'utility',
+    tags: ['array', 'collection', 'merge', 'pure', 'deterministic'],
+    complexity: 'O(n)',
+    cost: 'low',
+    pure: true,
+    deterministic: true,
+    summary: 'Merges multiple arrays and removes duplicates',
+    stable: true,
+    since: '1.0.0'
   }
 ] as const;

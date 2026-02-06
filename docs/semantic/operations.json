@@ -1569,6 +1569,26 @@
     "stable": true,
     "since": "1.0.0"
   },
+  "data.union": {
+    "id": "data.union",
+    "domain": "data",
+    "name": "Union",
+    "category": "utility",
+    "tags": [
+      "array",
+      "set",
+      "merge",
+      "pure",
+      "deterministic"
+    ],
+    "complexity": "O(n+m)",
+    "cost": "low",
+    "pure": true,
+    "deterministic": true,
+    "summary": "Merges multiple arrays and removes duplicates",
+    "stable": true,
+    "since": "1.0.0"
+  },
   "string.concat": {
     "id": "string.concat",
     "domain": "string",
@@ -5185,6 +5205,28 @@
     "deterministic": true,
     "sideEffects": [],
     "summary": "Computes proximity between curves",
+    "stable": true,
+    "since": "1.0.0"
+  },
+  "geometry.analyze.divideSurface": {
+    "id": "geometry.analyze.divideSurface",
+    "domain": "geometry",
+    "name": "Divide Surface",
+    "category": "analysis",
+    "tags": [
+      "geometry",
+      "analysis",
+      "surface",
+      "sample",
+      "points",
+      "divide"
+    ],
+    "complexity": "O(n*m)",
+    "cost": "medium",
+    "pure": true,
+    "deterministic": false,
+    "sideEffects": [],
+    "summary": "Samples evenly spaced points on a mesh surface using Poisson-disk sampling",
     "stable": true,
     "since": "1.0.0"
   },
