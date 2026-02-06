@@ -489,7 +489,8 @@ function solvePCG(
     if (iters === 0) resNorm0 = resNorm;
     if (resNorm0 > 0 && resNorm > resNorm0 * PCG_DIVERGENCE_FACTOR) {
       console.error(`[PCG] Diverging (resNorm grew from ${resNorm0.toExponential(2)} to ${resNorm.toExponential(2)}). Reduce resolution or check boundary conditions.`);
-      return false;
+      for (const dof of fixedDofs) u[dof] = 0;
+      return { u, converged: false, iters };
     }
     
     if (resNorm < tolAbs) { converged = true; break; }
@@ -826,9 +827,9 @@ export async function* runSimp(
     };
     
     if (iter % 10 === 0 || iter <= 5 || iter >= minIterations - 5) {
-      const complianceTrend = complianceHistory.length >= 2 
-        ? (compliance < complianceHistory[complianceHistory.length - 1] ? '↓ DECREASING' : '↑ INCREASING')
-        : '—';
+      const complianceTrend = iter === 1 
+        ? '—'
+        : (compliance < prevCompliance ? '↓ DECREASING' : '↑ INCREASING');
       
       console.log(`[SIMP] Iteration ${iter}:`, {
         compliance: compliance.toExponential(3),
