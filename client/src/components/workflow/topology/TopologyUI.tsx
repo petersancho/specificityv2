@@ -29,9 +29,17 @@ export const TopologyConvergence: React.FC<TopologyConvergenceProps> = ({ histor
       return;
     }
     
-    const padding = 50, graphWidth = width - 2 * padding, graphHeight = height - 2 * padding;
+    const padding = 60, graphWidth = width - 2 * padding, graphHeight = height - 2 * padding;
     const maxC = Math.max(...history.compliance), minC = Math.min(...history.compliance);
-    const range = maxC - minC || 1;
+    const padY = 0.05 * (maxC - minC || 1);
+    const y0 = minC - padY, y1 = maxC + padY;
+    const range = y1 - y0 || 1;
+    
+    const n = history.compliance.length;
+    const maxIter = Math.max(1, n - 1);
+    
+    const xScale = (iter: number) => padding + (graphWidth * iter) / maxIter;
+    const yScale = (c: number) => height - padding - ((c - y0) / range) * graphHeight;
     
     ctx.strokeStyle = '#e9e6e2';
     ctx.lineWidth = 1;
@@ -58,11 +66,10 @@ export const TopologyConvergence: React.FC<TopologyConvergenceProps> = ({ histor
     ctx.lineTo(width - padding, height - padding);
     ctx.stroke();
     
-    const n = history.compliance.length;
     if (n >= 1) {
       if (n === 1) {
-        const x = padding + graphWidth / 2;
-        const y = height - padding - graphHeight / 2;
+        const x = xScale(0);
+        const y = yScale(history.compliance[0]);
         ctx.fillStyle = '#1f1f22';
         ctx.beginPath();
         ctx.arc(x, y, 4, 0, Math.PI * 2);
@@ -74,17 +81,25 @@ export const TopologyConvergence: React.FC<TopologyConvergenceProps> = ({ histor
         ctx.lineJoin = 'round';
         ctx.beginPath();
         history.compliance.forEach((c, i) => {
-          const x = padding + (graphWidth * i) / (n - 1);
-          const y = height - padding - ((c - minC) / range) * graphHeight;
+          const x = xScale(i);
+          const y = yScale(c);
           i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
         });
         ctx.stroke();
         
-        const lastX = padding + graphWidth;
-        const lastY = height - padding - ((history.compliance[n - 1] - minC) / range) * graphHeight;
-        ctx.fillStyle = '#1f1f22';
+        const bestIdx = history.compliance.indexOf(minC);
+        const bestX = xScale(bestIdx);
+        const bestY = yScale(minC);
+        ctx.fillStyle = '#2a7';
         ctx.beginPath();
-        ctx.arc(lastX, lastY, 4, 0, Math.PI * 2);
+        ctx.arc(bestX, bestY, 5, 0, Math.PI * 2);
+        ctx.fill();
+        
+        const lastX = xScale(n - 1);
+        const lastY = yScale(history.compliance[n - 1]);
+        ctx.fillStyle = '#d33';
+        ctx.beginPath();
+        ctx.arc(lastX, lastY, 5, 0, Math.PI * 2);
         ctx.fill();
       }
     }
@@ -93,9 +108,17 @@ export const TopologyConvergence: React.FC<TopologyConvergenceProps> = ({ histor
     ctx.font = '500 10px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
     ctx.textAlign = 'right';
     for (let i = 0; i <= 5; i++) {
-      const val = maxC - (range * i) / 5;
-      const label = val >= 1000000 ? `${(val / 1000000).toFixed(1)}M` : val >= 1000 ? `${(val / 1000).toFixed(0)}K` : val.toFixed(0);
+      const val = y1 - (range * i) / 5;
+      const label = val >= 1000000 ? `${(val / 1000000).toFixed(2)}M` : val >= 1000 ? `${(val / 1000).toFixed(1)}K` : val.toFixed(1);
       ctx.fillText(label, padding - 8, padding + (graphHeight * i) / 5 + 4);
+    }
+    
+    ctx.textAlign = 'center';
+    const xTicks = Math.min(10, Math.ceil(maxIter / 100));
+    for (let i = 0; i <= xTicks; i++) {
+      const iter = Math.round((maxIter * i) / xTicks);
+      const x = xScale(iter);
+      ctx.fillText(iter.toString(), x, height - padding + 20);
     }
     
     ctx.textAlign = 'center';
