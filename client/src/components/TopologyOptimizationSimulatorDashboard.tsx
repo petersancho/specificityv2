@@ -310,7 +310,27 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   const generateAndRegisterGeometry = (frame: SolverFrame, mesh: RenderMesh) => {
     try {
       // Calculate bounds from mesh
-      const bounds = calculateMeshBounds(mesh);
+      const meshBounds = calculateMeshBounds(mesh);
+      
+      // ⚠️⚠️⚠️ CRITICAL FIX: If mesh bounds are normalized (-1 to 1), scale to world space
+      // The SIMP solver works in element space (nx × ny × nz), so we need to map to that
+      const boundsSize = {
+        x: meshBounds.max.x - meshBounds.min.x,
+        y: meshBounds.max.y - meshBounds.min.y,
+        z: meshBounds.max.z - meshBounds.min.z,
+      };
+      
+      // If bounds are small (< 10 in any dimension), assume they're normalized and scale to element space
+      const isNormalized = boundsSize.x < 10 || boundsSize.y < 10 || boundsSize.z < 10;
+      
+      const bounds = isNormalized ? {
+        min: { x: 0, y: 0, z: 0 },
+        max: { x: nx, y: ny, z: nz },
+      } : meshBounds;
+      
+      console.log(`[TOPOLOGY] ⚠️⚠️⚠️ FINAL GEOMETRY - MESH BOUNDS: min=(${meshBounds.min.x.toFixed(2)}, ${meshBounds.min.y.toFixed(2)}, ${meshBounds.min.z.toFixed(2)}), max=(${meshBounds.max.x.toFixed(2)}, ${meshBounds.max.y.toFixed(2)}, ${meshBounds.max.z.toFixed(2)}), size=(${boundsSize.x.toFixed(2)}, ${boundsSize.y.toFixed(2)}, ${boundsSize.z.toFixed(2)})`);
+      console.log(`[TOPOLOGY] ⚠️⚠️⚠️ FINAL GEOMETRY - IS NORMALIZED: ${isNormalized}`);
+      console.log(`[TOPOLOGY] ⚠️⚠️⚠️ FINAL GEOMETRY - BOUNDS (for marching cubes): min=(${bounds.min.x.toFixed(2)}, ${bounds.min.y.toFixed(2)}, ${bounds.min.z.toFixed(2)}), max=(${bounds.max.x.toFixed(2)}, ${bounds.max.y.toFixed(2)}, ${bounds.max.z.toFixed(2)}), size=(${(bounds.max.x - bounds.min.x).toFixed(2)}, ${(bounds.max.y - bounds.min.y).toFixed(2)}, ${(bounds.max.z - bounds.min.z).toFixed(2)})`);
       
       // Generate geometry from density field
       // Convert Float32Array to Float64Array if needed
@@ -557,9 +577,27 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       console.log('[TOPOLOGY] ⚠️ GENERATING PREVIEW at iteration', frame.iter);
       try {
         const t0 = performance.now();
-        const bounds = calculateMeshBounds(currentBaseMesh);
-        // ⚠️⚠️⚠️ CRITICAL: Log bounds in non-collapsible format
-        console.log(`[TOPOLOGY] ⚠️⚠️⚠️ PREVIEW BOUNDS: min=(${bounds.min.x.toFixed(2)}, ${bounds.min.y.toFixed(2)}, ${bounds.min.z.toFixed(2)}), max=(${bounds.max.x.toFixed(2)}, ${bounds.max.y.toFixed(2)}, ${bounds.max.z.toFixed(2)}), size=(${(bounds.max.x - bounds.min.x).toFixed(2)}, ${(bounds.max.y - bounds.min.y).toFixed(2)}, ${(bounds.max.z - bounds.min.z).toFixed(2)})`);
+        const meshBounds = calculateMeshBounds(currentBaseMesh);
+        
+        // ⚠️⚠️⚠️ CRITICAL FIX: If mesh bounds are normalized (-1 to 1), scale to world space
+        // The SIMP solver works in element space (nx × ny × nz), so we need to map to that
+        const boundsSize = {
+          x: meshBounds.max.x - meshBounds.min.x,
+          y: meshBounds.max.y - meshBounds.min.y,
+          z: meshBounds.max.z - meshBounds.min.z,
+        };
+        
+        // If bounds are small (< 10 in any dimension), assume they're normalized and scale to element space
+        const isNormalized = boundsSize.x < 10 || boundsSize.y < 10 || boundsSize.z < 10;
+        
+        const bounds = isNormalized ? {
+          min: { x: 0, y: 0, z: 0 },
+          max: { x: nx, y: ny, z: nz },
+        } : meshBounds;
+        
+        console.log(`[TOPOLOGY] ⚠️⚠️⚠️ MESH BOUNDS: min=(${meshBounds.min.x.toFixed(2)}, ${meshBounds.min.y.toFixed(2)}, ${meshBounds.min.z.toFixed(2)}), max=(${meshBounds.max.x.toFixed(2)}, ${meshBounds.max.y.toFixed(2)}, ${meshBounds.max.z.toFixed(2)}), size=(${boundsSize.x.toFixed(2)}, ${boundsSize.y.toFixed(2)}, ${boundsSize.z.toFixed(2)})`);
+        console.log(`[TOPOLOGY] ⚠️⚠️⚠️ IS NORMALIZED: ${isNormalized}`);
+        console.log(`[TOPOLOGY] ⚠️⚠️⚠️ PREVIEW BOUNDS (for marching cubes): min=(${bounds.min.x.toFixed(2)}, ${bounds.min.y.toFixed(2)}, ${bounds.min.z.toFixed(2)}), max=(${bounds.max.x.toFixed(2)}, ${bounds.max.y.toFixed(2)}, ${bounds.max.z.toFixed(2)}), size=(${(bounds.max.x - bounds.min.x).toFixed(2)}, ${(bounds.max.y - bounds.min.y).toFixed(2)}, ${(bounds.max.z - bounds.min.z).toFixed(2)})`);
         console.log('[TOPOLOGY] Preview bounds:', bounds);
         
         const field = {
