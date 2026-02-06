@@ -533,9 +533,6 @@ const ADAPTIVE_CG_TOL_LATE = 1e-3;
 const ADAPTIVE_CG_EARLY_ITERS = 15;
 const ADAPTIVE_CG_MID_ITERS = 40;
 
-const MOVE_LIMIT_CONSTANT = 0.2;
-const MIN_ITERS_BEFORE_CONVERGENCE = 60;
-
 const BETA_INCREASE_FACTOR = 1.5;
 
 
@@ -670,15 +667,15 @@ export async function* runSimp(
   let densities = new Float32Array(numElems);
   densities.fill(params.volFrac);
   
-  const minIterations = Math.max(params.minIterations ?? 30, MIN_ITERS_BEFORE_CONVERGENCE);
+  const minIterations = params.minIterations ?? 30;
   const grayTol = params.grayTol ?? 0.05;
   const betaMax = params.betaMax ?? 64;
-  const minIterForCheck = 40;
+  const minIterForCheck = Math.max(minIterations, 20);
   const stallWindow = 10;
   
   let beta = 1.0;
   let penal = params.penalStart;
-  const moveLimit = MOVE_LIMIT_CONSTANT;
+  const moveLimit = params.move;
   let prevCompliance = Infinity;
   let consecutiveConverged = 0;
   const relCompHistory: number[] = [];
