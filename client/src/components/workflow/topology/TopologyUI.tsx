@@ -168,12 +168,12 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
     if (!canvas || !geometry) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    ctx.fillStyle = '#1a1a1a'; ctx.fillRect(0, 0, width, height);
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height);
     renderGeometry(ctx, geometry, width, height, rotationRef.current);
   };
   const handleMouseUp = () => { isDraggingRef.current = false; };
 
-  return <canvas ref={canvasRef} style={{ border: '1px solid #333', cursor: isDraggingRef.current ? 'grabbing' : 'grab', borderRadius: '4px' }} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} />;
+  return <canvas ref={canvasRef} style={{ cursor: isDraggingRef.current ? 'grabbing' : 'grab' }} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} />;
 };
 
 function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, width: number, height: number, rotation: { x: number; y: number }) {

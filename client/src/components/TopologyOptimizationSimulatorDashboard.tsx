@@ -64,7 +64,6 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   TopologyOptimizationSimulatorDashboardProps
 > = ({ nodeId, onClose }) => {
   const [activeTab, setActiveTab] = useState<"setup" | "simulator" | "output">("simulator");
-  const [scale, setScale] = useState(75);
   const [simulationState, setSimulationState] = useState<SimulationState>('idle');
   const [simulationError, setSimulationError] = useState<string | null>(null);
   const [currentFrame, setCurrentFrame] = useState<SolverFrame | undefined>();
@@ -625,7 +624,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   }, []);
 
   return (
-    <div className={styles.dashboard} style={{ fontSize: `${scale}%` }}>
+    <div className={styles.dashboard}>
       <div className={styles.header}>
         <div className={styles.headerBar} />
         <div className={styles.headerContent}>
@@ -635,17 +634,6 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
             <span className={styles.titleSubtext}>Euclid · SIMP Algorithm</span>
           </div>
           <div className={styles.headerControls}>
-            <label className={styles.scaleControl}>
-              Scale:
-              <input
-                type="range"
-                min="50"
-                max="100"
-                value={scale}
-                onChange={(e) => setScale(Number(e.target.value))}
-              />
-              <span>{scale}%</span>
-            </label>
             <button className={styles.closeButton} onClick={onClose}>
               ✕
             </button>
@@ -1049,27 +1037,24 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
 
         {activeTab === "simulator" && (
           <div className={styles.simulatorTab}>
-            <div className={styles.simulatorLayout}>
-              <div className={styles.geometryPreviewView}>
-                <h3 className={styles.viewTitle}>Optimized Structure (Marching Cubes Isosurface)</h3>
+            <div className={styles.sideBySideLayout}>
+              <div className={styles.geometryFloating}>
                 <TopologyGeometryPreview
                   geometry={previewGeometry}
-                  width={1200}
+                  width={600}
                   height={600}
                 />
                 <div className={styles.previewHint}>
                   Drag to rotate • Updates every 10 iterations
                 </div>
               </div>
-            </div>
 
-            <div className={styles.convergenceSection}>
               <div className={styles.convergenceView}>
                 <h3 className={styles.viewTitle}>Convergence Monitor</h3>
                 <TopologyConvergence
                   history={history}
-                  width={1200}
-                  height={250}
+                  width={600}
+                  height={600}
                 />
               </div>
             </div>

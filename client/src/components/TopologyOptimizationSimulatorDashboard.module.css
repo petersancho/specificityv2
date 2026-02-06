@@ -79,22 +79,6 @@
   gap: 16px;
 }
 
-.scaleControl {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 11px;
-  color: var(--sp-ink);
-  padding: 6px 12px;
-  background: #ffffff;
-  border-radius: var(--radius);
-  border: 2px solid var(--sp-ink);
-}
-
-.scaleControl input[type="range"] {
-  accent-color: var(--sp-ink);
-}
-
 .closeButton {
   background: #ffffff;
   border: 2px solid var(--sp-ink);
@@ -375,12 +359,29 @@
   overflow: hidden;
 }
 
-.simulatorLayout {
+.sideBySideLayout {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  min-height: 0;
-  flex: 1;
+  gap: 32px;
+  padding: 24px;
+  height: 100%;
+  align-items: center;
+  justify-items: center;
+}
+
+.geometryFloating {
+  position: relative;
+  width: 600px;
+  height: 600px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.geometryFloating canvas {
+  width: 600px !important;
+  height: 600px !important;
 }
 
 .geometryView,
@@ -394,6 +395,8 @@
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
+  width: 600px;
+  height: 600px;
 }
 
 .geometryPreviewView {
