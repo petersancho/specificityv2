@@ -80,6 +80,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
 
   const updateNodeData = useProjectStore((state) => state.updateNodeData);
   const addGeometryMesh = useProjectStore((state) => state.addGeometryMesh);
+  const selectGeometry = useProjectStore((state) => state.selectGeometry);
   
   // Use stable selectors to avoid infinite loops
   const solverNode = useProjectStore((state) => 
@@ -341,6 +342,9 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
         },
         { recalculate: true }
       );
+      
+      // Select the geometry in Roslyn so it's visible
+      selectGeometry(isosurfaceId, false);
       
       if (DEBUG) {
         console.log(`[GEOM] ✅ Generated topology optimization isosurface:
