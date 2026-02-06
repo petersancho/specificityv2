@@ -228,13 +228,29 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
     }
     triangles.sort((a, b) => a.avgZ - b.avgZ);
 
+    // Dark theme for high contrast on porcelain background
+    // Base: charcoal (40, 44, 52), Light: slate (90, 98, 112), Stroke: near-black (15, 18, 22)
+    const BASE = { r: 40, g: 44, b: 52 };
+    const LIGHT = { r: 90, g: 98, b: 112 };
+    const STROKE = { r: 15, g: 18, b: 22 };
+    
+    // Compute Z range for normalization
+    const zMin = triangles.length > 0 ? triangles[0].avgZ : 0;
+    const zMax = triangles.length > 0 ? triangles[triangles.length - 1].avgZ : 1;
+    const zRange = Math.max(0.001, zMax - zMin);
+
     for (const tri of triangles) {
       const [i0, i1, i2] = tri.indices;
-      const brightness = Math.max(0.3, Math.min(1.0, 0.5 + tri.avgZ / 10));
-      const color = Math.floor(brightness * 255);
-      ctx.fillStyle = `rgb(${color}, ${color}, ${color})`;
-      ctx.strokeStyle = `rgb(${Math.floor(color * 0.6)}, ${Math.floor(color * 0.6)}, ${Math.floor(color * 0.6)})`;
-      ctx.lineWidth = 0.5;
+      // Normalize depth to [0, 1] range
+      const t = Math.max(0, Math.min(1, (tri.avgZ - zMin) / zRange));
+      // Interpolate from dark (back) to lighter (front)
+      const r = Math.round(BASE.r + (LIGHT.r - BASE.r) * t);
+      const g = Math.round(BASE.g + (LIGHT.g - BASE.g) * t);
+      const b = Math.round(BASE.b + (LIGHT.b - BASE.b) * t);
+      
+      ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+      ctx.strokeStyle = `rgb(${STROKE.r}, ${STROKE.g}, ${STROKE.b})`;
+      ctx.lineWidth = 0.75;
       ctx.beginPath(); ctx.moveTo(projected[i0].x, projected[i0].y); ctx.lineTo(projected[i1].x, projected[i1].y); ctx.lineTo(projected[i2].x, projected[i2].y); ctx.closePath(); ctx.fill(); ctx.stroke();
     }
   }

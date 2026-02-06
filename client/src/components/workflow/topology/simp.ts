@@ -727,7 +727,7 @@ const ADAPTIVE_CG_TOL_LATE = 1e-2;   // 1% error - late iterations (keep loose t
 const ADAPTIVE_CG_EARLY_ITERS = 40;  // Keep loose tolerance longer
 const ADAPTIVE_CG_MID_ITERS = 120;   // Delay tightening to avoid slowdown at iteration 80
 
-const STABLE_WINDOW = 5;  // Need 5 consecutive converged iterations for stability (relaxed to allow longer optimization)
+const STABLE_WINDOW = 10;  // Need 10 consecutive converged iterations for stability (ensures true convergence)
 
 function computeSensitivities(rho: Float64Array, ce: Float64Array, penal: number, E0: number, Emin: number): Float64Array {
   const dc = new Float64Array(rho.length);
@@ -1177,9 +1177,9 @@ export async function* runSimp(
     // 3. Gray level < 5% (discrete 0/1 solution)
     // NOTE: Removed continuation requirement - optimizer can converge at any penalty/beta
     //       if compliance is stable. This prevents forcing continuation when it causes divergence.
-    const complianceConverged = relCompChange < 0.001;   // 0.1%
-    const densityConverged = maxChange < 0.003;          // 0.3%
-    const isDiscrete = grayLevel < grayTol;              // < 5% (default)
+    const complianceConverged = relCompChange < 0.0005;  // 0.05% (tighter for better optimization)
+    const densityConverged = maxChange < 0.002;          // 0.2% (tighter for better optimization)
+    const isDiscrete = grayLevel < grayTol;              // < 3% (default)
     
     // Optional: Track continuation progress for logging (not required for convergence)
     const continuationComplete = penal >= params.penalEnd * 0.95 && beta >= betaMax * 0.9;
@@ -1238,13 +1238,13 @@ export async function* runSimp(
     if (hasConverged) {
       console.log(`[SIMP] ✅ CONVERGED at iteration ${iter}`, {
         compliance: compliance.toExponential(3),
-        relCompChange: relCompChange.toExponential(3) + ' (< 0.1% ✓)',
-        maxChange: maxChange.toFixed(4) + ' (< 0.3% ✓)',
+        relCompChange: relCompChange.toExponential(3) + ' (< 0.05% ✓)',
+        maxChange: maxChange.toFixed(4) + ' (< 0.2% ✓)',
         vol: vol.toFixed(3),
         grayLevel: grayLevel.toFixed(3) + ` (< ${(grayTol * 100).toFixed(0)}% ✓)`,
         penalty: `${penal.toFixed(2)}/${params.penalEnd.toFixed(2)} (${continuationComplete ? '✓' : 'partial'})`,
         beta: `${beta.toFixed(1)}/${betaMax.toFixed(1)} (${continuationComplete ? '✓' : 'partial'})`,
-        consecutiveConverged: `${consecutiveConverged} (≥ 5 ✓)`,
+        consecutiveConverged: `${consecutiveConverged} (≥ 10 ✓)`,
         minIterations,
         minItersReached: minItersReached ? '✓' : '✗',
         note: continuationComplete ? 'Full continuation complete' : 'Converged before full continuation (compliance stable)',
