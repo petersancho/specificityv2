@@ -568,21 +568,25 @@ function computeSensitivities(rho: Float64Array, ce: Float64Array, penal: number
   return dc;
 }
 
-function updateDensitiesOC(densities: Float32Array, sens: Float32Array, volFrac: number, move: number, rhoMin: number): Float32Array {
+function updateDensitiesOC(densities: Float32Array, sens: Float32Array, volFrac: number, move: number, rhoMin: number, iter?: number): Float32Array {
   const n = densities.length;
   const newDensities = new Float32Array(n);
   
-  let minSens = Infinity, maxSens = -Infinity;
+  let minSens = Infinity, maxSens = -Infinity, sumSens = 0;
   for (let i = 0; i < n; i++) {
     const absSens = Math.abs(sens[i]);
     if (absSens > 1e-14) { minSens = Math.min(minSens, absSens); maxSens = Math.max(maxSens, absSens); }
+    sumSens += sens[i];
   }
+  const meanSens = sumSens / n;
   
   let l1 = minSens > 1e-14 ? minSens * 1e-4 : 1e-10;
   let l2 = maxSens > 1e-14 ? maxSens * 1e4 : 1e9;
   
+  let finalLmid = 0;
   for (let bisect = 0; bisect < 200 && (l2 - l1) > 1e-6 * l2; bisect++) {
     const lmid = 0.5 * (l1 + l2);
+    finalLmid = lmid;
     let vol = 0;
     
     for (let i = 0; i < n; i++) {
@@ -595,6 +599,22 @@ function updateDensitiesOC(densities: Float32Array, sens: Float32Array, volFrac:
     }
     
     if (vol / n > volFrac) l1 = lmid; else l2 = lmid;
+  }
+  
+  if (iter && (iter <= 5 || iter % 20 === 0)) {
+    let volBefore = 0, volAfter = 0;
+    for (let i = 0; i < n; i++) {
+      volBefore += densities[i];
+      volAfter += newDensities[i];
+    }
+    console.log(`[OC UPDATE] Iter ${iter}:`, {
+      sensRange: `[${minSens.toExponential(2)}, ${maxSens.toExponential(2)}]`,
+      meanSens: meanSens.toExponential(2),
+      lagrangeMult: finalLmid.toExponential(2),
+      volBefore: (volBefore / n).toFixed(4),
+      volAfter: (volAfter / n).toFixed(4),
+      targetVol: volFrac.toFixed(4),
+    });
   }
   
   return newDensities;
@@ -769,7 +789,7 @@ export async function* runSimp(
     }
     applySeparableFilterChainRule(dCdrhoBar, filter, dCdrho);
     
-    const newDensities = updateDensitiesOC(densities, dCdrho, params.volFrac, moveLimit, params.rhoMin);
+    const newDensities = updateDensitiesOC(densities, dCdrho, params.volFrac, moveLimit, params.rhoMin, iter);
     
     let maxChange = 0;
     for (let e = 0; e < numElems; e++) {

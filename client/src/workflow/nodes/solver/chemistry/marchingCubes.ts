@@ -533,14 +533,21 @@ export const marchingCubes = (
     
     // Interpolate material concentrations
     let r = 0, g = 0, b = 0;
-    for (let m = 0; m < materialCount; m++) {
-      const conc1 = materialData[m][idx1] || 0;
-      const conc2 = materialData[m][idx2] || 0;
-      const conc = lerp(conc1, conc2, t);
-      
-      r += materialColors[m][0] * conc;
-      g += materialColors[m][1] * conc;
-      b += materialColors[m][2] * conc;
+    if (materialCount > 0) {
+      for (let m = 0; m < materialCount; m++) {
+        const conc1 = materialData[m][idx1] || 0;
+        const conc2 = materialData[m][idx2] || 0;
+        const conc = lerp(conc1, conc2, t);
+        
+        r += materialColors[m][0] * conc;
+        g += materialColors[m][1] * conc;
+        b += materialColors[m][2] * conc;
+      }
+    } else {
+      // No material data - use first material color as default
+      r = materialColors[0]?.[0] ?? 0.85;
+      g = materialColors[0]?.[1] ?? 0.85;
+      b = materialColors[0]?.[2] ?? 0.87;
     }
     
     // Add vertex
@@ -615,4 +622,3 @@ export const generateMeshFromField = (
 ): MarchingCubesMesh => {
   return marchingCubes(field, isovalue, materialColors);
 };
-
