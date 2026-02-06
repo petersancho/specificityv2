@@ -533,12 +533,8 @@ const ADAPTIVE_CG_TOL_LATE = 1e-3;
 const ADAPTIVE_CG_EARLY_ITERS = 15;
 const ADAPTIVE_CG_MID_ITERS = 40;
 
-const MOVE_LIMIT_STABLE_THRESHOLD = 0.005;
-const MOVE_LIMIT_UNSTABLE_THRESHOLD = 0.05;
-const MOVE_LIMIT_INCREASE_FACTOR = 1.1;
-const MOVE_LIMIT_DECREASE_FACTOR = 0.8;
-const MOVE_LIMIT_MAX = 0.3;
-const MOVE_LIMIT_MIN = 0.01;
+const MOVE_LIMIT_CONSTANT = 0.2;
+const MIN_ITERS_BEFORE_CONVERGENCE = 60;
 
 const BETA_INCREASE_FACTOR = 1.5;
 
@@ -674,15 +670,15 @@ export async function* runSimp(
   let densities = new Float32Array(numElems);
   densities.fill(params.volFrac);
   
-  const minIterations = params.minIterations ?? 30;
+  const minIterations = Math.max(params.minIterations ?? 30, MIN_ITERS_BEFORE_CONVERGENCE);
   const grayTol = params.grayTol ?? 0.05;
   const betaMax = params.betaMax ?? 64;
-  const minIterForCheck = 25;
-  const stallWindow = 8;
+  const minIterForCheck = 40;
+  const stallWindow = 10;
   
   let beta = 1.0;
   let penal = params.penalStart;
-  let moveLimit = params.move;
+  const moveLimit = MOVE_LIMIT_CONSTANT;
   let prevCompliance = Infinity;
   let consecutiveConverged = 0;
   const relCompHistory: number[] = [];
@@ -801,14 +797,16 @@ export async function* runSimp(
     maxChangeHistory.push(maxChange);
     
     let shouldStop = false;
-    if (iter >= minIterForCheck && relCompHistory.length >= stallWindow) {
+    if (iter >= minIterForCheck && relCompHistory.length >= stallWindow && complianceHistory.length >= stallWindow) {
       const lastRel = relCompHistory.slice(-stallWindow);
       const lastMax = maxChangeHistory.slice(-stallWindow);
+      const lastComp = complianceHistory.slice(-stallWindow);
       
-      const stalled = lastRel.every(v => v < 0.002) && lastMax.every(v => v < 0.005);
+      const changeStalled = lastRel.every(v => v < 0.001) && lastMax.every(v => v < 0.003);
+      const complianceStalled = Math.abs(lastComp[lastComp.length - 1] - lastComp[0]) / lastComp[0] < 0.001;
       const discreteEnough = grayLevel < grayTol;
       
-      if (stalled && discreteEnough) {
+      if (changeStalled && complianceStalled && discreteEnough) {
         shouldStop = true;
         consecutiveConverged = stallWindow;
       }
@@ -836,8 +834,11 @@ export async function* runSimp(
         complianceTrend,
         relCompChange: relCompChange.toExponential(3),
         maxChange: maxChange.toFixed(4),
+        moveLimit: moveLimit.toFixed(3),
         vol: vol.toFixed(3),
         grayLevel: grayLevel.toFixed(3),
+        penal: penal.toFixed(2),
+        beta: beta.toFixed(1),
         isConverging,
         isDiscrete,
         consecutiveConverged,
@@ -853,12 +854,6 @@ export async function* runSimp(
       consecutiveConverged = Math.max(0, consecutiveConverged - 1);
     } else {
       consecutiveConverged = 0;
-    }
-    
-    if (isConverging && maxChange < MOVE_LIMIT_STABLE_THRESHOLD) {
-      moveLimit = Math.min(moveLimit * MOVE_LIMIT_INCREASE_FACTOR, MOVE_LIMIT_MAX);
-    } else if (!isConverging && maxChange > MOVE_LIMIT_UNSTABLE_THRESHOLD) {
-      moveLimit = Math.max(moveLimit * MOVE_LIMIT_DECREASE_FACTOR, MOVE_LIMIT_MIN);
     }
     
     if (isConverging && grayLevel > grayTol && beta < betaMax) {
