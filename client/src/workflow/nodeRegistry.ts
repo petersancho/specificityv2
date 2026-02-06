@@ -7960,7 +7960,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
         key: "spacing",
         label: "Spacing",
         type: "number",
-        defaultValue: 0.1,
+        defaultValue: 0.05,
         min: 0.01,
         max: 2.0,
         step: 0.01,
@@ -7993,7 +7993,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       const bandRaw = typeof inputs.band === "number" ? inputs.band : parameters.band;
       const band = Number.isFinite(bandRaw) ? Math.max(0, Math.min(0.5, bandRaw as number)) : 0.05;
       const spacingRaw = typeof inputs.spacing === "number" ? inputs.spacing : parameters.spacing;
-      const spacing = Number.isFinite(spacingRaw) ? Math.max(0.01, spacingRaw as number) : 0.1;
+      const spacing = Number.isFinite(spacingRaw) ? Math.max(0.01, spacingRaw as number) : 0.05;
       const maxCountRaw = typeof inputs.maxCount === "number" ? inputs.maxCount : parameters.maxCount;
       const maxCount = Number.isFinite(maxCountRaw)
         ? Math.max(1, Math.round(maxCountRaw as number))
