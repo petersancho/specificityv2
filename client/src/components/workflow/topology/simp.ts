@@ -16,8 +16,8 @@ const MAX_MEMORY_MB = 400;
 const PCG_DIVERGENCE_FACTOR = 1e6;
 
 function computePCGTimeBudget(numElems: number): number {
-  const baseMs = 500;
-  const maxMs = 5000;
+  const baseMs = 2000;
+  const maxMs = 30000;
   const refElems = 10_000;
   const scaledMs = baseMs * Math.sqrt(numElems / refElems);
   return Math.min(maxMs, Math.max(baseMs, scaledMs));
@@ -698,6 +698,7 @@ export async function* runSimp(
   let consecutiveConverged = 0;
   const relCompHistory: number[] = [];
   const maxChangeHistory: number[] = [];
+  const complianceHistory: number[] = [];
   let uPrev = new Float64Array(kernel.numDofs);
   
   const pcgWorkspace = createPCGWorkspace(kernel.numDofs);
@@ -810,6 +811,7 @@ export async function* runSimp(
     const relCompChange = Math.abs(compliance - prevCompliance) / Math.max(Math.abs(prevCompliance), eps);
     const compChange = relCompChange;
     
+    complianceHistory.push(compliance);
     relCompHistory.push(relCompChange);
     maxChangeHistory.push(maxChange);
     
@@ -840,8 +842,13 @@ export async function* runSimp(
     };
     
     if (iter % 10 === 0 || iter <= 5 || iter >= minIterations - 5) {
+      const complianceTrend = complianceHistory.length >= 2 
+        ? (compliance < complianceHistory[complianceHistory.length - 1] ? '↓ DECREASING' : '↑ INCREASING')
+        : '—';
+      
       console.log(`[SIMP] Iteration ${iter}:`, {
         compliance: compliance.toExponential(3),
+        complianceTrend,
         relCompChange: relCompChange.toExponential(3),
         maxChange: maxChange.toFixed(4),
         vol: vol.toFixed(3),
