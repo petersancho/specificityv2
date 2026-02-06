@@ -422,8 +422,10 @@ function createElementKernel(nx: number, ny: number, nz: number, bounds: { min: 
   return { nx, ny, nz, numElems, numNodes, numDofs, elemVol, Ke0, Ke0Diag, edofMat, bounds };
 }
 
-// Small regularization factor to prevent singular matrix (helps with rigid body modes)
-const MATRIX_REGULARIZATION = 1e-6;
+// Regularization factor to prevent singular/near-singular matrix (handles rigid body modes)
+// Increased from 1e-6 to 1e-4 to ensure PCG converges in reasonable iterations (<100)
+// With E0=1.0 and elemVol≈0.001, regScale = 1e-4 * 1.0 * 0.001 = 1e-7 (still small but effective)
+const MATRIX_REGULARIZATION = 1e-4;
 
 function matrixFreeKx(kernel: ElementKernel, rho: Float64Array, x: Float64Array, penal: number, E0: number, Emin: number, out?: Float64Array, fixedDofs?: Set<number>): Float64Array {
   const y = out ?? new Float64Array(kernel.numDofs);
@@ -538,9 +540,6 @@ function solvePCG(
   const { r, z, p, Ap, M, fMod } = workspace;
   
   const u = new Float64Array(n);
-  if (uPrev) {
-    for (let i = 0; i < n; i++) u[i] = uPrev[i];
-  }
   
   computeKDiagonal(kernel, rho, penal, E0, Emin, M);
   
@@ -549,10 +548,26 @@ function solvePCG(
   for (let i = 0; i < n; i++) fMod[i] = f[i];
   for (const dof of fixedDofs) fMod[dof] = 0;
   
+  // Check if warm-start is viable by computing initial residual
+  let useWarmStart = false;
   if (uPrev) {
+    for (let i = 0; i < n; i++) u[i] = uPrev[i];
     matrixFreeKx(kernel, rho, u, penal, E0, Emin, r, fixedDofs);
     for (let i = 0; i < n; i++) r[i] = fMod[i] - r[i];
     for (const dof of fixedDofs) r[dof] = 0;
+    
+    const resNormWarm = Math.sqrt(dot(r, r));
+    const fNorm = Math.sqrt(dot(fMod, fMod));
+    
+    // Only use warm-start if initial residual is reasonable (< 100% of force norm)
+    // If resNorm > fNorm, the warm-start is worse than starting from zero!
+    if (resNormWarm < fNorm) {
+      useWarmStart = true;
+    } else {
+      // Warm-start is bad, do cold start instead
+      for (let i = 0; i < n; i++) u[i] = 0;
+      for (let i = 0; i < n; i++) r[i] = fMod[i];
+    }
   } else {
     for (let i = 0; i < n; i++) r[i] = fMod[i];
   }
@@ -561,7 +576,13 @@ function solvePCG(
   for (let i = 0; i < n; i++) p[i] = z[i];
   
   let rz = dot(r, z);
-  const tolAbs = Math.max(tol * Math.sqrt(dot(fMod, fMod)), 1e-14);
+  
+  // Adaptive tolerance based on initial residual
+  // If problem is ill-conditioned (large initial residual), use looser tolerance
+  const fNorm = Math.sqrt(dot(fMod, fMod));
+  const resNorm0Check = Math.sqrt(dot(r, r));
+  const adaptiveTolFactor = resNorm0Check > fNorm ? Math.min(resNorm0Check / fNorm, 10.0) : 1.0;
+  const tolAbs = Math.max(tol * adaptiveTolFactor * fNorm, 1e-14);
   
   let resNorm0 = -1;
   
@@ -573,7 +594,13 @@ function solvePCG(
     
     if (iters === 0) {
       resNorm0 = resNorm;
-      console.log(`[PCG] Starting: resNorm0=${resNorm.toExponential(2)}, tol=${tolAbs.toExponential(2)}, warmStart=${uPrev !== undefined}, maxIters=${maxIters}, fixedDofs=${fixedDofs.size}`);
+      const warmStartStatus = uPrev ? (useWarmStart ? 'yes' : 'rejected') : 'no';
+      console.log(`[PCG] Starting: resNorm0=${resNorm.toExponential(2)}, tol=${tolAbs.toExponential(2)}, warmStart=${warmStartStatus}, maxIters=${maxIters}, fixedDofs=${fixedDofs.size}`);
+      
+      // Warn if insufficient boundary conditions (need at least 6 DOFs to prevent rigid body modes)
+      if (fixedDofs.size < 6) {
+        console.warn(`[PCG] WARNING: Only ${fixedDofs.size} DOFs are fixed. Need at least 6 to prevent rigid body modes (3 translations + 3 rotations). This may cause slow convergence or divergence.`);
+      }
     }
     
     // Log progress every 100 iterations
