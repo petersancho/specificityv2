@@ -207,29 +207,28 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
     }
     
     try {
+      // Quick validation of first few positions
+      let invalidCount = 0;
       for (let i = 0; i < Math.min(geometry.positions.length, 200); i++) {
         const v = geometry.positions[i];
         if (!Number.isFinite(v)) {
-          const errMsg = `Invalid geometry: NaN/Infinity at position ${i}`;
-          console.error('[PREVIEW]', errMsg);
-          ctx.fillStyle = '#8b0000';
-          ctx.font = 'bold 12px monospace';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText('Invalid geometry (NaN/Inf)', width / 2, height / 2);
-          setRenderError(errMsg);
-          return;
+          invalidCount++;
         }
       }
       
-      // TEST: Draw a red rectangle to verify canvas is working
-      console.log('[PREVIEW] ⚠️⚠️⚠️ DRAWING TEST RECTANGLE');
-      ctx.fillStyle = 'red';
-      ctx.fillRect(50, 50, 100, 100);
-      ctx.fillStyle = 'blue';
-      ctx.fillRect(200, 200, 100, 100);
+      if (invalidCount > 0) {
+        const errMsg = `Invalid geometry: ${invalidCount} NaN/Infinity values in first 200 positions`;
+        console.error('[PREVIEW]', errMsg);
+        ctx.fillStyle = '#8b0000';
+        ctx.font = 'bold 12px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Invalid geometry (NaN/Inf)', width / 2, height / 2);
+        setRenderError(errMsg);
+        return;
+      }
       
-      console.log('[PREVIEW] Rendering geometry with', geometry.positions.length / 3, 'vertices');
+      console.log('[PREVIEW] Rendering geometry with', geometry.positions.length / 3, 'vertices and', (geometry.indices?.length || 0) / 3, 'triangles');
       renderGeometry(ctx, geometry, width, height, rotationRef.current);
       setRenderError(null);
     } catch (e) {
@@ -294,92 +293,231 @@ function triArea2(ax: number, ay: number, bx: number, by: number, cx: number, cy
   return Math.abs((bx - ax) * (cy - ay) - (by - ay) * (cx - ax));
 }
 
-function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, width: number, height: number, rotation: { x: number; y: number }) {
-  const positions = geometry.positions, indices = geometry.indices;
-  if (!positions || positions.length === 0) return;
-
-  let minX = Infinity, minY = Infinity, minZ = Infinity, maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
-  for (let i = 0; i < positions.length; i += 3) {
-    if (positions[i] < minX) minX = positions[i]; if (positions[i] > maxX) maxX = positions[i];
-    if (positions[i + 1] < minY) minY = positions[i + 1]; if (positions[i + 1] > maxY) maxY = positions[i + 1];
-    if (positions[i + 2] < minZ) minZ = positions[i + 2]; if (positions[i + 2] > maxZ) maxZ = positions[i + 2];
-  }
-  const centerX = (minX + maxX) / 2, centerY = (minY + maxY) / 2, centerZ = (minZ + maxZ) / 2;
-  const scale = Math.min(width, height) / (Math.max(maxX - minX, maxY - minY, maxZ - minZ) * 1.5);
+// Compute bounds from positions array with validation
+function computeBounds3FromPositions(positions: ArrayLike<number>): {
+  min: { x: number; y: number; z: number };
+  max: { x: number; y: number; z: number };
+  center: { x: number; y: number; z: number };
+  size: { x: number; y: number; z: number };
+} | null {
+  if (!positions || positions.length < 3) return null;
   
-  console.log('[RENDER] ⚠️⚠️⚠️ Geometry bounds:', {
+  let minX = Infinity, minY = Infinity, minZ = Infinity;
+  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+  let hasValidPoint = false;
+
+  for (let i = 0; i < positions.length; i += 3) {
+    const x = positions[i], y = positions[i + 1], z = positions[i + 2];
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) continue;
+    
+    hasValidPoint = true;
+    if (x < minX) minX = x; if (x > maxX) maxX = x;
+    if (y < minY) minY = y; if (y > maxY) maxY = y;
+    if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
+  }
+
+  if (!hasValidPoint) return null;
+
+  const cx = (minX + maxX) * 0.5;
+  const cy = (minY + maxY) * 0.5;
+  const cz = (minZ + maxZ) * 0.5;
+  const sx = maxX - minX;
+  const sy = maxY - minY;
+  const sz = maxZ - minZ;
+
+  if (![minX, minY, minZ, maxX, maxY, maxZ, cx, cy, cz, sx, sy, sz].every(Number.isFinite)) return null;
+
+  return {
     min: { x: minX, y: minY, z: minZ },
     max: { x: maxX, y: maxY, z: maxZ },
-    center: { x: centerX, y: centerY, z: centerZ },
-    size: { x: maxX - minX, y: maxY - minY, z: maxZ - minZ },
-    scale,
+    center: { x: cx, y: cy, z: cz },
+    size: { x: sx, y: sy, z: sz },
+  };
+}
+
+function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, width: number, height: number, rotation: { x: number; y: number }) {
+  const positions = geometry.positions, indices = geometry.indices;
+  if (!positions || positions.length === 0) {
+    console.warn('[RENDER] No positions to render');
+    return;
+  }
+
+  // Reset canvas state to avoid inherited transforms making things invisible
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = "source-over";
+
+  // Compute and validate bounds
+  const bounds = computeBounds3FromPositions(positions);
+  if (!bounds) {
+    console.error('[RENDER] ❌ Invalid geometry positions (NaN/Infinity or empty)');
+    ctx.fillStyle = '#8b0000';
+    ctx.font = 'bold 12px monospace';
+    ctx.fillText('Invalid geometry positions (NaN/Infinity)', 10, 20);
+    ctx.restore();
+    return;
+  }
+
+  console.log('[RENDER] ⚠️⚠️⚠️ Geometry bounds:', {
+    min: bounds.min,
+    max: bounds.max,
+    center: bounds.center,
+    size: bounds.size,
     canvasSize: { width, height },
   });
 
+  // Compute safe scale
+  const eps = 1e-9;
+  const maxDim = Math.max(bounds.size.x, bounds.size.y, bounds.size.z);
+  
+  if (!Number.isFinite(maxDim) || maxDim < eps) {
+    console.error('[RENDER] ❌ Degenerate mesh (maxDim too small):', maxDim);
+    ctx.fillStyle = '#8b0000';
+    ctx.font = 'bold 12px monospace';
+    ctx.fillText(`Degenerate mesh (size=${bounds.size.x.toFixed(3)}, ${bounds.size.y.toFixed(3)}, ${bounds.size.z.toFixed(3)})`, 10, 20);
+    ctx.restore();
+    return;
+  }
+
+  // Scale to fit 80% of canvas with padding
+  const scale = 0.8 * Math.min(width, height) / maxDim;
+  
+  if (!Number.isFinite(scale) || scale <= 0) {
+    console.error('[RENDER] ❌ Invalid scale:', scale);
+    ctx.fillStyle = '#8b0000';
+    ctx.font = 'bold 12px monospace';
+    ctx.fillText(`Invalid scale: ${scale}`, 10, 20);
+    ctx.restore();
+    return;
+  }
+
+  console.log('[RENDER] Scale calculation:', { maxDim, scale, canvasMin: Math.min(width, height) });
+
+  // Project all vertices
   const projected: Array<{ x: number; y: number; z: number }> = [];
-  const cosX = Math.cos(rotation.x), sinX = Math.sin(rotation.x), cosY = Math.cos(rotation.y), sinY = Math.sin(rotation.y);
+  const cosX = Math.cos(rotation.x), sinX = Math.sin(rotation.x);
+  const cosY = Math.cos(rotation.y), sinY = Math.sin(rotation.y);
+  
   for (let i = 0; i < positions.length; i += 3) {
-    let x = positions[i] - centerX, y = positions[i + 1] - centerY, z = positions[i + 2] - centerZ;
-    const y1 = y * cosX - z * sinX, z1 = y * sinX + z * cosX; y = y1; z = z1;
-    const x1 = x * cosY + z * sinY, z2 = -x * sinY + z * cosY; x = x1; z = z2;
-    projected.push({ x: width / 2 + x * scale, y: height / 2 - y * scale, z });
+    // Center the geometry
+    let x = positions[i] - bounds.center.x;
+    let y = positions[i + 1] - bounds.center.y;
+    let z = positions[i + 2] - bounds.center.z;
+    
+    // Rotate around X axis
+    const y1 = y * cosX - z * sinX;
+    const z1 = y * sinX + z * cosX;
+    y = y1; z = z1;
+    
+    // Rotate around Y axis
+    const x1 = x * cosY + z * sinY;
+    const z2 = -x * sinY + z * cosY;
+    x = x1; z = z2;
+    
+    // Project to screen (scale and center on canvas)
+    const screenX = width / 2 + x * scale;
+    const screenY = height / 2 - y * scale; // Flip Y for screen coordinates
+    
+    projected.push({ x: screenX, y: screenY, z });
   }
   
   // Log first few projected points to verify they're on-screen
-  console.log('[RENDER] First 5 projected points:', projected.slice(0, 5));
+  console.log('[RENDER] First 5 projected points:', projected.slice(0, 5).map(p => ({
+    x: p.x.toFixed(1),
+    y: p.y.toFixed(1),
+    z: p.z.toFixed(3),
+    onScreen: p.x >= 0 && p.x <= width && p.y >= 0 && p.y <= height
+  })));
 
-  // Medium-dark theme for good contrast on porcelain background
-  // Lighter than before but still clearly visible
-  const BASE = { r: 80, g: 85, b: 95 };      // Medium charcoal (was 40,44,52)
-  const LIGHT = { r: 140, g: 145, b: 155 };  // Light slate (was 90,98,112)
-  const STROKE = { r: 50, g: 55, b: 65 };    // Dark charcoal (was 15,18,22)
+  // Check if any points are on screen
+  let onScreenCount = 0;
+  for (const p of projected) {
+    if (p.x >= 0 && p.x <= width && p.y >= 0 && p.y <= height) {
+      onScreenCount++;
+    }
+  }
+  console.log('[RENDER] Points on screen:', onScreenCount, '/', projected.length);
+
+  if (onScreenCount === 0) {
+    console.error('[RENDER] ❌ All points are off-screen!');
+    ctx.fillStyle = '#8b0000';
+    ctx.font = 'bold 12px monospace';
+    ctx.fillText('All geometry points are off-screen', 10, 20);
+    ctx.fillText(`Bounds: (${bounds.min.x.toFixed(1)}, ${bounds.min.y.toFixed(1)}, ${bounds.min.z.toFixed(1)}) to (${bounds.max.x.toFixed(1)}, ${bounds.max.y.toFixed(1)}, ${bounds.max.z.toFixed(1)})`, 10, 40);
+    ctx.fillText(`Scale: ${scale.toFixed(3)}, MaxDim: ${maxDim.toFixed(3)}`, 10, 60);
+    ctx.restore();
+    return;
+  }
+
+  // Colors for rendering
+  const BASE = { r: 80, g: 85, b: 95 };      // Medium charcoal
+  const LIGHT = { r: 140, g: 145, b: 155 };  // Light slate
+  const STROKE = { r: 50, g: 55, b: 65 };    // Dark charcoal
   const POINT_COLOR = `rgb(${BASE.r}, ${BASE.g}, ${BASE.b})`;
-  
-  console.log('[RENDER] Rendering geometry:', {
-    vertices: positions.length / 3,
-    indices: indices ? indices.length : 0,
-    triangles: indices ? indices.length / 3 : 0,
-  });
+
+  // DEBUG: Draw sample points first to verify projection is working
+  console.log('[RENDER] Drawing debug points...');
+  ctx.fillStyle = 'rgba(255, 0, 0, 0.5)'; // Red semi-transparent
+  const sampleCount = Math.min(500, projected.length);
+  for (let i = 0; i < sampleCount; i++) {
+    const p = projected[i];
+    if (Number.isFinite(p.x) && Number.isFinite(p.y)) {
+      ctx.fillRect(p.x - 1, p.y - 1, 2, 2);
+    }
+  }
+  console.log('[RENDER] Drew', sampleCount, 'debug points');
 
   // Fallback: if no indices, render vertices as points
   if (!indices || indices.length === 0) {
     console.warn('[RENDER] No triangle indices, rendering vertices as points');
     ctx.fillStyle = POINT_COLOR;
     for (const p of projected) {
-      ctx.fillRect(p.x - 1.5, p.y - 1.5, 3, 3);
+      if (Number.isFinite(p.x) && Number.isFinite(p.y)) {
+        ctx.fillRect(p.x - 1.5, p.y - 1.5, 3, 3);
+      }
     }
+    ctx.restore();
     return;
   }
 
+  // Build triangle list with depth sorting
   const triangles: Array<{ indices: [number, number, number]; avgZ: number }> = [];
   for (let i = 0; i < indices.length; i += 3) {
     const i0 = indices[i], i1 = indices[i + 1], i2 = indices[i + 2];
     if (i0 >= projected.length || i1 >= projected.length || i2 >= projected.length) continue;
+    
+    const p0 = projected[i0], p1 = projected[i1], p2 = projected[i2];
+    if (!Number.isFinite(p0.x) || !Number.isFinite(p1.x) || !Number.isFinite(p2.x)) continue;
+    
     triangles.push({ 
       indices: [i0, i1, i2], 
-      avgZ: (projected[i0].z + projected[i1].z + projected[i2].z) / 3 
+      avgZ: (p0.z + p1.z + p2.z) / 3 
     });
   }
   
+  console.log('[RENDER] Valid triangles:', triangles.length, '/', indices.length / 3);
+
   if (triangles.length === 0) {
     console.warn('[RENDER] No valid triangles, rendering vertices as points');
     ctx.fillStyle = POINT_COLOR;
     for (const p of projected) {
-      ctx.fillRect(p.x - 1.5, p.y - 1.5, 3, 3);
+      if (Number.isFinite(p.x) && Number.isFinite(p.y)) {
+        ctx.fillRect(p.x - 1.5, p.y - 1.5, 3, 3);
+      }
     }
+    ctx.restore();
     return;
   }
   
+  // Sort triangles by depth (back to front)
   triangles.sort((a, b) => a.avgZ - b.avgZ);
 
   const zMin = triangles[0].avgZ;
   const zMax = triangles[triangles.length - 1].avgZ;
   const zRange = Math.max(0.001, zMax - zMin);
 
-  // For topology optimization meshes with many small triangles, we need to render
-  // them as filled triangles regardless of size to get a solid appearance
-  const STROKE_THRESHOLD = 50; // Only stroke triangles larger than this
-  
+  console.log('[RENDER] Z range:', { zMin: zMin.toFixed(3), zMax: zMax.toFixed(3), zRange: zRange.toFixed(3) });
   console.log('[RENDER] Rendering', triangles.length, 'triangles with z-depth shading');
   
   // First pass: fill all triangles (no stroke) for solid appearance
@@ -402,6 +540,7 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
   }
   
   // Second pass: stroke only larger triangles for edge definition
+  const STROKE_THRESHOLD = 50;
   ctx.strokeStyle = `rgb(${STROKE.r}, ${STROKE.g}, ${STROKE.b})`;
   ctx.lineWidth = 0.8;
   let strokedCount = 0;
@@ -422,4 +561,5 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
   }
   
   console.log('[RENDER] ✅ Rendered', triangles.length, 'filled triangles,', strokedCount, 'with strokes');
+  ctx.restore();
 }
