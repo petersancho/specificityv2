@@ -18,38 +18,60 @@ export const TopologyConvergence: React.FC<TopologyConvergenceProps> = ({ histor
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     
-    ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0, 0, width, height);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
     
     if (history.compliance.length === 0) {
-      ctx.fillStyle = '#666'; ctx.font = '14px monospace'; ctx.textAlign = 'center';
+      ctx.fillStyle = '#6a6661';
+      ctx.font = '500 11px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+      ctx.textAlign = 'center';
       ctx.fillText('Waiting for simulation...', width / 2, height / 2);
       return;
     }
     
-    const padding = 40, graphWidth = width - 2 * padding, graphHeight = height - 2 * padding;
+    const padding = 50, graphWidth = width - 2 * padding, graphHeight = height - 2 * padding;
     const maxC = Math.max(...history.compliance), minC = Math.min(...history.compliance);
     const range = maxC - minC || 1;
     
-    ctx.strokeStyle = '#444'; ctx.lineWidth = 1; ctx.beginPath();
-    ctx.moveTo(padding, padding); ctx.lineTo(padding, height - padding); ctx.lineTo(width - padding, height - padding); ctx.stroke();
+    ctx.strokeStyle = '#e9e6e2';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 5; i++) {
+      const y = padding + (graphHeight * i) / 5;
+      ctx.beginPath();
+      ctx.moveTo(padding, y);
+      ctx.lineTo(width - padding, y);
+      ctx.stroke();
+    }
+    for (let i = 0; i <= 10; i++) {
+      const x = padding + (graphWidth * i) / 10;
+      ctx.beginPath();
+      ctx.moveTo(x, padding);
+      ctx.lineTo(x, height - padding);
+      ctx.stroke();
+    }
     
-    ctx.strokeStyle = '#222'; ctx.lineWidth = 0.5;
-    for (let i = 0; i <= 5; i++) { const y = padding + (graphHeight * i) / 5; ctx.beginPath(); ctx.moveTo(padding, y); ctx.lineTo(width - padding, y); ctx.stroke(); }
+    ctx.strokeStyle = '#1f1f22';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(padding, padding);
+    ctx.lineTo(padding, height - padding);
+    ctx.lineTo(width - padding, height - padding);
+    ctx.stroke();
     
     const n = history.compliance.length;
     if (n >= 1) {
-      ctx.strokeStyle = '#00aaff'; ctx.lineWidth = 2;
-      
       if (n === 1) {
-        // Single point: draw a dot
         const x = padding + graphWidth / 2;
         const y = height - padding - graphHeight / 2;
-        ctx.fillStyle = '#00aaff';
+        ctx.fillStyle = '#1f1f22';
         ctx.beginPath();
         ctx.arc(x, y, 4, 0, Math.PI * 2);
         ctx.fill();
       } else {
-        // Multiple points: draw a line
+        ctx.strokeStyle = '#1f1f22';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
         ctx.beginPath();
         history.compliance.forEach((c, i) => {
           const x = padding + (graphWidth * i) / (n - 1);
@@ -57,14 +79,40 @@ export const TopologyConvergence: React.FC<TopologyConvergenceProps> = ({ histor
           i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
         });
         ctx.stroke();
+        
+        const lastX = padding + graphWidth;
+        const lastY = height - padding - ((history.compliance[n - 1] - minC) / range) * graphHeight;
+        ctx.fillStyle = '#1f1f22';
+        ctx.beginPath();
+        ctx.arc(lastX, lastY, 4, 0, Math.PI * 2);
+        ctx.fill();
       }
     }
     
-    ctx.fillStyle = '#aaa'; ctx.font = '12px monospace'; ctx.textAlign = 'right';
-    for (let i = 0; i <= 5; i++) { ctx.fillText((maxC - (range * i) / 5).toFixed(1), padding - 5, padding + (graphHeight * i) / 5 + 4); }
-    ctx.textAlign = 'center'; ctx.fillText('Iteration', width / 2, height - 10);
-    ctx.save(); ctx.translate(15, height / 2); ctx.rotate(-Math.PI / 2); ctx.fillText('Compliance', 0, 0); ctx.restore();
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center'; ctx.fillText('Convergence History', width / 2, 20);
+    ctx.fillStyle = '#6a6661';
+    ctx.font = '500 10px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.textAlign = 'right';
+    for (let i = 0; i <= 5; i++) {
+      const val = maxC - (range * i) / 5;
+      const label = val >= 1000000 ? `${(val / 1000000).toFixed(1)}M` : val >= 1000 ? `${(val / 1000).toFixed(0)}K` : val.toFixed(0);
+      ctx.fillText(label, padding - 8, padding + (graphHeight * i) / 5 + 4);
+    }
+    
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#6a6661';
+    ctx.font = '600 9px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.fillText('ITERATION', width / 2, height - 8);
+    
+    ctx.save();
+    ctx.translate(12, height / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('COMPLIANCE', 0, 0);
+    ctx.restore();
+    
+    ctx.fillStyle = '#1f1f22';
+    ctx.font = '700 11px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('CONVERGENCE HISTORY', width / 2, 24);
   }, [history, width, height]);
   
   return (
@@ -99,10 +147,10 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
     if (!ctx) return;
     
     canvas.width = width; canvas.height = height;
-    ctx.fillStyle = '#1a1a1a'; ctx.fillRect(0, 0, width, height);
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height);
     
     if (!geometry || !geometry.positions || geometry.positions.length === 0) {
-      ctx.fillStyle = '#444'; ctx.font = '14px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#6a6661'; ctx.font = '11px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText('Waiting for geometry...', width / 2, height / 2);
       return;
     }
