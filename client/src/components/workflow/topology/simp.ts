@@ -63,15 +63,12 @@ import type { SimpParams, SolverFrame, GoalMarkers } from "./types";
 import type { RenderMesh, Vec3 } from "../../../types";
 import { validateProblem, DefaultValidationConfig, type ValidationConfig } from "./validation";
 import { SimpValidationError, hasErrors } from "./errors";
-import { computeStrictBounds, worldToGrid, gridToNodeIndex, buildDofMapping } from "./coordinateFrames";
 
 const DEBUG = false;
 
 const MAX_MEMORY_MB = 400;
 const PCG_DIVERGENCE_FACTOR = 1e10;
 const PCG_MIN_ITERS_BEFORE_DIVERGENCE_CHECK = 5;
-
-
 
 // ============================================================================
 // STABILITY HELPERS
@@ -654,8 +651,6 @@ const ADAPTIVE_CG_MID_ITERS = 50;
 
 const STABLE_WINDOW = 8;  // Need 8 consecutive converged iterations for stability
 
-
-
 function computeSensitivities(rho: Float64Array, ce: Float64Array, penal: number, E0: number, Emin: number): Float64Array {
   const dc = new Float64Array(rho.length);
   const dE = E0 - Emin;
@@ -799,7 +794,6 @@ export async function* runSimp(
   const moveLimit = params.move;
   let prevCompliance = Infinity;
   let consecutiveConverged = 0;
-  const complianceHistory: number[] = [];
   let uPrev = new Float64Array(kernel.numDofs);
   
   const pcgWorkspace = createPCGWorkspace(kernel.numDofs);
@@ -925,8 +919,6 @@ export async function* runSimp(
     
     const eps = 1e-12;
     const relCompChange = Math.abs(compliance - prevCompliance) / Math.max(Math.abs(prevCompliance), eps);
-    
-    complianceHistory.push(compliance);
     
     // Convergence criteria (all must be satisfied):
     // 1. Compliance change < 0.1% (optimization converged)
