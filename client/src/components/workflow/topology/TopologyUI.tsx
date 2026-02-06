@@ -450,23 +450,34 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
     return;
   }
 
-  // Colors for rendering
-  const BASE = { r: 80, g: 85, b: 95 };      // Medium charcoal
-  const LIGHT = { r: 140, g: 145, b: 155 };  // Light slate
-  const STROKE = { r: 50, g: 55, b: 65 };    // Dark charcoal
+  // Colors for rendering - USING BRIGHT MAGENTA FOR DEBUGGING
+  const BASE = { r: 255, g: 0, b: 255 };      // Bright magenta
+  const LIGHT = { r: 200, g: 0, b: 200 };     // Darker magenta
+  const STROKE = { r: 150, g: 0, b: 150 };    // Even darker magenta
   const POINT_COLOR = `rgb(${BASE.r}, ${BASE.g}, ${BASE.b})`;
 
   // DEBUG: Draw sample points first to verify projection is working
   console.log('[RENDER] Drawing debug points...');
   ctx.fillStyle = 'rgba(255, 0, 0, 0.5)'; // Red semi-transparent
   const sampleCount = Math.min(500, projected.length);
+  const pointBounds = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
   for (let i = 0; i < sampleCount; i++) {
     const p = projected[i];
     if (Number.isFinite(p.x) && Number.isFinite(p.y)) {
       ctx.fillRect(p.x - 1, p.y - 1, 2, 2);
+      pointBounds.minX = Math.min(pointBounds.minX, p.x);
+      pointBounds.maxX = Math.max(pointBounds.maxX, p.x);
+      pointBounds.minY = Math.min(pointBounds.minY, p.y);
+      pointBounds.maxY = Math.max(pointBounds.maxY, p.y);
     }
   }
   console.log('[RENDER] Drew', sampleCount, 'debug points');
+  console.log('[RENDER] ⚠️⚠️⚠️ Debug points screen bounds:', {
+    x: `[${pointBounds.minX.toFixed(1)}, ${pointBounds.maxX.toFixed(1)}]`,
+    y: `[${pointBounds.minY.toFixed(1)}, ${pointBounds.maxY.toFixed(1)}]`,
+    width: (pointBounds.maxX - pointBounds.minX).toFixed(1),
+    height: (pointBounds.maxY - pointBounds.minY).toFixed(1),
+  });
 
   // Fallback: if no indices, render vertices as points
   if (!indices || indices.length === 0) {
@@ -519,6 +530,32 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
 
   console.log('[RENDER] Z range:', { zMin: zMin.toFixed(3), zMax: zMax.toFixed(3), zRange: zRange.toFixed(3) });
   console.log('[RENDER] Rendering', triangles.length, 'triangles with z-depth shading');
+  
+  // Analyze triangle screen space distribution
+  const triBounds = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
+  const triAreas: number[] = [];
+  for (const tri of triangles) {
+    const [i0, i1, i2] = tri.indices;
+    const p0 = projected[i0], p1 = projected[i1], p2 = projected[i2];
+    triBounds.minX = Math.min(triBounds.minX, p0.x, p1.x, p2.x);
+    triBounds.maxX = Math.max(triBounds.maxX, p0.x, p1.x, p2.x);
+    triBounds.minY = Math.min(triBounds.minY, p0.y, p1.y, p2.y);
+    triBounds.maxY = Math.max(triBounds.maxY, p0.y, p1.y, p2.y);
+    const area = triArea2(p0.x, p0.y, p1.x, p1.y, p2.x, p2.y);
+    triAreas.push(area);
+  }
+  triAreas.sort((a, b) => a - b);
+  const medianArea = triAreas[Math.floor(triAreas.length / 2)];
+  const maxArea = triAreas[triAreas.length - 1];
+  
+  console.log('[RENDER] ⚠️⚠️⚠️ Triangle screen bounds:', {
+    x: `[${triBounds.minX.toFixed(1)}, ${triBounds.maxX.toFixed(1)}]`,
+    y: `[${triBounds.minY.toFixed(1)}, ${triBounds.maxY.toFixed(1)}]`,
+    width: (triBounds.maxX - triBounds.minX).toFixed(1),
+    height: (triBounds.maxY - triBounds.minY).toFixed(1),
+    medianArea: medianArea.toFixed(1),
+    maxArea: maxArea.toFixed(1),
+  });
   
   // First pass: fill all triangles (no stroke) for solid appearance
   for (const tri of triangles) {
