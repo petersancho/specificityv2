@@ -1228,6 +1228,16 @@ export async function* runSimp(
     const complianceValid = Number.isFinite(compliance) && compliance > 0;
     const hasConverged = complianceValid && minItersReached && stableEnough;
     
+    // Debug logging for convergence check
+    if (iter % 10 === 0 || (iter >= minIterations - 5 && iter <= minIterations + 5)) {
+      console.log(`[SIMP] Convergence check at iter ${iter}:`, {
+        minItersReached: `${minItersReached} (${iter} >= ${minIterations})`,
+        stableEnough: `${stableEnough} (${consecutiveConverged} >= ${STABLE_WINDOW})`,
+        complianceValid: complianceValid,
+        hasConverged: hasConverged,
+      });
+    }
+    
     yield { 
       iter, 
       compliance, 

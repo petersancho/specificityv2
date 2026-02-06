@@ -225,10 +225,11 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
     projected.push({ x: width / 2 + x * scale, y: height / 2 - y * scale, z });
   }
 
-  // Dark theme for high contrast on porcelain background
-  const BASE = { r: 40, g: 44, b: 52 };
-  const LIGHT = { r: 90, g: 98, b: 112 };
-  const STROKE = { r: 15, g: 18, b: 22 };
+  // Medium-dark theme for good contrast on porcelain background
+  // Lighter than before but still clearly visible
+  const BASE = { r: 80, g: 85, b: 95 };      // Medium charcoal (was 40,44,52)
+  const LIGHT = { r: 140, g: 145, b: 155 };  // Light slate (was 90,98,112)
+  const STROKE = { r: 50, g: 55, b: 65 };    // Dark charcoal (was 15,18,22)
   const POINT_COLOR = `rgb(${BASE.r}, ${BASE.g}, ${BASE.b})`;
 
   // Fallback: if no indices, render vertices as points
@@ -291,7 +292,7 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
     
     ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
     ctx.strokeStyle = `rgb(${STROKE.r}, ${STROKE.g}, ${STROKE.b})`;
-    ctx.lineWidth = 0.5;
+    ctx.lineWidth = 0.8;  // Increased from 0.5 for better visibility
     ctx.beginPath();
     ctx.moveTo(p0.x, p0.y);
     ctx.lineTo(p1.x, p1.y);
