@@ -456,29 +456,6 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
   const STROKE = { r: 150, g: 0, b: 150 };    // Even darker magenta
   const POINT_COLOR = `rgb(${BASE.r}, ${BASE.g}, ${BASE.b})`;
 
-  // DEBUG: Draw sample points first to verify projection is working
-  console.log('[RENDER] Drawing debug points...');
-  ctx.fillStyle = 'rgba(255, 0, 0, 0.5)'; // Red semi-transparent
-  const sampleCount = Math.min(500, projected.length);
-  const pointBounds = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
-  for (let i = 0; i < sampleCount; i++) {
-    const p = projected[i];
-    if (Number.isFinite(p.x) && Number.isFinite(p.y)) {
-      ctx.fillRect(p.x - 1, p.y - 1, 2, 2);
-      pointBounds.minX = Math.min(pointBounds.minX, p.x);
-      pointBounds.maxX = Math.max(pointBounds.maxX, p.x);
-      pointBounds.minY = Math.min(pointBounds.minY, p.y);
-      pointBounds.maxY = Math.max(pointBounds.maxY, p.y);
-    }
-  }
-  console.log('[RENDER] Drew', sampleCount, 'debug points');
-  console.log('[RENDER] ⚠️⚠️⚠️ Debug points screen bounds:', {
-    x: `[${pointBounds.minX.toFixed(1)}, ${pointBounds.maxX.toFixed(1)}]`,
-    y: `[${pointBounds.minY.toFixed(1)}, ${pointBounds.maxY.toFixed(1)}]`,
-    width: (pointBounds.maxX - pointBounds.minX).toFixed(1),
-    height: (pointBounds.maxY - pointBounds.minY).toFixed(1),
-  });
-
   // Fallback: if no indices, render vertices as points
   if (!indices || indices.length === 0) {
     console.warn('[RENDER] No triangle indices, rendering vertices as points');

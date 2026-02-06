@@ -466,6 +466,22 @@ export const marchingCubes = (
   const { bounds, cellSize, densities, data: materialData } = field;
   const materialCount = materialData.length;
   
+  console.log('[MARCHING CUBES] ⚠️⚠️⚠️ Starting marching cubes:', {
+    resolution: res,
+    isovalue,
+    totalVoxels: densities.length,
+    expectedVoxels: res * res * res,
+    bounds: {
+      min: `(${bounds.min.x.toFixed(2)}, ${bounds.min.y.toFixed(2)}, ${bounds.min.z.toFixed(2)})`,
+      max: `(${bounds.max.x.toFixed(2)}, ${bounds.max.y.toFixed(2)}, ${bounds.max.z.toFixed(2)})`,
+    },
+    cellSize: {
+      x: cellSize.x.toFixed(4),
+      y: cellSize.y.toFixed(4),
+      z: cellSize.z.toFixed(4),
+    },
+  });
+  
   // Edge vertex cache to avoid duplicate vertices
   // Key: "x,y,z,edge" -> vertex index
   const edgeCache = new Map<string, number>();
@@ -636,6 +652,36 @@ export const marchingCubes = (
     verticesGenerated: positions.length / 3,
     trianglesGenerated: indices.length / 3,
   });
+  
+  // Log first 10 vertices to see where they are
+  if (positions.length > 0) {
+    console.log('[MARCHING CUBES] ⚠️⚠️⚠️ First 10 vertices:');
+    for (let i = 0; i < Math.min(10, positions.length / 3); i++) {
+      const x = positions[i * 3];
+      const y = positions[i * 3 + 1];
+      const z = positions[i * 3 + 2];
+      console.log(`  v${i}: (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`);
+    }
+    
+    // Compute bounds of generated mesh
+    let minX = Infinity, minY = Infinity, minZ = Infinity;
+    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+    for (let i = 0; i < positions.length; i += 3) {
+      const x = positions[i], y = positions[i + 1], z = positions[i + 2];
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+      if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
+    }
+    console.log('[MARCHING CUBES] ⚠️⚠️⚠️ Output mesh bounds:', {
+      min: { x: minX.toFixed(2), y: minY.toFixed(2), z: minZ.toFixed(2) },
+      max: { x: maxX.toFixed(2), y: maxY.toFixed(2), z: maxZ.toFixed(2) },
+      size: { x: (maxX - minX).toFixed(2), y: (maxY - minY).toFixed(2), z: (maxZ - minZ).toFixed(2) },
+      inputBounds: {
+        min: { x: bounds.min.x.toFixed(2), y: bounds.min.y.toFixed(2), z: bounds.min.z.toFixed(2) },
+        max: { x: bounds.max.x.toFixed(2), y: bounds.max.y.toFixed(2), z: bounds.max.z.toFixed(2) },
+      },
+    });
+  }
   
   return { positions, normals, colors, indices, uvs };
 };
