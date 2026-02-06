@@ -375,9 +375,7 @@ export const TopologyOptimizationSolverNode: WorkflowNodeDefinition = {
     const cachedOptimizedMeshId =
       typeof parameters.optimizedMeshId === "string" 
         ? parameters.optimizedMeshId 
-        : typeof outputs.optimizedMesh === "string"
-          ? outputs.optimizedMesh
-          : null;
+        : null;
     const hasCached = Boolean(cachedOptimizedMeshId);
 
     if (hasCached) {
