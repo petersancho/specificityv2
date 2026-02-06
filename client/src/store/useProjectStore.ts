@@ -7888,7 +7888,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
     // Scale vector by -1 (below unit Z)
     const scaleVectorId = `node-scaleVector-${ts}`;
-    const scaleVectorPos = { x: col3X, y: unitZPos.y + NODE_HEIGHT + V_GAP };
+    // Position scaleVector between unitZ and loadGoal for cleaner layout
+    const scaleVectorPos = { x: col3X, y: loadExtentPos.y + NODE_HEIGHT + V_GAP };
 
     // Column 4: Topology Optimization Solver
     const col4X = col3X + NODE_WIDTH + H_GAP;
@@ -8082,14 +8083,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       {
         id: `edge-${scaleVectorId}-${loadGoalId}-direction`,
         source: scaleVectorId,
-        sourceHandle: "result",
+        sourceHandle: "vector",
         target: loadGoalId,
         targetHandle: "direction",
       },
       {
         id: `edge-${solverId}-${viewerId}-geometry`,
         source: solverId,
-        sourceHandle: "geometry",
+        sourceHandle: "optimizedMesh",
         target: viewerId,
         targetHandle: "geometry",
       },
