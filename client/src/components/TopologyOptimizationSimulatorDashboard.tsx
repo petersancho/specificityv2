@@ -567,6 +567,73 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
         };
         console.log('[TOPOLOGY] Preview field:', { nx, ny, nz, densityCount: frame.densities?.length });
         
+        // ⚠️⚠️⚠️ CRITICAL DIAGNOSTIC: Log density values at different positions
+        if (frame.densities && frame.densities.length > 0) {
+          const d = frame.densities;
+          const total = d.length;
+          
+          // Sample densities at corners and center
+          const cornerIdx = 0;
+          const centerIdx = Math.floor(nx/2) + Math.floor(ny/2) * nx + Math.floor(nz/2) * nx * ny;
+          const maxCornerIdx = (nx-1) + (ny-1) * nx + (nz-1) * nx * ny;
+          
+          // Count distribution
+          let below01 = 0, below02 = 0, below05 = 0, above05 = 0, above08 = 0, above09 = 0;
+          let minD = Infinity, maxD = -Infinity;
+          for (let i = 0; i < total; i++) {
+            const v = d[i];
+            if (v < minD) minD = v;
+            if (v > maxD) maxD = v;
+            if (v < 0.1) below01++;
+            if (v < 0.2) below02++;
+            if (v < 0.5) below05++;
+            if (v > 0.5) above05++;
+            if (v > 0.8) above08++;
+            if (v > 0.9) above09++;
+          }
+          
+          console.log('[TOPOLOGY] ⚠️⚠️⚠️ DENSITY FIELD FROM SIMP SOLVER:', {
+            iter: frame.iter,
+            totalElements: total,
+            expectedElements: nx * ny * nz,
+            range: `[${minD.toFixed(4)}, ${maxD.toFixed(4)}]`,
+            cornerDensity: d[cornerIdx]?.toFixed(4),
+            centerDensity: centerIdx < total ? d[centerIdx]?.toFixed(4) : 'OOB',
+            maxCornerDensity: maxCornerIdx < total ? d[maxCornerIdx]?.toFixed(4) : 'OOB',
+            distribution: {
+              'below 0.1': `${below01} (${(100*below01/total).toFixed(1)}%)`,
+              'below 0.2': `${below02} (${(100*below02/total).toFixed(1)}%)`,
+              'below 0.5': `${below05} (${(100*below05/total).toFixed(1)}%)`,
+              'above 0.5': `${above05} (${(100*above05/total).toFixed(1)}%)`,
+              'above 0.8': `${above08} (${(100*above08/total).toFixed(1)}%)`,
+              'above 0.9': `${above09} (${(100*above09/total).toFixed(1)}%)`,
+            }
+          });
+          
+          // Sample a line through the center in X direction
+          const cy = Math.floor(ny/2);
+          const cz = Math.floor(nz/2);
+          const lineX: string[] = [];
+          for (let x = 0; x < nx; x += Math.max(1, Math.floor(nx/10))) {
+            const idx = x + cy * nx + cz * nx * ny;
+            if (idx < total) {
+              lineX.push(d[idx].toFixed(2));
+            }
+          }
+          console.log(`[TOPOLOGY] Density line through center (X direction, y=${cy}, z=${cz}):`, lineX.join(' '));
+          
+          // Sample a line through the center in Y direction
+          const cx = Math.floor(nx/2);
+          const lineY: string[] = [];
+          for (let y = 0; y < ny; y += Math.max(1, Math.floor(ny/10))) {
+            const idx = cx + y * nx + cz * nx * ny;
+            if (idx < total) {
+              lineY.push(d[idx].toFixed(2));
+            }
+          }
+          console.log(`[TOPOLOGY] Density line through center (Y direction, x=${cx}, z=${cz}):`, lineY.join(' '));
+        }
+        
         const result = generateGeometryFromDensities(
           field,
           densityThreshold
@@ -578,7 +645,37 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
           indices: result.isosurface?.indices?.length || 0,
         });
         
+        // ⚠️⚠️⚠️ DEBUG: Log the first few vertex positions from marching cubes
         if (result.isosurface && result.isosurface.positions && result.isosurface.positions.length > 0) {
+          const pos = result.isosurface.positions;
+          console.log('[TOPOLOGY] ⚠️⚠️⚠️ MARCHING CUBES OUTPUT - First 10 vertices:');
+          for (let i = 0; i < Math.min(30, pos.length); i += 3) {
+            console.log(`  v${i/3}: (${pos[i].toFixed(2)}, ${pos[i+1].toFixed(2)}, ${pos[i+2].toFixed(2)})`);
+          }
+          
+          // Compute bounds of marching cubes output
+          let mcMinX = Infinity, mcMinY = Infinity, mcMinZ = Infinity;
+          let mcMaxX = -Infinity, mcMaxY = -Infinity, mcMaxZ = -Infinity;
+          for (let i = 0; i < pos.length; i += 3) {
+            const x = pos[i], y = pos[i+1], z = pos[i+2];
+            if (x < mcMinX) mcMinX = x; if (x > mcMaxX) mcMaxX = x;
+            if (y < mcMinY) mcMinY = y; if (y > mcMaxY) mcMaxY = y;
+            if (z < mcMinZ) mcMinZ = z; if (z > mcMaxZ) mcMaxZ = z;
+          }
+          console.log('[TOPOLOGY] ⚠️⚠️⚠️ MARCHING CUBES OUTPUT BOUNDS:', {
+            min: { x: mcMinX.toFixed(2), y: mcMinY.toFixed(2), z: mcMinZ.toFixed(2) },
+            max: { x: mcMaxX.toFixed(2), y: mcMaxY.toFixed(2), z: mcMaxZ.toFixed(2) },
+            size: { 
+              x: (mcMaxX - mcMinX).toFixed(2), 
+              y: (mcMaxY - mcMinY).toFixed(2), 
+              z: (mcMaxZ - mcMinZ).toFixed(2) 
+            },
+            inputBounds: {
+              min: bounds.min,
+              max: bounds.max,
+            }
+          });
+          
           console.log('[TOPOLOGY] ✅✅✅ SETTING PREVIEW GEOMETRY with', result.isosurface.positions.length / 3, 'vertices');
           setPreviewGeometry(result.isosurface);
         } else {
