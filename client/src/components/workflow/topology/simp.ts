@@ -652,13 +652,7 @@ const ADAPTIVE_CG_TOL_LATE = 1e-4;   // 0.01% error - late iterations (near conv
 const ADAPTIVE_CG_EARLY_ITERS = 20;
 const ADAPTIVE_CG_MID_ITERS = 50;
 
-const BETA_INCREASE_FACTOR = 1.5;
-
-
-
-function nodeIndex(ix: number, iy: number, iz: number, nx: number, ny: number): number {
-  return iz * (nx + 1) * (ny + 1) + iy * (nx + 1) + ix;
-}
+const STABLE_WINDOW = 8;  // Need 8 consecutive converged iterations for stability
 
 
 
@@ -799,8 +793,6 @@ export async function* runSimp(
   const minIterations = params.minIterations ?? 0;
   const grayTol = params.grayTol ?? 0.05;
   const betaMax = params.betaMax ?? 64;
-  const minIterForCheck = Math.max(minIterations, 10);  // Always wait at least 10 iterations
-  const stallWindow = 10;
   
   let beta = 1.0;
   let penal = params.penalStart;
@@ -955,7 +947,7 @@ export async function* runSimp(
       cgTol: adaptiveCgTol.toExponential(1),
     };
     
-    if (iter % 10 === 0 || iter <= 5 || iter >= minIterations - 5) {
+    if (iter % 10 === 0 || iter <= 5 || (minIterations > 0 && iter >= minIterations - 5)) {
       const complianceTrend = iter === 1 
         ? '—'
         : (compliance < prevCompliance ? '↓ DECREASING' : '↑ INCREASING');
@@ -988,9 +980,8 @@ export async function* runSimp(
     }
     
     // Check if converged (all criteria must be met)
-    const stableWindow = 8;
     const minItersReached = (iter + 1) >= minIterations;
-    const stableEnough = consecutiveConverged >= stableWindow;
+    const stableEnough = consecutiveConverged >= STABLE_WINDOW;
     const complianceValid = Number.isFinite(compliance) && compliance > 0;
     const hasConverged = complianceValid && minItersReached && stableEnough;
     
