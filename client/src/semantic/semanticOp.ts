@@ -264,6 +264,7 @@ export type OpTag =
   | 'simulation'     // Simulation
   | 'isosurface'     // Isosurface extraction
   | 'marching-cubes' // Marching cubes algorithm
+  | 'simp'           // SIMP topology optimization
   | 'discretization' // Discretization
   | 'discrete'       // Discrete operations
   | 'validation'     // Validation operations

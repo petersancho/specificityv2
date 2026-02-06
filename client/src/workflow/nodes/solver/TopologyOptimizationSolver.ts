@@ -6,10 +6,10 @@ import type { GoalSpecification, AnchorGoal, LoadGoal } from "./types";
  * Topology Optimization Solver Node
  * 
  * This solver generates topologically optimized structures using:
- * 1. Goal-based optimization (anchor, load)
- * 2. Point cloud generation (optimized based on goals)
- * 3. Curve network generation (constrained connectivity)
- * 4. Multipipe operation (pipes along curves)
+ * 1. SIMP (Solid Isotropic Material with Penalization) optimization
+ * 2. Goal-based boundary conditions (anchor, load)
+ * 3. Marching cubes isosurface extraction at density threshold
+ * 4. Optional smoothing post-processing
  * 
  * Named after Leonhard Euler (topology pioneer, Euler characteristic).
  */
@@ -41,31 +41,7 @@ export const TopologyOptimizationSolverNode: WorkflowNodeDefinition = {
       key: "optimizedMesh",
       label: "Optimized Mesh",
       type: "mesh",
-      description: "Topologically optimized structure (multipipe result).",
-    },
-    {
-      key: "pointCloud",
-      label: "Point Cloud",
-      type: "geometry",
-      description: "Generated point cloud for visualization.",
-    },
-    {
-      key: "curveNetwork",
-      label: "Curve Network",
-      type: "geometry",
-      description: "Generated curve network for visualization.",
-    },
-    {
-      key: "pointCount",
-      label: "Point Count",
-      type: "number",
-      description: "Number of points generated.",
-    },
-    {
-      key: "curveCount",
-      label: "Curve Count",
-      type: "number",
-      description: "Number of curves generated.",
+      description: "Topologically optimized structure (marching cubes isosurface).",
     },
     {
       key: "volume",
@@ -279,47 +255,7 @@ export const TopologyOptimizationSolverNode: WorkflowNodeDefinition = {
       min: 0.1,
       max: 0.9,
       step: 0.05,
-      description: "Density cutoff for extracting points from SIMP field.",
-    },
-    {
-      key: "maxLinksPerPoint",
-      label: "Max Links Per Point",
-      type: "number",
-      defaultValue: 4,
-      min: 2,
-      max: 8,
-      step: 1,
-      description: "Maximum connectivity degree for each point.",
-    },
-    {
-      key: "maxSpanLength",
-      label: "Max Span Length",
-      type: "number",
-      defaultValue: 1.2,
-      min: 0.1,
-      max: 10.0,
-      step: 0.1,
-      description: "Maximum distance between connected points.",
-    },
-    {
-      key: "pipeRadius",
-      label: "Pipe Radius",
-      type: "number",
-      defaultValue: 0.035,
-      min: 0.01,
-      max: 1.0,
-      step: 0.01,
-      description: "Radius for multipipe operation (lower = less geometry, faster).",
-    },
-    {
-      key: "pipeSegments",
-      label: "Pipe Segments",
-      type: "number",
-      defaultValue: 6,
-      min: 4,
-      max: 32,
-      step: 1,
-      description: "Multipipe smoothness (lower = pixelated, faster).",
+      description: "Density cutoff for marching cubes isosurface extraction.",
     },
     {
       key: "seed",
@@ -336,7 +272,7 @@ export const TopologyOptimizationSolverNode: WorkflowNodeDefinition = {
     nameGreek: "Ἐπιλύτης Τοπολογικῆς Βελτιστοποίησης",
     nameEnglish: "Topology Optimization Solver",
     romanization: "Epilýtēs Topologikís Veltitopoíisis",
-    description: "Generates topologically optimized structures using point cloud → curve network → multipipe.",
+    description: "Generates topologically optimized structures using SIMP optimization and marching cubes isosurface extraction.",
   },
   customUI: {
     dashboardButton: {
@@ -358,15 +294,6 @@ export const TopologyOptimizationSolverNode: WorkflowNodeDefinition = {
     const pointDensity = Math.max(10, Math.min(1000, Math.round(
       Number(parameters.pointDensity ?? 100)
     )));
-    const maxLinksPerPoint = Math.max(2, Math.min(8, Math.round(
-      Number(parameters.maxLinksPerPoint ?? 4)
-    )));
-    const maxSpanLength = Math.max(0.1, Math.min(10.0, 
-      Number(parameters.maxSpanLength ?? 1.0)
-    ));
-    const pipeRadius = Math.max(0.01, Math.min(1.0, 
-      Number(parameters.pipeRadius ?? 0.05)
-    ));
     const seed = Math.max(0, Math.min(9999, Math.round(
       Number(parameters.seed ?? 42)
     )));
@@ -374,32 +301,17 @@ export const TopologyOptimizationSolverNode: WorkflowNodeDefinition = {
     
     const emptyResult = {
       optimizedMesh: null,
-      pointCloud: null,
-      curveNetwork: null,
-      pointCount: 0,
-      curveCount: 0,
       volume: 0,
       surfaceArea: 0,
     };
 
     const cachedOptimizedMeshId =
       typeof parameters.optimizedMeshId === "string" ? parameters.optimizedMeshId : null;
-    const cachedPointCloudId =
-      typeof parameters.pointCloudId === "string" ? parameters.pointCloudId : null;
-    const cachedCurveNetworkId =
-      typeof parameters.curveNetworkId === "string" ? parameters.curveNetworkId : null;
-    const hasCached =
-      Boolean(cachedOptimizedMeshId) ||
-      Boolean(cachedPointCloudId) ||
-      Boolean(cachedCurveNetworkId);
+    const hasCached = Boolean(cachedOptimizedMeshId);
 
     if (hasCached) {
       return {
         optimizedMesh: cachedOptimizedMeshId,
-        pointCloud: cachedPointCloudId,
-        curveNetwork: cachedCurveNetworkId,
-        pointCount: Math.max(0, Math.round(toNumber(parameters.pointCount, 0))),
-        curveCount: Math.max(0, Math.round(toNumber(parameters.curveCount, 0))),
         volume: Math.max(0, toNumber(parameters.volume, 0)),
         surfaceArea: Math.max(0, toNumber(parameters.surfaceArea, 0)),
       };

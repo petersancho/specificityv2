@@ -105,12 +105,6 @@ describe("Topology optimization SIMP", () => {
     expect(mean).toBeGreaterThan(0);
     expect(mean).toBeLessThanOrEqual(1.0 + 1e-4);
 
-    // Reuse bounds for geometry extraction.
-    const spanX = bounds.max.x - bounds.min.x;
-    const spanY = bounds.max.y - bounds.min.y;
-    const spanZ = bounds.max.z - bounds.min.z;
-    const maxSpan = Math.max(spanX, spanY, spanZ);
-
     const geometry = generateGeometryFromDensities(
       {
         densities: Float64Array.from(densities),
@@ -119,14 +113,10 @@ describe("Topology optimization SIMP", () => {
         nz: params.nz,
         bounds,
       },
-      0.05,
-      4,
-      maxSpan,
-      0.05,
-      8
+      0.05
     );
 
-    expect(geometry.pointCount).toBeGreaterThan(0);
-    expect(geometry.multipipe.positions.length).toBeGreaterThan(0);
+    expect(geometry.vertexCount).toBeGreaterThan(0);
+    expect(geometry.isosurface.positions.length).toBeGreaterThan(0);
   });
 });

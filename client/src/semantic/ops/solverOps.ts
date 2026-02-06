@@ -74,14 +74,14 @@ export const SOLVER_OPS: readonly SemanticOpMeta[] = [
     domain: 'solver',
     name: 'Topology Optimization Solver',
     category: 'utility',
-    tags: ['3d', 'optimization', 'structural'],
+    tags: ['3d', 'optimization', 'structural', 'simp', 'marching-cubes'],
     complexity: 'varies',
     cost: 'high',
     pure: false,
     deterministic: true,
     sideEffects: ['state'],
-    summary: 'Optimizes material layout for structural performance',
-    stable: false,
+    summary: 'Optimizes material layout for structural performance using SIMP and marching cubes',
+    stable: true,
     since: '2.0.0'
   },
   // Internal simulator operations (not directly exposed to nodes)

@@ -460,26 +460,7 @@ parameters:
         message: "Threshold < 0.5 includes too much gray material"
         severity: "warning"
   
-  - name: "maxLinksPerPoint"
-    type: "integer"
-    default: 2
-    description: "Maximum structural connections per point"
-    
-    constraints:
-      - type: "range"
-        value: [1, 6]
-        message: "Max links should be in [1, 6]"
-  
-  - name: "maxSpanLength"
-    type: "number"
-    unit: "dimensionless"
-    default: 1.2
-    description: "Maximum connection span (in element units)"
-    
-    constraints:
-      - type: "range"
-        value: [0.5, 3.0]
-        message: "Max span should be in [0.5, 3.0]"
+
 
 # =============================================================================
 # OUTPUT SCHEMAS
@@ -513,29 +494,46 @@ outputs:
   - name: "geometry"
     type: "Geometry3D"
     shape: "object"
-    description: "Extracted structural geometry"
+    description: "Extracted structural geometry via marching cubes isosurface"
     
     schema:
       type: "object"
       properties:
-        pointCloud:
-          type: "object"
-          description: "Dense points from high-density elements"
-        
-        curveNetwork:
-          type: "object"
-          description: "Structural skeleton as connected curves"
-        
         mesh:
           type: "object"
-          description: "Smoothed surface mesh"
+          description: "Isosurface mesh extracted via marching cubes"
+          required: ["positions", "indices"]
+          properties:
+            positions:
+              type: "array"
+              items:
+                type: "array"
+                items: { type: "number" }
+                minItems: 3
+                maxItems: 3
+              description: "Vertex positions [x, y, z]"
+            indices:
+              type: "array"
+              items: { type: "integer", minimum: 0 }
+              description: "Triangle indices"
+            normals:
+              type: "array"
+              items:
+                type: "array"
+                items: { type: "number" }
+                minItems: 3
+                maxItems: 3
+              description: "Vertex normals"
     
     postconditions:
-      - expression: "geometry.pointCloud.positions.length > 0"
-        message: "Geometry must contain at least one point"
+      - expression: "geometry.mesh.positions.length > 0"
+        message: "Geometry must contain at least one vertex"
       
-      - expression: "all(geometry.pointCloud.positions, p => isFinite(p))"
+      - expression: "all(geometry.mesh.positions, p => isFinite(p[0]) && isFinite(p[1]) && isFinite(p[2]))"
         message: "All geometry coordinates must be finite"
+      
+      - expression: "geometry.mesh.indices.length % 3 === 0"
+        message: "Indices must form complete triangles"
   
   - name: "convergenceHistory"
     type: "TimeSeries"

@@ -1945,7 +1945,9 @@
     "tags": [
       "3d",
       "optimization",
-      "structural"
+      "structural",
+      "simp",
+      "marching-cubes"
     ],
     "complexity": "varies",
     "cost": "high",
@@ -1954,8 +1956,8 @@
     "sideEffects": [
       "state"
     ],
-    "summary": "Optimizes material layout for structural performance",
-    "stable": false,
+    "summary": "Optimizes material layout for structural performance using SIMP and marching cubes",
+    "stable": true,
     "since": "2.0.0"
   },
   "simulator.initialize": {

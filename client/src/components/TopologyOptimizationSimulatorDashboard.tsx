@@ -7,7 +7,7 @@ import type { RenderMesh, Vec3 } from "../types";
 import type { SimpParams, SolverFrame, SimulationState, SimulationHistory, GoalMarkers } from "./workflow/topology/types";
 import { is3DMode } from "./workflow/topology/simp";
 import { extractGoalMarkers, generateGeometryFromDensities } from "./workflow/topology/geometry";
-import { TopologyRenderer, TopologyConvergence, TopologyGeometryPreview } from "./workflow/topology/TopologyUI";
+import { TopologyConvergence, TopologyGeometryPreview } from "./workflow/topology/TopologyUI";
 import { SimpWorkerClient } from "./workflow/topology/simpWorkerClient";
 
 // ============================================================================
@@ -189,13 +189,8 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   const cgTol = resolveNumber("cgTol", 1e-6);
   const cgMaxIters = resolveNumber("cgMaxIters", 120);
   
-  // Geometry generation parameters (optimized for stability over quality)
+  // Geometry generation parameters
   const densityThreshold = resolveNumber("densityThreshold", 0.3);
-  const maxLinksPerPoint = resolveNumber("maxLinksPerPoint", 4);  // Reduced from 6 for simpler topology
-  const maxSpanLength = resolveNumber("maxSpanLength", 1.2);      // Reduced from 1.5 for fewer curves
-  const pipeRadius = resolveNumber("pipeRadius", 0.035);          // Reduced from 0.045 for less geometry
-  const pipeSegmentsRaw = resolveNumber("pipeSegments", 6);       // Reduced from 12 for pixelated look
-  const pipeSegments = Math.max(4, Math.min(32, Math.round(pipeSegmentsRaw)));
 
   const hasGeometry = !!geometryEdge;
   const goalsCount = goalEdges.length;
@@ -290,11 +285,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
           nz,
           bounds,
         },
-        densityThreshold,
-        maxLinksPerPoint,
-        maxSpanLength,
-        pipeRadius,
-        pipeSegments
+        densityThreshold
       );
       
       // Register geometries in the store
@@ -303,18 +294,6 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
         console.log('[GEOM] Node ID:', nodeId);
       }
       
-      const cachedPointCloudId =
-        typeof parameters.pointCloudId === "string"
-          ? parameters.pointCloudId
-          : typeof outputs.pointCloud === "string"
-            ? outputs.pointCloud
-            : undefined;
-      const cachedCurveNetworkId =
-        typeof parameters.curveNetworkId === "string"
-          ? parameters.curveNetworkId
-          : typeof outputs.curveNetwork === "string"
-            ? outputs.curveNetwork
-            : undefined;
       const cachedOptimizedMeshId =
         typeof parameters.optimizedMeshId === "string"
           ? parameters.optimizedMeshId
@@ -322,45 +301,25 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
             ? outputs.optimizedMesh
             : undefined;
 
-      const pointCloudId = addGeometryMesh(geometryOutput.pointCloud, { 
-        sourceNodeId: nodeId,
-        recordHistory: false,
-        geometryId: cachedPointCloudId,
-        metadata: { generatedBy: 'topology-optimization', type: 'point-cloud' }
-      });
-      if (DEBUG) console.log('[GEOM] Registered point cloud:', pointCloudId);
-      
-      const curveNetworkId = addGeometryMesh(geometryOutput.curveNetwork, { 
-        sourceNodeId: nodeId,
-        recordHistory: false,
-        geometryId: cachedCurveNetworkId,
-        metadata: { generatedBy: 'topology-optimization', type: 'curve-network' }
-      });
-      if (DEBUG) console.log('[GEOM] Registered curve network:', curveNetworkId);
-      
-      const multipipeId = addGeometryMesh(geometryOutput.multipipe, { 
+      const isosurfaceId = addGeometryMesh(geometryOutput.isosurface, { 
         sourceNodeId: nodeId,
         recordHistory: false,
         geometryId: cachedOptimizedMeshId,
-        metadata: { generatedBy: 'topology-optimization', type: 'multipipe' }
+        metadata: { generatedBy: 'topology-optimization', type: 'isosurface' }
       });
-      if (DEBUG) console.log('[GEOM] Registered multipipe:', multipipeId);
+      if (DEBUG) console.log('[GEOM] Registered isosurface:', isosurfaceId);
 
       const surfaceArea = computeMeshArea(
-        geometryOutput.multipipe.positions,
-        geometryOutput.multipipe.indices
+        geometryOutput.isosurface.positions,
+        geometryOutput.isosurface.indices
       );
-      const { volume_m3 } = computeMeshVolumeAndCentroid(geometryOutput.multipipe);
+      const { volume_m3 } = computeMeshVolumeAndCentroid(geometryOutput.isosurface);
 
       updateNodeData(
         nodeId,
         {
           parameters: {
-            optimizedMeshId: multipipeId,
-            pointCloudId,
-            curveNetworkId,
-            pointCount: geometryOutput.pointCount,
-            curveCount: geometryOutput.curveCount,
+            optimizedMeshId: isosurfaceId,
             volume: volume_m3,
             surfaceArea,
             simulationStep: "complete",
@@ -372,11 +331,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
             status: "complete",
           },
           outputs: {
-            optimizedMesh: multipipeId,
-            pointCloud: pointCloudId,
-            curveNetwork: curveNetworkId,
-            pointCount: geometryOutput.pointCount,
-            curveCount: geometryOutput.curveCount,
+            optimizedMesh: isosurfaceId,
             volume: volume_m3,
             surfaceArea,
           },
@@ -385,10 +340,11 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       );
       
       if (DEBUG) {
-        console.log(`[GEOM] ✅ Generated topology optimization geometry:
-          - Point cloud: ${pointCloudId} (${geometryOutput.pointCount} points)
-          - Curve network: ${curveNetworkId} (${geometryOutput.curveCount} curves)
-          - Multipipe: ${multipipeId}`);
+        console.log(`[GEOM] ✅ Generated topology optimization isosurface:
+          - Mesh ID: ${isosurfaceId}
+          - Vertices: ${geometryOutput.vertexCount}
+          - Volume: ${volume_m3.toFixed(6)} m³
+          - Surface Area: ${surfaceArea.toFixed(6)} m²`);
       }
       
     } catch (error) {
@@ -461,11 +417,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
         };
         const result = generateGeometryFromDensities(
           field,
-          densityThreshold,
-          maxLinksPerPoint,
-          maxSpanLength,
-          pipeRadius,
-          pipeSegments
+          densityThreshold
         );
         
         setPreviewGeometry(prev => {
@@ -476,7 +428,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
             prev.uvs = [];
             prev.indices = [];
           }
-          return result.multipipe;
+          return result.isosurface;
         });
         
         const t1 = performance.now();
@@ -1087,102 +1039,6 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                   <span className={styles.parameterValue}>{densityThreshold.toFixed(2)}</span>
                 </div>
               </div>
-
-              <div className={styles.parameterGroup}>
-                <label className={styles.parameterLabel}>
-                  Max Links Per Point
-                  <span className={styles.parameterDescription}>
-                    Connectivity degree (2-8)
-                  </span>
-                </label>
-                <div className={styles.parameterControl}>
-                  <input
-                    type="range"
-                    min="2"
-                    max="8"
-                    step="1"
-                    value={maxLinksPerPoint}
-                    onChange={(e) =>
-                      handleParameterChange("maxLinksPerPoint", Number(e.target.value))
-                    }
-                    className={styles.slider}
-                    disabled={simulationState === 'running'}
-                  />
-                  <span className={styles.parameterValue}>{maxLinksPerPoint}</span>
-                </div>
-              </div>
-
-              <div className={styles.parameterGroup}>
-                <label className={styles.parameterLabel}>
-                  Max Span Length
-                  <span className={styles.parameterDescription}>
-                    Maximum link length (0.5-3.0)
-                  </span>
-                </label>
-                <div className={styles.parameterControl}>
-                  <input
-                    type="range"
-                    min="0.5"
-                    max="3.0"
-                    step="0.1"
-                    value={maxSpanLength}
-                    onChange={(e) =>
-                      handleParameterChange("maxSpanLength", Number(e.target.value))
-                    }
-                    className={styles.slider}
-                    disabled={simulationState === 'running'}
-                  />
-                  <span className={styles.parameterValue}>{maxSpanLength.toFixed(1)}</span>
-                </div>
-              </div>
-
-              <div className={styles.parameterGroup}>
-                <label className={styles.parameterLabel}>
-                  Pipe Radius
-                  <span className={styles.parameterDescription}>
-                    Multipipe thickness (0.01-0.2)
-                  </span>
-                </label>
-                <div className={styles.parameterControl}>
-                  <input
-                    type="range"
-                    min="0.01"
-                    max="0.2"
-                    step="0.005"
-                    value={pipeRadius}
-                    onChange={(e) =>
-                      handleParameterChange("pipeRadius", Number(e.target.value))
-                    }
-                    className={styles.slider}
-                    disabled={simulationState === 'running'}
-                  />
-                  <span className={styles.parameterValue}>{pipeRadius.toFixed(3)}</span>
-                </div>
-              </div>
-
-              <div className={styles.parameterGroup}>
-                <label className={styles.parameterLabel}>
-                  Pipe Segments
-                  <span className={styles.parameterDescription}>
-                    Smoothness vs speed (6-32)
-                  </span>
-                </label>
-                <div className={styles.parameterControl}>
-                  <input
-                    type="range"
-                    min="6"
-                    max="32"
-                    step="1"
-                    value={pipeSegments}
-                    onChange={(e) =>
-                      handleParameterChange("pipeSegments", Number(e.target.value))
-                    }
-                    className={styles.slider}
-                    disabled={simulationState === 'running'}
-                  />
-                  <span className={styles.parameterValue}>{pipeSegments}</span>
-                </div>
-              </div>
             </div>
           </div>
         )}
@@ -1190,42 +1046,12 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
         {activeTab === "simulator" && (
           <div className={styles.simulatorTab}>
             <div className={styles.simulatorLayout}>
-              <div className={styles.geometryView}>
-                <h3 className={styles.viewTitle}>Density Field Evolution</h3>
-                {markers && baseMesh ? (
-                  <TopologyRenderer
-                    fe={{ 
-                      nx, 
-                      ny, 
-                      nz, 
-                      numElements: nx * ny * nz, 
-                      numNodes: (nx + 1) * (ny + 1) * (nz > 1 ? nz + 1 : 1), 
-                      numDofs: (nx + 1) * (ny + 1) * (nz > 1 ? nz + 1 : 1) * (nz > 1 ? 3 : 2), 
-                      elementSize: { 
-                        x: Math.max(1e-6, (baseBounds?.max.x ?? 1) - (baseBounds?.min.x ?? 0)) / nx, 
-                        y: Math.max(1e-6, (baseBounds?.max.y ?? 1) - (baseBounds?.min.y ?? 0)) / ny, 
-                        z: nz > 1 ? Math.max(1e-6, (baseBounds?.max.z ?? 1) - (baseBounds?.min.z ?? 0)) / nz : 0 
-                      }, 
-                      bounds: baseBounds ?? { min: { x: 0, y: 0, z: 0 }, max: { x: 1, y: 1, z: nz > 1 ? 1 : 0 } } 
-                    }}
-                    markers={markers}
-                    frame={currentFrame}
-                    width={600}
-                    height={450}
-                  />
-                ) : (
-                  <div className={styles.noGeometry}>
-                    {hasGeometry ? 'Initializing...' : 'Connect geometry to begin'}
-                  </div>
-                )}
-              </div>
-
               <div className={styles.geometryPreviewView}>
-                <h3 className={styles.viewTitle}>3D Geometry Preview</h3>
+                <h3 className={styles.viewTitle}>Optimized Structure (Marching Cubes Isosurface)</h3>
                 <TopologyGeometryPreview
                   geometry={previewGeometry}
-                  width={600}
-                  height={450}
+                  width={1200}
+                  height={600}
                 />
                 <div className={styles.previewHint}>
                   Drag to rotate • Updates every 10 iterations

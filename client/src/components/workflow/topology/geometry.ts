@@ -342,161 +342,109 @@ export function extractGoalMarkers(mesh: RenderMesh, goals: GoalBase[]): GoalMar
 }
 
 // ============================================================================
-// DENSITY-TO-MESH GENERATION
+// VOXEL-TO-MESH GENERATION
 // ============================================================================
 
-export interface DensityField {
+import { marchingCubes as chemistryMarchingCubes } from "../../../workflow/nodes/solver/chemistry/marchingCubes";
+import type { VoxelField } from "../../../workflow/nodes/solver/chemistry/marchingCubes";
+
+export interface VoxelScalarField {
   densities: Float32Array | Float64Array;
   nx: number; ny: number; nz: number;
   bounds: { min: Vec3; max: Vec3 };
 }
 
 export interface GeometryOutput {
-  pointCloud: RenderMesh;
-  curveNetwork: RenderMesh;
-  multipipe: RenderMesh;
-  pointCount: number;
-  curveCount: number;
+  isosurface: RenderMesh;
+  vertexCount: number;
 }
 
-interface DensePoint extends Vec3 { density: number; index: number; }
-interface Curve { start: DensePoint; end: DensePoint; avgDensity: number; }
-
-function extractDensePoints(field: DensityField, threshold: number): DensePoint[] {
-  const { densities, nx, ny, nz, bounds } = field;
-  const points: DensePoint[] = [];
-  const dx = (bounds.max.x - bounds.min.x) / nx;
-  const dy = (bounds.max.y - bounds.min.y) / ny;
-  const dz = nz > 1 ? (bounds.max.z - bounds.min.z) / nz : 0;
+/**
+ * Resample non-cubic voxel grid to cubic grid for marching cubes.
+ * 
+ * Marching cubes assumes cubic voxels (equal spacing in x, y, z).
+ * SIMP optimization can produce non-cubic grids (e.g., 100×100×20).
+ * This function resamples to the maximum dimension to ensure cubic cells.
+ * For 2D problems (nz=1), keeps Z dimension at 1 to avoid memory waste.
+ */
+function resampleToCubicGrid(field: VoxelScalarField): VoxelField {
+  const { nx, ny, nz, bounds, densities } = field;
   
-  for (let iz = 0; iz < nz; iz++) {
-    for (let iy = 0; iy < ny; iy++) {
-      for (let ix = 0; ix < nx; ix++) {
-        const density = densities[iz * nx * ny + iy * nx + ix];
-        if (density > threshold) {
-          points.push({
-            x: bounds.min.x + (ix + 0.5) * dx,
-            y: bounds.min.y + (iy + 0.5) * dy,
-            z: nz > 1 ? bounds.min.z + (iz + 0.5) * dz : bounds.min.z,
-            density, index: points.length
-          });
-        }
+  const is2D = nz === 1;
+  const resolution = is2D ? Math.max(nx, ny) : Math.max(nx, ny, nz);
+  const resZ = is2D ? 1 : resolution;
+  
+  const cellSize: Vec3 = {
+    x: (bounds.max.x - bounds.min.x) / resolution,
+    y: (bounds.max.y - bounds.min.y) / resolution,
+    z: is2D ? 0 : (bounds.max.z - bounds.min.z) / resolution,
+  };
+  
+  const cubicDensities = new Float32Array(resolution * resolution * resZ);
+  
+  for (let z = 0; z < resZ; z++) {
+    for (let y = 0; y < resolution; y++) {
+      for (let x = 0; x < resolution; x++) {
+        const srcX = Math.min(Math.floor((x / resolution) * nx), nx - 1);
+        const srcY = Math.min(Math.floor((y / resolution) * ny), ny - 1);
+        const srcZ = is2D ? 0 : Math.min(Math.floor((z / resolution) * nz), nz - 1);
+        
+        const srcIdx = srcX + srcY * nx + srcZ * nx * ny;
+        const dstIdx = x + y * resolution + z * resolution * resolution;
+        
+        cubicDensities[dstIdx] = densities[srcIdx];
       }
     }
   }
-  return points;
-}
-
-function generateCurveNetwork(points: DensePoint[], maxLinksPerPoint: number, maxSpanLength: number): Curve[] {
-  if (points.length === 0) return [];
-  const maxSpanSq = maxSpanLength * maxSpanLength;
-  const curves: Curve[] = [];
-  const linkCount = new Map<number, number>();
-  for (const p of points) linkCount.set(p.index, 0);
-  
-  const neighbors: { i: number; j: number; distSq: number; avgDensity: number }[] = [];
-  for (let i = 0; i < points.length; i++) {
-    for (let j = i + 1; j < points.length; j++) {
-      const dx = points[j].x - points[i].x, dy = points[j].y - points[i].y, dz = points[j].z - points[i].z;
-      const distSq = dx * dx + dy * dy + dz * dz;
-      if (distSq < maxSpanSq) neighbors.push({ i, j, distSq, avgDensity: (points[i].density + points[j].density) / 2 });
-    }
-  }
-  
-  neighbors.sort((a, b) => Math.abs(b.avgDensity - a.avgDensity) > 0.01 ? b.avgDensity - a.avgDensity : a.distSq - b.distSq);
-  
-  for (const { i, j, avgDensity } of neighbors) {
-    const c1 = linkCount.get(i) || 0, c2 = linkCount.get(j) || 0;
-    if (c1 < maxLinksPerPoint && c2 < maxLinksPerPoint) {
-      curves.push({ start: points[i], end: points[j], avgDensity });
-      linkCount.set(i, c1 + 1);
-      linkCount.set(j, c2 + 1);
-    }
-  }
-  return curves;
-}
-
-function createPointCloudMesh(points: DensePoint[], baseSize: number): RenderMesh {
-  if (points.length === 0) return { positions: [], normals: [], uvs: [], indices: [] };
-  const positions: number[] = [], normals: number[] = [], uvs: number[] = [], indices: number[] = [];
-  
-  for (const p of points) {
-    const baseIdx = positions.length / 3;
-    const size = baseSize * (0.5 + p.density * 0.5);
-    const verts = [
-      [p.x - size, p.y - size, p.z - size], [p.x + size, p.y - size, p.z - size],
-      [p.x + size, p.y + size, p.z - size], [p.x - size, p.y + size, p.z - size],
-      [p.x - size, p.y - size, p.z + size], [p.x + size, p.y - size, p.z + size],
-      [p.x + size, p.y + size, p.z + size], [p.x - size, p.y + size, p.z + size]
-    ];
-    for (const v of verts) { positions.push(...v); normals.push(0, 1, 0); uvs.push(0, 0); }
-    const faces = [[0,1,2],[0,2,3],[4,6,5],[4,7,6],[0,4,5],[0,5,1],[2,6,7],[2,7,3],[0,3,7],[0,7,4],[1,5,6],[1,6,2]];
-    for (const f of faces) indices.push(baseIdx + f[0], baseIdx + f[1], baseIdx + f[2]);
-  }
-  return { positions, normals, uvs, indices };
-}
-
-function createTube(start: Vec3, end: Vec3, r1: number, r2: number, segs: number, pos: number[], nrm: number[], uv: number[], idx: number[], base: number): void {
-  const dir = { x: end.x - start.x, y: end.y - start.y, z: end.z - start.z };
-  const len = Math.sqrt(dir.x * dir.x + dir.y * dir.y + dir.z * dir.z);
-  if (len < 0.001) return;
-  dir.x /= len; dir.y /= len; dir.z /= len;
-  
-  let p1: Vec3 = Math.abs(dir.y) < 0.9 ? { x: 0, y: 1, z: 0 } : { x: 1, y: 0, z: 0 };
-  const p2 = { x: dir.y * p1.z - dir.z * p1.y, y: dir.z * p1.x - dir.x * p1.z, z: dir.x * p1.y - dir.y * p1.x };
-  const l2 = Math.sqrt(p2.x * p2.x + p2.y * p2.y + p2.z * p2.z);
-  p2.x /= l2; p2.y /= l2; p2.z /= l2;
-  p1 = { x: p2.y * dir.z - p2.z * dir.y, y: p2.z * dir.x - p2.x * dir.z, z: p2.x * dir.y - p2.y * dir.x };
-  
-  for (let ring = 0; ring < 2; ring++) {
-    const center = ring === 0 ? start : end;
-    const radius = ring === 0 ? r1 : r2;
-    for (let i = 0; i < segs; i++) {
-      const angle = (i / segs) * 2 * Math.PI;
-      const cos = Math.cos(angle), sin = Math.sin(angle);
-      pos.push(center.x + radius * (cos * p1.x + sin * p2.x), center.y + radius * (cos * p1.y + sin * p2.y), center.z + radius * (cos * p1.z + sin * p2.z));
-      nrm.push(cos * p1.x + sin * p2.x, cos * p1.y + sin * p2.y, cos * p1.z + sin * p2.z);
-      uv.push(i / segs, ring);
-    }
-  }
-  
-  for (let i = 0; i < segs; i++) {
-    const i1 = base + i, i2 = base + ((i + 1) % segs), i3 = base + segs + i, i4 = base + segs + ((i + 1) % segs);
-    idx.push(i1, i2, i3, i2, i4, i3);
-  }
-}
-
-function createMultipipeMesh(curves: Curve[], baseRadius: number, segments: number): RenderMesh {
-  if (curves.length === 0) return { positions: [], normals: [], uvs: [], indices: [] };
-  const positions: number[] = [], normals: number[] = [], uvs: number[] = [], indices: number[] = [];
-  
-  for (const curve of curves) {
-    createTube(curve.start, curve.end, baseRadius * (0.5 + curve.start.density * 2), baseRadius * (0.5 + curve.end.density * 2), segments, positions, normals, uvs, indices, positions.length / 3);
-  }
-  return { positions, normals, uvs, indices };
-}
-
-/** Generate geometry from density field */
-export function generateGeometryFromDensities(
-  field: DensityField,
-  densityThreshold: number = 0.3,
-  maxLinksPerPoint: number = 6,
-  maxSpanLength: number = 1.5,
-  baseRadius: number = 0.045,
-  pipeSegments: number = 12
-): GeometryOutput {
-  const segs = Math.max(4, Math.round(pipeSegments));  // Reduced min from 6 to 4 for lower quality
-  const points = extractDensePoints(field, densityThreshold);
-  const curves = generateCurveNetwork(points, maxLinksPerPoint, maxSpanLength);
-  
-  // Only generate multipipe mesh for performance (skip pointCloud and curveNetwork)
-  const multipipe = createMultipipeMesh(curves, baseRadius, segs);
   
   return {
-    pointCloud: multipipe,      // Reuse multipipe to avoid extra allocation
-    curveNetwork: multipipe,    // Reuse multipipe to avoid extra allocation
-    multipipe: multipipe,
-    pointCount: points.length,
-    curveCount: curves.length
+    resolution,
+    bounds,
+    cellSize,
+    data: [],
+    densities: cubicDensities,
   };
+}
+
+export function generateGeometryFromVoxels(
+  field: VoxelScalarField,
+  isovalue: number = 0.3
+): GeometryOutput {
+  if (field.nx <= 0 || field.ny <= 0 || field.nz <= 0) {
+    throw new Error(`Invalid field dimensions: ${field.nx}×${field.ny}×${field.nz}`);
+  }
+  
+  if (isovalue < 0 || isovalue > 1) {
+    console.warn(`Isovalue ${isovalue} outside [0,1], clamping`);
+    isovalue = Math.max(0, Math.min(1, isovalue));
+  }
+  
+  const voxelField = resampleToCubicGrid(field);
+  
+  const defaultColor: [number, number, number] = [0.8, 0.6, 0.4];
+  const mesh = chemistryMarchingCubes(voxelField, isovalue, [defaultColor]);
+  
+  if (mesh.positions.length === 0) {
+    console.warn(`Marching cubes produced empty mesh (isovalue=${isovalue})`);
+  }
+  
+  const isosurface: RenderMesh = {
+    positions: mesh.positions,
+    normals: mesh.normals,
+    uvs: mesh.uvs,
+    indices: mesh.indices,
+    colors: mesh.colors,
+  };
+  
+  return {
+    isosurface,
+    vertexCount: isosurface.positions.length / 3,
+  };
+}
+
+export function generateGeometryFromDensities(
+  field: VoxelScalarField,
+  densityThreshold: number = 0.3
+): GeometryOutput {
+  return generateGeometryFromVoxels(field, densityThreshold);
 }

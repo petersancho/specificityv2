@@ -1,6 +1,6 @@
 # Semantic Inventory
 
-Generated: 2026-02-04T20:34:56.551Z
+Generated: 2026-02-06T01:34:57.157Z
 
 ## Summary
 
@@ -289,7 +289,7 @@ Generated: 2026-02-04T20:34:56.551Z
 | `solver.chemistry` | Chemistry Solver | utility | ✅ | chemistrySolver |
 | `solver.evolutionary` | Evolutionary Solver | utility | ✅ | evolutionarySolver |
 | `solver.voxel` | Voxel Solver | conversion | ✅ | voxelSolver |
-| `solver.topologyOptimization` | Topology Optimization Solver | utility | ⚠️ | topologyOptimizationSolver |
+| `solver.topologyOptimization` | Topology Optimization Solver | utility | ✅ | topologyOptimizationSolver |
 | `simulator.initialize` | Initialize Simulator | utility | ✅ | evolutionarySolver |
 | `simulator.step` | Step Simulator | utility | ✅ | evolutionarySolver |
 | `simulator.converge` | Check Convergence | analysis | ✅ | evolutionarySolver |

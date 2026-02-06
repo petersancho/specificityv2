@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated": "2026-02-04T20:23:47.900Z",
+  "generated": "2026-02-06T00:43:56.618Z",
   "description": "AI Agent-readable catalog of operations with semantic validation schemas",
   "operations": {
     "solver.topologyOptimization": {
@@ -158,25 +158,6 @@
             "densityThreshold ∈ [0.1, 0.9]",
             "Threshold < 0.5 includes too much gray material"
           ]
-        },
-        {
-          "name": "maxLinksPerPoint",
-          "type": "integer",
-          "default": 2,
-          "description": "Maximum structural connections per point",
-          "constraints": [
-            "maxLinksPerPoint ∈ [1, 6]"
-          ]
-        },
-        {
-          "name": "maxSpanLength",
-          "type": "number",
-          "unit": "dimensionless",
-          "default": 1.2,
-          "description": "Maximum connection span (in element units)",
-          "constraints": [
-            "maxSpanLength ∈ [0.5, 3]"
-          ]
         }
       ],
       "inputs": [
@@ -215,15 +196,19 @@
         {
           "name": "geometry",
           "type": "Geometry3D",
-          "description": "Extracted structural geometry",
+          "description": "Extracted structural geometry via marching cubes isosurface",
           "postconditions": [
             {
-              "expression": "geometry.pointCloud.positions.length > 0",
-              "message": "Geometry must contain at least one point"
+              "expression": "geometry.mesh.positions.length > 0",
+              "message": "Geometry must contain at least one vertex"
             },
             {
-              "expression": "all(geometry.pointCloud.positions, p => isFinite(p))",
+              "expression": "all(geometry.mesh.positions, p => isFinite(p[0]) && isFinite(p[1]) && isFinite(p[2]))",
               "message": "All geometry coordinates must be finite"
+            },
+            {
+              "expression": "geometry.mesh.indices.length % 3 === 0",
+              "message": "Indices must form complete triangles"
             }
           ]
         },
