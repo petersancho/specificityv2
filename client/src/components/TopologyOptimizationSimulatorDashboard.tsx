@@ -339,7 +339,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
             surfaceArea,
           },
         },
-        { recalculate: false }
+        { recalculate: true }
       );
       
       if (DEBUG) {

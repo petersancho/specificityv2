@@ -373,7 +373,11 @@ export const TopologyOptimizationSolverNode: WorkflowNodeDefinition = {
     };
 
     const cachedOptimizedMeshId =
-      typeof parameters.optimizedMeshId === "string" ? parameters.optimizedMeshId : null;
+      typeof parameters.optimizedMeshId === "string" 
+        ? parameters.optimizedMeshId 
+        : typeof outputs.optimizedMesh === "string"
+          ? outputs.optimizedMesh
+          : null;
     const hasCached = Boolean(cachedOptimizedMeshId);
 
     if (hasCached) {
@@ -384,7 +388,7 @@ export const TopologyOptimizationSolverNode: WorkflowNodeDefinition = {
       };
     }
     
-    // Return empty result if simulation is idle
+    // Return empty result if simulation is idle (no cached mesh)
     if (simulationStep === 'idle') {
       return emptyResult;
     }
