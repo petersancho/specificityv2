@@ -69,6 +69,15 @@ const run = async (mesh: RenderMesh, markers: GoalMarkers, params: SimpParams, o
   paused = false;
   activeParams = params;
   
+  // CRITICAL: Log received params to verify minIterations is being passed correctly
+  console.log('[SIMP WORKER] ⚠️ RECEIVED PARAMS:', {
+    minIterations: params.minIterations,
+    maxIters: params.maxIters,
+    volFrac: params.volFrac,
+    penalStart: params.penalStart,
+    penalEnd: params.penalEnd,
+  });
+  
   const frameStride = options?.frameStride ?? 1;
   const frameIntervalMs = options?.frameIntervalMs ?? 0;
   let lastFrameTime = 0;

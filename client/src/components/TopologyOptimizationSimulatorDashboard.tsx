@@ -458,16 +458,16 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       isRunningRef.current = false;
       setSimulationState('converged');
       
-      if (DEBUG) {
-        console.log('[TOPOLOGY] Simulation converged! Generating geometry...');
-        console.log('[TOPOLOGY] baseMesh:', baseMesh ? 'exists' : 'NULL');
-        console.log('[TOPOLOGY] frame.densities:', frame.densities ? `${frame.densities.length} elements` : 'NULL');
-      }
+      // ALWAYS log convergence (not just in DEBUG mode)
+      console.log('[TOPOLOGY] ⚠️ SIMULATION CONVERGED at iteration', frame.iter);
+      console.log('[TOPOLOGY] baseMesh:', baseMesh ? 'exists' : 'NULL');
+      console.log('[TOPOLOGY] frame.densities:', frame.densities ? `${frame.densities.length} elements` : 'NULL');
       
       if (baseMesh) {
         try {
+          console.log('[TOPOLOGY] ⚠️ GENERATING GEOMETRY...');
           generateAndRegisterGeometry(frame, baseMesh);
-          if (DEBUG) console.log('[TOPOLOGY] ✅ Geometry generation completed successfully');
+          console.log('[TOPOLOGY] ✅ Geometry generation completed successfully');
         } catch (error) {
           console.error('[TOPOLOGY] ❌ Geometry generation FAILED:', error);
         }
@@ -546,6 +546,12 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     console.log('[TOPOLOGY] Grid resolution:', { nx, ny, nz });
     console.log('[TOPOLOGY] Total nodes:', (nx + 1) * (ny + 1) * (nz + 1));
     console.log('[TOPOLOGY] Using web worker for computation');
+    console.log('[TOPOLOGY] ⚠️ CRITICAL PARAMETER CHECK:', {
+      minIterations: simpParams.minIterations,
+      maxIters: simpParams.maxIters,
+      'minIterations from resolveNumber': minIterations,
+      'parameters.minIterations': (parameters as Record<string, unknown>).minIterations,
+    });
     
     if (nz < 15) {
       console.error('[TOPOLOGY] ⚠️⚠️⚠️ CRITICAL: Low Z resolution detected (nz=' + nz + ') ⚠️⚠️⚠️');
