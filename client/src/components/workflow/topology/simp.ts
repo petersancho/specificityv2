@@ -833,6 +833,11 @@ export async function* runSimp(
   let complianceHistory: number[] = [];                   // Track compliance history
   let oscillationDetected = false;                        // Pause continuation if oscillating
   
+  // Divergence detection (stops optimization if compliance is increasing)
+  const DIVERGENCE_WINDOW = 5;                            // Check last N compliance values
+  let consecutiveIncreases = 0;                           // Count consecutive compliance increases
+  const MAX_CONSECUTIVE_INCREASES = 3;                    // Stop if compliance increases 3+ times in a row
+  
   // Adaptive continuation parameters (from params or defaults)
   const PENALTY_STEP = params.penalStep ?? 0.05;          // Fixed step size (balanced for quality and speed)
   const BETA_MULTIPLIER = params.betaMultiplier ?? 1.1;   // Beta multiplier (balanced for quality and speed)
@@ -889,12 +894,17 @@ export async function* runSimp(
     // Adaptive stability check: compliance must be stable for CONT_STABLE_ITERS iterations
     const isStable = stableIterCount >= CONT_STABLE_ITERS;
     
+    // CRITICAL: Only allow continuation if compliance is improving (decreasing)
+    // Check if compliance has been decreasing over the last few iterations
+    const complianceImproving = complianceHistory.length >= 3 && 
+      complianceHistory[complianceHistory.length - 1] < complianceHistory[complianceHistory.length - 3];
+    
     // Decide on parameter changes (NEVER change both in same iteration)
-    // Pause continuation if oscillation detected
+    // Pause continuation if oscillation detected OR compliance is not improving
     let parameterChanged = false;
     
-    if (!oscillationDetected) {
-      // Priority 1: Penalty ladder (only when stable)
+    if (!oscillationDetected && (complianceImproving || iter <= 50)) {
+      // Priority 1: Penalty ladder (only when stable and improving)
       if (!parameterChanged && gapOk && isStable && penal < params.penalEnd - 1e-9) {
         const penalNew = Math.min(params.penalEnd, penal + PENALTY_STEP);
         if (penalNew > penal + 1e-9) {
@@ -905,7 +915,7 @@ export async function* runSimp(
         }
       }
       
-      // Priority 2: Beta increase (only when penalty >= 2.0 and stable)
+      // Priority 2: Beta increase (only when penalty >= 2.0 and stable and improving)
       const betaCanIncrease = isStable && (penal >= Math.min(params.penalEnd, 2.0));
       
       if (!parameterChanged && gapOk && betaCanIncrease && beta < betaMax - 1e-9) {
@@ -917,6 +927,8 @@ export async function* runSimp(
           if (DEBUG) console.log(`[SIMP] Beta: ${beta.toFixed(1)} at iteration ${iter}`);
         }
       }
+    } else if (!complianceImproving && iter > 50 && !oscillationDetected) {
+      console.log(`[SIMP] ⚠️ Pausing continuation at iteration ${iter}: Compliance not improving (${complianceHistory[complianceHistory.length - 1].toExponential(3)} vs ${complianceHistory[complianceHistory.length - 3].toExponential(3)})`);
     }
     
     // Update continuation state
@@ -1020,6 +1032,27 @@ export async function* runSimp(
       stableIterCount = 0;
     }
     
+    // Divergence detection: Track consecutive compliance increases
+    if (iter > 1 && compliance > compliancePrev * 1.001) {  // 0.1% increase threshold
+      consecutiveIncreases++;
+      if (consecutiveIncreases >= MAX_CONSECUTIVE_INCREASES) {
+        console.error(`[SIMP] ❌ DIVERGENCE DETECTED at iteration ${iter}: Compliance increased ${consecutiveIncreases} times in a row (${compliancePrev.toExponential(3)} → ${compliance.toExponential(3)}). Stopping optimization.`);
+        console.error(`[SIMP] This usually means penalty/beta increased too aggressively. Try reducing penalty step or beta multiplier.`);
+        yield { 
+          iter, 
+          compliance, 
+          change: maxChange, 
+          vol, 
+          densities: bestDensities ? new Float32Array(bestDensities) : rhoPhysical, 
+          converged: false, 
+          error: `Divergence detected: compliance increased ${consecutiveIncreases} times in a row. Returning best design from iteration ${bestIter}.` 
+        };
+        break;
+      }
+    } else {
+      consecutiveIncreases = 0;  // Reset counter if compliance decreased
+    }
+    
     // Checkpoint best design (for rollback)
     // CRITICAL: Save penalty and beta along with densities so they stay in sync!
     if (compliance < bestCompliance) {
@@ -1089,16 +1122,16 @@ export async function* runSimp(
     // 1. Compliance change < 0.1% (optimization converged)
     // 2. Density change < 0.3% (design stabilized)
     // 3. Gray level < 5% (discrete 0/1 solution)
-    // 4. Continuation complete (penalty >= penalEnd AND beta >= betaMax)
+    // NOTE: Removed continuation requirement - optimizer can converge at any penalty/beta
+    //       if compliance is stable. This prevents forcing continuation when it causes divergence.
     const complianceConverged = relCompChange < 0.001;   // 0.1%
     const densityConverged = maxChange < 0.003;          // 0.3%
     const isDiscrete = grayLevel < grayTol;              // < 5% (default)
     
-    // CRITICAL: Don't converge until continuation is complete!
-    // This prevents premature convergence at low penalty/beta values
+    // Optional: Track continuation progress for logging (not required for convergence)
     const continuationComplete = penal >= params.penalEnd * 0.95 && beta >= betaMax * 0.9;
     
-    const isConverging = complianceConverged && densityConverged && isDiscrete && continuationComplete;
+    const isConverging = complianceConverged && densityConverged && isDiscrete;
     
     const timings = {
       filterMs: (tFilter - t0).toFixed(1),
@@ -1156,11 +1189,12 @@ export async function* runSimp(
         maxChange: maxChange.toFixed(4) + ' (< 0.3% ✓)',
         vol: vol.toFixed(3),
         grayLevel: grayLevel.toFixed(3) + ` (< ${(grayTol * 100).toFixed(0)}% ✓)`,
-        penalty: `${penal.toFixed(2)}/${params.penalEnd.toFixed(2)} (≥ 95% ✓)`,
-        beta: `${beta.toFixed(1)}/${betaMax.toFixed(1)} (≥ 90% ✓)`,
+        penalty: `${penal.toFixed(2)}/${params.penalEnd.toFixed(2)} (${continuationComplete ? '✓' : 'partial'})`,
+        beta: `${beta.toFixed(1)}/${betaMax.toFixed(1)} (${continuationComplete ? '✓' : 'partial'})`,
         consecutiveConverged: `${consecutiveConverged} (≥ 5 ✓)`,
         minIterations,
         minItersReached: minItersReached ? '✓' : '✗',
+        note: continuationComplete ? 'Full continuation complete' : 'Converged before full continuation (compliance stable)',
       });
       break;
     }

@@ -357,7 +357,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   };
   
 
-  const HISTORY_LIMIT = 100;
+  const HISTORY_LIMIT = 2500; // Store full history for long runs (up to 2000 iterations)
 
   const appendLimited = (arr: number[], value: number, limit = HISTORY_LIMIT) => {
     if (arr.length < limit) return [...arr, value];
