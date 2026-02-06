@@ -185,7 +185,8 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   const move = resolveNumber("move", 0.2);
   const maxIters = resolveNumber("maxIters", 300);
   const tolChange = resolveNumber("tolChange", 0.01);
-  const minIterations = resolveNumber("minIterations", 150);
+  // Force minIterations to be at least 150 (even if node has old default value of 30)
+  const minIterations = Math.max(150, resolveNumber("minIterations", 150));
   const grayTol = resolveNumber("grayTol", 0.03);
   const betaMax = resolveNumber("betaMax", 64);
   const E0 = resolveNumber("E0", 1.0);
@@ -311,7 +312,11 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
         geometryId: cachedOptimizedMeshId,
         metadata: { generatedBy: 'topology-optimization', type: 'isosurface' }
       });
-      if (DEBUG) console.log('[GEOM] Registered isosurface:', isosurfaceId);
+      console.log('[TOPOLOGY] ✅ Registered isosurface geometry:', isosurfaceId);
+      console.log('[TOPOLOGY] Isosurface mesh:', {
+        vertices: geometryOutput.isosurface.positions.length / 3,
+        triangles: geometryOutput.isosurface.indices.length / 3,
+      });
 
       const surfaceArea = computeMeshArea(
         geometryOutput.isosurface.positions,
@@ -343,8 +348,12 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
         { recalculate: true }
       );
       
+      console.log('[TOPOLOGY] ✅ Updated node outputs with geometry ID:', isosurfaceId);
+      console.log('[TOPOLOGY] Recalculation triggered: true');
+      
       // Select the geometry in Roslyn so it's visible
       selectGeometry(isosurfaceId, false);
+      console.log('[TOPOLOGY] ✅ Selected geometry in Roslyn:', isosurfaceId);
       
       if (DEBUG) {
         console.log(`[GEOM] ✅ Generated topology optimization isosurface:

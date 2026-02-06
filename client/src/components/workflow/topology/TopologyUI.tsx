@@ -231,6 +231,12 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
   const LIGHT = { r: 140, g: 145, b: 155 };  // Light slate (was 90,98,112)
   const STROKE = { r: 50, g: 55, b: 65 };    // Dark charcoal (was 15,18,22)
   const POINT_COLOR = `rgb(${BASE.r}, ${BASE.g}, ${BASE.b})`;
+  
+  console.log('[RENDER] Rendering geometry:', {
+    vertices: positions.length / 3,
+    indices: indices ? indices.length : 0,
+    triangles: indices ? indices.length / 3 : 0,
+  });
 
   // Fallback: if no indices, render vertices as points
   if (!indices || indices.length === 0) {
@@ -271,6 +277,8 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
   // them as filled triangles regardless of size to get a solid appearance
   const STROKE_THRESHOLD = 50; // Only stroke triangles larger than this
   
+  console.log('[RENDER] Rendering', triangles.length, 'triangles with z-depth shading');
+  
   // First pass: fill all triangles (no stroke) for solid appearance
   for (const tri of triangles) {
     const [i0, i1, i2] = tri.indices;
@@ -292,7 +300,8 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
   
   // Second pass: stroke only larger triangles for edge definition
   ctx.strokeStyle = `rgb(${STROKE.r}, ${STROKE.g}, ${STROKE.b})`;
-  ctx.lineWidth = 0.5;
+  ctx.lineWidth = 0.8;
+  let strokedCount = 0;
   for (const tri of triangles) {
     const [i0, i1, i2] = tri.indices;
     const p0 = projected[i0], p1 = projected[i1], p2 = projected[i2];
@@ -305,6 +314,9 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
       ctx.lineTo(p2.x, p2.y);
       ctx.closePath();
       ctx.stroke();
+      strokedCount++;
     }
   }
+  
+  console.log('[RENDER] ✅ Rendered', triangles.length, 'filled triangles,', strokedCount, 'with strokes');
 }
