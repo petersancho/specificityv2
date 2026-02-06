@@ -163,34 +163,38 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     return overrides;
   }, [inputSourceNodes, nodeId]);
 
-  const resolveNumber = (key: string, fallback: number) => {
+  const resolveNumber = (key: string) => {
     if (inputOverrides.has(key)) {
-      return toNumber(inputOverrides.get(key), fallback);
+      const value = inputOverrides.get(key);
+      if (typeof value === "number" && Number.isFinite(value)) return value;
     }
-    return toNumber((parameters as Record<string, unknown>)[key], fallback);
+    const value = (parameters as Record<string, unknown>)[key];
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    return 0;
   };
 
-  // SIMP parameters
-  const nx = resolveNumber("nx", 40);
-  const ny = resolveNumber("ny", 30);
-  const nz = resolveNumber("nz", 20);
-  const volFrac = resolveNumber("volFrac", 0.4);
-  const penalStart = resolveNumber("penalStart", 1.0);
-  const penalEnd = resolveNumber("penalEnd", 3.0);
-  const penalRampIters = resolveNumber("penalRampIters", 60);
-  const rmin = resolveNumber("rmin", 1.2);
-  const move = resolveNumber("move", 0.15);
-  const maxIters = resolveNumber("maxIters", 80);
-  const tolChange = resolveNumber("tolChange", 0.001);
-  const E0 = resolveNumber("E0", 1.0);
-  const Emin = resolveNumber("Emin", 1e-9);
-  const rhoMin = resolveNumber("rhoMin", 1e-3);
-  const nu = resolveNumber("nu", 0.3);
-  const cgTol = resolveNumber("cgTol", 1e-6);
-  const cgMaxIters = resolveNumber("cgMaxIters", 120);
-  
-  // Geometry generation parameters
-  const densityThreshold = resolveNumber("densityThreshold", 0.3);
+  // SIMP parameters - all values come from node parameters (no hardcoded fallbacks)
+  const nx = resolveNumber("nx");
+  const ny = resolveNumber("ny");
+  const nz = resolveNumber("nz");
+  const volFrac = resolveNumber("volFrac");
+  const penalStart = resolveNumber("penalStart");
+  const penalEnd = resolveNumber("penalEnd");
+  const penalRampIters = resolveNumber("penalRampIters");
+  const rmin = resolveNumber("rmin");
+  const move = resolveNumber("move");
+  const maxIters = resolveNumber("maxIters");
+  const tolChange = resolveNumber("tolChange");
+  const minIterations = resolveNumber("minIterations");
+  const grayTol = resolveNumber("grayTol");
+  const betaMax = resolveNumber("betaMax");
+  const E0 = resolveNumber("E0");
+  const Emin = resolveNumber("Emin");
+  const rhoMin = resolveNumber("rhoMin");
+  const nu = resolveNumber("nu");
+  const cgTol = resolveNumber("cgTol");
+  const cgMaxIters = resolveNumber("cgMaxIters");
+  const densityThreshold = resolveNumber("densityThreshold");
 
   const hasGeometry = !!geometryEdge;
   const goalsCount = goalEdges.length;
@@ -515,9 +519,9 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       move,
       maxIters,
       tolChange,
-      minIterations: toNumber(parameters.minIterations, 30),
-      grayTol: toNumber(parameters.grayTol, 0.05),
-      betaMax: toNumber(parameters.betaMax, 64),
+      minIterations,
+      grayTol,
+      betaMax,
       E0,
       Emin,
       rhoMin,
@@ -950,21 +954,21 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                 <label className={styles.parameterLabel}>
                   Min Stable Iterations
                   <span className={styles.parameterDescription}>
-                    Consecutive stable iterations required (1-10)
+                    Consecutive stable iterations required (10-100)
                   </span>
                 </label>
                 <div className={styles.parameterControl}>
                   <input
                     type="range"
-                    min="1"
-                    max="10"
-                    step="1"
-                    value={toNumber(parameters.minIterations, 30)}
+                    min="10"
+                    max="100"
+                    step="5"
+                    value={minIterations}
                     onChange={(e) => handleParameterChange("minIterations", Number(e.target.value))}
                     className={styles.slider}
                     disabled={simulationState === 'running'}
                   />
-                  <span className={styles.parameterValue}>{toNumber(parameters.minIterations, 30)}</span>
+                  <span className={styles.parameterValue}>{minIterations}</span>
                 </div>
               </div>
 
@@ -981,12 +985,12 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                     min="0.01"
                     max="0.2"
                     step="0.01"
-                    value={toNumber(parameters.grayTol, 0.05)}
+                    value={grayTol}
                     onChange={(e) => handleParameterChange("grayTol", Number(e.target.value))}
                     className={styles.slider}
                     disabled={simulationState === 'running'}
                   />
-                  <span className={styles.parameterValue}>{toNumber(parameters.grayTol, 0.05).toFixed(2)}</span>
+                  <span className={styles.parameterValue}>{grayTol.toFixed(2)}</span>
                 </div>
               </div>
 
@@ -994,21 +998,21 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                 <label className={styles.parameterLabel}>
                   Beta Max
                   <span className={styles.parameterDescription}>
-                    Max Heaviside projection sharpness (64-512, higher = sharper 0/1)
+                    Max Heaviside projection sharpness (16-512, higher = sharper 0/1)
                   </span>
                 </label>
                 <div className={styles.parameterControl}>
                   <input
                     type="range"
-                    min="64"
+                    min="16"
                     max="512"
-                    step="64"
-                    value={toNumber(parameters.betaMax, 64)}
+                    step="16"
+                    value={betaMax}
                     onChange={(e) => handleParameterChange("betaMax", Number(e.target.value))}
                     className={styles.slider}
                     disabled={simulationState === 'running'}
                   />
-                  <span className={styles.parameterValue}>{toNumber(parameters.betaMax, 64)}</span>
+                  <span className={styles.parameterValue}>{betaMax}</span>
                 </div>
               </div>
             </div>

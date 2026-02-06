@@ -1,6 +1,6 @@
 # Semantic Inventory
 
-Generated: 2026-02-06T02:15:16.314Z
+Generated: 2026-02-06T02:40:07.308Z
 
 ## Summary
 
@@ -413,7 +413,7 @@ Generated: 2026-02-06T02:15:16.314Z
 | `unitZ` | Unit Z | basics | `vector.constant.unitZ` |
 | `unitXYZ` | Unit XYZ | basics | `vector.constant.unitXYZ` |
 | `moveVector` | Move Vector | basics | `vector.moveVector` |
-| `scaleVector` | Scale Vector | basics | `vector.scaleVector` |
+| `scaleVector` | Scale Vector | math | `vector.scaleVector` |
 | `listCreate` | List Create | lists | `data.collect`, `data.filter`, `data.map`, `data.reduce`, `data.sort`, `data.unique` |
 | `listLength` | List Length | lists | `data.length` |
 | `listItem` | List Item | lists | `data.index` |
