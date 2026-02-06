@@ -558,6 +558,8 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       try {
         const t0 = performance.now();
         const bounds = calculateMeshBounds(currentBaseMesh);
+        // ⚠️⚠️⚠️ CRITICAL: Log bounds in non-collapsible format
+        console.log(`[TOPOLOGY] ⚠️⚠️⚠️ PREVIEW BOUNDS: min=(${bounds.min.x.toFixed(2)}, ${bounds.min.y.toFixed(2)}, ${bounds.min.z.toFixed(2)}), max=(${bounds.max.x.toFixed(2)}, ${bounds.max.y.toFixed(2)}, ${bounds.max.z.toFixed(2)}), size=(${(bounds.max.x - bounds.min.x).toFixed(2)}, ${(bounds.max.y - bounds.min.y).toFixed(2)}, ${(bounds.max.z - bounds.min.z).toFixed(2)})`);
         console.log('[TOPOLOGY] Preview bounds:', bounds);
         
         const field = {

@@ -638,7 +638,22 @@ export function generateGeometryFromVoxels(
     isovalue = adjustedIsovalue;
   }
   
+  // ⚠️⚠️⚠️ CRITICAL: Log the bounds being passed to marching cubes
+  console.log('[GEOMETRY] ⚠️⚠️⚠️ INPUT BOUNDS TO MARCHING CUBES:', {
+    min: `(${field.bounds.min.x.toFixed(2)}, ${field.bounds.min.y.toFixed(2)}, ${field.bounds.min.z.toFixed(2)})`,
+    max: `(${field.bounds.max.x.toFixed(2)}, ${field.bounds.max.y.toFixed(2)}, ${field.bounds.max.z.toFixed(2)})`,
+    size: `(${(field.bounds.max.x - field.bounds.min.x).toFixed(2)}, ${(field.bounds.max.y - field.bounds.min.y).toFixed(2)}, ${(field.bounds.max.z - field.bounds.min.z).toFixed(2)})`,
+  });
+  
   const voxelField = resampleToCubicGrid(field);
+  
+  // ⚠️⚠️⚠️ CRITICAL: Log the voxel field bounds after resampling
+  console.log('[GEOMETRY] ⚠️⚠️⚠️ VOXEL FIELD BOUNDS AFTER RESAMPLING:', {
+    resolution: voxelField.resolution,
+    min: `(${voxelField.bounds.min.x.toFixed(2)}, ${voxelField.bounds.min.y.toFixed(2)}, ${voxelField.bounds.min.z.toFixed(2)})`,
+    max: `(${voxelField.bounds.max.x.toFixed(2)}, ${voxelField.bounds.max.y.toFixed(2)}, ${voxelField.bounds.max.z.toFixed(2)})`,
+    cellSize: `(${voxelField.cellSize.x.toFixed(4)}, ${voxelField.cellSize.y.toFixed(4)}, ${voxelField.cellSize.z.toFixed(4)})`,
+  });
   
   const defaultColor: [number, number, number] = [0.92, 0.92, 0.94];
   let mesh = chemistryMarchingCubes(voxelField, isovalue, [defaultColor]);
