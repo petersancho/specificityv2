@@ -7886,9 +7886,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const unitZId = `node-unitZ-${ts}`;
     const unitZPos = { x: col3X, y: forceSliderPos.y + 80 + V_GAP };
 
-    // Multiply by -1 (below unit Z)
-    const multiplyId = `node-multiply-${ts}`;
-    const multiplyPos = { x: col3X, y: unitZPos.y + NODE_HEIGHT + V_GAP };
+    // Scale vector by -1 (below unit Z)
+    const scaleVectorId = `node-scaleVector-${ts}`;
+    const scaleVectorPos = { x: col3X, y: unitZPos.y + NODE_HEIGHT + V_GAP };
 
     // Column 4: Topology Optimization Solver
     const col4X = col3X + NODE_WIDTH + H_GAP;
@@ -7986,13 +7986,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         },
       },
       {
-        id: multiplyId,
-        type: "multiply" as const,
-        position: multiplyPos,
+        id: scaleVectorId,
+        type: "scaleVector" as const,
+        position: scaleVectorPos,
         data: {
-          label: "Multiply by -1",
+          label: "Scale by -1",
           parameters: {
-            b: -1,
+            scale: -1,
           },
         },
       },
@@ -8073,15 +8073,15 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         targetHandle: "forceMagnitude",
       },
       {
-        id: `edge-${unitZId}-${multiplyId}-a`,
+        id: `edge-${unitZId}-${scaleVectorId}-vector`,
         source: unitZId,
         sourceHandle: "vector",
-        target: multiplyId,
-        targetHandle: "a",
+        target: scaleVectorId,
+        targetHandle: "vector",
       },
       {
-        id: `edge-${multiplyId}-${loadGoalId}-direction`,
-        source: multiplyId,
+        id: `edge-${scaleVectorId}-${loadGoalId}-direction`,
+        source: scaleVectorId,
         sourceHandle: "result",
         target: loadGoalId,
         targetHandle: "direction",
