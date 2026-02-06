@@ -77,6 +77,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   
   const workerClientRef = useRef<SimpWorkerClient | null>(null);
   const isRunningRef = useRef(false);
+  const baseMeshRef = useRef<RenderMesh | null>(null);
 
   const updateNodeData = useProjectStore((state) => state.updateNodeData);
   const addGeometryMesh = useProjectStore((state) => state.addGeometryMesh);
@@ -233,6 +234,12 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   const baseBounds = useMemo(() => {
     if (!baseMesh) return null;
     return calculateMeshBounds(baseMesh);
+  }, [baseMesh]);
+
+  // Keep baseMeshRef in sync with baseMesh to avoid stale closure issues in callbacks
+  useEffect(() => {
+    baseMeshRef.current = baseMesh;
+    console.log('[TOPOLOGY] baseMeshRef updated:', baseMesh ? 'EXISTS' : 'NULL');
   }, [baseMesh]);
 
   const goals = useMemo(() => {
@@ -470,20 +477,25 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     );
 
     // Generate preview geometry every 10 iterations OR at convergence
+    // CRITICAL: Use baseMeshRef.current to avoid stale closure issues
+    // The baseMesh from the closure may be stale if it changed after the callback was created
+    const currentBaseMesh = baseMeshRef.current;
+    
     // CRITICAL: Log every frame to diagnose preview issues
     console.log(`[TOPOLOGY] handleFrame iter=${frame.iter}:`, {
-      baseMesh: baseMesh ? 'EXISTS' : 'NULL',
+      baseMesh: currentBaseMesh ? 'EXISTS' : 'NULL',
+      baseMeshFromClosure: baseMesh ? 'EXISTS' : 'NULL',
       hasDensities: frame.densities ? frame.densities.length : 0,
       iter10: frame.iter % 10 === 0,
       converged: frame.converged,
     });
     
-    const shouldGeneratePreview = baseMesh && (frame.iter % 10 === 0 || frame.converged);
+    const shouldGeneratePreview = currentBaseMesh && (frame.iter % 10 === 0 || frame.converged);
     if (shouldGeneratePreview) {
       console.log('[TOPOLOGY] ⚠️ GENERATING PREVIEW at iteration', frame.iter);
       try {
         const t0 = performance.now();
-        const bounds = calculateMeshBounds(baseMesh);
+        const bounds = calculateMeshBounds(currentBaseMesh);
         console.log('[TOPOLOGY] Preview bounds:', bounds);
         
         const field = {
@@ -522,7 +534,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       }
     } else {
       console.log('[TOPOLOGY] ⏭️ Skipping preview generation:', {
-        baseMesh: baseMesh ? 'EXISTS' : 'NULL',
+        baseMesh: currentBaseMesh ? 'EXISTS' : 'NULL',
         iter10: frame.iter % 10 === 0,
         converged: frame.converged,
       });
@@ -535,15 +547,15 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       // ALWAYS log convergence (not just in DEBUG mode)
       console.log('[TOPOLOGY] ⚠️⚠️⚠️ SIMULATION CONVERGED at iteration', frame.iter);
       console.log('[TOPOLOGY] frame.converged:', frame.converged);
-      console.log('[TOPOLOGY] baseMesh:', baseMesh ? 'exists' : 'NULL');
+      console.log('[TOPOLOGY] baseMesh:', currentBaseMesh ? 'exists' : 'NULL');
       console.log('[TOPOLOGY] frame.densities:', frame.densities ? `${frame.densities.length} elements` : 'NULL');
       console.log('[TOPOLOGY] Current simulation state:', simulationState);
       console.log('[TOPOLOGY] isRunningRef.current:', isRunningRef.current);
       
-      if (baseMesh) {
+      if (currentBaseMesh) {
         try {
           console.log('[TOPOLOGY] ⚠️⚠️⚠️ GENERATING FINAL GEOMETRY...');
-          generateAndRegisterGeometry(frame, baseMesh);
+          generateAndRegisterGeometry(frame, currentBaseMesh);
           console.log('[TOPOLOGY] ✅✅✅ Geometry generation completed successfully');
         } catch (error) {
           console.error('[TOPOLOGY] ❌❌❌ Geometry generation FAILED:', error);
@@ -560,14 +572,17 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     setSimulationState('converged');
     console.log('[TOPOLOGY] ⚠️⚠️⚠️ SIMULATION COMPLETED (handleDone called)');
     
+    // CRITICAL: Use baseMeshRef.current to avoid stale closure issues
+    const currentBaseMesh = baseMeshRef.current;
+    
     // Generate and register final geometry
-    if (currentFrame && currentFrame.densities && baseMesh) {
+    if (currentFrame && currentFrame.densities && currentBaseMesh) {
       try {
         console.log('[TOPOLOGY] ⚠️⚠️⚠️ GENERATING FINAL GEOMETRY FROM handleDone...');
         console.log('[TOPOLOGY] currentFrame.iter:', currentFrame.iter);
         console.log('[TOPOLOGY] currentFrame.compliance:', currentFrame.compliance);
         console.log('[TOPOLOGY] currentFrame.densities.length:', currentFrame.densities.length);
-        generateAndRegisterGeometry(currentFrame, baseMesh);
+        generateAndRegisterGeometry(currentFrame, currentBaseMesh);
         console.log('[TOPOLOGY] ✅✅✅ Final geometry generation completed successfully');
       } catch (error) {
         console.error('[TOPOLOGY] ❌❌❌ Final geometry generation FAILED:', error);
@@ -577,7 +592,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       console.error('[TOPOLOGY] ❌❌❌ Cannot generate final geometry:');
       console.error('[TOPOLOGY]   currentFrame:', currentFrame ? 'exists' : 'NULL');
       console.error('[TOPOLOGY]   currentFrame.densities:', currentFrame?.densities ? `${currentFrame.densities.length} elements` : 'NULL');
-      console.error('[TOPOLOGY]   baseMesh:', baseMesh ? 'exists' : 'NULL');
+      console.error('[TOPOLOGY]   baseMesh (from ref):', currentBaseMesh ? 'exists' : 'NULL');
     }
   };
 
