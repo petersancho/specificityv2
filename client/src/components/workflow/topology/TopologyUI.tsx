@@ -222,6 +222,13 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
         }
       }
       
+      // TEST: Draw a red rectangle to verify canvas is working
+      console.log('[PREVIEW] ⚠️⚠️⚠️ DRAWING TEST RECTANGLE');
+      ctx.fillStyle = 'red';
+      ctx.fillRect(50, 50, 100, 100);
+      ctx.fillStyle = 'blue';
+      ctx.fillRect(200, 200, 100, 100);
+      
       console.log('[PREVIEW] Rendering geometry with', geometry.positions.length / 3, 'vertices');
       renderGeometry(ctx, geometry, width, height, rotationRef.current);
       setRenderError(null);
@@ -299,6 +306,15 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
   }
   const centerX = (minX + maxX) / 2, centerY = (minY + maxY) / 2, centerZ = (minZ + maxZ) / 2;
   const scale = Math.min(width, height) / (Math.max(maxX - minX, maxY - minY, maxZ - minZ) * 1.5);
+  
+  console.log('[RENDER] ⚠️⚠️⚠️ Geometry bounds:', {
+    min: { x: minX, y: minY, z: minZ },
+    max: { x: maxX, y: maxY, z: maxZ },
+    center: { x: centerX, y: centerY, z: centerZ },
+    size: { x: maxX - minX, y: maxY - minY, z: maxZ - minZ },
+    scale,
+    canvasSize: { width, height },
+  });
 
   const projected: Array<{ x: number; y: number; z: number }> = [];
   const cosX = Math.cos(rotation.x), sinX = Math.sin(rotation.x), cosY = Math.cos(rotation.y), sinY = Math.sin(rotation.y);
@@ -308,6 +324,9 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
     const x1 = x * cosY + z * sinY, z2 = -x * sinY + z * cosY; x = x1; z = z2;
     projected.push({ x: width / 2 + x * scale, y: height / 2 - y * scale, z });
   }
+  
+  // Log first few projected points to verify they're on-screen
+  console.log('[RENDER] First 5 projected points:', projected.slice(0, 5));
 
   // Medium-dark theme for good contrast on porcelain background
   // Lighter than before but still clearly visible
