@@ -203,31 +203,60 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
 
   // Get geometry and goals
   const baseMesh = useMemo(() => {
-    if (!geometryEdge || !geometrySourceNode) return null;
+    console.log('[TOPOLOGY] ⚠️⚠️⚠️ Computing baseMesh:', {
+      hasGeometryEdge: !!geometryEdge,
+      hasGeometrySourceNode: !!geometrySourceNode,
+      geometrySourceNodeType: geometrySourceNode?.type,
+      geometrySourceNodeId: geometrySourceNode?.id,
+    });
     
-    if (DEBUG) console.log('[TOPOLOGY] Source node type:', geometrySourceNode.type);
+    if (!geometryEdge || !geometrySourceNode) {
+      console.error('[TOPOLOGY] ❌ baseMesh is NULL because:', {
+        geometryEdge: geometryEdge ? 'EXISTS' : 'NULL',
+        geometrySourceNode: geometrySourceNode ? 'EXISTS' : 'NULL',
+      });
+      return null;
+    }
+    
+    console.log('[TOPOLOGY] Source node type:', geometrySourceNode.type);
+    console.log('[TOPOLOGY] Source node data:', geometrySourceNode.data);
     
     // Try direct geometry output first (Box Builder, Sphere, etc.)
     const directGeometry = geometrySourceNode.data?.outputs?.geometry;
+    console.log('[TOPOLOGY] Direct geometry output:', directGeometry ? 'EXISTS' : 'NULL');
+    
     if (directGeometry && typeof directGeometry === 'object' && 'type' in directGeometry) {
       const geomObj = directGeometry as { type: string; mesh?: RenderMesh };
+      console.log('[TOPOLOGY] Direct geometry type:', geomObj.type);
+      console.log('[TOPOLOGY] Direct geometry has mesh:', !!geomObj.mesh);
       if (geomObj.type === 'mesh' && geomObj.mesh) {
-        if (DEBUG) console.log('[TOPOLOGY] Using mesh from direct geometry output');
+        console.log('[TOPOLOGY] ✅ Using mesh from direct geometry output:', {
+          vertices: geomObj.mesh.positions.length / 3,
+          indices: geomObj.mesh.indices?.length || 0,
+        });
         return geomObj.mesh;
       }
     }
     
     // Try geometry ID (Geometry Reference nodes)
     const geometryId = geometrySourceNode.data?.geometryId || geometrySourceNode.data?.outputs?.geometryId;
+    console.log('[TOPOLOGY] Geometry ID:', geometryId);
+    
     if (geometryId) {
       const geom = geometryStore.find(g => g.id === geometryId);
+      console.log('[TOPOLOGY] Found geometry in store:', geom ? 'EXISTS' : 'NULL');
       if (geom?.type === 'mesh') {
-        if (DEBUG) console.log('[TOPOLOGY] Using mesh from geometry store');
+        console.log('[TOPOLOGY] ✅ Using mesh from geometry store:', {
+          vertices: geom.mesh?.positions.length / 3,
+          indices: geom.mesh?.indices?.length || 0,
+        });
         return geom.mesh;
       }
     }
     
     console.error('[TOPOLOGY] ❌ No valid mesh geometry found');
+    console.error('[TOPOLOGY] Tried: directGeometry, geometryId');
+    console.error('[TOPOLOGY] geometrySourceNode.data:', JSON.stringify(geometrySourceNode.data, null, 2));
     return null;
   }, [geometryEdge, geometrySourceNode, geometryStore]);
 
@@ -500,15 +529,30 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     const currentBaseMesh = baseMeshRef.current;
     
     // CRITICAL: Log every frame to diagnose preview issues
-    console.log(`[TOPOLOGY] handleFrame iter=${frame.iter}:`, {
+    console.log(`[TOPOLOGY] ⚠️⚠️⚠️ handleFrame iter=${frame.iter}:`, {
       baseMesh: currentBaseMesh ? 'EXISTS' : 'NULL',
       baseMeshFromClosure: baseMesh ? 'EXISTS' : 'NULL',
+      baseMeshVertices: currentBaseMesh ? currentBaseMesh.positions.length / 3 : 0,
       hasDensities: frame.densities ? frame.densities.length : 0,
       iter10: frame.iter % 10 === 0,
       converged: frame.converged,
     });
     
+    if (!currentBaseMesh) {
+      console.error('[TOPOLOGY] ❌❌❌ CRITICAL: baseMeshRef.current is NULL in handleFrame!');
+      console.error('[TOPOLOGY] This means preview geometry cannot be generated!');
+      console.error('[TOPOLOGY] baseMesh from closure:', baseMesh ? 'EXISTS' : 'NULL');
+      console.error('[TOPOLOGY] You need to check why baseMesh is not being set correctly!');
+    }
+    
     const shouldGeneratePreview = currentBaseMesh && (frame.iter % 10 === 0 || frame.converged);
+    
+    console.log('[TOPOLOGY] shouldGeneratePreview:', shouldGeneratePreview, {
+      hasBaseMesh: !!currentBaseMesh,
+      isIter10: frame.iter % 10 === 0,
+      isConverged: frame.converged,
+    });
+    
     if (shouldGeneratePreview) {
       console.log('[TOPOLOGY] ⚠️ GENERATING PREVIEW at iteration', frame.iter);
       try {
