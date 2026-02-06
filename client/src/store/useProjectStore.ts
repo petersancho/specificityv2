@@ -7841,15 +7841,16 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
   addTopologySolverRig: (position) => {
     /**
-     * Topology Optimization Solver Rig (Clean Numerica Ontology)
+     * Topology Optimization Solver Rig (Simplified)
      *
-     * Creates a complete topology optimization workflow:
-     * - Box Builder → Extent Selectors → Goal Nodes → Solver
+     * Creates a clean topology optimization workflow:
+     * - Box Builder → ONE Anchor Region → Anchor Goal → Solver
+     * - Box Builder → ONE Load Region → Load Goal → Solver
      * - Force magnitude slider → LoadGoal
-     * - Unit Z vector → Multiply by -1 → LoadGoal direction
-     * - Ensures LoadGoal uses connected inputs, not fallback parameters
+     * - Unit Z vector → Scale by -1 → LoadGoal direction
      *
-     * Named after Leonhard Euler (topology pioneer, Euler characteristic).
+     * Each region node has axis/mode parameters to select which face to use.
+     * User can change axis (x/y/z) and mode (min/max) via the node's UI.
      */
     console.log('[STORE] addTopologySolverRig called at position:', position);
     const ts = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
@@ -7862,59 +7863,33 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const boxBuilderId = `node-box-topology-${ts}`;
     const boxBuilderPos = { x: position.x, y: position.y };
 
-    // Column 1.5: Spacing Sliders (for Divide Surface nodes)
-    const col1_5X = position.x + NODE_WIDTH + H_GAP;
-    const spacingSliderZId = `node-slider-spacing-z-${ts}`;
-    const spacingSliderZPos = { x: col1_5X, y: position.y };
+    // Column 2: Region Selectors (ONE anchor, ONE load)
+    const col2X = position.x + NODE_WIDTH + H_GAP;
+    const anchorRegionId = `node-divsurf-anchor-${ts}`;
+    const anchorRegionPos = { x: col2X, y: position.y };
 
-    const spacingSliderXId = `node-slider-spacing-x-${ts}`;
-    const spacingSliderXPos = { x: col1_5X, y: position.y + NODE_HEIGHT + V_GAP };
+    const loadRegionId = `node-divsurf-load-${ts}`;
+    const loadRegionPos = { x: col2X, y: position.y + NODE_HEIGHT + V_GAP };
 
-    const spacingSliderYId = `node-slider-spacing-y-${ts}`;
-    const spacingSliderYPos = { x: col1_5X, y: position.y + 2 * (NODE_HEIGHT + V_GAP) };
-
-    const spacingSliderLoadId = `node-slider-spacing-load-${ts}`;
-    const spacingSliderLoadPos = { x: col1_5X, y: position.y + 3 * (NODE_HEIGHT + V_GAP) };
-
-    // Column 2: Divide Surface Nodes (Multi-Region Anchoring)
-    const col2X = col1_5X + NODE_WIDTH + H_GAP;
-    const anchorDivZId = `node-divsurf-anchor-z-${ts}`;
-    const anchorDivZPos = { x: col2X, y: position.y };
-
-    const anchorDivXId = `node-divsurf-anchor-x-${ts}`;
-    const anchorDivXPos = { x: col2X, y: position.y + NODE_HEIGHT + V_GAP };
-
-    const anchorDivYId = `node-divsurf-anchor-y-${ts}`;
-    const anchorDivYPos = { x: col2X, y: position.y + 2 * (NODE_HEIGHT + V_GAP) };
-
-    const loadDivId = `node-divsurf-load-${ts}`;
-    const loadDivPos = { x: col2X, y: position.y + 3 * (NODE_HEIGHT + V_GAP) };
-
-    // Column 2.5: List Union (Merge Anchor Indices)
-    const col2_5X = col2X + NODE_WIDTH + H_GAP;
-    const listUnionId = `node-listunion-${ts}`;
-    const listUnionPos = { x: col2_5X, y: position.y + NODE_HEIGHT + V_GAP };
-
-    // Column 3: Goal Nodes + Force Inputs
-    const col3X = col2_5X + NODE_WIDTH + H_GAP;
+    // Column 3: Goal Nodes
+    const col3X = col2X + NODE_WIDTH + H_GAP;
     const anchorGoalId = `node-anchorGoal-${ts}`;
     const anchorGoalPos = { x: col3X, y: position.y };
 
     const loadGoalId = `node-loadGoal-${ts}`;
     const loadGoalPos = { x: col3X, y: position.y + NODE_HEIGHT + V_GAP };
 
-    // Force magnitude slider (above load goal)
+    // Force magnitude slider
     const forceSliderId = `node-slider-force-${ts}`;
     const forceSliderPos = { x: col3X, y: loadGoalPos.y + NODE_HEIGHT + V_GAP };
 
-    // Unit Z vector (below force slider)
+    // Unit Z vector
     const unitZId = `node-unitZ-${ts}`;
     const unitZPos = { x: col3X, y: forceSliderPos.y + 80 + V_GAP };
 
-    // Scale vector by -1 (below unit Z)
+    // Scale vector by -1
     const scaleVectorId = `node-scaleVector-${ts}`;
-    // Position scaleVector between unitZ and loadGoal for cleaner layout
-    const scaleVectorPos = { x: col3X, y: loadDivPos.y + NODE_HEIGHT + V_GAP };
+    const scaleVectorPos = { x: col3X, y: unitZPos.y + 80 + V_GAP };
 
     // Column 4: Topology Optimization Solver
     const col4X = col3X + NODE_WIDTH + H_GAP;
@@ -7943,67 +7918,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         },
       },
       {
-        id: spacingSliderZId,
-        type: "slider" as const,
-        position: spacingSliderZPos,
-        data: {
-          label: "Spacing (Z Anchor)",
-          parameters: {
-            value: 0.05,
-            min: 0.01,
-            max: 0.3,
-            step: 0.01,
-          },
-        },
-      },
-      {
-        id: spacingSliderXId,
-        type: "slider" as const,
-        position: spacingSliderXPos,
-        data: {
-          label: "Spacing (X Anchor)",
-          parameters: {
-            value: 0.05,
-            min: 0.01,
-            max: 0.3,
-            step: 0.01,
-          },
-        },
-      },
-      {
-        id: spacingSliderYId,
-        type: "slider" as const,
-        position: spacingSliderYPos,
-        data: {
-          label: "Spacing (Y Anchor)",
-          parameters: {
-            value: 0.05,
-            min: 0.01,
-            max: 0.3,
-            step: 0.01,
-          },
-        },
-      },
-      {
-        id: spacingSliderLoadId,
-        type: "slider" as const,
-        position: spacingSliderLoadPos,
-        data: {
-          label: "Spacing (Load)",
-          parameters: {
-            value: 0.05,
-            min: 0.01,
-            max: 0.3,
-            step: 0.01,
-          },
-        },
-      },
-      {
-        id: anchorDivZId,
+        id: anchorRegionId,
         type: "geometryDivideSurface" as const,
-        position: anchorDivZPos,
+        position: anchorRegionPos,
         data: {
-          label: "Anchor Region (Z Min)",
+          label: "Anchor Region",
           parameters: {
             axis: "z",
             mode: "min",
@@ -8014,58 +7933,17 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         },
       },
       {
-        id: anchorDivXId,
+        id: loadRegionId,
         type: "geometryDivideSurface" as const,
-        position: anchorDivXPos,
+        position: loadRegionPos,
         data: {
-          label: "Anchor Region (X Min)",
-          parameters: {
-            axis: "x",
-            mode: "min",
-            band: 0.05,
-            spacing: 0.05,
-            maxCount: 50,
-          },
-        },
-      },
-      {
-        id: anchorDivYId,
-        type: "geometryDivideSurface" as const,
-        position: anchorDivYPos,
-        data: {
-          label: "Anchor Region (Y Min)",
-          parameters: {
-            axis: "y",
-            mode: "min",
-            band: 0.05,
-            spacing: 0.05,
-            maxCount: 50,
-          },
-        },
-      },
-      {
-        id: loadDivId,
-        type: "geometryDivideSurface" as const,
-        position: loadDivPos,
-        data: {
-          label: "Load Region (Z Max)",
+          label: "Load Region",
           parameters: {
             axis: "z",
             mode: "max",
             band: 0.05,
             spacing: 0.05,
             maxCount: 50,
-          },
-        },
-      },
-      {
-        id: listUnionId,
-        type: "listUnion" as const,
-        position: listUnionPos,
-        data: {
-          label: "Merge Anchor Regions",
-          parameters: {
-            deduplicate: false,
           },
         },
       },
@@ -8164,102 +8042,37 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     ];
 
     const newEdges: WorkflowEdge[] = [
-      // Spacing Sliders → Divide Surface nodes
+      // Box → Region Selectors
       {
-        id: `edge-${spacingSliderZId}-${anchorDivZId}-spacing`,
-        source: spacingSliderZId,
-        sourceHandle: "value",
-        target: anchorDivZId,
-        targetHandle: "spacing",
-      },
-      {
-        id: `edge-${spacingSliderXId}-${anchorDivXId}-spacing`,
-        source: spacingSliderXId,
-        sourceHandle: "value",
-        target: anchorDivXId,
-        targetHandle: "spacing",
-      },
-      {
-        id: `edge-${spacingSliderYId}-${anchorDivYId}-spacing`,
-        source: spacingSliderYId,
-        sourceHandle: "value",
-        target: anchorDivYId,
-        targetHandle: "spacing",
-      },
-      {
-        id: `edge-${spacingSliderLoadId}-${loadDivId}-spacing`,
-        source: spacingSliderLoadId,
-        sourceHandle: "value",
-        target: loadDivId,
-        targetHandle: "spacing",
-      },
-      // Box → Divide Surface nodes
-      {
-        id: `edge-${boxBuilderId}-${anchorDivZId}-geometry`,
+        id: `edge-${boxBuilderId}-${anchorRegionId}-geometry`,
         source: boxBuilderId,
         sourceHandle: "geometry",
-        target: anchorDivZId,
+        target: anchorRegionId,
         targetHandle: "geometry",
       },
       {
-        id: `edge-${boxBuilderId}-${anchorDivXId}-geometry`,
+        id: `edge-${boxBuilderId}-${loadRegionId}-geometry`,
         source: boxBuilderId,
         sourceHandle: "geometry",
-        target: anchorDivXId,
+        target: loadRegionId,
         targetHandle: "geometry",
       },
+      // Region Selectors → Goal Nodes
       {
-        id: `edge-${boxBuilderId}-${anchorDivYId}-geometry`,
-        source: boxBuilderId,
-        sourceHandle: "geometry",
-        target: anchorDivYId,
-        targetHandle: "geometry",
-      },
-      {
-        id: `edge-${boxBuilderId}-${loadDivId}-geometry`,
-        source: boxBuilderId,
-        sourceHandle: "geometry",
-        target: loadDivId,
-        targetHandle: "geometry",
-      },
-      // Divide Surface → List Union (merge anchor regions)
-      {
-        id: `edge-${anchorDivZId}-${listUnionId}-listA`,
-        source: anchorDivZId,
+        id: `edge-${anchorRegionId}-${anchorGoalId}-vertices`,
+        source: anchorRegionId,
         sourceHandle: "indices",
-        target: listUnionId,
-        targetHandle: "listA",
-      },
-      {
-        id: `edge-${anchorDivXId}-${listUnionId}-listB`,
-        source: anchorDivXId,
-        sourceHandle: "indices",
-        target: listUnionId,
-        targetHandle: "listB",
-      },
-      {
-        id: `edge-${anchorDivYId}-${listUnionId}-listC`,
-        source: anchorDivYId,
-        sourceHandle: "indices",
-        target: listUnionId,
-        targetHandle: "listC",
-      },
-      // List Union → Anchor Goal
-      {
-        id: `edge-${listUnionId}-${anchorGoalId}-vertices`,
-        source: listUnionId,
-        sourceHandle: "list",
         target: anchorGoalId,
         targetHandle: "vertices",
       },
-      // Load Divide Surface → Load Goal
       {
-        id: `edge-${loadDivId}-${loadGoalId}-applicationPoints`,
-        source: loadDivId,
+        id: `edge-${loadRegionId}-${loadGoalId}-applicationPoints`,
+        source: loadRegionId,
         sourceHandle: "indices",
         target: loadGoalId,
         targetHandle: "applicationPoints",
       },
+      // Box → Solver
       {
         id: `edge-${boxBuilderId}-${solverId}-geometry`,
         source: boxBuilderId,
@@ -8267,6 +8080,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         target: solverId,
         targetHandle: "geometry",
       },
+      // Goals → Solver
       {
         id: `edge-${anchorGoalId}-${solverId}-goals`,
         source: anchorGoalId,
@@ -8281,6 +8095,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         target: solverId,
         targetHandle: "goals",
       },
+      // Force slider → Load Goal
       {
         id: `edge-${forceSliderId}-${loadGoalId}-forceMagnitude`,
         source: forceSliderId,
@@ -8288,6 +8103,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         target: loadGoalId,
         targetHandle: "forceMagnitude",
       },
+      // Unit Z → Scale → Load Goal direction
       {
         id: `edge-${unitZId}-${scaleVectorId}-vector`,
         source: unitZId,
@@ -8302,6 +8118,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         target: loadGoalId,
         targetHandle: "direction",
       },
+      // Solver → Viewer
       {
         id: `edge-${solverId}-${viewerId}-geometry`,
         source: solverId,
