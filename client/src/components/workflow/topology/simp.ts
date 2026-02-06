@@ -423,9 +423,10 @@ function createElementKernel(nx: number, ny: number, nz: number, bounds: { min: 
 }
 
 // Regularization factor to prevent singular/near-singular matrix (handles rigid body modes)
-// Increased from 1e-6 to 1e-4 to ensure PCG converges in reasonable iterations (<100)
-// With E0=1.0 and elemVol≈0.001, regScale = 1e-4 * 1.0 * 0.001 = 1e-7 (still small but effective)
-const MATRIX_REGULARIZATION = 1e-4;
+// Increased from 1e-6 to 1e-4, then to 1e-3 to handle ill-conditioning as material is removed
+// With E0=1.0 and elemVol≈0.001, regScale = 1e-3 * 1.0 * 0.001 = 1e-6 (effective for ill-conditioned problems)
+// This prevents compliance explosion when structure becomes weak with insufficient boundary conditions
+const MATRIX_REGULARIZATION = 1e-3;
 
 function matrixFreeKx(kernel: ElementKernel, rho: Float64Array, x: Float64Array, penal: number, E0: number, Emin: number, out?: Float64Array, fixedDofs?: Set<number>): Float64Array {
   const y = out ?? new Float64Array(kernel.numDofs);
@@ -671,10 +672,10 @@ function solvePCG(
 // ============================================================================
 
 const ADAPTIVE_CG_TOL_EARLY = 1e-2;  // 1% error - early iterations (problem is ill-conditioned with uniform density)
-const ADAPTIVE_CG_TOL_MID = 1e-3;    // 0.1% error - mid iterations
-const ADAPTIVE_CG_TOL_LATE = 1e-4;   // 0.01% error - late iterations (near convergence)
-const ADAPTIVE_CG_EARLY_ITERS = 20;
-const ADAPTIVE_CG_MID_ITERS = 50;
+const ADAPTIVE_CG_TOL_MID = 1e-2;    // 1% error - mid iterations (keep loose to handle ill-conditioning)
+const ADAPTIVE_CG_TOL_LATE = 1e-3;   // 0.1% error - late iterations (tighten only near convergence)
+const ADAPTIVE_CG_EARLY_ITERS = 40;  // Keep loose tolerance longer
+const ADAPTIVE_CG_MID_ITERS = 80;    // Tighten only in late iterations
 
 const STABLE_WINDOW = 8;  // Need 8 consecutive converged iterations for stability
 
@@ -820,6 +821,7 @@ export async function* runSimp(
   let penal = params.penalStart;
   const moveLimit = params.move;
   let prevCompliance = Infinity;
+  let compliancePrev = Infinity;  // Track previous compliance for explosion detection
   let consecutiveConverged = 0;
   let uPrev = new Float64Array(kernel.numDofs);
   
@@ -916,6 +918,13 @@ export async function* runSimp(
     
     if (compliance <= 0) {
       yield { iter, compliance: Infinity, change: 1.0, vol: params.volFrac, densities: new Float32Array(densities), converged: false, error: `Invalid compliance at iter ${iter}: ${compliance}` };
+      return;
+    }
+    
+    // Detect compliance explosion (usually means PCG solution is inaccurate due to ill-conditioning)
+    if (iter > 1 && compliance > compliancePrev * 10.0) {
+      console.error(`[SIMP] Compliance exploded from ${compliancePrev.toFixed(2)} to ${compliance.toFixed(2)} at iteration ${iter}. This usually means the structure is ill-conditioned (insufficient boundary conditions or too much material removed). Try adding more anchor points or reducing force magnitude.`);
+      yield { iter, compliance: Infinity, change: 1.0, vol: params.volFrac, densities: new Float32Array(densities), converged: false, error: `Compliance exploded at iter ${iter}. Add more anchor points or reduce force.` };
       return;
     }
     
@@ -1016,6 +1025,9 @@ export async function* runSimp(
       feIters: cgIters,
       timings,
     };
+    
+    // Update compliance tracking for next iteration
+    compliancePrev = compliance;
     
     if (hasConverged) {
       console.log(`[SIMP] ✅ CONVERGED at iteration ${iter}`, {
