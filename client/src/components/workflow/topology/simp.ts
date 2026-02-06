@@ -486,14 +486,26 @@ function solvePCG(
   for (iters = 0; iters < maxIters; iters++) {
     const resNorm = Math.sqrt(dot(r, r));
     
-    if (iters === 0) resNorm0 = resNorm;
+    if (iters === 0) {
+      resNorm0 = resNorm;
+      if (DEBUG || resNorm < tolAbs) {
+        console.log(`[PCG] Initial residual: ${resNorm.toExponential(2)}, tolerance: ${tolAbs.toExponential(2)}, warmStart: ${uPrev !== undefined}`);
+      }
+    }
+    
     if (resNorm0 > 0 && resNorm > resNorm0 * PCG_DIVERGENCE_FACTOR) {
       console.error(`[PCG] Diverging (resNorm grew from ${resNorm0.toExponential(2)} to ${resNorm.toExponential(2)}). Reduce resolution or check boundary conditions.`);
       for (const dof of fixedDofs) u[dof] = 0;
       return { u, converged: false, iters };
     }
     
-    if (resNorm < tolAbs) { converged = true; break; }
+    if (resNorm < tolAbs) { 
+      converged = true;
+      if (DEBUG || iters === 0) {
+        console.log(`[PCG] Converged in ${iters} iterations (resNorm: ${resNorm.toExponential(2)}, tol: ${tolAbs.toExponential(2)})`);
+      }
+      break;
+    }
     if (!Number.isFinite(resNorm)) break;
     
     matrixFreeKx(kernel, rho, p, penal, E0, Emin, Ap);
@@ -527,9 +539,9 @@ function solvePCG(
 // SIMP ALGORITHM
 // ============================================================================
 
-const ADAPTIVE_CG_TOL_EARLY = 1e-1;
-const ADAPTIVE_CG_TOL_MID = 1e-2;
-const ADAPTIVE_CG_TOL_LATE = 1e-3;
+const ADAPTIVE_CG_TOL_EARLY = 1e-2;
+const ADAPTIVE_CG_TOL_MID = 1e-3;
+const ADAPTIVE_CG_TOL_LATE = 1e-4;
 const ADAPTIVE_CG_EARLY_ITERS = 15;
 const ADAPTIVE_CG_MID_ITERS = 40;
 
@@ -744,7 +756,8 @@ export async function* runSimp(
     const tSolve = performance.now();
     
     if (!solverOk) {
-      yield { iter, compliance: Infinity, change: 1.0, vol: params.volFrac, densities: new Float32Array(densities), converged: false, error: `PCG failed at iter ${iter}` };
+      console.error(`[SIMP] PCG failed at iteration ${iter}. This usually means force magnitude is too large or boundary conditions are incorrect.`);
+      yield { iter, compliance: Infinity, change: 1.0, vol: params.volFrac, densities: new Float32Array(densities), converged: false, error: `PCG diverged at iter ${iter}. Reduce force magnitude or check boundary conditions.` };
       return;
     }
     
