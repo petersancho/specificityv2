@@ -342,6 +342,35 @@ export function extractGoalMarkers(mesh: RenderMesh, goals: GoalBase[]): GoalMar
     loads.push({ position: { x: bounds.max.x, y: bounds.max.y, z: bounds.max.z }, force: { x: 0, y: -1.0, z: 0 }, distributed: true });
   }
   
+  const anchorPositionSet = new Set<string>();
+  for (const anchor of anchors) {
+    const key = `${anchor.position.x.toFixed(6)},${anchor.position.y.toFixed(6)},${anchor.position.z.toFixed(6)}`;
+    anchorPositionSet.add(key);
+  }
+  
+  const loadPositionSet = new Set<string>();
+  for (const load of loads) {
+    const key = `${load.position.x.toFixed(6)},${load.position.y.toFixed(6)},${load.position.z.toFixed(6)}`;
+    loadPositionSet.add(key);
+  }
+  
+  const overlappingKeys = new Set<string>();
+  for (const key of anchorPositionSet) {
+    if (loadPositionSet.has(key)) {
+      overlappingKeys.add(key);
+    }
+  }
+  
+  if (overlappingKeys.size > 0) {
+    const filteredAnchors = anchors.filter(anchor => {
+      const key = `${anchor.position.x.toFixed(6)},${anchor.position.y.toFixed(6)},${anchor.position.z.toFixed(6)}`;
+      return !overlappingKeys.has(key);
+    });
+    console.warn(`[GOAL MARKERS] Removed ${anchors.length - filteredAnchors.length} anchor positions that overlap with load positions (corner/edge vertices)`);
+    console.log(`[GOAL MARKERS] Total: ${filteredAnchors.length} anchors (after filtering), ${loads.length} loads`);
+    return { anchors: filteredAnchors, loads };
+  }
+  
   console.log(`[GOAL MARKERS] Total: ${anchors.length} anchors, ${loads.length} loads`);
   
   return { anchors, loads };
