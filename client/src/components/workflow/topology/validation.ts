@@ -17,6 +17,13 @@ import {
   isWithinBounds,
   type Bounds
 } from "./coordinateFrames";
+import {
+  distributeVerticesToGridNodes,
+  validateDistributedNodes,
+  DefaultAnchorDistribution,
+  DefaultLoadDistribution,
+  type BCDistributionConfig
+} from "./bcMapping";
 
 export interface ValidationConfig {
   mode: 'strict' | 'permissive';
@@ -34,6 +41,10 @@ export interface ValidationConfig {
     missingLoad: 'error' | 'warn';
     missingSupport: 'error' | 'warn';
     loadOnFixedDof: 'error' | 'warn';
+  };
+  bc: {
+    anchorDistribution: BCDistributionConfig;
+    loadDistribution: BCDistributionConfig;
   };
 }
 
@@ -53,6 +64,10 @@ export const DefaultValidationConfig: ValidationConfig = {
     missingLoad: 'error',
     missingSupport: 'error',
     loadOnFixedDof: 'error'
+  },
+  bc: {
+    anchorDistribution: DefaultAnchorDistribution,
+    loadDistribution: DefaultLoadDistribution,
   }
 };
 
@@ -264,23 +279,74 @@ export function validateBoundaryConditions(
   const anchorNodes = new Map<number, Vec3>();
   const loadNodes = new Map<number, Vec3>();
   
+  // UPDATED: Use distributed boundary conditions instead of point BCs
   for (const anchor of markers.anchors) {
-    const grid = worldToGrid(anchor.position, bounds, params.nx, params.ny, params.nz);
-    const nodeIdx = gridToNodeIndex(grid, params.nx, params.ny);
-    anchorNodes.set(nodeIdx, anchor.position);
-    const dofs = dofMapping.nodeToDofs.get(nodeIdx);
-    if (dofs) {
-      dofs.forEach(dof => fixedDofs.add(dof));
+    // Distribute anchor region to multiple grid nodes
+    const dist = anchor.distributed ?? distributeVerticesToGridNodes(
+      mesh,
+      anchor.vertices,
+      bounds,
+      params.nx,
+      params.ny,
+      params.nz,
+      config.bc.anchorDistribution
+    );
+    
+    // Validate distribution
+    const validation = validateDistributedNodes(dist, config.bc.anchorDistribution.minNodes);
+    if (!validation.isValid) {
+      issues.push(createIssue(
+        'BC_DISTRIBUTION_FAILED',
+        'warning',
+        `Anchor distribution validation failed: ${validation.errors.join(', ')}`,
+        { errors: validation.errors }
+      ));
+    }
+    
+    // Apply constraints to all distributed nodes
+    const dofMask = anchor.dofMask ?? [true, true, true];
+    for (const nodeIdx of dist.nodeIds) {
+      anchorNodes.set(nodeIdx, anchor.position);
+      const dofs = dofMapping.nodeToDofs.get(nodeIdx);
+      if (dofs) {
+        if (dofMask[0]) fixedDofs.add(dofs[0]);
+        if (dofMask[1]) fixedDofs.add(dofs[1]);
+        if (dofMask[2]) fixedDofs.add(dofs[2]);
+      }
     }
   }
   
+  // UPDATED: Distribute loads across multiple grid nodes
   for (const load of markers.loads) {
-    const grid = worldToGrid(load.position, bounds, params.nx, params.ny, params.nz);
-    const nodeIdx = gridToNodeIndex(grid, params.nx, params.ny);
-    loadNodes.set(nodeIdx, load.position);
-    const dofs = dofMapping.nodeToDofs.get(nodeIdx);
-    if (dofs) {
-      dofs.forEach(dof => loadedDofs.add(dof));
+    // Distribute load region to multiple grid nodes
+    const dist = load.distributed ?? distributeVerticesToGridNodes(
+      mesh,
+      load.vertices,
+      bounds,
+      params.nx,
+      params.ny,
+      params.nz,
+      config.bc.loadDistribution
+    );
+    
+    // Validate distribution
+    const validation = validateDistributedNodes(dist, config.bc.loadDistribution.minNodes);
+    if (!validation.isValid) {
+      issues.push(createIssue(
+        'BC_DISTRIBUTION_FAILED',
+        'warning',
+        `Load distribution validation failed: ${validation.errors.join(', ')}`,
+        { errors: validation.errors }
+      ));
+    }
+    
+    // Mark all loaded nodes (for conflict detection)
+    for (const nodeIdx of dist.nodeIds) {
+      loadNodes.set(nodeIdx, load.position);
+      const dofs = dofMapping.nodeToDofs.get(nodeIdx);
+      if (dofs) {
+        dofs.forEach(dof => loadedDofs.add(dof));
+      }
     }
   }
   
@@ -369,35 +435,83 @@ export function validateProblem(
   const dimensionality = detectDimensionality(bounds, config.tolerances.geoEps);
   const dofMapping = buildDofMapping(params.nx, params.ny, params.nz);
   
+  // UPDATED: Use distributed boundary conditions
   const fixedDofs = new Set<number>();
+  let totalAnchorNodes = 0;
+  
   for (const anchor of markers.anchors) {
-    const grid = worldToGrid(anchor.position, bounds, params.nx, params.ny, params.nz);
-    const nodeIdx = gridToNodeIndex(grid, params.nx, params.ny);
-    const dofs = dofMapping.nodeToDofs.get(nodeIdx);
-    if (dofs) {
-      dofs.forEach(dof => fixedDofs.add(dof));
+    // Distribute anchor region to multiple grid nodes
+    const dist = anchor.distributed ?? distributeVerticesToGridNodes(
+      mesh,
+      anchor.vertices,
+      bounds,
+      params.nx,
+      params.ny,
+      params.nz,
+      config.bc.anchorDistribution
+    );
+    
+    // Apply constraints to all distributed nodes
+    const dofMask = anchor.dofMask ?? [true, true, true];
+    for (const nodeIdx of dist.nodeIds) {
+      const dofs = dofMapping.nodeToDofs.get(nodeIdx);
+      if (dofs) {
+        if (dofMask[0]) fixedDofs.add(dofs[0]);
+        if (dofMask[1]) fixedDofs.add(dofs[1]);
+        if (dofMask[2]) fixedDofs.add(dofs[2]);
+      }
     }
+    totalAnchorNodes += dist.nodeIds.length;
   }
   
+  console.log(`[VALIDATION] Distributed ${markers.anchors.length} anchor(s) → ${totalAnchorNodes} grid nodes → ${fixedDofs.size} fixed DOFs`);
+  
+  // UPDATED: Distribute loads across multiple grid nodes with weights
   const loadedDofs = new Map<number, number>();
-  const loadCountPerNode = new Map<number, number>();
+  let totalLoadNodes = 0;
+  
   for (const load of markers.loads) {
-    const grid = worldToGrid(load.position, bounds, params.nx, params.ny, params.nz);
-    const nodeIdx = gridToNodeIndex(grid, params.nx, params.ny);
-    const dofs = dofMapping.nodeToDofs.get(nodeIdx);
-    if (dofs) {
-      loadedDofs.set(dofs[0], (loadedDofs.get(dofs[0]) || 0) + load.force.x);
-      loadedDofs.set(dofs[1], (loadedDofs.get(dofs[1]) || 0) + load.force.y);
-      loadedDofs.set(dofs[2], (loadedDofs.get(dofs[2]) || 0) + load.force.z);
-      loadCountPerNode.set(nodeIdx, (loadCountPerNode.get(nodeIdx) || 0) + 1);
+    // Distribute load region to multiple grid nodes
+    const dist = load.distributed ?? distributeVerticesToGridNodes(
+      mesh,
+      load.vertices,
+      bounds,
+      params.nx,
+      params.ny,
+      params.nz,
+      config.bc.loadDistribution
+    );
+    
+    // Distribute total force across nodes using weights
+    // sum(weights) = 1.0, so sum(f_i) = F_total
+    for (let i = 0; i < dist.nodeIds.length; i++) {
+      const nodeIdx = dist.nodeIds[i];
+      const weight = dist.weights[i];
+      const dofs = dofMapping.nodeToDofs.get(nodeIdx);
+      if (dofs) {
+        loadedDofs.set(dofs[0], (loadedDofs.get(dofs[0]) || 0) + weight * load.force.x);
+        loadedDofs.set(dofs[1], (loadedDofs.get(dofs[1]) || 0) + weight * load.force.y);
+        loadedDofs.set(dofs[2], (loadedDofs.get(dofs[2]) || 0) + weight * load.force.z);
+      }
     }
+    totalLoadNodes += dist.nodeIds.length;
   }
   
-  const multiLoadNodes = Array.from(loadCountPerNode.entries()).filter(([_, count]) => count > 1);
-  if (multiLoadNodes.length > 0) {
-    console.warn(`[VALIDATION] ${multiLoadNodes.length} grid nodes have multiple loads (forces accumulated):`, 
-      multiLoadNodes.map(([nodeIdx, count]) => `node ${nodeIdx}: ${count} loads`).join(', '));
+  // Verify total force is preserved
+  let totalFx = 0, totalFy = 0, totalFz = 0;
+  for (const [dof, force] of loadedDofs.entries()) {
+    const axis = dof % 3;
+    if (axis === 0) totalFx += force;
+    else if (axis === 1) totalFy += force;
+    else totalFz += force;
   }
+  
+  const expectedFx = markers.loads.reduce((sum, l) => sum + l.force.x, 0);
+  const expectedFy = markers.loads.reduce((sum, l) => sum + l.force.y, 0);
+  const expectedFz = markers.loads.reduce((sum, l) => sum + l.force.z, 0);
+  
+  console.log(`[VALIDATION] Distributed ${markers.loads.length} load(s) → ${totalLoadNodes} grid nodes`);
+  console.log(`[VALIDATION] Total force: (${totalFx.toFixed(4)}, ${totalFy.toFixed(4)}, ${totalFz.toFixed(4)}) expected: (${expectedFx.toFixed(4)}, ${expectedFy.toFixed(4)}, ${expectedFz.toFixed(4)})`);
   
   return {
     issues,

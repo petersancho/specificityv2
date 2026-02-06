@@ -39,8 +39,8 @@ describe("Topology optimization SIMP", () => {
     const markers = extractGoalMarkers(mesh, goals);
     const bounds = computeBoundsFromMesh(mesh);
     markers.anchors.push(
-      { position: { x: bounds.max.x, y: bounds.min.y, z: bounds.min.z } },
-      { position: { x: bounds.min.x, y: bounds.max.y, z: bounds.min.z } }
+      { position: { x: bounds.max.x, y: bounds.min.y, z: bounds.min.z }, vertices: [], dofMask: [true, true, true] },
+      { position: { x: bounds.min.x, y: bounds.max.y, z: bounds.min.z }, vertices: [], dofMask: [true, true, true] }
     );
 
     expect(markers.anchors.length).toBeGreaterThan(0);

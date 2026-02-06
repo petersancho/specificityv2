@@ -58,17 +58,31 @@ export type GoalRegionMetadata = {
 };
 
 /**
+ * Distributed nodes for boundary conditions
+ * Replaces point loads/anchors with region-based distribution
+ */
+export type DistributedNodes = {
+  nodeIds: number[];
+  weights: number[]; // Normalized weights (sum = 1.0 for loads)
+};
+
+/**
  * Goal markers extracted from goal nodes
+ * UPDATED: Now includes distributed nodes for proper BC mapping
  */
 export type AnchorMarker = {
-  position: Vec3;
+  position: Vec3; // Reference centroid (for visualization)
+  vertices: number[]; // Original vertex indices
+  distributed?: DistributedNodes; // Distributed grid nodes
+  dofMask?: [boolean, boolean, boolean]; // DOF constraints [x, y, z]
   metadata?: GoalRegionMetadata;
 };
 
 export type LoadMarker = {
-  position: Vec3;
-  force: Vec3;
-  distributed: boolean;
+  position: Vec3; // Reference centroid (for visualization)
+  force: Vec3; // Total resultant force
+  vertices: number[]; // Original vertex indices
+  distributed?: DistributedNodes; // Distributed grid nodes
   metadata?: GoalRegionMetadata;
 };
 
