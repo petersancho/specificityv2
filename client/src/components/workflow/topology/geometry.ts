@@ -485,7 +485,9 @@ export function generateGeometryFromVoxels(
     console.warn(`[GEOMETRY] Marching cubes produced empty mesh (isovalue=${isovalue}, density range=[${minDensity.toFixed(3)}, ${maxDensity.toFixed(3)}])`);
   } else {
     console.log(`[GEOMETRY] Generated mesh with ${mesh.positions.length / 3} vertices, ${mesh.indices.length / 3} triangles`);
-    mesh = laplacianSmoothMesh(mesh, 3, 0.5);
+    // Increased smoothing: 12 iterations (was 3), lambda 0.7 (was 0.5) for smoother, more usable geometry
+    mesh = laplacianSmoothMesh(mesh, 12, 0.7);
+    console.log(`[GEOMETRY] Applied Laplacian smoothing (12 iterations, λ=0.7)`);
   }
   
   const isosurface: RenderMesh = {
@@ -553,7 +555,7 @@ function laplacianSmoothMesh(mesh: { positions: number[], normals: number[], uvs
 
 export function generateGeometryFromDensities(
   field: VoxelScalarField,
-  densityThreshold: number = 0.3
+  densityThreshold: number = 0.55
 ): GeometryOutput {
   return generateGeometryFromVoxels(field, densityThreshold);
 }

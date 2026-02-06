@@ -71,6 +71,56 @@ const PCG_DIVERGENCE_FACTOR = 1e10;
 const PCG_MIN_ITERS_BEFORE_DIVERGENCE_CHECK = 5;
 
 // ============================================================================
+// DIVERGENCE DETECTION - Sliding Window Tracker
+// ============================================================================
+
+class ComplianceTracker {
+  private history: number[] = [];
+  private best = Number.POSITIVE_INFINITY;
+  private consecutiveBadWindows = 0;
+
+  constructor(
+    private windowSize: number,
+    private tolBest: number,           // e.g. 0.015 => 1.5%
+    private badWindowsToStop: number,  // e.g. 3
+  ) {}
+
+  update(c: number) {
+    this.best = Math.min(this.best, c);
+    this.history.push(c);
+    if (this.history.length > this.windowSize) this.history.shift();
+
+    if (this.history.length < this.windowSize) {
+      return { diverged: false, best: this.best, slope: 0, consecutiveBadWindows: 0 };
+    }
+
+    // Simple slope estimate over window (least-squares on indices)
+    const n = this.history.length;
+    let sumX = 0, sumY = 0, sumXX = 0, sumXY = 0;
+    for (let i = 0; i < n; i++) {
+      const x = i;
+      const y = this.history[i];
+      sumX += x; sumY += y; sumXX += x * x; sumXY += x * y;
+    }
+    const denom = n * sumXX - sumX * sumX;
+    const slope = denom === 0 ? 0 : (n * sumXY - sumX * sumY) / denom;
+
+    const worseThanBest = c > this.best * (1 + this.tolBest);
+    const trendingUp = slope > 0;
+
+    if (worseThanBest && trendingUp) this.consecutiveBadWindows++;
+    else this.consecutiveBadWindows = 0;
+
+    return {
+      diverged: this.consecutiveBadWindows >= this.badWindowsToStop,
+      best: this.best,
+      slope,
+      consecutiveBadWindows: this.consecutiveBadWindows
+    };
+  }
+}
+
+// ============================================================================
 // STABILITY HELPERS
 // ============================================================================
 
@@ -833,10 +883,12 @@ export async function* runSimp(
   let complianceHistory: number[] = [];                   // Track compliance history
   let oscillationDetected = false;                        // Pause continuation if oscillating
   
-  // Divergence detection (stops optimization if compliance is increasing)
-  const DIVERGENCE_WINDOW = 5;                            // Check last N compliance values
-  let consecutiveIncreases = 0;                           // Count consecutive compliance increases
-  const MAX_CONSECUTIVE_INCREASES = 3;                    // Stop if compliance increases 3+ times in a row
+  // Divergence detection (sliding window tracker catches gradual increases)
+  const complianceTracker = new ComplianceTracker(
+    30,    // windowSize: track last 30 iterations
+    0.015, // tolBest: 1.5% worse than best is concerning
+    3      // badWindowsToStop: stop after 3 consecutive bad windows
+  );
   
   // Adaptive continuation parameters (from params or defaults)
   const PENALTY_STEP = params.penalStep ?? 0.05;          // Fixed step size (balanced for quality and speed)
@@ -1032,25 +1084,26 @@ export async function* runSimp(
       stableIterCount = 0;
     }
     
-    // Divergence detection: Track consecutive compliance increases
-    if (iter > 1 && compliance > compliancePrev * 1.001) {  // 0.1% increase threshold
-      consecutiveIncreases++;
-      if (consecutiveIncreases >= MAX_CONSECUTIVE_INCREASES) {
-        console.error(`[SIMP] ❌ DIVERGENCE DETECTED at iteration ${iter}: Compliance increased ${consecutiveIncreases} times in a row (${compliancePrev.toExponential(3)} → ${compliance.toExponential(3)}). Stopping optimization.`);
-        console.error(`[SIMP] This usually means penalty/beta increased too aggressively. Try reducing penalty step or beta multiplier.`);
-        yield { 
-          iter, 
-          compliance, 
-          change: maxChange, 
-          vol, 
-          densities: bestDensities ? new Float32Array(bestDensities) : rhoPhysical, 
-          converged: false, 
-          error: `Divergence detected: compliance increased ${consecutiveIncreases} times in a row. Returning best design from iteration ${bestIter}.` 
-        };
-        break;
-      }
-    } else {
-      consecutiveIncreases = 0;  // Reset counter if compliance decreased
+    // Divergence detection: Sliding window tracker catches gradual increases
+    const divStatus = complianceTracker.update(compliance);
+    if (divStatus.diverged) {
+      console.error(`[SIMP] ❌ DIVERGENCE DETECTED at iteration ${iter}:`);
+      console.error(`[SIMP]    Current compliance: ${compliance.toExponential(3)}`);
+      console.error(`[SIMP]    Best compliance: ${divStatus.best.toExponential(3)}`);
+      console.error(`[SIMP]    Trend slope: ${divStatus.slope.toExponential(3)} (positive = increasing)`);
+      console.error(`[SIMP]    Consecutive bad windows: ${divStatus.consecutiveBadWindows}`);
+      console.error(`[SIMP] This usually means penalty/beta increased too aggressively or the structure is ill-conditioned.`);
+      console.error(`[SIMP] Try: (1) reducing penalty step, (2) reducing beta multiplier, (3) adding more anchor points.`);
+      yield { 
+        iter, 
+        compliance, 
+        change: maxChange, 
+        vol, 
+        densities: bestDensities ? new Float32Array(bestDensities) : rhoPhysical, 
+        converged: false, 
+        error: `Divergence detected: compliance trending upward (best: ${divStatus.best.toExponential(3)}, current: ${compliance.toExponential(3)}). Returning best design from iteration ${bestIter}.` 
+      };
+      break;
     }
     
     // Checkpoint best design (for rollback)
