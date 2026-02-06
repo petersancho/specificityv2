@@ -317,6 +317,9 @@ export function validateBoundaryConditions(
   }
   
   // UPDATED: Distribute loads across multiple grid nodes
+  // CRITICAL: Exclude nodes that are already anchored (anchors take precedence)
+  const anchorNodeSet = new Set(anchorNodes.keys());
+  
   for (const load of markers.loads) {
     // Distribute load region to multiple grid nodes
     const dist = load.distributed ?? distributeVerticesToGridNodes(
@@ -341,12 +344,26 @@ export function validateBoundaryConditions(
     }
     
     // Mark all loaded nodes (for conflict detection)
-    for (const nodeIdx of dist.nodeIds) {
+    // CRITICAL: Skip nodes that are already anchored
+    let skippedNodes = 0;
+    for (let i = 0; i < dist.nodeIds.length; i++) {
+      const nodeIdx = dist.nodeIds[i];
+      
+      // Skip if node is already anchored (anchors take precedence)
+      if (anchorNodeSet.has(nodeIdx)) {
+        skippedNodes++;
+        continue;
+      }
+      
       loadNodes.set(nodeIdx, load.position);
       const dofs = dofMapping.nodeToDofs.get(nodeIdx);
       if (dofs) {
         dofs.forEach(dof => loadedDofs.add(dof));
       }
+    }
+    
+    if (skippedNodes > 0) {
+      console.log(`[BC MAPPING] Skipped ${skippedNodes} load nodes that overlap with anchors (anchors take precedence)`);
     }
   }
   
@@ -437,6 +454,7 @@ export function validateProblem(
   
   // UPDATED: Use distributed boundary conditions
   const fixedDofs = new Set<number>();
+  const anchorNodeSet = new Set<number>();
   let totalAnchorNodes = 0;
   
   for (const anchor of markers.anchors) {
@@ -454,6 +472,7 @@ export function validateProblem(
     // Apply constraints to all distributed nodes
     const dofMask = anchor.dofMask ?? [true, true, true];
     for (const nodeIdx of dist.nodeIds) {
+      anchorNodeSet.add(nodeIdx);
       const dofs = dofMapping.nodeToDofs.get(nodeIdx);
       if (dofs) {
         if (dofMask[0]) fixedDofs.add(dofs[0]);
@@ -467,8 +486,10 @@ export function validateProblem(
   console.log(`[VALIDATION] Distributed ${markers.anchors.length} anchor(s) → ${totalAnchorNodes} grid nodes → ${fixedDofs.size} fixed DOFs`);
   
   // UPDATED: Distribute loads across multiple grid nodes with weights
+  // CRITICAL: Skip nodes that are already anchored (anchors take precedence)
   const loadedDofs = new Map<number, number>();
   let totalLoadNodes = 0;
+  let totalSkippedNodes = 0;
   
   for (const load of markers.loads) {
     // Distribute load region to multiple grid nodes
@@ -484,17 +505,43 @@ export function validateProblem(
     
     // Distribute total force across nodes using weights
     // sum(weights) = 1.0, so sum(f_i) = F_total
+    // CRITICAL: Skip nodes that are already anchored
+    let activeWeight = 0;
+    const activeNodes: Array<{ nodeIdx: number; weight: number }> = [];
+    
     for (let i = 0; i < dist.nodeIds.length; i++) {
       const nodeIdx = dist.nodeIds[i];
-      const weight = dist.weights[i];
-      const dofs = dofMapping.nodeToDofs.get(nodeIdx);
-      if (dofs) {
-        loadedDofs.set(dofs[0], (loadedDofs.get(dofs[0]) || 0) + weight * load.force.x);
-        loadedDofs.set(dofs[1], (loadedDofs.get(dofs[1]) || 0) + weight * load.force.y);
-        loadedDofs.set(dofs[2], (loadedDofs.get(dofs[2]) || 0) + weight * load.force.z);
+      
+      // Skip if node is already anchored (anchors take precedence)
+      if (anchorNodeSet.has(nodeIdx)) {
+        totalSkippedNodes++;
+        continue;
       }
+      
+      const weight = dist.weights[i];
+      activeNodes.push({ nodeIdx, weight });
+      activeWeight += weight;
     }
-    totalLoadNodes += dist.nodeIds.length;
+    
+    // Renormalize weights for active nodes only
+    if (activeWeight > 1e-12) {
+      for (const { nodeIdx, weight } of activeNodes) {
+        const normalizedWeight = weight / activeWeight;
+        const dofs = dofMapping.nodeToDofs.get(nodeIdx);
+        if (dofs) {
+          loadedDofs.set(dofs[0], (loadedDofs.get(dofs[0]) || 0) + normalizedWeight * load.force.x);
+          loadedDofs.set(dofs[1], (loadedDofs.get(dofs[1]) || 0) + normalizedWeight * load.force.y);
+          loadedDofs.set(dofs[2], (loadedDofs.get(dofs[2]) || 0) + normalizedWeight * load.force.z);
+        }
+      }
+      totalLoadNodes += activeNodes.length;
+    } else {
+      console.warn(`[VALIDATION] Load region has no active nodes (all overlap with anchors)`);
+    }
+  }
+  
+  if (totalSkippedNodes > 0) {
+    console.log(`[VALIDATION] Skipped ${totalSkippedNodes} load nodes that overlap with anchors (anchors take precedence)`);
   }
   
   // Verify total force is preserved

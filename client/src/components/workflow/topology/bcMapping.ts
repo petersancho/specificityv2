@@ -39,16 +39,16 @@ export interface BCDistributionConfig {
 
 export const DefaultAnchorDistribution: BCDistributionConfig = {
   mode: "radius",
-  radiusCells: 3,
-  minNodes: 12,
-  maxNodes: 100,
+  radiusCells: 2,
+  minNodes: 8,
+  maxNodes: 50,
 };
 
 export const DefaultLoadDistribution: BCDistributionConfig = {
   mode: "radius",
-  radiusCells: 3,
-  minNodes: 12,
-  maxNodes: 100,
+  radiusCells: 2,
+  minNodes: 8,
+  maxNodes: 50,
 };
 
 /**
