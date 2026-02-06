@@ -598,6 +598,13 @@ function updateDensitiesOC(densities: Float32Array, sens: Float32Array, volFrac:
     
     if (vol / n > volFrac) l1 = lmid; else l2 = lmid;
   }
+  
+  const currentVol = newDensities.reduce((sum, rho) => sum + rho, 0) / n;
+  const scale = volFrac / currentVol;
+  for (let i = 0; i < n; i++) {
+    newDensities[i] = Math.max(rhoMin, Math.min(1.0, newDensities[i] * scale));
+  }
+  
   return newDensities;
 }
 
@@ -660,13 +667,7 @@ export async function* runSimp(
   });
   
   if (forceMax >= 10) {
-    console.warn(`[SIMP] ⚠️  WARNING: Force magnitude is very high (${forceMax.toFixed(1)}). This may cause:
-  - Extremely high compliance (>1e9)
-  - Uniform density field (no structure)
-  - Poor optimization results
-  
-  SOLUTION: Delete this rig and create a new one (new rigs use force=-1.0 instead of -100).
-  Or manually edit the Load Goal node parameters to reduce force magnitude.`);
+    throw new Error(`[SIMP] Force magnitude too high (${forceMax.toFixed(1)}). Delete this rig and create a new one (new rigs use force=-1.0 instead of -100).`);
   }
   
   const kernel = createElementKernel(nx, ny, nz, bounds, params.nu);
@@ -718,8 +719,11 @@ export async function* runSimp(
     
     applySeparableDensityFilter(densities, filter, rhoBar);
     
-    // Heaviside projection with continuation (beta: 1 → betaMax)
-    beta = Math.min(betaMax, 1.0 + (iter / 10.0));
+    // Heaviside projection with staged continuation (beta: 1 → 4 → 16 → 64)
+    beta = iter <= 20 ? 1.0 + (iter / 20.0) * 3.0 :
+           iter <= 40 ? 4.0 + ((iter - 20) / 20.0) * 12.0 :
+           iter <= 60 ? 16.0 + ((iter - 40) / 20.0) * 48.0 :
+           64.0;
     
     for (let e = 0; e < numElems; e++) {
       rhoPhysical[e] = heavisideProject(rhoBar[e], beta, 0.5);
@@ -814,7 +818,7 @@ export async function* runSimp(
       }
     }
     
-    const isConverging = relCompChange < 0.002 && maxChange < 0.005;
+    const isConverging = relCompChange < 0.0005 && maxChange < 0.002;
     const isDiscrete = grayLevel < grayTol;
     
     const timings = {

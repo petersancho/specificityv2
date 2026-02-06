@@ -444,12 +444,13 @@ export function generateGeometryFromVoxels(
   const voxelField = resampleToCubicGrid(field);
   
   const defaultColor: [number, number, number] = [0.8, 0.6, 0.4];
-  const mesh = chemistryMarchingCubes(voxelField, isovalue, [defaultColor]);
+  let mesh = chemistryMarchingCubes(voxelField, isovalue, [defaultColor]);
   
   if (mesh.positions.length === 0) {
     console.warn(`[GEOMETRY] Marching cubes produced empty mesh (isovalue=${isovalue}, density range=[${minDensity.toFixed(3)}, ${maxDensity.toFixed(3)}])`);
   } else {
     console.log(`[GEOMETRY] Generated mesh with ${mesh.positions.length / 3} vertices, ${mesh.indices.length / 3} triangles`);
+    mesh = laplacianSmoothMesh(mesh, 3, 0.5);
   }
   
   const isosurface: RenderMesh = {
@@ -463,6 +464,55 @@ export function generateGeometryFromVoxels(
   return {
     isosurface,
     vertexCount: isosurface.positions.length / 3,
+  };
+}
+
+function laplacianSmoothMesh(mesh: { positions: number[], normals: number[], uvs: number[], indices: number[], colors: number[] }, iterations: number = 3, lambda: number = 0.5): { positions: number[], normals: number[], uvs: number[], indices: number[], colors: number[] } {
+  const numVerts = mesh.positions.length / 3;
+  const adjacency: Set<number>[] = Array.from({ length: numVerts }, () => new Set());
+
+  for (let i = 0; i < mesh.indices.length; i += 3) {
+    const a = mesh.indices[i];
+    const b = mesh.indices[i + 1];
+    const c = mesh.indices[i + 2];
+    adjacency[a].add(b); adjacency[a].add(c);
+    adjacency[b].add(a); adjacency[b].add(c);
+    adjacency[c].add(a); adjacency[c].add(b);
+  }
+
+  const smoothed = new Float32Array(mesh.positions);
+
+  for (let iter = 0; iter < iterations; iter++) {
+    const newPos = new Float32Array(smoothed);
+    
+    for (let i = 0; i < numVerts; i++) {
+      const neighbors = Array.from(adjacency[i]);
+      if (neighbors.length === 0) continue;
+
+      const centroid = [0, 0, 0];
+      for (const j of neighbors) {
+        centroid[0] += smoothed[j * 3];
+        centroid[1] += smoothed[j * 3 + 1];
+        centroid[2] += smoothed[j * 3 + 2];
+      }
+      centroid[0] /= neighbors.length;
+      centroid[1] /= neighbors.length;
+      centroid[2] /= neighbors.length;
+
+      newPos[i * 3] = smoothed[i * 3] + lambda * (centroid[0] - smoothed[i * 3]);
+      newPos[i * 3 + 1] = smoothed[i * 3 + 1] + lambda * (centroid[1] - smoothed[i * 3 + 1]);
+      newPos[i * 3 + 2] = smoothed[i * 3 + 2] + lambda * (centroid[2] - smoothed[i * 3 + 2]);
+    }
+
+    smoothed.set(newPos);
+  }
+
+  return {
+    positions: Array.from(smoothed),
+    normals: mesh.normals,
+    uvs: mesh.uvs,
+    indices: mesh.indices,
+    colors: mesh.colors,
   };
 }
 

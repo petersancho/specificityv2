@@ -251,7 +251,7 @@ export const TopologyOptimizationSolverNode: WorkflowNodeDefinition = {
       key: "densityThreshold",
       label: "Density Threshold",
       type: "number",
-      defaultValue: 0.5,
+      defaultValue: 0.4,
       min: 0.1,
       max: 0.9,
       step: 0.05,
