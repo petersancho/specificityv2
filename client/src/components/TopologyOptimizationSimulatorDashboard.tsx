@@ -1041,8 +1041,8 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
               <div className={styles.geometryFloating}>
                 <TopologyGeometryPreview
                   geometry={previewGeometry}
-                  width={600}
-                  height={600}
+                  width={500}
+                  height={500}
                 />
                 <div className={styles.previewHint}>
                   Drag to rotate • Updates every 10 iterations
@@ -1053,8 +1053,8 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                 <h3 className={styles.viewTitle}>Convergence Monitor</h3>
                 <TopologyConvergence
                   history={history}
-                  width={600}
-                  height={600}
+                  width={500}
+                  height={450}
                 />
               </div>
             </div>
