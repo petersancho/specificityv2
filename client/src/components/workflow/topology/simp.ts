@@ -488,7 +488,8 @@ function solvePCG(
     
     if (iters === 0) resNorm0 = resNorm;
     if (resNorm0 > 0 && resNorm > resNorm0 * PCG_DIVERGENCE_FACTOR) {
-      throw new Error(`PCG diverging (resNorm grew from ${resNorm0.toExponential(2)} to ${resNorm.toExponential(2)}). Reduce resolution or check boundary conditions.`);
+      console.error(`[PCG] Diverging (resNorm grew from ${resNorm0.toExponential(2)} to ${resNorm.toExponential(2)}). Reduce resolution or check boundary conditions.`);
+      return false;
     }
     
     if (resNorm < tolAbs) { converged = true; break; }
@@ -873,7 +874,8 @@ export async function* runSimp(
     const stableWindow = 8;
     const minItersReached = (iter + 1) >= minIterations;
     const stableEnough = consecutiveConverged >= stableWindow;
-    const hasConverged = minItersReached && (shouldStop || stableEnough);
+    const complianceValid = Number.isFinite(compliance) && compliance > 0;
+    const hasConverged = complianceValid && minItersReached && (shouldStop || stableEnough);
     
     yield { 
       iter, 
@@ -897,8 +899,15 @@ export async function* runSimp(
         minIterations,
         minItersReached,
         stableEnough,
+        complianceValid,
         reason: shouldStop ? 'stall window' : 'stable convergence',
       });
+      break;
+    }
+    
+    if (!complianceValid) {
+      console.error(`[SIMP] Stopping at iteration ${iter} due to invalid compliance: ${compliance}`);
+      yield { iter, compliance, change: maxChange, vol, densities: rhoPhysical, converged: false, error: `Invalid compliance: ${compliance}` };
       break;
     }
     

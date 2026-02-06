@@ -161,8 +161,8 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
       const [i0, i1, i2] = tri.indices;
       const brightness = Math.max(0.3, Math.min(1.0, 0.5 + tri.avgZ / 10));
       const color = Math.floor(brightness * 255);
-      ctx.fillStyle = `rgb(${color}, ${Math.floor(color * 0.8)}, ${Math.floor(color * 0.6)})`;
-      ctx.strokeStyle = `rgb(${Math.floor(color * 0.5)}, ${Math.floor(color * 0.4)}, ${Math.floor(color * 0.3)})`;
+      ctx.fillStyle = `rgb(${color}, ${color}, ${color})`;
+      ctx.strokeStyle = `rgb(${Math.floor(color * 0.6)}, ${Math.floor(color * 0.6)}, ${Math.floor(color * 0.6)})`;
       ctx.lineWidth = 0.5;
       ctx.beginPath(); ctx.moveTo(projected[i0].x, projected[i0].y); ctx.lineTo(projected[i1].x, projected[i1].y); ctx.lineTo(projected[i2].x, projected[i2].y); ctx.closePath(); ctx.fill(); ctx.stroke();
     }
