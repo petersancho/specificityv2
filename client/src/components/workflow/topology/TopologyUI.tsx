@@ -267,9 +267,11 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
   const zMax = triangles[triangles.length - 1].avgZ;
   const zRange = Math.max(0.001, zMax - zMin);
 
-  const MIN_AREA2 = 4.0; // Minimum screen-space area (2x area) for triangle rendering
-  let microTriCount = 0;
-
+  // For topology optimization meshes with many small triangles, we need to render
+  // them as filled triangles regardless of size to get a solid appearance
+  const STROKE_THRESHOLD = 50; // Only stroke triangles larger than this
+  
+  // First pass: fill all triangles (no stroke) for solid appearance
   for (const tri of triangles) {
     const [i0, i1, i2] = tri.indices;
     const p0 = projected[i0], p1 = projected[i1], p2 = projected[i2];
@@ -279,30 +281,30 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
     const g = Math.round(BASE.g + (LIGHT.g - BASE.g) * t);
     const b = Math.round(BASE.b + (LIGHT.b - BASE.b) * t);
     
-    const area2 = triArea2(p0.x, p0.y, p1.x, p1.y, p2.x, p2.y);
-    
-    if (area2 < MIN_AREA2) {
-      microTriCount++;
-      const cx = (p0.x + p1.x + p2.x) / 3;
-      const cy = (p0.y + p1.y + p2.y) / 3;
-      ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-      ctx.fillRect(cx - 1, cy - 1, 2, 2);
-      continue;
-    }
-    
     ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-    ctx.strokeStyle = `rgb(${STROKE.r}, ${STROKE.g}, ${STROKE.b})`;
-    ctx.lineWidth = 0.8;  // Increased from 0.5 for better visibility
     ctx.beginPath();
     ctx.moveTo(p0.x, p0.y);
     ctx.lineTo(p1.x, p1.y);
     ctx.lineTo(p2.x, p2.y);
     ctx.closePath();
     ctx.fill();
-    if (area2 > 20) ctx.stroke(); // Only stroke larger triangles
   }
   
-  if (microTriCount > triangles.length * 0.5) {
-    console.warn(`[RENDER] ${microTriCount}/${triangles.length} triangles are micro-sized. Consider lowering density threshold.`);
+  // Second pass: stroke only larger triangles for edge definition
+  ctx.strokeStyle = `rgb(${STROKE.r}, ${STROKE.g}, ${STROKE.b})`;
+  ctx.lineWidth = 0.5;
+  for (const tri of triangles) {
+    const [i0, i1, i2] = tri.indices;
+    const p0 = projected[i0], p1 = projected[i1], p2 = projected[i2];
+    const area2 = triArea2(p0.x, p0.y, p1.x, p1.y, p2.x, p2.y);
+    
+    if (area2 > STROKE_THRESHOLD) {
+      ctx.beginPath();
+      ctx.moveTo(p0.x, p0.y);
+      ctx.lineTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.closePath();
+      ctx.stroke();
+    }
   }
 }
