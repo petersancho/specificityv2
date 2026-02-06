@@ -297,15 +297,15 @@ export function extractGoalMarkers(mesh: RenderMesh, goals: GoalBase[]): GoalMar
     const elements = goal.geometry?.elements ?? [];
     if (goal.goalType === 'anchor') {
       if (elements.length > 0) {
-        const metadata = analyzeGoalRegion(mesh, elements);
-        if (!metadata.isValid) {
-          console.warn('[ANCHOR GOAL] Invalid geometry:', metadata.validationErrors);
+        const positions = positionsFromElements(mesh, elements);
+        if (positions.length === 0) {
+          console.warn('[ANCHOR GOAL] No valid vertex positions found');
           anchors.push({ position: { x: bounds.min.x, y: bounds.min.y, z: bounds.min.z } });
         } else {
-          anchors.push({ 
-            position: metadata.weightedCentroid,
-            metadata 
-          });
+          for (const position of positions) {
+            anchors.push({ position });
+          }
+          console.log(`[ANCHOR GOAL] Extracted ${positions.length} anchor positions from ${elements.length} vertex indices`);
         }
       } else if (!hasAnchorWithElements) {
         anchors.push({ position: { x: bounds.min.x, y: bounds.min.y, z: bounds.min.z } });
@@ -313,17 +313,21 @@ export function extractGoalMarkers(mesh: RenderMesh, goals: GoalBase[]): GoalMar
     } else if (goal.goalType === 'load') {
       const force = extractForce(goal.parameters);
       if (elements.length > 0) {
-        const metadata = analyzeGoalRegion(mesh, elements);
-        if (!metadata.isValid) {
-          console.warn('[LOAD GOAL] Invalid geometry:', metadata.validationErrors);
+        const positions = positionsFromElements(mesh, elements);
+        if (positions.length === 0) {
+          console.warn('[LOAD GOAL] No valid vertex positions found');
           loads.push({ position: { x: bounds.max.x, y: bounds.max.y, z: bounds.max.z }, force, distributed: true });
         } else {
-          loads.push({ 
-            position: metadata.weightedCentroid,
-            force,
-            distributed: true,
-            metadata 
-          });
+          const numLoadPoints = positions.length;
+          const distributedForce = {
+            x: force.x / numLoadPoints,
+            y: force.y / numLoadPoints,
+            z: force.z / numLoadPoints,
+          };
+          for (const position of positions) {
+            loads.push({ position, force: distributedForce, distributed: true });
+          }
+          console.log(`[LOAD GOAL] Extracted ${positions.length} load positions from ${elements.length} vertex indices, force per point: (${distributedForce.x.toFixed(4)}, ${distributedForce.y.toFixed(4)}, ${distributedForce.z.toFixed(4)})`);
         }
       } else if (!hasLoadWithElements) {
         loads.push({ position: { x: bounds.max.x, y: bounds.max.y, z: bounds.max.z }, force, distributed: true });
@@ -337,6 +341,8 @@ export function extractGoalMarkers(mesh: RenderMesh, goals: GoalBase[]): GoalMar
   if (loads.length === 0 && goals.some(g => g.goalType === 'load')) {
     loads.push({ position: { x: bounds.max.x, y: bounds.max.y, z: bounds.max.z }, force: { x: 0, y: -1.0, z: 0 }, distributed: true });
   }
+  
+  console.log(`[GOAL MARKERS] Total: ${anchors.length} anchors, ${loads.length} loads`);
   
   return { anchors, loads };
 }
