@@ -470,20 +470,39 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     );
 
     // Generate preview geometry every 10 iterations OR at convergence
+    // CRITICAL: Log every frame to diagnose preview issues
+    console.log(`[TOPOLOGY] handleFrame iter=${frame.iter}:`, {
+      baseMesh: baseMesh ? 'EXISTS' : 'NULL',
+      hasDensities: frame.densities ? frame.densities.length : 0,
+      iter10: frame.iter % 10 === 0,
+      converged: frame.converged,
+    });
+    
     const shouldGeneratePreview = baseMesh && (frame.iter % 10 === 0 || frame.converged);
     if (shouldGeneratePreview) {
+      console.log('[TOPOLOGY] ⚠️ GENERATING PREVIEW at iteration', frame.iter);
       try {
         const t0 = performance.now();
         const bounds = calculateMeshBounds(baseMesh);
+        console.log('[TOPOLOGY] Preview bounds:', bounds);
+        
         const field = {
           densities: frame.densities,
           nx, ny, nz,
           bounds
         };
+        console.log('[TOPOLOGY] Preview field:', { nx, ny, nz, densityCount: frame.densities?.length });
+        
         const result = generateGeometryFromDensities(
           field,
           densityThreshold
         );
+        
+        console.log('[TOPOLOGY] ✅ Preview result:', {
+          hasIsosurface: !!result.isosurface,
+          positions: result.isosurface?.positions?.length || 0,
+          indices: result.isosurface?.indices?.length || 0,
+        });
         
         setPreviewGeometry(prev => {
           if (prev) {
@@ -499,8 +518,14 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
         const t1 = performance.now();
         console.log(`[TOPOLOGY] Preview generation took ${(t1 - t0).toFixed(1)}ms`);
       } catch (error) {
-        console.error('[TOPOLOGY] Preview generation error:', error);
+        console.error('[TOPOLOGY] ❌ Preview generation error:', error);
       }
+    } else {
+      console.log('[TOPOLOGY] ⏭️ Skipping preview generation:', {
+        baseMesh: baseMesh ? 'EXISTS' : 'NULL',
+        iter10: frame.iter % 10 === 0,
+        converged: frame.converged,
+      });
     }
 
     if (frame.converged) {
