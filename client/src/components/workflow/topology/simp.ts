@@ -803,8 +803,6 @@ export async function* runSimp(
   const dCdrhoBar = new Float32Array(numElems);
   const dCdrho = new Float32Array(numElems);
   
-  const penalRampRate = (params.penalEnd - params.penalStart) / params.penalRampIters;
-  
   if (DEBUG) {
     console.log('[SIMP] Starting optimization loop', {
       maxIters: params.maxIters,
@@ -827,7 +825,7 @@ export async function* runSimp(
     // Heaviside projection with staged continuation (beta: 1 → betaMax)
     // Ramps smoothly over 60 iterations, then stays at betaMax
     if (iter <= 60) {
-      const t = iter / 60.0;  // 0 to 1
+      const t = (iter - 1) / 59.0;  // 0 to 1 over iterations 1-60
       beta = 1.0 + t * (betaMax - 1.0);
     } else {
       beta = betaMax;
@@ -840,17 +838,19 @@ export async function* runSimp(
     
     const tFilter = performance.now();
     
-    // Penalty continuation: p = 1 → penalEnd over penalRampIters
-    if (iter <= params.penalRampIters) {
-      penal = params.penalStart + penalRampRate * (iter - 1);
+    // Penalty continuation: p = penalStart → penalEnd over penalRampIters
+    if (iter < params.penalRampIters) {
+      const t = (iter - 1) / (params.penalRampIters - 1);  // 0 to 1
+      penal = params.penalStart + t * (params.penalEnd - params.penalStart);
     } else {
       penal = params.penalEnd;
     }
     
+    // Adaptive CG tolerance: loose early (ill-conditioned), tight late (well-conditioned)
+    // After iteration 60, use the tighter of ADAPTIVE_CG_TOL_LATE or user's cgTol
     const adaptiveCgTol = iter <= ADAPTIVE_CG_EARLY_ITERS ? ADAPTIVE_CG_TOL_EARLY : 
                            iter <= ADAPTIVE_CG_MID_ITERS ? ADAPTIVE_CG_TOL_MID : 
-                           iter <= 60 ? ADAPTIVE_CG_TOL_LATE :
-                           params.cgTol;
+                           Math.min(ADAPTIVE_CG_TOL_LATE, params.cgTol);
     
     const { u, converged: solverOk, iters: cgIters } = solvePCG(
       kernel, rhoPhysicalF64, forces, fixedDofs, penal, params.E0, params.Emin,
@@ -959,7 +959,7 @@ export async function* runSimp(
         isDiscrete,
         isConverging,
         consecutiveConverged,
-        minItersReached: (iter + 1) >= minIterations,
+        minItersReached: iter >= minIterations,
         cgIters,
       });
     }
@@ -972,7 +972,7 @@ export async function* runSimp(
     }
     
     // Check if converged (all criteria must be met)
-    const minItersReached = (iter + 1) >= minIterations;
+    const minItersReached = iter >= minIterations;
     const stableEnough = consecutiveConverged >= STABLE_WINDOW;
     const complianceValid = Number.isFinite(compliance) && compliance > 0;
     const hasConverged = complianceValid && minItersReached && stableEnough;
