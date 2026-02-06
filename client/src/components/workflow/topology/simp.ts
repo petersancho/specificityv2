@@ -12,7 +12,6 @@ import { computeStrictBounds, worldToGrid, gridToNodeIndex, buildDofMapping } fr
 
 const DEBUG = false;
 
-const MAX_ELEMS = 60_000;
 const MAX_MEMORY_MB = 400;
 const PCG_DIVERGENCE_FACTOR = 1e6;
 
@@ -634,9 +633,6 @@ export async function* runSimp(
   const { nx, ny, nz } = params;
   
   const numElems = nx * ny * nz;
-  if (numElems > MAX_ELEMS) {
-    throw new Error(`Resolution too high (${numElems} elements > ${MAX_ELEMS} max). Reduce nx/ny/nz for stability.`);
-  }
   
   const estimatedMB = estimateMemoryMB(nx, ny, nz);
   if (estimatedMB > MAX_MEMORY_MB) {
