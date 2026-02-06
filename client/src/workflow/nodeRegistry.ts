@@ -6520,7 +6520,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     type: "listUnion",
     label: "List Union",
     shortLabel: "UNION",
-    description: "Merge multiple lists and remove duplicates.",
+    description: "Merge multiple lists and optionally remove duplicates.",
     category: "lists",
     semanticOps: ["data.union"],
     iconId: "listCreate",
@@ -6529,20 +6529,40 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       { key: "listB", label: "List B", type: "any", required: true },
       { key: "listC", label: "List C", type: "any" },
       { key: "listD", label: "List D", type: "any" },
+      { key: "deduplicate", label: "Deduplicate", type: "boolean", parameterKey: "deduplicate", defaultValue: true },
     ],
     outputs: [
       { key: "list", label: "List", type: "any" },
       { key: "count", label: "Count", type: "number" },
     ],
-    parameters: [],
+    parameters: [
+      {
+        key: "deduplicate",
+        label: "Deduplicate",
+        type: "boolean",
+        defaultValue: true,
+      },
+    ],
     primaryOutputKey: "list",
-    compute: ({ inputs }) => {
+    compute: ({ inputs, parameters }) => {
       const listA = toList(inputs.listA);
       const listB = toList(inputs.listB);
       const listC = toList(inputs.listC);
       const listD = toList(inputs.listD);
       
       const combined = [...listA, ...listB, ...listC, ...listD];
+      
+      const deduplicate = typeof inputs.deduplicate === 'boolean' 
+        ? inputs.deduplicate 
+        : (parameters?.deduplicate ?? true);
+      
+      if (!deduplicate) {
+        return {
+          list: combined,
+          count: combined.length,
+        };
+      }
+      
       const seen = new Set<string>();
       const unique: WorkflowValue[] = [];
       

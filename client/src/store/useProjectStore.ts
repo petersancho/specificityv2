@@ -8064,6 +8064,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         position: listUnionPos,
         data: {
           label: "Merge Anchor Regions",
+          parameters: {
+            deduplicate: false,
+          },
         },
       },
       {
