@@ -7933,11 +7933,6 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     iconId: "divideSurface",
     inputs: [
       { key: "geometry", label: "Geometry", type: "geometry", required: true },
-      { key: "axis", label: "Axis (Filter)", type: "string" },
-      { key: "mode", label: "Side (Filter)", type: "string" },
-      { key: "band", label: "Band", type: "number" },
-      { key: "spacing", label: "Spacing", type: "number" },
-      { key: "maxCount", label: "Max Count", type: "number" },
     ],
     outputs: [
       { key: "points", label: "Points", type: "any" },
@@ -8006,15 +8001,15 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
         };
       }
 
-      const axisRaw = typeof inputs.axis === "string" ? inputs.axis : parameters.axis;
+      const axisRaw = parameters.axis;
       const axis = axisRaw === "x" || axisRaw === "y" || axisRaw === "z" ? axisRaw : "none";
-      const modeRaw = typeof inputs.mode === "string" ? inputs.mode : parameters.mode;
+      const modeRaw = parameters.mode;
       const mode = modeRaw === "min" ? "min" : "max";
-      const bandRaw = typeof inputs.band === "number" ? inputs.band : parameters.band;
+      const bandRaw = parameters.band;
       const band = Number.isFinite(bandRaw) ? Math.max(0, Math.min(0.5, bandRaw as number)) : 0.05;
-      const spacingRaw = typeof inputs.spacing === "number" ? inputs.spacing : parameters.spacing;
+      const spacingRaw = parameters.spacing;
       const spacing = Number.isFinite(spacingRaw) ? Math.max(0.01, spacingRaw as number) : 0.05;
-      const maxCountRaw = typeof inputs.maxCount === "number" ? inputs.maxCount : parameters.maxCount;
+      const maxCountRaw = parameters.maxCount;
       const maxCount = Number.isFinite(maxCountRaw)
         ? Math.max(1, Math.round(maxCountRaw as number))
         : 100;
