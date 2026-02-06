@@ -7862,8 +7862,22 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const boxBuilderId = `node-box-topology-${ts}`;
     const boxBuilderPos = { x: position.x, y: position.y };
 
+    // Column 1.5: Spacing Sliders (for Divide Surface nodes)
+    const col1_5X = position.x + NODE_WIDTH + H_GAP;
+    const spacingSliderZId = `node-slider-spacing-z-${ts}`;
+    const spacingSliderZPos = { x: col1_5X, y: position.y };
+
+    const spacingSliderXId = `node-slider-spacing-x-${ts}`;
+    const spacingSliderXPos = { x: col1_5X, y: position.y + NODE_HEIGHT + V_GAP };
+
+    const spacingSliderYId = `node-slider-spacing-y-${ts}`;
+    const spacingSliderYPos = { x: col1_5X, y: position.y + 2 * (NODE_HEIGHT + V_GAP) };
+
+    const spacingSliderLoadId = `node-slider-spacing-load-${ts}`;
+    const spacingSliderLoadPos = { x: col1_5X, y: position.y + 3 * (NODE_HEIGHT + V_GAP) };
+
     // Column 2: Divide Surface Nodes (Multi-Region Anchoring)
-    const col2X = position.x + NODE_WIDTH + H_GAP;
+    const col2X = col1_5X + NODE_WIDTH + H_GAP;
     const anchorDivZId = `node-divsurf-anchor-z-${ts}`;
     const anchorDivZPos = { x: col2X, y: position.y };
 
@@ -7929,6 +7943,62 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         },
       },
       {
+        id: spacingSliderZId,
+        type: "slider" as const,
+        position: spacingSliderZPos,
+        data: {
+          label: "Spacing (Z Anchor)",
+          parameters: {
+            value: 0.05,
+            min: 0.01,
+            max: 0.3,
+            step: 0.01,
+          },
+        },
+      },
+      {
+        id: spacingSliderXId,
+        type: "slider" as const,
+        position: spacingSliderXPos,
+        data: {
+          label: "Spacing (X Anchor)",
+          parameters: {
+            value: 0.05,
+            min: 0.01,
+            max: 0.3,
+            step: 0.01,
+          },
+        },
+      },
+      {
+        id: spacingSliderYId,
+        type: "slider" as const,
+        position: spacingSliderYPos,
+        data: {
+          label: "Spacing (Y Anchor)",
+          parameters: {
+            value: 0.05,
+            min: 0.01,
+            max: 0.3,
+            step: 0.01,
+          },
+        },
+      },
+      {
+        id: spacingSliderLoadId,
+        type: "slider" as const,
+        position: spacingSliderLoadPos,
+        data: {
+          label: "Spacing (Load)",
+          parameters: {
+            value: 0.05,
+            min: 0.01,
+            max: 0.3,
+            step: 0.01,
+          },
+        },
+      },
+      {
         id: anchorDivZId,
         type: "geometryDivideSurface" as const,
         position: anchorDivZPos,
@@ -7938,7 +8008,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             axis: "z",
             mode: "min",
             band: 0.05,
-            spacing: 0.15,
             maxCount: 50,
           },
         },
@@ -7953,7 +8022,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             axis: "x",
             mode: "min",
             band: 0.05,
-            spacing: 0.15,
             maxCount: 50,
           },
         },
@@ -7968,7 +8036,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             axis: "y",
             mode: "min",
             band: 0.05,
-            spacing: 0.15,
             maxCount: 50,
           },
         },
@@ -7983,7 +8050,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             axis: "z",
             mode: "max",
             band: 0.05,
-            spacing: 0.15,
             maxCount: 50,
           },
         },
@@ -8091,6 +8157,35 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     ];
 
     const newEdges: WorkflowEdge[] = [
+      // Spacing Sliders → Divide Surface nodes
+      {
+        id: `edge-${spacingSliderZId}-${anchorDivZId}-spacing`,
+        source: spacingSliderZId,
+        sourceHandle: "value",
+        target: anchorDivZId,
+        targetHandle: "spacing",
+      },
+      {
+        id: `edge-${spacingSliderXId}-${anchorDivXId}-spacing`,
+        source: spacingSliderXId,
+        sourceHandle: "value",
+        target: anchorDivXId,
+        targetHandle: "spacing",
+      },
+      {
+        id: `edge-${spacingSliderYId}-${anchorDivYId}-spacing`,
+        source: spacingSliderYId,
+        sourceHandle: "value",
+        target: anchorDivYId,
+        targetHandle: "spacing",
+      },
+      {
+        id: `edge-${spacingSliderLoadId}-${loadDivId}-spacing`,
+        source: spacingSliderLoadId,
+        sourceHandle: "value",
+        target: loadDivId,
+        targetHandle: "spacing",
+      },
       // Box → Divide Surface nodes
       {
         id: `edge-${boxBuilderId}-${anchorDivZId}-geometry`,
