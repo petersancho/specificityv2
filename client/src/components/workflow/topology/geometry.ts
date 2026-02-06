@@ -414,9 +414,31 @@ export function generateGeometryFromVoxels(
     throw new Error(`Invalid field dimensions: ${field.nx}×${field.ny}×${field.nz}`);
   }
   
+  // Check for detached/empty buffer
+  if (!field.densities || field.densities.length === 0) {
+    throw new Error(`Densities array is empty or detached (length=${field.densities?.length ?? 'undefined'})`);
+  }
+  
+  // Compute min/max to help diagnose threshold issues
+  let minDensity = Infinity, maxDensity = -Infinity;
+  for (let i = 0; i < field.densities.length; i++) {
+    const v = field.densities[i];
+    if (v < minDensity) minDensity = v;
+    if (v > maxDensity) maxDensity = v;
+  }
+  
+  console.log(`[GEOMETRY] Density range: [${minDensity.toFixed(3)}, ${maxDensity.toFixed(3)}], isovalue: ${isovalue}`);
+  
   if (isovalue < 0 || isovalue > 1) {
     console.warn(`Isovalue ${isovalue} outside [0,1], clamping`);
     isovalue = Math.max(0, Math.min(1, isovalue));
+  }
+  
+  // Warn if isovalue is outside the density range
+  if (isovalue < minDensity) {
+    console.warn(`[GEOMETRY] Isovalue ${isovalue} is below min density ${minDensity.toFixed(3)} - entire volume will be solid`);
+  } else if (isovalue > maxDensity) {
+    console.warn(`[GEOMETRY] Isovalue ${isovalue} is above max density ${maxDensity.toFixed(3)} - entire volume will be void`);
   }
   
   const voxelField = resampleToCubicGrid(field);
@@ -425,7 +447,9 @@ export function generateGeometryFromVoxels(
   const mesh = chemistryMarchingCubes(voxelField, isovalue, [defaultColor]);
   
   if (mesh.positions.length === 0) {
-    console.warn(`Marching cubes produced empty mesh (isovalue=${isovalue})`);
+    console.warn(`[GEOMETRY] Marching cubes produced empty mesh (isovalue=${isovalue}, density range=[${minDensity.toFixed(3)}, ${maxDensity.toFixed(3)}])`);
+  } else {
+    console.log(`[GEOMETRY] Generated mesh with ${mesh.positions.length / 3} vertices, ${mesh.indices.length / 3} triangles`);
   }
   
   const isosurface: RenderMesh = {

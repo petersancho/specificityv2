@@ -340,7 +340,7 @@ parameters:
   - name: "rmin"
     type: "number"
     unit: "dimensionless"
-    default: 1.5
+    default: 2.5
     description: "Density filter radius (in element units)"
     
     constraints:
@@ -349,8 +349,8 @@ parameters:
         message: "Filter radius must be non-negative"
       
       - type: "range"
-        value: [1.0, 3.0]
-        message: "Typical filter radius is 1.5-2.5 elements"
+        value: [1.5, 5.0]
+        message: "Typical filter radius is 2.0-3.0 elements"
         severity: "info"
   
   # Convergence Parameters

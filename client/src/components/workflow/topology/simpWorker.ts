@@ -50,6 +50,19 @@ const post = (message: OutgoingMessage, transfer?: Transferable[]) => {
   }
 };
 
+const postFrame = (frame: SolverFrame) => {
+  // CRITICAL: Copy densities before transferring to avoid detaching the solver's working array.
+  // The solver reuses rhoPhysical across iterations, so transferring its buffer would break subsequent iterations.
+  const densitiesCopy = new Float32Array(frame.densities);
+  
+  const safeFrame: SolverFrame = {
+    ...frame,
+    densities: densitiesCopy,
+  };
+  
+  post({ type: "frame", frame: safeFrame }, [densitiesCopy.buffer]);
+};
+
 const run = async (mesh: RenderMesh, markers: GoalMarkers, params: SimpParams, options?: WorkerOptions) => {
   running = true;
   stopRequested = false;
@@ -80,7 +93,7 @@ const run = async (mesh: RenderMesh, markers: GoalMarkers, params: SimpParams, o
       
       // Only send frame if throttling allows it, or if converged
       if (shouldSendFrame(frame.iter) || frame.converged) {
-        post({ type: "frame", frame }, [frame.densities.buffer]);
+        postFrame(frame);
       }
       
       if (frame.converged) break;
@@ -90,6 +103,7 @@ const run = async (mesh: RenderMesh, markers: GoalMarkers, params: SimpParams, o
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    console.error('[SIMP WORKER] Error:', message);
     post({ type: "error", error: message });
   } finally {
     running = false;

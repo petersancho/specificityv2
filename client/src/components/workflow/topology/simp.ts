@@ -14,8 +14,15 @@ const DEBUG = false;
 
 const MAX_ELEMS = 60_000;
 const MAX_MEMORY_MB = 400;
-const PCG_TIME_BUDGET_MS = 500;
 const PCG_DIVERGENCE_FACTOR = 1e6;
+
+function computePCGTimeBudget(numElems: number): number {
+  const baseMs = 500;
+  const maxMs = 5000;
+  const refElems = 10_000;
+  const scaledMs = baseMs * Math.sqrt(numElems / refElems);
+  return Math.min(maxMs, Math.max(baseMs, scaledMs));
+}
 
 // ============================================================================
 // STABILITY HELPERS
@@ -450,8 +457,8 @@ function createPCGWorkspace(numDofs: number): PCGWorkspace {
 function solvePCG(
   kernel: ElementKernel, rho: Float64Array, f: Float64Array, fixedDofs: Set<number>,
   penal: number, E0: number, Emin: number, tol: number, maxIters: number,
-  workspace: PCGWorkspace, uPrev?: Float64Array
-): { u: Float64Array; converged: boolean; iters: number } {
+  workspace: PCGWorkspace, uPrev?: Float64Array, timeBudgetMs?: number
+): { u: Float64Array; converged: boolean; iters: number; budgetExceeded?: boolean } {
   const n = kernel.numDofs;
   const { r, z, p, Ap, M, fMod } = workspace;
   
@@ -481,10 +488,11 @@ function solvePCG(
   const tolAbs = Math.max(tol * Math.sqrt(dot(fMod, fMod)), 1e-14);
   
   const maxIterClamped = Math.min(maxIters, 150);
+  const budget = timeBudgetMs ?? computePCGTimeBudget(kernel.numElems);
   const t0 = performance.now();
   let resNorm0 = -1;
   
-  let converged = false, iters = 0;
+  let converged = false, iters = 0, budgetExceeded = false;
   for (iters = 0; iters < maxIterClamped; iters++) {
     const resNorm = Math.sqrt(dot(r, r));
     
@@ -496,8 +504,9 @@ function solvePCG(
     if (resNorm < tolAbs) { converged = true; break; }
     if (!Number.isFinite(resNorm)) break;
     
-    if (performance.now() - t0 > PCG_TIME_BUDGET_MS) {
-      throw new Error(`PCG time budget exceeded (${PCG_TIME_BUDGET_MS}ms). Reduce resolution (nx/ny/nz) or cgMaxIters.`);
+    if (performance.now() - t0 > budget) {
+      budgetExceeded = true;
+      break;
     }
     
     matrixFreeKx(kernel, rho, p, penal, E0, Emin, Ap);
@@ -524,7 +533,7 @@ function solvePCG(
   }
   
   for (const dof of fixedDofs) u[dof] = 0;
-  return { u, converged, iters };
+  return { u, converged, iters, budgetExceeded };
 }
 
 // ============================================================================
@@ -702,7 +711,15 @@ export async function* runSimp(
   for (let iter = 1; iter <= params.maxIters; iter++) {
     const t0 = performance.now();
     
+    // Defensive check: ensure working arrays are not detached (would happen if buffer was transferred)
+    if (densities.byteLength === 0 || rhoPhysical.byteLength === 0) {
+      throw new Error(`[SIMP] Working arrays detached at iter ${iter} (likely buffer transfer issue)`);
+    }
+    
     applySeparableDensityFilter(densities, filter, rhoBar);
+    
+    // Heaviside projection with continuation (beta: 1 → betaMax)
+    beta = Math.min(betaMax, 1.0 + (iter / 10.0));
     
     for (let e = 0; e < numElems; e++) {
       rhoPhysical[e] = heavisideProject(rhoBar[e], beta, 0.5);
@@ -711,19 +728,30 @@ export async function* runSimp(
     
     const tFilter = performance.now();
     
+    // Penalty continuation: p = 1 → penalEnd over penalRampIters
+    if (iter <= params.penalRampIters) {
+      penal = params.penalStart + penalRampRate * (iter - 1);
+    } else {
+      penal = params.penalEnd;
+    }
+    
     const adaptiveCgTol = iter <= ADAPTIVE_CG_EARLY_ITERS ? ADAPTIVE_CG_TOL_EARLY : 
                            iter <= ADAPTIVE_CG_MID_ITERS ? ADAPTIVE_CG_TOL_MID : 
                            iter <= 60 ? ADAPTIVE_CG_TOL_LATE :
                            params.cgTol;
     
-    const { u, converged: solverOk, iters: cgIters } = solvePCG(
+    const { u, converged: solverOk, iters: cgIters, budgetExceeded } = solvePCG(
       kernel, rhoPhysicalF64, forces, fixedDofs, penal, params.E0, params.Emin,
       adaptiveCgTol, params.cgMaxIters, pcgWorkspace, iter === 1 ? undefined : uPrev
     );
     
     const tSolve = performance.now();
     
-    if (!solverOk) {
+    if (budgetExceeded) {
+      console.warn(`[SIMP] PCG time budget exceeded at iter ${iter} (continuing with best iterate)`);
+    }
+    
+    if (!solverOk && !budgetExceeded) {
       yield { iter, compliance: Infinity, change: 1.0, vol: params.volFrac, densities: new Float32Array(densities), converged: false, error: `PCG failed at iter ${iter}` };
       return;
     }

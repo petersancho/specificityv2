@@ -36,14 +36,28 @@ export const TopologyConvergence: React.FC<TopologyConvergenceProps> = ({ histor
     ctx.strokeStyle = '#222'; ctx.lineWidth = 0.5;
     for (let i = 0; i <= 5; i++) { const y = padding + (graphHeight * i) / 5; ctx.beginPath(); ctx.moveTo(padding, y); ctx.lineTo(width - padding, y); ctx.stroke(); }
     
-    if (history.compliance.length > 1) {
-      ctx.strokeStyle = '#00aaff'; ctx.lineWidth = 2; ctx.beginPath();
-      history.compliance.forEach((c, i) => {
-        const x = padding + (graphWidth * i) / (history.compliance.length - 1);
-        const y = height - padding - ((c - minC) / range) * graphHeight;
-        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-      });
-      ctx.stroke();
+    const n = history.compliance.length;
+    if (n >= 1) {
+      ctx.strokeStyle = '#00aaff'; ctx.lineWidth = 2;
+      
+      if (n === 1) {
+        // Single point: draw a dot
+        const x = padding + graphWidth / 2;
+        const y = height - padding - graphHeight / 2;
+        ctx.fillStyle = '#00aaff';
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // Multiple points: draw a line
+        ctx.beginPath();
+        history.compliance.forEach((c, i) => {
+          const x = padding + (graphWidth * i) / (n - 1);
+          const y = height - padding - ((c - minC) / range) * graphHeight;
+          i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+      }
     }
     
     ctx.fillStyle = '#aaa'; ctx.font = '12px monospace'; ctx.textAlign = 'right';

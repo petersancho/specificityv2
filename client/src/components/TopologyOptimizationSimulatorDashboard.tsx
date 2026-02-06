@@ -303,7 +303,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
 
       const isosurfaceId = addGeometryMesh(geometryOutput.isosurface, { 
         sourceNodeId: nodeId,
-        recordHistory: false,
+        recordHistory: true,
         geometryId: cachedOptimizedMeshId,
         metadata: { generatedBy: 'topology-optimization', type: 'isosurface' }
       });
