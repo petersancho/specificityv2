@@ -1089,11 +1089,16 @@ export async function* runSimp(
     // 1. Compliance change < 0.1% (optimization converged)
     // 2. Density change < 0.3% (design stabilized)
     // 3. Gray level < 5% (discrete 0/1 solution)
+    // 4. Continuation complete (penalty >= penalEnd AND beta >= betaMax)
     const complianceConverged = relCompChange < 0.001;   // 0.1%
     const densityConverged = maxChange < 0.003;          // 0.3%
     const isDiscrete = grayLevel < grayTol;              // < 5% (default)
     
-    const isConverging = complianceConverged && densityConverged && isDiscrete;
+    // CRITICAL: Don't converge until continuation is complete!
+    // This prevents premature convergence at low penalty/beta values
+    const continuationComplete = penal >= params.penalEnd * 0.95 && beta >= betaMax * 0.9;
+    
+    const isConverging = complianceConverged && densityConverged && isDiscrete && continuationComplete;
     
     const timings = {
       filterMs: (tFilter - t0).toFixed(1),
@@ -1111,8 +1116,9 @@ export async function* runSimp(
         change: relCompChange.toExponential(3),
         vol: vol.toFixed(3),
         gray: grayLevel.toFixed(3),
-        penal: penal.toFixed(2),
-        beta: beta.toFixed(1),
+        penal: `${penal.toFixed(2)}/${params.penalEnd.toFixed(2)}`,
+        beta: `${beta.toFixed(1)}/${betaMax.toFixed(1)}`,
+        contDone: continuationComplete ? '✓' : '✗',
         stable: stableIterCount,
         oscillating: oscillationDetected,
         cgIters,
@@ -1150,6 +1156,8 @@ export async function* runSimp(
         maxChange: maxChange.toFixed(4) + ' (< 0.3% ✓)',
         vol: vol.toFixed(3),
         grayLevel: grayLevel.toFixed(3) + ` (< ${(grayTol * 100).toFixed(0)}% ✓)`,
+        penalty: `${penal.toFixed(2)}/${params.penalEnd.toFixed(2)} (≥ 95% ✓)`,
+        beta: `${beta.toFixed(1)}/${betaMax.toFixed(1)} (≥ 90% ✓)`,
         consecutiveConverged: `${consecutiveConverged} (≥ 5 ✓)`,
         minIterations,
         minItersReached: minItersReached ? '✓' : '✗',

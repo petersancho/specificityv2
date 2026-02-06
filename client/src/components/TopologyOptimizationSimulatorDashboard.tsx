@@ -898,14 +898,14 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                 <label className={styles.parameterLabel}>
                   Max Iterations
                   <span className={styles.parameterDescription}>
-                    Maximum solver iterations (10-200)
+                    Maximum solver iterations (10-2000)
                   </span>
                 </label>
                 <div className={styles.parameterControl}>
                   <input
                     type="range"
                     min="10"
-                    max="200"
+                    max="2000"
                     step="10"
                     value={maxIters}
                     onChange={(e) => handleParameterChange("maxIters", Number(e.target.value))}
