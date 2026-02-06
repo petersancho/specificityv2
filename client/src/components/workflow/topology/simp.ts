@@ -15,13 +15,7 @@ const DEBUG = false;
 const MAX_MEMORY_MB = 400;
 const PCG_DIVERGENCE_FACTOR = 1e6;
 
-function computePCGTimeBudget(numElems: number): number {
-  const baseMs = 2000;
-  const maxMs = 30000;
-  const refElems = 10_000;
-  const scaledMs = baseMs * Math.sqrt(numElems / refElems);
-  return Math.min(maxMs, Math.max(baseMs, scaledMs));
-}
+
 
 // ============================================================================
 // STABILITY HELPERS
@@ -456,8 +450,8 @@ function createPCGWorkspace(numDofs: number): PCGWorkspace {
 function solvePCG(
   kernel: ElementKernel, rho: Float64Array, f: Float64Array, fixedDofs: Set<number>,
   penal: number, E0: number, Emin: number, tol: number, maxIters: number,
-  workspace: PCGWorkspace, uPrev?: Float64Array, timeBudgetMs?: number
-): { u: Float64Array; converged: boolean; iters: number; budgetExceeded?: boolean } {
+  workspace: PCGWorkspace, uPrev?: Float64Array
+): { u: Float64Array; converged: boolean; iters: number } {
   const n = kernel.numDofs;
   const { r, z, p, Ap, M, fMod } = workspace;
   
@@ -486,11 +480,9 @@ function solvePCG(
   let rz = dot(r, z);
   const tolAbs = Math.max(tol * Math.sqrt(dot(fMod, fMod)), 1e-14);
   
-  const budget = timeBudgetMs ?? computePCGTimeBudget(kernel.numElems);
-  const t0 = performance.now();
   let resNorm0 = -1;
   
-  let converged = false, iters = 0, budgetExceeded = false;
+  let converged = false, iters = 0;
   for (iters = 0; iters < maxIters; iters++) {
     const resNorm = Math.sqrt(dot(r, r));
     
@@ -501,11 +493,6 @@ function solvePCG(
     
     if (resNorm < tolAbs) { converged = true; break; }
     if (!Number.isFinite(resNorm)) break;
-    
-    if (performance.now() - t0 > budget) {
-      budgetExceeded = true;
-      break;
-    }
     
     matrixFreeKx(kernel, rho, p, penal, E0, Emin, Ap);
     for (const dof of fixedDofs) Ap[dof] = 0;
@@ -531,7 +518,7 @@ function solvePCG(
   }
   
   for (const dof of fixedDofs) u[dof] = 0;
-  return { u, converged, iters, budgetExceeded };
+  return { u, converged, iters };
 }
 
 // ============================================================================
@@ -754,18 +741,14 @@ export async function* runSimp(
                            iter <= 60 ? ADAPTIVE_CG_TOL_LATE :
                            params.cgTol;
     
-    const { u, converged: solverOk, iters: cgIters, budgetExceeded } = solvePCG(
+    const { u, converged: solverOk, iters: cgIters } = solvePCG(
       kernel, rhoPhysicalF64, forces, fixedDofs, penal, params.E0, params.Emin,
       adaptiveCgTol, params.cgMaxIters, pcgWorkspace, iter === 1 ? undefined : uPrev
     );
     
     const tSolve = performance.now();
     
-    if (budgetExceeded) {
-      console.warn(`[SIMP] PCG time budget exceeded at iter ${iter} (continuing with best iterate)`);
-    }
-    
-    if (!solverOk && !budgetExceeded) {
+    if (!solverOk) {
       yield { iter, compliance: Infinity, change: 1.0, vol: params.volFrac, densities: new Float32Array(densities), converged: false, error: `PCG failed at iter ${iter}` };
       return;
     }
