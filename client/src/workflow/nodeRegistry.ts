@@ -7910,7 +7910,7 @@ export const NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     description: "Sample evenly spaced points on a mesh surface using Poisson-disk sampling.",
     category: "analysis",
     semanticOps: ["geometry.analyze.divideSurface"],
-    iconId: "geometryVertices",
+    iconId: "divideSurface",
     inputs: [
       { key: "geometry", label: "Geometry", type: "geometry", required: true },
       { key: "axis", label: "Axis (Filter)", type: "string" },

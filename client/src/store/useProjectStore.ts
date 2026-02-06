@@ -7862,16 +7862,27 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const boxBuilderId = `node-box-topology-${ts}`;
     const boxBuilderPos = { x: position.x, y: position.y };
 
-    // Column 2: Extent Selectors
+    // Column 2: Divide Surface Nodes (Multi-Region Anchoring)
     const col2X = position.x + NODE_WIDTH + H_GAP;
-    const anchorExtentId = `node-extent-anchor-${ts}`;
-    const anchorExtentPos = { x: col2X, y: position.y };
+    const anchorDivZId = `node-divsurf-anchor-z-${ts}`;
+    const anchorDivZPos = { x: col2X, y: position.y };
 
-    const loadExtentId = `node-extent-load-${ts}`;
-    const loadExtentPos = { x: col2X, y: position.y + NODE_HEIGHT + V_GAP };
+    const anchorDivXId = `node-divsurf-anchor-x-${ts}`;
+    const anchorDivXPos = { x: col2X, y: position.y + NODE_HEIGHT + V_GAP };
+
+    const anchorDivYId = `node-divsurf-anchor-y-${ts}`;
+    const anchorDivYPos = { x: col2X, y: position.y + 2 * (NODE_HEIGHT + V_GAP) };
+
+    const loadDivId = `node-divsurf-load-${ts}`;
+    const loadDivPos = { x: col2X, y: position.y + 3 * (NODE_HEIGHT + V_GAP) };
+
+    // Column 2.5: List Union (Merge Anchor Indices)
+    const col2_5X = col2X + NODE_WIDTH + H_GAP;
+    const listUnionId = `node-listunion-${ts}`;
+    const listUnionPos = { x: col2_5X, y: position.y + NODE_HEIGHT + V_GAP };
 
     // Column 3: Goal Nodes + Force Inputs
-    const col3X = col2X + NODE_WIDTH + H_GAP;
+    const col3X = col2_5X + NODE_WIDTH + H_GAP;
     const anchorGoalId = `node-anchorGoal-${ts}`;
     const anchorGoalPos = { x: col3X, y: position.y };
 
@@ -7889,7 +7900,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     // Scale vector by -1 (below unit Z)
     const scaleVectorId = `node-scaleVector-${ts}`;
     // Position scaleVector between unitZ and loadGoal for cleaner layout
-    const scaleVectorPos = { x: col3X, y: loadExtentPos.y + NODE_HEIGHT + V_GAP };
+    const scaleVectorPos = { x: col3X, y: loadDivPos.y + NODE_HEIGHT + V_GAP };
 
     // Column 4: Topology Optimization Solver
     const col4X = col3X + NODE_WIDTH + H_GAP;
@@ -7918,31 +7929,71 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         },
       },
       {
-        id: anchorExtentId,
-        type: "geometryExtentVertices" as const,
-        position: anchorExtentPos,
+        id: anchorDivZId,
+        type: "geometryDivideSurface" as const,
+        position: anchorDivZPos,
         data: {
-          label: "Anchor Vertices (Z Min)",
+          label: "Anchor Region (Z Min)",
           parameters: {
             axis: "z",
             mode: "min",
             band: 0.05,
-            maxCount: 256,
+            spacing: 0.15,
+            maxCount: 50,
           },
         },
       },
       {
-        id: loadExtentId,
-        type: "geometryExtentVertices" as const,
-        position: loadExtentPos,
+        id: anchorDivXId,
+        type: "geometryDivideSurface" as const,
+        position: anchorDivXPos,
         data: {
-          label: "Load Vertices (Z Max)",
+          label: "Anchor Region (X Min)",
+          parameters: {
+            axis: "x",
+            mode: "min",
+            band: 0.05,
+            spacing: 0.15,
+            maxCount: 50,
+          },
+        },
+      },
+      {
+        id: anchorDivYId,
+        type: "geometryDivideSurface" as const,
+        position: anchorDivYPos,
+        data: {
+          label: "Anchor Region (Y Min)",
+          parameters: {
+            axis: "y",
+            mode: "min",
+            band: 0.05,
+            spacing: 0.15,
+            maxCount: 50,
+          },
+        },
+      },
+      {
+        id: loadDivId,
+        type: "geometryDivideSurface" as const,
+        position: loadDivPos,
+        data: {
+          label: "Load Region (Z Max)",
           parameters: {
             axis: "z",
             mode: "max",
             band: 0.05,
-            maxCount: 256,
+            spacing: 0.15,
+            maxCount: 50,
           },
+        },
+      },
+      {
+        id: listUnionId,
+        type: "listUnion" as const,
+        position: listUnionPos,
+        data: {
+          label: "Merge Anchor Regions",
         },
       },
       {
@@ -8040,30 +8091,69 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     ];
 
     const newEdges: WorkflowEdge[] = [
+      // Box → Divide Surface nodes
       {
-        id: `edge-${boxBuilderId}-${anchorExtentId}-geometry`,
+        id: `edge-${boxBuilderId}-${anchorDivZId}-geometry`,
         source: boxBuilderId,
         sourceHandle: "geometry",
-        target: anchorExtentId,
+        target: anchorDivZId,
         targetHandle: "geometry",
       },
       {
-        id: `edge-${boxBuilderId}-${loadExtentId}-geometry`,
+        id: `edge-${boxBuilderId}-${anchorDivXId}-geometry`,
         source: boxBuilderId,
         sourceHandle: "geometry",
-        target: loadExtentId,
+        target: anchorDivXId,
         targetHandle: "geometry",
       },
       {
-        id: `edge-${anchorExtentId}-${anchorGoalId}-vertices`,
-        source: anchorExtentId,
+        id: `edge-${boxBuilderId}-${anchorDivYId}-geometry`,
+        source: boxBuilderId,
+        sourceHandle: "geometry",
+        target: anchorDivYId,
+        targetHandle: "geometry",
+      },
+      {
+        id: `edge-${boxBuilderId}-${loadDivId}-geometry`,
+        source: boxBuilderId,
+        sourceHandle: "geometry",
+        target: loadDivId,
+        targetHandle: "geometry",
+      },
+      // Divide Surface → List Union (merge anchor regions)
+      {
+        id: `edge-${anchorDivZId}-${listUnionId}-listA`,
+        source: anchorDivZId,
         sourceHandle: "indices",
+        target: listUnionId,
+        targetHandle: "listA",
+      },
+      {
+        id: `edge-${anchorDivXId}-${listUnionId}-listB`,
+        source: anchorDivXId,
+        sourceHandle: "indices",
+        target: listUnionId,
+        targetHandle: "listB",
+      },
+      {
+        id: `edge-${anchorDivYId}-${listUnionId}-listC`,
+        source: anchorDivYId,
+        sourceHandle: "indices",
+        target: listUnionId,
+        targetHandle: "listC",
+      },
+      // List Union → Anchor Goal
+      {
+        id: `edge-${listUnionId}-${anchorGoalId}-vertices`,
+        source: listUnionId,
+        sourceHandle: "list",
         target: anchorGoalId,
         targetHandle: "vertices",
       },
+      // Load Divide Surface → Load Goal
       {
-        id: `edge-${loadExtentId}-${loadGoalId}-applicationPoints`,
-        source: loadExtentId,
+        id: `edge-${loadDivId}-${loadGoalId}-applicationPoints`,
+        source: loadDivId,
         sourceHandle: "indices",
         target: loadGoalId,
         targetHandle: "applicationPoints",
