@@ -162,38 +162,38 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
     return overrides;
   }, [inputSourceNodes, nodeId]);
 
-  const resolveNumber = (key: string) => {
+  const resolveNumber = (key: string, defaultValue: number = 0) => {
     if (inputOverrides.has(key)) {
       const value = inputOverrides.get(key);
       if (typeof value === "number" && Number.isFinite(value)) return value;
     }
     const value = (parameters as Record<string, unknown>)[key];
     if (typeof value === "number" && Number.isFinite(value)) return value;
-    return 0;
+    return defaultValue;
   };
 
-  // SIMP parameters - all values come from node parameters (no hardcoded fallbacks)
-  const nx = resolveNumber("nx");
-  const ny = resolveNumber("ny");
-  const nz = resolveNumber("nz");
-  const volFrac = resolveNumber("volFrac");
-  const penalStart = resolveNumber("penalStart");
-  const penalEnd = resolveNumber("penalEnd");
-  const penalRampIters = resolveNumber("penalRampIters");
-  const rmin = resolveNumber("rmin");
-  const move = resolveNumber("move");
-  const maxIters = resolveNumber("maxIters");
-  const tolChange = resolveNumber("tolChange");
-  const minIterations = resolveNumber("minIterations");
-  const grayTol = resolveNumber("grayTol");
-  const betaMax = resolveNumber("betaMax");
-  const E0 = resolveNumber("E0");
-  const Emin = resolveNumber("Emin");
-  const rhoMin = resolveNumber("rhoMin");
-  const nu = resolveNumber("nu");
-  const cgTol = resolveNumber("cgTol");
-  const cgMaxIters = resolveNumber("cgMaxIters");
-  const densityThreshold = resolveNumber("densityThreshold");
+  // SIMP parameters - use node default values from TopologyOptimizationSolver.ts
+  const nx = resolveNumber("nx", 100);
+  const ny = resolveNumber("ny", 75);
+  const nz = resolveNumber("nz", 40);
+  const volFrac = resolveNumber("volFrac", 0.4);
+  const penalStart = resolveNumber("penalStart", 1.0);
+  const penalEnd = resolveNumber("penalEnd", 3.0);
+  const penalRampIters = resolveNumber("penalRampIters", 0);
+  const rmin = resolveNumber("rmin", 2.5);
+  const move = resolveNumber("move", 0.2);
+  const maxIters = resolveNumber("maxIters", 300);
+  const tolChange = resolveNumber("tolChange", 0.01);
+  const minIterations = resolveNumber("minIterations", 150);
+  const grayTol = resolveNumber("grayTol", 0.03);
+  const betaMax = resolveNumber("betaMax", 64);
+  const E0 = resolveNumber("E0", 1.0);
+  const Emin = resolveNumber("Emin", 1e-9);
+  const rhoMin = resolveNumber("rhoMin", 1e-3);
+  const nu = resolveNumber("nu", 0.3);
+  const cgTol = resolveNumber("cgTol", 1e-6);
+  const cgMaxIters = resolveNumber("cgMaxIters", 120);
+  const densityThreshold = resolveNumber("densityThreshold", 0.2);
 
   const hasGeometry = !!geometryEdge;
   const goalsCount = goalEdges.length;
