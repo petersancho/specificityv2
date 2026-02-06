@@ -7895,6 +7895,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const solverId = `node-topologyOptimizationSolver-${ts}`;
     const solverPos = { x: col4X, y: position.y };
 
+    // Column 5: Geometry Viewer
+    const col5X = col4X + NODE_WIDTH + H_GAP;
+    const viewerId = `node-viewer-${ts}`;
+    const viewerPos = { x: col5X, y: position.y };
+
     const newNodes: WorkflowNode[] = [
       {
         id: boxBuilderId,
@@ -7999,6 +8004,15 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           label: "Topology Optimization (SIMP)",
         },
       },
+      {
+        id: viewerId,
+        type: "geometryViewer" as const,
+        position: viewerPos,
+        data: {
+          label: "Optimized Geometry",
+          parameters: {},
+        },
+      },
     ];
 
     const newEdges: WorkflowEdge[] = [
@@ -8071,6 +8085,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         sourceHandle: "result",
         target: loadGoalId,
         targetHandle: "direction",
+      },
+      {
+        id: `edge-${solverId}-${viewerId}-geometry`,
+        source: solverId,
+        sourceHandle: "geometry",
+        target: viewerId,
+        targetHandle: "geometry",
       },
     ];
 
