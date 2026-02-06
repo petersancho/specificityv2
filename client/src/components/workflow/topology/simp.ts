@@ -863,11 +863,11 @@ export async function* runSimp(
   // Min iterations allows penalty/projection continuation to work properly
   // Set to 0 to check convergence immediately (not recommended - continuation needs time)
   // Recommended: 80-150 iterations for penalty (1→3) and beta (1→betaMax) to ramp up
-  // CRITICAL FIX: Force minIterations to be at least 150, regardless of what's passed
+  // CRITICAL FIX: Force minIterations to be at least 80, regardless of what's passed
   const rawMinIterations = params.minIterations;
-  const minIterations = Math.max(150, typeof rawMinIterations === 'number' && Number.isFinite(rawMinIterations) && rawMinIterations > 0
+  const minIterations = Math.max(80, typeof rawMinIterations === 'number' && Number.isFinite(rawMinIterations) && rawMinIterations > 0
     ? rawMinIterations 
-    : 150);  // Default to 150 if not specified or 0 (ensures quality results)
+    : 80);  // Default to 80 if not specified or 0 (ensures quality results)
   const grayTol = params.grayTol ?? 0.05;  // 5% gray elements
   const betaMax = params.betaMax ?? 64;    // Match UI default
   

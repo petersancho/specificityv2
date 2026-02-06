@@ -8017,7 +8017,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             move: 0.2,
             maxIters: 300,
             tolChange: 0.01,
-            minIterations: 150,
+            minIterations: 80,
             grayTol: 0.05,
             betaMax: 64,
             E0: 1,

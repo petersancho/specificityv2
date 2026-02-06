@@ -185,8 +185,8 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   const move = resolveNumber("move", 0.2);
   const maxIters = resolveNumber("maxIters", 300);
   const tolChange = resolveNumber("tolChange", 0.01);
-  // Force minIterations to be at least 150 (even if node has old default value of 30)
-  const minIterations = Math.max(150, resolveNumber("minIterations", 150));
+  // Force minIterations to be at least 80 (even if node has old default value)
+  const minIterations = Math.max(80, resolveNumber("minIterations", 80));
   const grayTol = resolveNumber("grayTol", 0.03);
   const betaMax = resolveNumber("betaMax", 64);
   const E0 = resolveNumber("E0", 1.0);
@@ -352,8 +352,21 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       console.log('[TOPOLOGY] Recalculation triggered: true');
       
       // Select the geometry in Roslyn so it's visible
+      console.log('[TOPOLOGY] ⚠️ About to select geometry in Roslyn:', isosurfaceId);
       selectGeometry(isosurfaceId, false);
-      console.log('[TOPOLOGY] ✅ Selected geometry in Roslyn:', isosurfaceId);
+      console.log('[TOPOLOGY] ✅✅✅ Selected geometry in Roslyn:', isosurfaceId);
+      
+      // Verify geometry is in store
+      const geometries = get().geometries;
+      const geometryExists = geometries.some(g => g.id === isosurfaceId);
+      console.log('[TOPOLOGY] Geometry exists in store:', geometryExists);
+      console.log('[TOPOLOGY] Total geometries in store:', geometries.length);
+      
+      // Verify geometry is selected
+      const selectedGeometryIds = get().selectedGeometryIds;
+      const isSelected = selectedGeometryIds.includes(isosurfaceId);
+      console.log('[TOPOLOGY] Geometry is selected:', isSelected);
+      console.log('[TOPOLOGY] Selected geometry IDs:', selectedGeometryIds);
       
       if (DEBUG) {
         console.log(`[GEOM] ✅ Generated topology optimization isosurface:
@@ -459,20 +472,24 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       setSimulationState('converged');
       
       // ALWAYS log convergence (not just in DEBUG mode)
-      console.log('[TOPOLOGY] ⚠️ SIMULATION CONVERGED at iteration', frame.iter);
+      console.log('[TOPOLOGY] ⚠️⚠️⚠️ SIMULATION CONVERGED at iteration', frame.iter);
+      console.log('[TOPOLOGY] frame.converged:', frame.converged);
       console.log('[TOPOLOGY] baseMesh:', baseMesh ? 'exists' : 'NULL');
       console.log('[TOPOLOGY] frame.densities:', frame.densities ? `${frame.densities.length} elements` : 'NULL');
+      console.log('[TOPOLOGY] Current simulation state:', simulationState);
+      console.log('[TOPOLOGY] isRunningRef.current:', isRunningRef.current);
       
       if (baseMesh) {
         try {
-          console.log('[TOPOLOGY] ⚠️ GENERATING GEOMETRY...');
+          console.log('[TOPOLOGY] ⚠️⚠️⚠️ GENERATING FINAL GEOMETRY...');
           generateAndRegisterGeometry(frame, baseMesh);
-          console.log('[TOPOLOGY] ✅ Geometry generation completed successfully');
+          console.log('[TOPOLOGY] ✅✅✅ Geometry generation completed successfully');
         } catch (error) {
-          console.error('[TOPOLOGY] ❌ Geometry generation FAILED:', error);
+          console.error('[TOPOLOGY] ❌❌❌ Geometry generation FAILED:', error);
+          console.error('[TOPOLOGY] Error stack:', error);
         }
       } else {
-        console.error('[TOPOLOGY] ❌ Cannot generate geometry: baseMesh is null');
+        console.error('[TOPOLOGY] ❌❌❌ Cannot generate geometry: baseMesh is null');
       }
     }
   };
