@@ -523,6 +523,7 @@ export function generateGeometryFromVoxels(
   console.log(`[GEOMETRY] ⚠️⚠️⚠️ Density field analysis:`, {
     dimensions: `${field.nx}×${field.ny}×${field.nz}`,
     totalVoxels: total,
+    expectedVoxels: field.nx * field.ny * field.nz,
     range: `[${minDensity.toFixed(3)}, ${maxDensity.toFixed(3)}]`,
     isovalue,
     distribution: {
@@ -533,6 +534,19 @@ export function generateGeometryFromVoxels(
       'above 0.8': `${countAbove08} (${(100 * countAbove08 / total).toFixed(1)}%)`,
       'above 0.9': `${countAbove09} (${(100 * countAbove09 / total).toFixed(1)}%)`,
     }
+  });
+  
+  // ⚠️⚠️⚠️ CRITICAL: Check if density distribution suggests we need to use a different isovalue
+  // If most voxels are above 0.5, the optimizer is working correctly and we should use 0.5 as isovalue
+  // If most voxels are below 0.5, something might be wrong OR we need a lower isovalue
+  const fractionAbove05 = countAbove05 / total;
+  const fractionAbove02 = (total - countBelow02) / total;
+  
+  console.log(`[GEOMETRY] ⚠️⚠️⚠️ DENSITY ANALYSIS:`, {
+    fractionAbove05: `${(100 * fractionAbove05).toFixed(1)}%`,
+    fractionAbove02: `${(100 * fractionAbove02).toFixed(1)}%`,
+    fractionAboveIsovalue: `${(100 * (total - countBelow02) / total).toFixed(1)}%`,
+    recommendation: fractionAbove05 > 0.3 ? 'Use isovalue 0.5' : fractionAbove02 > 0.3 ? 'Use isovalue 0.2' : 'Density field may be inverted or empty',
   });
   
   // Sample some densities at different positions to understand spatial distribution
@@ -552,6 +566,27 @@ export function generateGeometryFromVoxels(
     }
   }
   
+  // ⚠️⚠️⚠️ CRITICAL: Sample a 3x3x3 cube at the center to understand the spatial distribution
+  const cx = Math.floor(field.nx / 2);
+  const cy = Math.floor(field.ny / 2);
+  const cz = Math.floor(field.nz / 2);
+  console.log(`[GEOMETRY] ⚠️⚠️⚠️ 3x3x3 cube at center (${cx}, ${cy}, ${cz}):`);
+  for (let dz = -1; dz <= 1; dz++) {
+    for (let dy = -1; dy <= 1; dy++) {
+      let row = `  z=${cz+dz}, y=${cy+dy}: `;
+      for (let dx = -1; dx <= 1; dx++) {
+        const x = cx + dx, y = cy + dy, z = cz + dz;
+        if (x >= 0 && x < field.nx && y >= 0 && y < field.ny && z >= 0 && z < field.nz) {
+          const idx = x + y * field.nx + z * field.nx * field.ny;
+          row += `${field.densities[idx].toFixed(3)} `;
+        } else {
+          row += 'OOB ';
+        }
+      }
+      console.log(row);
+    }
+  }
+  
   if (isovalue < 0 || isovalue > 1) {
     console.warn(`Isovalue ${isovalue} outside [0,1], clamping`);
     isovalue = Math.max(0, Math.min(1, isovalue));
@@ -562,6 +597,45 @@ export function generateGeometryFromVoxels(
     console.warn(`[GEOMETRY] Isovalue ${isovalue} is below min density ${minDensity.toFixed(3)} - entire volume will be solid`);
   } else if (isovalue > maxDensity) {
     console.warn(`[GEOMETRY] Isovalue ${isovalue} is above max density ${maxDensity.toFixed(3)} - entire volume will be void`);
+  }
+  
+  // ⚠️⚠️⚠️ AUTO-ADJUST ISOVALUE based on density distribution
+  // If the current isovalue would result in less than 5% of voxels being solid,
+  // automatically adjust to the median density to get a reasonable surface
+  let adjustedIsovalue = isovalue;
+  
+  // Count how many voxels would be above the isovalue
+  let countAboveIsovalue = 0;
+  for (let i = 0; i < field.densities.length; i++) {
+    if (field.densities[i] >= isovalue) countAboveIsovalue++;
+  }
+  const fractionAboveIsovalue = countAboveIsovalue / total;
+  
+  console.log(`[GEOMETRY] ⚠️⚠️⚠️ Isovalue check:`, {
+    isovalue,
+    countAboveIsovalue,
+    fractionAboveIsovalue: `${(100 * fractionAboveIsovalue).toFixed(1)}%`,
+    needsAdjustment: fractionAboveIsovalue < 0.05 || fractionAboveIsovalue > 0.95,
+  });
+  
+  // If less than 5% or more than 95% of voxels would be solid, adjust the isovalue
+  if (fractionAboveIsovalue < 0.05 || fractionAboveIsovalue > 0.95) {
+    // Sort densities to find a better isovalue
+    const sortedDensities = Array.from(field.densities).sort((a, b) => a - b);
+    
+    // Use the value at the 60th percentile (to get ~40% solid, matching typical volFrac)
+    const targetPercentile = 0.6;
+    const targetIdx = Math.floor(sortedDensities.length * targetPercentile);
+    adjustedIsovalue = sortedDensities[targetIdx];
+    
+    console.log(`[GEOMETRY] ⚠️⚠️⚠️ AUTO-ADJUSTING ISOVALUE:`, {
+      original: isovalue,
+      adjusted: adjustedIsovalue.toFixed(4),
+      reason: fractionAboveIsovalue < 0.05 ? 'Too few voxels above isovalue' : 'Too many voxels above isovalue',
+      targetPercentile: `${(100 * targetPercentile).toFixed(0)}%`,
+    });
+    
+    isovalue = adjustedIsovalue;
   }
   
   const voxelField = resampleToCubicGrid(field);
