@@ -820,8 +820,7 @@ export async function* runSimp(
   let beta = 1.0;
   let penal = params.penalStart;
   const moveLimit = params.move;
-  let prevCompliance = Infinity;
-  let compliancePrev = Infinity;  // Track previous compliance for explosion detection
+  let compliancePrev = Infinity;
   let consecutiveConverged = 0;
   let uPrev = new Float64Array(kernel.numDofs);
   
@@ -956,7 +955,7 @@ export async function* runSimp(
     const grayLevel = computeGrayLevel(rhoPhysical);
     
     const eps = 1e-12;
-    const relCompChange = Math.abs(compliance - prevCompliance) / Math.max(Math.abs(prevCompliance), eps);
+    const relCompChange = Math.abs(compliance - compliancePrev) / Math.max(Math.abs(compliancePrev), eps);
     
     // Convergence criteria (all must be satisfied):
     // 1. Compliance change < 0.1% (optimization converged)
@@ -980,7 +979,7 @@ export async function* runSimp(
     if (iter % 10 === 0 || iter <= 5 || (minIterations > 0 && iter >= minIterations - 5)) {
       const complianceTrend = iter === 1 
         ? '—'
-        : (compliance < prevCompliance ? '↓ DECREASING' : '↑ INCREASING');
+        : (compliance < compliancePrev ? '↓ DECREASING' : '↑ INCREASING');
       
       console.log(`[SIMP] Iteration ${iter}:`, {
         compliance: compliance.toExponential(3),
@@ -1026,9 +1025,6 @@ export async function* runSimp(
       timings,
     };
     
-    // Update compliance tracking for next iteration
-    compliancePrev = compliance;
-    
     if (hasConverged) {
       console.log(`[SIMP] ✅ CONVERGED at iteration ${iter}`, {
         compliance: compliance.toExponential(3),
@@ -1049,7 +1045,7 @@ export async function* runSimp(
       break;
     }
     
-    prevCompliance = compliance;
+    compliancePrev = compliance;
     await new Promise(r => setTimeout(r, 0));
   }
 }

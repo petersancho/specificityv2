@@ -380,15 +380,23 @@ export function validateProblem(
   }
   
   const loadedDofs = new Map<number, number>();
+  const loadCountPerNode = new Map<number, number>();
   for (const load of markers.loads) {
     const grid = worldToGrid(load.position, bounds, params.nx, params.ny, params.nz);
     const nodeIdx = gridToNodeIndex(grid, params.nx, params.ny);
     const dofs = dofMapping.nodeToDofs.get(nodeIdx);
     if (dofs) {
-      loadedDofs.set(dofs[0], load.force.x);
-      loadedDofs.set(dofs[1], load.force.y);
-      loadedDofs.set(dofs[2], load.force.z);
+      loadedDofs.set(dofs[0], (loadedDofs.get(dofs[0]) || 0) + load.force.x);
+      loadedDofs.set(dofs[1], (loadedDofs.get(dofs[1]) || 0) + load.force.y);
+      loadedDofs.set(dofs[2], (loadedDofs.get(dofs[2]) || 0) + load.force.z);
+      loadCountPerNode.set(nodeIdx, (loadCountPerNode.get(nodeIdx) || 0) + 1);
     }
+  }
+  
+  const multiLoadNodes = Array.from(loadCountPerNode.entries()).filter(([_, count]) => count > 1);
+  if (multiLoadNodes.length > 0) {
+    console.warn(`[VALIDATION] ${multiLoadNodes.length} grid nodes have multiple loads (forces accumulated):`, 
+      multiLoadNodes.map(([nodeIdx, count]) => `node ${nodeIdx}: ${count} loads`).join(', '));
   }
   
   return {
