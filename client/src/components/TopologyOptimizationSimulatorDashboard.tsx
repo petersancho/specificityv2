@@ -331,7 +331,28 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
       console.log('[TOPOLOGY] Isosurface mesh:', {
         vertices: geometryOutput.isosurface.positions.length / 3,
         triangles: geometryOutput.isosurface.indices.length / 3,
+        hasColors: !!isosurfaceMeshWithColors.colors,
+        colorCount: isosurfaceMeshWithColors.colors?.length ?? 0,
+        hasNormals: !!isosurfaceMeshWithColors.normals,
+        normalCount: isosurfaceMeshWithColors.normals?.length ?? 0,
+        hasIndices: !!isosurfaceMeshWithColors.indices,
+        indexCount: isosurfaceMeshWithColors.indices?.length ?? 0,
       });
+      
+      // Verify the geometry was added to the store correctly
+      const state = useProjectStore.getState();
+      const addedGeometry = state.geometry.find(g => g.id === isosurfaceId);
+      if (addedGeometry) {
+        console.log('[TOPOLOGY] ✅ Geometry found in store:', {
+          id: addedGeometry.id,
+          type: addedGeometry.type,
+          hasMesh: 'mesh' in addedGeometry && !!addedGeometry.mesh,
+          meshVertices: 'mesh' in addedGeometry && addedGeometry.mesh ? addedGeometry.mesh.positions.length / 3 : 0,
+          meshTriangles: 'mesh' in addedGeometry && addedGeometry.mesh ? addedGeometry.mesh.indices.length / 3 : 0,
+        });
+      } else {
+        console.error('[TOPOLOGY] ❌ Geometry NOT found in store after addGeometryMesh!');
+      }
       
       // Log geometry bounds to help diagnose visibility issues
       const positions = geometryOutput.isosurface.positions;

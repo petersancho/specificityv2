@@ -250,6 +250,13 @@ export class GeometryRenderAdapter {
     }
 
     if ("mesh" in geometry && geometry.mesh) {
+      console.log('[RENDER ADAPTER] Resolved mesh source:', {
+        id: geometry.id,
+        type: geometry.type,
+        hasMesh: !!geometry.mesh,
+        vertices: geometry.mesh.positions.length / 3,
+        triangles: geometry.mesh.indices.length / 3,
+      });
       if (geometry.type === "surface" && geometry.nurbs) {
         const tessellated = tessellateSurfaceAdaptive(geometry.nurbs);
         return {
@@ -262,6 +269,11 @@ export class GeometryRenderAdapter {
       return geometry.mesh;
     }
 
+    console.warn('[RENDER ADAPTER] Could not resolve mesh source for geometry:', {
+      id: geometry.id,
+      type: geometry.type,
+      hasMeshProperty: "mesh" in geometry,
+    });
     return null;
   }
 
@@ -282,6 +294,14 @@ export class GeometryRenderAdapter {
 
     const meshSource = this.resolveMeshSource(geometry);
     if (meshSource) {
+      console.log('[RENDER ADAPTER] Rendering mesh geometry:', {
+        id: geometry.id,
+        type: geometry.type,
+        vertices: meshSource.positions.length / 3,
+        triangles: meshSource.indices.length / 3,
+        hasColors: !!meshSource.colors,
+        hasNormals: !!meshSource.normals,
+      });
       const flatMesh = createFlatShadedMesh(meshSource);
       buffer.setData({
         positions: flatMesh.positions,
