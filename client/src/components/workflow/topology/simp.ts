@@ -898,11 +898,12 @@ export async function* runSimp(
   );
   
   // Adaptive continuation parameters (from params or defaults)
-  const PENALTY_STEP = params.penalStep ?? 0.05;          // Fixed step size (balanced for quality and speed)
-  const BETA_MULTIPLIER = params.betaMultiplier ?? 1.1;   // Beta multiplier (balanced for quality and speed)
-  const CONT_STABLE_ITERS = params.contStableIters ?? 15; // Stability required before changes (balanced)
+  // CRITICAL: Reduced to prevent divergence at iteration 42
+  const PENALTY_STEP = params.penalStep ?? 0.025;         // Reduced from 0.05 → 0.025 (slower ramp)
+  const BETA_MULTIPLIER = params.betaMultiplier ?? 1.05;  // Reduced from 1.1 → 1.05 (slower ramp)
+  const CONT_STABLE_ITERS = params.contStableIters ?? 20; // Increased from 15 → 20 (more stability required)
   const CONT_TOL_REL = params.contTolRel ?? 0.002;        // Stability tolerance: 0.2%
-  const MIN_CHANGE_GAP = 40;                              // Minimum gap between changes (balanced)
+  const MIN_CHANGE_GAP = 50;                              // Increased from 40 → 50 (more gap between changes)
   
   // Checkpoint/rollback for best design (prevents losing good designs)
   // CRITICAL: Must save AND restore penalty/beta along with densities!

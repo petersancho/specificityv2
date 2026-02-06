@@ -317,6 +317,33 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
         vertices: geometryOutput.isosurface.positions.length / 3,
         triangles: geometryOutput.isosurface.indices.length / 3,
       });
+      
+      // Log geometry bounds to help diagnose visibility issues
+      const positions = geometryOutput.isosurface.positions;
+      if (positions.length > 0) {
+        let minX = Infinity, minY = Infinity, minZ = Infinity;
+        let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+        for (let i = 0; i < positions.length; i += 3) {
+          minX = Math.min(minX, positions[i]);
+          minY = Math.min(minY, positions[i + 1]);
+          minZ = Math.min(minZ, positions[i + 2]);
+          maxX = Math.max(maxX, positions[i]);
+          maxY = Math.max(maxY, positions[i + 1]);
+          maxZ = Math.max(maxZ, positions[i + 2]);
+        }
+        const sizeX = maxX - minX;
+        const sizeY = maxY - minY;
+        const sizeZ = maxZ - minZ;
+        const centerX = (minX + maxX) / 2;
+        const centerY = (minY + maxY) / 2;
+        const centerZ = (minZ + maxZ) / 2;
+        console.log('[TOPOLOGY] ⚠️⚠️⚠️ GEOMETRY BOUNDS:', {
+          min: { x: minX.toFixed(3), y: minY.toFixed(3), z: minZ.toFixed(3) },
+          max: { x: maxX.toFixed(3), y: maxY.toFixed(3), z: maxZ.toFixed(3) },
+          size: { x: sizeX.toFixed(3), y: sizeY.toFixed(3), z: sizeZ.toFixed(3) },
+          center: { x: centerX.toFixed(3), y: centerY.toFixed(3), z: centerZ.toFixed(3) },
+        });
+      }
 
       const surfaceArea = computeMeshArea(
         geometryOutput.isosurface.positions,
