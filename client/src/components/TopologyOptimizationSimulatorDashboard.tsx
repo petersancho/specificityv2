@@ -306,7 +306,15 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
             ? outputs.optimizedMesh
             : undefined;
 
-      const isosurfaceId = addGeometryMesh(geometryOutput.isosurface, { 
+      // Add black vertex colors to the isosurface mesh
+      const numVertices = geometryOutput.isosurface.positions.length / 3;
+      const colors = new Array(numVertices * 3).fill(0); // Black color (0, 0, 0) for all vertices
+      const isosurfaceMeshWithColors = {
+        ...geometryOutput.isosurface,
+        colors,
+      };
+      
+      const isosurfaceId = addGeometryMesh(isosurfaceMeshWithColors, { 
         sourceNodeId: nodeId,
         recordHistory: true,
         geometryId: cachedOptimizedMeshId,
@@ -524,7 +532,27 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
   const handleDone = () => {
     isRunningRef.current = false;
     setSimulationState('converged');
-    console.log('[TOPOLOGY] Simulation completed');
+    console.log('[TOPOLOGY] ⚠️⚠️⚠️ SIMULATION COMPLETED (handleDone called)');
+    
+    // Generate and register final geometry
+    if (currentFrame && currentFrame.densities && baseMesh) {
+      try {
+        console.log('[TOPOLOGY] ⚠️⚠️⚠️ GENERATING FINAL GEOMETRY FROM handleDone...');
+        console.log('[TOPOLOGY] currentFrame.iter:', currentFrame.iter);
+        console.log('[TOPOLOGY] currentFrame.compliance:', currentFrame.compliance);
+        console.log('[TOPOLOGY] currentFrame.densities.length:', currentFrame.densities.length);
+        generateAndRegisterGeometry(currentFrame, baseMesh);
+        console.log('[TOPOLOGY] ✅✅✅ Final geometry generation completed successfully');
+      } catch (error) {
+        console.error('[TOPOLOGY] ❌❌❌ Final geometry generation FAILED:', error);
+        console.error('[TOPOLOGY] Error stack:', error);
+      }
+    } else {
+      console.error('[TOPOLOGY] ❌❌❌ Cannot generate final geometry:');
+      console.error('[TOPOLOGY]   currentFrame:', currentFrame ? 'exists' : 'NULL');
+      console.error('[TOPOLOGY]   currentFrame.densities:', currentFrame?.densities ? `${currentFrame.densities.length} elements` : 'NULL');
+      console.error('[TOPOLOGY]   baseMesh:', baseMesh ? 'exists' : 'NULL');
+    }
   };
 
   const handleError = (error: string) => {
