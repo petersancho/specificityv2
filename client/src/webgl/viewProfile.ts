@@ -54,7 +54,7 @@ export const VIEW_STYLE: ViewStyleProfile = {
 
 export const VIEW_STYLE_DARK: ViewStyleProfile = {
   clearColor: [0.102, 0.102, 0.102, 1], // #1a1a1a
-  mesh: [0.25, 0.72, 0.74],
+  mesh: [0.85, 0.85, 0.87],
   meshGhost: [0.35, 0.4, 0.48],
   neutral: [0.35, 0.35, 0.38],
   edgePrimary: [0.9, 0.9, 0.88],
