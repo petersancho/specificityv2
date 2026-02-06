@@ -673,7 +673,7 @@ function solvePCG(
 
 const ADAPTIVE_CG_TOL_EARLY = 1e-2;  // 1% error - early iterations (problem is ill-conditioned with uniform density)
 const ADAPTIVE_CG_TOL_MID = 1e-2;    // 1% error - mid iterations (keep loose to handle ill-conditioning)
-const ADAPTIVE_CG_TOL_LATE = 1e-3;   // 0.1% error - late iterations (tighten only near convergence)
+const ADAPTIVE_CG_TOL_LATE = 1e-3;   // 0.1% error - late iterations
 const ADAPTIVE_CG_EARLY_ITERS = 40;  // Keep loose tolerance longer
 const ADAPTIVE_CG_MID_ITERS = 80;    // Tighten only in late iterations
 
@@ -814,8 +814,8 @@ export async function* runSimp(
   // Set to 0 to check convergence immediately (not recommended - continuation needs time)
   // Recommended: 30-60 iterations for penalty (1→3) and beta (1→betaMax) to ramp up
   const minIterations = params.minIterations ?? 0;
-  const grayTol = params.grayTol ?? 0.05;
-  const betaMax = params.betaMax ?? 64;
+  const grayTol = params.grayTol ?? 0.05;  // 5% gray elements
+  const betaMax = params.betaMax ?? 64;    // Match UI default
   
   let beta = 1.0;
   let penal = params.penalStart;
@@ -823,6 +823,39 @@ export async function* runSimp(
   let compliancePrev = Infinity;
   let consecutiveConverged = 0;
   let uPrev = new Float64Array(kernel.numDofs);
+  
+  // Continuation state tracking
+  let lastContinuationChangeIter = 0;
+  let stableIterCount = 0;   // Count of consecutive stable iterations
+  
+  // Oscillation detection (detects limit cycles by tracking sign changes in compliance)
+  const OSCILLATION_WINDOW = 10;                          // Check last N compliance values
+  let complianceHistory: number[] = [];                   // Track compliance history
+  let oscillationDetected = false;                        // Pause continuation if oscillating
+  
+  // Adaptive continuation parameters (from params or defaults)
+  const PENALTY_STEP = params.penalStep ?? 0.02;          // Fixed step size (reduced from 0.05)
+  const BETA_MULTIPLIER = params.betaMultiplier ?? 1.02;  // Beta multiplier (reduced from 1.1)
+  const CONT_STABLE_ITERS = params.contStableIters ?? 30; // Stability required before changes (increased from 15)
+  const CONT_TOL_REL = params.contTolRel ?? 0.001;        // Stability tolerance: 0.1% (tighter from 0.2%)
+  const MIN_CHANGE_GAP = 50;                              // Minimum gap between changes (increased from 25)
+  
+  // Checkpoint/rollback for best design (prevents losing good designs)
+  // CRITICAL: Must save AND restore penalty/beta along with densities!
+  // Otherwise, rolling back densities to a low-penalty design while keeping high penalty
+  // causes the design to fail (compliance increases instead of decreasing).
+  const ENABLE_ROLLBACK = params.enableRollback ?? true;
+  const ROLLBACK_THRESHOLD = params.rollbackThreshold ?? 1.10; // 10% regression triggers rollback
+  let bestCompliance = Infinity;
+  let bestDensities: Float32Array | null = null;
+  let bestCompliancePrev = Infinity;  // For restoring compliancePrev on rollback
+  let bestPenal = penal;              // Save penalty at best design
+  let bestBeta = beta;                // Save beta at best design
+  let bestIter = 0;
+  let rollbackCount = 0;
+  const MAX_ROLLBACKS = 5; // Allow more rollbacks since we now restore parameters properly
+  const ROLLBACK_COOLDOWN = 20; // Iterations to wait after rollback before allowing another
+  let lastRollbackIter = -ROLLBACK_COOLDOWN; // Track when last rollback occurred
   
   const pcgWorkspace = createPCGWorkspace(kernel.numDofs);
   const rhoBar = new Float32Array(numElems);
@@ -850,13 +883,45 @@ export async function* runSimp(
     
     applySeparableDensityFilter(densities, filter, rhoBar);
     
-    // Heaviside projection with staged continuation (beta: 1 → betaMax)
-    // Ramps smoothly over 60 iterations, then stays at betaMax
-    if (iter <= 60) {
-      const t = (iter - 1) / 59.0;  // 0 to 1 over iterations 1-60
-      beta = 1.0 + t * (betaMax - 1.0);
-    } else {
-      beta = betaMax;
+    // Check if enough iterations have passed since last change
+    const gapOk = (iter - lastContinuationChangeIter) >= MIN_CHANGE_GAP;
+    
+    // Adaptive stability check: compliance must be stable for CONT_STABLE_ITERS iterations
+    const isStable = stableIterCount >= CONT_STABLE_ITERS;
+    
+    // Decide on parameter changes (NEVER change both in same iteration)
+    // Pause continuation if oscillation detected
+    let parameterChanged = false;
+    
+    if (!oscillationDetected) {
+      // Priority 1: Penalty ladder (only when stable)
+      if (!parameterChanged && gapOk && isStable && penal < params.penalEnd - 1e-9) {
+        const penalNew = Math.min(params.penalEnd, penal + PENALTY_STEP);
+        if (penalNew > penal + 1e-9) {
+          penal = penalNew;
+          parameterChanged = true;
+          stableIterCount = 0;
+          if (DEBUG) console.log(`[SIMP] Penalty: ${penal.toFixed(2)} at iteration ${iter}`);
+        }
+      }
+      
+      // Priority 2: Beta increase (only when penalty >= 2.0 and stable)
+      const betaCanIncrease = isStable && (penal >= Math.min(params.penalEnd, 2.0));
+      
+      if (!parameterChanged && gapOk && betaCanIncrease && beta < betaMax - 1e-9) {
+        const betaNew = Math.min(betaMax, beta * BETA_MULTIPLIER);
+        if (betaNew > beta + 1e-9) {
+          beta = betaNew;
+          parameterChanged = true;
+          stableIterCount = 0;
+          if (DEBUG) console.log(`[SIMP] Beta: ${beta.toFixed(1)} at iteration ${iter}`);
+        }
+      }
+    }
+    
+    // Update continuation state
+    if (parameterChanged) {
+      lastContinuationChangeIter = iter;
     }
     
     for (let e = 0; e < numElems; e++) {
@@ -865,16 +930,6 @@ export async function* runSimp(
     }
     
     const tFilter = performance.now();
-    
-    // Penalty continuation: p = penalStart → penalEnd over penalRampIters
-    if (iter < params.penalRampIters) {
-      const t = params.penalRampIters > 1 
-        ? (iter - 1) / (params.penalRampIters - 1)  // 0 to 1
-        : 0;  // Edge case: penalRampIters = 1
-      penal = params.penalStart + t * (params.penalEnd - params.penalStart);
-    } else {
-      penal = params.penalEnd;
-    }
     
     // Adaptive CG tolerance: loose early (ill-conditioned), tight late (well-conditioned)
     // After iteration 60, use the tighter of ADAPTIVE_CG_TOL_LATE or user's cgTol
@@ -957,13 +1012,85 @@ export async function* runSimp(
     const eps = 1e-12;
     const relCompChange = Math.abs(compliance - compliancePrev) / Math.max(Math.abs(compliancePrev), eps);
     
+    // Update stability counter for adaptive continuation
+    if (relCompChange < CONT_TOL_REL) {
+      stableIterCount++;
+    } else {
+      stableIterCount = 0;
+    }
+    
+    // Checkpoint best design (for rollback)
+    // CRITICAL: Save penalty and beta along with densities so they stay in sync!
+    if (compliance < bestCompliance) {
+      bestCompliance = compliance;
+      bestDensities = new Float32Array(densities);
+      bestCompliancePrev = compliancePrev;
+      bestPenal = penal;  // Save penalty at this design
+      bestBeta = beta;    // Save beta at this design
+      bestIter = iter;
+    }
+    
+    // Oscillation detection: Check if compliance is oscillating (limit cycle)
+    // Detect by counting sign changes in compliance derivative
+    complianceHistory.push(compliance);
+    if (complianceHistory.length > OSCILLATION_WINDOW) {
+      complianceHistory.shift(); // Keep only last N values
+      
+      // Count sign changes in compliance derivative (indicates oscillation)
+      let signChanges = 0;
+      for (let i = 2; i < complianceHistory.length; i++) {
+        const prevDelta = complianceHistory[i-1] - complianceHistory[i-2];
+        const currDelta = complianceHistory[i] - complianceHistory[i-1];
+        if (prevDelta * currDelta < 0) signChanges++;
+      }
+      
+      // If compliance changes direction frequently (>60% of time), we're oscillating
+      const oscillationRatio = signChanges / (complianceHistory.length - 2);
+      if (oscillationRatio > 0.6 && !oscillationDetected) {
+        oscillationDetected = true;
+        console.log(`[SIMP] ⚠️ OSCILLATION DETECTED: Compliance changing direction ${(oscillationRatio * 100).toFixed(0)}% of time. Pausing continuation.`);
+      }
+      
+      // Resume continuation if oscillation has stopped
+      if (oscillationDetected && oscillationRatio < 0.3) {
+        oscillationDetected = false;
+        console.log(`[SIMP] ✅ Oscillation resolved. Resuming continuation.`);
+      }
+    }
+    
+    // Rollback if compliance regressed significantly (prevents losing good designs)
+    const rollbackCooldownOk = (iter - lastRollbackIter) >= ROLLBACK_COOLDOWN;
+    if (ENABLE_ROLLBACK && bestDensities && rollbackCount < MAX_ROLLBACKS && rollbackCooldownOk) {
+      const regressionRatio = compliance / bestCompliance;
+      if (regressionRatio > ROLLBACK_THRESHOLD && iter > bestIter + 5) {
+        rollbackCount++;
+        console.log(`[SIMP] ⚠️ ROLLBACK #${rollbackCount}: Compliance regressed ${((regressionRatio - 1) * 100).toFixed(1)}% from best (${bestCompliance.toExponential(3)} at iter ${bestIter}).`);
+        console.log(`[SIMP] ⚠️ ROLLBACK: Restoring densities AND parameters: penal ${penal.toFixed(2)} → ${bestPenal.toFixed(2)}, β ${beta.toFixed(1)} → ${bestBeta.toFixed(1)}`);
+        
+        // Restore best densities
+        for (let e = 0; e < numElems; e++) {
+          densities[e] = bestDensities[e];
+        }
+        
+        // CRITICAL: Restore penalty and beta along with densities!
+        // A low-penalty design can't survive at high penalty
+        penal = bestPenal;
+        beta = bestBeta;
+        
+        compliancePrev = bestCompliancePrev;
+        lastRollbackIter = iter;
+        stableIterCount = 0;
+        lastContinuationChangeIter = iter;
+      }
+    }
+    
     // Convergence criteria (all must be satisfied):
     // 1. Compliance change < 0.1% (optimization converged)
     // 2. Density change < 0.3% (design stabilized)
     // 3. Gray level < 5% (discrete 0/1 solution)
-    const complianceConverged = relCompChange < 0.001;  // 0.1%
-    const densityConverged = maxChange < 0.003;         // 0.3%
-    const isDiscrete = grayLevel < grayTol;             // < 5%
+    const complianceConverged = relCompChange < 0.001;   // 0.1%
+    const densityConverged = maxChange < 0.003;          // 0.3%
+    const isDiscrete = grayLevel < grayTol;              // < 5% (default)
     
     const isConverging = complianceConverged && densityConverged && isDiscrete;
     
@@ -976,27 +1103,17 @@ export async function* runSimp(
       cgTol: adaptiveCgTol.toExponential(1),
     };
     
+    // Simple logging every 10 iterations or early/late in optimization
     if (iter % 10 === 0 || iter <= 5 || (minIterations > 0 && iter >= minIterations - 5)) {
-      const complianceTrend = iter === 1 
-        ? '—'
-        : (compliance < compliancePrev ? '↓ DECREASING' : '↑ INCREASING');
-      
       console.log(`[SIMP] Iteration ${iter}:`, {
         compliance: compliance.toExponential(3),
-        complianceTrend,
-        relCompChange: relCompChange.toExponential(3),
-        maxChange: maxChange.toFixed(4),
-        moveLimit: moveLimit.toFixed(3),
+        change: relCompChange.toExponential(3),
         vol: vol.toFixed(3),
-        grayLevel: grayLevel.toFixed(3),
+        gray: grayLevel.toFixed(3),
         penal: penal.toFixed(2),
         beta: beta.toFixed(1),
-        complianceConverged,
-        densityConverged,
-        isDiscrete,
-        isConverging,
-        consecutiveConverged,
-        minItersReached: iter >= minIterations,
+        stable: stableIterCount,
+        oscillating: oscillationDetected,
         cgIters,
       });
     }

@@ -14,15 +14,15 @@ export type SimpParams = {
   volFrac: number;         // Target volume fraction (0-1)
   penal: number;           // SIMP penalty exponent (current value, updated via continuation)
   penalStart: number;      // Starting penalty (typically 1.0)
-  penalEnd: number;        // Final penalty (typically 3.0)
-  penalRampIters: number;  // Iterations to ramp from start to end
+  penalEnd: number;        // Final penalty (typically 3.0-5.0)
+  penalRampIters: number;  // DEPRECATED: No longer used with adaptive continuation
   rmin: number;            // Filter radius in elements
   move: number;            // Move limit (0.1-0.2)
   maxIters: number;        // Maximum iterations
   tolChange: number;       // Convergence tolerance
   minIterations?: number;  // Minimum stable iterations for convergence
   grayTol?: number;        // Gray level tolerance (0 = pure 0/1, 1 = all gray)
-  betaMax?: number;        // Maximum beta for Heaviside projection
+  betaMax?: number;        // Maximum beta for Heaviside projection (default 256)
   E0: number;              // Young's modulus (solid material)
   Emin: number;            // Minimum stiffness (void material)
   rhoMin: number;          // Minimum density
@@ -33,6 +33,13 @@ export type SimpParams = {
   emitEvery?: number;      // Emit frames every N iterations
   yieldEvery?: number;     // Yield to main thread every N iterations
   cgBoostFactor?: number;  // Boost factor for CG iterations when solver stalls
+  // Adaptive continuation parameters (ultra-conservative defaults)
+  penalStep?: number;      // Penalty increment per step (default 0.05)
+  betaMultiplier?: number; // Beta multiplier per step (default 1.1)
+  contStableIters?: number; // Iterations of stability before continuation advance (default 15)
+  contTolRel?: number;     // Relative compliance tolerance for stability (default 0.002 = 0.2%)
+  enableRollback?: boolean; // Enable checkpoint/rollback to best design (default true)
+  rollbackThreshold?: number; // Compliance regression threshold for rollback (default 1.10 = 10%)
 };
 
 /**
