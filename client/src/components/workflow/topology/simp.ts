@@ -677,7 +677,7 @@ const ADAPTIVE_CG_TOL_LATE = 1e-2;   // 1% error - late iterations (keep loose t
 const ADAPTIVE_CG_EARLY_ITERS = 40;  // Keep loose tolerance longer
 const ADAPTIVE_CG_MID_ITERS = 120;   // Delay tightening to avoid slowdown at iteration 80
 
-const STABLE_WINDOW = 8;  // Need 8 consecutive converged iterations for stability
+const STABLE_WINDOW = 5;  // Need 5 consecutive converged iterations for stability (relaxed to allow longer optimization)
 
 function computeSensitivities(rho: Float64Array, ce: Float64Array, penal: number, E0: number, Emin: number): Float64Array {
   const dc = new Float64Array(rho.length);
@@ -834,11 +834,11 @@ export async function* runSimp(
   let oscillationDetected = false;                        // Pause continuation if oscillating
   
   // Adaptive continuation parameters (from params or defaults)
-  const PENALTY_STEP = params.penalStep ?? 0.03;          // Fixed step size (ultra-conservative to prevent stalling)
-  const BETA_MULTIPLIER = params.betaMultiplier ?? 1.05;  // Beta multiplier (ultra-conservative to prevent spikes)
-  const CONT_STABLE_ITERS = params.contStableIters ?? 20; // Stability required before changes (stricter)
-  const CONT_TOL_REL = params.contTolRel ?? 0.002;        // Stability tolerance: 0.2% (stricter)
-  const MIN_CHANGE_GAP = 50;                              // Minimum gap between changes (more time to adapt)
+  const PENALTY_STEP = params.penalStep ?? 0.05;          // Fixed step size (balanced for quality and speed)
+  const BETA_MULTIPLIER = params.betaMultiplier ?? 1.1;   // Beta multiplier (balanced for quality and speed)
+  const CONT_STABLE_ITERS = params.contStableIters ?? 15; // Stability required before changes (balanced)
+  const CONT_TOL_REL = params.contTolRel ?? 0.002;        // Stability tolerance: 0.2%
+  const MIN_CHANGE_GAP = 40;                              // Minimum gap between changes (balanced)
   
   // Checkpoint/rollback for best design (prevents losing good designs)
   // CRITICAL: Must save AND restore penalty/beta along with densities!
@@ -1119,7 +1119,7 @@ export async function* runSimp(
       });
     }
     
-    // Track consecutive converged iterations (need 8+ for stability)
+    // Track consecutive converged iterations (need 5+ for stability)
     if (isConverging) {
       consecutiveConverged++;
     } else {
@@ -1149,8 +1149,8 @@ export async function* runSimp(
         relCompChange: relCompChange.toExponential(3) + ' (< 0.1% ✓)',
         maxChange: maxChange.toFixed(4) + ' (< 0.3% ✓)',
         vol: vol.toFixed(3),
-        grayLevel: grayLevel.toFixed(3) + ' (< 5% ✓)',
-        consecutiveConverged: `${consecutiveConverged} (≥ 8 ✓)`,
+        grayLevel: grayLevel.toFixed(3) + ` (< ${(grayTol * 100).toFixed(0)}% ✓)`,
+        consecutiveConverged: `${consecutiveConverged} (≥ 5 ✓)`,
         minIterations,
         minItersReached: minItersReached ? '✓' : '✗',
       });
