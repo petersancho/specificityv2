@@ -578,16 +578,12 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
           indices: result.isosurface?.indices?.length || 0,
         });
         
-        setPreviewGeometry(prev => {
-          if (prev) {
-            // Clear old arrays to allow GC
-            prev.positions = [];
-            prev.normals = [];
-            prev.uvs = [];
-            prev.indices = [];
-          }
-          return result.isosurface;
-        });
+        if (result.isosurface && result.isosurface.positions && result.isosurface.positions.length > 0) {
+          console.log('[TOPOLOGY] ✅✅✅ SETTING PREVIEW GEOMETRY with', result.isosurface.positions.length / 3, 'vertices');
+          setPreviewGeometry(result.isosurface);
+        } else {
+          console.warn('[TOPOLOGY] ⚠️ Preview result has no geometry - NOT setting previewGeometry');
+        }
         
         const t1 = performance.now();
         console.log(`[TOPOLOGY] Preview generation took ${(t1 - t0).toFixed(1)}ms`);

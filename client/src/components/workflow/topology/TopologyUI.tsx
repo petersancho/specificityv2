@@ -162,23 +162,79 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
   const rotationRef = useRef({ x: 0.3, y: 0.5 });
   const isDraggingRef = useRef(false);
   const lastMouseRef = useRef({ x: 0, y: 0 });
+  const [renderError, setRenderError] = React.useState<string | null>(null);
+
+  console.log('[PREVIEW] TopologyGeometryPreview render:', {
+    hasGeometry: !!geometry,
+    positions: geometry?.positions?.length || 0,
+    indices: geometry?.indices?.length || 0,
+    width,
+    height,
+  });
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    canvas.width = width; canvas.height = height;
-    ctx.fillStyle = '#f5f2ee'; ctx.fillRect(0, 0, width, height);
-    
-    if (!geometry || !geometry.positions || geometry.positions.length === 0) {
-      ctx.fillStyle = '#6a6661'; ctx.font = '11px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('Waiting for geometry...', width / 2, height / 2);
+    if (!canvas) {
+      console.error('[PREVIEW] Canvas ref is null!');
       return;
     }
     
-    renderGeometry(ctx, geometry, width, height, rotationRef.current);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      console.error('[PREVIEW] Could not get 2D context!');
+      return;
+    }
+    
+    console.log('[PREVIEW] Drawing canvas:', { width, height, hasGeometry: !!geometry });
+    
+    canvas.width = width; 
+    canvas.height = height;
+    ctx.fillStyle = '#f5f2ee'; 
+    ctx.fillRect(0, 0, width, height);
+    
+    if (!geometry || !geometry.positions || geometry.positions.length === 0) {
+      console.log('[PREVIEW] No geometry - showing waiting message');
+      ctx.fillStyle = '#1f1f22'; 
+      ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, sans-serif'; 
+      ctx.textAlign = 'center'; 
+      ctx.textBaseline = 'middle';
+      ctx.fillText('Waiting for geometry...', width / 2, height / 2 - 10);
+      ctx.font = '11px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillStyle = '#6a6661';
+      ctx.fillText('(updates every 10 iterations)', width / 2, height / 2 + 15);
+      setRenderError(null);
+      return;
+    }
+    
+    try {
+      for (let i = 0; i < Math.min(geometry.positions.length, 200); i++) {
+        const v = geometry.positions[i];
+        if (!Number.isFinite(v)) {
+          const errMsg = `Invalid geometry: NaN/Infinity at position ${i}`;
+          console.error('[PREVIEW]', errMsg);
+          ctx.fillStyle = '#8b0000';
+          ctx.font = 'bold 12px monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('Invalid geometry (NaN/Inf)', width / 2, height / 2);
+          setRenderError(errMsg);
+          return;
+        }
+      }
+      
+      console.log('[PREVIEW] Rendering geometry with', geometry.positions.length / 3, 'vertices');
+      renderGeometry(ctx, geometry, width, height, rotationRef.current);
+      setRenderError(null);
+    } catch (e) {
+      const errMsg = e instanceof Error ? e.message : String(e);
+      console.error('[PREVIEW] Render error:', errMsg, e);
+      ctx.fillStyle = '#8b0000';
+      ctx.font = 'bold 12px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('Error rendering geometry', width / 2, height / 2);
+      setRenderError(errMsg);
+    }
   }, [geometry, width, height]);
 
   const handleMouseDown = (e: React.MouseEvent) => { isDraggingRef.current = true; lastMouseRef.current = { x: e.clientX, y: e.clientY }; };
@@ -196,7 +252,35 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
   };
   const handleMouseUp = () => { isDraggingRef.current = false; };
 
-  return <canvas ref={canvasRef} style={{ cursor: isDraggingRef.current ? 'grabbing' : 'grab' }} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} />;
+  const vertexCount = geometry?.positions?.length ? Math.floor(geometry.positions.length / 3) : 0;
+  const triangleCount = geometry?.indices?.length ? Math.floor(geometry.indices.length / 3) : 0;
+
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <canvas 
+        ref={canvasRef} 
+        style={{ width: '100%', height: '100%', cursor: isDraggingRef.current ? 'grabbing' : 'grab' }} 
+        onMouseDown={handleMouseDown} 
+        onMouseMove={handleMouseMove} 
+        onMouseUp={handleMouseUp} 
+        onMouseLeave={handleMouseUp} 
+      />
+      <div style={{
+        position: 'absolute', 
+        left: 8, 
+        bottom: 8,
+        font: '10px -apple-system, BlinkMacSystemFont, sans-serif', 
+        color: '#5a5752',
+        background: 'rgba(255,255,255,0.9)', 
+        padding: '4px 8px', 
+        borderRadius: 4,
+        border: '1px solid rgba(0,0,0,0.1)',
+      }}>
+        {width}×{height} • {vertexCount} verts • {triangleCount} tris
+        {renderError && <span style={{ color: '#8b0000' }}> • ERROR</span>}
+      </div>
+    </div>
+  );
 };
 
 function triArea2(ax: number, ay: number, bx: number, by: number, cx: number, cy: number): number {

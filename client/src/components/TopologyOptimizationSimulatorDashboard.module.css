@@ -379,9 +379,15 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  /* Make container visible for debugging */
+  background: #faf7f2;
+  border: 2px solid var(--sp-ink);
+  border-radius: var(--radius);
+  overflow: hidden;
 }
 
 .geometryFloating canvas {
+  display: block;
   width: 100% !important;
   height: 100% !important;
   max-width: 500px;
