@@ -147,7 +147,7 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
     if (!ctx) return;
     
     canvas.width = width; canvas.height = height;
-    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height);
+    ctx.fillStyle = '#f5f2ee'; ctx.fillRect(0, 0, width, height);
     
     if (!geometry || !geometry.positions || geometry.positions.length === 0) {
       ctx.fillStyle = '#6a6661'; ctx.font = '11px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -168,7 +168,7 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
     if (!canvas || !geometry) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height);
+    ctx.fillStyle = '#f5f2ee'; ctx.fillRect(0, 0, width, height);
     renderGeometry(ctx, geometry, width, height, rotationRef.current);
   };
   const handleMouseUp = () => { isDraggingRef.current = false; };

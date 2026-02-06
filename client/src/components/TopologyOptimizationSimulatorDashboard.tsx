@@ -1044,9 +1044,6 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                   width={500}
                   height={500}
                 />
-                <div className={styles.previewHint}>
-                  Drag to rotate • Updates every 10 iterations
-                </div>
               </div>
 
               <div className={styles.convergenceView}>
