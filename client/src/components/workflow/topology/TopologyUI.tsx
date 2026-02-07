@@ -538,10 +538,39 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
   
   console.log(`[RENDER] ⚠️⚠️⚠️ EXPLICIT TRIANGLE BOUNDS: x=[${triBounds.minX.toFixed(1)}, ${triBounds.maxX.toFixed(1)}] (width=${(triBounds.maxX - triBounds.minX).toFixed(1)}), y=[${triBounds.minY.toFixed(1)}, ${triBounds.maxY.toFixed(1)}] (height=${(triBounds.maxY - triBounds.minY).toFixed(1)}), canvas=${width}x${height}`);
   
+  // ⚠️⚠️⚠️ DEBUG: Log first 5 triangles with their screen coordinates
+  console.log('[RENDER] ⚠️⚠️⚠️ First 5 triangles (screen coords):');
+  for (let i = 0; i < Math.min(5, triangles.length); i++) {
+    const tri = triangles[i];
+    const [i0, i1, i2] = tri.indices;
+    const p0 = projected[i0], p1 = projected[i1], p2 = projected[i2];
+    const area = triArea2(p0.x, p0.y, p1.x, p1.y, p2.x, p2.y);
+    console.log(`  tri${i}: (${p0.x.toFixed(1)}, ${p0.y.toFixed(1)}) -> (${p1.x.toFixed(1)}, ${p1.y.toFixed(1)}) -> (${p2.x.toFixed(1)}, ${p2.y.toFixed(1)}), area=${area.toFixed(1)}`);
+  }
+  
+  // ⚠️⚠️⚠️ DEBUG: Draw a test triangle at the center of the canvas to verify rendering works
+  ctx.fillStyle = 'cyan';
+  ctx.beginPath();
+  ctx.moveTo(width / 2 - 50, height / 2 + 50);
+  ctx.lineTo(width / 2 + 50, height / 2 + 50);
+  ctx.lineTo(width / 2, height / 2 - 50);
+  ctx.closePath();
+  ctx.fill();
+  console.log('[RENDER] ⚠️⚠️⚠️ Drew test cyan triangle at center');
+  
   // First pass: fill all triangles (no stroke) for solid appearance
+  let filledCount = 0;
+  let skippedCount = 0;
   for (const tri of triangles) {
     const [i0, i1, i2] = tri.indices;
     const p0 = projected[i0], p1 = projected[i1], p2 = projected[i2];
+    
+    // Skip degenerate triangles (area < 0.5 pixels)
+    const area = triArea2(p0.x, p0.y, p1.x, p1.y, p2.x, p2.y);
+    if (area < 0.5) {
+      skippedCount++;
+      continue;
+    }
     
     const t = Math.max(0, Math.min(1, (tri.avgZ - zMin) / zRange));
     const r = Math.round(BASE.r + (LIGHT.r - BASE.r) * t);
@@ -555,6 +584,15 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
     ctx.lineTo(p2.x, p2.y);
     ctx.closePath();
     ctx.fill();
+    filledCount++;
+  }
+  
+  console.log(`[RENDER] ⚠️⚠️⚠️ Filled ${filledCount} triangles, skipped ${skippedCount} degenerate triangles (area < 0.5px)`);
+  
+  // ⚠️⚠️⚠️ DEBUG: If most triangles were skipped, the geometry is too small
+  if (skippedCount > filledCount) {
+    console.error(`[RENDER] ❌ Most triangles are degenerate! ${skippedCount} skipped vs ${filledCount} filled`);
+    console.error('[RENDER] ❌ This means the geometry is too small or all vertices are at the same position');
   }
   
   // Second pass: stroke only larger triangles for edge definition
