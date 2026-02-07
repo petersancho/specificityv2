@@ -289,206 +289,98 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
   );
 };
 
-function triArea2(ax: number, ay: number, bx: number, by: number, cx: number, cy: number): number {
-  return Math.abs((bx - ax) * (cy - ay) - (by - ay) * (cx - ax));
-}
-
-// Compute bounds from positions array with validation
-function computeBounds3FromPositions(positions: ArrayLike<number>): {
-  min: { x: number; y: number; z: number };
-  max: { x: number; y: number; z: number };
-  center: { x: number; y: number; z: number };
-  size: { x: number; y: number; z: number };
-} | null {
-  if (!positions || positions.length < 3) return null;
-  
-  let minX = Infinity, minY = Infinity, minZ = Infinity;
-  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
-  let hasValidPoint = false;
-
-  for (let i = 0; i < positions.length; i += 3) {
-    const x = positions[i], y = positions[i + 1], z = positions[i + 2];
-    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) continue;
-    
-    hasValidPoint = true;
-    if (x < minX) minX = x; if (x > maxX) maxX = x;
-    if (y < minY) minY = y; if (y > maxY) maxY = y;
-    if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
-  }
-
-  if (!hasValidPoint) return null;
-
-  const cx = (minX + maxX) * 0.5;
-  const cy = (minY + maxY) * 0.5;
-  const cz = (minZ + maxZ) * 0.5;
-  const sx = maxX - minX;
-  const sy = maxY - minY;
-  const sz = maxZ - minZ;
-
-  if (![minX, minY, minZ, maxX, maxY, maxZ, cx, cy, cz, sx, sy, sz].every(Number.isFinite)) return null;
-
-  return {
-    min: { x: minX, y: minY, z: minZ },
-    max: { x: maxX, y: maxY, z: maxZ },
-    center: { x: cx, y: cy, z: cz },
-    size: { x: sx, y: sy, z: sz },
-  };
-}
-
 function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, width: number, height: number, rotation: { x: number; y: number }) {
   const positions = geometry.positions;
   const indices = geometry.indices;
   
-  if (!positions || positions.length === 0) {
-    return;
-  }
+  if (!positions || positions.length === 0) return;
+  if (!indices || indices.length === 0) return;
 
-  ctx.save();
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-
-  const bounds = computeBounds3FromPositions(positions);
-  if (!bounds) {
-    ctx.restore();
-    return;
-  }
-
-  const maxDim = Math.max(bounds.size.x, bounds.size.y, bounds.size.z);
-  if (maxDim < 1e-9) {
-    ctx.restore();
-    return;
-  }
-
-  const scale = (0.8 * Math.min(width, height)) / maxDim;
-  
-  console.log('[RENDER MATH]', {
-    bounds: `(${bounds.min.x.toFixed(1)}, ${bounds.min.y.toFixed(1)}, ${bounds.min.z.toFixed(1)}) to (${bounds.max.x.toFixed(1)}, ${bounds.max.y.toFixed(1)}, ${bounds.max.z.toFixed(1)})`,
-    size: `${bounds.size.x.toFixed(1)} × ${bounds.size.y.toFixed(1)} × ${bounds.size.z.toFixed(1)}`,
-    maxDim: maxDim.toFixed(2),
-    scale: scale.toFixed(4),
-    canvasSize: `${width}×${height}`,
-  });
-  const cx = bounds.center.x;
-  const cy = bounds.center.y;
-  const cz = bounds.center.z;
-
-  const cosX = Math.cos(rotation.x);
-  const sinX = Math.sin(rotation.x);
-  const cosY = Math.cos(rotation.y);
-  const sinY = Math.sin(rotation.y);
-
-  const projected: Array<{ x: number; y: number; z: number }> = [];
+  // Step 1: Find bounds
+  let minX = Infinity, minY = Infinity, minZ = Infinity;
+  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
   
   for (let i = 0; i < positions.length; i += 3) {
-    let x = positions[i] - cx;
-    let y = positions[i + 1] - cy;
-    let z = positions[i + 2] - cz;
+    const x = positions[i], y = positions[i + 1], z = positions[i + 2];
+    if (x < minX) minX = x; if (x > maxX) maxX = x;
+    if (y < minY) minY = y; if (y > maxY) maxY = y;
+    if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
+  }
+  
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+  const cz = (minZ + maxZ) / 2;
+  const maxDim = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
+  
+  if (maxDim < 1e-9) return;
+  
+  const scale = (0.7 * Math.min(width, height)) / maxDim;
+
+  // Step 2: Rotation matrices
+  const cosX = Math.cos(rotation.x), sinX = Math.sin(rotation.x);
+  const cosY = Math.cos(rotation.y), sinY = Math.sin(rotation.y);
+
+  // Step 3: Project all vertices
+  const numVerts = positions.length / 3;
+  const screenX = new Float32Array(numVerts);
+  const screenY = new Float32Array(numVerts);
+  const screenZ = new Float32Array(numVerts);
+  
+  for (let i = 0; i < numVerts; i++) {
+    let x = positions[i * 3] - cx;
+    let y = positions[i * 3 + 1] - cy;
+    let z = positions[i * 3 + 2] - cz;
     
+    // Rotate X
     const y1 = y * cosX - z * sinX;
     const z1 = y * sinX + z * cosX;
-    y = y1;
-    z = z1;
     
-    const x1 = x * cosY + z * sinY;
-    const z2 = -x * sinY + z * cosY;
-    x = x1;
-    z = z2;
+    // Rotate Y
+    const x1 = x * cosY + z1 * sinY;
+    const z2 = -x * sinY + z1 * cosY;
     
-    const screenX = width / 2 + x * scale;
-    const screenY = height / 2 - y * scale;
-    
-    projected.push({ x: screenX, y: screenY, z });
+    screenX[i] = width / 2 + x1 * scale;
+    screenY[i] = height / 2 - y1 * scale;
+    screenZ[i] = z2;
   }
 
-  if (!indices || indices.length === 0) {
-    ctx.fillStyle = '#ff00ff';
-    for (const p of projected) {
-      if (Number.isFinite(p.x) && Number.isFinite(p.y)) {
-        ctx.fillRect(p.x - 1.5, p.y - 1.5, 3, 3);
-      }
-    }
-    ctx.restore();
-    return;
-  }
-
-  const triangles: Array<{ indices: [number, number, number]; avgZ: number }> = [];
+  // Step 4: Build triangle list with depth
+  const numTris = indices.length / 3;
+  const triDepth = new Float32Array(numTris);
+  const triOrder = new Uint32Array(numTris);
   
-  for (let i = 0; i < indices.length; i += 3) {
-    const i0 = indices[i];
-    const i1 = indices[i + 1];
-    const i2 = indices[i + 2];
-    
-    if (i0 >= projected.length || i1 >= projected.length || i2 >= projected.length) {
-      continue;
-    }
-    
-    const p0 = projected[i0];
-    const p1 = projected[i1];
-    const p2 = projected[i2];
-    
-    if (!Number.isFinite(p0.x) || !Number.isFinite(p1.x) || !Number.isFinite(p2.x)) {
-      continue;
-    }
-    
-    triangles.push({ 
-      indices: [i0, i1, i2], 
-      avgZ: (p0.z + p1.z + p2.z) / 3 
-    });
+  for (let i = 0; i < numTris; i++) {
+    const i0 = indices[i * 3], i1 = indices[i * 3 + 1], i2 = indices[i * 3 + 2];
+    triDepth[i] = (screenZ[i0] + screenZ[i1] + screenZ[i2]) / 3;
+    triOrder[i] = i;
   }
+  
+  // Sort back-to-front
+  triOrder.sort((a, b) => triDepth[a] - triDepth[b]);
 
-  if (triangles.length === 0) {
-    ctx.fillStyle = '#ff00ff';
-    for (const p of projected) {
-      if (Number.isFinite(p.x) && Number.isFinite(p.y)) {
-        ctx.fillRect(p.x - 1.5, p.y - 1.5, 3, 3);
-      }
-    }
-    ctx.restore();
-    return;
-  }
-
-  triangles.sort((a, b) => a.avgZ - b.avgZ);
-
-  const zMin = triangles[0].avgZ;
-  const zMax = triangles[triangles.length - 1].avgZ;
+  // Step 5: Draw triangles
+  const zMin = triDepth[triOrder[0]];
+  const zMax = triDepth[triOrder[numTris - 1]];
   const zRange = Math.max(0.001, zMax - zMin);
-
-  const BASE_R = 255, BASE_G = 0, BASE_B = 255;
-  const LIGHT_R = 200, LIGHT_G = 0, LIGHT_B = 200;
   
-  // Log first triangle's screen coordinates
-  if (triangles.length > 0) {
-    const firstTri = triangles[0];
-    const [i0, i1, i2] = firstTri.indices;
-    const p0 = projected[i0];
-    const p1 = projected[i1];
-    const p2 = projected[i2];
-    console.log('[RENDER MATH] First triangle screen coords:', {
-      p0: `(${p0.x.toFixed(1)}, ${p0.y.toFixed(1)})`,
-      p1: `(${p1.x.toFixed(1)}, ${p1.y.toFixed(1)})`,
-      p2: `(${p2.x.toFixed(1)}, ${p2.y.toFixed(1)})`,
-      area: triArea2(p0.x, p0.y, p1.x, p1.y, p2.x, p2.y).toFixed(2),
-    });
-  }
-
-  for (const tri of triangles) {
-    const [i0, i1, i2] = tri.indices;
-    const p0 = projected[i0];
-    const p1 = projected[i1];
-    const p2 = projected[i2];
+  for (let t = 0; t < numTris; t++) {
+    const ti = triOrder[t];
+    const i0 = indices[ti * 3], i1 = indices[ti * 3 + 1], i2 = indices[ti * 3 + 2];
     
-    const t = Math.max(0, Math.min(1, (tri.avgZ - zMin) / zRange));
-    const r = Math.round(BASE_R + (LIGHT_R - BASE_R) * t);
-    const g = Math.round(BASE_G + (LIGHT_G - BASE_G) * t);
-    const b = Math.round(BASE_B + (LIGHT_B - BASE_B) * t);
+    const x0 = screenX[i0], y0 = screenY[i0];
+    const x1 = screenX[i1], y1 = screenY[i1];
+    const x2 = screenX[i2], y2 = screenY[i2];
     
-    ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+    // Depth-based shading (darker = further)
+    const depth = (triDepth[ti] - zMin) / zRange;
+    const shade = Math.round(180 + 75 * depth);
+    
+    ctx.fillStyle = `rgb(${shade}, 0, ${shade})`;
     ctx.beginPath();
-    ctx.moveTo(p0.x, p0.y);
-    ctx.lineTo(p1.x, p1.y);
-    ctx.lineTo(p2.x, p2.y);
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
+    ctx.lineTo(x2, y2);
     ctx.closePath();
     ctx.fill();
   }
-
-  ctx.restore();
 }
