@@ -16,9 +16,9 @@ type CubeLogoProps = {
 };
 
 const CMYK_COLORS = {
-  top: "#ffdd00",
-  left: "#ff0099",
-  right: "#00d4ff",
+  top: "#6b7280",
+  left: "#374151",
+  right: "#9ca3af",
 };
 
 const MONOCHROME_COLORS = {

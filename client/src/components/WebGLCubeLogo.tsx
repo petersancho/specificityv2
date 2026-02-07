@@ -79,7 +79,7 @@ export function WebGLCubeLogo({
       {showText && text && (
         <span
           style={{
-            fontFamily: "Montreal Neue, Space Grotesk, sans-serif",
+            fontFamily: "GFS Didot, Montreal Neue",
             fontSize: `${size * 0.5}px`,
             fontWeight: 600,
             color: textColor,

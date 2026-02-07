@@ -49,7 +49,7 @@ export const DocumentationPhilosophy = ({ onNavigate }: DocumentationNarrativePr
         <CubeLogo
           size={240}
           className={pageStyles.philosophyCube}
-          colors={{ top: "#ffdd00", left: "#ff0099", right: "#00d4ff" }}
+          colors={{ top: "#6b7280", left: "#374151", right: "#9ca3af" }}
         />
         <div className={`${pageStyles.philosophySticker} ${pageStyles.stickerOne}`}>✦</div>
         <div className={`${pageStyles.philosophySticker} ${pageStyles.stickerTwo}`}>✺</div>

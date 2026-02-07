@@ -23,7 +23,7 @@ export const VoxelSolverNode: WorkflowNodeDefinition = {
     'simulator.voxel.step',
     'simulator.voxel.finalize',
   ],
-  iconId: "voxelSolver",
+  iconId: "solver",
   inputs: [
     {
       key: "geometry",

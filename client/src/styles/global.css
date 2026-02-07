@@ -1,31 +1,59 @@
 @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Noto+Serif:wght@400;600;700&family=GFS+Didot&family=Caveat:wght@400;600&display=swap");
 
+/* Neue Montreal - Primary UI Font */
+@font-face {
+  font-family: "Neue Montreal";
+  src: url("https://cdn.jsdelivr.net/npm/@fontsource/neue-montreal@5.0.0/files/neue-montreal-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Neue Montreal";
+  src: url("https://cdn.jsdelivr.net/npm/@fontsource/neue-montreal@5.0.0/files/neue-montreal-latin-500-normal.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Neue Montreal";
+  src: url("https://cdn.jsdelivr.net/npm/@fontsource/neue-montreal@5.0.0/files/neue-montreal-latin-600-normal.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Neue Montreal";
+  src: url("https://cdn.jsdelivr.net/npm/@fontsource/neue-montreal@5.0.0/files/neue-montreal-latin-700-normal.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   color-scheme: light;
-  /* Roslyn palette */
-  --sp-porcelain: #f5f2ee;
-  --sp-uiGrey: #e9e6e2;
-  --sp-divider: #c9c5c0;
-  --sp-ink: #1f1f22;
-  --sp-muted: #6a6661;
-  --sp-cyan: #00d4ff;
-  --sp-pink: #c2166b;
-  --sp-yellow: #c07a00;
-  --sp-purple: #ff0099;
-  --sp-orange: #cc5b1a;
+  /* Monochrome palette */
+  --sp-porcelain: #fafafa;
+  --sp-uiGrey: #f5f5f5;
+  --sp-divider: #e5e5e5;
+  --sp-ink: #000000;
+  --sp-muted: #737373;
+  --sp-accent: #dc2626;
 
-  /* CMYK tri-color palette */
-  --cmyk-cyan: #00d4ff;
-  --cmyk-magenta: #ff0099;
-  --cmyk-yellow: #ffdd00;
+  /* Legacy CMYK (now monochrome) */
+  --cmyk-cyan: #525252;
+  --cmyk-magenta: #262626;
+  --cmyk-yellow: #404040;
   --cmyk-black: #000000;
 
-  /* Product accent colors */
-  --roslyn-accent: #00d4ff;
-  --numerica-accent: #ff0099;
-  --lingua-accent-cyan: #00d4ff;
-  --lingua-accent-magenta: #ff0099;
-  --lingua-accent-yellow: #ffdd00;
+  /* Product accent colors (monochrome + red) */
+  --roslyn-accent: #dc2626;
+  --numerica-accent: #dc2626;
+  --lingua-accent-red: #dc2626;
+  --lingua-accent-gray: #525252;
 
   --roslyn-industrial-warm-grey: #8e8a84;
   --roslyn-instrument-cream: var(--sp-porcelain);
@@ -93,8 +121,8 @@
   --canvas-grid-dot-soft: var(--color-grid-dot-soft);
 
   /* Typography */
-  --font-primary: "Montreal Neue", "Space Grotesk", "SF Pro Text", -apple-system, sans-serif;
-  --font-display: "Montreal Neue", "Space Grotesk", sans-serif;
+  --font-primary: "Neue Montreal", "GFS Didot";
+  --font-display: "GFS Didot", "Neue Montreal";
   --font-mono: "JetBrains Mono", "SF Mono", "Consolas", monospace;
   --font-body: var(--font-primary);
   --font-title: var(--font-display);
@@ -125,11 +153,12 @@
   --gap: clamp(12px, 2vw, 24px);
   --pad: clamp(12px, 2vw, 24px);
 
-  /* Motion */
-  --easing: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --fast: 120ms;
-  --norm: 200ms;
-  --slow: 360ms;
+  /* Motion - Mechanical/Snappy */
+  --easing: cubic-bezier(0.4, 0, 0.2, 1);
+  --easing-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --fast: 100ms;
+  --norm: 120ms;
+  --slow: 180ms;
 
   /* Borders */
   --border-section: 3px solid var(--ink-900);
@@ -351,8 +380,9 @@ textarea {
   padding: 8px 12px;
   background: var(--color-surface);
   color: var(--color-text);
-  transition: border-color var(--transition-fast),
-    box-shadow var(--transition-fast), transform var(--transition-fast);
+  transition: border-color var(--anim-snap, 120ms) cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow var(--anim-snap, 120ms) cubic-bezier(0.4, 0, 0.2, 1), 
+    transform var(--anim-click, 100ms) cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 input::placeholder,
@@ -364,8 +394,12 @@ button {
   cursor: pointer;
   border: 1px solid transparent;
   background: transparent;
-  transition: transform var(--transition-fast),
-    box-shadow var(--transition-fast);
+  transition: transform var(--anim-click, 100ms) cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow var(--anim-click, 100ms) cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 button:focus-visible,
@@ -456,14 +490,14 @@ textarea:disabled {
 }
 
 .canvas-title__logo-text {
-  font-family: "Montreal Neue", "Space Grotesk";
+  font-family: "GFS Didot", "Neue Montreal";
   font-weight: 600;
   font-size: 13px;
   letter-spacing: 0.32em;
 }
 
 .sort-logo text {
-  font-family: "Montreal Neue", "Space Grotesk";
+  font-family: "GFS Didot", "Neue Montreal";
   font-weight: 700;
   font-size: 72px;
   letter-spacing: -0.04em;

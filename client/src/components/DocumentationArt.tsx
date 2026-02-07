@@ -370,7 +370,7 @@ const drawCardLabel = (
   text.setText(label, {
     fontSize: size * dpr,
     fontWeight: 700,
-    fontFamily: '"Montreal Neue", "Space Grotesk", sans-serif',
+    fontFamily: '"GFS Didot", "Montreal Neue"',
     paddingX: 0,
     paddingY: 0,
     color: "#ffffff",
@@ -960,7 +960,7 @@ const drawNode = (
   text.setText(label, {
     fontSize: 12 * dpr,
     fontWeight: 700,
-    fontFamily: '"Montreal Neue", "Space Grotesk", sans-serif',
+    fontFamily: '"GFS Didot", "Montreal Neue"',
     paddingX: 0,
     paddingY: 0,
     color: "#ffffff",
@@ -1017,7 +1017,7 @@ export const NumericaNodeArt = ({
   stage = "operation",
 }: NumericaNodeArtProps) => {
   const accent = useMemo(
-    () => parseHexColor(category?.accent ?? "#ff0099", 0.9),
+    () => parseHexColor(category?.accent ?? "#dc2626", 0.9),
     [category]
   );
   const band = useMemo(

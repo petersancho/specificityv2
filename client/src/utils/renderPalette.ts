@@ -5,12 +5,12 @@ export type RenderPaletteId = "color" | "cmyk" | "pms" | "hsl";
 export type RenderPaletteValues = [number, number];
 
 export const CMYK_SWATCHES = [
-  { value: "cyan", label: "Cyan", hex: "#00d4ff" },
-  { value: "magenta", label: "Magenta", hex: "#ff0099" },
-  { value: "yellow", label: "Yellow", hex: "#ffdd00" },
-  { value: "purple", label: "Purple", hex: "#8800ff" },
-  { value: "orange", label: "Orange", hex: "#ff6600" },
-  { value: "lime", label: "Lime", hex: "#88ff00" },
+  { value: "gray900", label: "Gray 900", hex: "#111827" },
+  { value: "gray800", label: "Gray 800", hex: "#1f2937" },
+  { value: "gray700", label: "Gray 700", hex: "#374151" },
+  { value: "gray600", label: "Gray 600", hex: "#4b5563" },
+  { value: "gray500", label: "Gray 500", hex: "#6b7280" },
+  { value: "accent", label: "Red Accent", hex: "#dc2626" },
 ] as const;
 
 export const PMS_SWATCHES = [

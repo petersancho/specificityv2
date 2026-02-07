@@ -1,14 +1,14 @@
 /* Voxel Simulator Dashboard - Archimedes (Volumetric Discretization) */
-/* Extends base dashboard styles with Lime accent color scheme */
+/* Extends base dashboard styles with monochrome gray accent scheme */
 
 @import "../dashboard.base.module.css";
 
 /* Solver-specific CSS custom properties */
 .dashboard {
-  --solver-accent: var(--bk-lime);
-  --solver-accent-secondary: var(--bk-cyan);
-  --solver-accent-tertiary: var(--bk-yellow);
-  --solver-accent-soft: var(--bk-lime-soft);
+  --solver-accent: var(--bk-gray-600);
+  --solver-accent-secondary: var(--bk-gray-700);
+  --solver-accent-tertiary: var(--bk-gray-800);
+  --solver-accent-soft: var(--bk-gray-200);
   
   /* Override: centered modal style instead of fullscreen */
   position: fixed;
@@ -84,7 +84,7 @@
 }
 
 .tab:hover {
-  background: color-mix(in srgb, var(--bk-lime-soft) 50%, transparent);
+  background: color-mix(in srgb, var(--bk-gray-200) 50%, transparent);
 }
 
 /* Content padding override */
@@ -136,7 +136,7 @@
 
 .voxelCanvas {
   aspect-ratio: 1;
-  background: linear-gradient(135deg, var(--bk-lime-soft) 0%, var(--surface-page) 100%);
+  background: linear-gradient(135deg, var(--bk-gray-200) 0%, var(--surface-page) 100%);
   border: 2px solid var(--solver-accent);
   border-radius: 8px;
   display: flex;

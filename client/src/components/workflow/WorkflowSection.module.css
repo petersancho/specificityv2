@@ -375,6 +375,7 @@
 }
 
 .paletteSectionTitle {
+  font-family: "Montreal Neue", "GFS Didot";
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.14em;
@@ -436,6 +437,7 @@
 }
 
 .paletteGroupTitle {
+  font-family: "Montreal Neue", "GFS Didot";
   font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -444,6 +446,7 @@
 }
 
 .paletteGroupMeta {
+  font-family: "Montreal Neue", "GFS Didot";
   font-size: 9px;
   letter-spacing: 0.02em;
   color: color-mix(in srgb, var(--sp-ink) 62%, transparent);
@@ -479,6 +482,7 @@
   background: transparent !important;
   background-image: none !important;
   text-align: center;
+  font-family: "Montreal Neue", "GFS Didot";
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -655,7 +659,7 @@
 }
 
 .parameterColorValue {
-  font-family: "SF Mono", "Consolas", "Liberation Mono", monospace;
+  font-family: "JetBrains Mono", monospace;
   letter-spacing: 0.02em;
 }
 
@@ -665,7 +669,7 @@
   padding: 8px;
   line-height: 1.4;
   resize: vertical;
-  font-family: "SF Mono", "Consolas", "Liberation Mono", monospace;
+  font-family: "JetBrains Mono", monospace;
   font-weight: 500;
 }
 

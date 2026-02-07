@@ -315,13 +315,10 @@
   position: relative;
   overflow: visible;
   isolation: isolate;
-  --philosophy-magenta: var(--semantic-logic);
-  --philosophy-magenta-soft: color-mix(in srgb, var(--semantic-logic) 65%, var(--surface-card));
-  --philosophy-cyan: var(--semantic-data);
-  --philosophy-cyan-soft: color-mix(in srgb, var(--semantic-data) 65%, var(--surface-card));
-  --philosophy-yellow: var(--semantic-numeric);
-  --philosophy-yellow-deep: var(--semantic-numeric-deep);
-  --philosophy-ink: color-mix(in srgb, var(--semantic-logic) 35%, var(--ui-ink));
+  --philosophy-gray: var(--bk-gray-700);
+  --philosophy-gray-soft: var(--bk-gray-200);
+  --philosophy-gray-deep: var(--bk-gray-900);
+  --philosophy-ink: var(--bk-black);
 }
 
 .philosophyBackdrop {
@@ -408,13 +405,13 @@
   width: 64px;
   height: 64px;
   border-radius: 18px;
-  background: linear-gradient(160deg, var(--philosophy-yellow), var(--philosophy-yellow-deep));
-  box-shadow: 0 12px 18px rgba(90, 60, 0, 0.15);
+  background: linear-gradient(160deg, var(--philosophy-gray), var(--philosophy-gray-deep));
+  box-shadow: 0 12px 18px rgba(0, 0, 0, 0.15);
   display: grid;
   place-items: center;
   font-size: 24px;
-  color: var(--philosophy-ink);
-  border: 1px solid rgba(120, 80, 0, 0.2);
+  color: var(--surface-card);
+  border: 1px solid rgba(0, 0, 0, 0.2);
 }
 
 .stickerOne {
@@ -454,7 +451,7 @@
   border-radius: 10px;
   border: 1px solid rgba(130, 90, 0, 0.25);
   box-shadow: 0 16px 24px rgba(90, 60, 0, 0.12);
-  font-family: "SF Mono", "Fira Mono", "Menlo", monospace;
+  font-family: "JetBrains Mono", monospace;
 }
 
 .philosophyNote::after {
@@ -503,7 +500,7 @@
   background: rgba(255, 240, 200, 0.65);
   border: 1px dashed rgba(255, 79, 177, 0.35);
   border-radius: 999px;
-  font-family: "SF Mono", "Fira Mono", "Menlo", monospace;
+  font-family: "JetBrains Mono", monospace;
 }
 
 .philosophyAnnotation::before {

@@ -20,7 +20,7 @@ export const TopologyOptimizationSolverNode: WorkflowNodeDefinition = {
   description: "Generates topologically optimized structures using goal-based optimization.",
   category: "solver",
   semanticOps: ['solver.topologyOptimization'],
-  iconId: "topologyOptimizationSolver",
+  iconId: "solver",
   inputs: [
     {
       key: "geometry",

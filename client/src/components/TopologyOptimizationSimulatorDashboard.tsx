@@ -993,10 +993,10 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                 <div style={{
                   padding: '12px',
                   marginBottom: '16px',
-                  background: 'rgba(255, 165, 0, 0.1)',
-                  border: '1px solid rgba(255, 165, 0, 0.3)',
+                  background: 'rgba(220, 38, 38, 0.08)',
+                  border: '1px solid #dc2626',
                   borderRadius: '4px',
-                  color: '#ffa500'
+                  color: '#dc2626'
                 }}>
                   <strong>⚠️ Low Resolution Warning</strong>
                   <p style={{ margin: '8px 0 0 0', fontSize: '13px', lineHeight: '1.4' }}>
@@ -1412,7 +1412,7 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                     <div className={styles.statusItem}>
                       <span className={styles.statusLabel}>Compliance:</span>
                       <span className={styles.statusValue} style={{ 
-                        color: currentFrame.compliance > 1e8 ? '#ff4444' : 'inherit',
+                        color: currentFrame.compliance > 1e8 ? '#dc2626' : 'inherit',
                         fontWeight: currentFrame.compliance > 1e8 ? 'bold' : 'normal'
                       }}>
                         {currentFrame.compliance > 1e6 
@@ -1422,8 +1422,8 @@ export const TopologyOptimizationSimulatorDashboard: React.FC<
                     </div>
                     {currentFrame.compliance > 1e8 && (
                       <div className={styles.warningMessage} style={{
-                        backgroundColor: '#442200',
-                        border: '1px solid #ff8800',
+                        backgroundColor: 'rgba(220, 38, 38, 0.08)',
+                        border: '1px solid #dc2626',
                         padding: '8px',
                         marginTop: '8px',
                         borderRadius: '4px',

@@ -49,9 +49,9 @@ const PALETTE_DARK = {
 };
 
 const TONE_ACCENTS: Record<LogoTone, RGBA> = {
-  roslyn: rgb(0, 212, 255, 1),
-  numerica: rgb(255, 0, 153, 1),
-  neutral: rgb(204, 91, 26, 1),
+  roslyn: rgb(107, 114, 128, 1),
+  numerica: rgb(75, 85, 99, 1),
+  neutral: rgb(55, 65, 81, 1),
 };
 
 const TITLE_PARTS: Record<string, TitleParts> = {
@@ -59,8 +59,7 @@ const TITLE_PARTS: Record<string, TitleParts> = {
   numerica: { base: "NUME", accent: "RICA" },
 };
 
-const FONT_FAMILY =
-  '"Helvetica Neue", "Montreal Neue", "Space Grotesk", Helvetica, Arial, sans-serif';
+const FONT_FAMILY = '"GFS Didot", "Montreal Neue"';
 const BASE_WEIGHT = 700;
 const ACCENT_WEIGHT = 800;
 

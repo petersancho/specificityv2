@@ -46,7 +46,7 @@
 }
 
 .greek {
-  font-family: "Noto Serif", "GFS Didot", serif;
+  font-family: "GFS Didot", "Montreal Neue";
   font-size: 12px;
   letter-spacing: 0.02em;
 }
@@ -217,7 +217,7 @@
 }
 
 .tooltipGreek {
-  font-family: "Noto Serif", "GFS Didot", serif;
+  font-family: "GFS Didot", "Montreal Neue";
   font-size: 13px;
 }
 

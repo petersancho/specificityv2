@@ -6,18 +6,18 @@
 :root {
   --ui-black: #000000;
   --ui-white: #ffffff;
-  --ui-porcelain: #ffffff;
+  --ui-porcelain: #fafafa;
   --ui-ink: #000000;
-  --semantic-numeric: #ffdd00;
-  --semantic-logic: #ff0099;
-  --semantic-data: #00d4ff;
+  --semantic-numeric: #404040;
+  --semantic-logic: #262626;
+  --semantic-data: #525252;
   --semantic-structure: #000000;
-  --semantic-feedback: #ffdd00;
+  --semantic-feedback: #525252;
   --semantic-neutral: #000000;
-  --feedback-computing: #ffdd00;
-  --feedback-success: #4ade80;
-  --feedback-warning: #fbbf24;
-  --feedback-error: #ff4444;
+  --feedback-computing: #525252;
+  --feedback-success: #16a34a;
+  --feedback-warning: #ea580c;
+  --feedback-error: #dc2626;
   --shadow-none: none;
   --shadow-grounded: 0 2px 0 var(--ui-black);
   --shadow-raised: 0 4px 0 var(--ui-black);

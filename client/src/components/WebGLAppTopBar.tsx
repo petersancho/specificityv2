@@ -92,9 +92,9 @@ const PALETTE_LIGHT: TopBarPalette = {
   dotSoft: rgb(18, 16, 12, 0.02),
   glow: rgb(210, 139, 92, 0.06),
   brandText: rgb(18, 16, 12, 0.95),
-  brandAccent: rgb(0, 212, 255, 0.92),        // Cyan - CMYK branding
-  brandAccentDeep: rgb(255, 0, 153, 0.92),    // Magenta - CMYK branding
-  brandAccentGlow: rgb(0, 212, 255, 0.18),    // Cyan glow
+  brandAccent: rgb(220, 38, 38, 0.92),        // Red accent
+  brandAccentDeep: rgb(185, 28, 28, 0.92),    // Deep red
+  brandAccentGlow: rgb(220, 38, 38, 0.18),    // Red glow
   brandShadow: rgb(0, 0, 0, 0.12),
   brandBadgeFill: rgb(250, 248, 244, 1),
   brandBadgeStroke: rgb(190, 186, 181, 1),
@@ -115,9 +115,9 @@ const PALETTE_DARK: TopBarPalette = {
   dotSoft: rgb(255, 255, 255, 0.03),
   glow: rgb(210, 139, 92, 0.08),
   brandText: rgb(255, 255, 255, 0.95),
-  brandAccent: rgb(0, 212, 255, 0.92),        // Cyan - CMYK branding
-  brandAccentDeep: rgb(255, 0, 153, 0.92),    // Magenta - CMYK branding
-  brandAccentGlow: rgb(0, 212, 255, 0.22),    // Cyan glow
+  brandAccent: rgb(220, 38, 38, 0.92),        // Red accent
+  brandAccentDeep: rgb(185, 28, 28, 0.92),    // Deep red
+  brandAccentGlow: rgb(220, 38, 38, 0.22),    // Red glow
   brandShadow: rgb(0, 0, 0, 0.3),
   brandBadgeFill: rgb(42, 42, 42, 1),
   brandBadgeStroke: rgb(70, 70, 70, 1),
@@ -217,8 +217,8 @@ const GRADIENT_STEPS = 12;
 const RENDER_SCALE = 1.35;
 const MAX_DPR = 3;
 
-const UI_FONT_FAMILY = '"Montreal Neue", "Space Grotesk", sans-serif';
-const BRAND_FONT_FAMILY = '"Montreal Neue", "Helvetica Neue", Helvetica, Arial, sans-serif';
+const UI_FONT_FAMILY = '"GFS Didot", "Montreal Neue"';
+const BRAND_FONT_FAMILY = '"GFS Didot", "Montreal Neue"';
 const BRAND_WEIGHT = 700;
 const BRAND_ACCENT_WEIGHT = 800;
 

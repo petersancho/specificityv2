@@ -23,7 +23,7 @@ const DEFAULT_STYLE: TextStyle = {
   fontSize: 13,
   fontWeight: 400,
   fontStyle: "normal",
-  fontFamily: "'Montreal Neue', 'Space Grotesk', sans-serif",
+  fontFamily: "'GFS Didot', 'Montreal Neue'",
   color: "#ffffff",
   paddingX: 8,
   paddingY: 6,

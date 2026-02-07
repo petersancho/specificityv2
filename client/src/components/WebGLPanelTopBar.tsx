@@ -151,7 +151,7 @@ const CATEGORY_TINTS: Record<TopBarCategory, RGBA> = {
 };
 
 const LOGO_FONT_FAMILY =
-  '"Helvetica Neue", "Montreal Neue", "Space Grotesk", Helvetica, Arial, sans-serif';
+  '"GFS Didot", "Montreal Neue"';
 const LOGO_BASE_WEIGHT = 700;
 const LOGO_ACCENT_WEIGHT = 800;
 

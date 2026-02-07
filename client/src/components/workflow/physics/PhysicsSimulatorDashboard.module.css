@@ -1,14 +1,14 @@
 /* Physics Simulator Dashboard - Pythagoras (Stress Analysis) */
-/* Extends base dashboard styles with Magenta accent color scheme */
+/* Extends base dashboard styles with monochrome gray accent scheme */
 
 @import "../dashboard.base.module.css";
 
 /* Solver-specific CSS custom properties */
 .dashboard {
-  --solver-accent: var(--bk-magenta);
-  --solver-accent-secondary: var(--bk-cyan);
-  --solver-accent-tertiary: var(--bk-yellow);
-  --solver-accent-soft: var(--bk-magenta-soft);
+  --solver-accent: var(--bk-gray-800);
+  --solver-accent-secondary: var(--bk-gray-600);
+  --solver-accent-tertiary: var(--bk-gray-700);
+  --solver-accent-soft: var(--bk-gray-200);
 }
 
 /* Physics-specific: Analysis Type Grid */

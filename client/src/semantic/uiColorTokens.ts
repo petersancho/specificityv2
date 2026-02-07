@@ -3,26 +3,37 @@ import type { UISemanticDomain, UISemanticState } from "./uiSemantics";
 export const UI_BASE_COLORS = {
   black: "#000000",
   white: "#ffffff",
-  porcelain: "#ffffff",
+  porcelain: "#fafafa",
   ink: "#000000",
+  gray50: "#fafafa",
+  gray100: "#f5f5f5",
+  gray200: "#e5e5e5",
+  gray300: "#d4d4d4",
+  gray400: "#a3a3a3",
+  gray500: "#737373",
+  gray600: "#525252",
+  gray700: "#404040",
+  gray800: "#262626",
+  gray900: "#171717",
+  accentRed: "#dc2626",
 } as const;
 
 export const UI_DOMAIN_COLORS: Record<UISemanticDomain, string> = {
-  numeric: "#ffdd00",
-  logic: "#ff0099",
-  data: "#00d4ff",
+  numeric: "#404040",
+  logic: "#262626",
+  data: "#525252",
   structure: "#000000",
-  feedback: "#ffdd00",
+  feedback: "#525252",
   neutral: "#000000",
 };
 
 export const UI_FEEDBACK_COLORS: Record<UISemanticState, string> = {
   idle: UI_BASE_COLORS.black,
-  active: UI_BASE_COLORS.black,
-  computing: "#ffdd00",
-  success: "#4ade80",
-  warning: "#fbbf24",
-  error: "#ff4444",
+  active: UI_BASE_COLORS.accentRed,
+  computing: "#525252",
+  success: "#16a34a",
+  warning: "#ea580c",
+  error: "#dc2626",
 };
 
 export const SEMANTIC_COLOR_VARS: Record<UISemanticDomain, string> = {

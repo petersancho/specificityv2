@@ -73,7 +73,7 @@ const mix = (a: RGBA, b: RGBA, t: number): RGBA => [
   a[3] + (b[3] - a[3]) * t,
 ];
 
-const UI_FONT_FAMILY = '"Montreal Neue", "Space Grotesk", sans-serif';
+const UI_FONT_FAMILY = '"GFS Didot", "Montreal Neue"';
 
 const PALETTE_LIGHT = {
   bgTop: rgb(250, 248, 244, 1),

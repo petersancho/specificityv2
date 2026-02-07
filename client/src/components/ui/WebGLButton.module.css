@@ -31,7 +31,9 @@
   letter-spacing: 0.02em;
   cursor: pointer;
   user-select: none;
-  transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+  transition: transform var(--anim-click, 100ms) cubic-bezier(0.4, 0, 0.2, 1), 
+              box-shadow var(--anim-click, 100ms) cubic-bezier(0.4, 0, 0.2, 1), 
+              background var(--anim-snap, 120ms) cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: var(--shadow-raised);
   isolation: isolate;
 }
@@ -45,8 +47,8 @@
 }
 
 .button[data-state="pressed"]:not(:disabled) {
-  transform: translateY(1px);
-  box-shadow: var(--shadow-grounded);
+  transform: translateY(2px);
+  box-shadow: var(--shadow-raised-pressed);
 }
 
 .button[data-active="true"]:not(:disabled) {

@@ -1,14 +1,14 @@
 /* Chemistry Simulator Dashboard - Apollonius (Material Distribution) */
-/* Extends base dashboard styles with Cyan accent color scheme */
+/* Extends base dashboard styles with monochrome gray accent scheme */
 
 @import "../dashboard.base.module.css";
 
 /* Solver-specific CSS custom properties */
 .dashboard {
-  --solver-accent: var(--bk-cyan);
-  --solver-accent-secondary: var(--bk-yellow);
-  --solver-accent-tertiary: var(--bk-magenta);
-  --solver-accent-soft: var(--bk-cyan-soft);
+  --solver-accent: var(--bk-gray-700);
+  --solver-accent-secondary: var(--bk-gray-600);
+  --solver-accent-tertiary: var(--bk-gray-800);
+  --solver-accent-soft: var(--bk-gray-200);
 }
 
 /* Chemistry-specific: Material Selection Grid */

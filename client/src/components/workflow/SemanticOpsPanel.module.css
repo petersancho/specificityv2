@@ -117,12 +117,12 @@
 .cost {
   font-size: 11px;
   color: color-mix(in srgb, var(--ui-white) 45%, transparent);
-  font-family: 'Monaco', 'Menlo', monospace;
+  font-family: "JetBrains Mono", monospace;
 }
 
 .metric {
   text-align: right;
-  font-family: 'Monaco', 'Menlo', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-size: 12px;
 }
 

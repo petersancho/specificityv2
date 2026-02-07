@@ -191,33 +191,33 @@ export function getDisabledColor(baseColor: string): string {
 
 /**
  * Sticker tint colors for node icons
- * These are the only colored elements on otherwise monochrome nodes
+ * Monochrome gray variations for visual differentiation
  */
 export const STICKER_TINTS: Record<string, string> = {
-  data: "#0099cc",
-  basics: "#cc9900",
-  lists: "#00cccc",
-  primitives: "#00d4ff",
-  curves: "#ff0099",
-  nurbs: "#6600cc",
-  brep: "#ff6600",
-  mesh: "#8800ff",
-  tessellation: "#0066cc",
-  modifiers: "#ff9966",
-  transforms: "#cc0077",
-  arrays: "#ffdd00",
-  euclidean: "#6600ff",
-  ranges: "#9933ff",
-  signals: "#66cc00",
-  analysis: "#88ff00",
-  interop: "#0055aa",
-  measurement: "#00cccc",
-  voxel: "#66cc00",
-  solver: "#8800ff",
-  goal: "#b366ff",
-  optimization: "#ff0066",
-  math: "#cc9900",
-  logic: "#0066cc",
+  data: "#6b7280",
+  basics: "#4b5563",
+  lists: "#9ca3af",
+  primitives: "#374151",
+  curves: "#1f2937",
+  nurbs: "#6b7280",
+  brep: "#4b5563",
+  mesh: "#9ca3af",
+  tessellation: "#374151",
+  modifiers: "#1f2937",
+  transforms: "#6b7280",
+  arrays: "#4b5563",
+  euclidean: "#9ca3af",
+  ranges: "#374151",
+  signals: "#1f2937",
+  analysis: "#6b7280",
+  interop: "#4b5563",
+  measurement: "#9ca3af",
+  voxel: "#374151",
+  solver: "#1f2937",
+  goal: "#6b7280",
+  optimization: "#dc2626",
+  math: "#4b5563",
+  logic: "#9ca3af",
 };
 
 /**

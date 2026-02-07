@@ -45,13 +45,9 @@
 }
 
 .active {
-  --icon-button-bg: var(--ui-black);
+  --icon-button-bg: #dc2626;
   --icon-button-fg: var(--ui-white);
-  --icon-button-border: color-mix(
-    in srgb,
-    var(--icon-button-fg) 65%,
-    var(--icon-button-bg)
-  );
+  --icon-button-border: #dc2626;
   box-shadow: var(--shadow-md);
 }
 

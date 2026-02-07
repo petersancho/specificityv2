@@ -7,12 +7,35 @@
  * - Only sticker icons retain their CMYK colors
  */
 
-/** CMYK accent colors - used ONLY for sticker icons */
-export const CMYK = {
-  cyan: "#00d4ff",
-  magenta: "#ff0099",
-  yellow: "#ffdd00",
+/** Monochrome + Red Accent Palette */
+export const BRAND_PALETTE = {
   black: "#000000",
+  white: "#ffffff",
+  gray: {
+    50: "#f9fafb",
+    100: "#f3f4f6",
+    200: "#e5e7eb",
+    300: "#d1d5db",
+    400: "#9ca3af",
+    500: "#6b7280",
+    600: "#4b5563",
+    700: "#374151",
+    800: "#1f2937",
+    900: "#111827",
+  },
+  accent: "#dc2626",
+  accentDeep: "#b91c1c",
+  accentSoft: "rgba(220, 38, 38, 0.18)",
+  accentGlow: "rgba(220, 38, 38, 0.22)",
+} as const;
+
+/** Legacy CMYK - deprecated, kept for backward compatibility only */
+/** @deprecated Use BRAND_PALETTE instead */
+export const CMYK = {
+  cyan: BRAND_PALETTE.gray[600],
+  magenta: BRAND_PALETTE.gray[800],
+  yellow: BRAND_PALETTE.gray[700],
+  black: BRAND_PALETTE.black,
 } as const;
 
 /** RGB tuple for WebGL operations */
@@ -133,21 +156,21 @@ export const CANVAS_LIGHT: CanvasPalette = {
 
   edge: "#888888",
   edgeSoft: "rgba(0, 0, 0, 0.15)",
-  edgeHover: "#00d4ff",
+  edgeHover: "#dc2626",
   edgePreview: "rgba(80, 80, 80, 0.55)",
 
   nodeFill: "#e8e8e8",
   nodeFillHover: "#dedede",
   nodeStroke: "#000000",
-  nodeStrokeHover: "#00d4ff",
+  nodeStrokeHover: "#dc2626",
   nodeShadow: "#000000",
   nodeBand: "#d0d0d0",
   nodeBandAccent: "#000000",
 
-  nodeErrorBorder: "#ff0066",
-  nodeErrorFill: "#ffcce6",
-  nodeWarningBorder: "#cc9900",
-  nodeWarningFill: "#fff0cc",
+  nodeErrorBorder: "#dc2626",
+  nodeErrorFill: "rgba(220, 38, 38, 0.08)",
+  nodeWarningBorder: "#dc2626",
+  nodeWarningFill: "rgba(220, 38, 38, 0.05)",
 
   text: "#000000",
   textMuted: "#555555",
@@ -211,21 +234,21 @@ export const CANVAS_DARK: CanvasPalette = {
 
   edge: "#666666",
   edgeSoft: "rgba(255, 255, 255, 0.12)",
-  edgeHover: "#00d4ff",
+  edgeHover: "#dc2626",
   edgePreview: "rgba(180, 180, 180, 0.55)",
 
   nodeFill: "#2a2a2a",
   nodeFillHover: "#353535",
   nodeStroke: "#555555",
-  nodeStrokeHover: "#00d4ff",
+  nodeStrokeHover: "#dc2626",
   nodeShadow: "rgba(0, 0, 0, 0.5)",
   nodeBand: "#3a3a3a",
   nodeBandAccent: "#666666",
 
-  nodeErrorBorder: "#ff3366",
-  nodeErrorFill: "#4a1a2a",
-  nodeWarningBorder: "#ffaa00",
-  nodeWarningFill: "#3a3018",
+  nodeErrorBorder: "#dc2626",
+  nodeErrorFill: "rgba(220, 38, 38, 0.15)",
+  nodeWarningBorder: "#dc2626",
+  nodeWarningFill: "rgba(220, 38, 38, 0.08)",
 
   text: "#f0f0f0",
   textMuted: "#999999",

@@ -1,57 +1,82 @@
 /**
- * Semantic UI Variables
+ * Lingua Brandkit - Monochrome + Red Accent
  *
- * Black & White baseline with semantic color accents only.
- * All tokens here are semantically linked (domain or feedback).
+ * Minimalist black/white/gray palette with red accent.
+ * GFS Didot for titles, Neue Montreal for UI text.
+ * Solid black shadows, mechanical microinteractions.
  *
- * Last Updated: February 4, 2026
+ * Last Updated: February 7, 2026
  */
 
 :root {
-  /* === BASE: BLACK & WHITE ONLY === */
+  /* === BASE: MONOCHROME PALETTE === */
   --ui-black: #000000;
   --ui-white: #ffffff;
-  --ui-porcelain: #ffffff;
-  --ui-ink: #000000;
+  --ui-gray-50: #fafafa;
+  --ui-gray-100: #f5f5f5;
+  --ui-gray-200: #e5e5e5;
+  --ui-gray-300: #d4d4d4;
+  --ui-gray-400: #a3a3a3;
+  --ui-gray-500: #737373;
+  --ui-gray-600: #525252;
+  --ui-gray-700: #404040;
+  --ui-gray-800: #262626;
+  --ui-gray-900: #171717;
 
-  /* === SEMANTIC COLORS (domain-linked) === */
-  --semantic-numeric: #ffdd00;   /* Yellow - numbers, vectors, parameters */
-  --semantic-logic: #ff0099;     /* Magenta - booleans, goals, constraints */
-  --semantic-data: #00d4ff;      /* Cyan - strings, specs, metadata */
-  --semantic-structure: #000000; /* Black - geometry, meshes, voxels */
+  /* === ACCENT COLOR (10% usage) === */
+  --accent-red: #dc2626;
+  --accent-red-hover: #b91c1c;
+  --accent-red-soft: color-mix(in srgb, var(--accent-red) 15%, transparent);
+  --accent-red-deep: #991b1b;
 
-  /* Soft/deep semantic shades (derived, still semantic) */
-  --semantic-numeric-soft: color-mix(in srgb, var(--semantic-numeric) 25%, var(--ui-white));
-  --semantic-numeric-deep: color-mix(in srgb, var(--semantic-numeric) 70%, var(--ui-black));
-  --semantic-logic-soft: color-mix(in srgb, var(--semantic-logic) 25%, var(--ui-white));
-  --semantic-logic-deep: color-mix(in srgb, var(--semantic-logic) 70%, var(--ui-black));
-  --semantic-data-soft: color-mix(in srgb, var(--semantic-data) 25%, var(--ui-white));
-  --semantic-data-deep: color-mix(in srgb, var(--semantic-data) 70%, var(--ui-black));
+  /* === SEMANTIC COLORS (monochrome-based) === */
+  --semantic-numeric: var(--ui-gray-700);      /* Dark gray - numbers, vectors */
+  --semantic-logic: var(--ui-gray-800);        /* Darker gray - booleans, goals */
+  --semantic-data: var(--ui-gray-600);         /* Medium gray - strings, metadata */
+  --semantic-structure: var(--ui-black);       /* Black - geometry, meshes */
 
-  /* === FEEDBACK COLORS (state-linked) === */
-  --feedback-computing: #ffdd00;
-  --feedback-success: #4ade80;
-  --feedback-warning: #fbbf24;
-  --feedback-error: #ff4444;
+  /* Soft/deep semantic shades */
+  --semantic-numeric-soft: var(--ui-gray-200);
+  --semantic-numeric-deep: var(--ui-gray-900);
+  --semantic-logic-soft: var(--ui-gray-200);
+  --semantic-logic-deep: var(--ui-gray-900);
+  --semantic-data-soft: var(--ui-gray-200);
+  --semantic-data-deep: var(--ui-gray-900);
+
+  /* === FEEDBACK COLORS === */
+  --feedback-computing: var(--ui-gray-600);
+  --feedback-success: #16a34a;
+  --feedback-warning: #ea580c;
+  --feedback-error: var(--accent-red);
+
+  /* === CATEGORY COLORS (subtle gray variations) === */
+  --category-primitive: var(--ui-gray-700);
+  --category-transform: var(--ui-gray-600);
+  --category-analysis: var(--ui-gray-500);
+  --category-solver: var(--ui-gray-800);
+  --category-goal: var(--ui-gray-900);
+  --category-modifier: var(--ui-gray-600);
+  --category-curve: var(--ui-gray-700);
+  --category-brep: var(--ui-gray-800);
 
   /* === DEFAULT UI SURFACES === */
-  --surface-page: var(--ui-porcelain);
-  --surface-panel: var(--ui-white);
+  --surface-page: var(--ui-white);
+  --surface-panel: var(--ui-gray-50);
   --surface-card: var(--ui-white);
 
   /* === TEXT COLORS === */
   --text-primary: var(--ui-black);
-  --text-secondary: color-mix(in srgb, var(--ui-black) 60%, transparent);
-  --text-tertiary: color-mix(in srgb, var(--ui-black) 40%, transparent);
+  --text-secondary: var(--ui-gray-600);
+  --text-tertiary: var(--ui-gray-400);
   --text-inverse: var(--ui-white);
 
   /* === BORDERS === */
   --border-crisp: 2px solid var(--ui-black);
   --border-thin: 1px solid var(--ui-black);
-  --border-separator: 1px solid color-mix(in srgb, var(--ui-black) 12%, transparent);
-  --border-soft: 1px solid color-mix(in srgb, var(--ui-black) 20%, transparent);
+  --border-separator: 1px solid var(--ui-gray-200);
+  --border-soft: 1px solid var(--ui-gray-300);
 
-  /* === SHADOWS (Semantic Depth) === */
+  /* === SHADOWS (Solid Black - Mechanical) === */
   --shadow-sticker: 0 4px 0 var(--ui-black);
   --shadow-sticker-hover: 0 6px 0 var(--ui-black);
   --shadow-sticker-pressed: 0 2px 0 var(--ui-black);
@@ -63,14 +88,27 @@
   /* === BUTTON DEFAULTS === */
   --button-bg: var(--ui-white);
   --button-border: var(--ui-black);
-  --button-hover-bg: var(--ui-porcelain);
+  --button-hover-bg: var(--ui-gray-50);
   --button-hover-border: var(--ui-black);
+  --button-active-bg: var(--ui-gray-100);
 
-  /* === LEGACY ALIASES (deprecated) === */
+  /* === MECHANICAL ANIMATIONS === */
+  --anim-snap: 120ms cubic-bezier(0.4, 0, 0.2, 1);
+  --anim-click: 100ms cubic-bezier(0.4, 0, 0.2, 1);
+  --anim-bounce: 180ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  --anim-instant: 80ms linear;
+
+  /* === TYPOGRAPHY === */
+  --font-title: "GFS Didot", "Neue Montreal";
+  --font-body: "Neue Montreal", "GFS Didot";
+  --font-mono: "JetBrains Mono", "IBM Plex Mono", monospace;
+  --font-handwriting: "Caveat", "Kalam", "Patrick Hand", cursive;
+
+  /* === LEGACY ALIASES (deprecated - map to monochrome) === */
   --bk-black: var(--ui-black);
   --bk-white: var(--ui-white);
-  --bk-porcelain: var(--ui-porcelain);
-  --bk-cream: var(--ui-white);
+  --bk-porcelain: var(--ui-gray-50);
+  --bk-cream: var(--ui-gray-100);
   --bk-cyan: var(--semantic-data);
   --bk-magenta: var(--semantic-logic);
   --bk-yellow: var(--semantic-numeric);
@@ -91,19 +129,17 @@
   --bk-lime-soft: var(--semantic-data-soft);
 
   /* Legacy accent aliases */
-  --color-accent-primary: var(--semantic-logic);
-  --color-accent-secondary: var(--semantic-data);
-  --color-accent-tertiary: var(--semantic-numeric);
+  --color-accent-primary: var(--accent-red);
+  --color-accent-secondary: var(--ui-gray-700);
+  --color-accent-tertiary: var(--ui-gray-600);
 
-  --color-solver-evolutionary: var(--semantic-logic);
-  --color-solver-chemistry: var(--semantic-data);
-  --color-solver-physics: var(--semantic-numeric);
-  --color-solver-voxel: var(--semantic-structure);
-  --color-solver-topology: var(--semantic-numeric);
+  --color-solver-evolutionary: var(--category-solver);
+  --color-solver-chemistry: var(--category-solver);
+  --color-solver-physics: var(--category-solver);
+  --color-solver-voxel: var(--category-solver);
+  --color-solver-topology: var(--category-solver);
 
-  /* Typography */
-  --font-sans: "Montreal Neue", "Space Grotesk", system-ui, sans-serif;
-  --font-serif: "Noto Serif", "GFS Didot", Georgia, serif;
-  --font-mono: "JetBrains Mono", "IBM Plex Mono", monospace;
-  --font-handwriting: "Caveat", "Kalam", "Patrick Hand", cursive;
+  /* Font aliases */
+  --font-sans: var(--font-body);
+  --font-serif: var(--font-title);
 }

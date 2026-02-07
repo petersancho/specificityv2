@@ -2623,9 +2623,9 @@ const drawCMYKCube = (ctx: CanvasRenderingContext2D, x: number, y: number, size:
     ctx.stroke();
   };
 
-  drawFace(left, "#ff0099");
-  drawFace(right, "#00d4ff");
-  drawFace(top, "#ffdd00");
+  drawFace(left, "#374151");
+  drawFace(right, "#9ca3af");
+  drawFace(top, "#6b7280");
 };
 
 const drawBrandRoslynIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
@@ -2919,7 +2919,7 @@ const drawNumberConstantIcon = (
   setGlyphFill(ctx, 0.95);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.font = `${Math.round(size * 0.52)}px "Montreal Neue", "Space Grotesk", sans-serif`;
+  ctx.font = `${Math.round(size * 0.52)}px "GFS Didot", "Montreal Neue"`;
   ctx.fillText("1", x + size * 0.5, y + size * 0.55);
   ctx.restore();
 };
@@ -3062,7 +3062,7 @@ const drawExpressionIcon = (
   setGlyphFill(ctx, 0.95);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.font = `${Math.round(size * 0.34)}px "Montreal Neue", "Space Grotesk", sans-serif`;
+  ctx.font = `${Math.round(size * 0.34)}px "GFS Didot", "Montreal Neue"`;
   ctx.fillText("f(x)", x + size * 0.5, y + size * 0.56);
   ctx.restore();
 };
@@ -4511,7 +4511,7 @@ const drawGreekGlyph = (
 ) => {
   ctx.save();
   ctx.fillStyle = options?.color ?? "#f8f7ff";
-  ctx.font = `${Math.round(size * 0.64)}px \"Noto Serif\", \"GFS Didot\", serif`;
+  ctx.font = `${Math.round(size * 0.64)}px \"GFS Didot\", \"Montreal Neue\"`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   const centerX = x + size * 0.5;
@@ -4543,19 +4543,19 @@ const drawSolverIcon = (
 };
 
 const STICKER_COLORS = {
-  goal: "#8800ff",
-  stiffness: "#00d4ff",
-  volume: "#ff0099",
-  load: "#ffdd00",
-  anchor: "#66cc00",
+  goal: "#1f2937",
+  stiffness: "#4b5563",
+  volume: "#dc2626",
+  load: "#374151",
+  anchor: "#6b7280",
 };
 
 const STICKER2_COLORS = {
-  goal: "#8800ff",
-  stiffness: "#00d4ff",
-  volume: "#ff0099",
-  load: "#ffdd00",
-  anchor: "#66cc00",
+  goal: "#1f2937",
+  stiffness: "#4b5563",
+  volume: "#dc2626",
+  load: "#374151",
+  anchor: "#6b7280",
 };
 
 const resolveStickerColor = (key: keyof typeof STICKER_COLORS) =>
@@ -4663,7 +4663,7 @@ const drawStickerSignature = (
   const text = signature.trim().toUpperCase();
   if (!text) return;
   ctx.save();
-  ctx.font = `${Math.round(size * 0.2)}px "Space Grotesk", "Inter", sans-serif`;
+  ctx.font = `${Math.round(size * 0.2)}px "GFS Didot", "Montreal Neue"`;
   ctx.textAlign = "right";
   ctx.textBaseline = "alphabetic";
   const padding = size * 0.12;

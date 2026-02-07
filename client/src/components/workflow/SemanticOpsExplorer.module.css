@@ -17,7 +17,7 @@
   height: 80%;
   max-height: 800px;
   background: var(--ui-black);
-  border: 1px solid rgba(136, 0, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 8px;
   display: flex;
   flex-direction: column;
@@ -29,15 +29,15 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  background: rgba(136, 0, 255, 0.1);
-  border-bottom: 1px solid rgba(136, 0, 255, 0.3);
+  background: rgba(0, 0, 0, 0.3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .title {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: var(--semantic-logic);
+  color: var(--ui-white);
 }
 
 .closeButton {
@@ -89,7 +89,7 @@
 
 .searchInput:focus {
   outline: none;
-  border-color: var(--semantic-logic);
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 .filtersSection {
@@ -127,12 +127,12 @@
 
 .filterSelect:focus {
   outline: none;
-  border-color: var(--semantic-logic);
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 .stats {
   padding: 12px 16px;
-  background: rgba(136, 0, 255, 0.05);
+  background: rgba(0, 0, 0, 0.2);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   gap: 16px;
@@ -152,7 +152,7 @@
 .statValue {
   font-size: 13px;
   font-weight: 600;
-  color: var(--semantic-logic);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .opsList {
@@ -172,13 +172,13 @@
 }
 
 .opItem:hover {
-  background: rgba(136, 0, 255, 0.1);
-  border-color: rgba(136, 0, 255, 0.3);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .opItemSelected {
-  background: rgba(136, 0, 255, 0.2);
-  border-color: rgba(136, 0, 255, 0.5);
+  background: rgba(220, 38, 38, 0.15);
+  border-color: #dc2626;
 }
 
 .opItemHeader {
@@ -214,8 +214,8 @@
 }
 
 .opItemCost[data-cost="high"] {
-  background: rgba(255, 0, 0, 0.2);
-  color: var(--feedback-error);
+  background: rgba(220, 38, 38, 0.2);
+  color: #dc2626;
 }
 
 .opItemSummary {
@@ -269,9 +269,9 @@
 }
 
 .detailsTag[data-type="category"] {
-  background: rgba(0, 153, 204, 0.2);
-  color: var(--semantic-data);
-  border: 1px solid rgba(0, 153, 204, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .detailsTag[data-type="cost"][data-cost="low"] {
@@ -287,15 +287,15 @@
 }
 
 .detailsTag[data-type="cost"][data-cost="high"] {
-  background: rgba(255, 0, 0, 0.2);
-  color: var(--feedback-error);
-  border: 1px solid rgba(255, 0, 0, 0.3);
+  background: rgba(220, 38, 38, 0.2);
+  color: #dc2626;
+  border: 1px solid rgba(220, 38, 38, 0.3);
 }
 
 .detailsTag[data-type="complexity"] {
-  background: rgba(153, 51, 255, 0.2);
-  color: var(--semantic-logic);
-  border: 1px solid rgba(153, 51, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .detailsSection {
@@ -369,8 +369,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  background: rgba(136, 0, 255, 0.1);
-  border: 1px solid rgba(136, 0, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 3px;
 }
 

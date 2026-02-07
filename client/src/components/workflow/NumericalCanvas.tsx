@@ -232,6 +232,50 @@ const SHORTCUT_OVERLAY_KEY = "lingua.numericaShortcutOverlay";
 const clampValue = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
 
+const abbreviatePortLabel = (label: string): string => {
+  const abbrevMap: Record<string, string> = {
+    "Application Points": "App Pts",
+    "Force Magnitude": "Force Mag",
+    "Optimized Mesh": "Opt Mesh",
+    "Surface Area": "Surf Area",
+    "Target Volume": "Target Vol",
+    "Volume Fraction": "Vol Frac",
+    "Penalty Exponent": "Penalty Exp",
+    "Filter Radius": "Filter Rad",
+    "Continuation Steps": "Cont Steps",
+    "Max Iterations": "Max Iters",
+    "Convergence Tolerance": "Conv Tol",
+    "Minimum Density": "Min Dens",
+    "Maximum Density": "Max Dens",
+    "Initial Density": "Init Dens",
+    "Element Size": "Elem Size",
+    "Young's Modulus": "Young's Mod",
+    "Poisson's Ratio": "Poisson",
+    "Material Density": "Mat Dens",
+  };
+  
+  if (abbrevMap[label]) {
+    return abbrevMap[label];
+  }
+  
+  if (label.length <= 10) {
+    return label;
+  }
+  
+  const words = label.split(" ");
+  if (words.length === 1) {
+    return label.slice(0, 8) + "..";
+  }
+  
+  const abbreviated = words.map((word, idx) => {
+    if (idx === words.length - 1) return word.slice(0, 4);
+    if (word.length <= 3) return word;
+    return word.slice(0, 3);
+  }).join(" ");
+  
+  return abbreviated.length < label.length ? abbreviated : label;
+};
+
 const DISPLAY_MODE_OPTIONS: DisplayMode[] = [
   "shaded",
   "wireframe",
@@ -631,6 +675,7 @@ const getIconImage = (iconId?: string, tint?: RGBA) => {
   const url =
     cachedUrl ??
     renderIconDataUrl(iconId as Parameters<typeof renderIconDataUrl>[0], ICON_RESOLUTION, {
+      style: "sticker2",
       tint,
     });
   ICON_DATA_URL_CACHE.set(cacheKey, url);
@@ -3054,6 +3099,8 @@ export const NumericalCanvas = ({
   const hitTest = (worldX: number, worldY: number): HitTarget => {
     const layouts = getLayouts();
     const portHitRadius = PORT_RADIUS * 2;
+    const labelHitHeight = 14;
+    const labelHitWidth = 80;
     const orderedNodes = [
       ...nodes.filter((node) => node.type === "group"),
       ...nodes.filter((node) => node.type !== "group"),
@@ -3076,6 +3123,23 @@ export const NumericalCanvas = ({
             isOutput: true,
           };
         }
+        if (portLayout.port.label) {
+          const labelX = layout.x + layout.width - 12 - labelHitWidth;
+          const labelY = portLayout.y - labelHitHeight / 2;
+          if (
+            worldX >= labelX &&
+            worldX <= labelX + labelHitWidth &&
+            worldY >= labelY &&
+            worldY <= labelY + labelHitHeight
+          ) {
+            return {
+              type: "port",
+              nodeId: node.id,
+              portKey: portLayout.port.key,
+              isOutput: true,
+            };
+          }
+        }
       }
 
       for (const portLayout of layout.inputs) {
@@ -3087,6 +3151,23 @@ export const NumericalCanvas = ({
             portKey: portLayout.port.key,
             isOutput: false,
           };
+        }
+        if (portLayout.port.label) {
+          const labelX = layout.x + 10;
+          const labelY = portLayout.y - labelHitHeight / 2;
+          if (
+            worldX >= labelX &&
+            worldX <= labelX + labelHitWidth &&
+            worldY >= labelY &&
+            worldY <= labelY + labelHitHeight
+          ) {
+            return {
+              type: "port",
+              nodeId: node.id,
+              portKey: portLayout.port.key,
+              isOutput: false,
+            };
+          }
         }
       }
 
@@ -4162,7 +4243,7 @@ export const NumericalCanvas = ({
                 font: `600 ${Math.max(
                   10,
                   11 * viewTransform.scale
-                )}px \"Montreal Neue\", \"Space Grotesk\", sans-serif`,
+                )}px \"GFS Didot\", \"Montreal Neue\"`,
                 pointerEvents: "auto",
                 zIndex: 4,
               }}
@@ -4259,7 +4340,7 @@ export const NumericalCanvas = ({
                 font: `500 ${Math.max(
                   10,
                   11 * viewTransform.scale
-                )}px \"Montreal Neue\", \"Space Grotesk\", sans-serif`,
+                )}px \"GFS Didot\", \"Montreal Neue\"`,
                 lineHeight: `${Math.max(
                   Math.max(10, 11 * viewTransform.scale) * 1.3,
                   NOTE_LINE_HEIGHT * viewTransform.scale
@@ -4291,7 +4372,7 @@ export const NumericalCanvas = ({
               background: "var(--sp-porcelain, #f5f2ee)",
               boxShadow: "var(--shadow-panel, 0 10px 24px rgba(0, 0, 0, 0.18))",
               color: "var(--sp-ink, #1f1f22)",
-              font: '500 11px "Montreal Neue", "Space Grotesk", sans-serif',
+              font: '500 11px "GFS Didot", "Montreal Neue"',
               display: "grid",
               gap: "8px",
               pointerEvents: "auto",
@@ -4536,7 +4617,7 @@ export const NumericalCanvas = ({
                 border: `1px solid ${paletteRef.current.isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)"}`,
                 background: paletteRef.current.isDark ? "#2a2a2a" : "#ffffff",
                 color: paletteRef.current.text,
-                font: '500 11px "Montreal Neue", "Space Grotesk", sans-serif',
+                font: '500 11px "GFS Didot", "Montreal Neue"',
               }}
             />
             <div
@@ -5173,7 +5254,7 @@ function drawGroupNodes(
 
     ctx.save();
     ctx.fillStyle = fill;
-    ctx.strokeStyle = isHovered || isSelected ? "#00d4ff" : "#000000";
+    ctx.strokeStyle = isHovered || isSelected ? "#dc2626" : "#000000";
     ctx.lineWidth = isSelected ? 3 : 2;
     if (isSelected) {
       ctx.setLineDash([8, 4]);
@@ -5186,7 +5267,7 @@ function drawGroupNodes(
     ctx.restore();
 
     ctx.fillStyle = palette.text;
-    ctx.font = '600 11px "Montreal Neue", "Space Grotesk", sans-serif';
+    ctx.font = '600 11px "GFS Didot", "Montreal Neue"';
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
     const titleText = truncateToWidth(ctx, title, width - 80);
@@ -5194,7 +5275,7 @@ function drawGroupNodes(
 
     if (memberCount > 0) {
       const badgeLabel = `${memberCount} node${memberCount === 1 ? "" : "s"}`;
-      ctx.font = '600 9px "Montreal Neue", "Space Grotesk", sans-serif';
+      ctx.font = '600 9px "GFS Didot", "Montreal Neue"';
       const textWidth = ctx.measureText(badgeLabel).width;
       const badgeWidth = Math.max(40, textWidth + 10);
       const badgeHeight = GROUP_HEADER_HEIGHT - 8;
@@ -5395,7 +5476,7 @@ function drawNodes(
       ctx.rect(noteBounds.x, noteBounds.y, noteBounds.width, noteBounds.height);
       ctx.clip();
       ctx.fillStyle = hasContent ? "#3b332d" : "#8c7a5f";
-      ctx.font = '500 11px "Montreal Neue", "Space Grotesk", sans-serif';
+      ctx.font = '500 11px "GFS Didot", "Montreal Neue"';
       ctx.textAlign = "left";
       ctx.textBaseline = "top";
       linesToDraw.forEach((line, index) => {
@@ -5405,7 +5486,7 @@ function drawNodes(
       });
       ctx.restore();
 
-      const portFont = '600 9px "Montreal Neue", "Space Grotesk", sans-serif';
+      const portFont = '600 9px "Neue Montreal", "GFS Didot"';
       const noteWidth = layout.width;
       const portLabelMaxWidth = noteWidth - 48;
       const drawPort = (portLayout: PortLayout) => {
@@ -5422,10 +5503,10 @@ function drawNodes(
           ctx.font = portFont;
           ctx.textBaseline = "middle";
           ctx.textAlign = portLayout.isOutput ? "right" : "left";
-          // Use black text for port labels
           ctx.fillStyle = palette.portLabel;
           ctx.globalAlpha = isPortHovered ? 1 : 0.86;
-          const labelText = truncateToWidth(ctx, port.label, portLabelMaxWidth);
+          const abbrevLabel = abbreviatePortLabel(port.label);
+          const labelText = truncateToWidth(ctx, abbrevLabel, portLabelMaxWidth);
           const labelX = portLayout.isOutput ? x + noteWidth - 12 : x + 10;
           ctx.fillText(labelText, labelX, portLayout.y);
         }
@@ -5512,7 +5593,7 @@ function drawNodes(
 
       if (category) {
         ctx.fillStyle = categoryLabelColor;
-        ctx.font = '600 9px "Montreal Neue", "Space Grotesk", sans-serif';
+        ctx.font = '600 9px "Montreal Neue", "GFS Didot"';
         ctx.textAlign = "left";
         ctx.textBaseline = "top";
         ctx.fillText(category.label.toUpperCase(), x + 9, y + 3);
@@ -5521,33 +5602,26 @@ function drawNodes(
 
     const iconImage = !isSlider ? getIconImage(definition?.iconId, iconTint) : null;
     if (!isSlider && definition?.iconId && iconImage && iconImage.complete && iconImage.naturalWidth > 0) {
-      const iconIsSoft =
-        node.type === "panel" ||
-        node.type === "geometryViewer" ||
-        node.type === "customPreview" ||
-        node.type === "customViewer";
-      const iconScale = iconIsSoft ? 0.78 : 1;
       const iconLimit = Math.min(
         ICON_SIZE,
         NODE_WIDTH - ICON_PADDING * 2,
         height - NODE_BAND_HEIGHT - ICON_PADDING * 2
       );
-      const iconSize = Math.max(0, iconLimit * iconScale);
+      const iconSize = Math.max(0, iconLimit);
       const iconX = x + (NODE_WIDTH - iconSize) / 2;
       const iconY = y + height * 0.5 - iconSize * 0.5;
       ctx.save();
-      ctx.globalAlpha = iconIsSoft ? 0.16 : 0.98;
+      ctx.shadowColor = "rgba(0, 0, 0, 0.4)";
+      ctx.shadowBlur = 3;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 2;
       ctx.drawImage(iconImage, iconX, iconY, iconSize, iconSize);
       ctx.restore();
     }
 
     if (!isSlider) {
       ctx.fillStyle = nodeTextColor;
-      const labelFont =
-        definition?.category === "solver" || definition?.category === "goal"
-          ? '600 13px "Noto Serif", "GFS Didot", serif'
-          : '600 13px "Montreal Neue", "Space Grotesk", sans-serif';
-      ctx.font = labelFont;
+      ctx.font = '600 13px "GFS Didot", "Montreal Neue"';
       ctx.textAlign = "left";
       ctx.textBaseline = "top";
       const labelText = truncateToWidth(ctx, label, labelMaxWidth);
@@ -5699,7 +5773,7 @@ function drawNodes(
       const valueText = formatSliderValue(value, sliderConfig.step, sliderConfig.snapMode, sliderConfig.precisionOverride);
       ctx.save();
       ctx.fillStyle = SLIDER_VALUE_COLOR;
-      ctx.font = '700 12px "Montreal Neue", "Space Grotesk", sans-serif';
+      ctx.font = '700 12px "GFS Didot", "Montreal Neue"';
       ctx.textAlign = "right";
       ctx.textBaseline = "middle";
       ctx.fillText(valueText, sliderBounds.valueX + sliderBounds.valueWidth - 4, trackY);
@@ -5707,19 +5781,19 @@ function drawNodes(
 
       if (evaluationError && isHovered) {
         ctx.fillStyle = palette.nodeErrorBorder;
-        ctx.font = '600 10px "Montreal Neue", "Space Grotesk", sans-serif';
+        ctx.font = '600 10px "GFS Didot", "Montreal Neue"';
         ctx.textAlign = "left";
         const errorText = truncateToWidth(ctx, `Error: ${evaluationError}`, detailMaxWidth);
         ctx.fillText(errorText, x + 10, detailY);
       }
     } else if (evaluationError && isHovered) {
       ctx.fillStyle = palette.nodeErrorBorder;
-      ctx.font = '600 10px "Montreal Neue", "Space Grotesk", sans-serif';
+      ctx.font = '600 10px "GFS Didot", "Montreal Neue"';
       const errorText = truncateToWidth(ctx, `Error: ${evaluationError}`, detailMaxWidth);
       ctx.fillText(errorText, x + 10, detailY);
     } else if (showWarning && isHovered) {
       ctx.fillStyle = palette.nodeWarningBorder;
-      ctx.font = '600 10px "Montreal Neue", "Space Grotesk", sans-serif';
+      ctx.font = '600 10px "GFS Didot", "Montreal Neue"';
       const warningText = truncateToWidth(
         ctx,
         `Needs: ${missingRequiredInputs.join(", ")}`,
@@ -5739,12 +5813,12 @@ function drawNodes(
             : definition?.description ??
               (node.type ? `Type: ${node.type}` : `ID: ${node.id.slice(0, 8)}`);
       ctx.fillStyle = nodeMutedTextColor;
-      ctx.font = '500 11px "Montreal Neue", "Space Grotesk", sans-serif';
+      ctx.font = '500 11px "GFS Didot", "Montreal Neue"';
       const detailLabel = truncateToWidth(ctx, detailText, detailMaxWidth);
       ctx.fillText(detailLabel, x + 10, detailY);
     }
 
-    const portFont = '600 9px "Montreal Neue", "Space Grotesk", sans-serif';
+    const portFont = '600 9px "Neue Montreal", "GFS Didot"';
     const portLabelMaxWidth = NODE_WIDTH - 40;
 
     const drawPort = (portLayout: PortLayout) => {
@@ -5761,10 +5835,10 @@ function drawNodes(
         ctx.font = portFont;
         ctx.textBaseline = "middle";
         ctx.textAlign = portLayout.isOutput ? "right" : "left";
-        // Use black/white text for port labels instead of colored
         ctx.fillStyle = palette.portLabel;
         ctx.globalAlpha = isPortHovered ? 1 : 0.86;
-        const labelText = truncateToWidth(ctx, port.label, portLabelMaxWidth);
+        const abbrevLabel = abbreviatePortLabel(port.label);
+        const labelText = truncateToWidth(ctx, abbrevLabel, portLabelMaxWidth);
         const labelX = portLayout.isOutput ? x + NODE_WIDTH - 12 : x + 10;
         ctx.fillText(labelText, labelX, portLayout.y);
       }
@@ -5915,8 +5989,8 @@ function drawTooltip(
     const paddingX = basePaddingX * scale;
     const paddingY = basePaddingY * scale;
     const lineHeight = baseLineHeight * scale;
-    const titleFont = `600 ${titleSize}px "Montreal Neue", "Space Grotesk", sans-serif`;
-    const bodyFont = `500 ${bodySize}px "Montreal Neue", "Space Grotesk", sans-serif`;
+    const titleFont = `600 ${titleSize}px "GFS Didot", "Montreal Neue"`;
+    const bodyFont = `500 ${bodySize}px "GFS Didot", "Montreal Neue"`;
     const lines = buildTooltipLines(ctx, rawLines, maxWidth, titleFont, bodyFont);
     const widths = lines.map((line) => {
       ctx.font = line.isTitle ? titleFont : bodyFont;
@@ -5990,7 +6064,7 @@ function drawPendingReferenceHint(
 ) {
   const text = "Select geometry in Roslyn to complete reference.";
   ctx.save();
-  ctx.font = '600 11px "Montreal Neue", "Space Grotesk", sans-serif';
+  ctx.font = '600 11px "GFS Didot", "Montreal Neue"';
   const paddingX = 10;
   const paddingY = 6;
   const textWidth = ctx.measureText(text).width;
@@ -6038,8 +6112,8 @@ function drawShortcutOverlay(
   const paddingX = 12;
   const paddingY = 10;
   const lineHeight = 16;
-  const titleFont = '600 12px "Montreal Neue", "Space Grotesk", sans-serif';
-  const lineFont = '500 11px "Montreal Neue", "Space Grotesk", sans-serif';
+  const titleFont = '600 12px "GFS Didot", "Montreal Neue"';
+  const lineFont = '500 11px "GFS Didot", "Montreal Neue"';
 
   ctx.save();
   ctx.font = titleFont;

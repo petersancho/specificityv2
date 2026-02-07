@@ -237,20 +237,20 @@ export class OperationRegistry {
 
   private getCategoryColor(category: OpCategory): string {
     const colors: Record<OpCategory, string> = {
-      primitive: '#FFE6CC',      // Light orange
-      modifier: '#CCE5FF',       // Light blue
-      tessellation: '#E6CCFF',   // Light purple
-      transform: '#CCFFCC',      // Light green
-      analysis: '#FFCCCC',       // Light red
-      utility: '#FFFFCC',        // Light yellow
-      io: '#CCFFFF',             // Light cyan
-      operator: '#FFE6E6',       // Light pink
-      aggregation: '#E6FFE6',    // Light mint
-      control: '#FFE6FF',        // Light magenta
-      ui: '#E6E6FF',             // Light lavender
-      creation: '#FFD9CC',       // Light peach
-      operation: '#CCE6FF',      // Light sky blue
-      conversion: '#E6FFCC'      // Light lime
+      primitive: '#f3f4f6',      // Gray 100
+      modifier: '#e5e7eb',       // Gray 200
+      tessellation: '#d1d5db',   // Gray 300
+      transform: '#9ca3af',      // Gray 400
+      analysis: '#6b7280',       // Gray 500
+      utility: '#4b5563',        // Gray 600
+      io: '#374151',             // Gray 700
+      operator: '#1f2937',       // Gray 800
+      aggregation: '#111827',    // Gray 900
+      control: '#dc2626',        // Red accent
+      ui: '#e5e7eb',             // Gray 200
+      creation: '#d1d5db',       // Gray 300
+      operation: '#9ca3af',      // Gray 400
+      conversion: '#6b7280'      // Gray 500
     };
     return colors[category] || '#FFFFFF';
   }

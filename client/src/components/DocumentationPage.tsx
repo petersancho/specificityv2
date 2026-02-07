@@ -58,19 +58,19 @@ type DocsRoute =
   | { kind: "numerica"; id: string };
 
 const BRAND_ACCENTS = {
-  cyan: "#00d4ff",
-  purple: "#ff0099",
-  pink: "#c2166b",
-  orange: "#cc5b1a",
-  ink: "#3b3b40",
+  accent: "#dc2626",
+  gray700: "#374151",
+  gray600: "#4b5563",
+  gray500: "#6b7280",
+  gray800: "#1f2937",
 };
 
 const COMMAND_CATEGORY_META: Record<string, { label: string; accent: string }> = {
-  geometry: { label: "Geometry", accent: BRAND_ACCENTS.orange },
-  transform: { label: "Transform", accent: BRAND_ACCENTS.purple },
-  edit: { label: "Edit", accent: BRAND_ACCENTS.pink },
-  view: { label: "View", accent: BRAND_ACCENTS.cyan },
-  performs: { label: "Commands", accent: BRAND_ACCENTS.ink },
+  geometry: { label: "Geometry", accent: BRAND_ACCENTS.gray700 },
+  transform: { label: "Transform", accent: BRAND_ACCENTS.gray600 },
+  edit: { label: "Edit", accent: BRAND_ACCENTS.gray500 },
+  view: { label: "View", accent: BRAND_ACCENTS.gray800 },
+  performs: { label: "Commands", accent: BRAND_ACCENTS.gray700 },
 };
 
 const COMMAND_CATEGORY_ORDER = ["geometry", "transform", "edit", "view", "performs"];
@@ -535,21 +535,21 @@ const DocumentationIndex = ({ onNavigate }: DocumentationIndexProps) => {
             <WebGLButton
               label="Roslyn Commands"
               variant="primary"
-              accentColor={BRAND_ACCENTS.cyan}
+              accentColor={BRAND_ACCENTS.gray700}
               className={styles.docButton}
               onClick={() => scrollToSection("documentation-roslyn")}
             />
             <WebGLButton
               label="Numerica Nodes"
               variant="primary"
-              accentColor={BRAND_ACCENTS.purple}
+              accentColor={BRAND_ACCENTS.gray600}
               className={styles.docButton}
               onClick={() => scrollToSection("documentation-numerica")}
             />
             <WebGLButton
               label="Philosophy"
               variant="secondary"
-              accentColor={BRAND_ACCENTS.orange}
+              accentColor={BRAND_ACCENTS.gray800}
               className={styles.docButton}
               onClick={() => onNavigate({ kind: "philosophy" })}
             />
