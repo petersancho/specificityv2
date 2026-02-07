@@ -152,110 +152,154 @@ export const TopologyConvergence: React.FC<TopologyConvergenceProps> = ({ histor
 };
 
 // ============================================================================
-// TOPOLOGY GEOMETRY PREVIEW - 3D mesh preview
+// TOPOLOGY GEOMETRY PREVIEW - 3D mesh preview using Three.js
 // ============================================================================
+
+import * as THREE from 'three';
 
 interface TopologyGeometryPreviewProps { geometry: RenderMesh | null; width: number; height: number; }
 
 export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = ({ geometry, width, height }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const meshRef = useRef<THREE.Mesh | null>(null);
   const rotationRef = useRef({ x: 0.3, y: 0.5 });
   const isDraggingRef = useRef(false);
   const lastMouseRef = useRef({ x: 0, y: 0 });
-  const [renderError, setRenderError] = React.useState<string | null>(null);
-
-  console.log('[PREVIEW] TopologyGeometryPreview render:', {
-    hasGeometry: !!geometry,
-    positions: geometry?.positions?.length || 0,
-    indices: geometry?.indices?.length || 0,
-    width,
-    height,
-  });
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) {
-      console.error('[PREVIEW] Canvas ref is null!');
-      return;
-    }
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      console.error('[PREVIEW] Could not get 2D context!');
-      return;
-    }
-    
-    console.log('[PREVIEW] Drawing canvas:', { width, height, hasGeometry: !!geometry });
-    
-    canvas.width = width; 
-    canvas.height = height;
-    ctx.fillStyle = '#f5f2ee'; 
-    ctx.fillRect(0, 0, width, height);
-    
-    if (!geometry || !geometry.positions || geometry.positions.length === 0) {
-      console.log('[PREVIEW] No geometry - showing waiting message');
-      ctx.fillStyle = '#1f1f22'; 
-      ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, sans-serif'; 
-      ctx.textAlign = 'center'; 
-      ctx.textBaseline = 'middle';
-      ctx.fillText('Waiting for geometry...', width / 2, height / 2 - 10);
-      ctx.font = '11px -apple-system, BlinkMacSystemFont, sans-serif';
-      ctx.fillStyle = '#6a6661';
-      ctx.fillText('(updates every 10 iterations)', width / 2, height / 2 + 15);
-      setRenderError(null);
-      return;
-    }
-    
-    try {
-      // Quick validation of first few positions
-      let invalidCount = 0;
-      for (let i = 0; i < Math.min(geometry.positions.length, 200); i++) {
-        const v = geometry.positions[i];
-        if (!Number.isFinite(v)) {
-          invalidCount++;
-        }
-      }
-      
-      if (invalidCount > 0) {
-        const errMsg = `Invalid geometry: ${invalidCount} NaN/Infinity values in first 200 positions`;
-        console.error('[PREVIEW]', errMsg);
-        ctx.fillStyle = '#8b0000';
-        ctx.font = 'bold 12px monospace';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('Invalid geometry (NaN/Inf)', width / 2, height / 2);
-        setRenderError(errMsg);
-        return;
-      }
-      
-      console.log('[PREVIEW] Rendering geometry with', geometry.positions.length / 3, 'vertices and', (geometry.indices?.length || 0) / 3, 'triangles');
-      renderGeometry(ctx, geometry, width, height, rotationRef.current);
-      setRenderError(null);
-    } catch (e) {
-      const errMsg = e instanceof Error ? e.message : String(e);
-      console.error('[PREVIEW] Render error:', errMsg, e);
-      ctx.fillStyle = '#8b0000';
-      ctx.font = 'bold 12px monospace';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('Error rendering geometry', width / 2, height / 2);
-      setRenderError(errMsg);
-    }
-  }, [geometry, width, height]);
+    if (!containerRef.current) return;
 
-  const handleMouseDown = (e: React.MouseEvent) => { isDraggingRef.current = true; lastMouseRef.current = { x: e.clientX, y: e.clientY }; };
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf5f2ee);
+    sceneRef.current = scene;
+
+    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+    camera.position.z = 3;
+    cameraRef.current = camera;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    containerRef.current.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(1, 1, 1);
+    scene.add(directionalLight);
+
+    const backLight = new THREE.DirectionalLight(0xffffff, 0.3);
+    backLight.position.set(-1, -1, -1);
+    scene.add(backLight);
+
+    return () => {
+      renderer.dispose();
+      if (containerRef.current && renderer.domElement.parentNode === containerRef.current) {
+        containerRef.current.removeChild(renderer.domElement);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!rendererRef.current || !cameraRef.current) return;
+    rendererRef.current.setSize(width, height);
+    cameraRef.current.aspect = width / height;
+    cameraRef.current.updateProjectionMatrix();
+  }, [width, height]);
+
+  useEffect(() => {
+    const scene = sceneRef.current;
+    const renderer = rendererRef.current;
+    const camera = cameraRef.current;
+    if (!scene || !renderer || !camera) return;
+
+    if (meshRef.current) {
+      scene.remove(meshRef.current);
+      meshRef.current.geometry.dispose();
+      if (meshRef.current.material instanceof THREE.Material) {
+        meshRef.current.material.dispose();
+      }
+      meshRef.current = null;
+    }
+
+    if (!geometry || !geometry.positions || geometry.positions.length === 0) {
+      renderer.render(scene, camera);
+      return;
+    }
+
+    const positions = geometry.positions;
+    const indices = geometry.indices;
+
+    const threeGeometry = new THREE.BufferGeometry();
+    threeGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    
+    if (indices && indices.length > 0) {
+      threeGeometry.setIndex(Array.from(indices));
+    }
+    
+    threeGeometry.computeVertexNormals();
+    threeGeometry.computeBoundingBox();
+    
+    const bbox = threeGeometry.boundingBox!;
+    const center = new THREE.Vector3();
+    bbox.getCenter(center);
+    threeGeometry.translate(-center.x, -center.y, -center.z);
+    
+    const size = new THREE.Vector3();
+    bbox.getSize(size);
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const scaleFactor = 2 / maxDim;
+    threeGeometry.scale(scaleFactor, scaleFactor, scaleFactor);
+
+    const material = new THREE.MeshStandardMaterial({
+      color: 0xff00ff,
+      metalness: 0.1,
+      roughness: 0.6,
+      side: THREE.DoubleSide,
+    });
+
+    const mesh = new THREE.Mesh(threeGeometry, material);
+    mesh.rotation.x = rotationRef.current.x;
+    mesh.rotation.y = rotationRef.current.y;
+    scene.add(mesh);
+    meshRef.current = mesh;
+
+    renderer.render(scene, camera);
+  }, [geometry]);
+
+  const render = () => {
+    const scene = sceneRef.current;
+    const renderer = rendererRef.current;
+    const camera = cameraRef.current;
+    const mesh = meshRef.current;
+    if (!scene || !renderer || !camera) return;
+    
+    if (mesh) {
+      mesh.rotation.x = rotationRef.current.x;
+      mesh.rotation.y = rotationRef.current.y;
+    }
+    
+    renderer.render(scene, camera);
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => { 
+    isDraggingRef.current = true; 
+    lastMouseRef.current = { x: e.clientX, y: e.clientY }; 
+  };
+  
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDraggingRef.current) return;
     rotationRef.current.y += (e.clientX - lastMouseRef.current.x) * 0.01;
     rotationRef.current.x += (e.clientY - lastMouseRef.current.y) * 0.01;
     lastMouseRef.current = { x: e.clientX, y: e.clientY };
-    const canvas = canvasRef.current;
-    if (!canvas || !geometry) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.fillStyle = '#f5f2ee'; ctx.fillRect(0, 0, width, height);
-    renderGeometry(ctx, geometry, width, height, rotationRef.current);
+    render();
   };
+  
   const handleMouseUp = () => { isDraggingRef.current = false; };
 
   const vertexCount = geometry?.positions?.length ? Math.floor(geometry.positions.length / 3) : 0;
@@ -263,8 +307,8 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      <canvas 
-        ref={canvasRef} 
+      <div 
+        ref={containerRef}
         style={{ width: '100%', height: '100%', cursor: isDraggingRef.current ? 'grabbing' : 'grab' }} 
         onMouseDown={handleMouseDown} 
         onMouseMove={handleMouseMove} 
@@ -283,108 +327,7 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
         border: '1px solid rgba(0,0,0,0.1)',
       }}>
         {width}×{height} • {vertexCount} verts • {triangleCount} tris
-        {renderError && <span style={{ color: '#8b0000' }}> • ERROR</span>}
       </div>
     </div>
   );
 };
-
-function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, width: number, height: number, rotation: { x: number; y: number }) {
-  const positions = geometry.positions;
-  const indices = geometry.indices;
-  
-  if (!positions || positions.length === 0) return;
-  if (!indices || indices.length === 0) return;
-
-  // Step 1: Find bounds
-  let minX = Infinity, minY = Infinity, minZ = Infinity;
-  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
-  
-  for (let i = 0; i < positions.length; i += 3) {
-    const x = positions[i], y = positions[i + 1], z = positions[i + 2];
-    if (x < minX) minX = x; if (x > maxX) maxX = x;
-    if (y < minY) minY = y; if (y > maxY) maxY = y;
-    if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
-  }
-  
-  const cx = (minX + maxX) / 2;
-  const cy = (minY + maxY) / 2;
-  const cz = (minZ + maxZ) / 2;
-  const maxDim = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
-  
-  if (maxDim < 1e-9) return;
-  
-  const scale = (0.7 * Math.min(width, height)) / maxDim;
-
-  // Step 2: Rotation matrices
-  const cosX = Math.cos(rotation.x), sinX = Math.sin(rotation.x);
-  const cosY = Math.cos(rotation.y), sinY = Math.sin(rotation.y);
-
-  // Step 3: Project all vertices
-  const numVerts = positions.length / 3;
-  const screenX = new Float32Array(numVerts);
-  const screenY = new Float32Array(numVerts);
-  const screenZ = new Float32Array(numVerts);
-  
-  for (let i = 0; i < numVerts; i++) {
-    let x = positions[i * 3] - cx;
-    let y = positions[i * 3 + 1] - cy;
-    let z = positions[i * 3 + 2] - cz;
-    
-    // Rotate X
-    const y1 = y * cosX - z * sinX;
-    const z1 = y * sinX + z * cosX;
-    
-    // Rotate Y
-    const x1 = x * cosY + z1 * sinY;
-    const z2 = -x * sinY + z1 * cosY;
-    
-    screenX[i] = width / 2 + x1 * scale;
-    screenY[i] = height / 2 - y1 * scale;
-    screenZ[i] = z2;
-  }
-
-  // Step 4: Build triangle list with depth
-  const numTris = indices.length / 3;
-  const triDepth = new Float32Array(numTris);
-  const triOrder = new Uint32Array(numTris);
-  
-  for (let i = 0; i < numTris; i++) {
-    const i0 = indices[i * 3], i1 = indices[i * 3 + 1], i2 = indices[i * 3 + 2];
-    triDepth[i] = (screenZ[i0] + screenZ[i1] + screenZ[i2]) / 3;
-    triOrder[i] = i;
-  }
-  
-  // Sort back-to-front
-  triOrder.sort((a, b) => triDepth[a] - triDepth[b]);
-
-  // Step 5: Draw triangles
-  const zMin = triDepth[triOrder[0]];
-  const zMax = triDepth[triOrder[numTris - 1]];
-  const zRange = Math.max(0.001, zMax - zMin);
-  
-  ctx.strokeStyle = '#ff00ff';
-  ctx.lineWidth = 2;
-  
-  for (let t = 0; t < numTris; t++) {
-    const ti = triOrder[t];
-    const i0 = indices[ti * 3], i1 = indices[ti * 3 + 1], i2 = indices[ti * 3 + 2];
-    
-    const x0 = screenX[i0], y0 = screenY[i0];
-    const x1 = screenX[i1], y1 = screenY[i1];
-    const x2 = screenX[i2], y2 = screenY[i2];
-    
-    // Depth-based shading (darker = further)
-    const depth = (triDepth[ti] - zMin) / zRange;
-    const shade = Math.round(180 + 75 * depth);
-    
-    ctx.fillStyle = `rgb(${shade}, 0, ${shade})`;
-    ctx.beginPath();
-    ctx.moveTo(x0, y0);
-    ctx.lineTo(x1, y1);
-    ctx.lineTo(x2, y2);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-  }
-}
