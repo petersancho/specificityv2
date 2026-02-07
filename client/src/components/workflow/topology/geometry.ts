@@ -16,6 +16,10 @@ type GoalBase = {
   parameters?: Record<string, unknown>;
 };
 
+function getPositionKey(position: Vec3): string {
+  return `${position.x.toFixed(6)},${position.y.toFixed(6)},${position.z.toFixed(6)}`;
+}
+
 function positionsFromElements(mesh: RenderMesh, elements: number[]): Vec3[] {
   const positions: Vec3[] = [];
   for (const vertexIdx of elements) {
@@ -369,14 +373,12 @@ export function extractGoalMarkers(mesh: RenderMesh, goals: GoalBase[]): GoalMar
   
   const anchorPositionSet = new Set<string>();
   for (const anchor of anchors) {
-    const key = `${anchor.position.x.toFixed(6)},${anchor.position.y.toFixed(6)},${anchor.position.z.toFixed(6)}`;
-    anchorPositionSet.add(key);
+    anchorPositionSet.add(getPositionKey(anchor.position));
   }
   
   const loadPositionSet = new Set<string>();
   for (const load of loads) {
-    const key = `${load.position.x.toFixed(6)},${load.position.y.toFixed(6)},${load.position.z.toFixed(6)}`;
-    loadPositionSet.add(key);
+    loadPositionSet.add(getPositionKey(load.position));
   }
   
   const overlappingKeys = new Set<string>();
@@ -388,8 +390,7 @@ export function extractGoalMarkers(mesh: RenderMesh, goals: GoalBase[]): GoalMar
   
   if (overlappingKeys.size > 0) {
     const filteredAnchors = anchors.filter(anchor => {
-      const key = `${anchor.position.x.toFixed(6)},${anchor.position.y.toFixed(6)},${anchor.position.z.toFixed(6)}`;
-      return !overlappingKeys.has(key);
+      return !overlappingKeys.has(getPositionKey(anchor.position));
     });
     console.warn(`[GOAL MARKERS] Removed ${anchors.length - filteredAnchors.length} anchor positions that overlap with load positions (corner/edge vertices)`);
     console.log(`[GOAL MARKERS] Total: ${filteredAnchors.length} anchors (after filtering), ${loads.length} loads`);
