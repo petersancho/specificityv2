@@ -366,6 +366,8 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
     size: bounds.size,
     canvasSize: { width, height },
   });
+  
+  console.log(`[RENDER] ⚠️⚠️⚠️ EXPLICIT GEOMETRY BOUNDS: min=(${bounds.min.x.toFixed(2)}, ${bounds.min.y.toFixed(2)}, ${bounds.min.z.toFixed(2)}), max=(${bounds.max.x.toFixed(2)}, ${bounds.max.y.toFixed(2)}, ${bounds.max.z.toFixed(2)}), size=(${bounds.size.x.toFixed(2)}, ${bounds.size.y.toFixed(2)}, ${bounds.size.z.toFixed(2)})`);
 
   // Compute safe scale
   const eps = 1e-9;
@@ -534,6 +536,8 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
     maxArea: maxArea.toFixed(1),
   });
   
+  console.log(`[RENDER] ⚠️⚠️⚠️ EXPLICIT TRIANGLE BOUNDS: x=[${triBounds.minX.toFixed(1)}, ${triBounds.maxX.toFixed(1)}] (width=${(triBounds.maxX - triBounds.minX).toFixed(1)}), y=[${triBounds.minY.toFixed(1)}, ${triBounds.maxY.toFixed(1)}] (height=${(triBounds.maxY - triBounds.minY).toFixed(1)}), canvas=${width}x${height}`);
+  
   // First pass: fill all triangles (no stroke) for solid appearance
   for (const tri of triangles) {
     const [i0, i1, i2] = tri.indices;
@@ -575,5 +579,27 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
   }
   
   console.log('[RENDER] ✅ Rendered', triangles.length, 'filled triangles,', strokedCount, 'with strokes');
+  
+  // Draw a bright red bounding box around the actual geometry to show where it is
+  if (triBounds.minX < Infinity && triBounds.maxX > -Infinity) {
+    ctx.strokeStyle = 'red';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(
+      triBounds.minX - 5,
+      triBounds.minY - 5,
+      (triBounds.maxX - triBounds.minX) + 10,
+      (triBounds.maxY - triBounds.minY) + 10
+    );
+    
+    // Draw a label showing the geometry size
+    ctx.fillStyle = 'red';
+    ctx.font = 'bold 14px monospace';
+    ctx.fillText(
+      `Geometry: ${(triBounds.maxX - triBounds.minX).toFixed(0)}x${(triBounds.maxY - triBounds.minY).toFixed(0)}px`,
+      triBounds.minX,
+      triBounds.minY - 10
+    );
+  }
+  
   ctx.restore();
 }
