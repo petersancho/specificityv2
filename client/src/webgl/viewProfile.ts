@@ -1,3 +1,5 @@
+import { clamp, lerp as lerpScalar, smoothstep as smoothstepScalar } from "../math/constants";
+
 export type ViewStyleProfile = {
   clearColor: [number, number, number, number];
   mesh: [number, number, number];
@@ -83,15 +85,11 @@ export const VIEW_STYLE_DARK: ViewStyleProfile = {
 export const getViewStyle = (isDark: boolean): ViewStyleProfile =>
   isDark ? VIEW_STYLE_DARK : VIEW_STYLE;
 
-export const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
+export const clamp01 = (value: number) => clamp(value, 0, 1);
 
-export const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+export const lerp = lerpScalar;
 
-export const smoothstep = (edge0: number, edge1: number, x: number) => {
-  if (edge0 === edge1) return x < edge0 ? 0 : 1;
-  const t = clamp01((x - edge0) / (edge1 - edge0));
-  return t * t * (3 - 2 * t);
-};
+export const smoothstep = smoothstepScalar;
 
 export const mixColor = (
   a: [number, number, number],
