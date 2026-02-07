@@ -359,6 +359,14 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
   }
 
   const scale = (0.8 * Math.min(width, height)) / maxDim;
+  
+  console.log('[RENDER MATH]', {
+    bounds: `(${bounds.min.x.toFixed(1)}, ${bounds.min.y.toFixed(1)}, ${bounds.min.z.toFixed(1)}) to (${bounds.max.x.toFixed(1)}, ${bounds.max.y.toFixed(1)}, ${bounds.max.z.toFixed(1)})`,
+    size: `${bounds.size.x.toFixed(1)} × ${bounds.size.y.toFixed(1)} × ${bounds.size.z.toFixed(1)}`,
+    maxDim: maxDim.toFixed(2),
+    scale: scale.toFixed(4),
+    canvasSize: `${width}×${height}`,
+  });
   const cx = bounds.center.x;
   const cy = bounds.center.y;
   const cz = bounds.center.z;
@@ -446,6 +454,21 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
 
   const BASE_R = 255, BASE_G = 0, BASE_B = 255;
   const LIGHT_R = 200, LIGHT_G = 0, LIGHT_B = 200;
+  
+  // Log first triangle's screen coordinates
+  if (triangles.length > 0) {
+    const firstTri = triangles[0];
+    const [i0, i1, i2] = firstTri.indices;
+    const p0 = projected[i0];
+    const p1 = projected[i1];
+    const p2 = projected[i2];
+    console.log('[RENDER MATH] First triangle screen coords:', {
+      p0: `(${p0.x.toFixed(1)}, ${p0.y.toFixed(1)})`,
+      p1: `(${p1.x.toFixed(1)}, ${p1.y.toFixed(1)})`,
+      p2: `(${p2.x.toFixed(1)}, ${p2.y.toFixed(1)})`,
+      area: triArea2(p0.x, p0.y, p1.x, p1.y, p2.x, p2.y).toFixed(2),
+    });
+  }
 
   for (const tri of triangles) {
     const [i0, i1, i2] = tri.indices;
