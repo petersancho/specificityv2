@@ -253,9 +253,12 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
       console.log('[PREVIEW] First triangle screen coords:', { x0, y0, x1, y1, x2, y2 });
     }
 
-    // Draw triangles with depth-based shading
+    // Draw triangles with depth-based shading (light grey, no gaps)
     let validTriCount = 0;
     let degenerateCount = 0;
+    
+    // Disable anti-aliasing to prevent gaps
+    ctx.imageSmoothingEnabled = false;
     
     for (const tri of tris) {
       const x0 = projected[tri.i0 * 3], y0 = projected[tri.i0 * 3 + 1];
@@ -270,11 +273,13 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
       }
 
       validTriCount++;
+      
+      // Light grey with subtle depth shading
       const t = (tri.z - zMin) / zRange;
-      const r = Math.floor(120 + 135 * t);
-      const g = Math.floor(40 * t);
-      const b = Math.floor(120 + 135 * t);
-      ctx.fillStyle = `rgb(${r},${g},${b})`;
+      const brightness = Math.floor(180 + 50 * t); // Range: 180-230 (light grey)
+      ctx.fillStyle = `rgb(${brightness},${brightness},${brightness})`;
+      
+      // No stroke to avoid borders
       ctx.beginPath();
       ctx.moveTo(x0, y0);
       ctx.lineTo(x1, y1);
@@ -288,7 +293,7 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
     // FALLBACK: If all triangles are degenerate, draw vertices as points
     if (validTriCount === 0 && numVerts > 0) {
       console.log('[PREVIEW] All triangles degenerate - drawing point cloud fallback');
-      ctx.fillStyle = '#ff00ff';
+      ctx.fillStyle = '#cccccc';
       for (let i = 0; i < numVerts; i++) {
         const x = projected[i * 3];
         const y = projected[i * 3 + 1];
