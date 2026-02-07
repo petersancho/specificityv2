@@ -162,31 +162,23 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
   const rotationRef = useRef({ x: 0.4, y: 0.6 });
   const isDraggingRef = useRef(false);
   const lastMouseRef = useRef({ x: 0, y: 0 });
-  const [, forceUpdate] = React.useState(0);
+  const [renderKey, setRenderKey] = React.useState(0);
 
-  const renderScene = React.useCallback(() => {
+  // Render function that draws the geometry
+  const render = React.useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas) { console.log('[PREVIEW] No canvas ref'); return; }
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    if (!ctx) { console.log('[PREVIEW] No 2D context'); return; }
+    if (!ctx) return;
 
+    // Clear canvas
     ctx.fillStyle = '#f5f2ee';
     ctx.fillRect(0, 0, width, height);
 
     if (!geometry?.positions || !geometry?.indices || geometry.positions.length === 0) {
-      console.log('[PREVIEW] No geometry data:', { 
-        hasGeometry: !!geometry, 
-        hasPositions: !!geometry?.positions, 
-        hasIndices: !!geometry?.indices,
-        posLength: geometry?.positions?.length 
-      });
+      console.log('[PREVIEW] No geometry to render');
       return;
     }
-    
-    console.log('[PREVIEW] Rendering geometry:', {
-      vertices: Math.floor(geometry.positions.length / 3),
-      triangles: Math.floor(geometry.indices.length / 3)
-    });
 
     const pos = geometry.positions;
     const idx = geometry.indices;
@@ -195,6 +187,7 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
 
     if (numVerts === 0 || numTris === 0) return;
 
+    // Calculate bounds
     let minX = Infinity, minY = Infinity, minZ = Infinity;
     let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
     for (let i = 0; i < numVerts; i++) {
@@ -205,17 +198,18 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
       if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
     }
 
-    if (!isFinite(minX) || !isFinite(maxX)) return;
+    if (!isFinite(minX)) return;
 
     const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2, cz = (minZ + maxZ) / 2;
-    const sx = maxX - minX, sy = maxY - minY, sz = maxZ - minZ;
-    const maxDim = Math.max(sx, sy, sz);
+    const maxDim = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
     if (maxDim < 1e-10) return;
-    const scale = 0.7 * Math.min(width, height) / maxDim;
+    const scale = Math.min(width, height) * 0.75 / maxDim;
 
-    const cosX = Math.cos(rotationRef.current.x), sinX = Math.sin(rotationRef.current.x);
-    const cosY = Math.cos(rotationRef.current.y), sinY = Math.sin(rotationRef.current.y);
+    const rotX = rotationRef.current.x, rotY = rotationRef.current.y;
+    const cosX = Math.cos(rotX), sinX = Math.sin(rotX);
+    const cosY = Math.cos(rotY), sinY = Math.sin(rotY);
 
+    // Project vertices
     const projected = new Float32Array(numVerts * 3);
     for (let i = 0; i < numVerts; i++) {
       const px = pos[i * 3] - cx, py = pos[i * 3 + 1] - cy, pz = pos[i * 3 + 2] - cz;
@@ -226,6 +220,7 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
       projected[i * 3 + 2] = z2;
     }
 
+    // Build and sort triangles by depth
     const tris: { i0: number; i1: number; i2: number; z: number }[] = [];
     for (let i = 0; i < numTris; i++) {
       const i0 = idx[i * 3], i1 = idx[i * 3 + 1], i2 = idx[i * 3 + 2];
@@ -240,6 +235,9 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
     const zMin = tris[0].z, zMax = tris[tris.length - 1].z;
     const zRange = Math.max(zMax - zMin, 1e-10);
 
+    console.log('[PREVIEW] Drawing', tris.length, 'triangles');
+
+    // Draw triangles with depth-based shading
     for (const tri of tris) {
       const x0 = projected[tri.i0 * 3], y0 = projected[tri.i0 * 3 + 1];
       const x1 = projected[tri.i1 * 3], y1 = projected[tri.i1 * 3 + 1];
@@ -259,10 +257,19 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
     }
   }, [geometry, width, height]);
 
-  useEffect(() => { 
-    console.log('[PREVIEW] useEffect triggered - calling renderScene');
-    renderScene(); 
-  }, [renderScene]);
+  // Re-render when geometry, dimensions, or renderKey changes
+  useEffect(() => {
+    console.log('[PREVIEW] Rendering - geometry:', geometry ? 'EXISTS' : 'NULL', 'renderKey:', renderKey);
+    render();
+  }, [render, renderKey]);
+
+  // Force re-render when geometry changes (in case reference is same but content changed)
+  useEffect(() => {
+    if (geometry?.positions?.length) {
+      console.log('[PREVIEW] Geometry changed, triggering re-render');
+      setRenderKey(k => k + 1);
+    }
+  }, [geometry]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     isDraggingRef.current = true;
@@ -274,8 +281,7 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
     rotationRef.current.y += (e.clientX - lastMouseRef.current.x) * 0.01;
     rotationRef.current.x += (e.clientY - lastMouseRef.current.y) * 0.01;
     lastMouseRef.current = { x: e.clientX, y: e.clientY };
-    renderScene();
-    forceUpdate(n => n + 1);
+    setRenderKey(k => k + 1);
   };
 
   const handleMouseUp = () => { isDraggingRef.current = false; };
