@@ -152,168 +152,103 @@ export const TopologyConvergence: React.FC<TopologyConvergenceProps> = ({ histor
 };
 
 // ============================================================================
-// TOPOLOGY GEOMETRY PREVIEW - 3D mesh preview using Three.js
+// TOPOLOGY GEOMETRY PREVIEW - 2D Canvas with depth-sorted triangles
 // ============================================================================
-
-import * as THREE from 'three';
 
 interface TopologyGeometryPreviewProps { geometry: RenderMesh | null; width: number; height: number; }
 
 export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = ({ geometry, width, height }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
-  const sceneRef = useRef<THREE.Scene | null>(null);
-  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-  const meshRef = useRef<THREE.Mesh | null>(null);
-  const rotationRef = useRef({ x: 0.3, y: 0.5 });
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const rotationRef = useRef({ x: 0.4, y: 0.6 });
   const isDraggingRef = useRef(false);
   const lastMouseRef = useRef({ x: 0, y: 0 });
+  const [, forceUpdate] = React.useState(0);
 
-  useEffect(() => {
-    if (!containerRef.current) return;
+  const renderScene = React.useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xf5f2ee);
-    sceneRef.current = scene;
+    ctx.fillStyle = '#f5f2ee';
+    ctx.fillRect(0, 0, width, height);
 
-    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-    camera.position.z = 3;
-    cameraRef.current = camera;
+    if (!geometry?.positions || !geometry?.indices || geometry.positions.length === 0) return;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    containerRef.current.appendChild(renderer.domElement);
-    rendererRef.current = renderer;
+    const pos = geometry.positions;
+    const idx = geometry.indices;
+    const numVerts = pos.length / 3;
+    const numTris = idx.length / 3;
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-    scene.add(ambientLight);
-
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight.position.set(1, 1, 1);
-    scene.add(directionalLight);
-
-    const backLight = new THREE.DirectionalLight(0xffffff, 0.3);
-    backLight.position.set(-1, -1, -1);
-    scene.add(backLight);
-
-    return () => {
-      renderer.dispose();
-      if (containerRef.current && renderer.domElement.parentNode === containerRef.current) {
-        containerRef.current.removeChild(renderer.domElement);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!rendererRef.current || !cameraRef.current) return;
-    rendererRef.current.setSize(width, height);
-    cameraRef.current.aspect = width / height;
-    cameraRef.current.updateProjectionMatrix();
-  }, [width, height]);
-
-  useEffect(() => {
-    const scene = sceneRef.current;
-    const renderer = rendererRef.current;
-    const camera = cameraRef.current;
-    if (!scene || !renderer || !camera) return;
-
-    if (meshRef.current) {
-      scene.remove(meshRef.current);
-      meshRef.current.geometry.dispose();
-      if (meshRef.current.material instanceof THREE.Material) {
-        meshRef.current.material.dispose();
-      }
-      meshRef.current = null;
+    let minX = Infinity, minY = Infinity, minZ = Infinity;
+    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+    for (let i = 0; i < numVerts; i++) {
+      const x = pos[i * 3], y = pos[i * 3 + 1], z = pos[i * 3 + 2];
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+      if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
     }
 
-    if (!geometry || !geometry.positions || geometry.positions.length === 0) {
-      renderer.render(scene, camera);
-      return;
+    const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2, cz = (minZ + maxZ) / 2;
+    const sx = maxX - minX, sy = maxY - minY, sz = maxZ - minZ;
+    const maxDim = Math.max(sx, sy, sz) || 1;
+    const scale = 0.75 * Math.min(width, height) / maxDim;
+
+    const cosX = Math.cos(rotationRef.current.x), sinX = Math.sin(rotationRef.current.x);
+    const cosY = Math.cos(rotationRef.current.y), sinY = Math.sin(rotationRef.current.y);
+
+    const projected = new Float32Array(numVerts * 3);
+    for (let i = 0; i < numVerts; i++) {
+      let x = pos[i * 3] - cx, y = pos[i * 3 + 1] - cy, z = pos[i * 3 + 2] - cz;
+      const y1 = y * cosX - z * sinX, z1 = y * sinX + z * cosX;
+      const x2 = x * cosY + z1 * sinY, z2 = -x * sinY + z1 * cosY;
+      projected[i * 3] = width / 2 + x2 * scale;
+      projected[i * 3 + 1] = height / 2 - y1 * scale;
+      projected[i * 3 + 2] = z2;
     }
 
-    const positions = geometry.positions;
-    const indices = geometry.indices;
-    
-    console.log('[GEOM]', { 
-      hasPos: !!positions, 
-      posLen: positions?.length, 
-      hasIdx: !!indices, 
-      idxLen: indices?.length,
-      firstPos: positions?.slice(0, 9),
-      firstIdx: indices?.slice(0, 9)
-    });
-
-    // Convert to Float32Array for Three.js
-    const posArray = positions instanceof Float32Array ? positions : new Float32Array(positions);
-    
-    const threeGeometry = new THREE.BufferGeometry();
-    threeGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-    
-    if (indices && indices.length > 0) {
-      // Use Uint32Array for large meshes (>65535 vertices)
-      const idxArray = indices instanceof Uint32Array ? indices : new Uint32Array(indices);
-      threeGeometry.setIndex(new THREE.BufferAttribute(idxArray, 1));
+    const tris: { i0: number; i1: number; i2: number; z: number }[] = new Array(numTris);
+    for (let i = 0; i < numTris; i++) {
+      const i0 = idx[i * 3], i1 = idx[i * 3 + 1], i2 = idx[i * 3 + 2];
+      tris[i] = { i0, i1, i2, z: (projected[i0 * 3 + 2] + projected[i1 * 3 + 2] + projected[i2 * 3 + 2]) / 3 };
     }
-    
-    threeGeometry.computeVertexNormals();
-    threeGeometry.computeBoundingBox();
-    
-    const bbox = threeGeometry.boundingBox!;
-    const center = new THREE.Vector3();
-    bbox.getCenter(center);
-    threeGeometry.translate(-center.x, -center.y, -center.z);
-    
-    const size = new THREE.Vector3();
-    bbox.getSize(size);
-    const maxDim = Math.max(size.x, size.y, size.z);
-    const scaleFactor = maxDim > 0 ? 2 / maxDim : 1;
-    threeGeometry.scale(scaleFactor, scaleFactor, scaleFactor);
+    tris.sort((a, b) => a.z - b.z);
 
-    const material = new THREE.MeshStandardMaterial({
-      color: 0xff00ff,
-      metalness: 0.1,
-      roughness: 0.6,
-      side: THREE.DoubleSide,
-    });
+    const zMin = tris[0]?.z ?? 0, zMax = tris[tris.length - 1]?.z ?? 1;
+    const zRange = zMax - zMin || 1;
 
-    const mesh = new THREE.Mesh(threeGeometry, material);
-    mesh.rotation.x = rotationRef.current.x;
-    mesh.rotation.y = rotationRef.current.y;
-    scene.add(mesh);
-    meshRef.current = mesh;
+    for (const tri of tris) {
+      const x0 = projected[tri.i0 * 3], y0 = projected[tri.i0 * 3 + 1];
+      const x1 = projected[tri.i1 * 3], y1 = projected[tri.i1 * 3 + 1];
+      const x2 = projected[tri.i2 * 3], y2 = projected[tri.i2 * 3 + 1];
 
-    renderer.render(scene, camera);
-  }, [geometry]);
-
-  const render = () => {
-    const scene = sceneRef.current;
-    const renderer = rendererRef.current;
-    const camera = cameraRef.current;
-    const mesh = meshRef.current;
-    if (!scene || !renderer || !camera) return;
-    
-    if (mesh) {
-      mesh.rotation.x = rotationRef.current.x;
-      mesh.rotation.y = rotationRef.current.y;
+      const brightness = 100 + Math.floor(155 * (tri.z - zMin) / zRange);
+      ctx.fillStyle = `rgb(${brightness}, 0, ${brightness})`;
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.closePath();
+      ctx.fill();
     }
-    
-    renderer.render(scene, camera);
+  }, [geometry, width, height]);
+
+  useEffect(() => { renderScene(); }, [renderScene, rotationRef.current.x, rotationRef.current.y]);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    isDraggingRef.current = true;
+    lastMouseRef.current = { x: e.clientX, y: e.clientY };
   };
 
-  const handleMouseDown = (e: React.MouseEvent) => { 
-    isDraggingRef.current = true; 
-    lastMouseRef.current = { x: e.clientX, y: e.clientY }; 
-  };
-  
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDraggingRef.current) return;
     rotationRef.current.y += (e.clientX - lastMouseRef.current.x) * 0.01;
     rotationRef.current.x += (e.clientY - lastMouseRef.current.y) * 0.01;
     lastMouseRef.current = { x: e.clientX, y: e.clientY };
-    render();
+    renderScene();
+    forceUpdate(n => n + 1);
   };
-  
+
   const handleMouseUp = () => { isDraggingRef.current = false; };
 
   const vertexCount = geometry?.positions?.length ? Math.floor(geometry.positions.length / 3) : 0;
@@ -321,22 +256,24 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      <div 
-        ref={containerRef}
-        style={{ width: '100%', height: '100%', cursor: isDraggingRef.current ? 'grabbing' : 'grab' }} 
-        onMouseDown={handleMouseDown} 
-        onMouseMove={handleMouseMove} 
-        onMouseUp={handleMouseUp} 
-        onMouseLeave={handleMouseUp} 
+      <canvas
+        ref={canvasRef}
+        width={width}
+        height={height}
+        style={{ width: '100%', height: '100%', cursor: 'grab' }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
       />
       <div style={{
-        position: 'absolute', 
-        left: 8, 
+        position: 'absolute',
+        left: 8,
         bottom: 8,
-        font: '10px -apple-system, BlinkMacSystemFont, sans-serif', 
+        font: '10px -apple-system, BlinkMacSystemFont, sans-serif',
         color: '#5a5752',
-        background: 'rgba(255,255,255,0.9)', 
-        padding: '4px 8px', 
+        background: 'rgba(255,255,255,0.9)',
+        padding: '4px 8px',
         borderRadius: 4,
         border: '1px solid rgba(0,0,0,0.1)',
       }}>
