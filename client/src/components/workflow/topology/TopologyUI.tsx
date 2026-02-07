@@ -235,11 +235,16 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
     const positions = geometry.positions;
     const indices = geometry.indices;
 
+    // Convert to Float32Array for Three.js
+    const posArray = positions instanceof Float32Array ? positions : new Float32Array(positions);
+    
     const threeGeometry = new THREE.BufferGeometry();
-    threeGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    threeGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
     
     if (indices && indices.length > 0) {
-      threeGeometry.setIndex(new THREE.Uint32BufferAttribute(indices, 1));
+      // Use Uint32Array for large meshes (>65535 vertices)
+      const idxArray = indices instanceof Uint32Array ? indices : new Uint32Array(indices);
+      threeGeometry.setIndex(new THREE.BufferAttribute(idxArray, 1));
     }
     
     threeGeometry.computeVertexNormals();
@@ -253,7 +258,7 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
     const size = new THREE.Vector3();
     bbox.getSize(size);
     const maxDim = Math.max(size.x, size.y, size.z);
-    const scaleFactor = 2 / maxDim;
+    const scaleFactor = maxDim > 0 ? 2 / maxDim : 1;
     threeGeometry.scale(scaleFactor, scaleFactor, scaleFactor);
 
     const material = new THREE.MeshStandardMaterial({
