@@ -1,5 +1,39 @@
-# Lingua & Roslyn Context
+# Lingua System Architecture
 
-- **Lingua** is the overarching software name. It represents the philosophical framework and semantic system; it is not a specific application, but the unifying concept that binds Roslyn (direct modeling) and Numerica (workflow) together.
-- **Roslyn** is the direct modeling environment within Lingua. It lives inside the Lingua concept, but Lingua itself is pure meaning—an umbrella for the entire parametric ecosystem rather than an app on its own.
-- **Numerica** (Roslyn’s sibling subsystem) currently has two primary components: the **simulator rigs** (Box Builder → Goals → Solver pipelines) and the **workflow node graph** (data/geometry/maths nodes rendered on the Numerical Canvas). Roslyn focuses on modeling, but depends on Numerica’s nodes and simulator rigs to feed and consume geometry.
+## Core Truth
+**Lingua has exactly two subsystems:**
+
+1. **Roslyn** - Direct 3D modeling environment
+2. **Numerica** - Visual workflow and simulation environment
+
+## The Complete System
+
+- **Lingua** is the overarching philosophical framework and semantic system. It is not an application—it is pure meaning, the unifying concept that contains exactly two subsystems.
+
+- **Roslyn** is the direct modeling subsystem. It provides:
+  - WebGL-based 3D viewport
+  - Command-driven geometry creation
+  - Selection, transformation, gumball manipulation
+  - Real-time rendering and visualization
+
+- **Numerica** is the workflow subsystem. It provides:
+  - Visual node-based programming
+  - Simulator rigs (Box Builder → Goals → Solver)
+  - Data processing and parameterization
+  - Connection to Roslyn geometry via shared state
+
+## Critical Constraint
+There are no other subsystems. Every feature, tool, or capability in Lingua lives within either Roslyn or Numerica. The entire codebase is organized around this binary structure:
+
+- **Client code** = Roslyn UI + Numerica UI + Shared semantic layer
+- **Server code** = Workflow computation API (primarily serves Numerica)
+- **Documentation** = Explains how Roslyn and Numerica work together
+
+## Shared Foundation
+Both subsystems rely on:
+- Zustand store (`client/src/store/useProjectStore.ts`)
+- Semantic ontology (`client/src/semantic/ontology/`)
+- Operation registry (`client/src/semantic/ops/`)
+- Geometry kernel (`client/src/geometry/`)
+
+This is the complete Lingua system. Two subsystems. One semantic foundation. No more, no less.
