@@ -5,6 +5,7 @@
 
 import type { Vec3, RenderMesh } from "../../../types";
 import type { GoalMarkers, AnchorMarker, LoadMarker, GoalRegionMetadata } from "./types";
+import { applyTaubinSmoothing } from "./meshSmoothing";
 
 // ============================================================================
 // GOAL EXTRACTION
@@ -503,194 +504,33 @@ export function generateGeometryFromVoxels(
     throw new Error(`Densities array is empty or detached (length=${field.densities?.length ?? 'undefined'})`);
   }
   
-  // Compute min/max and distribution to help diagnose threshold issues
-  let minDensity = Infinity, maxDensity = -Infinity;
-  let countBelow01 = 0, countBelow02 = 0, countBelow05 = 0;
-  let countAbove05 = 0, countAbove08 = 0, countAbove09 = 0;
-  
-  for (let i = 0; i < field.densities.length; i++) {
-    const v = field.densities[i];
-    if (v < minDensity) minDensity = v;
-    if (v > maxDensity) maxDensity = v;
-    if (v < 0.1) countBelow01++;
-    if (v < 0.2) countBelow02++;
-    if (v < 0.5) countBelow05++;
-    if (v > 0.5) countAbove05++;
-    if (v > 0.8) countAbove08++;
-    if (v > 0.9) countAbove09++;
-  }
-  
   const total = field.densities.length;
-  console.log(`[GEOMETRY] ⚠️⚠️⚠️ Density field analysis:`, {
-    dimensions: `${field.nx}×${field.ny}×${field.nz}`,
-    totalVoxels: total,
-    expectedVoxels: field.nx * field.ny * field.nz,
-    range: `[${minDensity.toFixed(3)}, ${maxDensity.toFixed(3)}]`,
-    isovalue,
-    distribution: {
-      'below 0.1': `${countBelow01} (${(100 * countBelow01 / total).toFixed(1)}%)`,
-      'below 0.2': `${countBelow02} (${(100 * countBelow02 / total).toFixed(1)}%)`,
-      'below 0.5': `${countBelow05} (${(100 * countBelow05 / total).toFixed(1)}%)`,
-      'above 0.5': `${countAbove05} (${(100 * countAbove05 / total).toFixed(1)}%)`,
-      'above 0.8': `${countAbove08} (${(100 * countAbove08 / total).toFixed(1)}%)`,
-      'above 0.9': `${countAbove09} (${(100 * countAbove09 / total).toFixed(1)}%)`,
-    }
-  });
   
-  // ⚠️⚠️⚠️ CRITICAL: Check if density distribution suggests we need to use a different isovalue
-  // If most voxels are above 0.5, the optimizer is working correctly and we should use 0.5 as isovalue
-  // If most voxels are below 0.5, something might be wrong OR we need a lower isovalue
-  const fractionAbove05 = countAbove05 / total;
-  const fractionAbove02 = (total - countBelow02) / total;
-  
-  console.log(`[GEOMETRY] ⚠️⚠️⚠️ DENSITY ANALYSIS:`, {
-    fractionAbove05: `${(100 * fractionAbove05).toFixed(1)}%`,
-    fractionAbove02: `${(100 * fractionAbove02).toFixed(1)}%`,
-    fractionAboveIsovalue: `${(100 * (total - countBelow02) / total).toFixed(1)}%`,
-    recommendation: fractionAbove05 > 0.3 ? 'Use isovalue 0.5' : fractionAbove02 > 0.3 ? 'Use isovalue 0.2' : 'Density field may be inverted or empty',
-  });
-  
-  // Sample some densities at different positions to understand spatial distribution
-  const samplePositions = [
-    { name: 'corner (0,0,0)', idx: 0 },
-    { name: 'center', idx: Math.floor(field.nx/2) + Math.floor(field.ny/2) * field.nx + Math.floor(field.nz/2) * field.nx * field.ny },
-    { name: 'corner (max)', idx: (field.nx-1) + (field.ny-1) * field.nx + (field.nz-1) * field.nx * field.ny },
-    { name: 'edge x', idx: Math.floor(field.nx/2) },
-    { name: 'edge y', idx: Math.floor(field.ny/2) * field.nx },
-    { name: 'edge z', idx: Math.floor(field.nz/2) * field.nx * field.ny },
-  ];
-  
-  console.log('[GEOMETRY] Sample densities at key positions:');
-  for (const { name, idx } of samplePositions) {
-    if (idx >= 0 && idx < total) {
-      console.log(`  ${name}: ${field.densities[idx].toFixed(4)}`);
-    }
-  }
-  
-  // ⚠️⚠️⚠️ CRITICAL: Sample a 3x3x3 cube at the center to understand the spatial distribution
-  const cx = Math.floor(field.nx / 2);
-  const cy = Math.floor(field.ny / 2);
-  const cz = Math.floor(field.nz / 2);
-  console.log(`[GEOMETRY] ⚠️⚠️⚠️ 3x3x3 cube at center (${cx}, ${cy}, ${cz}):`);
-  for (let dz = -1; dz <= 1; dz++) {
-    for (let dy = -1; dy <= 1; dy++) {
-      let row = `  z=${cz+dz}, y=${cy+dy}: `;
-      for (let dx = -1; dx <= 1; dx++) {
-        const x = cx + dx, y = cy + dy, z = cz + dz;
-        if (x >= 0 && x < field.nx && y >= 0 && y < field.ny && z >= 0 && z < field.nz) {
-          const idx = x + y * field.nx + z * field.nx * field.ny;
-          row += `${field.densities[idx].toFixed(3)} `;
-        } else {
-          row += 'OOB ';
-        }
-      }
-      console.log(row);
-    }
-  }
-  
+  // Clamp isovalue to valid range
   if (isovalue < 0 || isovalue > 1) {
-    console.warn(`Isovalue ${isovalue} outside [0,1], clamping`);
     isovalue = Math.max(0, Math.min(1, isovalue));
   }
   
-  // Warn if isovalue is outside the density range
-  if (isovalue < minDensity) {
-    console.warn(`[GEOMETRY] Isovalue ${isovalue} is below min density ${minDensity.toFixed(3)} - entire volume will be solid`);
-  } else if (isovalue > maxDensity) {
-    console.warn(`[GEOMETRY] Isovalue ${isovalue} is above max density ${maxDensity.toFixed(3)} - entire volume will be void`);
-  }
-  
-  // ⚠️⚠️⚠️ AUTO-ADJUST ISOVALUE based on density distribution
-  // If the current isovalue would result in less than 5% of voxels being solid,
-  // automatically adjust to the median density to get a reasonable surface
-  let adjustedIsovalue = isovalue;
-  
-  // Count how many voxels would be above the isovalue
+  // Auto-adjust isovalue if needed
   let countAboveIsovalue = 0;
   for (let i = 0; i < field.densities.length; i++) {
     if (field.densities[i] >= isovalue) countAboveIsovalue++;
   }
   const fractionAboveIsovalue = countAboveIsovalue / total;
   
-  console.log(`[GEOMETRY] ⚠️⚠️⚠️ Isovalue check:`, {
-    isovalue,
-    countAboveIsovalue,
-    fractionAboveIsovalue: `${(100 * fractionAboveIsovalue).toFixed(1)}%`,
-    needsAdjustment: fractionAboveIsovalue < 0.05 || fractionAboveIsovalue > 0.95,
-  });
-  
   // If less than 5% or more than 95% of voxels would be solid, adjust the isovalue
   if (fractionAboveIsovalue < 0.05 || fractionAboveIsovalue > 0.95) {
-    // Sort densities to find a better isovalue
     const sortedDensities = Array.from(field.densities).sort((a, b) => a - b);
-    
-    // Use the value at the 60th percentile (to get ~40% solid, matching typical volFrac)
-    const targetPercentile = 0.6;
-    const targetIdx = Math.floor(sortedDensities.length * targetPercentile);
-    adjustedIsovalue = sortedDensities[targetIdx];
-    
-    console.log(`[GEOMETRY] ⚠️⚠️⚠️ AUTO-ADJUSTING ISOVALUE:`, {
-      original: isovalue,
-      adjusted: adjustedIsovalue.toFixed(4),
-      reason: fractionAboveIsovalue < 0.05 ? 'Too few voxels above isovalue' : 'Too many voxels above isovalue',
-      targetPercentile: `${(100 * targetPercentile).toFixed(0)}%`,
-    });
-    
-    isovalue = adjustedIsovalue;
+    const targetIdx = Math.floor(sortedDensities.length * 0.6);
+    isovalue = sortedDensities[targetIdx];
   }
-  
-  // ⚠️⚠️⚠️ CRITICAL: Log the bounds being passed to marching cubes
-  console.log('[GEOMETRY] ⚠️⚠️⚠️ INPUT BOUNDS TO MARCHING CUBES:', {
-    min: `(${field.bounds.min.x.toFixed(2)}, ${field.bounds.min.y.toFixed(2)}, ${field.bounds.min.z.toFixed(2)})`,
-    max: `(${field.bounds.max.x.toFixed(2)}, ${field.bounds.max.y.toFixed(2)}, ${field.bounds.max.z.toFixed(2)})`,
-    size: `(${(field.bounds.max.x - field.bounds.min.x).toFixed(2)}, ${(field.bounds.max.y - field.bounds.min.y).toFixed(2)}, ${(field.bounds.max.z - field.bounds.min.z).toFixed(2)})`,
-  });
   
   const voxelField = resampleToCubicGrid(field);
-  
-  // ⚠️⚠️⚠️ CRITICAL: Log the voxel field bounds after resampling
-  console.log('[GEOMETRY] ⚠️⚠️⚠️ VOXEL FIELD BOUNDS AFTER RESAMPLING:', {
-    resolution: voxelField.resolution,
-    min: `(${voxelField.bounds.min.x.toFixed(2)}, ${voxelField.bounds.min.y.toFixed(2)}, ${voxelField.bounds.min.z.toFixed(2)})`,
-    max: `(${voxelField.bounds.max.x.toFixed(2)}, ${voxelField.bounds.max.y.toFixed(2)}, ${voxelField.bounds.max.z.toFixed(2)})`,
-    cellSize: `(${voxelField.cellSize.x.toFixed(4)}, ${voxelField.cellSize.y.toFixed(4)}, ${voxelField.cellSize.z.toFixed(4)})`,
-  });
-  
-  // ⚠️⚠️⚠️ CRITICAL: Find where the high-density voxels are in the resampled field
-  const res = voxelField.resolution;
-  const highDensityVoxels: Array<{x: number, y: number, z: number, density: number}> = [];
-  for (let z = 0; z < res; z++) {
-    for (let y = 0; y < res; y++) {
-      for (let x = 0; x < res; x++) {
-        const idx = x + y * res + z * res * res;
-        const d = voxelField.densities[idx];
-        if (d >= isovalue && highDensityVoxels.length < 20) {
-          highDensityVoxels.push({ x, y, z, density: d });
-        }
-      }
-    }
-  }
-  console.log(`[GEOMETRY] ⚠️⚠️⚠️ HIGH DENSITY VOXELS (first 20 above isovalue ${isovalue}):`);
-  for (const v of highDensityVoxels) {
-    const worldX = voxelField.bounds.min.x + v.x * voxelField.cellSize.x;
-    const worldY = voxelField.bounds.min.y + v.y * voxelField.cellSize.y;
-    const worldZ = voxelField.bounds.min.z + v.z * voxelField.cellSize.z;
-    console.log(`  voxel (${v.x}, ${v.y}, ${v.z}) -> world (${worldX.toFixed(2)}, ${worldY.toFixed(2)}, ${worldZ.toFixed(2)}), density=${v.density.toFixed(4)}`);
-  }
   
   const defaultColor: [number, number, number] = [0.92, 0.92, 0.94];
   let mesh = chemistryMarchingCubes(voxelField, isovalue, [defaultColor]);
   
-  if (mesh.positions.length === 0) {
-    console.warn(`[GEOMETRY] Marching cubes produced empty mesh (isovalue=${isovalue}, density range=[${minDensity.toFixed(3)}, ${maxDensity.toFixed(3)}])`);
-  } else {
-    console.log(`[GEOMETRY] Generated mesh with ${mesh.positions.length / 3} vertices, ${mesh.indices.length / 3} triangles`);
-    // Increased smoothing: 12 iterations (was 3), lambda 0.7 (was 0.5) for smoother, more usable geometry
-    mesh = laplacianSmoothMesh(mesh, 12, 0.7);
-    console.log(`[GEOMETRY] Applied Laplacian smoothing (12 iterations, λ=0.7)`);
-  }
-  
-  const isosurface: RenderMesh = {
+  let isosurface: RenderMesh = {
     positions: mesh.positions,
     normals: mesh.normals,
     uvs: mesh.uvs,
@@ -698,60 +538,21 @@ export function generateGeometryFromVoxels(
     colors: mesh.colors,
   };
   
+  if (isosurface.positions.length > 0) {
+    isosurface = applyTaubinSmoothing(isosurface, {
+      iterations: 2,
+      lambda: 0.5,
+      mu: -0.53,
+    });
+  }
+  
   return {
     isosurface,
     vertexCount: isosurface.positions.length / 3,
   };
 }
 
-function laplacianSmoothMesh(mesh: { positions: number[], normals: number[], uvs: number[], indices: number[], colors: number[] }, iterations: number = 3, lambda: number = 0.5): { positions: number[], normals: number[], uvs: number[], indices: number[], colors: number[] } {
-  const numVerts = mesh.positions.length / 3;
-  const adjacency: Set<number>[] = Array.from({ length: numVerts }, () => new Set());
 
-  for (let i = 0; i < mesh.indices.length; i += 3) {
-    const a = mesh.indices[i];
-    const b = mesh.indices[i + 1];
-    const c = mesh.indices[i + 2];
-    adjacency[a].add(b); adjacency[a].add(c);
-    adjacency[b].add(a); adjacency[b].add(c);
-    adjacency[c].add(a); adjacency[c].add(b);
-  }
-
-  const smoothed = new Float32Array(mesh.positions);
-
-  for (let iter = 0; iter < iterations; iter++) {
-    const newPos = new Float32Array(smoothed);
-    
-    for (let i = 0; i < numVerts; i++) {
-      const neighbors = Array.from(adjacency[i]);
-      if (neighbors.length === 0) continue;
-
-      const centroid = [0, 0, 0];
-      for (const j of neighbors) {
-        centroid[0] += smoothed[j * 3];
-        centroid[1] += smoothed[j * 3 + 1];
-        centroid[2] += smoothed[j * 3 + 2];
-      }
-      centroid[0] /= neighbors.length;
-      centroid[1] /= neighbors.length;
-      centroid[2] /= neighbors.length;
-
-      newPos[i * 3] = smoothed[i * 3] + lambda * (centroid[0] - smoothed[i * 3]);
-      newPos[i * 3 + 1] = smoothed[i * 3 + 1] + lambda * (centroid[1] - smoothed[i * 3 + 1]);
-      newPos[i * 3 + 2] = smoothed[i * 3 + 2] + lambda * (centroid[2] - smoothed[i * 3 + 2]);
-    }
-
-    smoothed.set(newPos);
-  }
-
-  return {
-    positions: Array.from(smoothed),
-    normals: mesh.normals,
-    uvs: mesh.uvs,
-    indices: mesh.indices,
-    colors: mesh.colors,
-  };
-}
 
 export function generateGeometryFromDensities(
   field: VoxelScalarField,

@@ -379,9 +379,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  /* Make container visible for debugging */
-  background: #faf7f2;
-  border: 2px solid var(--sp-ink);
+  background: #f5f2ee;
   border-radius: var(--radius);
   overflow: hidden;
 }

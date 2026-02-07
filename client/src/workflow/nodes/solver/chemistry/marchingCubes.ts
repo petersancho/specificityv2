@@ -466,25 +466,22 @@ export const marchingCubes = (
   const { bounds, cellSize, densities, data: materialData } = field;
   const materialCount = materialData.length;
   
-  console.log('[MARCHING CUBES] ⚠️⚠️⚠️ Starting marching cubes:', {
-    resolution: res,
-    isovalue,
-    totalVoxels: densities.length,
-    expectedVoxels: res * res * res,
-    bounds: {
-      min: `(${bounds.min.x.toFixed(2)}, ${bounds.min.y.toFixed(2)}, ${bounds.min.z.toFixed(2)})`,
-      max: `(${bounds.max.x.toFixed(2)}, ${bounds.max.y.toFixed(2)}, ${bounds.max.z.toFixed(2)})`,
-    },
-    cellSize: {
-      x: cellSize.x.toFixed(4),
-      y: cellSize.y.toFixed(4),
-      z: cellSize.z.toFixed(4),
-    },
-  });
-  
   // Edge vertex cache to avoid duplicate vertices
-  // Key: "x,y,z,edge" -> vertex index
+  // Key: canonical edge key based on actual grid coordinates of endpoints
+  // This ensures shared edges between adjacent cells use the same key
   const edgeCache = new Map<string, number>();
+  
+  /**
+   * Create a canonical edge key from two grid coordinates
+   * The key is the same regardless of which cell accesses the edge
+   */
+  const makeEdgeKey = (x1: number, y1: number, z1: number, x2: number, y2: number, z2: number): string => {
+    // Sort endpoints to ensure canonical ordering
+    if (x1 < x2 || (x1 === x2 && y1 < y2) || (x1 === x2 && y1 === y2 && z1 < z2)) {
+      return `${x1},${y1},${z1}-${x2},${y2},${z2}`;
+    }
+    return `${x2},${y2},${z2}-${x1},${y1},${z1}`;
+  };
   
   /**
    * Get or create vertex at edge intersection
@@ -495,10 +492,6 @@ export const marchingCubes = (
     z: number,
     edge: number
   ): number => {
-    const key = `${x},${y},${z},${edge}`;
-    const cached = edgeCache.get(key);
-    if (cached !== undefined) return cached;
-    
     // Get edge endpoints
     const [v1Idx, v2Idx] = EDGE_VERTICES[edge];
     const [c1x, c1y, c1z] = CUBE_CORNERS[v1Idx];
@@ -507,6 +500,11 @@ export const marchingCubes = (
     // Get voxel indices for corners
     const x1 = x + c1x, y1 = y + c1y, z1 = z + c1z;
     const x2 = x + c2x, y2 = y + c2y, z2 = z + c2z;
+    
+    // Use canonical edge key to deduplicate shared edges between cells
+    const key = makeEdgeKey(x1, y1, z1, x2, y2, z2);
+    const cached = edgeCache.get(key);
+    if (cached !== undefined) return cached;
     
     const idx1 = x1 + y1 * res + z1 * res * res;
     const idx2 = x2 + y2 * res + z2 * res * res;
@@ -577,18 +575,10 @@ export const marchingCubes = (
     return vertexIndex;
   };
   
-  // Track statistics for debugging
-  let cubesProcessed = 0;
-  let cubesSkippedAllInside = 0;
-  let cubesSkippedAllOutside = 0;
-  let cubesWithTriangles = 0;
-  
   // Process each cube in the grid
   for (let z = 0; z < res - 1; z++) {
     for (let y = 0; y < res - 1; y++) {
       for (let x = 0; x < res - 1; x++) {
-        cubesProcessed++;
-        
         // Get density values at 8 cube corners
         const cornerValues: number[] = [];
         for (let i = 0; i < 8; i++) {
@@ -606,16 +596,7 @@ export const marchingCubes = (
         }
         
         // Skip if cube is entirely inside or outside
-        if (cubeIndex === 0) {
-          cubesSkippedAllOutside++;
-          continue;
-        }
-        if (cubeIndex === 255) {
-          cubesSkippedAllInside++;
-          continue;
-        }
-        
-        cubesWithTriangles++;
+        if (cubeIndex === 0 || cubeIndex === 255) continue;
         
         // Get edge mask for this configuration
         const edgeMask = EDGE_TABLE[cubeIndex];
@@ -640,47 +621,6 @@ export const marchingCubes = (
         }
       }
     }
-  }
-  
-  console.log('[MARCHING CUBES] ⚠️⚠️⚠️ Statistics:', {
-    resolution: res,
-    isovalue,
-    cubesProcessed,
-    cubesSkippedAllOutside: `${cubesSkippedAllOutside} (${(100 * cubesSkippedAllOutside / cubesProcessed).toFixed(1)}%)`,
-    cubesSkippedAllInside: `${cubesSkippedAllInside} (${(100 * cubesSkippedAllInside / cubesProcessed).toFixed(1)}%)`,
-    cubesWithTriangles: `${cubesWithTriangles} (${(100 * cubesWithTriangles / cubesProcessed).toFixed(1)}%)`,
-    verticesGenerated: positions.length / 3,
-    trianglesGenerated: indices.length / 3,
-  });
-  
-  // Log first 10 vertices to see where they are
-  if (positions.length > 0) {
-    console.log('[MARCHING CUBES] ⚠️⚠️⚠️ First 10 vertices:');
-    for (let i = 0; i < Math.min(10, positions.length / 3); i++) {
-      const x = positions[i * 3];
-      const y = positions[i * 3 + 1];
-      const z = positions[i * 3 + 2];
-      console.log(`  v${i}: (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`);
-    }
-    
-    // Compute bounds of generated mesh
-    let minX = Infinity, minY = Infinity, minZ = Infinity;
-    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
-    for (let i = 0; i < positions.length; i += 3) {
-      const x = positions[i], y = positions[i + 1], z = positions[i + 2];
-      if (x < minX) minX = x; if (x > maxX) maxX = x;
-      if (y < minY) minY = y; if (y > maxY) maxY = y;
-      if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
-    }
-    console.log('[MARCHING CUBES] ⚠️⚠️⚠️ Output mesh bounds:', {
-      min: { x: minX.toFixed(2), y: minY.toFixed(2), z: minZ.toFixed(2) },
-      max: { x: maxX.toFixed(2), y: maxY.toFixed(2), z: maxZ.toFixed(2) },
-      size: { x: (maxX - minX).toFixed(2), y: (maxY - minY).toFixed(2), z: (maxZ - minZ).toFixed(2) },
-      inputBounds: {
-        min: { x: bounds.min.x.toFixed(2), y: bounds.min.y.toFixed(2), z: bounds.min.z.toFixed(2) },
-        max: { x: bounds.max.x.toFixed(2), y: bounds.max.y.toFixed(2), z: bounds.max.z.toFixed(2) },
-      },
-    });
   }
   
   return { positions, normals, colors, indices, uvs };

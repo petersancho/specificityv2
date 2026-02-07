@@ -235,42 +235,20 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
     const zMin = tris[0].z, zMax = tris[tris.length - 1].z;
     const zRange = Math.max(zMax - zMin, 1e-10);
 
-    // Debug: log projection info
-    console.log('[PREVIEW] Drawing', tris.length, 'triangles', {
-      bounds: { minX, maxX, minY, maxY, minZ, maxZ },
-      center: { cx, cy, cz },
-      maxDim,
-      scale,
-      canvasSize: { width, height },
-    });
-
-    // Debug: log first triangle coordinates
-    if (tris.length > 0) {
-      const tri = tris[0];
-      const x0 = projected[tri.i0 * 3], y0 = projected[tri.i0 * 3 + 1];
-      const x1 = projected[tri.i1 * 3], y1 = projected[tri.i1 * 3 + 1];
-      const x2 = projected[tri.i2 * 3], y2 = projected[tri.i2 * 3 + 1];
-      console.log('[PREVIEW] First triangle screen coords:', { x0, y0, x1, y1, x2, y2 });
-    }
-
-    // Draw triangles with depth-based shading (light grey, no gaps)
-    let validTriCount = 0;
-    let degenerateCount = 0;
-    
-    // Disable anti-aliasing to prevent gaps
+    // Disable anti-aliasing to prevent gaps between triangles
     ctx.imageSmoothingEnabled = false;
+    
+    // Draw triangles with depth-based shading (light grey)
+    let validTriCount = 0;
     
     for (const tri of tris) {
       const x0 = projected[tri.i0 * 3], y0 = projected[tri.i0 * 3 + 1];
       const x1 = projected[tri.i1 * 3], y1 = projected[tri.i1 * 3 + 1];
       const x2 = projected[tri.i2 * 3], y2 = projected[tri.i2 * 3 + 1];
 
-      // Check if triangle is degenerate (all vertices at same position)
+      // Skip degenerate triangles (all vertices at same position)
       const area = Math.abs((x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0));
-      if (area < 0.1) {
-        degenerateCount++;
-        continue;
-      }
+      if (area < 0.1) continue;
 
       validTriCount++;
       
@@ -279,7 +257,6 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
       const brightness = Math.floor(180 + 50 * t); // Range: 180-230 (light grey)
       ctx.fillStyle = `rgb(${brightness},${brightness},${brightness})`;
       
-      // No stroke to avoid borders
       ctx.beginPath();
       ctx.moveTo(x0, y0);
       ctx.lineTo(x1, y1);
@@ -288,11 +265,8 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
       ctx.fill();
     }
 
-    console.log('[PREVIEW] Drew', validTriCount, 'valid triangles,', degenerateCount, 'degenerate triangles skipped');
-
-    // FALLBACK: If all triangles are degenerate, draw vertices as points
+    // Fallback: If all triangles are degenerate, draw vertices as points
     if (validTriCount === 0 && numVerts > 0) {
-      console.log('[PREVIEW] All triangles degenerate - drawing point cloud fallback');
       ctx.fillStyle = '#cccccc';
       for (let i = 0; i < numVerts; i++) {
         const x = projected[i * 3];
@@ -308,14 +282,12 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
 
   // Re-render when geometry, dimensions, or renderKey changes
   useEffect(() => {
-    console.log('[PREVIEW] Rendering - geometry:', geometry ? 'EXISTS' : 'NULL', 'renderKey:', renderKey);
     render();
   }, [render, renderKey]);
 
-  // Force re-render when geometry changes (in case reference is same but content changed)
+  // Force re-render when geometry changes
   useEffect(() => {
     if (geometry?.positions?.length) {
-      console.log('[PREVIEW] Geometry changed, triggering re-render');
       setRenderKey(k => k + 1);
     }
   }, [geometry]);
