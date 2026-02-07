@@ -336,158 +336,63 @@ function computeBounds3FromPositions(positions: ArrayLike<number>): {
 }
 
 function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, width: number, height: number, rotation: { x: number; y: number }) {
-  const positions = geometry.positions, indices = geometry.indices;
+  const positions = geometry.positions;
+  const indices = geometry.indices;
+  
   if (!positions || positions.length === 0) {
-    console.warn('[RENDER] No positions to render');
     return;
   }
 
-  // Reset canvas state to avoid inherited transforms making things invisible
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.globalAlpha = 1;
-  ctx.globalCompositeOperation = "source-over";
 
-  // Compute and validate bounds
   const bounds = computeBounds3FromPositions(positions);
   if (!bounds) {
-    console.error('[RENDER] ❌ Invalid geometry positions (NaN/Infinity or empty)');
-    ctx.fillStyle = '#8b0000';
-    ctx.font = 'bold 12px monospace';
-    ctx.fillText('Invalid geometry positions (NaN/Infinity)', 10, 20);
     ctx.restore();
     return;
   }
 
-  console.log('[RENDER] ⚠️⚠️⚠️ Geometry bounds:', {
-    min: bounds.min,
-    max: bounds.max,
-    center: bounds.center,
-    size: bounds.size,
-    canvasSize: { width, height },
-  });
-  
-  console.log(`[RENDER] ⚠️⚠️⚠️ EXPLICIT GEOMETRY BOUNDS: min=(${bounds.min.x.toFixed(2)}, ${bounds.min.y.toFixed(2)}, ${bounds.min.z.toFixed(2)}), max=(${bounds.max.x.toFixed(2)}, ${bounds.max.y.toFixed(2)}, ${bounds.max.z.toFixed(2)}), size=(${bounds.size.x.toFixed(2)}, ${bounds.size.y.toFixed(2)}, ${bounds.size.z.toFixed(2)})`);
-
-  // ⚠️⚠️⚠️ CRITICAL FIX: Use DOMAIN BOUNDS for scaling, not geometry bounds!
-  // The geometry might be clustered in a tiny region (e.g., X=77-79 out of 0-100),
-  // but we want to scale based on the full domain (0-100) so the geometry appears
-  // at the correct relative position in the canvas.
-  //
-  // Detect domain bounds: if geometry spans less than 10% of the max coordinate,
-  // assume it's in a domain that goes from 0 to ~max coordinate.
-  const maxCoord = Math.max(bounds.max.x, bounds.max.y, bounds.max.z);
-  const geomSpan = Math.max(bounds.size.x, bounds.size.y, bounds.size.z);
-  const isDomainGeometry = maxCoord > 10 && geomSpan < maxCoord * 0.5;
-  
-  let domainBounds = bounds;
-  if (isDomainGeometry) {
-    // Geometry is in a domain - use domain bounds for scaling
-    domainBounds = {
-      min: { x: 0, y: 0, z: 0 },
-      max: { x: Math.ceil(maxCoord / 10) * 10, y: Math.ceil(maxCoord / 10) * 10, z: Math.ceil(maxCoord / 10) * 10 },
-      center: { x: maxCoord / 2, y: maxCoord / 2, z: maxCoord / 2 },
-      size: { x: maxCoord, y: maxCoord, z: maxCoord },
-    };
-    console.log('[RENDER] ⚠️⚠️⚠️ DETECTED DOMAIN GEOMETRY - Using domain bounds for scaling:', {
-      domain: domainBounds,
-      geometry: bounds,
-    });
-  }
-  
-  const eps = 1e-9;
-  const maxDim = Math.max(domainBounds.size.x, domainBounds.size.y, domainBounds.size.z);
-  
-  if (!Number.isFinite(maxDim) || maxDim < eps) {
-    console.error('[RENDER] ❌ Degenerate mesh (maxDim too small):', maxDim);
-    ctx.fillStyle = '#8b0000';
-    ctx.font = 'bold 12px monospace';
-    ctx.fillText(`Degenerate mesh (size=${bounds.size.x.toFixed(3)}, ${bounds.size.y.toFixed(3)}, ${bounds.size.z.toFixed(3)})`, 10, 20);
+  const maxDim = Math.max(bounds.size.x, bounds.size.y, bounds.size.z);
+  if (maxDim < 1e-9) {
     ctx.restore();
     return;
   }
 
-  // Scale to fit 80% of canvas with padding
-  // Use the DOMAIN size (maxDim) for scaling, not the geometry size
-  const scale = 0.8 * Math.min(width, height) / maxDim;
-  
-  if (!Number.isFinite(scale) || scale <= 0) {
-    console.error('[RENDER] ❌ Invalid scale:', scale);
-    ctx.fillStyle = '#8b0000';
-    ctx.font = 'bold 12px monospace';
-    ctx.fillText(`Invalid scale: ${scale}`, 10, 20);
-    ctx.restore();
-    return;
-  }
+  const scale = (0.8 * Math.min(width, height)) / maxDim;
+  const cx = bounds.center.x;
+  const cy = bounds.center.y;
+  const cz = bounds.center.z;
 
-  console.log('[RENDER] Scale calculation:', { maxDim, scale, canvasMin: Math.min(width, height) });
+  const cosX = Math.cos(rotation.x);
+  const sinX = Math.sin(rotation.x);
+  const cosY = Math.cos(rotation.y);
+  const sinY = Math.sin(rotation.y);
 
-  // Project all vertices
   const projected: Array<{ x: number; y: number; z: number }> = [];
-  const cosX = Math.cos(rotation.x), sinX = Math.sin(rotation.x);
-  const cosY = Math.cos(rotation.y), sinY = Math.sin(rotation.y);
   
   for (let i = 0; i < positions.length; i += 3) {
-    // Center the geometry using domain center (not geometry center)
-    let x = positions[i] - domainBounds.center.x;
-    let y = positions[i + 1] - domainBounds.center.y;
-    let z = positions[i + 2] - domainBounds.center.z;
+    let x = positions[i] - cx;
+    let y = positions[i + 1] - cy;
+    let z = positions[i + 2] - cz;
     
-    // Rotate around X axis
     const y1 = y * cosX - z * sinX;
     const z1 = y * sinX + z * cosX;
-    y = y1; z = z1;
+    y = y1;
+    z = z1;
     
-    // Rotate around Y axis
     const x1 = x * cosY + z * sinY;
     const z2 = -x * sinY + z * cosY;
-    x = x1; z = z2;
+    x = x1;
+    z = z2;
     
-    // Project to screen (scale and center on canvas)
     const screenX = width / 2 + x * scale;
-    const screenY = height / 2 - y * scale; // Flip Y for screen coordinates
+    const screenY = height / 2 - y * scale;
     
     projected.push({ x: screenX, y: screenY, z });
   }
-  
-  // Log first few projected points to verify they're on-screen
-  console.log('[RENDER] First 5 projected points:', projected.slice(0, 5).map(p => ({
-    x: p.x.toFixed(1),
-    y: p.y.toFixed(1),
-    z: p.z.toFixed(3),
-    onScreen: p.x >= 0 && p.x <= width && p.y >= 0 && p.y <= height
-  })));
 
-  // Check if any points are on screen
-  let onScreenCount = 0;
-  for (const p of projected) {
-    if (p.x >= 0 && p.x <= width && p.y >= 0 && p.y <= height) {
-      onScreenCount++;
-    }
-  }
-  console.log('[RENDER] Points on screen:', onScreenCount, '/', projected.length);
-
-  if (onScreenCount === 0) {
-    console.error('[RENDER] ❌ All points are off-screen!');
-    ctx.fillStyle = '#8b0000';
-    ctx.font = 'bold 12px monospace';
-    ctx.fillText('All geometry points are off-screen', 10, 20);
-    ctx.fillText(`Bounds: (${bounds.min.x.toFixed(1)}, ${bounds.min.y.toFixed(1)}, ${bounds.min.z.toFixed(1)}) to (${bounds.max.x.toFixed(1)}, ${bounds.max.y.toFixed(1)}, ${bounds.max.z.toFixed(1)})`, 10, 40);
-    ctx.fillText(`Scale: ${scale.toFixed(3)}, MaxDim: ${maxDim.toFixed(3)}`, 10, 60);
-    ctx.restore();
-    return;
-  }
-
-  // Colors for rendering - USING BRIGHT MAGENTA FOR DEBUGGING
-  const BASE = { r: 255, g: 0, b: 255 };      // Bright magenta
-  const LIGHT = { r: 200, g: 0, b: 200 };     // Darker magenta
-  const STROKE = { r: 150, g: 0, b: 150 };    // Even darker magenta
-  const POINT_COLOR = `rgb(${BASE.r}, ${BASE.g}, ${BASE.b})`;
-
-  // Fallback: if no indices, render vertices as points
   if (!indices || indices.length === 0) {
-    console.warn('[RENDER] No triangle indices, rendering vertices as points');
-    ctx.fillStyle = POINT_COLOR;
+    ctx.fillStyle = '#ff00ff';
     for (const p of projected) {
       if (Number.isFinite(p.x) && Number.isFinite(p.y)) {
         ctx.fillRect(p.x - 1.5, p.y - 1.5, 3, 3);
@@ -497,26 +402,33 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
     return;
   }
 
-  // Build triangle list with depth sorting
   const triangles: Array<{ indices: [number, number, number]; avgZ: number }> = [];
+  
   for (let i = 0; i < indices.length; i += 3) {
-    const i0 = indices[i], i1 = indices[i + 1], i2 = indices[i + 2];
-    if (i0 >= projected.length || i1 >= projected.length || i2 >= projected.length) continue;
+    const i0 = indices[i];
+    const i1 = indices[i + 1];
+    const i2 = indices[i + 2];
     
-    const p0 = projected[i0], p1 = projected[i1], p2 = projected[i2];
-    if (!Number.isFinite(p0.x) || !Number.isFinite(p1.x) || !Number.isFinite(p2.x)) continue;
+    if (i0 >= projected.length || i1 >= projected.length || i2 >= projected.length) {
+      continue;
+    }
+    
+    const p0 = projected[i0];
+    const p1 = projected[i1];
+    const p2 = projected[i2];
+    
+    if (!Number.isFinite(p0.x) || !Number.isFinite(p1.x) || !Number.isFinite(p2.x)) {
+      continue;
+    }
     
     triangles.push({ 
       indices: [i0, i1, i2], 
       avgZ: (p0.z + p1.z + p2.z) / 3 
     });
   }
-  
-  console.log('[RENDER] Valid triangles:', triangles.length, '/', indices.length / 3);
 
   if (triangles.length === 0) {
-    console.warn('[RENDER] No valid triangles, rendering vertices as points');
-    ctx.fillStyle = POINT_COLOR;
+    ctx.fillStyle = '#ff00ff';
     for (const p of projected) {
       if (Number.isFinite(p.x) && Number.isFinite(p.y)) {
         ctx.fillRect(p.x - 1.5, p.y - 1.5, 3, 3);
@@ -525,102 +437,26 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
     ctx.restore();
     return;
   }
-  
-  // Sort triangles by depth (back to front)
+
   triangles.sort((a, b) => a.avgZ - b.avgZ);
 
   const zMin = triangles[0].avgZ;
   const zMax = triangles[triangles.length - 1].avgZ;
   const zRange = Math.max(0.001, zMax - zMin);
 
-  console.log('[RENDER] Z range:', { zMin: zMin.toFixed(3), zMax: zMax.toFixed(3), zRange: zRange.toFixed(3) });
-  console.log('[RENDER] Rendering', triangles.length, 'triangles with z-depth shading');
-  
-  // Analyze triangle screen space distribution
-  const triBounds = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
-  const triAreas: number[] = [];
+  const BASE_R = 255, BASE_G = 0, BASE_B = 255;
+  const LIGHT_R = 200, LIGHT_G = 0, LIGHT_B = 200;
+
   for (const tri of triangles) {
     const [i0, i1, i2] = tri.indices;
-    const p0 = projected[i0], p1 = projected[i1], p2 = projected[i2];
-    triBounds.minX = Math.min(triBounds.minX, p0.x, p1.x, p2.x);
-    triBounds.maxX = Math.max(triBounds.maxX, p0.x, p1.x, p2.x);
-    triBounds.minY = Math.min(triBounds.minY, p0.y, p1.y, p2.y);
-    triBounds.maxY = Math.max(triBounds.maxY, p0.y, p1.y, p2.y);
-    const area = triArea2(p0.x, p0.y, p1.x, p1.y, p2.x, p2.y);
-    triAreas.push(area);
-  }
-  triAreas.sort((a, b) => a - b);
-  const medianArea = triAreas[Math.floor(triAreas.length / 2)];
-  const maxArea = triAreas[triAreas.length - 1];
-  
-  console.log('[RENDER] ⚠️⚠️⚠️ Triangle screen bounds:', {
-    x: `[${triBounds.minX.toFixed(1)}, ${triBounds.maxX.toFixed(1)}]`,
-    y: `[${triBounds.minY.toFixed(1)}, ${triBounds.maxY.toFixed(1)}]`,
-    width: (triBounds.maxX - triBounds.minX).toFixed(1),
-    height: (triBounds.maxY - triBounds.minY).toFixed(1),
-    medianArea: medianArea.toFixed(1),
-    maxArea: maxArea.toFixed(1),
-  });
-  
-  console.log(`[RENDER] ⚠️⚠️⚠️ EXPLICIT TRIANGLE BOUNDS: x=[${triBounds.minX.toFixed(1)}, ${triBounds.maxX.toFixed(1)}] (width=${(triBounds.maxX - triBounds.minX).toFixed(1)}), y=[${triBounds.minY.toFixed(1)}, ${triBounds.maxY.toFixed(1)}] (height=${(triBounds.maxY - triBounds.minY).toFixed(1)}), canvas=${width}x${height}`);
-  
-  // ⚠️⚠️⚠️ DEBUG: Log first 5 triangles with their screen coordinates
-  console.log('[RENDER] ⚠️⚠️⚠️ First 5 triangles (screen coords):');
-  for (let i = 0; i < Math.min(5, triangles.length); i++) {
-    const tri = triangles[i];
-    const [i0, i1, i2] = tri.indices;
-    const p0 = projected[i0], p1 = projected[i1], p2 = projected[i2];
-    const area = triArea2(p0.x, p0.y, p1.x, p1.y, p2.x, p2.y);
-    console.log(`  tri${i}: (${p0.x.toFixed(1)}, ${p0.y.toFixed(1)}) -> (${p1.x.toFixed(1)}, ${p1.y.toFixed(1)}) -> (${p2.x.toFixed(1)}, ${p2.y.toFixed(1)}), area=${area.toFixed(1)}`);
-  }
-  
-  // ⚠️⚠️⚠️ DEBUG: Draw a test triangle at the center of the canvas to verify rendering works
-  ctx.fillStyle = 'cyan';
-  ctx.beginPath();
-  ctx.moveTo(width / 2 - 50, height / 2 + 50);
-  ctx.lineTo(width / 2 + 50, height / 2 + 50);
-  ctx.lineTo(width / 2, height / 2 - 50);
-  ctx.closePath();
-  ctx.fill();
-  console.log('[RENDER] ⚠️⚠️⚠️ Drew test cyan triangle at center');
-  
-  // ⚠️⚠️⚠️ DEBUG: Draw the first 20 triangles in bright green with thick stroke
-  // This will show us exactly where the geometry triangles are
-  ctx.strokeStyle = 'lime';
-  ctx.lineWidth = 3;
-  ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
-  for (let i = 0; i < Math.min(20, triangles.length); i++) {
-    const tri = triangles[i];
-    const [i0, i1, i2] = tri.indices;
-    const p0 = projected[i0], p1 = projected[i1], p2 = projected[i2];
-    ctx.beginPath();
-    ctx.moveTo(p0.x, p0.y);
-    ctx.lineTo(p1.x, p1.y);
-    ctx.lineTo(p2.x, p2.y);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-  }
-  console.log('[RENDER] ⚠️⚠️⚠️ Drew first 20 triangles in lime green');
-  
-  // First pass: fill all triangles (no stroke) for solid appearance
-  // ⚠️⚠️⚠️ RENDER ALL TRIANGLES - Don't skip any, even if they're small
-  let filledCount = 0;
-  let tinyCount = 0;
-  for (const tri of triangles) {
-    const [i0, i1, i2] = tri.indices;
-    const p0 = projected[i0], p1 = projected[i1], p2 = projected[i2];
-    
-    // Check area but don't skip - just count tiny triangles for diagnostics
-    const area = triArea2(p0.x, p0.y, p1.x, p1.y, p2.x, p2.y);
-    if (area < 0.5) {
-      tinyCount++;
-    }
+    const p0 = projected[i0];
+    const p1 = projected[i1];
+    const p2 = projected[i2];
     
     const t = Math.max(0, Math.min(1, (tri.avgZ - zMin) / zRange));
-    const r = Math.round(BASE.r + (LIGHT.r - BASE.r) * t);
-    const g = Math.round(BASE.g + (LIGHT.g - BASE.g) * t);
-    const b = Math.round(BASE.b + (LIGHT.b - BASE.b) * t);
+    const r = Math.round(BASE_R + (LIGHT_R - BASE_R) * t);
+    const g = Math.round(BASE_G + (LIGHT_G - BASE_G) * t);
+    const b = Math.round(BASE_B + (LIGHT_B - BASE_B) * t);
     
     ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
     ctx.beginPath();
@@ -629,60 +465,7 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
     ctx.lineTo(p2.x, p2.y);
     ctx.closePath();
     ctx.fill();
-    filledCount++;
   }
-  
-  console.log(`[RENDER] ⚠️⚠️⚠️ Filled ${filledCount} triangles (${tinyCount} have area < 0.5px)`);
-  
-  // ⚠️⚠️⚠️ DEBUG: If most triangles are tiny, the geometry is clustered
-  if (tinyCount > filledCount * 0.9) {
-    console.error(`[RENDER] ❌ Most triangles are tiny! ${tinyCount} tiny vs ${filledCount} total`);
-    console.error('[RENDER] ❌ This means the geometry is clustered at a single point or is very small');
-  }
-  
-  // Second pass: stroke only larger triangles for edge definition
-  const STROKE_THRESHOLD = 50;
-  ctx.strokeStyle = `rgb(${STROKE.r}, ${STROKE.g}, ${STROKE.b})`;
-  ctx.lineWidth = 0.8;
-  let strokedCount = 0;
-  for (const tri of triangles) {
-    const [i0, i1, i2] = tri.indices;
-    const p0 = projected[i0], p1 = projected[i1], p2 = projected[i2];
-    const area2 = triArea2(p0.x, p0.y, p1.x, p1.y, p2.x, p2.y);
-    
-    if (area2 > STROKE_THRESHOLD) {
-      ctx.beginPath();
-      ctx.moveTo(p0.x, p0.y);
-      ctx.lineTo(p1.x, p1.y);
-      ctx.lineTo(p2.x, p2.y);
-      ctx.closePath();
-      ctx.stroke();
-      strokedCount++;
-    }
-  }
-  
-  console.log('[RENDER] ✅ Rendered', triangles.length, 'filled triangles,', strokedCount, 'with strokes');
-  
-  // Draw a bright red bounding box around the actual geometry to show where it is
-  if (triBounds.minX < Infinity && triBounds.maxX > -Infinity) {
-    ctx.strokeStyle = 'red';
-    ctx.lineWidth = 3;
-    ctx.strokeRect(
-      triBounds.minX - 5,
-      triBounds.minY - 5,
-      (triBounds.maxX - triBounds.minX) + 10,
-      (triBounds.maxY - triBounds.minY) + 10
-    );
-    
-    // Draw a label showing the geometry size
-    ctx.fillStyle = 'red';
-    ctx.font = 'bold 14px monospace';
-    ctx.fillText(
-      `Geometry: ${(triBounds.maxX - triBounds.minX).toFixed(0)}x${(triBounds.maxY - triBounds.minY).toFixed(0)}px`,
-      triBounds.minX,
-      triBounds.minY - 10
-    );
-  }
-  
+
   ctx.restore();
 }
