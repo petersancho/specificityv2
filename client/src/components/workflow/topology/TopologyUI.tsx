@@ -383,6 +383,7 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
   }
 
   // Scale to fit 80% of canvas with padding
+  // Use the ACTUAL geometry size (maxDim) which is computed from the vertex positions
   const scale = 0.8 * Math.min(width, height) / maxDim;
   
   if (!Number.isFinite(scale) || scale <= 0) {
@@ -559,17 +560,17 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
   console.log('[RENDER] ⚠️⚠️⚠️ Drew test cyan triangle at center');
   
   // First pass: fill all triangles (no stroke) for solid appearance
+  // ⚠️⚠️⚠️ RENDER ALL TRIANGLES - Don't skip any, even if they're small
   let filledCount = 0;
-  let skippedCount = 0;
+  let tinyCount = 0;
   for (const tri of triangles) {
     const [i0, i1, i2] = tri.indices;
     const p0 = projected[i0], p1 = projected[i1], p2 = projected[i2];
     
-    // Skip degenerate triangles (area < 0.5 pixels)
+    // Check area but don't skip - just count tiny triangles for diagnostics
     const area = triArea2(p0.x, p0.y, p1.x, p1.y, p2.x, p2.y);
     if (area < 0.5) {
-      skippedCount++;
-      continue;
+      tinyCount++;
     }
     
     const t = Math.max(0, Math.min(1, (tri.avgZ - zMin) / zRange));
@@ -587,12 +588,12 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
     filledCount++;
   }
   
-  console.log(`[RENDER] ⚠️⚠️⚠️ Filled ${filledCount} triangles, skipped ${skippedCount} degenerate triangles (area < 0.5px)`);
+  console.log(`[RENDER] ⚠️⚠️⚠️ Filled ${filledCount} triangles (${tinyCount} have area < 0.5px)`);
   
-  // ⚠️⚠️⚠️ DEBUG: If most triangles were skipped, the geometry is too small
-  if (skippedCount > filledCount) {
-    console.error(`[RENDER] ❌ Most triangles are degenerate! ${skippedCount} skipped vs ${filledCount} filled`);
-    console.error('[RENDER] ❌ This means the geometry is too small or all vertices are at the same position');
+  // ⚠️⚠️⚠️ DEBUG: If most triangles are tiny, the geometry is clustered
+  if (tinyCount > filledCount * 0.9) {
+    console.error(`[RENDER] ❌ Most triangles are tiny! ${tinyCount} tiny vs ${filledCount} total`);
+    console.error('[RENDER] ❌ This means the geometry is clustered at a single point or is very small');
   }
   
   // Second pass: stroke only larger triangles for edge definition
