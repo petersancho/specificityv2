@@ -166,14 +166,27 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
 
   const renderScene = React.useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) { console.log('[PREVIEW] No canvas ref'); return; }
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!ctx) { console.log('[PREVIEW] No 2D context'); return; }
 
     ctx.fillStyle = '#f5f2ee';
     ctx.fillRect(0, 0, width, height);
 
-    if (!geometry?.positions || !geometry?.indices || geometry.positions.length === 0) return;
+    if (!geometry?.positions || !geometry?.indices || geometry.positions.length === 0) {
+      console.log('[PREVIEW] No geometry data:', { 
+        hasGeometry: !!geometry, 
+        hasPositions: !!geometry?.positions, 
+        hasIndices: !!geometry?.indices,
+        posLength: geometry?.positions?.length 
+      });
+      return;
+    }
+    
+    console.log('[PREVIEW] Rendering geometry:', {
+      vertices: Math.floor(geometry.positions.length / 3),
+      triangles: Math.floor(geometry.indices.length / 3)
+    });
 
     const pos = geometry.positions;
     const idx = geometry.indices;
@@ -246,7 +259,10 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
     }
   }, [geometry, width, height]);
 
-  useEffect(() => { renderScene(); }, [renderScene, rotationRef.current.x, rotationRef.current.y]);
+  useEffect(() => { 
+    console.log('[PREVIEW] useEffect triggered - calling renderScene');
+    renderScene(); 
+  }, [renderScene]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     isDraggingRef.current = true;
