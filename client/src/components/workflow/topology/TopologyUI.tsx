@@ -363,6 +363,9 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
   const zMax = triDepth[triOrder[numTris - 1]];
   const zRange = Math.max(0.001, zMax - zMin);
   
+  ctx.strokeStyle = '#ff00ff';
+  ctx.lineWidth = 2;
+  
   for (let t = 0; t < numTris; t++) {
     const ti = triOrder[t];
     const i0 = indices[ti * 3], i1 = indices[ti * 3 + 1], i2 = indices[ti * 3 + 2];
@@ -382,5 +385,6 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
     ctx.lineTo(x2, y2);
     ctx.closePath();
     ctx.fill();
+    ctx.stroke();
   }
 }
