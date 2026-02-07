@@ -122,6 +122,3 @@ export const resolveVec3Input = (
   }
   return readVec3Parameters(parameters, parameterPrefix, fallback);
 };
-
-export const clamp = (value: number, min: number, max: number) =>
-  Math.min(max, Math.max(min, value));

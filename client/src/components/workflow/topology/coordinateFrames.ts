@@ -3,6 +3,7 @@
 // ============================================================================
 
 import type { Vec3, RenderMesh } from "../../../types";
+import { distance } from "../../../math/vector";
 
 export type CoordinateFrame = 'world' | 'mesh' | 'grid';
 
@@ -150,13 +151,6 @@ export function buildDofMapping(nx: number, ny: number, nz: number): DofMapping 
   }
   
   return { dofToNode, dofToComponent, nodeToDofs };
-}
-
-export function distance(a: Vec3, b: Vec3): number {
-  const dx = a.x - b.x;
-  const dy = a.y - b.y;
-  const dz = a.z - b.z;
-  return Math.sqrt(dx * dx + dy * dy + dz * dz);
 }
 
 export function isWithinBounds(pos: Vec3, bounds: Bounds, tolerance: number = 0): boolean {
