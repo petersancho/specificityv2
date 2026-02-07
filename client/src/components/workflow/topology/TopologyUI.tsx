@@ -239,7 +239,7 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
     threeGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     
     if (indices && indices.length > 0) {
-      threeGeometry.setIndex(new THREE.BufferAttribute(indices, 1));
+      threeGeometry.setIndex(new THREE.Uint32BufferAttribute(indices, 1));
     }
     
     threeGeometry.computeVertexNormals();
