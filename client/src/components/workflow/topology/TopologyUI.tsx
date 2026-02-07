@@ -559,6 +559,25 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
   ctx.fill();
   console.log('[RENDER] ⚠️⚠️⚠️ Drew test cyan triangle at center');
   
+  // ⚠️⚠️⚠️ DEBUG: Draw the first 20 triangles in bright green with thick stroke
+  // This will show us exactly where the geometry triangles are
+  ctx.strokeStyle = 'lime';
+  ctx.lineWidth = 3;
+  ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
+  for (let i = 0; i < Math.min(20, triangles.length); i++) {
+    const tri = triangles[i];
+    const [i0, i1, i2] = tri.indices;
+    const p0 = projected[i0], p1 = projected[i1], p2 = projected[i2];
+    ctx.beginPath();
+    ctx.moveTo(p0.x, p0.y);
+    ctx.lineTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+  console.log('[RENDER] ⚠️⚠️⚠️ Drew first 20 triangles in lime green');
+  
   // First pass: fill all triangles (no stroke) for solid appearance
   // ⚠️⚠️⚠️ RENDER ALL TRIANGLES - Don't skip any, even if they're small
   let filledCount = 0;
