@@ -1,0 +1,5 @@
+# Lingua & Roslyn Context
+
+- **Lingua** is the overarching software name. It represents the philosophical framework and semantic system; it is not a specific application, but the unifying concept that binds Roslyn (direct modeling) and Numerica (workflow) together.
+- **Roslyn** is the direct modeling environment within Lingua. It lives inside the Lingua concept, but Lingua itself is pure meaning—an umbrella for the entire parametric ecosystem rather than an app on its own.
+- **Numerica** (Roslyn’s sibling subsystem) currently has two primary components: the **simulator rigs** (Box Builder → Goals → Solver pipelines) and the **workflow node graph** (data/geometry/maths nodes rendered on the Numerical Canvas). Roslyn focuses on modeling, but depends on Numerica’s nodes and simulator rigs to feed and consume geometry.

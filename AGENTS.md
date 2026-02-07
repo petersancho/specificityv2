@@ -48,6 +48,10 @@ npm run analyze:coverage2
 
 # Generate agent capabilities catalog
 npm run generate:agent-catalog
+
+# Contrast validation (WCAG 2.1 compliance)
+npm run validate:contrast    # Validates design system color combinations
+npm run audit:contrast       # Audits actual palette contrast ratios
 ```
 
 CI runs `npm run validate:all` on every push and PR. Builds fail if validation fails.
