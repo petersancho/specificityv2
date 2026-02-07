@@ -177,53 +177,66 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
 
     const pos = geometry.positions;
     const idx = geometry.indices;
-    const numVerts = pos.length / 3;
-    const numTris = idx.length / 3;
+    const numVerts = Math.floor(pos.length / 3);
+    const numTris = Math.floor(idx.length / 3);
+
+    if (numVerts === 0 || numTris === 0) return;
 
     let minX = Infinity, minY = Infinity, minZ = Infinity;
     let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
     for (let i = 0; i < numVerts; i++) {
       const x = pos[i * 3], y = pos[i * 3 + 1], z = pos[i * 3 + 2];
+      if (!isFinite(x) || !isFinite(y) || !isFinite(z)) continue;
       if (x < minX) minX = x; if (x > maxX) maxX = x;
       if (y < minY) minY = y; if (y > maxY) maxY = y;
       if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
     }
 
+    if (!isFinite(minX) || !isFinite(maxX)) return;
+
     const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2, cz = (minZ + maxZ) / 2;
     const sx = maxX - minX, sy = maxY - minY, sz = maxZ - minZ;
-    const maxDim = Math.max(sx, sy, sz) || 1;
-    const scale = 0.75 * Math.min(width, height) / maxDim;
+    const maxDim = Math.max(sx, sy, sz);
+    if (maxDim < 1e-10) return;
+    const scale = 0.7 * Math.min(width, height) / maxDim;
 
     const cosX = Math.cos(rotationRef.current.x), sinX = Math.sin(rotationRef.current.x);
     const cosY = Math.cos(rotationRef.current.y), sinY = Math.sin(rotationRef.current.y);
 
     const projected = new Float32Array(numVerts * 3);
     for (let i = 0; i < numVerts; i++) {
-      let x = pos[i * 3] - cx, y = pos[i * 3 + 1] - cy, z = pos[i * 3 + 2] - cz;
-      const y1 = y * cosX - z * sinX, z1 = y * sinX + z * cosX;
-      const x2 = x * cosY + z1 * sinY, z2 = -x * sinY + z1 * cosY;
+      const px = pos[i * 3] - cx, py = pos[i * 3 + 1] - cy, pz = pos[i * 3 + 2] - cz;
+      const y1 = py * cosX - pz * sinX, z1 = py * sinX + pz * cosX;
+      const x2 = px * cosY + z1 * sinY, z2 = -px * sinY + z1 * cosY;
       projected[i * 3] = width / 2 + x2 * scale;
       projected[i * 3 + 1] = height / 2 - y1 * scale;
       projected[i * 3 + 2] = z2;
     }
 
-    const tris: { i0: number; i1: number; i2: number; z: number }[] = new Array(numTris);
+    const tris: { i0: number; i1: number; i2: number; z: number }[] = [];
     for (let i = 0; i < numTris; i++) {
       const i0 = idx[i * 3], i1 = idx[i * 3 + 1], i2 = idx[i * 3 + 2];
-      tris[i] = { i0, i1, i2, z: (projected[i0 * 3 + 2] + projected[i1 * 3 + 2] + projected[i2 * 3 + 2]) / 3 };
+      if (i0 >= numVerts || i1 >= numVerts || i2 >= numVerts) continue;
+      const z = (projected[i0 * 3 + 2] + projected[i1 * 3 + 2] + projected[i2 * 3 + 2]) / 3;
+      if (!isFinite(z)) continue;
+      tris.push({ i0, i1, i2, z });
     }
+    if (tris.length === 0) return;
     tris.sort((a, b) => a.z - b.z);
 
-    const zMin = tris[0]?.z ?? 0, zMax = tris[tris.length - 1]?.z ?? 1;
-    const zRange = zMax - zMin || 1;
+    const zMin = tris[0].z, zMax = tris[tris.length - 1].z;
+    const zRange = Math.max(zMax - zMin, 1e-10);
 
     for (const tri of tris) {
       const x0 = projected[tri.i0 * 3], y0 = projected[tri.i0 * 3 + 1];
       const x1 = projected[tri.i1 * 3], y1 = projected[tri.i1 * 3 + 1];
       const x2 = projected[tri.i2 * 3], y2 = projected[tri.i2 * 3 + 1];
 
-      const brightness = 100 + Math.floor(155 * (tri.z - zMin) / zRange);
-      ctx.fillStyle = `rgb(${brightness}, 0, ${brightness})`;
+      const t = (tri.z - zMin) / zRange;
+      const r = Math.floor(120 + 135 * t);
+      const g = Math.floor(40 * t);
+      const b = Math.floor(120 + 135 * t);
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
       ctx.beginPath();
       ctx.moveTo(x0, y0);
       ctx.lineTo(x1, y1);
