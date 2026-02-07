@@ -655,6 +655,28 @@ export function generateGeometryFromVoxels(
     cellSize: `(${voxelField.cellSize.x.toFixed(4)}, ${voxelField.cellSize.y.toFixed(4)}, ${voxelField.cellSize.z.toFixed(4)})`,
   });
   
+  // ⚠️⚠️⚠️ CRITICAL: Find where the high-density voxels are in the resampled field
+  const res = voxelField.resolution;
+  const highDensityVoxels: Array<{x: number, y: number, z: number, density: number}> = [];
+  for (let z = 0; z < res; z++) {
+    for (let y = 0; y < res; y++) {
+      for (let x = 0; x < res; x++) {
+        const idx = x + y * res + z * res * res;
+        const d = voxelField.densities[idx];
+        if (d >= isovalue && highDensityVoxels.length < 20) {
+          highDensityVoxels.push({ x, y, z, density: d });
+        }
+      }
+    }
+  }
+  console.log(`[GEOMETRY] ⚠️⚠️⚠️ HIGH DENSITY VOXELS (first 20 above isovalue ${isovalue}):`);
+  for (const v of highDensityVoxels) {
+    const worldX = voxelField.bounds.min.x + v.x * voxelField.cellSize.x;
+    const worldY = voxelField.bounds.min.y + v.y * voxelField.cellSize.y;
+    const worldZ = voxelField.bounds.min.z + v.z * voxelField.cellSize.z;
+    console.log(`  voxel (${v.x}, ${v.y}, ${v.z}) -> world (${worldX.toFixed(2)}, ${worldY.toFixed(2)}, ${worldZ.toFixed(2)}), density=${v.density.toFixed(4)}`);
+  }
+  
   const defaultColor: [number, number, number] = [0.92, 0.92, 0.94];
   let mesh = chemistryMarchingCubes(voxelField, isovalue, [defaultColor]);
   
