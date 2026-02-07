@@ -1,6 +1,8 @@
+import { clamp } from "../math/constants";
+
 export type RGB = [number, number, number];
 
-const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
+const clamp01 = (value: number) => clamp(value, 0, 1);
 
 const toHex = (value: number) => value.toString(16).padStart(2, "0").toUpperCase();
 
