@@ -369,9 +369,34 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
   
   console.log(`[RENDER] ⚠️⚠️⚠️ EXPLICIT GEOMETRY BOUNDS: min=(${bounds.min.x.toFixed(2)}, ${bounds.min.y.toFixed(2)}, ${bounds.min.z.toFixed(2)}), max=(${bounds.max.x.toFixed(2)}, ${bounds.max.y.toFixed(2)}, ${bounds.max.z.toFixed(2)}), size=(${bounds.size.x.toFixed(2)}, ${bounds.size.y.toFixed(2)}, ${bounds.size.z.toFixed(2)})`);
 
-  // Compute safe scale
+  // ⚠️⚠️⚠️ CRITICAL FIX: Use DOMAIN BOUNDS for scaling, not geometry bounds!
+  // The geometry might be clustered in a tiny region (e.g., X=77-79 out of 0-100),
+  // but we want to scale based on the full domain (0-100) so the geometry appears
+  // at the correct relative position in the canvas.
+  //
+  // Detect domain bounds: if geometry spans less than 10% of the max coordinate,
+  // assume it's in a domain that goes from 0 to ~max coordinate.
+  const maxCoord = Math.max(bounds.max.x, bounds.max.y, bounds.max.z);
+  const geomSpan = Math.max(bounds.size.x, bounds.size.y, bounds.size.z);
+  const isDomainGeometry = maxCoord > 10 && geomSpan < maxCoord * 0.5;
+  
+  let domainBounds = bounds;
+  if (isDomainGeometry) {
+    // Geometry is in a domain - use domain bounds for scaling
+    domainBounds = {
+      min: { x: 0, y: 0, z: 0 },
+      max: { x: Math.ceil(maxCoord / 10) * 10, y: Math.ceil(maxCoord / 10) * 10, z: Math.ceil(maxCoord / 10) * 10 },
+      center: { x: maxCoord / 2, y: maxCoord / 2, z: maxCoord / 2 },
+      size: { x: maxCoord, y: maxCoord, z: maxCoord },
+    };
+    console.log('[RENDER] ⚠️⚠️⚠️ DETECTED DOMAIN GEOMETRY - Using domain bounds for scaling:', {
+      domain: domainBounds,
+      geometry: bounds,
+    });
+  }
+  
   const eps = 1e-9;
-  const maxDim = Math.max(bounds.size.x, bounds.size.y, bounds.size.z);
+  const maxDim = Math.max(domainBounds.size.x, domainBounds.size.y, domainBounds.size.z);
   
   if (!Number.isFinite(maxDim) || maxDim < eps) {
     console.error('[RENDER] ❌ Degenerate mesh (maxDim too small):', maxDim);
@@ -383,7 +408,7 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
   }
 
   // Scale to fit 80% of canvas with padding
-  // Use the ACTUAL geometry size (maxDim) which is computed from the vertex positions
+  // Use the DOMAIN size (maxDim) for scaling, not the geometry size
   const scale = 0.8 * Math.min(width, height) / maxDim;
   
   if (!Number.isFinite(scale) || scale <= 0) {
@@ -403,10 +428,10 @@ function renderGeometry(ctx: CanvasRenderingContext2D, geometry: RenderMesh, wid
   const cosY = Math.cos(rotation.y), sinY = Math.sin(rotation.y);
   
   for (let i = 0; i < positions.length; i += 3) {
-    // Center the geometry
-    let x = positions[i] - bounds.center.x;
-    let y = positions[i + 1] - bounds.center.y;
-    let z = positions[i + 2] - bounds.center.z;
+    // Center the geometry using domain center (not geometry center)
+    let x = positions[i] - domainBounds.center.x;
+    let y = positions[i + 1] - domainBounds.center.y;
+    let z = positions[i + 2] - domainBounds.center.z;
     
     // Rotate around X axis
     const y1 = y * cosX - z * sinX;
