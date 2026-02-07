@@ -235,14 +235,41 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
     const zMin = tris[0].z, zMax = tris[tris.length - 1].z;
     const zRange = Math.max(zMax - zMin, 1e-10);
 
-    console.log('[PREVIEW] Drawing', tris.length, 'triangles');
+    // Debug: log projection info
+    console.log('[PREVIEW] Drawing', tris.length, 'triangles', {
+      bounds: { minX, maxX, minY, maxY, minZ, maxZ },
+      center: { cx, cy, cz },
+      maxDim,
+      scale,
+      canvasSize: { width, height },
+    });
+
+    // Debug: log first triangle coordinates
+    if (tris.length > 0) {
+      const tri = tris[0];
+      const x0 = projected[tri.i0 * 3], y0 = projected[tri.i0 * 3 + 1];
+      const x1 = projected[tri.i1 * 3], y1 = projected[tri.i1 * 3 + 1];
+      const x2 = projected[tri.i2 * 3], y2 = projected[tri.i2 * 3 + 1];
+      console.log('[PREVIEW] First triangle screen coords:', { x0, y0, x1, y1, x2, y2 });
+    }
 
     // Draw triangles with depth-based shading
+    let validTriCount = 0;
+    let degenerateCount = 0;
+    
     for (const tri of tris) {
       const x0 = projected[tri.i0 * 3], y0 = projected[tri.i0 * 3 + 1];
       const x1 = projected[tri.i1 * 3], y1 = projected[tri.i1 * 3 + 1];
       const x2 = projected[tri.i2 * 3], y2 = projected[tri.i2 * 3 + 1];
 
+      // Check if triangle is degenerate (all vertices at same position)
+      const area = Math.abs((x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0));
+      if (area < 0.1) {
+        degenerateCount++;
+        continue;
+      }
+
+      validTriCount++;
       const t = (tri.z - zMin) / zRange;
       const r = Math.floor(120 + 135 * t);
       const g = Math.floor(40 * t);
@@ -254,6 +281,23 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
       ctx.lineTo(x2, y2);
       ctx.closePath();
       ctx.fill();
+    }
+
+    console.log('[PREVIEW] Drew', validTriCount, 'valid triangles,', degenerateCount, 'degenerate triangles skipped');
+
+    // FALLBACK: If all triangles are degenerate, draw vertices as points
+    if (validTriCount === 0 && numVerts > 0) {
+      console.log('[PREVIEW] All triangles degenerate - drawing point cloud fallback');
+      ctx.fillStyle = '#ff00ff';
+      for (let i = 0; i < numVerts; i++) {
+        const x = projected[i * 3];
+        const y = projected[i * 3 + 1];
+        if (isFinite(x) && isFinite(y)) {
+          ctx.beginPath();
+          ctx.arc(x, y, 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
     }
   }, [geometry, width, height]);
 
