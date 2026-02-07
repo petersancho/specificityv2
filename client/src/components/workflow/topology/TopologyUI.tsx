@@ -234,6 +234,15 @@ export const TopologyGeometryPreview: React.FC<TopologyGeometryPreviewProps> = (
 
     const positions = geometry.positions;
     const indices = geometry.indices;
+    
+    console.log('[GEOM]', { 
+      hasPos: !!positions, 
+      posLen: positions?.length, 
+      hasIdx: !!indices, 
+      idxLen: indices?.length,
+      firstPos: positions?.slice(0, 9),
+      firstIdx: indices?.slice(0, 9)
+    });
 
     // Convert to Float32Array for Three.js
     const posArray = positions instanceof Float32Array ? positions : new Float32Array(positions);
