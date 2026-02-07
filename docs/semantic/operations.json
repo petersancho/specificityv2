@@ -1576,12 +1576,12 @@
     "category": "utility",
     "tags": [
       "array",
-      "set",
+      "collection",
       "merge",
       "pure",
       "deterministic"
     ],
-    "complexity": "O(n+m)",
+    "complexity": "O(n)",
     "cost": "low",
     "pure": true,
     "deterministic": true,
@@ -5217,11 +5217,11 @@
       "geometry",
       "analysis",
       "surface",
-      "sample",
+      "mesh",
       "points",
-      "divide"
+      "vertices"
     ],
-    "complexity": "O(n*m)",
+    "complexity": "O(n^2)",
     "cost": "medium",
     "pure": true,
     "deterministic": false,

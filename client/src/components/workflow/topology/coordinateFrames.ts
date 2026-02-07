@@ -3,14 +3,10 @@
 // ============================================================================
 
 import type { Vec3, RenderMesh } from "../../../types";
+import type { Bounds3D as Bounds } from "../../../geometry/bounds";
 import { distance } from "../../../math/vector";
 
 export type CoordinateFrame = 'world' | 'mesh' | 'grid';
-
-export interface Bounds {
-  min: Vec3;
-  max: Vec3;
-}
 
 export interface FramedPosition {
   position: Vec3;
