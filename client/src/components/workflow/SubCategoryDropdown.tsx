@@ -5,6 +5,7 @@ import type { NodeType } from "../../store/useProjectStore";
 import type { IconId } from "../../webgl/ui/WebGLIconRenderer";
 import styles from "./SubCategoryDropdown.module.css";
 import { createIconSignature } from "./iconSignature";
+import tokens from "../../semantic/ui.tokens.json";
 
 export type SolverInputNode = {
   type: NodeType;
@@ -33,8 +34,10 @@ export type SubCategoryDropdownProps = {
 
 const STICKER_SIZE = 384;
 const GOAL_TINTS: Record<string, string> = {
-  "Physics Goals": "#000000",
-  "Chemistry Goals": "#F6D21A",
+  "Physics Goals": tokens.palette.categories.goal ?? tokens.palette.grey800,
+  "Chemistry Goals": tokens.palette.categories.analysis ?? tokens.palette.grey600,
+  "Evolutionary Goals": tokens.palette.categories.workflow ?? tokens.palette.grey400,
+  "Voxel Goals": tokens.palette.categories.voxel ?? tokens.palette.grey800,
 };
 
 const buildTooltipContent = (node: SolverInputNode) => {
@@ -85,17 +88,25 @@ export const SubCategoryDropdown = ({
     <button
       type="button"
       className={styles.header}
+      data-signal="shadow"
       onClick={() => setIsExpanded((prev) => !prev)}
       aria-expanded={isExpanded}
+      data-expanded={isExpanded}
     >
       <div className={styles.headerText}>
-        <span className={styles.greek}>{subCategory.nameGreek}</span>
+        <span className={styles.greek} data-typography-role="body">
+          {subCategory.nameGreek}
+        </span>
         {subCategory.romanization && (
-          <span className={styles.romanization}>({subCategory.romanization})</span>
+          <span className={styles.romanization} data-typography-role="label">
+            ({subCategory.romanization})
+          </span>
         )}
-        <span className={styles.translation}>{subCategory.translation}</span>
+        <span className={styles.translation} data-typography-role="label">
+          {subCategory.translation}
+        </span>
       </div>
-      <span className={styles.arrow}>{isExpanded ? "▴" : "▾"}</span>
+      <span className={styles.arrow} aria-hidden="true" />
     </button>
   );
 
@@ -104,15 +115,21 @@ export const SubCategoryDropdown = ({
       <Tooltip
         content={
           <span className={styles.categoryTooltip}>
-            <span className={styles.tooltipGreek}>{subCategory.nameGreek}</span>
+            <span className={styles.tooltipGreek} data-typography-role="body">
+              {subCategory.nameGreek}
+            </span>
             {subCategory.romanization && (
-              <span className={styles.tooltipRomanization}>
+              <span className={styles.tooltipRomanization} data-typography-role="label">
                 ({subCategory.romanization})
               </span>
             )}
-            <span className={styles.tooltipTranslation}>{subCategory.translation}</span>
+            <span className={styles.tooltipTranslation} data-typography-role="detail">
+              {subCategory.translation}
+            </span>
             {subCategory.description && (
-              <span className={styles.tooltipDescription}>{subCategory.description}</span>
+              <span className={styles.tooltipDescription} data-typography-role="detail">
+                {subCategory.description}
+              </span>
             )}
           </span>
         }
@@ -130,16 +147,21 @@ export const SubCategoryDropdown = ({
                 <button
                   type="button"
                   className={styles.subSubHeader}
+                  data-signal="border"
                   onClick={() => toggleSubSub(subSub.name)}
                   aria-expanded={isOpen}
                 >
                   <span className={styles.subSubArrow}>{isOpen ? "▾" : "▸"}</span>
-                  <span className={styles.subSubTitle}>{subSub.name}</span>
+                  <span className={styles.subSubTitle} data-typography-role="label">
+                    {subSub.name}
+                  </span>
                 </button>
                 {isOpen && (
                   <div className={styles.nodeList}>
                     {subSub.nodes.length === 0 ? (
-                      <div className={styles.empty}>No goals yet.</div>
+                      <div className={styles.empty} data-typography-role="micro">
+                        No goals yet.
+                      </div>
                     ) : (
                       subSub.nodes.map((node) => {
                         const stickerTint = GOAL_TINTS[subSub.name];
@@ -154,6 +176,7 @@ export const SubCategoryDropdown = ({
                             <button
                               type="button"
                               className={styles.nodeButton}
+                              data-signal="shadow"
                               onPointerDown={(event) => onSelectNode(node.type, event)}
                               onClick={(event) => onSelectNode(node.type, event)}
                             >
@@ -172,9 +195,13 @@ export const SubCategoryDropdown = ({
                               )}
                               <div className={styles.nodeName}>
                                 {node.nameGreek && (
-                                  <span className={styles.greek}>{node.nameGreek}</span>
+                                  <span className={styles.greek} data-typography-role="body">
+                                    {node.nameGreek}
+                                  </span>
                                 )}
-                                <span className={styles.english}>{node.nameEnglish}</span>
+                                <span className={styles.english} data-typography-role="label">
+                                  {node.nameEnglish}
+                                </span>
                               </div>
                             </button>
                           </Tooltip>

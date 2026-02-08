@@ -121,14 +121,15 @@ export const SavedScriptsDropdown = ({
   const header = (
     <button
       type="button"
-      className={styles.header}
+      className={`${styles.header} mechanical-press`}
       onClick={() => setIsExpanded((prev) => !prev)}
       aria-expanded={isExpanded}
+      data-expanded={isExpanded}
     >
       <div className={styles.headerText}>
         <span className={styles.title}>Solver Rigs</span>
       </div>
-      <span className={styles.arrow}>{isExpanded ? "▴" : "▾"}</span>
+      <span className={styles.arrow} aria-hidden="true" />
     </button>
   );
 
