@@ -63,6 +63,36 @@ type ChemistrySimulatorDashboardProps = {
   onClose: () => void;
 };
 
+const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <h3 className={styles.sectionTitle} data-typography-role="heading">
+    {children}
+  </h3>
+);
+
+const MetricLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <div className={styles.metricLabel} data-typography-role="label">
+    {children}
+  </div>
+);
+
+const MetricValue: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <div className={styles.metricValue} data-typography-role="title">
+    {children}
+  </div>
+);
+
+const MetricDetailLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <span className={styles.metricDetailLabel} data-typography-role="detail">
+    {children}
+  </span>
+);
+
+const MetricDetailValue: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <span className={styles.metricDetailValue} data-typography-role="detail">
+    {children}
+  </span>
+);
+
 export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardProps> = ({
   nodeId,
   onClose,
@@ -175,9 +205,15 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
         <div className={styles.headerBar} />
         <div className={styles.headerContent}>
           <div className={styles.title}>
-            <span className={styles.titleGreek}>Ἐπιλύτης Χημείας</span>
-            <span className={styles.titleEnglish}>Chemistry Solver</span>
-            <span className={styles.titleSubtext}>Empedocles · Material Transmutation</span>
+            <span className={styles.titleGreek} data-typography-role="title">
+              Ἐπιλύτης Χημείας
+            </span>
+            <span className={styles.titleEnglish} data-typography-role="detail">
+              Chemistry Solver
+            </span>
+            <span className={styles.titleSubtext} data-typography-role="detail">
+              Empedocles · Material Transmutation
+            </span>
           </div>
           <div className={styles.headerControls}>
             <label className={styles.scaleControl}>
@@ -223,9 +259,9 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
         {activeTab === "parameters" && (
           <div className={styles.parametersTab}>
             <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>Solver Parameters</h3>
+              <SectionTitle>Solver Parameters</SectionTitle>
               <div className={styles.materialPropsGrid}>
-                <label>
+                <label data-typography-role="label">
                   Particle Count
                   <input
                     type="number"
@@ -236,7 +272,7 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
                     step={100}
                   />
                 </label>
-                <label>
+                <label data-typography-role="label">
                   Iterations
                   <input
                     type="number"
@@ -246,7 +282,7 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
                     max={10000}
                   />
                 </label>
-                <label>
+                <label data-typography-role="label">
                   Field Resolution
                   <input
                     type="number"
@@ -256,7 +292,7 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
                     max={128}
                   />
                 </label>
-                <label>
+                <label data-typography-role="label">
                   Convergence Tolerance
                   <input
                     type="number"
@@ -265,7 +301,7 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
                     step="1e-7"
                   />
                 </label>
-                <label>
+                <label data-typography-role="label">
                   Blend Strength
                   <input
                     type="number"
@@ -276,7 +312,7 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
                     step={0.1}
                   />
                 </label>
-                <label>
+                <label data-typography-role="label">
                   Iso Value
                   <input
                     type="number"
@@ -287,7 +323,7 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
                     step={0.05}
                   />
                 </label>
-                <label>
+                <label data-typography-role="label">
                   Enabled
                   <input
                     type="checkbox"
@@ -299,26 +335,28 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
             </div>
 
             <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>Connected Inputs</h3>
+              <SectionTitle>Connected Inputs</SectionTitle>
               <div className={styles.summaryGrid}>
-                <div className={styles.summaryCard}>
-                  <div className={styles.summaryLabel}>Domain</div>
-                  <div className={styles.summaryValue}>{hasDomain ? "Connected" : "Missing"}</div>
+                <div className={styles.summaryCard} data-signal="border">
+                  <div className={styles.summaryLabel} data-typography-role="label">Domain</div>
+                  <div className={styles.summaryValue} data-typography-role="detail">
+                    {hasDomain ? "Connected" : "Missing"}
+                  </div>
                 </div>
-                <div className={styles.summaryCard}>
-                  <div className={styles.summaryLabel}>Materials</div>
-                  <div className={styles.summaryValue}>{materialsCount}</div>
+                <div className={styles.summaryCard} data-signal="border">
+                  <div className={styles.summaryLabel} data-typography-role="label">Materials</div>
+                  <div className={styles.summaryValue} data-typography-role="detail">{materialsCount}</div>
                 </div>
-                <div className={styles.summaryCard}>
-                  <div className={styles.summaryLabel}>Goals</div>
-                  <div className={styles.summaryValue}>{goalsCount}</div>
+                <div className={styles.summaryCard} data-signal="border">
+                  <div className={styles.summaryLabel} data-typography-role="label">Goals</div>
+                  <div className={styles.summaryValue} data-typography-role="detail">{goalsCount}</div>
                 </div>
               </div>
             </div>
 
             <div className={styles.section}>
               <div className={styles.controlPanel}>
-                <button className={styles.controlButton} onClick={handleRun}>
+                <button className={styles.controlButton} data-signal="shadow" onClick={handleRun}>
                   Run Solver
                 </button>
               </div>
@@ -335,140 +373,152 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
               <div className={styles.warningBanner}>Error: {evaluationError}</div>
             )}
             <div className={styles.outputGrid}>
-              <div className={styles.outputCard}>
-                <div className={styles.outputLabel}>Particles</div>
-                <div className={styles.outputValue}>{particlesArray.length}</div>
+              <div className={styles.outputCard} data-signal="border">
+                <div className={styles.outputLabel} data-typography-role="label">Particles</div>
+                <div className={styles.outputValue} data-typography-role="title">{particlesArray.length}</div>
               </div>
-              <div className={styles.outputCard}>
-                <div className={styles.outputLabel}>Iterations</div>
-                <div className={styles.outputValue}>{actualIterations > 0 ? actualIterations : "—"}</div>
+              <div className={styles.outputCard} data-signal="border">
+                <div className={styles.outputLabel} data-typography-role="label">Iterations</div>
+                <div className={styles.outputValue} data-typography-role="title">
+                  {actualIterations > 0 ? actualIterations : "—"}
+                </div>
               </div>
-              <div className={styles.outputCard}>
-                <div className={styles.outputLabel}>Final Energy</div>
-                <div className={styles.outputValue}>{finalEnergy > 0 ? finalEnergy.toFixed(2) : "—"}</div>
+              <div className={styles.outputCard} data-signal="border">
+                <div className={styles.outputLabel} data-typography-role="label">Final Energy</div>
+                <div className={styles.outputValue} data-typography-role="title">
+                  {finalEnergy > 0 ? finalEnergy.toFixed(2) : "—"}
+                </div>
               </div>
-              <div className={styles.outputCard}>
-                <div className={styles.outputLabel}>Convergence</div>
-                <div className={styles.outputValue}>
+              <div className={styles.outputCard} data-signal="border">
+                <div className={styles.outputLabel} data-typography-role="label">Convergence</div>
+                <div className={styles.outputValue} data-typography-role="detail">
                   {diagnostics?.convergence == null ? "—" : convergenceAchieved ? "Converged" : "Not yet"}
                 </div>
               </div>
-              <div className={styles.outputCard}>
-                <div className={styles.outputLabel}>Materials</div>
-                <div className={styles.outputValue}>{materialCount > 0 ? String(materialCount) : "—"}</div>
+              <div className={styles.outputCard} data-signal="border">
+                <div className={styles.outputLabel} data-typography-role="label">Materials</div>
+                <div className={styles.outputValue} data-typography-role="title">
+                  {materialCount > 0 ? String(materialCount) : "—"}
+                </div>
               </div>
-              <div className={styles.outputCard}>
-                <div className={styles.outputLabel}>Compute Time</div>
-                <div className={styles.outputValue}>
+              <div className={styles.outputCard} data-signal="border">
+                <div className={styles.outputLabel} data-typography-role="label">Compute Time</div>
+                <div className={styles.outputValue} data-typography-role="detail">
                   {computeTime != null ? `${Number(computeTime).toFixed(1)} ms` : "—"}
                 </div>
               </div>
-              <div className={styles.outputCard}>
-                <div className={styles.outputLabel}>Memory Used</div>
-                <div className={styles.outputValue}>
+              <div className={styles.outputCard} data-signal="border">
+                <div className={styles.outputLabel} data-typography-role="label">Memory Used</div>
+                <div className={styles.outputValue} data-typography-role="detail">
                   {memoryUsed != null ? `${Number(memoryUsed).toFixed(1)} MB` : "—"}
                 </div>
               </div>
-              <div className={styles.outputCard}>
-                <div className={styles.outputLabel}>Geometry Output</div>
-                <div className={styles.outputValue}>
+              <div className={styles.outputCard} data-signal="border">
+                <div className={styles.outputLabel} data-typography-role="label">Geometry Output</div>
+                <div className={styles.outputValue} data-typography-role="detail">
                   {typeof outputs.geometry === "string" ? outputs.geometry : "—"}
                 </div>
               </div>
             </div>
             {diagnostics?.warnings && Array.isArray(diagnostics.warnings) && diagnostics.warnings.length > 0 ? (
               <div className={styles.section}>
-                <h3 className={styles.sectionTitle}>Warnings</h3>
+                <SectionTitle>Warnings</SectionTitle>
                 <div className={styles.warningsList}>
                   {(diagnostics.warnings as string[]).map((warning, idx) => (
-                    <div key={idx} className={styles.warningItem}>{String(warning)}</div>
+                    <div
+                      key={idx}
+                      className={styles.warningItem}
+                      data-signal="border"
+                      data-typography-role="detail"
+                    >
+                      {String(warning)}
+                    </div>
                   ))}
                 </div>
               </div>
             ) : null}
             {(hasValidation || hasAnalysis || hasSemantics || hasMaterials) && (
               <div className={styles.section}>
-                <h3 className={styles.sectionTitle}>PhD Diagnostics</h3>
+                <SectionTitle>PhD Diagnostics</SectionTitle>
                 <div className={styles.diagnosticsStack}>
                   {hasValidation && (
                     <details className={styles.diagnosticGroup} open>
-                      <summary className={styles.diagnosticSummary}>Validation & Conservation</summary>
+                      <summary className={styles.diagnosticSummary} data-typography-role="label">
+                        Validation & Conservation
+                      </summary>
                       <div className={styles.diagnosticBody}>
                         <div className={styles.metricGrid}>
-                          <div className={styles.metricCard}>
-                            <div className={styles.metricLabel}>Mass (kg)</div>
-                            <div className={styles.metricValue}>
-                              {formatWithUnit((conservation as any)?.mass?.final, "kg")}
-                            </div>
+                          <div className={styles.metricCard} data-signal="border">
+                            <MetricLabel>Mass (kg)</MetricLabel>
+                            <MetricValue>{formatWithUnit((conservation as any)?.mass?.final, "kg")}</MetricValue>
                             <div className={styles.metricDetail}>
-                              <span className={styles.metricDetailLabel}>Initial</span>
-                              <span className={styles.metricDetailValue}>
+                              <MetricDetailLabel>Initial</MetricDetailLabel>
+                              <MetricDetailValue>
                                 {formatWithUnit((conservation as any)?.mass?.initial, "kg")}
-                              </span>
+                              </MetricDetailValue>
                             </div>
                             <div className={styles.metricDetail}>
-                              <span className={styles.metricDetailLabel}>Δ Mass</span>
-                              <span className={styles.metricDetailValue}>
-                                {formatWithUnit((conservation as any)?.mass?.error, "kg")} ·{" "}
+                              <MetricDetailLabel>Δ Mass</MetricDetailLabel>
+                              <MetricDetailValue>
+                                {formatWithUnit((conservation as any)?.mass?.error, "kg")} · {" "}
                                 {formatPercent((conservation as any)?.mass?.relativeError)}
-                              </span>
+                              </MetricDetailValue>
                             </div>
                             <div
                               className={`${styles.metricStatus} ${
                                 (conservation as any)?.mass?.conserved ? styles.metricStatusGood : styles.metricStatusWarn
                               }`}
+                              data-signal="shadow"
                             >
                               {(conservation as any)?.mass?.conserved ? "Conserved" : "Drift"}
                             </div>
                           </div>
-                          <div className={styles.metricCard}>
-                            <div className={styles.metricLabel}>Momentum (kg·m/s)</div>
-                            <div className={styles.metricValue}>
-                              {formatVec3((conservation as any)?.momentum?.final)}
-                            </div>
+                          <div className={styles.metricCard} data-signal="border">
+                            <MetricLabel>Momentum (kg·m/s)</MetricLabel>
+                            <MetricValue>{formatVec3((conservation as any)?.momentum?.final)}</MetricValue>
                             <div className={styles.metricDetail}>
-                              <span className={styles.metricDetailLabel}>Initial</span>
-                              <span className={styles.metricDetailValue}>
+                              <MetricDetailLabel>Initial</MetricDetailLabel>
+                              <MetricDetailValue>
                                 {formatVec3((conservation as any)?.momentum?.initial)}
-                              </span>
+                              </MetricDetailValue>
                             </div>
                             <div className={styles.metricDetail}>
-                              <span className={styles.metricDetailLabel}>Δ Momentum</span>
-                              <span className={styles.metricDetailValue}>
-                                {formatVec3((conservation as any)?.momentum?.error)} ·{" "}
+                              <MetricDetailLabel>Δ Momentum</MetricDetailLabel>
+                              <MetricDetailValue>
+                                {formatVec3((conservation as any)?.momentum?.error)} · {" "}
                                 {formatPercent((conservation as any)?.momentum?.relativeError)}
-                              </span>
+                              </MetricDetailValue>
                             </div>
                             <div
                               className={`${styles.metricStatus} ${
                                 (conservation as any)?.momentum?.conserved ? styles.metricStatusGood : styles.metricStatusWarn
                               }`}
+                              data-signal="shadow"
                             >
                               {(conservation as any)?.momentum?.conserved ? "Conserved" : "Drift"}
                             </div>
                           </div>
-                          <div className={styles.metricCard}>
-                            <div className={styles.metricLabel}>Energy (J)</div>
-                            <div className={styles.metricValue}>
-                              {formatWithUnit((conservation as any)?.energy?.final, "J")}
-                            </div>
+                          <div className={styles.metricCard} data-signal="border">
+                            <MetricLabel>Energy (J)</MetricLabel>
+                            <MetricValue>{formatWithUnit((conservation as any)?.energy?.final, "J")}</MetricValue>
                             <div className={styles.metricDetail}>
-                              <span className={styles.metricDetailLabel}>Initial</span>
-                              <span className={styles.metricDetailValue}>
+                              <MetricDetailLabel>Initial</MetricDetailLabel>
+                              <MetricDetailValue>
                                 {formatWithUnit((conservation as any)?.energy?.initial, "J")}
-                              </span>
+                              </MetricDetailValue>
                             </div>
                             <div className={styles.metricDetail}>
-                              <span className={styles.metricDetailLabel}>Δ Energy</span>
-                              <span className={styles.metricDetailValue}>
-                                {formatWithUnit((conservation as any)?.energy?.error, "J")} ·{" "}
+                              <MetricDetailLabel>Δ Energy</MetricDetailLabel>
+                              <MetricDetailValue>
+                                {formatWithUnit((conservation as any)?.energy?.error, "J")} · {" "}
                                 {formatPercent((conservation as any)?.energy?.relativeError)}
-                              </span>
+                              </MetricDetailValue>
                             </div>
                             <div
                               className={`${styles.metricStatus} ${
                                 (conservation as any)?.energy?.conserved ? styles.metricStatusGood : styles.metricStatusWarn
                               }`}
+                              data-signal="shadow"
                             >
                               {(conservation as any)?.energy?.conserved ? "Conserved" : "Drift"}
                             </div>
@@ -512,33 +562,26 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
                         <div className={styles.subSection}>
                           <div className={styles.subTitle}>Numerical Stability</div>
                           <div className={styles.metricGrid}>
-                          <div className={styles.metricCard}>
-                            <div className={styles.metricLabel}>Max Velocity (m/s)</div>
-                            <div className={styles.metricValue}>
-                              {formatNumber((stability as any)?.maxVelocity)}
+                            <div className={styles.metricCard} data-signal="border">
+                              <MetricLabel>Max Velocity (m/s)</MetricLabel>
+                              <MetricValue>{formatNumber((stability as any)?.maxVelocity)}</MetricValue>
                             </div>
-                          </div>
-                          <div className={styles.metricCard}>
-                            <div className={styles.metricLabel}>Max Acceleration (m/s²)</div>
-                            <div className={styles.metricValue}>
-                              {formatNumber((stability as any)?.maxAcceleration)}
+                            <div className={styles.metricCard} data-signal="border">
+                              <MetricLabel>Max Acceleration (m/s²)</MetricLabel>
+                              <MetricValue>{formatNumber((stability as any)?.maxAcceleration)}</MetricValue>
                             </div>
-                          </div>
-                          <div className={styles.metricCard}>
-                            <div className={styles.metricLabel}>Max Density Δ</div>
-                            <div className={styles.metricValue}>
-                              {formatNumber((stability as any)?.maxDensityChange)}
+                            <div className={styles.metricCard} data-signal="border">
+                              <MetricLabel>Max Density Δ</MetricLabel>
+                              <MetricValue>{formatNumber((stability as any)?.maxDensityChange)}</MetricValue>
                             </div>
-                          </div>
-                          <div className={styles.metricCard}>
-                            <div className={styles.metricLabel}>CFL Number</div>
-                              <div className={styles.metricValue}>
-                                {formatNumber((stability as any)?.cflNumber, 4)}
-                              </div>
+                            <div className={styles.metricCard} data-signal="border">
+                              <MetricLabel>CFL Number</MetricLabel>
+                              <MetricValue>{formatNumber((stability as any)?.cflNumber, 4)}</MetricValue>
                               <div
                                 className={`${styles.metricStatus} ${
                                   (stability as any)?.stable ? styles.metricStatusGood : styles.metricStatusWarn
                                 }`}
+                                data-signal="shadow"
                               >
                                 {(stability as any)?.stable ? "Stable" : "Unstable"}
                               </div>
@@ -550,48 +593,50 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
                   )}
                   {hasAnalysis && (
                     <details className={styles.diagnosticGroup}>
-                      <summary className={styles.diagnosticSummary}>Analysis & Convergence</summary>
+                      <summary className={styles.diagnosticSummary} data-typography-role="label">
+                        Analysis & Convergence
+                      </summary>
                       <div className={styles.diagnosticBody}>
                         <div className={styles.metricGrid}>
-                          <div className={styles.metricCard}>
-                            <div className={styles.metricLabel}>Converged</div>
-                            <div className={styles.metricValue}>
+                          <div className={styles.metricCard} data-signal="border">
+                            <MetricLabel>Converged</MetricLabel>
+                            <MetricValue>
                               {(convergenceAnalysis as any)?.converged ? "Yes" : "No"}
-                            </div>
+                            </MetricValue>
                           </div>
-                          <div className={styles.metricCard}>
-                            <div className={styles.metricLabel}>Final Residual</div>
-                            <div className={styles.metricValue}>
+                          <div className={styles.metricCard} data-signal="border">
+                            <MetricLabel>Final Residual</MetricLabel>
+                            <MetricValue>
                               {formatNumber((convergenceAnalysis as any)?.finalResidual, 6)}
-                            </div>
+                            </MetricValue>
                           </div>
-                          <div className={styles.metricCard}>
-                            <div className={styles.metricLabel}>Convergence Rate</div>
-                            <div className={styles.metricValue}>
+                          <div className={styles.metricCard} data-signal="border">
+                            <MetricLabel>Convergence Rate</MetricLabel>
+                            <MetricValue>
                               {formatNumber((convergenceAnalysis as any)?.convergenceRate, 4)}
-                            </div>
+                            </MetricValue>
                           </div>
-                          <div className={styles.metricCard}>
-                            <div className={styles.metricLabel}>Iterations to Converge</div>
-                            <div className={styles.metricValue}>
+                          <div className={styles.metricCard} data-signal="border">
+                            <MetricLabel>Iterations to Converge</MetricLabel>
+                            <MetricValue>
                               {formatNumber((convergenceAnalysis as any)?.iterationsToConvergence, 0)}
-                            </div>
+                            </MetricValue>
                           </div>
-                          <div className={styles.metricCard}>
-                            <div className={styles.metricLabel}>Residual Samples</div>
-                            <div className={styles.metricValue}>
+                          <div className={styles.metricCard} data-signal="border">
+                            <MetricLabel>Residual Samples</MetricLabel>
+                            <MetricValue>
                               {Array.isArray((convergenceAnalysis as any)?.residualHistory)
                                 ? (convergenceAnalysis as any).residualHistory.length
                                 : "—"}
-                            </div>
+                            </MetricValue>
                           </div>
-                          <div className={styles.metricCard}>
-                            <div className={styles.metricLabel}>Energy Samples</div>
-                            <div className={styles.metricValue}>
+                          <div className={styles.metricCard} data-signal="border">
+                            <MetricLabel>Energy Samples</MetricLabel>
+                            <MetricValue>
                               {Array.isArray((convergenceAnalysis as any)?.energyHistory)
                                 ? (convergenceAnalysis as any).energyHistory.length
                                 : "—"}
-                            </div>
+                            </MetricValue>
                           </div>
                         </div>
                         {materialDistributions.length > 0 && (
@@ -729,7 +774,9 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
                   )}
                   {hasMaterials && (
                     <details className={styles.diagnosticGroup}>
-                      <summary className={styles.diagnosticSummary}>Materials</summary>
+                      <summary className={styles.diagnosticSummary} data-typography-role="label">
+                        Materials
+                      </summary>
                       <div className={styles.diagnosticBody}>
                         <div className={styles.materialList}>
                           {materials.map((material) => (
@@ -759,7 +806,9 @@ export const ChemistrySimulatorDashboard: React.FC<ChemistrySimulatorDashboardPr
                   )}
                   {hasSemantics && (
                     <details className={styles.diagnosticGroup}>
-                      <summary className={styles.diagnosticSummary}>Semantic Metadata</summary>
+                      <summary className={styles.diagnosticSummary} data-typography-role="label">
+                        Semantic Metadata
+                      </summary>
                       <div className={styles.diagnosticBody}>
                         <div className={styles.semanticGrid}>
                           {Object.entries(semanticsOutputs)

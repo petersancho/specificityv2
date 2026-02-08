@@ -30,6 +30,12 @@ type PhysicsSimulatorDashboardProps = {
   onClose: () => void;
 };
 
+const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <h3 className={styles.sectionTitle} data-typography-role="heading">
+    {children}
+  </h3>
+);
+
 export const PhysicsSimulatorDashboard: React.FC<PhysicsSimulatorDashboardProps> = ({
   nodeId,
   onClose,
@@ -95,9 +101,15 @@ export const PhysicsSimulatorDashboard: React.FC<PhysicsSimulatorDashboardProps>
         <div className={styles.headerBar} />
         <div className={styles.headerContent}>
           <div className={styles.title}>
-            <span className={styles.titleGreek}>Ἐπιλύτης Φυσικῆς</span>
-            <span className={styles.titleEnglish}>Physics Solver</span>
-            <span className={styles.titleSubtext}>Pythagoras · Stress Analysis</span>
+            <span className={styles.titleGreek} data-typography-role="title">
+              Ἐπιλύτης Φυσικῆς
+            </span>
+            <span className={styles.titleEnglish} data-typography-role="detail">
+              Physics Solver
+            </span>
+            <span className={styles.titleSubtext} data-typography-role="detail">
+              Pythagoras · Stress Analysis
+            </span>
           </div>
           <div className={styles.headerControls}>
             <label className={styles.scaleControl}>
@@ -143,7 +155,7 @@ export const PhysicsSimulatorDashboard: React.FC<PhysicsSimulatorDashboardProps>
         {activeTab === "setup" && (
           <div className={styles.setupTab}>
             <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>Analysis Type</h3>
+              <SectionTitle>Analysis Type</SectionTitle>
               <div className={styles.analysisTypeGrid}>
                 {(["static", "dynamic", "modal"] as AnalysisType[]).map((type) => (
                   <button
@@ -154,10 +166,10 @@ export const PhysicsSimulatorDashboard: React.FC<PhysicsSimulatorDashboardProps>
                     <div className={styles.analysisTypeIcon}>
                       {type === "static" ? "⚖" : type === "dynamic" ? "⚡" : "〰"}
                     </div>
-                    <div className={styles.analysisTypeName}>
+                    <div className={styles.analysisTypeName} data-typography-role="label">
                       {type.charAt(0).toUpperCase() + type.slice(1)}
                     </div>
-                    <div className={styles.analysisTypeDesc}>
+                    <div className={styles.analysisTypeDesc} data-typography-role="detail">
                       {type === "static" ? "Equilibrium analysis" : type === "dynamic" ? "Time-dependent" : "Vibration modes"}
                     </div>
                   </button>
@@ -166,9 +178,9 @@ export const PhysicsSimulatorDashboard: React.FC<PhysicsSimulatorDashboardProps>
             </div>
 
             <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>Solver Parameters</h3>
+              <SectionTitle>Solver Parameters</SectionTitle>
               <div className={styles.materialPropsGrid}>
-                <label>
+                <label data-typography-role="label">
                   Max Iterations
                   <input
                     type="number"
@@ -178,7 +190,7 @@ export const PhysicsSimulatorDashboard: React.FC<PhysicsSimulatorDashboardProps>
                     max={100000}
                   />
                 </label>
-                <label>
+                <label data-typography-role="label">
                   Convergence Tolerance
                   <input
                     type="number"
@@ -187,7 +199,7 @@ export const PhysicsSimulatorDashboard: React.FC<PhysicsSimulatorDashboardProps>
                     step="1e-7"
                   />
                 </label>
-                <label>
+                <label data-typography-role="label">
                   Time Step
                   <input
                     type="number"
@@ -197,7 +209,7 @@ export const PhysicsSimulatorDashboard: React.FC<PhysicsSimulatorDashboardProps>
                     disabled={analysisType !== "dynamic"}
                   />
                 </label>
-                <label>
+                <label data-typography-role="label">
                   Animation Frames
                   <input
                     type="number"
@@ -208,7 +220,7 @@ export const PhysicsSimulatorDashboard: React.FC<PhysicsSimulatorDashboardProps>
                     disabled={analysisType === "static"}
                   />
                 </label>
-                <label>
+                <label data-typography-role="label">
                   Use GPU
                   <input
                     type="checkbox"
@@ -216,7 +228,7 @@ export const PhysicsSimulatorDashboard: React.FC<PhysicsSimulatorDashboardProps>
                     onChange={(e) => handleParameterChange("useGPU", e.target.checked)}
                   />
                 </label>
-                <label>
+                <label data-typography-role="label">
                   Chunk Size
                   <input
                     type="number"
@@ -230,14 +242,14 @@ export const PhysicsSimulatorDashboard: React.FC<PhysicsSimulatorDashboardProps>
             </div>
 
             <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>Connected Inputs</h3>
+              <SectionTitle>Connected Inputs</SectionTitle>
               <div className={styles.summaryGrid}>
-                <div className={styles.summaryCard}>
-                  <div className={styles.summaryLabel}>Base Mesh</div>
+                <div className={styles.summaryCard} data-signal="border">
+                  <div className={styles.summaryLabel} data-typography-role="label">Base Mesh</div>
                   <div className={styles.summaryValue}>{hasBaseMesh ? "Connected" : "Missing"}</div>
                 </div>
-                <div className={styles.summaryCard}>
-                  <div className={styles.summaryLabel}>Goals</div>
+                <div className={styles.summaryCard} data-signal="border">
+                  <div className={styles.summaryLabel} data-typography-role="label">Goals</div>
                   <div className={styles.summaryValue}>{goalsCount}</div>
                 </div>
               </div>
@@ -248,7 +260,7 @@ export const PhysicsSimulatorDashboard: React.FC<PhysicsSimulatorDashboardProps>
         {activeTab === "simulator" && (
           <div className={styles.simulatorTab}>
             <div className={styles.controlPanel}>
-              <button className={styles.controlButton} onClick={handleRun}>
+              <button className={styles.controlButton} data-signal="shadow" onClick={handleRun}>
                 Run Solver
               </button>
             </div>
@@ -256,22 +268,22 @@ export const PhysicsSimulatorDashboard: React.FC<PhysicsSimulatorDashboardProps>
               <div className={styles.warningBanner}>Error: {evaluationError}</div>
             )}
             <div className={styles.statusGrid}>
-              <div className={styles.statusCard}>
-                <div className={styles.statusLabel}>Status</div>
+              <div className={styles.statusCard} data-signal="border">
+                <div className={styles.statusLabel} data-typography-role="label">Status</div>
                 <div className={styles.statusValue}>{String(diagnostics?.status ?? "idle")}</div>
               </div>
-              <div className={styles.statusCard}>
-                <div className={styles.statusLabel}>Iterations</div>
+              <div className={styles.statusCard} data-signal="border">
+                <div className={styles.statusLabel} data-typography-role="label">Iterations</div>
                 <div className={styles.statusValue}>{String(diagnostics?.iterations ?? "—")}</div>
               </div>
-              <div className={styles.statusCard}>
-                <div className={styles.statusLabel}>Compute Time</div>
+              <div className={styles.statusCard} data-signal="border">
+                <div className={styles.statusLabel} data-typography-role="label">Compute Time</div>
                 <div className={styles.statusValue}>
                   {diagnostics?.computeTime != null ? `${Number(diagnostics.computeTime).toFixed(1)} ms` : "—"}
                 </div>
               </div>
-              <div className={styles.statusCard}>
-                <div className={styles.statusLabel}>Memory</div>
+              <div className={styles.statusCard} data-signal="border">
+                <div className={styles.statusLabel} data-typography-role="label">Memory</div>
                 <div className={styles.statusValue}>
                   {diagnostics?.memoryUsed != null ? `${Number(diagnostics.memoryUsed).toFixed(1)} MB` : "—"}
                 </div>
@@ -286,16 +298,16 @@ export const PhysicsSimulatorDashboard: React.FC<PhysicsSimulatorDashboardProps>
               <div className={styles.warningBanner}>Error: {evaluationError}</div>
             )}
             <div className={styles.outputGrid}>
-              <div className={styles.outputCard}>
-                <div className={styles.outputLabel}>Max Stress</div>
+              <div className={styles.outputCard} data-signal="border">
+                <div className={styles.outputLabel} data-typography-role="label">Max Stress</div>
                 <div className={styles.outputValue}>{maxStress > 0 ? maxStress.toFixed(2) : "—"}</div>
               </div>
-              <div className={styles.outputCard}>
-                <div className={styles.outputLabel}>Displacements</div>
+              <div className={styles.outputCard} data-signal="border">
+                <div className={styles.outputLabel} data-typography-role="label">Displacements</div>
                 <div className={styles.outputValue}>{displacementCount}</div>
               </div>
-              <div className={styles.outputCard}>
-                <div className={styles.outputLabel}>Geometry Output</div>
+              <div className={styles.outputCard} data-signal="border">
+                <div className={styles.outputLabel} data-typography-role="label">Geometry Output</div>
                 <div className={styles.outputValue}>
                   {typeof outputs.geometry === "string" ? outputs.geometry : "—"}
                 </div>

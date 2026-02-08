@@ -5,42 +5,41 @@
 
 /* Solver-specific CSS custom properties */
 .dashboard {
-  --solver-accent: var(--bk-gray-800);
-  --solver-accent-secondary: var(--bk-gray-600);
-  --solver-accent-tertiary: var(--bk-gray-700);
-  --solver-accent-soft: var(--bk-gray-200);
+  --solver-accent: var(--ui-grey-800);
+  --solver-accent-secondary: var(--ui-grey-600);
+  --solver-accent-tertiary: var(--ui-grey-400);
+  --solver-accent-soft: color-mix(in srgb, var(--ui-grey-200) 80%, transparent);
 }
 
 /* Physics-specific: Analysis Type Grid */
 .analysisTypeGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
+  gap: var(--ui-spacing-md);
 }
 
 .analysisTypeButton {
-  border: 2px solid #e0e0e0;
-  background: var(--surface-card);
-  border-radius: 8px;
-  padding: 1.5rem;
+  border: var(--ui-stroke-thin) solid color-mix(in srgb, var(--ui-black) 12%, transparent);
+  background: var(--ui-surface-primary);
+  border-radius: var(--ui-radius-tight);
+  padding: var(--ui-spacing-lg);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: transform var(--ui-press-duration) var(--ui-press-ease);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--ui-spacing-xs);
+  box-shadow: var(--ui-shadow-hard);
 }
 
 .analysisTypeButton:hover {
   border-color: var(--solver-accent);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--solver-accent) 15%, transparent);
-  transform: translateY(-2px);
+  transform: translateY(-1px);
 }
 
 .analysisTypeButtonActive {
   border-color: var(--solver-accent);
-  background: var(--solver-accent-soft);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--solver-accent) 20%, transparent);
+  background: color-mix(in srgb, var(--solver-accent) 6%, transparent);
 }
 
 .analysisTypeIcon {
@@ -50,11 +49,11 @@
 
 .analysisTypeName {
   font-weight: 600;
-  color: #333;
+  color: var(--ui-black);
   font-size: 1rem;
 }
 
 .analysisTypeDesc {
   font-size: 0.85rem;
-  color: #666;
+  color: color-mix(in srgb, var(--ui-black) 55%, transparent);
 }

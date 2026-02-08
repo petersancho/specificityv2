@@ -1,13 +1,19 @@
-import React, { useState, useMemo } from 'react';
-import styles from './VoxelSimulatorDashboard.module.css';
-import { useProjectStore } from '../../../store/useProjectStore';
+import React, { useState, useMemo } from "react";
+import styles from "./VoxelSimulatorDashboard.module.css";
+import { useProjectStore } from "../../../store/useProjectStore";
 
 interface VoxelSimulatorDashboardProps {
   nodeId: string;
   onClose: () => void;
 }
 
-type TabId = 'setup' | 'simulator' | 'output';
+type TabId = "setup" | "simulator" | "output";
+
+const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <h3 className={styles.sectionTitle} data-typography-role="heading">
+    {children}
+  </h3>
+);
 
 const toNumber = (value: unknown, fallback: number) => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -22,7 +28,7 @@ export const VoxelSimulatorDashboard: React.FC<VoxelSimulatorDashboardProps> = (
   nodeId,
   onClose,
 }) => {
-  const [activeTab, setActiveTab] = useState<TabId>('setup');
+  const [activeTab, setActiveTab] = useState<TabId>("setup");
   const [scale, setScale] = useState(100);
 
   const { nodes, edges, updateNodeData, recalculateWorkflow } = useProjectStore(
@@ -70,11 +76,13 @@ export const VoxelSimulatorDashboard: React.FC<VoxelSimulatorDashboardProps> = (
         <div className={styles.headerContent}>
           <div className={styles.headerTitle}>
             <span className={styles.headerIcon}>🧊</span>
-            <h2>Voxel Solver</h2>
-            <span className={styles.headerSubtitle}>Ἐπιλύτης Φογκελ (Archimedes)</span>
+            <h2 data-typography-role="title">Voxel Solver</h2>
+            <span className={styles.headerSubtitle} data-typography-role="detail">
+              Ἐπιλύτης Φογκελ (Archimedes)
+            </span>
           </div>
           <div className={styles.headerActions}>
-            <label className={styles.scaleControl}>
+            <label className={styles.scaleControl} data-typography-role="label">
               <span>Scale:</span>
               <input
                 type="range"
@@ -83,9 +91,11 @@ export const VoxelSimulatorDashboard: React.FC<VoxelSimulatorDashboardProps> = (
                 value={scale}
                 onChange={(e) => setScale(Number(e.target.value))}
               />
-              <span>{scale}%</span>
+              <span data-typography-role="detail">{scale}%</span>
             </label>
-            <button onClick={onClose} className={styles.closeButton}>×</button>
+            <button onClick={onClose} className={styles.closeButton} data-signal="shadow">
+              ×
+            </button>
           </div>
         </div>
         <div className={styles.headerBar} />
@@ -93,45 +103,50 @@ export const VoxelSimulatorDashboard: React.FC<VoxelSimulatorDashboardProps> = (
 
       <div className={styles.tabs}>
         <button
-          className={`${styles.tab} ${activeTab === 'setup' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('setup')}
+          className={`${styles.tab} ${activeTab === "setup" ? styles.tabActive : ""}`}
+          onClick={() => setActiveTab("setup")}
+          data-typography-role="label"
         >
           Setup
         </button>
         <button
-          className={`${styles.tab} ${activeTab === 'simulator' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('simulator')}
+          className={`${styles.tab} ${activeTab === "simulator" ? styles.tabActive : ""}`}
+          onClick={() => setActiveTab("simulator")}
+          data-typography-role="label"
         >
           Simulator
         </button>
         <button
-          className={`${styles.tab} ${activeTab === 'output' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('output')}
+          className={`${styles.tab} ${activeTab === "output" ? styles.tabActive : ""}`}
+          onClick={() => setActiveTab("output")}
+          data-typography-role="label"
         >
           Output
         </button>
       </div>
 
       <div className={styles.content}>
-        {activeTab === 'setup' && (
+        {activeTab === "setup" && (
           <div className={styles.setupTab}>
             <div className={styles.section}>
-              <h3>Voxelization Parameters</h3>
+              <SectionTitle>Voxelization Parameters</SectionTitle>
               <div className={styles.parameterGrid}>
                 <div className={styles.parameter}>
-                  <label>
+                  <label data-typography-role="label">
                     <span>Resolution</span>
-                    <span className={styles.parameterValue}>{resolution}</span>
+                    <span className={styles.parameterValue} data-typography-role="title">
+                      {resolution}
+                    </span>
                   </label>
                   <input
                     type="range"
                     min="4"
                     max="128"
                     value={resolution}
-                    onChange={(e) => handleParameterChange('resolution', Number(e.target.value))}
+                    onChange={(e) => handleParameterChange("resolution", Number(e.target.value))}
                     className={styles.slider}
                   />
-                  <div className={styles.parameterHint}>
+                  <div className={styles.parameterHint} data-typography-role="detail">
                     Number of voxels along longest axis (4-128)
                   </div>
                 </div>
@@ -139,21 +154,23 @@ export const VoxelSimulatorDashboard: React.FC<VoxelSimulatorDashboardProps> = (
             </div>
 
             <div className={styles.section}>
-              <h3>Connected Inputs</h3>
+              <SectionTitle>Connected Inputs</SectionTitle>
               <div className={styles.summaryGrid}>
-                <div className={styles.summaryCard}>
-                  <div className={styles.summaryLabel}>Geometry</div>
-                  <div className={styles.summaryValue}>{hasGeometry ? "Connected" : "Missing"}</div>
+                <div className={styles.summaryCard} data-signal="border">
+                  <div className={styles.summaryLabel} data-typography-role="label">Geometry</div>
+                  <div className={styles.summaryValue} data-typography-role="detail">
+                    {hasGeometry ? "Connected" : "Missing"}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {activeTab === 'simulator' && (
+        {activeTab === "simulator" && (
           <div className={styles.simulatorTab}>
             <div className={styles.controlPanel}>
-              <button className={styles.controlButton} onClick={handleRun}>
+              <button className={styles.controlButton} data-signal="shadow" onClick={handleRun}>
                 Run Voxelization
               </button>
             </div>
@@ -161,49 +178,53 @@ export const VoxelSimulatorDashboard: React.FC<VoxelSimulatorDashboardProps> = (
               <div className={styles.warningBanner}>Error: {evaluationError}</div>
             )}
             <div className={styles.statusGrid}>
-              <div className={styles.statusCard}>
-                <div className={styles.statusLabel}>Status</div>
-                <div className={styles.statusValue}>
+              <div className={styles.statusCard} data-signal="border">
+                <div className={styles.statusLabel} data-typography-role="label">Status</div>
+                <div className={styles.statusValue} data-typography-role="title">
                   {cellCount > 0 ? "Complete" : "Idle"}
                 </div>
               </div>
-              <div className={styles.statusCard}>
-                <div className={styles.statusLabel}>Resolution</div>
-                <div className={styles.statusValue}>{resolution}</div>
+              <div className={styles.statusCard} data-signal="border">
+                <div className={styles.statusLabel} data-typography-role="label">Resolution</div>
+                <div className={styles.statusValue} data-typography-role="title">{resolution}</div>
               </div>
             </div>
           </div>
         )}
 
-        {activeTab === 'output' && (
+        {activeTab === "output" && (
           <div className={styles.outputTab}>
             {evaluationError && (
               <div className={styles.warningBanner}>Error: {evaluationError}</div>
             )}
             <div className={styles.outputGrid}>
-              <div className={styles.outputCard}>
-                <div className={styles.outputLabel}>Cell Count</div>
-                <div className={styles.outputValue}>{cellCount > 0 ? cellCount : "—"}</div>
+              <div className={styles.outputCard} data-signal="border">
+                <div className={styles.outputLabel} data-typography-role="label">Cell Count</div>
+                <div className={styles.outputValue} data-typography-role="title">
+                  {cellCount > 0 ? cellCount : "—"}
+                </div>
               </div>
-              <div className={styles.outputCard}>
-                <div className={styles.outputLabel}>Filled Count</div>
-                <div className={styles.outputValue}>{filledCount > 0 ? filledCount : "—"}</div>
+              <div className={styles.outputCard} data-signal="border">
+                <div className={styles.outputLabel} data-typography-role="label">Filled Count</div>
+                <div className={styles.outputValue} data-typography-role="title">
+                  {filledCount > 0 ? filledCount : "—"}
+                </div>
               </div>
-              <div className={styles.outputCard}>
-                <div className={styles.outputLabel}>Fill Ratio</div>
-                <div className={styles.outputValue}>
+              <div className={styles.outputCard} data-signal="border">
+                <div className={styles.outputLabel} data-typography-role="label">Fill Ratio</div>
+                <div className={styles.outputValue} data-typography-role="detail">
                   {fillRatio > 0 ? `${(fillRatio * 100).toFixed(1)}%` : "—"}
                 </div>
               </div>
-              <div className={styles.outputCard}>
-                <div className={styles.outputLabel}>Voxel Grid Resolution</div>
-                <div className={styles.outputValue}>
+              <div className={styles.outputCard} data-signal="border">
+                <div className={styles.outputLabel} data-typography-role="label">Voxel Grid Resolution</div>
+                <div className={styles.outputValue} data-typography-role="detail">
                   {voxelGridResolution != null ? String(voxelGridResolution) : "—"}
                 </div>
               </div>
-              <div className={styles.outputCard}>
-                <div className={styles.outputLabel}>Geometry Output</div>
-                <div className={styles.outputValue}>
+              <div className={styles.outputCard} data-signal="border">
+                <div className={styles.outputLabel} data-typography-role="label">Geometry Output</div>
+                <div className={styles.outputValue} data-typography-role="detail">
                   {typeof outputs.geometry === "string" ? outputs.geometry : "—"}
                 </div>
               </div>

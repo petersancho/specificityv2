@@ -5,38 +5,37 @@
 
 /* Solver-specific CSS custom properties */
 .dashboard {
-  --solver-accent: var(--bk-gray-700);
-  --solver-accent-secondary: var(--bk-gray-600);
-  --solver-accent-tertiary: var(--bk-gray-800);
-  --solver-accent-soft: var(--bk-gray-200);
+  --solver-accent: var(--ui-grey-800);
+  --solver-accent-secondary: var(--ui-grey-600);
+  --solver-accent-tertiary: var(--ui-grey-400);
+  --solver-accent-soft: color-mix(in srgb, var(--ui-grey-200) 80%, transparent);
 }
 
 /* Chemistry-specific: Material Selection Grid */
 .materialGrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 1rem;
+  gap: var(--ui-spacing-md);
 }
 
 .materialCard {
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 1rem;
+  border: var(--ui-stroke-thin) solid color-mix(in srgb, var(--ui-black) 12%, transparent);
+  border-radius: var(--ui-radius-tight);
+  padding: var(--ui-spacing-md);
   cursor: pointer;
-  transition: all 0.2s;
-  background: var(--surface-card);
+  transition: transform var(--ui-press-duration) var(--ui-press-ease);
+  background: var(--ui-surface-primary);
+  box-shadow: var(--ui-shadow-hard);
 }
 
 .materialCard:hover {
   border-color: var(--solver-accent);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--solver-accent) 15%, transparent);
-  transform: translateY(-2px);
+  transform: translateY(-1px);
 }
 
 .materialCardSelected {
   border-color: var(--solver-accent);
-  background: var(--solver-accent-soft);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--solver-accent) 20%, transparent);
+  background: color-mix(in srgb, var(--solver-accent) 6%, transparent);
 }
 
 .materialColor {
@@ -49,37 +48,37 @@
 
 .materialName {
   font-weight: 600;
-  color: #333;
-  margin-bottom: 0.5rem;
+  color: var(--ui-black);
+  margin-bottom: var(--ui-spacing-xs);
   font-size: 1rem;
 }
 
 .materialProps {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.75rem;
-  color: #666;
+  gap: var(--ui-spacing-xs);
+  font-size: 0.8rem;
+  color: color-mix(in srgb, var(--ui-black) 55%, transparent);
 }
 
 /* Chemistry-specific: Goal Buttons */
 .goalButtons {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  gap: var(--ui-spacing-sm);
+  margin-bottom: var(--ui-spacing-md);
 }
 
 .goalButton {
-  padding: 0.5rem 1rem;
+  padding: var(--ui-spacing-sm) var(--ui-spacing-lg);
   border: 2px dashed var(--solver-accent);
   background: color-mix(in srgb, var(--solver-accent) 5%, transparent);
-  border-radius: 6px;
+  border-radius: var(--ui-radius-tight);
   cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 500;
+  font-size: 0.85rem;
+  font-weight: 600;
   color: var(--solver-accent);
-  transition: all 0.2s;
+  transition: transform var(--ui-press-duration) var(--ui-press-ease);
   flex: 1;
   min-width: 120px;
 }
@@ -99,10 +98,10 @@
 
 .seedCard,
 .goalCard {
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  padding: 1rem;
-  background: #fafafa;
+  border: var(--ui-stroke-thin) solid color-mix(in srgb, var(--ui-black) 12%, transparent);
+  border-radius: var(--ui-radius-tight);
+  padding: var(--ui-spacing-md);
+  background: var(--ui-surface-secondary);
 }
 
 .seedHeader,
@@ -110,9 +109,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.75rem;
+  margin-bottom: var(--ui-spacing-sm);
   font-weight: 600;
-  color: #333;
+  color: var(--ui-black);
 }
 
 .seedControls {
@@ -125,17 +124,19 @@
 .goalCard label {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--ui-spacing-xs);
   font-size: 0.85rem;
-  color: #666;
+  color: color-mix(in srgb, var(--ui-black) 55%, transparent);
 }
 
 .seedControls select,
 .seedControls input[type="number"] {
-  padding: 0.4rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  padding: var(--ui-spacing-xs) var(--ui-spacing-sm);
+  border: var(--ui-border-2);
+  border-radius: var(--ui-radius-tight);
   font-size: 0.9rem;
+  background: var(--ui-surface-primary);
+  color: var(--ui-black);
 }
 
 .seedControls input[type="range"],
@@ -147,22 +148,24 @@
 .paramGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
+  gap: var(--ui-spacing-md);
 }
 
 .paramGrid label {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--ui-spacing-xs);
   font-size: 0.9rem;
-  color: #666;
+  color: color-mix(in srgb, var(--ui-black) 55%, transparent);
 }
 
 .paramGrid input[type="number"] {
-  padding: 0.5rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  padding: var(--ui-spacing-xs) var(--ui-spacing-sm);
+  border: var(--ui-border-2);
+  border-radius: var(--ui-radius-tight);
   font-size: 0.9rem;
+  background: var(--ui-surface-primary);
+  color: var(--ui-black);
 }
 
 .paramGrid input[type="range"] {
@@ -176,24 +179,29 @@
 
 /* Chemistry-specific: Visualization Grid */
 .visualizationGrid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
 }
 
 /* Chemistry-specific: Material Legend */
 .materialLegend {
-  background: var(--surface-card);
-  border-radius: 8px;
-  padding: 1rem;
-  box-shadow: var(--shadow-sticker-pressed);
+  background: var(--ui-surface-primary);
+  border-radius: var(--ui-radius-tight);
+  padding: var(--ui-spacing-md);
+  box-shadow: var(--ui-shadow-hard);
 }
 
 .materialLegend h4 {
-  margin: 0 0 1rem 0;
+  margin: 0 0 var(--ui-spacing-sm) 0;
   font-size: 0.95rem;
   font-weight: 600;
-  color: #333;
+  color: var(--ui-black);
+}
+
+.materialLegend p {
+  font-size: 0.85rem;
+  color: color-mix(in srgb, var(--ui-black) 55%, transparent);
 }
 
 .legendGrid {
@@ -205,16 +213,31 @@
 .legendItem {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--ui-spacing-sm);
   font-size: 0.9rem;
-  color: #333;
+  color: var(--ui-black);
 }
 
 .legendColor {
   width: 24px;
   height: 24px;
-  border-radius: 4px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: var(--ui-radius-tight);
+  border: var(--ui-stroke-thin) solid color-mix(in srgb, var(--ui-black) 12%, transparent);
+}
+
+.materialLegend .materialRow {
+  display: flex;
+  align-items: center;
+  gap: var(--ui-spacing-sm);
+  font-size: 0.9rem;
+  color: var(--ui-black);
+}
+
+.materialLegend .colorSwatch {
+  width: 16px;
+  height: 16px;
+  border-radius: var(--ui-radius-tight);
+  border: var(--ui-stroke-thin) solid color-mix(in srgb, var(--ui-black) 12%, transparent);
 }
 
 /* Chemistry-specific: Concentration Bars */
@@ -229,30 +252,30 @@
   display: flex;
   justify-content: space-between;
   font-size: 0.8rem;
-  color: #666;
+  color: color-mix(in srgb, var(--ui-black) 55%, transparent);
   margin-top: 0.25rem;
 }
 
 /* Chemistry-specific: Reaction Progress */
 .reactionProgress {
-  background: var(--surface-card);
-  border-radius: 8px;
-  padding: 1rem;
-  box-shadow: var(--shadow-sticker-pressed);
+  background: var(--ui-surface-primary);
+  border-radius: var(--ui-radius-tight);
+  padding: var(--ui-spacing-md);
+  box-shadow: var(--ui-shadow-hard);
 }
 
 .progressBar {
   height: 12px;
-  background: var(--surface-page);
-  border-radius: 6px;
+  background: var(--ui-surface-secondary);
+  border-radius: var(--ui-radius-tight);
   overflow: hidden;
-  margin: 0.75rem 0;
+  margin: var(--ui-spacing-sm) 0;
 }
 
 .progressFill {
   height: 100%;
   background: linear-gradient(90deg, var(--solver-accent), var(--solver-accent-secondary));
-  border-radius: 6px;
+  border-radius: var(--ui-radius-tight);
   transition: width 0.5s ease;
 }
 
@@ -260,11 +283,11 @@
 .energyDisplay {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  background: var(--solver-accent-soft);
-  border-radius: 8px;
-  border: 2px solid var(--solver-accent);
+  gap: var(--ui-spacing-md);
+  padding: var(--ui-spacing-md);
+  background: color-mix(in srgb, var(--solver-accent) 6%, transparent);
+  border-radius: var(--ui-radius-tight);
+  border: var(--ui-border-2);
 }
 
 .energyValue {
@@ -275,5 +298,5 @@
 
 .energyUnit {
   font-size: 0.9rem;
-  color: #666;
+  color: color-mix(in srgb, var(--ui-black) 55%, transparent);
 }

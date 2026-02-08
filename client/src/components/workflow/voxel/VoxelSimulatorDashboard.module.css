@@ -5,11 +5,11 @@
 
 /* Solver-specific CSS custom properties */
 .dashboard {
-  --solver-accent: var(--bk-gray-600);
-  --solver-accent-secondary: var(--bk-gray-700);
-  --solver-accent-tertiary: var(--bk-gray-800);
-  --solver-accent-soft: var(--bk-gray-200);
-  
+  --solver-accent: var(--ui-grey-800);
+  --solver-accent-secondary: var(--ui-grey-600);
+  --solver-accent-tertiary: var(--ui-grey-400);
+  --solver-accent-soft: color-mix(in srgb, var(--ui-grey-200) 80%, transparent);
+
   /* Override: centered modal style instead of fullscreen */
   position: fixed;
   top: 50%;
@@ -18,10 +18,11 @@
   width: 90vw;
   max-width: 1400px;
   height: 85vh;
-  border: 2px solid var(--bk-black);
-  border-radius: 16px;
-  box-shadow: var(--shadow-sticker);
+  border: var(--ui-stroke-regular) solid var(--ui-black);
+  border-radius: calc(var(--ui-radius-tight) * 2);
+  box-shadow: var(--ui-shadow-hard);
   animation: voxelFadeIn 0.3s ease-out;
+  background: var(--ui-surface-secondary);
 }
 
 @keyframes voxelFadeIn {
@@ -41,13 +42,13 @@
 }
 
 .headerContent {
-  padding: 1.5rem 2rem;
+  padding: var(--ui-spacing-xl);
 }
 
 .headerTitle {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: var(--ui-spacing-md);
 }
 
 .headerIcon {
@@ -56,62 +57,62 @@
 
 .headerTitle h2 {
   margin: 0;
-  font-size: 1.75rem;
+  font-size: 1.5rem;
   font-weight: 700;
-  color: var(--bk-black);
+  color: var(--ui-black);
 }
 
 .headerSubtitle {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
+  font-size: 0.85rem;
+  color: color-mix(in srgb, var(--ui-black) 55%, transparent);
   font-style: italic;
 }
 
 .headerActions {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
+  gap: var(--ui-spacing-md);
 }
 
 /* Tab overrides for voxel */
 .tabs {
-  border-bottom: 2px solid var(--bk-black);
-  padding: 0 2rem;
+  border-bottom: var(--ui-stroke-regular) solid var(--ui-black);
+  padding: 0 var(--ui-spacing-xl);
 }
 
 .tab {
-  border-bottom: 3px solid transparent;
+  border-bottom: var(--ui-stroke-bold) solid transparent;
 }
 
 .tab:hover {
-  background: color-mix(in srgb, var(--bk-gray-200) 50%, transparent);
+  background: color-mix(in srgb, var(--ui-grey-200) 35%, transparent);
 }
 
 /* Content padding override */
 .content {
-  padding: 2rem;
+  padding: var(--ui-spacing-xl);
 }
 
 /* Voxel-specific parameter controls */
 .parameterGrid {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: var(--ui-spacing-lg);
 }
 
 .parameter {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--ui-spacing-sm);
 }
 
 .parameter label {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.9375rem;
+  font-size: 0.95rem;
   font-weight: 500;
-  color: color-mix(in srgb, var(--bk-black) 70%, transparent);
+  color: color-mix(in srgb, var(--ui-black) 65%, transparent);
 }
 
 .rangeSlider {
@@ -128,17 +129,17 @@
 
 /* Voxel grid visualization */
 .voxelPreview {
-  background: var(--surface-card);
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: var(--shadow-sticker-pressed);
+  background: var(--ui-surface-primary);
+  border-radius: calc(var(--ui-radius-tight) * 2);
+  padding: var(--ui-spacing-xl);
+  box-shadow: var(--ui-shadow-hard);
 }
 
 .voxelCanvas {
   aspect-ratio: 1;
-  background: linear-gradient(135deg, var(--bk-gray-200) 0%, var(--surface-page) 100%);
-  border: 2px solid var(--solver-accent);
-  border-radius: 8px;
+  background: linear-gradient(135deg, var(--ui-grey-200) 0%, var(--ui-paper) 100%);
+  border: var(--ui-border-2);
+  border-radius: calc(var(--ui-radius-tight) * 2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -148,26 +149,26 @@
 .densityControls {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-  margin-top: 1rem;
+  gap: var(--ui-spacing-md);
+  margin-top: var(--ui-spacing-md);
 }
 
 .densitySlider label {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  color: color-mix(in srgb, var(--bk-black) 65%, transparent);
+  gap: var(--ui-spacing-xs);
+  font-size: 0.85rem;
+  color: color-mix(in srgb, var(--ui-black) 55%, transparent);
 }
 
 /* Override section for voxel */
 .section {
-  border-radius: 12px;
+  border-radius: calc(var(--ui-radius-tight) * 2);
 }
 
 .section h3 {
-  margin: 0 0 1rem 0;
+  margin: 0 0 var(--ui-spacing-md) 0;
   font-size: 1.125rem;
   font-weight: 600;
-  color: var(--bk-black);
+  color: var(--ui-black);
 }
