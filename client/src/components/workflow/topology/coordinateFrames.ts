@@ -3,8 +3,10 @@
 // ============================================================================
 
 import type { Vec3, RenderMesh } from "../../../types";
-import type { Bounds3D as Bounds } from "../../../geometry/bounds";
+import type { Bounds3D } from "../../../geometry/bounds";
 import { distance } from "../../../math/vector";
+
+export type Bounds = Bounds3D;
 
 export type CoordinateFrame = 'world' | 'mesh' | 'grid';
 
