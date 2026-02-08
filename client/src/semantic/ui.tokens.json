@@ -1,0 +1,53 @@
+{
+  "fonts": {
+    "primary": "GFS Didot",
+    "secondary": "Montreal Neue"
+  },
+  "palette": {
+    "white": "#FFFFFF",
+    "black": "#000000",
+    "porcelain": "#F6F5F2",
+    "paper": "#FCFBF7",
+    "grey50": "#F7F7F7",
+    "grey100": "#EFEFEF",
+    "grey200": "#DCDCDC",
+    "grey400": "#A0A0A0",
+    "grey600": "#5E5E5E",
+    "grey800": "#2A2A2A",
+    "accentRed": "#BF0D0D",
+    "categories": {
+      "primitives": "#1F1F1F",
+      "curve": "#2B2B2B",
+      "nurbs": "#353535",
+      "brep": "#404040",
+      "math": "#2A2A2A",
+      "analysis": "#3B3B3B",
+      "goal": "#262626",
+      "solver": "#BF0D0D",
+      "voxel": "#1C1C1C",
+      "workflow": "#0F0F0F"
+    }
+  },
+  "strokes": {
+    "thin": "1px",
+    "regular": "2px",
+    "bold": "3px"
+  },
+  "radius": {
+    "tight": "4px",
+    "pill": "999px"
+  },
+  "spacing": {
+    "xs": "4px",
+    "sm": "8px",
+    "md": "12px",
+    "lg": "16px",
+    "xl": "24px"
+  },
+  "shadow": {
+    "signature": "0 3px 0 #000000"
+  },
+  "dpr": {
+    "max": 2
+  }
+}

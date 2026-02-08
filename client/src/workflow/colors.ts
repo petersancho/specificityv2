@@ -20,16 +20,16 @@
 
 import type { WorkflowPortType } from "./registry/types";
 import type { NodeCategoryId } from "./registry/types";
-import { UI_DOMAIN_COLORS } from "../semantic/uiColorTokens";
+import tokens from "../semantic/ui.tokens.json";
 
 /**
  * Semantic color palette - the foundation of all workflow colors
  */
-export const CMYK = {
-  cyan: UI_DOMAIN_COLORS.data,
-  magenta: UI_DOMAIN_COLORS.logic,
-  yellow: UI_DOMAIN_COLORS.numeric,
-  black: UI_DOMAIN_COLORS.structure,
+export const MONO_PALETTE = {
+  numeric: tokens.palette.categories.math ?? tokens.palette.grey600,
+  logic: tokens.palette.categories.goal ?? tokens.palette.grey800,
+  data: tokens.palette.categories.primitives ?? tokens.palette.grey400,
+  structure: tokens.palette.categories.primitives ?? tokens.palette.black,
 } as const;
 
 /**
@@ -41,10 +41,10 @@ export type PortColorGroup = "numeric" | "logic" | "text" | "structure";
  * Mapping from semantic groups to CMYK colors
  */
 const GROUP_COLOR: Record<PortColorGroup, string> = {
-  numeric: CMYK.yellow,    // Numbers, vectors, scalars
-  logic: CMYK.magenta,     // Booleans, goals, constraints
-  text: CMYK.cyan,         // Strings, specs, metadata
-  structure: CMYK.black,   // Geometry, meshes, voxels
+  numeric: MONO_PALETTE.numeric,
+  logic: MONO_PALETTE.logic,
+  text: MONO_PALETTE.data,
+  structure: MONO_PALETTE.structure,
 };
 
 /**
@@ -82,7 +82,7 @@ export const PORT_TYPE_GROUP: Record<WorkflowPortType, PortColorGroup> = {
  */
 export function getPortTypeColor(type: WorkflowPortType): string {
   const group = PORT_TYPE_GROUP[type];
-  return GROUP_COLOR[group] ?? CMYK.black;
+  return GROUP_COLOR[group] ?? tokens.palette.grey800;
 }
 
 /**
@@ -131,10 +131,10 @@ export const CATEGORY_COLOR_GROUP: Record<NodeCategoryId, CategoryColorGroup> = 
  * Mapping from category groups to CMYK colors
  */
 const CATEGORY_GROUP_COLOR: Record<CategoryColorGroup, string> = {
-  numeric: CMYK.yellow,
-  logic: CMYK.magenta,
-  data: CMYK.cyan,
-  structure: CMYK.black,
+  numeric: tokens.palette.categories.math ?? tokens.palette.grey600,
+  logic: tokens.palette.categories.goal ?? tokens.palette.grey800,
+  data: tokens.palette.categories.workflow ?? tokens.palette.grey400,
+  structure: tokens.palette.categories.primitives ?? tokens.palette.black,
 };
 
 /**
@@ -142,7 +142,7 @@ const CATEGORY_GROUP_COLOR: Record<CategoryColorGroup, string> = {
  */
 export function getCategoryAccentColor(categoryId: NodeCategoryId): string {
   const group = CATEGORY_COLOR_GROUP[categoryId];
-  return CATEGORY_GROUP_COLOR[group] ?? CMYK.black;
+  return CATEGORY_GROUP_COLOR[group] ?? tokens.palette.grey800;
 }
 
 /**
@@ -150,8 +150,7 @@ export function getCategoryAccentColor(categoryId: NodeCategoryId): string {
  * All categories use the same grey band color for cleaner UI
  */
 export function getCategoryBandColor(_categoryId: NodeCategoryId): string {
-  // Monochrome: all bands are uniform grey
-  return "#d0d0d0";
+  return tokens.palette.grey200;
 }
 
 /**
@@ -159,8 +158,7 @@ export function getCategoryBandColor(_categoryId: NodeCategoryId): string {
  * All categories use the same grey port color
  */
 export function getCategoryPortColor(_categoryId: NodeCategoryId): string {
-  // Monochrome: all ports are uniform grey
-  return "#888888";
+  return tokens.palette.grey400;
 }
 
 /**
@@ -193,31 +191,35 @@ export function getDisabledColor(baseColor: string): string {
  * Sticker tint colors for node icons
  * Monochrome gray variations for visual differentiation
  */
+export const categoryColors = tokens.palette.categories;
+const categoryOr = (key: keyof typeof categoryColors, fallback: string) =>
+  categoryColors[key] ?? fallback;
+
 export const STICKER_TINTS: Record<string, string> = {
-  data: "#6b7280",
-  basics: "#4b5563",
-  lists: "#9ca3af",
-  primitives: "#374151",
-  curves: "#1f2937",
-  nurbs: "#6b7280",
-  brep: "#4b5563",
-  mesh: "#9ca3af",
-  tessellation: "#374151",
-  modifiers: "#1f2937",
-  transforms: "#6b7280",
-  arrays: "#4b5563",
-  euclidean: "#9ca3af",
-  ranges: "#374151",
-  signals: "#1f2937",
-  analysis: "#6b7280",
-  interop: "#4b5563",
-  measurement: "#9ca3af",
-  voxel: "#374151",
-  solver: "#1f2937",
-  goal: "#6b7280",
-  optimization: "#dc2626",
-  math: "#4b5563",
-  logic: "#9ca3af",
+  data: categoryOr("workflow", tokens.palette.grey400),
+  basics: categoryOr("primitives", tokens.palette.grey400),
+  lists: categoryOr("workflow", tokens.palette.grey400),
+  primitives: categoryOr("primitives", tokens.palette.grey600),
+  curves: categoryOr("curve", tokens.palette.grey600),
+  nurbs: categoryOr("nurbs", tokens.palette.grey600),
+  brep: categoryOr("brep", tokens.palette.grey600),
+  mesh: categoryOr("workflow", tokens.palette.grey400),
+  tessellation: categoryOr("primitives", tokens.palette.grey600),
+  modifiers: categoryOr("primitives", tokens.palette.grey600),
+  transforms: categoryOr("primitives", tokens.palette.grey600),
+  arrays: categoryOr("workflow", tokens.palette.grey400),
+  euclidean: categoryOr("workflow", tokens.palette.grey400),
+  ranges: categoryOr("math", tokens.palette.grey600),
+  signals: categoryOr("math", tokens.palette.grey600),
+  analysis: categoryOr("analysis", tokens.palette.grey400),
+  interop: categoryOr("workflow", tokens.palette.grey400),
+  measurement: categoryOr("analysis", tokens.palette.grey400),
+  voxel: categoryOr("voxel", tokens.palette.grey800),
+  solver: categoryOr("solver", tokens.palette.grey800),
+  goal: categoryOr("goal", tokens.palette.grey800),
+  optimization: categoryOr("workflow", tokens.palette.accentRed),
+  math: categoryOr("math", tokens.palette.grey600),
+  logic: categoryOr("goal", tokens.palette.grey800),
 };
 
 /**
@@ -236,8 +238,8 @@ export function getStickerTint(categoryId: string | null | undefined): string | 
  * CMYK color convention documentation
  */
 export const COLOR_CONVENTIONS = {
-  description: "Lingua uses a strict CMYK color palette for all workflow UI elements",
-  palette: CMYK,
+  description: "Lingua uses a strict monochrome palette for all workflow UI elements",
+  palette: MONO_PALETTE,
   semantics: {
     yellow: "Numeric/Scalar/Vector data (numbers, vectors, parameters)",
     magenta: "Logic/Boolean/Goals/Constraints (decisions, optimization)",

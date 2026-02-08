@@ -33,27 +33,61 @@
   font-display: swap;
 }
 
+/* Alias font-face so existing "Montreal Neue" declarations resolve correctly */
+@font-face {
+  font-family: "Montreal Neue";
+  src: url("https://cdn.jsdelivr.net/npm/@fontsource/neue-montreal@5.0.0/files/neue-montreal-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Montreal Neue";
+  src: url("https://cdn.jsdelivr.net/npm/@fontsource/neue-montreal@5.0.0/files/neue-montreal-latin-500-normal.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Montreal Neue";
+  src: url("https://cdn.jsdelivr.net/npm/@fontsource/neue-montreal@5.0.0/files/neue-montreal-latin-600-normal.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Montreal Neue";
+  src: url("https://cdn.jsdelivr.net/npm/@fontsource/neue-montreal@5.0.0/files/neue-montreal-latin-700-normal.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   color-scheme: light;
   /* Monochrome palette */
-  --sp-porcelain: #fafafa;
-  --sp-uiGrey: #f5f5f5;
-  --sp-divider: #e5e5e5;
-  --sp-ink: #000000;
-  --sp-muted: #737373;
-  --sp-accent: #dc2626;
+  --sp-porcelain: #f8f8f8;
+  --sp-uiGrey: #f1f1f1;
+  --sp-divider: #e0e0e0;
+  --sp-ink: #050505;
+  --sp-muted: #6b6b6b;
+  --sp-accent: #bf0d0d;
 
-  /* Legacy CMYK (now monochrome) */
-  --cmyk-cyan: #525252;
-  --cmyk-magenta: #262626;
-  --cmyk-yellow: #404040;
-  --cmyk-black: #000000;
+  /* Strict black/white/red palette */
+  --brand-white: #ffffff;
+  --brand-black: #000000;
+  --brand-red: #bf0d0d;
+  --brand-red-deep: #8c0808;
+  --brand-red-soft: rgba(191, 13, 13, 0.18);
 
-  /* Product accent colors (monochrome + red) */
-  --roslyn-accent: #dc2626;
-  --numerica-accent: #dc2626;
-  --lingua-accent-red: #dc2626;
-  --lingua-accent-gray: #525252;
+  /* Product accent colors */
+  --roslyn-accent: var(--brand-red);
+  --numerica-accent: var(--brand-red);
+  --lingua-accent-red: var(--brand-red);
+  --lingua-accent-gray: #3f3f3f;
 
   --roslyn-industrial-warm-grey: #8e8a84;
   --roslyn-instrument-cream: var(--sp-porcelain);
@@ -120,12 +154,52 @@
   --canvas-grid-dot: var(--color-grid-dot);
   --canvas-grid-dot-soft: var(--color-grid-dot-soft);
 
+  /* Minimal instrumentation tokens */
+  --ui-porcelain: #f6f5f2;
+  --ui-paper: #fcfbf7;
+  --ui-surface-primary: var(--ui-paper);
+  --ui-surface-secondary: var(--sp-porcelain);
+  --ui-surface-contrast: var(--brand-white);
+  --ui-stroke-strong: var(--brand-black);
+  --ui-stroke-muted: #2f2f2f;
+  --ui-stroke-soft: #b5b5b5;
+  --ui-accent-critical: var(--brand-red);
+  --ui-accent-critical-soft: rgba(191, 13, 13, 0.08);
+  --ui-border-1: 1px solid var(--ui-stroke-strong);
+  --ui-border-2: 2px solid var(--ui-stroke-strong);
+  --ui-border-dashed: 1px dashed var(--ui-stroke-soft);
+  --ui-radius-tight: 4px;
+  --ui-radius-pill: 999px;
+  --ui-spacing-1: 4px;
+  --ui-spacing-2: 8px;
+  --ui-spacing-3: 12px;
+  --ui-spacing-4: 16px;
+  --ui-spacing-5: 24px;
+  --ui-shadow-hard: 0 3px 0 var(--brand-black);
+  --ui-shadow-hard-lg: 0 4px 0 var(--brand-black);
+  --ui-shadow-hard-pressed: 0 1px 0 var(--brand-black);
+  --ui-press-duration: 110ms;
+  --ui-press-ease: cubic-bezier(0.32, 0.05, 0.35, 1);
+  --ui-press-offset-x: 0px;
+  --ui-press-offset-y: 3px;
+  --ui-press-offset-y-active: 1px;
+  --type-title: 18px;
+  --type-body: 13px;
+  --type-label: 11px;
+  --type-micro: 10px;
+  --tracking-label: 0.08em;
+  --tracking-micro: 0.12em;
+
   /* Typography */
-  --font-primary: "Neue Montreal", "GFS Didot";
-  --font-display: "GFS Didot", "Neue Montreal";
+  --font-primary: "GFS Didot", "Montreal Neue";
+  --font-secondary: "Montreal Neue", "GFS Didot";
+  --font-display: var(--font-primary);
+  --font-sans: var(--font-secondary);
+  --font-serif: var(--font-primary);
   --font-mono: "JetBrains Mono", "SF Mono", "Consolas", monospace;
   --font-body: var(--font-primary);
   --font-title: var(--font-display);
+  --font-ui: var(--font-secondary);
   --font-title-weight: 600;
   --font-weight-regular: 400;
   --font-weight-medium: 500;
@@ -356,7 +430,7 @@ body,
 }
 
 body {
-  font-family: var(--font-sans);
+  font-family: var(--font-primary);
   background: var(--color-bg);
   color: var(--color-text);
   line-height: 1.4;
@@ -417,6 +491,68 @@ select:disabled,
 textarea:disabled {
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+/* Mechanical hard-shadow utility */
+.mechanical-press {
+  --press-shadow-color: var(--brand-black);
+  --press-shadow-offset-x: var(--ui-press-offset-x);
+  --press-shadow-offset-y: var(--ui-press-offset-y);
+  --press-shadow-offset-y-active: var(--ui-press-offset-y-active);
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  border: var(--ui-border-2);
+  border-radius: var(--ui-radius-tight);
+  background: var(--ui-surface-primary);
+  color: var(--ui-stroke-strong);
+  box-shadow: none;
+  transition:
+    transform var(--ui-press-duration) var(--ui-press-ease),
+    color var(--ui-press-duration) ease;
+  will-change: transform;
+}
+
+.mechanical-press::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--press-shadow-color);
+  transform: translate(var(--press-shadow-offset-x), var(--press-shadow-offset-y));
+  z-index: -1;
+}
+
+.mechanical-press:hover {
+  transform: translateY(-1px);
+}
+
+.mechanical-press:active {
+  transform: translateY(var(--pressed-translate, 1px));
+}
+
+.mechanical-press:active::after {
+  transform: translate(var(--press-shadow-offset-x), var(--press-shadow-offset-y-active));
+}
+
+.mechanical-press:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mechanical-press {
+    transition: none;
+  }
+}
+
+/* Pixel stability helper */
+.pixel-snapped {
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .dashboard-canvas {

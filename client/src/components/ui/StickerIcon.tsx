@@ -1,9 +1,10 @@
 import { useMemo, type CSSProperties } from "react";
 import { renderIconDataUrl, type IconId } from "../../webgl/ui/WebGLIconRenderer";
 import { resolveIconImageUrl } from "./webglButtonRenderer";
-import { CMYK_SWATCHES } from "../../utils/renderPalette";
 import { hexToRgb } from "../../utils/color";
 import type { RGBA } from "../../webgl/ui/WebGLUIRenderer";
+import tokens from "../../semantic/ui.tokens.json";
+import { getStickerTint } from "../../workflow/colors";
 import styles from "./StickerIcon.module.css";
 
 export type StickerIconVariant = "library" | "site";
@@ -14,6 +15,7 @@ export type StickerIconProps = {
   size?: number;
   tint?: RGBA | string;
   signature?: string;
+  category?: string | null;
   className?: string;
   style?: CSSProperties;
   alt?: string;
@@ -22,10 +24,24 @@ export type StickerIconProps = {
 };
 
 const FALLBACK_LIBRARY_TINT: RGBA = [0.07, 0.07, 0.09, 1];
-const CMYK_TINTS: RGBA[] = CMYK_SWATCHES.map((swatch) => {
-  const rgb = hexToRgb(swatch.hex);
+
+const toRgba = (hex?: string | null): RGBA | null => {
+  const rgb = hexToRgb(hex);
   return rgb ? [rgb[0], rgb[1], rgb[2], 1] : null;
-}).filter((value): value is RGBA => Boolean(value));
+};
+
+const TOKEN_TINTS: RGBA[] = [
+  tokens.palette.categories.workflow,
+  tokens.palette.categories.primitives,
+  tokens.palette.categories.goal,
+  tokens.palette.categories.solver,
+  tokens.palette.categories.voxel,
+  tokens.palette.grey800,
+  tokens.palette.grey600,
+  tokens.palette.grey400,
+]
+  .map((hex) => toRgba(hex))
+  .filter((value): value is RGBA => Boolean(value));
 
 const hashString = (value: string) => {
   let hash = 0;
@@ -35,10 +51,10 @@ const hashString = (value: string) => {
   return hash;
 };
 
-const resolveCmykTint = (seed: string): RGBA => {
-  if (CMYK_TINTS.length === 0) return FALLBACK_LIBRARY_TINT;
-  const index = Math.abs(hashString(seed)) % CMYK_TINTS.length;
-  return CMYK_TINTS[index];
+const resolveTokenTint = (seed: string): RGBA => {
+  if (TOKEN_TINTS.length === 0) return FALLBACK_LIBRARY_TINT;
+  const index = Math.abs(hashString(seed)) % TOKEN_TINTS.length;
+  return TOKEN_TINTS[index];
 };
 
 const resolveTint = (value: StickerIconProps["tint"], fallback: RGBA): RGBA => {
@@ -49,6 +65,12 @@ const resolveTint = (value: StickerIconProps["tint"], fallback: RGBA): RGBA => {
     if (rgb) return [rgb[0], rgb[1], rgb[2], 1];
   }
   return fallback;
+};
+
+const resolveCategoryTint = (category?: string | null): RGBA | null => {
+  if (!category) return null;
+  const tint = getStickerTint(category);
+  return tint ? toRgba(tint) : null;
 };
 
 const deriveSignature = (iconId: IconId) => {
@@ -77,6 +99,7 @@ export const StickerIcon = ({
   size = 96,
   tint,
   signature,
+  category,
   className,
   style,
   alt = "",
@@ -84,11 +107,13 @@ export const StickerIcon = ({
   draggable = false,
 }: StickerIconProps) => {
   const fallbackTint = useMemo(() => {
+    const categoryTint = resolveCategoryTint(category);
+    if (categoryTint) return categoryTint;
     if (variant === "site") {
-      return resolveCmykTint(`${iconId}|${signature ?? ""}`);
+      return resolveTokenTint(`${iconId}|${signature ?? ""}`);
     }
     return FALLBACK_LIBRARY_TINT;
-  }, [iconId, signature, variant]);
+  }, [category, iconId, signature, variant]);
 
   const resolvedTint = useMemo(
     () => resolveTint(tint, fallbackTint),
@@ -127,6 +152,8 @@ export const StickerIcon = ({
       alt={alt}
       aria-hidden={hidden ? "true" : undefined}
       data-variant={variant}
+      data-svg="true"
+      data-category={category ?? undefined}
       draggable={draggable}
     />
   );
