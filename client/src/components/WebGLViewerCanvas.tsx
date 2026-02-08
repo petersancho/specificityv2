@@ -123,12 +123,32 @@ const PREVIEW_MESH_ID = "__preview-mesh";
 const PREVIEW_EDGE_ID = "__preview-mesh-edges";
 const HOVER_LINE_ID = "__hover-line";
 
+const MAX_CANVAS_DPR = 2
+
 const resolveViewerDpr = (style: ViewStyleProfile = VIEW_STYLE) => {
-  if (typeof window === "undefined") return 1;
-  const baseDpr = window.devicePixelRatio || 1;
-  const scaled = baseDpr * (style.renderQualityScale ?? 1);
-  const maxDpr = style.maxRenderDpr ?? scaled;
-  return Math.min(scaled, maxDpr);
+  if (typeof window === "undefined") return 1
+  const baseDpr = window.devicePixelRatio || 1
+  const scaled = baseDpr * (style.renderQualityScale ?? 1)
+  const maxStyleDpr = style.maxRenderDpr ?? scaled
+  return Math.min(MAX_CANVAS_DPR, scaled, maxStyleDpr)
+};
+
+const logCanvasDiagnostics = (
+  label: string,
+  cssWidth: number,
+  cssHeight: number,
+  bufferWidth: number,
+  bufferHeight: number,
+  dpr: number
+) => {
+  if (process.env.NODE_ENV === "production") return
+  const ratio = cssWidth > 0 ? bufferWidth / cssWidth : 0
+  // eslint-disable-next-line no-console
+  console.debug(
+    `[webgl:${label}] css=${cssWidth.toFixed(1)}×${cssHeight.toFixed(1)} buffer=${bufferWidth}×${bufferHeight} dpr=${dpr.toFixed(
+      2
+    )} ratio=${ratio.toFixed(2)}`
+  )
 };
 
 const collectGeometryIdsFromValue = (
@@ -6309,34 +6329,61 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
   }, [geometry]);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    const renderer = rendererRef.current;
-    if (!canvas || !renderer) return;
+    const canvas = canvasRef.current
+    const renderer = rendererRef.current
+    if (!canvas || !renderer) return
 
     const resizeWith = (width: number, height: number) => {
-      const dpr = resolveViewerDpr();
-      canvas.width = Math.max(1, Math.floor(width * dpr));
-      canvas.height = Math.max(1, Math.floor(height * dpr));
-      canvas.style.width = `${width}px`;
-      canvas.style.height = `${height}px`;
-      renderer.setSize(canvas.width, canvas.height);
-    };
+      if (width <= 0 || height <= 0) return
+      const dpr = resolveViewerDpr()
+      const bufferWidth = Math.max(1, Math.floor(width * dpr))
+      const bufferHeight = Math.max(1, Math.floor(height * dpr))
+      canvas.style.width = `${width}px`
+      canvas.style.height = `${height}px`
+      if (canvas.width !== bufferWidth) {
+        canvas.width = bufferWidth
+      }
+      if (canvas.height !== bufferHeight) {
+        canvas.height = bufferHeight
+      }
+      renderer.setSize(canvas.width, canvas.height)
+      logCanvasDiagnostics("modeler", width, height, canvas.width, canvas.height, dpr)
+    }
 
-    const resizeObserver = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (!entry) return;
-      const { width, height } = entry.contentRect;
-      resizeWith(width, height);
-    });
+    const target = canvas.parentElement ?? canvas
 
     resizeCanvasRef.current = () => {
-      const rect = canvas.getBoundingClientRect();
-      resizeWith(rect.width, rect.height);
-    };
+      const rect = target.getBoundingClientRect?.() ?? canvas.getBoundingClientRect()
+      const measuredWidth = rect?.width ?? canvas.clientWidth ?? canvas.width
+      const measuredHeight = rect?.height ?? canvas.clientHeight ?? canvas.height
+      resizeWith(measuredWidth, measuredHeight)
+    }
 
-    resizeObserver.observe(canvas);
-    return () => resizeObserver.disconnect();
-  }, []);
+    const resizeObserver = typeof ResizeObserver !== "undefined"
+      ? new ResizeObserver((entries) => {
+          const entry = entries[0]
+          if (!entry) return
+          const { width, height } = entry.contentRect
+          resizeWith(width, height)
+        })
+      : null
+
+    if (resizeObserver) {
+      resizeObserver.observe(target)
+    }
+
+    const handleWindowResize = () => {
+      resizeCanvasRef.current?.()
+    }
+
+    window.addEventListener("resize", handleWindowResize)
+    resizeCanvasRef.current?.()
+
+    return () => {
+      resizeObserver?.disconnect()
+      window.removeEventListener("resize", handleWindowResize)
+    }
+  }, [])
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -8430,7 +8477,7 @@ const WebGLViewerCanvas = (_props: ViewerCanvasProps) => {
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
       <canvas
         ref={canvasRef}
-        style={{ width: "100%", height: "100%", display: "block" }}
+        style={{ width: "100%", height: "100%", display: "block", imageRendering: "auto" }}
         onContextMenu={(event) => event.preventDefault()}
       />
       {topologyDebug && showTopologyDebug && (

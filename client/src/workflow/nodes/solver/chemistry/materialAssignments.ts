@@ -4,7 +4,8 @@ import {
   resolveChemistryMaterialSpec,
   type ChemistryMaterialSpec,
 } from "../../../../data/chemistryMaterials";
-import { clamp, isFiniteNumber, toNumber } from "../utils";
+import { isFiniteNumber, toNumber } from "../utils";
+import { clamp } from "../../../../math/constants";
 
 export type ChemistryMaterialAssignment = {
   geometryId?: string;

@@ -1,6 +1,7 @@
 import type { WorkflowNodeDefinition } from "../../../../nodeRegistry";
 import type { ChemistryThermalGoal } from "../../types";
-import { clamp, toNumber } from "../../utils";
+import { toNumber } from "../../utils";
+import { clamp } from "../../../../../math/constants";
 
 const toStringList = (value: unknown): string[] => {
   if (value == null) return [];

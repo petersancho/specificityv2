@@ -1,0 +1,68 @@
+{
+  "version": "2026.02-minimal",
+  "updatedAt": "2026-02-08T04:39:00Z",
+  "description": "Ontology describing Numerica's UI meaning layer for surfaces, components, roles, and categories.",
+  "surfaces": {
+    "DOM": {
+      "purpose": "Application chrome, controls, text surfaces rendered via React/DOM.",
+      "constraints": [
+        "Uses CSS tokens for spacing, typography, borders, and signature shadow",
+        "No gradients; solid fills only"
+      ]
+    },
+    "WEBGL": {
+      "purpose": "Primary modeling viewport + stickers rendered via custom WebGL renderer.",
+      "constraints": [
+        "Must respect DPR cap token",
+        "Grid + overlays align to integer pixel density"
+      ]
+    },
+    "NODE_GRAPH": {
+      "purpose": "Numerica workflow canvas representing semantic nodes/edges.",
+      "constraints": [
+        "Category colors must come from ontology category palette",
+        "Ports inherit stroke weight tokens"
+      ]
+    },
+    "CHART": {
+      "purpose": "Instrumentation panels (fitness history, solver diagnostics).",
+      "constraints": [
+        "Axes/strokes limited to 1px or 2px tokens",
+        "Typography uses primary font for titles, secondary for labels"
+      ]
+    }
+  },
+  "components": {
+    "button": {"surface": "DOM", "role": "control"},
+    "dropdown": {"surface": "DOM", "role": "control"},
+    "panel": {"surface": "DOM", "role": "chrome"},
+    "node": {"surface": "NODE_GRAPH", "role": "data"},
+    "port": {"surface": "NODE_GRAPH", "role": "state"},
+    "sticker": {"surface": "WEBGL", "role": "decorative"},
+    "toolbar": {"surface": "DOM", "role": "chrome"},
+    "grid": {"surface": "WEBGL", "role": "decorative"},
+    "tooltip": {"surface": "DOM", "role": "content"},
+    "badge": {"surface": "DOM", "role": "state"},
+    "logo": {"surface": "DOM", "role": "decorative"}
+  },
+  "roles": {
+    "chrome": "Structural framing surfaces (top bar, panels) that recede visually.",
+    "control": "Interactive inputs (buttons, dropdowns) with mechanical feedback.",
+    "data": "Surfaces conveying quantitative/semantic information.",
+    "content": "Copy-heavy areas (descriptions, docs).",
+    "decorative": "Brand/sticker treatments that cannot change geometry.",
+    "state": "Indicators, badges, node states tied to semantic operations."
+  },
+  "categories": {
+    "primitives": {"role": "data", "color": "#1E1E1E"},
+    "curve": {"role": "data", "color": "#353535"},
+    "nurbs": {"role": "data", "color": "#4B4B4B"},
+    "brep": {"role": "data", "color": "#5C5C5C"},
+    "math": {"role": "data", "color": "#2A2A2A"},
+    "analysis": {"role": "data", "color": "#3F3F3F"},
+    "goal": {"role": "state", "color": "#262626"},
+    "solver": {"role": "state", "color": "#BF0D0D"},
+    "voxel": {"role": "data", "color": "#1F1F1F"},
+    "workflow": {"role": "chrome", "color": "#0F0F0F"}
+  }
+}

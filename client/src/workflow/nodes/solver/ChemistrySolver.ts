@@ -15,7 +15,8 @@ import type { WorkflowNodeDefinition, WorkflowComputeContext, WorkflowValue } fr
 import type { Geometry, RenderMesh, Vec3 } from "../../../types";
 import type { GoalSpecification } from "./types";
 import { validateChemistryGoals } from "./validation";
-import { toBoolean, toNumber, isFiniteNumber, isVec3, clamp } from "./utils";
+import { toBoolean, toNumber, isFiniteNumber, isVec3 } from "./utils";
+import { clamp } from "../../../math/constants";
 import { resolveMeshFromGeometry } from "../../../geometry/meshTessellation";
 import { resolveChemistryMaterialSpec, type ChemistryMaterialSpec } from "../../../data/chemistryMaterials";
 import {

@@ -1,5 +1,5 @@
 import type { GoalSpecification } from "./types";
-import { clamp } from "./utils";
+import { clamp } from "../../../math/constants";
 
 export type ValidationResult = {
   valid: boolean;

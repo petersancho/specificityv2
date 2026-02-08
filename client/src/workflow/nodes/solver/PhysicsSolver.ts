@@ -4,7 +4,8 @@ import type { GoalSpecification, SolverConfiguration, SolverResult } from "./typ
 import { validatePhysicsGoals } from "./validation";
 import { solvePhysicsChunkedSync } from "./solverInterface";
 import { solvePhysicsWithWorker } from "./physicsWorkerClient";
-import { clamp, toBoolean, toNumber } from "./utils";
+import { toBoolean, toNumber } from "./utils";
+import { clamp } from "../../../math/constants";
 import { createSolverMetadata, attachSolverMetadata } from "../../../numerica/solverGeometry";
 import type { Geometry } from "../../../types";
 

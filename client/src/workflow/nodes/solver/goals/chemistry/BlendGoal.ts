@@ -1,6 +1,7 @@
 import type { WorkflowNodeDefinition } from "../../../../nodeRegistry";
 import type { ChemistryBlendGoal } from "../../types";
-import { clamp, toNumber } from "../../utils";
+import { toNumber } from "../../utils";
+import { clamp } from "../../../../../math/constants";
 
 export const ChemistryBlendGoalNode: WorkflowNodeDefinition = {
   type: "chemistryBlendGoal",

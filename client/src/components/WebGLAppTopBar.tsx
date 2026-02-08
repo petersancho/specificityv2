@@ -217,7 +217,7 @@ const GRADIENT_STEPS = 12;
 const RENDER_SCALE = 1.35;
 const MAX_DPR = 3;
 
-const UI_FONT_FAMILY = '"GFS Didot", "Montreal Neue"';
+const UI_FONT_FAMILY = '"Montreal Neue", "GFS Didot"';
 const BRAND_FONT_FAMILY = '"GFS Didot", "Montreal Neue"';
 const BRAND_WEIGHT = 700;
 const BRAND_ACCENT_WEIGHT = 800;

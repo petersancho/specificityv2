@@ -1,6 +1,7 @@
 import type { WorkflowNodeDefinition } from "../../../../nodeRegistry";
 import type { ChemistryStiffnessGoal } from "../../types";
-import { clamp, resolveVec3Input, toNumber, vectorParameterSpecs } from "../../utils";
+import { resolveVec3Input, toNumber, vectorParameterSpecs } from "../../utils";
+import { clamp } from "../../../../../math/constants";
 
 const toStringList = (value: unknown): string[] => {
   if (value == null) return [];
