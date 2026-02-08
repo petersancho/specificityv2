@@ -1,8 +1,248 @@
+.liveLayout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-6);
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .liveLayout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.liveAtlasSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.liveViewerSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+
+.liveDiagramSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  border-radius: var(--radius-panel);
+  border: 1px solid rgba(5, 5, 5, 0.8);
+  padding: var(--space-4);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.7));
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.6);
+}
+
+.liveDiagramSection::before {
+  content: "";
+  position: absolute;
+  inset: -20% auto auto -20%;
+  width: 60%;
+  height: 60%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.08), transparent 70%);
+  opacity: 0.8;
+  pointer-events: none;
+  filter: blur(40px);
+  z-index: -1;
+}
+
+.diagramSection {
+  width: 100%;
+}
+
+.diagram {
+  position: relative;
+  width: 100%;
+  min-height: 420px;
+  border-radius: calc(var(--radius-panel) * 1.1);
+  background:
+    radial-gradient(circle at center, rgba(255, 255, 255, 0.08), transparent 70%),
+    linear-gradient(0deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  overflow: hidden;
+  pointer-events: none;
+  padding: var(--space-2);
+  backdrop-filter: blur(4px);
+}
+
+.diagramSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+
+.diagramWire {
+  stroke: color-mix(in srgb, var(--brand-red, #bf0d0d) 65%, #ffffff);
+  stroke-width: 1.15;
+  stroke-dasharray: 18 10;
+}
+
+.diagramSpoke {
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-width: 1;
+  stroke-dasharray: 4 14;
+}
+
+.diagramOrbit {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.1);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 8;
+}
+
+.diagramCore {
+  fill: rgba(255, 255, 255, 0.05);
+  stroke: rgba(255, 255, 255, 0.35);
+  stroke-width: 1.4;
+}
+
+.diagramNode {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  min-width: 190px;
+  max-width: 240px;
+  padding: var(--space-3);
+  border-radius: var(--radius-card);
+  border: 1px solid color-mix(in srgb, var(--diagram-accent, #ffffff) 40%, rgba(255, 255, 255, 0.3));
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.85)),
+    color-mix(in srgb, var(--diagram-accent, #ffffff) 10%, rgba(5, 5, 5, 0.9));
+  color: #f5f5f5;
+  text-align: left;
+  cursor: grab;
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.55);
+  transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease, background 140ms ease;
+  pointer-events: auto;
+  user-select: none;
+  touch-action: pan-y;
+}
+
+.diagramNode:active {
+  cursor: grabbing;
+}
+
+.diagramNodeActive {
+  border-color: color-mix(in srgb, var(--diagram-accent, #ffffff) 90%, var(--brand-white, #fff));
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(0, 0, 0, 0.82)),
+    color-mix(in srgb, var(--diagram-accent, #ffffff) 22%, rgba(20, 20, 20, 0.95));
+  box-shadow: 0 22px 44px rgba(0, 0, 0, 0.65);
+  transform: translate(-50%, -50%) scale(1.02);
+}
+
+.diagramNodeTitle {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--diagram-accent, var(--brand-red, #bf0d0d)) 80%, #ffffff);
+}
+
+.diagramNodeDesc {
+  display: block;
+  margin-top: 6px;
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.4;
+}
+
+.liveViewerHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid #2b2b2b;
+}
+
+.liveViewerHeader h2 {
+  margin: 0;
+  color: #fafafa;
+}
+
+.liveAtlasHeader {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid #2b2b2b;
+  margin-bottom: var(--space-4);
+}
+
+.liveAtlasHeader h2 {
+  margin: 0;
+  color: #fafafa;
+}
+
+.liveAtlasHeader p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: var(--text-sm);
+}
+
+.liveTabGroup {
+  display: inline-flex;
+  border: 1px solid #2d2d2d;
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.liveTabButton {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.55);
+  padding: 8px 18px;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.liveTabButtonActive {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.liveCodeContext {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent);
+  border-radius: var(--radius-panel);
+  border: 1px solid #2a2a2a;
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.liveCodeContext h3 {
+  margin: var(--space-2) 0;
+}
+
+.liveCodeContextNote {
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  border-left: 2px solid #444;
+  background: rgba(255, 255, 255, 0.04);
+  font-size: var(--text-sm);
+}
+
+.liveCodeContextKicker {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  color: rgba(255, 255, 255, 0.45);
+  margin: 0;
+}
 .page {
   flex: 1;
-  height: 100%;
-  min-height: 0;
-  overflow: hidden;
+  min-height: 100vh;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
@@ -13,14 +253,13 @@
     var(--color-workspace-gradient-end) 100%
   );
   color: var(--color-text);
-  font-family: var(--font-body);
+  font-family: var(--font-sans);
 }
 
 .pageContent {
   flex: 1;
   min-height: 0;
-  overflow: auto;
-  overflow-y: scroll;
+  overflow: visible;
   scrollbar-gutter: stable;
   display: flex;
   flex-direction: column;
@@ -30,6 +269,15 @@
   margin: 0 auto;
 }
 
+.livePage {
+  width: 100%;
+  max-width: var(--max-w);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding-bottom: var(--space-8);
+}
 
 .topNav {
   position: sticky;
@@ -180,6 +428,219 @@
   font-size: var(--text-base);
   line-height: 1.6;
   color: var(--color-muted);
+}
+
+.liveGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+}
+
+
+.liveCard {
+  position: relative;
+  padding: var(--space-4);
+  border-radius: calc(var(--radius-panel) * 1.1);
+  background:
+    linear-gradient(155deg, rgba(0, 0, 0, 0.95), rgba(20, 20, 20, 0.85)),
+    linear-gradient(20deg, rgba(191, 13, 13, 0.15), transparent);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 22px 40px rgba(0, 0, 0, 0.45);
+  display: flex;
+  gap: var(--space-3);
+  color: #f5f5f5;
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+  flex: 1 1 320px;
+  max-width: 360px;
+}
+
+.liveCard:focus-within,
+.liveCard:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 32px 60px rgba(0, 0, 0, 0.55);
+  border-color: rgba(191, 13, 13, 0.65);
+}
+
+.liveCardAccent {
+  width: 48px;
+  border-radius: var(--radius-panel);
+  background: linear-gradient(180deg, var(--brand-red, #bf0d0d), rgba(191, 13, 13, 0));
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.liveCardNumber {
+  margin-top: 8px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.4em;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.liveCardContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.liveCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+
+.liveCardKicker {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+
+.liveCard h3 {
+  margin: 0;
+  font-size: var(--text-xl);
+  line-height: 1.2;
+  color: #fafafa;
+  font-family: var(--font-serif);
+}
+
+.liveFileList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.liveFileButton {
+  width: 100%;
+  text-align: left;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-panel);
+  background: #0b0b0b;
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
+}
+
+.liveFileButton:hover,
+.liveFileButton:focus-visible {
+  outline: none;
+  border-color: var(--brand-red, #bf0d0d);
+  background: #151515;
+  transform: translateY(-1px);
+}
+
+.liveCardLabel {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: #fff;
+  letter-spacing: 0.06em;
+}
+
+.liveCardDetail {
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.liveCodePanel {
+  border-radius: calc(var(--radius-panel) * 1.1);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #050505;
+  box-shadow: 0 26px 52px rgba(0, 0, 0, 0.55);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.liveCodeToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  font-family: var(--font-sans);
+}
+
+.liveCodeLabel {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--text-sm);
+  color: rgba(255, 255, 255, 0.65);
+  gap: 6px;
+  font-family: var(--font-sans);
+}
+
+.liveCodeSelect {
+  min-width: 240px;
+  padding: 10px 12px;
+  border-radius: var(--radius-panel);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: #0f0f0f;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: #f7f7f7;
+}
+
+.livePanelWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.liveGuidancePanel {
+  border-radius: calc(var(--radius-panel) * 1.1);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #050505;
+  box-shadow: 0 26px 52px rgba(0, 0, 0, 0.55);
+  padding: var(--space-4);
+  color: rgba(255, 255, 255, 0.9);
+  font-family: var(--font-serif);
+}
+
+.liveGuidanceList {
+  list-style: decimal;
+  padding-left: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-family: var(--font-sans);
+}
+
+.liveCodeViewer {
+  position: relative;
+  min-height: 420px;
+  max-height: 60vh;
+  overflow: auto;
+  border-radius: var(--radius-panel);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #010101;
+  color: #f3f4f6;
+  font-family: "IBM Plex Mono", "Fira Code", var(--font-mono);
+  font-size: 13px;
+  line-height: 1.55;
+  padding: var(--space-4);
+}
+
+.liveCodeBlock {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.liveError {
+  color: var(--color-danger, #ef4444);
+  font-size: var(--text-sm);
 }
 
 .logoStack {

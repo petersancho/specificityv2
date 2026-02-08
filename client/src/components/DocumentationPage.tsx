@@ -12,6 +12,7 @@ import {
 import styles from "./DocumentationPage.module.css";
 import detailStyles from "./DocumentationDetailPage.module.css";
 import pageStyles from "./DocumentationNewUsersPage.module.css";
+import DocumentationLiveCodebase from "./DocumentationLiveCodebase";
 import {
   NODE_CATEGORIES,
   NODE_CATEGORY_BY_ID,
@@ -54,6 +55,7 @@ type DocsRoute =
   | { kind: "index" }
   | { kind: "philosophy" }
   | { kind: "inspirations" }
+  | { kind: "live" }
   | { kind: "roslyn"; id: string }
   | { kind: "numerica"; id: string };
 
@@ -112,6 +114,8 @@ const toDocsHash = (route: DocsRoute) => {
   switch (route.kind) {
     case "philosophy":
       return "#/docs/philosophy";
+    case "live":
+      return "#/docs/live";
     case "roslyn":
       return `#/docs/roslyn/${encodeURIComponent(route.id)}`;
     case "numerica":
@@ -134,6 +138,7 @@ const resolveDocsRoute = (hash: string): DocsRoute => {
   if (docsIndex === -1) return { kind: "index" };
   const section = segments[docsIndex + 1];
   if (!section) return { kind: "index" };
+  if (section === "live") return { kind: "live" };
   if (section === "new-users" || section === "philosophy") return { kind: "philosophy" };
   const id = segments[docsIndex + 2];
   if (section === "roslyn" && id) {
@@ -163,6 +168,7 @@ type DocsNavProps = {
 const DocsTopNav = ({ route, onNavigate }: DocsNavProps) => {
   const isIndex = route.kind === "index";
   const isPhilosophy = route.kind === "philosophy";
+  const isLive = route.kind === "live";
   return (
     <div className={styles.topNav}>
       <div className={styles.topNavBrand}>
@@ -193,6 +199,15 @@ const DocsTopNav = ({ route, onNavigate }: DocsNavProps) => {
           active={isPhilosophy}
           className={styles.navButton}
           onClick={() => onNavigate({ kind: "philosophy" })}
+        />
+        <WebGLButton
+          label="Live Codebase"
+          variant="ghost"
+          size="sm"
+          shape="pill"
+          active={isLive}
+          className={styles.navButton}
+          onClick={() => onNavigate({ kind: "live" })}
         />
       </div>
     </div>
@@ -1950,6 +1965,7 @@ const DocumentationPage = ({ hash = "" }: DocumentationPageProps) => {
           {route.kind === "index" && <DocumentationIndex onNavigate={navigate} />}
           {route.kind === "philosophy" && <DocumentationPhilosophyNew onNavigate={navigate} />}
           {route.kind === "inspirations" && <DocumentationInspirations onNavigate={navigate} />}
+          {route.kind === "live" && <DocumentationLiveCodebase />}
           {(route.kind === "roslyn" || route.kind === "numerica") && (
             <DocumentationDetail route={route} onNavigate={navigate} />
           )}

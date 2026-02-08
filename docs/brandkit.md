@@ -1,403 +1,128 @@
-# Numerica Brand Kit
+# Lingua Brand Kit — Black · White · Red
 
-**Purpose:** Visual design system for Numerica nodes — vibrant CMYK + Porcelain aesthetic with pixel-perfect execution.
+**Purpose:** unify every Lingua touchpoint behind a disciplined monochrome palette with a single red accent.
 
-**Philosophy:** Pixels, Stickers, and Color. Sharp, bold, and unapologetically vibrant.
+**Philosophy:** Architecture, ink, and signal. The interface should feel like a drafting table illuminated by a red indicator light—serious, minimal, and deliberate.
 
-**Last Updated:** January 30, 2026
+**Last Updated:** February 7, 2026
 
 ---
 
 ## Table of Contents
 
-1. [Core Principles](#core-principles) — Pixels, Stickers, Color
-2. [Color Palette](#color-palette) — CMYK + Porcelain colors
-3. [Shadow System](#shadow-system) — Black opaque drop shadows
-4. [Node Design](#node-design-specifications) — Dimensions and structure
-5. [Category Colors](#category-colors-cmyk-inspired) — 24 node categories
-6. [Port Colors](#port-colors-by-type) — Type-based coloring
-7. [Sticker Icons](#sticker-icons) — Icon colors and shadows
-8. [Implementation](#implementation-checklist) — How to apply
+1. [Core Tenets](#core-tenets)
+2. [Color System](#color-system)
+3. [Typography](#typography)
+4. [Component Styling](#component-styling)
+5. [Interaction & Motion](#interaction--motion)
+6. [Implementation Checklist](#implementation-checklist)
+7. [Deprecations](#deprecations)
 
 ---
 
-## Quick Reference
+## Core Tenets
 
-**Core Colors:**
-- Canvas: `#f8f6f2` (porcelain)
-- Node Fill: `#ffffff` (pure white)
-- Border: `#000000` (black, 2px)
-- Shadow: `0 4px 0 #000000` (no blur)
-
-**CMYK Accents:**
-- Cyan: `#00d4ff`
-- Magenta: `#ff0099`
-- Yellow: `#ffdd00`
-- Purple: `#8800ff`
-- Orange: `#ff6600`
-- Lime: `#88ff00`
-
-**Interactions:**
-- Hover: lift -1px, shadow +1px
-- Press: push +1px, shadow -2px
-- Transition: 120ms ease
+1. **Black & White First** – every surface, border, and shadow uses pure black, pure white, or calibrated grays. Color only appears when it conveys intent.
+2. **Red as Signal** – `#BF0D0D` is the only chromatic hue. Use it for highlights, focus states, active tabs, and critical annotations. Never tint it toward pink or orange.
+3. **Equal Fonts** – *Neue Montreal* (sans) and *GFS Didot* (serif) are co-primary. Mix them deliberately within the same component to create hierarchy (e.g., Montreal for body/caps, Didot for emphasis or numerals).
+4. **Mechanical Shadows** – all elevations use opaque black drop shadows (`0 4px 0 #000`). No blur, no gradients.
+5. **Integer Layout** – align everything to whole pixels. Borders are 1px or 2px, never 1.5px.
 
 ---
 
-## Core Principles
+## Color System
 
-### 1. Pixels
-- **Pixel-perfect alignment** — all dimensions are whole integers
-- **Crisp edges** — no anti-aliasing on structural elements
-- **Grid-aligned** — nodes snap to pixel grid for maximum sharpness
-- **Integer coordinates** — x, y positions rounded to whole numbers
+| Token | Hex | Usage |
+| --- | --- | --- |
+| `--brand-white` | `#FFFFFF` | Canvas backgrounds, large cards |
+| `--brand-black` | `#000000` | Text, borders, sticker shadows |
+| `--ink-900` | `#050505` | Primary text on light backgrounds |
+| `--ink-700` | `#3F3F3F` | Secondary text, dividers |
+| `--fog-100` | `#F8F8F8` | Panels, porcelain plates |
+| `--fog-300` | `#E0E0E0` | Hairline borders |
+| `--brand-red` | `#BF0D0D` | Interactive accent (10% maximum coverage) |
+| `--brand-red-deep` | `#8C0808` | Active states on dark surfaces |
+| `--brand-red-soft` | `rgba(191,13,13,0.18)` | Glows, orbits, diagram fields |
 
-### 2. Stickers
-- **Tactile feel** — nodes feel like physical stickers on a canvas
-- **Black opaque shadows** — solid `#000000` offset shadows, no blur
-- **Layered depth** — clear z-order with shadow offset creating depth
-- **Sticker aesthetic** — rounded corners, solid fills, bold outlines
-
-### 3. Color
-- **CMYK vibrance** — cyan, magenta, yellow, key (black) as primary palette
-- **Porcelain base** — warm off-white background for contrast
-- **High saturation** — bold, unapologetic color choices
-- **Category identity** — each node category has distinct CMYK-inspired color
-
----
-
-## Color Palette
-
-### Primary Colors (CMYK Inspired)
-
-**Cyan Family**
-- Cyan Bright: `#00d4ff` — primary cyan, electric and sharp
-- Cyan Deep: `#0099cc` — darker cyan for accents
-- Cyan Soft: `#ccf5ff` — light cyan for bands
-
-**Magenta Family**
-- Magenta Bright: `#ff0099` — primary magenta, bold and vibrant
-- Magenta Deep: `#cc0077` — darker magenta for accents
-- Magenta Soft: `#ffccee` — light magenta for bands
-
-**Yellow Family**
-- Yellow Bright: `#ffdd00` — primary yellow, warm and energetic
-- Yellow Deep: `#cc9900` — darker yellow for accents
-- Yellow Soft: `#fff5cc` — light yellow for bands
-
-**Key (Black) Family**
-- Key Black: `#000000` — pure black for shadows and text
-- Key Charcoal: `#1a1a1a` — near-black for strong accents
-- Key Graphite: `#333333` — dark gray for secondary text
-
-### Porcelain Base
-
-**Porcelain White**
-- Canvas: `#f8f6f2` — warm off-white, main canvas background
-- Surface: `#ffffff` — pure white for node fills
-- Cream: `#faf8f5` — slightly warmer white for hover states
-
-**Porcelain Grays**
-- Light Gray: `#e8e6e2` — subtle borders and dividers
-- Mid Gray: `#c9c5c0` — stronger borders
-- Dark Gray: `#6a6661` — muted text
-
-### Accent Colors (CMYK Blends)
-
-**Cyan-Magenta Blend**
-- Electric Purple: `#8800ff` — solver nodes
-- Violet: `#b366ff` — goal nodes
-
-**Magenta-Yellow Blend**
-- Hot Orange: `#ff6600` — optimization nodes
-- Coral: `#ff9966` — warm accents
-
-**Yellow-Cyan Blend**
-- Lime Green: `#88ff00` — analysis nodes
-- Spring Green: `#ccff99` — fresh accents
-
-**Cyan-Key Blend**
-- Deep Blue: `#0066cc` — data nodes
-- Sky Blue: `#66b3ff` — cool accents
-
----
-
-## Shadow System
-
-### Black Opaque Drop Shadow
-
-**Specification:**
-- Color: `#000000` (pure black, 100% opacity)
-- Offset: `0px 4px 0px #000000` (vertical offset only)
-- No blur, no spread — crisp hard edge
-- Creates sticker-on-canvas effect
-
-**Implementation:**
-```css
-/* Node shadow */
-box-shadow: 0 4px 0 #000000;
-
-/* Hover state - lift the sticker */
-box-shadow: 0 6px 0 #000000;
-transform: translateY(-2px);
-
-/* Pressed state - push the sticker */
-box-shadow: 0 2px 0 #000000;
-transform: translateY(2px);
-```
-
-**Canvas Implementation:**
-```javascript
-// Draw shadow first (behind node)
-ctx.fillStyle = '#000000';
-ctx.fillRect(x, y + 4, width, height); // 4px offset
-
-// Then draw node on top
-ctx.fillStyle = nodeFill;
-ctx.fillRect(x, y, width, height);
-```
-
----
-
-## Node Design Specifications
-
-### Dimensions (Pixel-Perfect)
-
-**Standard Node**
-- Width: `180px` (fixed)
-- Min Height: `98px`
-- Border Radius: `4px`
-- Border Width: `2px`
-- Shadow Offset: `4px` vertical
-
-**Node Band (Category Header)**
-- Height: `16px`
-- Accent Line: `2px` at bottom
-
-**Ports**
-- Radius: `5px`
-- Spacing: `16px` vertical
-- Offset from edge: `0px` (flush with node edge)
-
-**Text**
-- Category Label: `9px`, `600 weight`, uppercase, `0.12em` letter-spacing
-- Node Label: `13px`, `600 weight`
-- Detail Text: `11px`, `500 weight`
-- Port Labels: `9px`, `600 weight`
-
-### Node Structure
-
-```
-┌─────────────────────────────────┐
-│ CATEGORY BAND (16px)            │ ← Colored band with category
-├─────────────────────────────────┤
-│                                  │
-│        [ICON 28×28]              │ ← Centered icon
-│                                  │
-│     Node Label (13px)            │ ← Bold label
-│                                  │
-│  ○ Input    Output ○             │ ← Ports with labels
-│                                  │
-│  Detail text (11px)              │ ← Description or value
-│                                  │
-└─────────────────────────────────┘
-     └─ 4px black shadow ─┘
-```
-
----
-
-## Category Colors (CMYK-Inspired)
-
-### Data & UI
-- **Data**: Cyan Deep `#0099cc` / Band: Cyan Soft `#d4f0ff` / Port: `#66ccff`
-- **Basics**: Yellow Deep `#cc9900` / Band: Yellow Soft `#fff5cc` / Port: `#ffdd66`
-
-### Geometry Creation
-- **Primitives**: Cyan Bright `#00d4ff` / Band: `#ccf5ff` / Port: `#66e5ff`
-- **Curves**: Magenta Bright `#ff0099` / Band: `#ffccee` / Port: `#ff66bb`
-- **NURBS**: Cyan-Magenta `#6600cc` / Band: `#e6ccff` / Port: `#9966ff`
-- **BREP**: Hot Orange `#ff6600` / Band: `#ffeacc` / Port: `#ffaa66`
-
-### Mesh Operations
-- **Mesh**: Electric Purple `#8800ff` / Band: `#e6ccff` / Port: `#b366ff`
-- **Tessellation**: Cyan Deep `#0066cc` / Band: `#cce5ff` / Port: `#66aaff`
-
-### Transforms & Arrays
-- **Transforms**: Magenta Deep `#cc0077` / Band: `#ffd9ee` / Port: `#ff66aa`
-- **Arrays**: Yellow Bright `#ffdd00` / Band: `#fff9cc` / Port: `#ffee66`
-- **Modifiers**: Coral `#ff9966` / Band: `#fff0e6` / Port: `#ffbb88`
-
-### Math & Logic
-- **Math**: Yellow Deep `#cc9900` / Band: `#fff0cc` / Port: `#ffcc66`
-- **Logic**: Deep Blue `#0066cc` / Band: `#cce5ff` / Port: `#66aaff`
-- **Euclidean**: Cyan-Magenta `#6600ff` / Band: `#e6ccff` / Port: `#9966ff`
-
-### Analysis & Measurement
-- **Analysis**: Lime Green `#88ff00` / Band: `#f0ffcc` / Port: `#bbff66`
-- **Measurement**: Cyan Bright `#00cccc` / Band: `#ccffff` / Port: `#66eeee`
-
-### Solvers (Special Treatment)
-- **Solver**: Electric Purple `#8800ff` / Gradient: `#9933ff` → `#7700dd` / Text: White
-- **Goal**: Violet `#b366ff` / Gradient: `#cc99ff` → `#aa66ff` / Text: Dark
-
-### Optimization & Voxel
-- **Optimization**: Magenta-Yellow `#ff0066` / Band: `#ffcce6` / Port: `#ff66aa`
-- **Voxel**: Lime Green `#66cc00` / Band: `#e6ffcc` / Port: `#99dd66`
-
-### Interop
-- **Interchange**: Deep Blue `#0055aa` / Band: `#cce0ff` / Port: `#6699cc`
-
----
-
-## Port Colors by Type
-
-**Type-Based Coloring:**
-- `number`: Yellow Bright `#ffdd00`
-- `boolean`: Magenta Bright `#ff0099`
-- `string`: Cyan Bright `#00d4ff`
-- `vector`: Lime Green `#88ff00`
-- `geometry`: Electric Purple `#8800ff`
-- `goal`: Violet `#b366ff`
-- `any`: Mid Gray `#999999`
-
----
-
-## Pixel-Perfect Guidelines
-
-### Alignment Rules
-1. **All coordinates are integers** — round x, y to whole pixels
-2. **All dimensions are integers** — width, height are whole numbers
-3. **Border widths are integers** — 1px, 2px, 3px (no 1.5px)
-4. **Shadow offsets are integers** — 4px, 6px, 8px (no 3.5px)
-
-### Rendering Order (Canvas)
-1. Draw grid (background)
-2. Draw edges (connections)
-3. Draw node shadows (4px offset)
-4. Draw node bodies (fills + strokes)
-5. Draw node bands (category headers)
-6. Draw icons (centered)
-7. Draw text (labels, details)
-8. Draw ports (circles on top)
-
-### Hover & Interaction States
-
-**Hover:**
-- Shadow: `0 6px 0 #000000` (lift 2px)
-- Transform: `translateY(-2px)`
-- Fill: Slightly lighter (5% lighter)
-
-**Pressed:**
-- Shadow: `0 2px 0 #000000` (compress)
-- Transform: `translateY(2px)`
-
-**Selected:**
-- Border: Thicker (3px instead of 2px)
-- Border Color: Accent color at full saturation
+**Rules:**
+- Red never gradients into other hues. Pair it with transparency or black.
+- Monochrome gradients must stay within white↔black range (no warm/cool tints).
+- Sticker icons keep internal color for recognition, but their frames are monochrome.
 
 ---
 
 ## Typography
 
-### Font Stack
-- **Sans-serif**: `"Montreal Neue", "Space Grotesk", system-ui, sans-serif`
-- **Serif**: `"Noto Serif", "GFS Didot", Georgia, serif` (solver/goal nodes)
-- **Mono**: `"JetBrains Mono", "IBM Plex Mono", monospace` (data panels)
-- **Handwriting**: `"Caveat", "Kalam", "Patrick Hand", cursive` (text nodes)
+| Role | Font Stack | Notes |
+| --- | --- | --- |
+| Body / UI | `"Neue Montreal", "GFS Didot", system-ui, sans-serif` | Use 500 weight for paragraphs, 600 for caps. |
+| Titles / Numerals | `"GFS Didot", "Neue Montreal", serif` | Works in tandem with Montreal; avoid italic unless quoting. |
+| Mono | `"JetBrains Mono", "IBM Plex Mono", monospace` | Code blocks, file paths. |
 
-### Text Rendering
-- **Anti-aliasing**: Enabled for text (smooth)
-- **Subpixel rendering**: Enabled
-- **Letter-spacing**: `0.02em` for labels, `0.12em` for category headers
-- **Line-height**: `1.2` for labels, `1.4` for body text
-
----
-
-## Grid System
-
-**Canvas Grid:**
-- Minor Grid: `24px` intervals, `rgba(0, 0, 0, 0.06)`
-- Major Grid: `120px` intervals (5× minor), `rgba(0, 0, 0, 0.12)`
-- Snap: Nodes snap to minor grid (24px)
+**Equal Usage Guidance**
+- Pair Montreal (uppercase caps) with Didot (small-caps or numerals) inside the same card.
+- Diagram nodes: Montreal for titles, Didot for descriptors.
+- Buttons: Montreal for labels; Didot reserved for badges or hero numbers.
 
 ---
 
-## Animation & Motion
+## Component Styling
 
-**Timing:**
-- Fast: `120ms` — hover, port highlight
-- Normal: `200ms` — node drag, selection
-- Slow: `360ms` — panel expand, group resize
+### Diagram & Cards
+- Background: layered monochrome gradients + subtle red glow (`var(--brand-red-soft)`).
+- Nodes: pure black panels with 1px white border; active nodes add red highlight.
+- Wires: color-mix of red + white (`color-mix(in srgb, var(--brand-red) 65%, #fff)`).
+- Cards: gradient from `#000` to `#141414`, red light wash at 20°.
+- File buttons: `#0B0B0B` fill, white text, red focus border.
 
-**Easing:**
-- Standard: `cubic-bezier(0.2, 0.8, 0.2, 1)` — smooth acceleration/deceleration
-- Bounce: `cubic-bezier(0.68, -0.55, 0.265, 1.55)` — playful overshoot (use sparingly)
+### Code Viewer
+- Background `#010101`, border `rgba(255,255,255,0.08)`.
+- Context panel uses translucent white gradient for contrast.
+- Scrollbars monochrome; highlight line uses `var(--brand-red-soft)`.
+
+### Shadows
+- Default: `0 4px 0 #000000`
+- Hover: `0 6px 0 #000000`
+- Pressed: `0 2px 0 #000000`
+
+### Motion
+- Micro-interactions 120ms cubic-bezier(0.4,0,0.2,1).
+- Diagram hover: translateY(-3px).
+- No easing overshoot; keep motion mechanical.
+
+---
+
+## Interaction & Motion
+
+| State | Treatment |
+| --- | --- |
+| Hover | Lift 2–3px, increase shadow, raise border opacity |
+| Press | Compress 2px, shadow shrinks |
+| Focus | 1px white outline + 1px red inset (no glow) |
+| Active Tab | Fill with `rgba(255,255,255,0.12)`, text white |
+
+Scroll areas remain page-scrolling; interactive modules cannot capture scroll.
 
 ---
 
 ## Implementation Checklist
 
-### Canvas Rendering (NumericalCanvas.tsx)
-- [ ] Update `NODE_SHADOW_OFFSET` to `4` (currently `3`)
-- [ ] Set shadow color to `#000000` (pure black, no transparency)
-- [ ] Update category colors in `NODE_CATEGORIES` array
-- [ ] Update port type colors in `PORT_TYPE_COLOR`
-- [ ] Ensure all node coordinates are rounded to integers
-- [ ] Update hover/pressed shadow offsets
-
-### CSS Variables (global.css)
-- [ ] Update `--shadow-node` to `0 4px 0 #000000`
-- [ ] Update `--shadow-node-hover` to `0 6px 0 #000000`
-- [ ] Update `--shadow-node-pressed` to `0 2px 0 #000000`
-- [ ] Add CMYK color variables
-- [ ] Update porcelain base colors
-
-### Visual Verification
-- [ ] Nodes have crisp black shadows (no blur)
-- [ ] All colors are vibrant and saturated
-- [ ] Pixel alignment is perfect (no blurry edges)
-- [ ] Category bands are clearly visible
-- [ ] Ports pop with bright colors
-- [ ] Text is sharp and readable
+1. **CSS tokens** – ensure `global.css` exports `--brand-*` variables and Montreal font faces.
+2. **Components** – cards, diagram, and viewer all use monochrome gradients plus red highlight.
+3. **Data modules** – `liveCodebaseData.ts` uses red/gray accents only.
+4. **Fonts** – all typography stacks reference both "Neue Montreal" and "GFS Didot".
+5. **Shadows** – replace any blur shadow with discrete offsets.
+6. **Validation** – run `pnpm run validate:all` after styling updates.
 
 ---
 
-## Design Philosophy
+## Deprecations
 
-**"Pixels, Stickers, and Color"**
+- The CMYK brand kit is fully retired. Do **not** reintroduce cyan/magenta/yellow callouts in UI or docs.
+- Sticker assets may keep internal CMYK hues for recognition, but their frames, shadows, and containers must obey this monochrome+red system.
+- Any legacy reference to `CMYK_SWATCHES`, `--cmyk-*` CSS vars, or “Porcelain + CMYK” copy should be removed or aliased to the new tokens.
 
-This isn't a subtle, muted design system. Numerica nodes are **bold**, **vibrant**, and **unapologetically colorful**. They're digital stickers on a porcelain canvas — tactile, playful, and precise. Every pixel matters. Every color choice is intentional. The black shadows aren't soft gradients — they're hard-edged drops that make nodes feel like physical objects you can pick up and move.
-
-CMYK isn't just a color model — it's a mindset. Cyan, Magenta, Yellow, and Key (black) are the building blocks of printed color, and here they're the building blocks of visual identity. Each category gets its own CMYK-inspired hue, creating a rainbow of computational tools that's both systematic and joyful.
-
-Porcelain provides the perfect backdrop — warm, clean, and neutral enough to let the vibrant nodes sing. It's not stark white (too clinical) or gray (too dull). It's the color of fine china, of craftsmanship, of something worth protecting.
-
-**Be sharp. Be bold. Be pixel-perfect.**
-
----
-
-## Sticker Icons
-
-### CMYK Sticker Palette
-
-All sticker icons use vibrant CMYK colors with subtle drop shadows:
-
-**Goal Node Stickers:**
-- Goal: Electric Purple `#8800ff`
-- Stiffness: Cyan Bright `#00d4ff`
-- Volume: Magenta Bright `#ff0099`
-- Load: Yellow Bright `#ffdd00`
-- Anchor: Lime Green `#66cc00`
-
-**Sticker Variations:**
-- **Library variant**: 3px drop shadow `rgba(0, 0, 0, 0.4)` - bolder for node palette
-- **Site variant**: 2px drop shadow `rgba(0, 0, 0, 0.25)` - subtler for in-canvas use
-
-**CMYK Swatch Rotation:**
-```typescript
-CMYK_SWATCHES = [
-  { value: "cyan", hex: "#00d4ff" },
-  { value: "magenta", hex: "#ff0099" },
+**Commitments:** Black and white carry the architecture; red is the only light on the console. Keep it surgical.
   { value: "yellow", hex: "#ffdd00" },
   { value: "purple", hex: "#8800ff" },
   { value: "orange", hex: "#ff6600" },

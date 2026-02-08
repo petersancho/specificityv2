@@ -1,6 +1,6 @@
 # LIVE CODEBASE
 
-Parametric view of Lingua's actual codebase structure.
+Parametric view of Lingua's actual codebase structure. See [LIVE_CODEBASE_DETAILS.md](./LIVE_CODEBASE_DETAILS.md) for file-level references.
 
 ## Root Structure
 ```
